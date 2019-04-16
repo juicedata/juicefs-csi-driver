@@ -22,7 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/golang/mock/gomock"
-	"github.com/kubernetes-sigs/aws-efs-csi-driver/pkg/cloud/mocks"
+	"github.com/juicedata/juicedata-jfs-csi-driver/pkg/cloud/mocks"
 )
 
 var (
