@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-IMAGE=juidedata/juicedata-jfs-csi-driver
+IMAGE=juidedata/juicefs-csi-driver
 VERSION=0.1.0
 
-.PHONY: juicedata-jfs-csi-driver
-juicedata-jfs-csi-driver:
+.PHONY: juicefs-csi-driver
+juicefs-csi-driver:
 	mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X github.com/juicedata/juicedata-jfs-csi-driver/pkg/driver.vendorVersion=${VERSION}" -o bin/juicedata-jfs-csi-driver ./cmd/
+	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X github.com/juicedata/juicefs-csi-driver/pkg/driver.vendorVersion=${VERSION}" -o bin/juicefs-csi-driver ./cmd/
 
 .PHONY: verify
 verify:

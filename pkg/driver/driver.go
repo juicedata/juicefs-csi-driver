@@ -21,15 +21,15 @@ import (
 	"net"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
-	"github.com/juicedata/juicedata-jfs-csi-driver/pkg/cloud"
-	"github.com/juicedata/juicedata-jfs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/cloud"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 const (
-	driverName = "jfs.csi.juicedata.com"
+	driverName = "csi.juicefs.com"
 )
 
 var (

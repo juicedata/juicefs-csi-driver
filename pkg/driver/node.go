@@ -27,6 +27,8 @@ import (
 	"k8s.io/klog"
 )
 
+const fsTypeJuiceFS = "juicefs"
+
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
 )
@@ -85,7 +87,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting %s at %s with options %v", source, target, mountOptions)
-	if err := d.mounter.Mount(source, target, "jfs", mountOptions); err != nil {
+	if err := d.mounter.Mount(source, target, fsTypeJuiceFS, mountOptions); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
 	}

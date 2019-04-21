@@ -1,4 +1,4 @@
-module github.com/juicedata/juicedata-jfs-csi-driver
+module github.com/juicedata/juicefs-csi-driver
 
 require (
 	github.com/aws/aws-sdk-go v1.16.5

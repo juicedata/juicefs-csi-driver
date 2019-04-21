@@ -19,7 +19,7 @@ package main
 import (
 	"flag"
 
-	"github.com/juicedata/juicedata-jfs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"k8s.io/klog"
 )
 

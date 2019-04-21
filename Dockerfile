@@ -13,15 +13,20 @@
 # limitations under the License.
 
 FROM golang:1.11.4-stretch as builder
-WORKDIR /go/src/github.com/juicedata/juicedata-jfs-csi-driver
+WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
 ENV GO111MODULE on
 ADD . .
 RUN make
 
 FROM amazonlinux:2
-# TODO(yujunz): install juicedata-juicefs-utils
-# RUN yum install util-linux amazon-efs-utils -y
-COPY --from=builder /go/src/github.com/juicedata/juicedata-jfs-csi-driver/bin/juicedata-jfs-csi-driver /bin/juicedata-jfs-csi-driver
+
+WORKDIR /app
+ENV JUICEFS_CLI=/bin/juicefs
+RUN curl --silent --location https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} \
+    && chmod +x ${JUICEFS_CLI} \
+    && juicefs version
+
+COPY --from=builder /go/src/github.com/juicedata/juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY THIRD-PARTY /
 
-ENTRYPOINT ["/bin/juicedata-jfs-csi-driver"]
+ENTRYPOINT ["/bin/juicefs-csi-driver"]
