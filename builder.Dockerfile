@@ -12,23 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.11.4-stretch as builder
+FROM golang:1.11.4-stretch
 WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
 ENV GO111MODULE on
 ADD . .
 RUN make
-
-FROM amazonlinux:2
-
-WORKDIR /app
-ENV JUICEFS_CLI=/bin/juicefs
-RUN curl --silent --location https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} \
-    && chmod +x ${JUICEFS_CLI} \
-    && juicefs version
-
-RUN ln -s /sbin/mount.juicefs /sbin/mount
-
-COPY --from=builder /go/src/github.com/juicedata/juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
-COPY THIRD-PARTY /
-
-ENTRYPOINT ["/bin/juicefs-csi-driver"]

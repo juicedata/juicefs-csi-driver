@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-IMAGE=juidedata/juicefs-csi-driver
+IMAGE=juicedata/juicefs-csi-driver
+BUILDER=juicedata/juicefs-csi-driver-builder
+REGISTRY=docker.io
 VERSION=0.1.0
 
 .PHONY: juicefs-csi-driver
@@ -28,13 +30,20 @@ verify:
 test:
 	go test -v -race ./pkg/...
 
+.PHONY: builder
+builder:
+	docker build -t $(BUILDER):latest . -f builder.Dockerfile
+	docker tag $(BUILDER):latest $(REGISTRY)/$(BUILDER):latest
+	docker push $(REGISTRY)/$(BUILDER):latest
+
 .PHONY: image
 image:
 	docker build -t $(IMAGE):latest .
 
 .PHONY: push
 push:
-	docker push $(IMAGE):latest
+	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
+	docker push $(REGISTRY)/$(IMAGE):latest
 
 .PHONY: image-release
 image-release:
