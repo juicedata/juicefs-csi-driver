@@ -52,23 +52,26 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
-					VolumeId:         volumeId,
-					VolumeAttributes: map[string]string{},
-					VolumeCapability: stdVolCap,
-					TargetPath:       targetPath,
+					VolumeId:           volumeId,
+					NodePublishSecrets: map[string]string{"token": "token"},
+					VolumeAttributes:   map[string]string{},
+					VolumeCapability:   stdVolCap,
+					TargetPath:         targetPath,
 				}
-
+				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Any()).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -82,24 +85,28 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
-					VolumeId:         volumeId,
-					VolumeAttributes: map[string]string{},
-					VolumeCapability: stdVolCap,
-					TargetPath:       targetPath,
-					Readonly:         true,
+					VolumeId:           volumeId,
+					NodePublishSecrets: map[string]string{"token": "token"},
+					VolumeAttributes:   map[string]string{},
+					VolumeCapability:   stdVolCap,
+					TargetPath:         targetPath,
+					Readonly:           true,
 				}
 
+				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"ro"})).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Eq([]string{"ro"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -113,17 +120,20 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
-					VolumeId:         volumeId,
-					VolumeAttributes: map[string]string{},
+					VolumeId:           volumeId,
+					NodePublishSecrets: map[string]string{"token": "token"},
+					VolumeAttributes:   map[string]string{},
 					VolumeCapability: &csi.VolumeCapability{
 						AccessType: &csi.VolumeCapability_Mount{
 							Mount: &csi.VolumeCapability_MountVolume{
@@ -137,8 +147,9 @@ func TestNodePublishVolume(t *testing.T) {
 					TargetPath: targetPath,
 				}
 
+				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"tls"})).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Eq([]string{"tls"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -152,17 +163,20 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
-					VolumeId:         volumeId,
-					VolumeAttributes: map[string]string{},
-					VolumeCapability: stdVolCap,
+					VolumeId:           volumeId,
+					NodePublishSecrets: map[string]string{"token": "token"},
+					VolumeAttributes:   map[string]string{},
+					VolumeCapability:   stdVolCap,
 				}
 
 				_, err := driver.NodePublishVolume(ctx, req)
@@ -178,10 +192,12 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 
 				ctx := context.Background()
@@ -204,10 +220,12 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 
 				ctx := context.Background()
@@ -238,10 +256,12 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 
 				ctx := context.Background()
@@ -268,24 +288,28 @@ func TestNodePublishVolume(t *testing.T) {
 			testFunc: func(t *testing.T) {
 				mockCtrl := gomock.NewController(t)
 				mockMounter := mocks.NewMockInterface(mockCtrl)
+				mockExec := mocks.NewMockExec(mockCtrl)
 				driver := &Driver{
 					endpoint: endpoint,
 					nodeID:   nodeID,
 					mounter:  mockMounter,
+					exec:     mockExec,
 				}
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
-					VolumeId:         volumeId,
-					VolumeAttributes: map[string]string{},
-					VolumeCapability: stdVolCap,
-					TargetPath:       targetPath,
+					VolumeId:           volumeId,
+					NodePublishSecrets: map[string]string{"token": "token"},
+					VolumeAttributes:   map[string]string{},
+					VolumeCapability:   stdVolCap,
+					TargetPath:         targetPath,
 				}
 				source := volumeId
 
-				err := fmt.Errorf("failed to Mount")
+				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(err)
+				err := fmt.Errorf("failed to Mount")
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Any()).Return(err)
 
 				_, err = driver.NodePublishVolume(ctx, req)
 				if err == nil {

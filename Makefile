@@ -45,6 +45,15 @@ push:
 	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
 	docker push $(REGISTRY)/$(IMAGE):latest
 
+.PHONY: image-dev
+image-dev: juicefs-csi-driver
+	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
+
+.PHONY: push-dev
+push-dev:
+	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
+	docker push $(REGISTRY)/$(IMAGE):dev
+
 .PHONY: image-release
 image-release:
 	docker build -t $(IMAGE):$(VERSION)

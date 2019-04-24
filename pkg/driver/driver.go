@@ -54,6 +54,7 @@ type Driver struct {
 	srv *grpc.Server
 
 	mounter mount.Interface
+	exec    mount.Exec
 }
 
 func NewDriver(endpoint string) *Driver {
@@ -65,7 +66,8 @@ func NewDriver(endpoint string) *Driver {
 	return &Driver{
 		endpoint: endpoint,
 		nodeID:   cloud.GetMetadata().GetInstanceID(),
-		mounter:  newSafeMounter(),
+		mounter:  mount.New(""),
+		exec:     mount.NewOsExec(),
 	}
 }
 
@@ -97,11 +99,4 @@ func (d *Driver) Run() error {
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
 	return d.srv.Serve(listener)
-}
-
-func newSafeMounter() *mount.SafeFormatAndMount {
-	return &mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      mount.NewOsExec(),
-	}
 }

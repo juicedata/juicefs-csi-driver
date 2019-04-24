@@ -18,7 +18,9 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"google.golang.org/grpc/codes"
@@ -26,7 +28,8 @@ import (
 	"k8s.io/klog"
 )
 
-const fsTypeJuiceFS = "juicefs"
+const fsType = "juicefs"
+const jfsCmd = "/usr/bin/juicefs"
 
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
@@ -59,33 +62,57 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
-	mountOptions := []string{}
-	if req.GetReadonly() {
-		mountOptions = append(mountOptions, "ro")
-	}
-
-	if m := volCap.GetMount(); m != nil {
-		hasOption := func(options []string, opt string) bool {
-			for _, o := range options {
-				if o == opt {
-					return true
-				}
-			}
-			return false
-		}
-		for _, f := range m.MountFlags {
-			if !hasOption(mountOptions, f) {
-				mountOptions = append(mountOptions, f)
-			}
-		}
-	}
 	klog.V(5).Infof("NodePublishVolume: creating dir %s", target)
 	if err := d.mounter.MakeDir(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
+	secrets := req.NodePublishSecrets
+	if secrets == nil || secrets["token"] == "" {
+		return nil, status.Error(codes.InvalidArgument, "No secrets provided")
+	}
+
+	token := secrets["token"]
+	args := []string{"auth", source, "--token", token}
+	keys := []string{"accesskey", "secretkey", "accesskey2", "secretkey2"}
+	for _, k := range keys {
+		v := secrets[k]
+		args = append(args, "--"+k)
+		if v != "" {
+			args = append(args, v)
+		} else {
+			args = append(args, "''")
+		}
+	}
+	stdoutStderr, err := d.exec.Run(jfsCmd, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	klog.V(5).Infof("authenticate: %s\n", stdoutStderr)
+
+	options := make(map[string]string)
+	if req.GetReadonly() {
+		options["ro"] = ""
+	}
+	if m := volCap.GetMount(); m != nil {
+		for _, f := range m.MountFlags {
+			options[f] = ""
+		}
+	}
+	for k, v := range req.GetVolumeAttributes() {
+		options[k] = v
+	}
+	var mountOptions []string
+	for k, v := range options {
+		if v != "" {
+			k = fmt.Sprintf("%s=%s", k, v)
+		}
+		mountOptions = append(mountOptions, k)
+	}
+	klog.V(5).Infof("NodePublishVolume: mount options: %s", strings.Join(mountOptions, ","))
+
 	klog.V(5).Infof("NodePublishVolume: mounting %s at %s with options %v", source, target, mountOptions)
-	if err := d.mounter.Mount(source, target, fsTypeJuiceFS, mountOptions); err != nil {
+	if err := d.mounter.Mount(source, target, fsType, mountOptions); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
 	}
