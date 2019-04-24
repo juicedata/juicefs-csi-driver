@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.11.4-stretch as builder
-WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
-ENV GO111MODULE on
-ADD . .
-RUN make
+FROM juicedata/juicefs-csi-driver-builder:latest as builder
 
 FROM amazonlinux:2
 
