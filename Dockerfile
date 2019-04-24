@@ -13,18 +13,21 @@
 # limitations under the License.
 
 FROM juicedata/juicefs-csi-driver-builder:latest as builder
+ENV JUICEFS_CLI=/bin/juicefs
+RUN curl --silent --location https://juicefs.com/static/juicefs -o ${JUICEFS_CLI}
+RUN chmod +x ${JUICEFS_CLI}
 
 FROM amazonlinux:2
-
 WORKDIR /app
+
 ENV JUICEFS_CLI=/bin/juicefs
-RUN curl --silent --location https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} \
-    && chmod +x ${JUICEFS_CLI} \
-    && juicefs version
 
-RUN ln -s /sbin/mount.juicefs /sbin/mount
+RUN yum install util-linux -y
 
+COPY --from=builder ${JUICEFS_CLI} ${JUICEFS_CLI}
 COPY --from=builder /go/src/github.com/juicedata/juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY THIRD-PARTY /
+
+RUN juicefs version
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]
