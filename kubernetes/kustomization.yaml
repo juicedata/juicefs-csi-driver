@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# MUST be kube-system for pods with system-cluster-critical priorityClass
+namespace: kube-system
+bases:
+- cluster-scoped
+- github.com/kustless/csi-rbac/base/namespace-scoped
+resources:
+- DaemonSet-juicefs-csi-node.yaml
+- StatefulSet-juicefs-csi-controller.yaml
+images:
+- name: juicedata/juicefs-csi-driver
+  digest: sha256:0c2af8517e2b8f7af909069e3f4cd0eb2fe0530e5684d7e6f538205f6f1210ce

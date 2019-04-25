@@ -1,0 +1,77 @@
+kind: DaemonSet
+apiVersion: apps/v1beta2
+metadata:
+  name: juicefs-csi-node
+spec:
+  selector:
+    matchLabels:
+      app: juicefs-csi-node
+  template:
+    metadata:
+      labels:
+        app: juicefs-csi-node
+    spec:
+      serviceAccount: csi-node
+      hostNetwork: true
+      containers:
+        - name: juicefs-plugin
+          securityContext:
+            privileged: true
+          image: juicedata/juicefs-csi-driver:latest
+          imagePullPolicy: Always
+          args:
+            - --endpoint=$(CSI_ENDPOINT)
+            - --logtostderr
+            - --v=5
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:/csi/csi.sock
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - name: plugin-dir
+              mountPath: /csi
+            - name: device-dir
+              mountPath: /dev
+        - name: csi-driver-registrar
+          image: quay.io/k8scsi/driver-registrar:v0.4.2
+          imagePullPolicy: Always
+          args:
+            - --csi-address=$(ADDRESS)
+            - --mode=node-register
+            - --driver-requires-attachment=true
+            - --pod-info-mount-version="v1"
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+            - --v=5
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+      volumes:
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi.juicefs.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+            type: Directory

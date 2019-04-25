@@ -52,3 +52,7 @@ image-release:
 .PHONY: push-release
 push-release:
 	docker push $(IMAGE):$(VERSION)
+
+.PHONY: apply
+apply:
+	kustomize build kubernetes | kubectl apply -f -
