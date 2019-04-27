@@ -53,18 +53,33 @@ image-release:
 push-release:
 	docker push $(IMAGE):$(VERSION)
 
+CLI=juicefs-cli
+CLI_IMAGE=juicedata/juicefs-cli
+
+.PHONY: cli-image
+cli-image:
+	docker build $(CLI) -t $(CLI_IMAGE)
+
+.PHONY: cli-push
+cli-push:
+	docker push $(CLI_IMAGE)
+
+INSTALL=kubernetes/install
+
 .PHONY: apply
 apply:
-	kustomize build kubernetes/install | kubectl apply -f -
+	kustomize build $(INSTALL) | kubectl apply -f -
 
 .PHONY: delete
 delete:
-	kustomize build kubernetes/install | kubectl delete -f -
+	kustomize build $(INSTALL) | kubectl delete -f -
 
-.PHONY: apply-example
-apply-example:
+EXAMPLE=kubernetes/example
+
+.PHONY: example-apply
+example-apply:
 	kustomize build kubernetes/example | kubectl apply -f -
 
-.PHONY: delete-example
-delete-example:
+.PHONY: example-delete
+example-delete:
 	kustomize build kubernetes/example | kubectl delete -f -

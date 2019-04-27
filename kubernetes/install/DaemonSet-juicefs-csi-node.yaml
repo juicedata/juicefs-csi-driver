@@ -34,6 +34,8 @@ spec:
               mountPath: /csi
             - name: device-dir
               mountPath: /dev
+            - name: juicefs-dir
+              mountPath: /root/.juicefs
         - name: csi-driver-registrar
           image: quay.io/k8scsi/driver-registrar:v0.4.2
           imagePullPolicy: Always
@@ -75,3 +77,7 @@ spec:
           hostPath:
             path: /dev
             type: Directory
+        - name: juicefs-dir
+          hostPath:
+            path: /root/.juicefs
+            type: DirectoryOrCreate

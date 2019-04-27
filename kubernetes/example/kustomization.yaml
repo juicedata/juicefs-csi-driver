@@ -7,7 +7,8 @@ resources:
 - PersistentVolume-juicefs-csi-demo.yaml
 - PersistentVolumeClaim-juicefs-csi-demo.yaml
 - Pod-juicefs-app.yaml
+- DaemonSet-juicefs-auth.yaml
 secretGenerator:
 - name: juicefs-auth-csi-demo
-  env: juicefs-auth-csi-demo.env
+  env: Secret-juicefs-auth-csi-demo.env
   type: Opaque

@@ -1,0 +1,36 @@
+kind: DaemonSet
+apiVersion: apps/v1beta2
+metadata:
+  name: juicefs-csi-auth
+spec:
+  selector:
+    matchLabels:
+      app: juicefs-csi-auth
+  template:
+    metadata:
+      labels:
+        app: juicefs-csi-auth
+    spec:
+      containers:
+        - name: juicefs-auth-csi-demo
+          image: juicedata/juicefs-cli:latest
+          imagePullPolicy: Always
+          command:
+            - juicefs
+            - auth
+          args:
+            - $(JFS_NAME)
+            - --token=$(JFS_TOKEN)
+            - --accesskey=$(AWS_ACCESS_KEY_ID)
+            - --secretkey=$(AWS_SECRET_ACCESS_KEY)
+          envFrom:
+            - secretRef:
+                name: juicefs-auth-csi-demo
+          volumeMounts:
+            - name: juicefs-dir
+              mountPath: /root/.juicefs
+      volumes:
+        - name: juicefs-dir
+          hostPath:
+            path: /root/.juicefs
+            type: DirectoryOrCreate
