@@ -18,7 +18,6 @@ package driver
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
@@ -44,8 +43,7 @@ func (d *Driver) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolu
 func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume: called with args %+v", req)
 
-	volumeId := req.GetVolumeId()
-	source := fmt.Sprintf("%s:/", volumeId)
+	source := req.GetVolumeId()
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
