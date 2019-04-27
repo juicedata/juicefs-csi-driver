@@ -55,8 +55,16 @@ push-release:
 
 .PHONY: apply
 apply:
-	kustomize build kubernetes | kubectl apply -f -
+	kustomize build kubernetes/install | kubectl apply -f -
 
 .PHONY: delete
 delete:
-	kustomize build kubernetes | kubectl delete -f -
+	kustomize build kubernetes/install | kubectl delete -f -
+
+.PHONY: apply-example
+apply-example:
+	kustomize build kubernetes/example | kubectl apply -f -
+
+.PHONY: delete-example
+delete-example:
+	kustomize build kubernetes/example | kubectl delete -f -
