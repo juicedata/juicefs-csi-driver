@@ -3,6 +3,24 @@ kind: Pod
 metadata:
   name: juicefs-app
 spec:
+  initContainers:
+  - name: juicefs-auth-csi-demo
+    image: juicedata/juicefs-cli:latest
+    imagePullPolicy: Always
+    command:
+    - juicefs
+    - auth
+    args:
+    - $(JFS_NAME)
+    - --token=$(JFS_TOKEN)
+    - --accesskey=$(JFS_ACCESS_KEY)
+    - --secretkey=$(JFS_SECRET_KEY)
+    envFrom:
+    - secretRef:
+        name: juicefs-auth-csi-demo
+    volumeMounts:
+    - name: juicefs-dir
+      mountPath: /root/.juicefs
   containers:
   - name: app
     image: centos
@@ -11,7 +29,18 @@ spec:
     volumeMounts:
     - name: persistent-storage
       mountPath: /data
+    resources:
+      requests:
+        cpu: "0.1"
+        memory: 16M
+      limits:
+        cpu: "1"
+        memory: 1G
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
       claimName: juicefs-csi-demo
+  - name: juicefs-dir
+    hostPath:
+      path: /root/.juicefs
+      type: DirectoryOrCreate
