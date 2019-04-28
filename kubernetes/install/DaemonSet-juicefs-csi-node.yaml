@@ -17,6 +17,9 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
           image: juicedata/juicefs-csi-driver:latest
           imagePullPolicy: Always
           args:
