@@ -57,7 +57,7 @@ func TestNodePublishVolume(t *testing.T) {
 					nodeID:   nodeID,
 					mounter:  mockMounter,
 				}
-				source := volumeId + ":/"
+				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -87,7 +87,7 @@ func TestNodePublishVolume(t *testing.T) {
 					nodeID:   nodeID,
 					mounter:  mockMounter,
 				}
-				source := volumeId + ":/"
+				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -118,7 +118,7 @@ func TestNodePublishVolume(t *testing.T) {
 					nodeID:   nodeID,
 					mounter:  mockMounter,
 				}
-				source := volumeId + ":/"
+				source := volumeId
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -281,7 +281,7 @@ func TestNodePublishVolume(t *testing.T) {
 					VolumeCapability: stdVolCap,
 					TargetPath:       targetPath,
 				}
-				source := volumeId + ":/"
+				source := volumeId
 
 				err := fmt.Errorf("failed to Mount")
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
