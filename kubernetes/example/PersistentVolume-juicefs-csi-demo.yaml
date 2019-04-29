@@ -13,3 +13,7 @@ spec:
   csi:
     driver: csi.juicefs.com
     volumeHandle: csi-demo
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: $(JUICEFS_AUTH_SECRET_NAME)
+      namespace: $(JUICEFS_AUTH_SECRET_NAMESPACE)
