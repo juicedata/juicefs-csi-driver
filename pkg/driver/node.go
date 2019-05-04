@@ -44,9 +44,12 @@ func (d *Driver) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolu
 }
 
 func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(4).Infof("NodePublishVolume: called with args %+v", req)
+	// TODO(yujunz): hide NodePublishSecrets from log
+	// klog.V(4).Infof("NodePublishVolume: called with args %+v", req)
 
 	source := req.GetVolumeId()
+
+	klog.V(4).Infof("NodePublishVolume: volume_id is %s", source)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
@@ -57,6 +60,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	if volCap == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
 	}
+	klog.V(4).Infof("NodePublishVolume: volume_capability is %s", volCap)
 
 	if !d.isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
@@ -88,7 +92,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.V(5).Infof("authenticate: %s\n", stdoutStderr)
+	klog.V(5).Infof("NodePublishVolume: authentication output is %s\n", stdoutStderr)
 
 	options := make(map[string]string)
 	if req.GetReadonly() {
