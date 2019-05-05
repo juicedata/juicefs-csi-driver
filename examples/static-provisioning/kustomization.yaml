@@ -5,14 +5,26 @@ bases:
 configurations:
 - kustomizeconfig.yaml
 resources:
-- StorageClass-juicefs.yaml
-- PersistentVolume-juicefs-csi-demo.yaml
-- demo-app.yaml
+- resources/StorageClass-juicefs.yaml
+- resources/PersistentVolume-juicefs-csi-demo.yaml
+- resources/PersistentVolumeClaim-juicefs-csi-demo.yaml
+- resources/Pod-juicefs-app.yaml
+configMapGenerator:
+- name: juicefs-vars
+  literals:
+  - JUICEFS_NAME=csi-demo
 secretGenerator:
 - name: juicefs-auth-csi-demo
   env: Secret-juicefs-auth-csi-demo.env
   type: Opaque
 vars:
+- name: JUICEFS_NAME
+  objref:
+    kind: ConfigMap
+    name: juicefs-vars
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.JUICEFS_NAME
 - name: JUICEFS_AUTH_SECRET_NAME
   objref:
     kind: Secret

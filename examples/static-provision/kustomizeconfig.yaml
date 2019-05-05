@@ -1,3 +1,0 @@
-varReference:
-- kind: PersistentVolume
-  path: spec/csi/nodePublishSecretRef

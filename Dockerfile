@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM juicedata/juicefs-csi-driver-builder:latest as builder
-FROM juicedata/juicefs-cli:latest as cli
+FROM golang:1.11.4-stretch as builder
+WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
+ENV GO111MODULE on
+ADD . .
+RUN make
+
 FROM amazonlinux:2
 WORKDIR /app
 
 ENV JUICEFS_CLI=/bin/juicefs
 
 RUN yum install util-linux -y
+RUN curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
 
-COPY --from=cli ${JUICEFS_CLI} ${JUICEFS_CLI}
 COPY --from=builder /go/src/github.com/juicedata/juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY THIRD-PARTY /
 

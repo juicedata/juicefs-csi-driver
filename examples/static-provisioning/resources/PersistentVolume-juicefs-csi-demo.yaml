@@ -12,7 +12,7 @@ spec:
   storageClassName: juicefs
   csi:
     driver: csi.juicefs.com
-    volumeHandle: csi-demo
+    volumeHandle: $(JUICEFS_NAME)
     fsType: juicefs
     nodePublishSecretRef:
       name: $(JUICEFS_AUTH_SECRET_NAME)
