@@ -45,7 +45,7 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --mode=node-register
-            - --driver-requires-attachment=true
+            - --driver-requires-attachment=false
             - --pod-info-mount-version="v1"
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
             - --v=5

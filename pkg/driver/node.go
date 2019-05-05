@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
@@ -49,7 +50,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	source := req.GetVolumeId()
 
-	klog.V(4).Infof("NodePublishVolume: volume_id is %s", source)
+	klog.V(5).Infof("NodePublishVolume: volume_id is %s", source)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
@@ -60,7 +61,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	if volCap == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
 	}
-	klog.V(4).Infof("NodePublishVolume: volume_capability is %s", volCap)
+	klog.V(5).Infof("NodePublishVolume: volume_capability is %s", volCap)
 
 	if !d.isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
@@ -72,8 +73,9 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 
 	secrets := req.NodePublishSecrets
+	klog.V(5).Infof("NodePublishVolume: NodePublishSecret keys = %+v", reflect.ValueOf(secrets).MapKeys())
 	if secrets == nil || secrets["token"] == "" {
-		return nil, status.Error(codes.InvalidArgument, "No secrets provided")
+		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
 	}
 
 	token := secrets["token"]

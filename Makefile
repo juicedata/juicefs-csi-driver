@@ -73,22 +73,22 @@ cli-image:
 cli-push:
 	docker push $(CLI_IMAGE)
 
-INSTALL=kubernetes/install
+INSTALL=install/kubernetes
 
-.PHONY: apply
-apply:
+.PHONY: install
+install:
 	kustomize build $(INSTALL) | kubectl apply -f -
 
-.PHONY: delete
-delete:
+.PHONY: uninstall
+uninstall:
 	kustomize build $(INSTALL) | kubectl delete -f -
 
-EXAMPLE=kubernetes/example
+EXAMPLE=examples/static-provision
 
 .PHONY: example-apply
 example-apply:
-	kustomize build kubernetes/example | kubectl apply -f -
+	kustomize build $(EXAMPLE) | kubectl apply -f -
 
 .PHONY: example-delete
 example-delete:
-	kustomize build kubernetes/example | kubectl delete -f -
+	kustomize build $(EXAMPLE) | kubectl delete -f -
