@@ -10,5 +10,4 @@ resources:
 - StatefulSet-juicefs-csi-controller.yaml
 images:
 - name: juicedata/juicefs-csi-driver
-  # newTag: dev
-  digest: sha256:97f25b8ccc88479aa215b9f1d7fc3df84c29b117a42e4973524e4925c0d8ab04
+  newTag: csi-v0.3.0

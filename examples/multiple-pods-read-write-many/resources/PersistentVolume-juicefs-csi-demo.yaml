@@ -7,7 +7,7 @@ spec:
     storage: 10Pi
   volumeMode: Filesystem
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: juicefs
   csi:

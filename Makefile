@@ -72,16 +72,3 @@ install: install/manifests.yaml
 .PHONY: install-delete
 uninstall: install/manifests.yaml
 	kubectl delete -f $<
-
-EXAMPLE=examples/static-provisioning
-
-.PHONY: example
-example-apply:
-	kustomize build $(EXAMPLE) | kubectl apply -f -
-
-.PHONY: example-delete
-example-delete:
-	kustomize build $(EXAMPLE) | kubectl delete -f -
-
-.PHONY: clean
-clean: example-delete uninstall

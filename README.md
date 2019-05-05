@@ -47,7 +47,7 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 **Notes**:
 
-* Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value for the capacity.
+* Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 
 ### Installation
 
@@ -67,7 +67,8 @@ Before the example, you need to:
 
 #### Example links
 
-* [Static provisioning](examples/static-provisioning/README.md)
+* [Static provisioning](examples/static-provisioning/)
+* [Accessing the filesystem from multiple pods](examples/multiple-pods-read-write-many/)
 
 ## Development
 

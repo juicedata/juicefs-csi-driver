@@ -4,7 +4,7 @@ metadata:
   name: juicefs-csi-demo
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   storageClassName: juicefs
   resources:
     requests:

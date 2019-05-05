@@ -58,7 +58,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
-        image: juicedata/juicefs-csi-driver@sha256:97f25b8ccc88479aa215b9f1d7fc3df84c29b117a42e4973524e4925c0d8ab04
+        image: juicedata/juicefs-csi-driver:csi-v0.3.0
         imagePullPolicy: Always
         name: juicefs-plugin
         volumeMounts:
@@ -107,7 +107,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:/csi/csi.sock
-        image: juicedata/juicefs-csi-driver@sha256:97f25b8ccc88479aa215b9f1d7fc3df84c29b117a42e4973524e4925c0d8ab04
+        image: juicedata/juicefs-csi-driver:csi-v0.3.0
         imagePullPolicy: Always
         name: juicefs-plugin
         securityContext:
