@@ -15,5 +15,5 @@ spec:
     volumeHandle: $(JUICEFS_NAME)
     fsType: juicefs
     nodePublishSecretRef:
-      name: $(JUICEFS_AUTH_SECRET_NAME)
-      namespace: $(JUICEFS_AUTH_SECRET_NAMESPACE)
+      name: $(JUICEFS_SECRET_NAME)
+      namespace: $(JUICEFS_SECRET_NAMESPACE)

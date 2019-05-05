@@ -10,30 +10,30 @@ resources:
 - resources/PersistentVolumeClaim-juicefs-csi-demo.yaml
 - resources/Pod-juicefs-app.yaml
 configMapGenerator:
-- name: juicefs-vars
+- name: juicefs-csi-demo-vars
   literals:
   - JUICEFS_NAME=csi-demo
 secretGenerator:
-- name: juicefs-auth-csi-demo
-  env: Secret-juicefs-auth-csi-demo.env
+- name: juicefs-csi-demo
+  env: Secret-juicefs-csi-demo.env
   type: Opaque
 vars:
 - name: JUICEFS_NAME
   objref:
-    kind: ConfigMap
-    name: juicefs-vars
     apiVersion: v1
+    kind: ConfigMap
+    name: juicefs-csi-demo-vars
   fieldref:
     fieldpath: data.JUICEFS_NAME
-- name: JUICEFS_AUTH_SECRET_NAME
+- name: JUICEFS_SECRET_NAME
   objref:
     kind: Secret
-    name: juicefs-auth-csi-demo
+    name: juicefs-csi-demo
     apiVersion: v1
-- name: JUICEFS_AUTH_SECRET_NAMESPACE
+- name: JUICEFS_SECRET_NAMESPACE
   objref:
     kind: Secret
-    name: juicefs-auth-csi-demo
+    name: juicefs-csi-demo
     apiVersion: v1
   fieldref:
     fieldpath: metadata.namespace
