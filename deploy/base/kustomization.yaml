@@ -3,11 +3,10 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: kube-system
 bases:
-- cluster-scoped
-- github.com/kustless/csi-rbac/base/namespace-scoped
+- csi-rbac
 resources:
 - DaemonSet-juicefs-csi-node.yaml
-- StatefulSet-juicefs-csi-controller.yaml
+- StatefulSet-juicefs-csi-attacher.yaml
 images:
 - name: juicedata/juicefs-csi-driver
   newTag: csi-v0.3.0

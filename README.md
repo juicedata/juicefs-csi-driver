@@ -53,7 +53,7 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 Deploy the driver:
 
-```sh
+```s
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/install/manifest.yaml
 ```
 
@@ -84,7 +84,7 @@ Dependencies are managed through go module. To build the project, first turn on 
 
 ### Build container image
 
-```sh
+```s
 make image-dev
 make push-dev
 ```
@@ -92,6 +92,53 @@ make push-dev
 ### Testing
 
 To execute all unit tests, run: `make test`
+
+### Troubleshooting
+
+If the application pod is hanging in `ContainerCreating` status for a long time
+
+```s
+$ kubectl get pods
+NAME            READY     STATUS              RESTARTS   AGE
+juicefs-app-1   0/1       ContainerCreating   0          10m
+juicefs-app-2   0/1       ContainerCreating   0          10m
+```
+
+Describe it to see the events
+
+```s
+$ kubectl describe pod juicefs-app-1
+Name:               juicefs-app-1
+Namespace:          juicefs-csi-demo
+...
+Events:
+  Type     Reason              Age                From                                              Message
+  ----     ------              ----               ----                                              -------
+  Normal   Scheduled           12m                default-scheduler                                 Successfully assigned juicefs-csi-demo/juicefs-app-1 to ip-10-0-0-31.us-west-2.compute.internal
+  Warning  FailedMount         1m (x5 over 10m)   kubelet, ip-10-0-0-31.us-west-2.compute.internal  Unable to mount volumes for pod "juicefs-app-1_juicefs-csi-demo(45654a9b-6fee-11e9-aee6-06b5b6616e3c)": timeout expired waiting for volumes to attach or mount for pod "juicefs-csi-demo"/"juicefs-app-1". list of unmounted volumes=[persistent-storage]. list of unattached volumes=[persistent-storage default-token-xjj8k]
+  Warning  FailedAttachVolume  1m (x12 over 12m)  attachdetach-controller                           AttachVolume.Attach failed for volume "juicefs-csi-demo" : attachment timeout for volume csi-demo
+```
+
+Check the logs of the following components
+
+* `kube-controller-manager`
+* `kubelet`
+* `juicefs-csi-node`
+
+Grep `Error` and `Warnings` and inspect the content
+
+#### kube-controller-manager
+
+```s
+E0506 12:05:14.362447 1 stateful_set.go:400] Error syncing StatefulSet juicefs-csi-demo/juicefs-csi-controller, requeuing: pods "juicefs-csi-controller-0" is forbidden: pods with system-cluster-critical priorityClass is not permitted in juicefs-csi-demo namespace
+```
+
+`juicefs-csi-driver` **MUST** be deployed to `kube-system` namespace
+
+```s
+E0506 12:11:55.012059 1 csi_attacher.go:226] kubernetes.io/csi: attacher.WaitForAttach timeout after 15s [volume=csi-demo; attachment.ID=csi-d1cff3ccc0e51d613a4881426f44d802c155cf2b9979c028f50df5004478fe16]
+E0506 12:11:55.012219 1 nestedpendingoperations.go:267] Operation for "\"kubernetes.io/csi/csi.juicefs.com^csi-demo\"" failed. No retries permitted until 2019-05-06 12:13:57.012184787 +0000 UTC m=+85219.996841359 (durationBeforeRetry 2m2s). Error: "AttachVolume.Attach failed for volume \"juicefs-csi-demo\" (UniqueName: \"kubernetes.io/csi/csi.juicefs.com^csi-demo\") from node \"ip-10-0-0-31.us-west-2.compute.internal\" : attachment timeout for volume csi-demo"
+```
 
 ## License
 
