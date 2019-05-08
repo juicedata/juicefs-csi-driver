@@ -28,10 +28,10 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 ### Kubernetes Version Compability Matrix
 
-| JuiceFS CSI Driver \ Kubernetes Version| v1.11 |
-|----------------------------------------|-------|
-| master branch                          | yes   |
-| csi-v0.3.0                             | yes   |
+| JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 |
+|----------------------------------------|-------|-------|
+| master branch                          | yes   | yes   |
+| csi-v0.3.0                             | yes   | yes   |
 
 ### Container Images
 
@@ -43,7 +43,21 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 ### Features
 
 * Static provisioning - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
-* Mount Options - Mount options can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* (WIP) Mount Options - Mount options can be specified in the persistence volume (PV) to define how the volume should be mounted.
+
+|Feature \ JuiceFS CSI Driver | master | csi-v0.3.0 |
+|-----------------------------|--------|------------|
+| static provision            | yes    | yes        |
+| mount options               | no     | no         |
+
+### Validation
+
+JuiceFS CSI driver has been validated in the following Kubernetes version
+
+| Kubernetes \ JuiceFS CSI Driver   | master | csi-v0.3.0 |
+|-----------------------------------|--------|------------|
+| v1.11.9 / kops 1.11.1             | yes    | yes        |
+| v1.12.6-eks-d69f1b / AWS EKS      | yes    | yes        |
 
 **Notes**:
 
