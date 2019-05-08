@@ -1,0 +1,38 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: juicefs
+provisioner: csi.juicefs.com
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: $(JUICEFS_STORAGE_CLASS)
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: $(JUICEFS_NAME)
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: $(JUICEFS_SECRET_NAME)
+      namespace: $(JUICEFS_SECRET_NAMESPACE)
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: $(JUICEFS_STORAGE_CLASS)
+  resources:
+    requests:
+      storage: 10Pi
