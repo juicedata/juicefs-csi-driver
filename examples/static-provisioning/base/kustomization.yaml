@@ -6,6 +6,10 @@ configurations:
 - kustomizeconfig.yaml
 resources:
 - juicefs-static.yaml
+secretGenerator:
+- name: juicefs-csi-demo
+  env: Secret-juicefs-csi-demo.env
+  type: Opaque
 configMapGenerator:
 - name: juicefs-csi-demo-vars
   literals:

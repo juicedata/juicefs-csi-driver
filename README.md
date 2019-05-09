@@ -28,10 +28,10 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 ### Kubernetes Version Compability Matrix
 
-| JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 |
-|----------------------------------------|-------|-------|
-| master branch                          | yes   | yes   |
-| csi-v0.3.0                             | yes   | yes   |
+| JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 | v1.14 |
+|----------------------------------------|-------|-------|-------|
+| master branch                          | yes   | yes   | yes   |
+| csi-v0.3.0                             | yes   | yes   | yes   |
 
 ### Container Images
 
@@ -58,6 +58,7 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 |-----------------------------------|--------|------------|
 | v1.11.9 / kops 1.11.1             | yes    | yes        |
 | v1.12.6-eks-d69f1b / AWS EKS      | yes    | yes        |
+| v1.14.1 / kops (git-39884d0b5)    | yes    | yes        |
 
 **Notes**:
 

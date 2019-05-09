@@ -7,3 +7,4 @@ secretGenerator:
 - name: juicefs-csi-demo
   env: Secret-juicefs-csi-demo.env
   type: Opaque
+  behavior: merge
