@@ -6,7 +6,7 @@
 
 The [JuiceFS](https://juicefs.com) Container Storage Interface (CSI) Driver implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS filesystems.
 
-### CSI Specification Compability Matrix
+### CSI Specification Compatibility Matrix
 
 | JuiceFS CSI Driver \ CSI Version       | v0.3.0|
 |----------------------------------------|-------|
@@ -26,7 +26,7 @@ The following CSI interfaces are implemented:
 
 The following sections are Kubernetes specific. If you are a Kubernetes user, use this for driver features, installation steps and examples.
 
-### Kubernetes Version Compability Matrix
+### Kubernetes Version Compatibility Matrix
 
 | JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 | v1.14 |
 |----------------------------------------|-------|-------|-------|
