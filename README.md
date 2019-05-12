@@ -110,7 +110,7 @@ To execute all unit tests, run: `make test`
 
 ### Troubleshooting
 
-If the application pod is hanging in `ContainerCreating` status for a long time
+If the application pod is hanging in `ContainerCreating` status for a long time, e.g.
 
 ```s
 $ kubectl get pods
@@ -119,7 +119,7 @@ juicefs-app-1   0/1       ContainerCreating   0          10m
 juicefs-app-2   0/1       ContainerCreating   0          10m
 ```
 
-Describe it to see the events
+Describe it to see the events, e.g.
 
 ```s
 $ kubectl describe pod juicefs-app-1
@@ -142,6 +142,26 @@ Check the logs of the following components
 * `juicefs-csi-attacher`
 
 `juicefs-csi-driver` **MUST** be deployed to `kube-system` namespace
+
+#### kubelet
+
+```s
+sudo journalctl -u kubelet -f
+```
+
+##### Orphaned pod
+
+```s
+May 12 09:58:03 ip-172-20-48-5 kubelet[1028]: E0512 09:58:03.411256    1028 kubelet_volumes.go:154] Orphaned pod "e7d422a7-7495-11e9-937d-0adc9bc4231a" found, but volume paths are still present on disk : There were a total of 1 errors similar to this. Turn up verbosity to see them.
+```
+
+Workaround
+
+```s
+$ sudo su
+# cd /var/lib/kubelet/pods
+# rm -rf e7d422a7-7495-11e9-937d-0adc9bc4231a/volumes/kubernetes.io~csi/
+```
 
 ## License
 
