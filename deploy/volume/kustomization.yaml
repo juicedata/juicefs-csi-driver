@@ -1,4 +1,40 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+configurations:
+- kustomizeconfig.yaml
 resources:
 - juicefs.yaml
+secretGenerator:
+- name: juicefs
+  env: Secret-juicefs.env
+  type: Opaque
+vars:
+- name: JUICEFS_NAME
+  objref:
+    apiVersion: v1
+    kind: PersistentVolume
+    name: juicefs
+- name: JUICEFS_SECRET_NAME
+  objref:
+    apiVersion: v1
+    kind: Secret
+    name: juicefs
+- name: JUICEFS_SECRET_NAMESPACE
+  objref:
+    apiVersion: v1
+    kind: Secret
+    name: juicefs
+  fieldRef:
+    fieldpath: metadata.namespace
+- name: JUICEFS_STORAGE_CLASS_NAME
+  objref:
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    name: juicefs
+- name: JUICEFS_CSI_DRIVER
+  objref:
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    name: juicefs
+  fieldRef:
+    fieldpath: provisioner

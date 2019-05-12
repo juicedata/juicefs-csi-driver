@@ -16,9 +16,9 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: $(JUICEFS_STORAGE_CLASS)
+  storageClassName: $(JUICEFS_STORAGE_CLASS_NAME)
   csi:
-    driver: csi.juicefs.com
+    driver: $(JUICEFS_CSI_DRIVER)
     volumeHandle: $(JUICEFS_NAME)
     fsType: juicefs
     nodePublishSecretRef:
@@ -32,7 +32,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: $(JUICEFS_STORAGE_CLASS)
+  storageClassName: $(JUICEFS_STORAGE_CLASS_NAME)
   resources:
     requests:
       storage: 10Pi
