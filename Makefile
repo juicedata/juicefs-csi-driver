@@ -77,5 +77,5 @@ driver-dev-apply:
 	kubectl delete -n kube-system pod juicefs-csi-attacher-0
 
 .PHONY: driver-dev-delete
-driver-dev-delete: deploy/k8s.yaml
+driver-dev-delete:
 	kustomize build deploy/driver/overlays/dev/ | kubectl delete -f -
