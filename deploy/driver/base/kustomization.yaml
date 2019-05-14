@@ -7,6 +7,3 @@ bases:
 resources:
 - DaemonSet-juicefs-csi-node.yaml
 - StatefulSet-juicefs-csi-attacher.yaml
-images:
-- name: juicedata/juicefs-csi-driver
-  newTag: csi-v0.3.0

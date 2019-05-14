@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# MUST be kube-system for pods with system-cluster-critical priorityClass
+namespace: kube-system
+bases:
+- ../../base
+images:
+- name: juicedata/juicefs-csi-driver
+  digest: sha256:c78f8849fb32e80871ad20b1173330fd711d32d9d8a3c6c42a3bd933fd8f7573
+  # newTag: dev

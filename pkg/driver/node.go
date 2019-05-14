@@ -46,7 +46,7 @@ func (d *Driver) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolu
 
 func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO(yujunz): hide NodePublishSecrets from log
-	// klog.V(4).Infof("NodePublishVolume: called with args %+v", req)
+	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
 	source := req.GetVolumeId()
 
@@ -73,7 +73,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 
 	secrets := req.NodePublishSecrets
-	klog.V(5).Infof("NodePublishVolume: NodePublishSecret keys = %+v", reflect.ValueOf(secrets).MapKeys())
+	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 	if secrets == nil || secrets["token"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
 	}
@@ -92,7 +92,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 	stdoutStderr, err := d.exec.Run(jfsCmd, args...)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "Could not auth volume_id %s, output: %s\n", source, stdoutStderr)
 	}
 	klog.V(5).Infof("NodePublishVolume: authentication output is %s\n", stdoutStderr)
 
@@ -123,6 +123,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
 	}
 
+	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", source, target, mountOptions)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 

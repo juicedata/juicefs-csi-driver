@@ -14,6 +14,8 @@
 
 FROM juicedata/juicefs-csi-driver:latest
 
+RUN yum install -y procps
+
 COPY juicefs-csi-driver /bin/juicefs-csi-driver
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]

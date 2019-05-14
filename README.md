@@ -11,7 +11,6 @@ The [JuiceFS](https://juicefs.com) Container Storage Interface (CSI) Driver impl
 | JuiceFS CSI Driver \ CSI Version       | v0.3.0|
 |----------------------------------------|-------|
 | master branch                          | yes   |
-| csi-v0.3.0                             | yes   |
 
 ## Features
 
@@ -31,34 +30,32 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 | JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 | v1.14 |
 |----------------------------------------|-------|-------|-------|
 | master branch                          | yes   | yes   | yes   |
-| csi-v0.3.0                             | yes   | yes   | yes   |
 
 ### Container Images
 
 |JuiceFS CSI Driver Version | Image                                   |
 |---------------------------|-----------------------------------------|
 |master branch              |juicedata/juicefs-csi-driver:latest      |
-|csi-v0.3.0                 |juicedata/juicefs-csi-driver:csi-v0.3.0  |
 
 ### Features
 
 * Static provisioning - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
-* (WIP) Mount Options - Mount options can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* Mount Options - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
 
-|Feature \ JuiceFS CSI Driver | master | csi-v0.3.0 |
-|-----------------------------|--------|------------|
-| static provision            | yes    | yes        |
-| mount options               | no     | no         |
+|Feature \ JuiceFS CSI Driver | master |
+|-----------------------------|--------|
+| static provision            | yes    |
+| mount options               | yes    |
 
 ### Validation
 
 JuiceFS CSI driver has been validated in the following Kubernetes version
 
-| Kubernetes \ JuiceFS CSI Driver   | master | csi-v0.3.0 |
-|-----------------------------------|--------|------------|
-| v1.11.9 / kops 1.11.1             | yes    | yes        |
-| v1.12.6-eks-d69f1b / AWS EKS      | yes    | yes        |
-| v1.14.1 / kops (git-39884d0b5)    | yes    | yes        |
+| Kubernetes \ JuiceFS CSI Driver   | master |
+|-----------------------------------|--------|
+| v1.11.9 / kops 1.11.1             | yes    |
+| v1.12.6-eks-d69f1b / AWS EKS      | yes    |
+| v1.14.1 / kops (git-39884d0b5)    | yes    |
 
 **Notes**:
 
@@ -83,6 +80,7 @@ Before the example, you need to:
 #### Example links
 
 * [Static provisioning](examples/static-provisioning/)
+* [Mount options](examples/mount-options/)
 * [Accessing the filesystem from multiple pods](examples/multiple-pods-read-write-many/)
 
 ## Development
@@ -136,12 +134,12 @@ Events:
 
 Check the logs of the following components
 
-* `kube-controller-manager`
-* `kubelet`
 * `juicefs-csi-node`
 * `juicefs-csi-attacher`
+* `kube-controller-manager`
+* `kubelet`
 
-`juicefs-csi-driver` **MUST** be deployed to `kube-system` namespace
+`juicefs-csi-driver` **MUST** be deployed to namespace like `kube-system` which supports `system-cluster-critical` priority class.
 
 #### kubelet
 

@@ -1,6 +1,6 @@
 # Multiple Pods Read Write Many
 
-This example shows how to make a static provisioned JuiceFS persistence volume (PV) mounted inside container.
+This example shows how to make JuiceFS persistence volume (PV) mounted by multiple pods and allow read/write stimultaneously.
 
 ## Using kustomize
 
@@ -18,7 +18,7 @@ kubectl apply -k -f .
 
 ## Using kubectl < 1.14 without kustomize
 
-### Edit [Persistence Volume Resource](./resources/PersistentVolume-juicefs-csi-demo.yaml)
+### Edit [Persistence Volume Resource](./base/resources/PersistentVolume-juicefs-csi-demo.yaml)
 
 ```yaml
 apiVersion: v1
@@ -38,15 +38,15 @@ spec:
     volumeHandle: $(JUICEFS_NAME)
     fsType: juicefs
     nodePublishSecretRef:
-      name: $(JUICEFS_AUTH_SECRET_NAME)
-      namespace: $(JUICEFS_AUTH_SECRET_NAMESPACE)
+      name: $(JUICEFS_SECRET_NAME)
+      namespace: $(JUICEFS_SECRET_NAMESPACE)
 ```
 
 Replace variables in `$(...)` value with actual value.
 
 - `JUICEFS_NAME`: JuiceFS filesystem name pre-created in [juicefs web console](https://juicefs.com/console)
-- `JUICEFS_AUTH_SECRET_NAME`: secret containing JuiceFS `token` and optionally `accesskey` and `secretkey` for `juicefs auth`
-- `JUICEFS_AUTH_SECRET_NAMESPACE`: namespace of the secret for `juicefs auth`
+- `JUICEFS_SECRET_NAME`: secret containing JuiceFS `token` and optionally `accesskey` and `secretkey` for `juicefs auth`
+- `JUICEFS_SECRET_NAMESPACE`: namespace of the secret for `juicefs auth`
 
 ### Apply the Example
 

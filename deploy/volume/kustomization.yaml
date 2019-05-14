@@ -9,11 +9,6 @@ secretGenerator:
   env: Secret-juicefs.env
   type: Opaque
 vars:
-- name: JUICEFS_NAME
-  objref:
-    apiVersion: v1
-    kind: PersistentVolume
-    name: juicefs
 - name: JUICEFS_SECRET_NAME
   objref:
     apiVersion: v1
