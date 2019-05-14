@@ -21,7 +21,6 @@ import (
 	"net"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
-	"github.com/juicedata/juicefs-csi-driver/pkg/cloud"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
@@ -57,15 +56,10 @@ type Driver struct {
 	exec    mount.Exec
 }
 
-func NewDriver(endpoint string) *Driver {
-	cloud, err := cloud.NewCloud()
-	if err != nil {
-		klog.Fatalln(err)
-	}
-
+func NewDriver(endpoint string, nodeID string) *Driver {
 	return &Driver{
 		endpoint: endpoint,
-		nodeID:   cloud.GetMetadata().GetInstanceID(),
+		nodeID:   nodeID,
 		mounter:  mount.New(""),
 		exec:     mount.NewOsExec(),
 	}

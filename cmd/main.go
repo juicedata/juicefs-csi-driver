@@ -19,16 +19,21 @@ package main
 import (
 	"flag"
 
+	"github.com/google/uuid"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+
 	"k8s.io/klog"
 )
 
 func main() {
+	var defaultNodeID = uuid.New().String()
 	var endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+	var nodeID = flag.String("nodeid", defaultNodeID, "CSI Node ID")
+
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	drv := driver.NewDriver(*endpoint)
+	drv := driver.NewDriver(*endpoint, *nodeID)
 	if err := drv.Run(); err != nil {
 		klog.Fatalln(err)
 	}
