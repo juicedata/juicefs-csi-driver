@@ -19,7 +19,7 @@ spec:
   storageClassName: $(JUICEFS_STORAGE_CLASS_NAME)
   csi:
     driver: $(JUICEFS_CSI_DRIVER)
-    volumeHandle: juicefs-name-not-provided
+    volumeHandle: $(JUICEFS_NAME)
     fsType: juicefs
     nodePublishSecretRef:
       name: $(JUICEFS_SECRET_NAME)

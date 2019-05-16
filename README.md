@@ -79,6 +79,7 @@ Before the example, you need to:
 
 #### Example links
 
+* [Basic](examples/basic)
 * [Static provisioning](examples/static-provisioning/)
 * [Mount options](examples/mount-options/)
 * [Accessing the filesystem from multiple pods](examples/multiple-pods-read-write-many/)
