@@ -1,5 +1,0 @@
-varReference:
-- kind: PersistentVolume
-  path: spec/csi/nodePublishSecretRef
-- kind: PersistentVolume
-  path: spec/csi/volumeHandle

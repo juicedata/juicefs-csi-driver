@@ -1,11 +1,3 @@
 varReference:
 - kind: PersistentVolume
-  path: spec/csi/driver
-- kind: PersistentVolume
   path: spec/csi/nodePublishSecretRef
-- kind: PersistentVolume
-  path: spec/csi/volumeHandle
-- kind: PersistentVolume
-  path: spec/storageClassName
-- kind: PersistentVolumeClaim
-  path: spec/storageClassName

@@ -1,10 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: juicefs-csi-demo
+namespace: default
 bases:
-- base
-secretGenerator:
-- name: juicefs-csi-demo
-  env: Secret-juicefs-csi-demo.env
-  type: Opaque
-  behavior: merge
+- ../../deploy/volume
+resources:
+- pods.yaml
+patchesStrategicMerge:
+- pv-juicefs.yaml

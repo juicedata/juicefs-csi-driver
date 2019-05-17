@@ -12,6 +12,8 @@ accesskey=<juicefs-accesskey>
 secretkey=<juicefs-secretkey>
 ```
 
+## Apply the configurations
+
 Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`
 
 ```s
@@ -24,7 +26,7 @@ or apply with kubectl >= 1.14
 kubectl apply -k -f .
 ```
 
-### Check JuiceFS filesystem is used
+## Check JuiceFS filesystem is used
 
 After the objects are created, verify that pod is running:
 

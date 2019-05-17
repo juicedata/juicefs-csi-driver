@@ -2,63 +2,33 @@
 
 This example shows how to make JuiceFS persistence volume (PV) mounted by multiple pods and allow read/write stimultaneously.
 
-## Using kustomize
+## Provide secret information
 
-[kustomize](https://github.com/kubernetes-sigs/kustomize) is a builtin plugin since kubectl **1.14**.
+In order to build the example, you need to provide a secret file `Secret-juicefs.env` containing the required credentials
 
-```sh
+```ini
+token=<juicefs-token>
+accesskey=<juicefs-accesskey>
+secretkey=<juicefs-secretkey>
+```
+
+## Apply the configurations
+
+Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`
+
+```s
 kustomize build | kubectl apply -f -
 ```
 
-or with kubectl >= 1.14
+or apply with kubectl >= 1.14
 
-```sh
+```s
 kubectl apply -k -f .
 ```
 
-## Using kubectl < 1.14 without kustomize
-
-### Edit [Persistence Volume Resource](./base/resources/PersistentVolume-juicefs-csi-demo.yaml)
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-csi-demo
-spec:
-  capacity:
-    storage: 5Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: juicefs
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: $(JUICEFS_NAME)
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: $(JUICEFS_SECRET_NAME)
-      namespace: $(JUICEFS_SECRET_NAMESPACE)
-```
-
-Replace variables in `$(...)` value with actual value.
-
-- `JUICEFS_NAME`: JuiceFS filesystem name pre-created in [juicefs web console](https://juicefs.com/console)
-- `JUICEFS_SECRET_NAME`: secret containing JuiceFS `token` and optionally `accesskey` and `secretkey` for `juicefs auth`
-- `JUICEFS_SECRET_NAMESPACE`: namespace of the secret for `juicefs auth`
-
-### Apply the Example
-
-Create storage class, PV, persistence volume claim (PVC) and sample pod
-
-```sh
->> kubectl apply -f resources
-```
+## Check JuiceFS filesystem is used
 
 In the example, both pods are writing to the same JuiceFS filesystem at the same time.
-
-### Check JuiceFS filesystem is used
 
 After the objects are created, verify that pod is running:
 

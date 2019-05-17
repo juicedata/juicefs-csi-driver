@@ -3,9 +3,10 @@ kind: Kustomization
 namespace: default
 bases:
 - ../../deploy/volume
-- ../../deploy/pod
+resources:
+- pod.yaml
 patchesStrategicMerge:
-- pv-juicefs-mountOptions.yaml
+- pv-juicefs.yaml
 secretGenerator:
 - name: juicefs
   env: Secret-juicefs.env
