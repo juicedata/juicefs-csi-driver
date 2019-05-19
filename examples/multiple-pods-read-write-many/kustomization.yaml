@@ -7,3 +7,8 @@ resources:
 - pods.yaml
 patchesStrategicMerge:
 - pv-juicefs.yaml
+secretGenerator:
+- name: juicefs
+  env: Secret-juicefs.env
+  type: Opaque
+  behavior: merge
