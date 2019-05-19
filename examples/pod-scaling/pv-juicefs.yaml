@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs
+spec:
+  csi:
+    volumeHandle: csi-demo
+
