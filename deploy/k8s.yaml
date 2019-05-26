@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-attacher
+  name: csi-controller
   namespace: kube-system
 ---
 apiVersion: v1
@@ -14,7 +14,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: csi-attacher
+  name: csi-controller
 rules:
 - apiGroups:
   - ""
@@ -101,14 +101,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: csi-attacher
+  name: csi-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: csi-attacher
+  name: csi-controller
 subjects:
 - kind: ServiceAccount
-  name: csi-attacher
+  name: csi-controller
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -127,15 +127,15 @@ subjects:
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: juicefs-csi-attacher
+  name: juicefs-csi-controller
   namespace: kube-system
 spec:
   replicas: 1
-  serviceName: juicefs-csi-attacher
+  serviceName: juicefs-csi-controller
   template:
     metadata:
       labels:
-        app: juicefs-csi-attacher
+        app: juicefs-csi-controller
     spec:
       containers:
       - args:
@@ -169,7 +169,7 @@ spec:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
       priorityClassName: system-cluster-critical
-      serviceAccount: csi-attacher
+      serviceAccount: csi-controller
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

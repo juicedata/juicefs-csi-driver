@@ -12,6 +12,8 @@ Deploy the driver:
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
 
+Additional setup may required to use CSI driver plugin in Alicloud Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
+
 ## Examples
 
 Before the example, you need to:

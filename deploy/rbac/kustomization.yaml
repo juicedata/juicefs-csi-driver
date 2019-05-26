@@ -3,5 +3,4 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: kube-system
 resources:
-- csi-attacher.yaml
-- csi-node.yaml
+- resources.yaml

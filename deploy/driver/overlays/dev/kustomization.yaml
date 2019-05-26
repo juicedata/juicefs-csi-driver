@@ -6,5 +6,5 @@ bases:
 - ../../base
 images:
 - name: juicedata/juicefs-csi-driver
-  digest: sha256:29fd6fd6922a3c98e9f856f806607b1c2ca9dec772e1c2af9a5b9fd89b21d4c3
-  # newTag: dev
+  newTag: dev
+

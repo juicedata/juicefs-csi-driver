@@ -36,14 +36,17 @@ var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
 )
 
+// NodeStageVolume is called by the CO prior to the volume being consumed by any workloads on the node by `NodePublishVolume`
 func (d *Driver) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
+// NodeUnstageVolume is a reverse operation of `NodeStageVolume`
 func (d *Driver) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
+// NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO(yujunz): hide NodePublishSecrets from log
 	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
@@ -127,6 +130,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+// NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
 func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
 
@@ -144,6 +148,7 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
+// NodeGetCapabilities response node capabilities to CO
 func (d *Driver) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	klog.V(4).Infof("NodeGetCapabilities: called with args %+v", req)
 	var caps []*csi.NodeServiceCapability
@@ -160,6 +165,7 @@ func (d *Driver) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabi
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: caps}, nil
 }
 
+// NodeGetInfo is called by CO for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
 func (d *Driver) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	klog.V(4).Infof("NodeGetInfo: called with args %+v", req)
 
@@ -168,6 +174,7 @@ func (d *Driver) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
 	}, nil
 }
 
+// NodeGetId is called by the CO SHOULD call this RPC for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
 func (d *Driver) NodeGetId(ctx context.Context, req *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
 	klog.V(4).Infof("NodeGetId: called with args %+v", req)
 	return &csi.NodeGetIdResponse{

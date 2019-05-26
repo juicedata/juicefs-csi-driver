@@ -21,6 +21,43 @@ make push-dev
 
 To execute all unit tests, run: `make test`
 
+## Understand how CSI works in Kubernetes
+
+### registering driver
+
+When `--mode=node-register`, driver is registered to kubelet on nodes
+
+```s
+# journalctl -u kubelet -f
+May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360149    1458 csi_plugin.go:111] kubernetes.io/csi: Trying to register a new plugin with name: csi.juicefs.com endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock versions: 0.2.0,0.3.0
+May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    1458 csi_plugin.go:119] kubernetes.io/csi: Register new plugin with name: csi.juicefs.com at endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock
+```
+
+### Creating volume
+
+* PV created
+* PVC created
+  * PV bound to PVC
+
+### Using volume
+
+* Pod created
+  * Pod placed (scheduled) on a node
+    * When `--driver-requires-attachment=false`, volume attach will be skipped.
+    * NodePublishVolume called
+
+### End using volume
+
+* Pod deleted
+  * NodeUnpublishVolume called
+  * When `--driver-requires-attachment=false`, volume deattach is not necessary.
+
+### Deleting volume
+
+* PVC deleted
+  * PV unbound from PVC
+    * PV deleted
+
 ## Troubleshooting
 
 If the application pod is hanging in `ContainerCreating` status for a long time, e.g.
@@ -75,3 +112,28 @@ $ sudo su
 # cd /var/lib/kubelet/pods
 # rm -rf e7d422a7-7495-11e9-937d-0adc9bc4231a/volumes/kubernetes.io~csi/
 ```
+
+#### AttachVolume.Attach failed
+
+```s
+May 25 17:20:04 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 17:20:04.644217    1458 reconciler.go:227] operationExecutor.AttachVolume started for volume "juicefs" (UniqueName: "kubernetes.io/csi/csi.juicefs.com^csi-demo") pod "juicefs-app-1" (UID: "47b8a4e9-7ece-11e9-becf-00163e0e041d")
+May 25 17:20:04 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: E0525 17:20:04.648763    1458 csi_attacher.go:105] kubernetes.io/csi: attacher.Attach failed: volumeattachments.storage.k8s.io is forbidden: User "system:node:cn-shanghai.192.168.0.186" cannot create resource "volumeattachments" in API group "storage.k8s.io" at the cluster scope
+May 25 17:20:04 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: E0525 17:20:04.648831    1458 nestedpendingoperations.go:267] Operation for "\"kubernetes.io/csi/csi.juicefs.com^csi-demo\"" failed. No retries permitted until 2019-05-25 17:20:05.148793189 +0800 CST m=+187.223201321 (durationBeforeRetry 500ms). Error: "AttachVolume.Attach failed for volume \"juicefs\" (UniqueName: \"kubernetes.io/csi/csi.juicefs.com^csi-demo\") from node \"cn-shanghai.192.168.0.186\" : volumeattachments.storage.k8s.io is forbidden: User \"system:node:cn-shanghai.192.168.0.186\" cannot create resource \"volumeattachments\" in API group \"storage.k8s.io\" at the cluster scope"
+```
+
+Some service provider e.g. Alibaba cloud set `--enable-controller-attach-detach=false` for the Flexvolume feature. It needs to be set `true` for kubelet in order to use a CSI driver:
+
+SSH login worker node
+
+```s
+# vi /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+# systemctl daemon-reload
+# systemctl restart kubelet
+```
+
+Refer to [Alibaba Cloud Kubernetes CSI Plugin#Config Kubelet](https://github.com/AliyunContainerService/csi-plugin/tree/v0.3.0#config-kubelet).
+
+To SSH login worker node, you may need to
+
+* set node password from web console and restart to make it effective
+* login master node first if worker node does not have a public IP
