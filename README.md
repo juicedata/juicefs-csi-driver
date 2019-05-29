@@ -78,6 +78,7 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 |-----------------------------------|--------|
 | v1.11.9 / kops 1.11.1             | yes    |
 | v1.12.6-eks-d69f1b / AWS EKS      | yes    |
+| v1.12.6-aliyun.1 / Aliyun CS K8s  | yes    |
 | v1.13.5 / kops 1.13.0-alpha.1     | yes    |
 | v1.14.1 / kops (git-39884d0b5)    | yes    |
 
