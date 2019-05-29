@@ -12,7 +12,7 @@ Deploy the driver:
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
 
-Additional setup may required to use CSI driver plugin in Alicloud Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
+Additional steps could be required on some provider, e.g. Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
 
 ## Examples
 
@@ -28,6 +28,10 @@ Before the example, you need to:
 * [Static provisioning](examples/static-provisioning/)
 * [Mount options](examples/mount-options/)
 * [Accessing the filesystem from multiple pods](examples/multiple-pods-read-write-many/)
+
+**Notes**:
+
+* Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 
 ## CSI Specification Compatibility
 
@@ -82,9 +86,7 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | v1.13.5 / kops 1.13.0-alpha.1     | yes    |
 | v1.14.1 / kops (git-39884d0b5)    | yes    |
 
-**Notes**:
-
-* Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
 
 ## Develop
 
