@@ -90,7 +90,7 @@ Manual configuration is required for Aliyun Container Service Kubernetes. See [T
 
 ## Develop
 
-See [DEVELOP](./DEVELOP.md) document.
+See [DEVELOP](./docs/DEVELOP.md) document.
 
 ## License
 

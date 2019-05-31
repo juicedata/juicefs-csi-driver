@@ -21,43 +21,6 @@ make push-dev
 
 To execute all unit tests, run: `make test`
 
-## Understand how CSI works in Kubernetes
-
-### registering driver
-
-When `--mode=node-register`, driver is registered to kubelet on nodes
-
-```s
-# journalctl -u kubelet -f
-May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360149    1458 csi_plugin.go:111] kubernetes.io/csi: Trying to register a new plugin with name: csi.juicefs.com endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock versions: 0.2.0,0.3.0
-May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    1458 csi_plugin.go:119] kubernetes.io/csi: Register new plugin with name: csi.juicefs.com at endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock
-```
-
-### Creating volume
-
-* PV created
-* PVC created
-  * PV bound to PVC
-
-### Using volume
-
-* Pod created
-  * Pod placed (scheduled) on a node
-    * When `--driver-requires-attachment=false`, volume attach will be skipped.
-    * NodePublishVolume called
-
-### End using volume
-
-* Pod deleted
-  * NodeUnpublishVolume called
-  * When `--driver-requires-attachment=false`, volume deattach is not necessary.
-
-### Deleting volume
-
-* PVC deleted
-  * PV unbound from PVC
-    * PV deleted
-
 ## Troubleshooting
 
 If the application pod is hanging in `ContainerCreating` status for a long time, e.g.
