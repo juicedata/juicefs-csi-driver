@@ -77,26 +77,12 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	secrets := req.NodePublishSecrets
 	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
-	if secrets == nil || secrets["token"] == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
+
+	stdoutStderr, err := d.juicefsAuth(source, secrets)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", stdoutStderr)
 	}
 
-	token := secrets["token"]
-	args := []string{"auth", source, "--token", token}
-	keys := []string{"accesskey", "secretkey", "accesskey2", "secretkey2"}
-	for _, k := range keys {
-		v := secrets[k]
-		args = append(args, "--"+k)
-		if v != "" {
-			args = append(args, v)
-		} else {
-			args = append(args, "''")
-		}
-	}
-	stdoutStderr, err := d.exec.Run(jfsCmd, args...)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth volume_id %s, output: %s\n", source, stdoutStderr)
-	}
 	klog.V(5).Infof("NodePublishVolume: authentication output is %s\n", stdoutStderr)
 
 	options := make(map[string]string)
