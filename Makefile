@@ -71,7 +71,7 @@ uninstall: deploy/k8s.yaml
 .PHONY: driver-dev-apply
 driver-dev-apply:
 	kustomize build deploy/driver/overlays/dev/ | kubectl apply -f -
-	kubectl delete -n kube-system pod juicefs-csi-attacher-0
+	kubectl delete -n kube-system pod juicefs-csi-controller-0
 
 .PHONY: driver-dev-delete
 driver-dev-delete:
