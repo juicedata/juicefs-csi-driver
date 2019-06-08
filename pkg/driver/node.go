@@ -94,17 +94,19 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 			options[f] = ""
 		}
 	}
-	for k, v := range req.GetVolumeAttributes() {
-		options[k] = v
+
+	var mountOptions = []string{}
+
+	if opts, ok := req.GetVolumeAttributes()["mountOptions"]; ok {
+		mountOptions = strings.Split(opts, ",")
 	}
-	var mountOptions []string
+
 	for k, v := range options {
 		if v != "" {
 			k = fmt.Sprintf("%s=%s", k, v)
 		}
 		mountOptions = append(mountOptions, k)
 	}
-	klog.V(5).Infof("NodePublishVolume: mount options: %s", strings.Join(mountOptions, ","))
 
 	klog.V(5).Infof("NodePublishVolume: mounting %s at %s with options %v", source, target, mountOptions)
 	if err := d.mounter.Mount(source, target, fsType, mountOptions); err != nil {

@@ -5,7 +5,5 @@ metadata:
 spec:
   csi:
     volumeAttributes:
-      metacache: ""
-      cache-size: "124"
-      cache-dir: /var/foo
+      mountOptions: "metacache,cache-size=124,cache-dir=/var/foo"
     volumeHandle: csi-demo
