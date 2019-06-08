@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 
@@ -29,8 +30,13 @@ import (
 	"k8s.io/klog"
 )
 
-const fsType = "juicefs"
-const jfsCmd = "/usr/bin/juicefs"
+const (
+	jfsCmd     = "/usr/bin/juicefs"
+	jfsMntRoot = "/jfs"
+
+	fsTypeJuiceFS = "juicefs"
+	fsTypeNone    = "none"
+)
 
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
@@ -108,10 +114,31 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		mountOptions = append(mountOptions, k)
 	}
 
-	klog.V(5).Infof("NodePublishVolume: mounting %s at %s with options %v", source, target, mountOptions)
-	if err := d.mounter.Mount(source, target, fsType, mountOptions); err != nil {
+	jfsMnt := path.Join(jfsMntRoot, source)
+	exists, err := d.mounter.ExistsPath(jfsMnt)
+
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", jfsMnt, err)
+	}
+
+	if exists {
+		klog.V(5).Infof("NodePublishVolume: skip mounting for %q, path exists", jfsMnt)
+	} else {
+		klog.V(5).Infof("NodePublishVolume: mounting %q at %q with options %v", source, jfsMnt, mountOptions)
+		if err := d.mounter.Mount(source, jfsMnt, fsTypeJuiceFS, mountOptions); err != nil {
+			os.Remove(jfsMnt)
+			return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
+		}
+	}
+
+	bindSource := jfsMnt
+	if bindDir, ok := req.GetVolumeAttributes()["bindDir"]; ok {
+		bindSource = path.Join(jfsMnt, bindDir)
+	}
+	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", source, jfsMnt, mountOptions)
+	if err := d.mounter.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
-		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
+		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", source, target, mountOptions)

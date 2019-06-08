@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"path"
 	"testing"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
@@ -60,6 +61,7 @@ func TestNodePublishVolume(t *testing.T) {
 					exec:     mockExec,
 				}
 				source := volumeId
+				jfsMnt := path.Join("/jfs", source)
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -71,7 +73,9 @@ func TestNodePublishVolume(t *testing.T) {
 				}
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Any()).Return(nil)
+				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -93,6 +97,7 @@ func TestNodePublishVolume(t *testing.T) {
 					exec:     mockExec,
 				}
 				source := volumeId
+				jfsMnt := path.Join("/jfs", source)
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -106,7 +111,9 @@ func TestNodePublishVolume(t *testing.T) {
 
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Eq([]string{"ro"})).Return(nil)
+				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"ro"})).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -128,6 +135,7 @@ func TestNodePublishVolume(t *testing.T) {
 					exec:     mockExec,
 				}
 				source := volumeId
+				jfsMnt := path.Join("/jfs", source)
 
 				ctx := context.Background()
 				req := &csi.NodePublishVolumeRequest{
@@ -149,7 +157,10 @@ func TestNodePublishVolume(t *testing.T) {
 
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Eq([]string{"tls"})).Return(nil)
+				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"tls"})).Return(nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
+
 				_, err := driver.NodePublishVolume(ctx, req)
 				if err != nil {
 					t.Fatalf("NodePublishVolume is failed: %v", err)
@@ -305,11 +316,13 @@ func TestNodePublishVolume(t *testing.T) {
 					TargetPath:         targetPath,
 				}
 				source := volumeId
+				jfsMnt := path.Join("/jfs", source)
 
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
 				err := fmt.Errorf("failed to Mount")
-				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(targetPath), gomock.Eq(fsType), gomock.Any()).Return(err)
+				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(err)
 
 				_, err = driver.NodePublishVolume(ctx, req)
 				if err == nil {
