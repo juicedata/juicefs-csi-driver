@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -73,7 +74,7 @@ func TestNodePublishVolume(t *testing.T) {
 				}
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().IsLikelyNotMountPoint(gomock.Eq(jfsMnt)).Return(true, os.ErrNotExist)
 				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(nil)
 				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
@@ -111,7 +112,7 @@ func TestNodePublishVolume(t *testing.T) {
 
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().IsLikelyNotMountPoint(gomock.Eq(jfsMnt)).Return(true, os.ErrNotExist)
 				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"ro"})).Return(nil)
 				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
 				_, err := driver.NodePublishVolume(ctx, req)
@@ -157,7 +158,7 @@ func TestNodePublishVolume(t *testing.T) {
 
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
-				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().IsLikelyNotMountPoint(gomock.Eq(jfsMnt)).Return(true, os.ErrNotExist)
 				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Eq([]string{"tls"})).Return(nil)
 				mockMounter.EXPECT().Mount(gomock.Eq(jfsMnt), gomock.Eq(targetPath), gomock.Eq(fsTypeNone), gomock.Eq([]string{"bind"})).Return(nil)
 
@@ -321,7 +322,7 @@ func TestNodePublishVolume(t *testing.T) {
 				mockExec.EXPECT().Run(gomock.Eq(jfsCmd), gomock.Any()).Return(nil, nil)
 				mockMounter.EXPECT().MakeDir(gomock.Eq(targetPath)).Return(nil)
 				err := fmt.Errorf("failed to Mount")
-				mockMounter.EXPECT().ExistsPath(gomock.Eq(jfsMnt)).Return(false, nil)
+				mockMounter.EXPECT().IsLikelyNotMountPoint(gomock.Eq(jfsMnt)).Return(true, os.ErrNotExist)
 				mockMounter.EXPECT().Mount(gomock.Eq(source), gomock.Eq(jfsMnt), gomock.Eq(fsTypeJuiceFS), gomock.Any()).Return(err)
 
 				_, err = driver.NodePublishVolume(ctx, req)
