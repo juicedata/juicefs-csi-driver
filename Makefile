@@ -14,12 +14,17 @@
 #
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
-VERSION=0.1.0
+VERSION=0.2.0
+GIT_COMMIT?=$(shell git rev-parse HEAD)
+BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
+GO111MODULE=on
+
 
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:
 	mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X github.com/juicedata/juicefs-csi-driver/pkg/driver.vendorVersion=${VERSION}" -o bin/juicefs-csi-driver ./cmd/
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o bin/juicefs-csi-driver ./cmd/
 
 .PHONY: verify
 verify:
@@ -40,12 +45,12 @@ push:
 
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
-	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
+	docker build -t $(IMAGE):${GIT_COMMIT} -f dev.Dockerfile bin
 
 .PHONY: push-dev
 push-dev:
-	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
-	docker push $(REGISTRY)/$(IMAGE):dev
+	docker tag $(IMAGE):${GIT_COMMIT} $(REGISTRY)/$(IMAGE):${GIT_COMMIT}
+	docker push $(REGISTRY)/$(IMAGE):${GIT_COMMIT}
 
 .PHONY: image-release
 image-release:

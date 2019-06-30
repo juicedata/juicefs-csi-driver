@@ -24,7 +24,8 @@ import (
 	"reflect"
 	"strings"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi/v0"
+	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -42,18 +43,37 @@ var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
 )
 
+type nodeService struct {
+	juicefs juicefs.JuiceFS
+	mounter Mounter
+	nodeID  string
+}
+
+func newNodeService(nodeID string) nodeService {
+	juicefs, err := juicefs.NewJuiceFS()
+	if err != nil {
+		panic(err)
+	}
+
+	return nodeService{
+		juicefs: juicefs,
+		mounter: newNodeMounter(),
+		nodeID:  nodeID,
+	}
+}
+
 // NodeStageVolume is called by the CO prior to the volume being consumed by any workloads on the node by `NodePublishVolume`
-func (d *Driver) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+func (d *nodeService) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // NodeUnstageVolume is a reverse operation of `NodeStageVolume`
-func (d *Driver) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
-func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO(yujunz): hide NodePublishSecrets from log
 	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
@@ -72,7 +92,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 	klog.V(5).Infof("NodePublishVolume: volume_capability is %s", volCap)
 
-	if !d.isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
+	if !isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
@@ -81,10 +101,10 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
-	secrets := req.NodePublishSecrets
+	secrets := req.Secrets
 	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	stdoutStderr, err := d.juicefsAuth(source, secrets)
+	stdoutStderr, err := d.juicefs.Auth(source, secrets)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", stdoutStderr)
 	}
@@ -103,7 +123,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	var mountOptions = []string{}
 
-	if opts, ok := req.GetVolumeAttributes()["mountOptions"]; ok {
+	if opts, ok := req.GetVolumeContext()["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}
 
@@ -132,7 +152,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 
 	bindSource := jfsMnt
-	if bindDir, ok := req.GetVolumeAttributes()["bindDir"]; ok {
+	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
 		bindSource = path.Join(jfsMnt, bindDir)
 	}
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", source, jfsMnt, mountOptions)
@@ -146,7 +166,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 }
 
 // NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
-func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
 
 	target := req.GetTargetPath()
@@ -164,7 +184,7 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 }
 
 // NodeGetCapabilities response node capabilities to CO
-func (d *Driver) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	klog.V(4).Infof("NodeGetCapabilities: called with args %+v", req)
 	var caps []*csi.NodeServiceCapability
 	for _, cap := range nodeCaps {
@@ -181,7 +201,7 @@ func (d *Driver) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabi
 }
 
 // NodeGetInfo is called by CO for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
-func (d *Driver) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	klog.V(4).Infof("NodeGetInfo: called with args %+v", req)
 
 	return &csi.NodeGetInfoResponse{
@@ -189,29 +209,11 @@ func (d *Driver) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
 	}, nil
 }
 
-// NodeGetId is called by the CO SHOULD call this RPC for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
-func (d *Driver) NodeGetId(ctx context.Context, req *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
-	klog.V(4).Infof("NodeGetId: called with args %+v", req)
-	return &csi.NodeGetIdResponse{
-		NodeId: d.nodeID,
-	}, nil
+// NodeExpandVolume unimplemented
+func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (d *Driver) isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
-	hasSupport := func(cap *csi.VolumeCapability) bool {
-		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
-				return true
-			}
-		}
-		return false
-	}
-
-	foundAll := true
-	for _, c := range volCaps {
-		if !hasSupport(c) {
-			foundAll = false
-		}
-	}
-	return foundAll
+func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats is not implemented yet")
 }
