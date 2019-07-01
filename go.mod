@@ -4,7 +4,10 @@ require (
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/golang/mock v1.2.0
 	github.com/google/uuid v1.0.0
+	github.com/kubernetes-csi/csi-test v1.1.0
 	github.com/kubernetes-sigs/aws-ebs-csi-driver v0.3.0
+	github.com/onsi/ginkgo v1.7.0
+	github.com/onsi/gomega v1.4.3
 	github.com/sqs/goreturns v0.0.0-20181028201513-538ac6014518 // indirect
 	golang.org/x/net v0.0.0-20190313220215-9f648a60d977 // indirect
 	google.golang.org/grpc v1.17.0

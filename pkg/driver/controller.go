@@ -73,7 +73,7 @@ func (d *controllerService) CreateVolume(
 	}
 
 	volumeID := uuid.New().String()
-	if err := d.juicefs.MakeDir(path.Join(jfsMnt, volumeID)); err != nil {
+	if err := d.juicefs.CreateVolume(path.Join(jfsMnt, volumeID)); err != nil {
 		return nil, err
 	}
 

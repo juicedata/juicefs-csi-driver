@@ -34,6 +34,10 @@ verify:
 test:
 	go test -v -race ./pkg/...
 
+.PHONY: test-sanity
+test-sanity:
+	go test -v ./tests/sanity/...
+
 .PHONY: image
 image:
 	docker build -t $(IMAGE):latest .
@@ -45,12 +49,12 @@ push:
 
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
-	docker build -t $(IMAGE):${GIT_COMMIT} -f dev.Dockerfile bin
+	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
 
 .PHONY: push-dev
 push-dev:
-	docker tag $(IMAGE):${GIT_COMMIT} $(REGISTRY)/$(IMAGE):${GIT_COMMIT}
-	docker push $(REGISTRY)/$(IMAGE):${GIT_COMMIT}
+	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
+	docker push $(REGISTRY)/$(IMAGE):dev
 
 .PHONY: image-release
 image-release:

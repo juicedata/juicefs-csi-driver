@@ -22,7 +22,7 @@ const (
 type JuiceFS interface {
 	Auth(source string, secrets map[string]string) ([]byte, error)
 	Mount(source string, basePath string, options []string) (string, error)
-	MakeDir(pathname string) error
+	CreateVolume(pathname string) error
 }
 
 type juicefs struct {
@@ -95,7 +95,7 @@ func (j *juicefs) Mount(source string, basePath string, options []string) (strin
 	return targetPath, nil
 }
 
-func (j *juicefs) MakeDir(pathname string) error {
+func (j *juicefs) CreateVolume(pathname string) error {
 	return j.mounter.MakeDir(pathname)
 }
 
