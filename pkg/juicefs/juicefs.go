@@ -11,40 +11,45 @@ import (
 )
 
 const (
-	cmd    = "/usr/bin/juicefs"
-	mnt    = "/jfs"
-	fsType = "juicefs"
+	cmd       = "/usr/bin/juicefs"
+	mountBase = "/jfs"
+	fsType    = "juicefs"
 	// DefaultCapacityBytes is 10 Pi
 	DefaultCapacityBytes = 10 * 1024 * 1024 * 1024 * 1024 * 1024
 )
 
-// JuiceFS abstracts the SaaS
-type JuiceFS interface {
-	Auth(source string, secrets map[string]string) ([]byte, error)
-	Mount(source string, basePath string, options []string) (string, error)
-	CreateVolume(pathname string) error
+// Interface of juicefs provider
+type Interface interface {
+	mount.Interface
+	CmdAuth(name string, secrets map[string]string) ([]byte, error)
+	SafeMount(name string, options []string) (string, error)
 }
 
 type juicefs struct {
-	mounter *mount.SafeFormatAndMount
+	mount.SafeFormatAndMount
 }
 
-var _ JuiceFS = &juicefs{}
+var _ Interface = &juicefs{}
 
-// NewJuiceFS returns a new instance of JuiceFS cli
-func NewJuiceFS() (JuiceFS, error) {
-	return &juicefs{
-		mounter: newSafeMounter(),
-	}, nil
+// NewJfsProvider creates a provider for juicefs volumes
+func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
+	if mounter == nil {
+		mounter = &mount.SafeFormatAndMount{
+			Interface: mount.New(""),
+			Exec:      mount.NewOsExec(),
+		}
+	}
+
+	return &juicefs{}, nil
 }
 
-func (j *juicefs) Auth(source string, secrets map[string]string) ([]byte, error) {
+func (j *juicefs) CmdAuth(name string, secrets map[string]string) ([]byte, error) {
 	if secrets == nil || secrets["token"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
 	}
 
 	token := secrets["token"]
-	args := []string{"auth", source, "--token", token}
+	args := []string{"auth", name, "--token", token}
 	keys := []string{"accesskey", "secretkey", "accesskey2", "secretkey2"}
 	for _, k := range keys {
 		v := secrets[k]
@@ -57,51 +62,41 @@ func (j *juicefs) Auth(source string, secrets map[string]string) ([]byte, error)
 	}
 	// DEBUG only, secrets exposed in args
 	// klog.V(5).Infof("Auth: cmd %q, args %#v", cmd, args)
-	return j.mounter.Exec.Run(cmd, args...)
+	return j.Exec.Run(cmd, args...)
 }
 
-func (j *juicefs) Mount(source string, basePath string, options []string) (string, error) {
-	targetPath := path.Join(basePath, source)
-	exists, err := j.mounter.ExistsPath(targetPath)
+// SafeMount checks mount point for idempotency
+func (j *juicefs) SafeMount(name string, options []string) (string, error) {
+	mounPath := path.Join(mountBase, name)
+	exists, err := j.ExistsPath(mounPath)
 
 	if err != nil {
-		return targetPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", targetPath, err)
+		return mounPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mounPath, err)
 	}
 
 	if !exists {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, targetPath, options)
-		if err := j.mounter.Mount(source, targetPath, fsType, []string{}); err != nil {
-			os.Remove(targetPath)
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, targetPath, err)
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mounPath, options)
+		if err := j.Mount(name, mounPath, fsType, []string{}); err != nil {
+			os.Remove(mounPath)
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mounPath, err)
 		}
-		return targetPath, nil
+		return mounPath, nil
 	}
 
 	// path exists
-	notMnt, err := j.mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := j.IsLikelyNotMountPoint(mounPath)
 	if err != nil {
-		return targetPath, status.Errorf(codes.Internal, "Could not check %q IsLikelyNotMountPoint: %v", targetPath, err)
+		return mounPath, status.Errorf(codes.Internal, "Could not check %q IsLikelyNotMountPoint: %v", mounPath, err)
 	}
 
 	if notMnt {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, targetPath, options)
-		if err := j.mounter.Mount(source, targetPath, fsType, []string{}); err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, targetPath, err)
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mounPath, options)
+		if err := j.Mount(name, mounPath, fsType, []string{}); err != nil {
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mounPath, err)
 		}
-		return targetPath, nil
+		return mounPath, nil
 	}
 
-	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", targetPath)
-	return targetPath, nil
-}
-
-func (j *juicefs) CreateVolume(pathname string) error {
-	return j.mounter.MakeDir(pathname)
-}
-
-func newSafeMounter() *mount.SafeFormatAndMount {
-	return &mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      mount.NewOsExec(),
-	}
+	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mounPath)
+	return mounPath, nil
 }

@@ -18,25 +18,38 @@ package sanity
 
 import (
 	"path"
+
+	"k8s.io/kubernetes/pkg/util/mount"
 )
 
-type fakeJuiceFS struct {}
-
-func newFakeJuiceFS() *fakeJuiceFS {
-	return &fakeJuiceFS{}
+type fakeJfsProvider struct {
+	mount.FakeMounter
+	volumes map[string]bool
 }
 
-func (j *fakeJuiceFS) Auth(source string, secrets map[string]string) ([]byte, error) {
+func newFakeJfsProvider() *fakeJfsProvider {
+	return &fakeJfsProvider{
+		volumes: map[string]bool{},
+	}
+}
+
+func (j *fakeJfsProvider) CmdAuth(name string, secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJuiceFS) Mount(source string, basePath string, options []string) (string, error) {
-	targetPath := path.Join(basePath, source)
+func (j *fakeJfsProvider) SafeMount(name string, options []string) (string, error) {
+	target := path.Join("/tmp", name)
+	j.Mount(name, target, "juicefs", []string{})
 
-	return targetPath, nil
+	return target, nil
 }
 
-
-func (j *fakeJuiceFS) CreateVolume(pathname string) error {
+func (j *fakeJfsProvider) MakeDir(pathname string) error {
+	j.volumes[pathname] = true
 	return nil
+}
+
+func (j *fakeJfsProvider) ExistsPath(pathname string) (bool, error) {
+	_, ok := j.volumes[pathname]
+	return ok, nil
 }

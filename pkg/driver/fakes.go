@@ -18,20 +18,18 @@ package driver
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 // NewFakeDriver creates a new mock driver used for testing
-func NewFakeDriver(endpoint string, fakeJuiceFS juicefs.JuiceFS, fakeMounter *mount.FakeMounter) *Driver {
+func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	return &Driver{
 		endpoint: endpoint,
 		controllerService: controllerService{
-			juicefs: fakeJuiceFS,
+			juicefs: fakeProvider,
 		},
 		nodeService: nodeService{
-			juicefs: fakeJuiceFS,
-			mounter: &NodeMounter{mount.SafeFormatAndMount{Interface: fakeMounter, Exec: mount.NewFakeExec(nil)}},
-			nodeID: "fake-node-id",
+			juicefs: fakeProvider,
+			nodeID:  "fake-node-id",
 		},
 	}
 }

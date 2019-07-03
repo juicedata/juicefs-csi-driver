@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	jfsCmd     = "/usr/bin/juicefs"
-	jfsMntRoot = "/jfs"
+	jfsCmdPath  = "/usr/bin/juicefs"
+	jfsBasePath = "/jfs"
 
 	fsTypeJuiceFS = "juicefs"
 	fsTypeNone    = "none"
@@ -44,20 +44,18 @@ var (
 )
 
 type nodeService struct {
-	juicefs juicefs.JuiceFS
-	mounter Mounter
+	juicefs juicefs.Interface
 	nodeID  string
 }
 
 func newNodeService(nodeID string) nodeService {
-	juicefs, err := juicefs.NewJuiceFS()
+	juicefs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
 	}
 
 	return nodeService{
 		juicefs: juicefs,
-		mounter: newNodeMounter(),
 		nodeID:  nodeID,
 	}
 }
@@ -97,14 +95,14 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: creating dir %s", target)
-	if err := d.mounter.MakeDir(target); err != nil {
+	if err := d.juicefs.MakeDir(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
 	secrets := req.Secrets
 	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	stdoutStderr, err := d.juicefs.Auth(source, secrets)
+	stdoutStderr, err := d.juicefs.CmdAuth(source, secrets)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", stdoutStderr)
 	}
@@ -134,29 +132,18 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = append(mountOptions, k)
 	}
 
-	jfsMnt := path.Join(jfsMntRoot, source)
-
-	notMntPoint, err := d.mounter.IsLikelyNotMountPoint(jfsMnt)
-
-	if notMntPoint {
-		if err != os.ErrNotExist {
-			return nil, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", jfsMnt, err)
-		}
-		klog.V(5).Infof("NodePublishVolume: mounting %q at %q with options %v", source, jfsMnt, mountOptions)
-		if err := d.mounter.Mount(source, jfsMnt, fsTypeJuiceFS, mountOptions); err != nil {
-			os.Remove(jfsMnt)
-			return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
-		}
-	} else {
-		klog.V(5).Infof("NodePublishVolume: skip mounting for mount point %q", jfsMnt)
+	klog.V(5).Infof("NodePublishVolume: mounting %q with options %v", source, mountOptions)
+	mountPoint, err := d.juicefs.SafeMount(source, mountOptions)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not mount %q with options %v", source, mountOptions)
 	}
 
-	bindSource := jfsMnt
+	bindSource := mountPoint
 	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
-		bindSource = path.Join(jfsMnt, bindDir)
+		bindSource = path.Join(mountPoint, bindDir)
 	}
-	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", source, jfsMnt, mountOptions)
-	if err := d.mounter.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
+	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", source, mountPoint, mountOptions)
+	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
@@ -175,7 +162,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
-	err := d.mounter.Unmount(target)
+	err := d.juicefs.Unmount(target)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}

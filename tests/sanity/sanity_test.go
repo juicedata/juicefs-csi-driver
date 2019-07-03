@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/kubernetes/pkg/util/mount"
 
 	sanity "github.com/kubernetes-csi/csi-test/pkg/sanity"
 
@@ -44,12 +43,7 @@ func TestSanity(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	fakeMounter := &mount.FakeMounter{
-		Filesystem: map[string]mount.FileType{
-			"/dev/xvdbc": mount.FileTypeFile,
-		},
-	}
-	jfsDriver = driver.NewFakeDriver(endpoint, newFakeJuiceFS(), fakeMounter)
+	jfsDriver = driver.NewFakeDriver(endpoint, newFakeJfsProvider())
 	go func() {
 		Expect(jfsDriver.Run()).NotTo(HaveOccurred())
 	}()
