@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"path"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -62,37 +61,26 @@ func (d *controllerService) CreateVolume(
 	klog.V(5).Infof("CreateVolume: ControllerCreateSecrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
 	jfsName := req.Parameters["jfsName"]
-	volName := req.Name
+	capacityBytes := int64(req.CapacityRange.GetRequiredBytes())
 
-	stdoutStderr, err := d.juicefs.CmdAuth(jfsName, secrets)
-	klog.V(5).Infof("CreateVolume: authentication output is '%s'\n", stdoutStderr)
+	jfs, err := d.juicefs.MountFs(jfsName, secrets, []string{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs %s: %v", jfsName, err)
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs %q: %v", jfsName, err)
 	}
 
-	mountPath, err := d.juicefs.SafeMount(jfsName, []string{})
-	if err != nil {
-		klog.Errorf("CreateVolume: failed to mount %q", jfsName)
+	vol, err := jfs.CreateVol(req.Name, capacityBytes)
+	if status.Convert(err).Code() == codes.AlreadyExists {
 		return nil, err
 	}
-	volPath := path.Join(mountPath, volName)
-	exists, err := d.juicefs.ExistsPath(volPath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
-	}
 
-	if !exists {
-		if err := d.juicefs.MakeDir(volPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
-		}
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Could not create volume %q size %d bytes: %v", req.Name, capacityBytes, err)
 	}
 
 	volume := csi.Volume{
-		VolumeId: volPath,
-		VolumeContext: map[string]string{
-			jfsName: jfsName,
-		},
-		CapacityBytes: juicefs.DefaultCapacityBytes,
+		VolumeId:      req.Name,
+		CapacityBytes: vol.CapacityBytes,
+		VolumeContext: req.Parameters,
 	}
 	return &csi.CreateVolumeResponse{Volume: &volume}, nil
 }
@@ -155,25 +143,14 @@ func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req 
 	klog.V(5).Infof("CreateVolume: ControllerCreateSecrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
 	jfsName := req.VolumeContext["jfsName"]
-	volPath := req.VolumeId
-
-	stdoutStderr, err := d.juicefs.CmdAuth(jfsName, secrets)
-	klog.V(5).Infof("CreateVolume: authentication output is '%s'\n", stdoutStderr)
+	jfs, err := d.juicefs.MountFs(jfsName, secrets, []string{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs %s: %v", jfsName, err)
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs %s: %v", jfsName, err)
 	}
 
-	if _, err := d.juicefs.SafeMount(jfsName, []string{}); err != nil {
-		klog.Errorf("CreateVolume: failed to mount %q", jfsName)
-		return nil, err
-	}
-	exists, err := d.juicefs.ExistsPath(volPath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
-	}
-
-	if !exists {
-		return nil, status.Errorf(codes.NotFound, "Volume %q not foundd in %q", req.VolumeId, jfsName)
+	volID := req.VolumeId
+	if _, err := jfs.GetVolByID(volID); err != nil {
+		return nil, status.Errorf(codes.NotFound, "Could not get volume by ID %q", volID)
 	}
 
 	var confirmed *csi.ValidateVolumeCapabilitiesResponse_Confirmed

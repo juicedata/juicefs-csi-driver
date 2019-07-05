@@ -17,39 +17,82 @@ limitations under the License.
 package sanity
 
 import (
-	"path"
-
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/util/mount"
 )
 
+type fakeJfs struct {
+	basePath string
+	volumes  map[string]juicefs.Volume
+}
+
 type fakeJfsProvider struct {
 	mount.FakeMounter
-	volumes map[string]bool
+	fs map[string]fakeJfs
 }
 
-func newFakeJfsProvider() *fakeJfsProvider {
-	return &fakeJfsProvider{
-		volumes: map[string]bool{},
+func (j *fakeJfsProvider) MountFs(name string, secrets map[string]string, options []string) (juicefs.Jfs, error) {
+	fs, ok := j.fs[name]
+
+	if ok {
+		return &fs, nil
 	}
+
+	fs = fakeJfs{
+		basePath: "/jfs/fake",
+		volumes:  map[string]juicefs.Volume{},
+	}
+
+	j.fs[name] = fs
+	return &fs, nil
 }
 
-func (j *fakeJfsProvider) CmdAuth(name string, secrets map[string]string) ([]byte, error) {
+func (j *fakeJfsProvider) Auth(name string, secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
 func (j *fakeJfsProvider) SafeMount(name string, options []string) (string, error) {
-	target := path.Join("/tmp", name)
-	j.Mount(name, target, "juicefs", []string{})
-
-	return target, nil
+	return "/jfs/fake", nil
 }
 
-func (j *fakeJfsProvider) MakeDir(pathname string) error {
-	j.volumes[pathname] = true
+func newFakeJfsProvider() *fakeJfsProvider {
+	return &fakeJfsProvider{
+		fs: map[string]fakeJfs{},
+	}
+}
+
+func (fs *fakeJfs) CreateVol(name string, capacityBytes int64) (juicefs.Volume, error) {
+	vol, ok := fs.volumes[name]
+
+	if !ok {
+		vol = juicefs.Volume{
+			CapacityBytes: capacityBytes,
+		}
+		fs.volumes[name] = vol
+		return vol, nil
+	}
+
+	if vol.CapacityBytes >= capacityBytes {
+		return vol, nil
+	}
+
+	return juicefs.Volume{}, status.Error(codes.AlreadyExists, "Volume already exists")
+}
+
+func (fs *fakeJfs) DeleteVol(name string) error {
+	delete(fs.volumes, name)
 	return nil
 }
 
-func (j *fakeJfsProvider) ExistsPath(pathname string) (bool, error) {
-	_, ok := j.volumes[pathname]
-	return ok, nil
+func (fs *fakeJfs) GetVolByID(volID string) (juicefs.Volume, error) {
+	if vol, ok := fs.volumes[volID]; ok {
+		return vol, nil
+	}
+	return juicefs.Volume{}, status.Error(codes.NotFound, "Volume not found")
+}
+
+func (fs *fakeJfs) GetBasePath() string {
+	return fs.basePath
 }

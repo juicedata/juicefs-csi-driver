@@ -102,12 +102,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	secrets := req.Secrets
 	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	stdoutStderr, err := d.juicefs.CmdAuth(source, secrets)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", stdoutStderr)
-	}
-
-	klog.V(5).Infof("NodePublishVolume: authentication output is %s\n", stdoutStderr)
 
 	options := make(map[string]string)
 	if req.GetReadonly() {
@@ -133,16 +127,18 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting %q with options %v", source, mountOptions)
-	mountPoint, err := d.juicefs.SafeMount(source, mountOptions)
+
+	jfs, err := d.juicefs.MountFs(source, secrets, mountOptions)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not mount %q with options %v", source, mountOptions)
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource := mountPoint
+	bindSource := jfs.GetBasePath()
 	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
-		bindSource = path.Join(mountPoint, bindDir)
+		bindSource = path.Join(bindSource, bindDir)
 	}
-	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", source, mountPoint, mountOptions)
+
+	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
