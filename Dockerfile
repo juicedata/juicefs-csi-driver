@@ -15,7 +15,7 @@
 FROM golang:1.11.4-stretch as builder
 WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
 ENV GO111MODULE on
-ADD . .
+COPY . .
 RUN make
 
 FROM amazonlinux:2

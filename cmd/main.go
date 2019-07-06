@@ -29,7 +29,7 @@ func main() {
 	var (
 		endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
 		version  = flag.Bool("version", false, "Print the version and exit.")
-		nodeID   = flag.String("node-id", "", "Node ID")
+		nodeID   = flag.String("nodeid", "", "Node ID")
 	)
 	klog.InitFlags(nil)
 	flag.Parse()

@@ -15,8 +15,10 @@
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
 VERSION=0.2.0
+GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+BUILD_ARG="GIT_COMMIT=$(GIT_COMMIT) BUILD_DATE=$(BUILD_DATE)"
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
 
@@ -55,6 +57,15 @@ image-dev: juicefs-csi-driver
 push-dev:
 	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
 	docker push $(REGISTRY)/$(IMAGE):dev
+
+.PHONY: image-branch
+image-branch:
+	docker build -t $(IMAGE):$(GIT_BRANCH) -f Dockerfile --build-arg=$(BUILD_ARG) .
+
+.PHONY: push-branch
+push-branch:
+	docker tag $(IMAGE):$(GIT_BRANCH) $(REGISTRY)/$(IMAGE):$(GIT_BRANCH)
+	docker push $(REGISTRY)/$(IMAGE):$(GIT_BRANCH)
 
 .PHONY: image-release
 image-release:
