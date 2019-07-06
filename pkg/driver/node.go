@@ -102,7 +102,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	secrets := req.Secrets
 	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-
 	options := make(map[string]string)
 	if req.GetReadonly() {
 		options["ro"] = ""
