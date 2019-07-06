@@ -15,5 +15,6 @@ script:
   - make
   - ./hack/verify-all
   - make test
+  - make test-sanity
   - go test -covermode=count -coverprofile=profile.cov ./pkg/...
   # - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
