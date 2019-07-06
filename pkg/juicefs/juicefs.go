@@ -98,14 +98,12 @@ func (fs *jfs) GetBasePath() string {
 
 func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 	volPath := path.Join(fs.MountPath, volName)
+	metaPath := path.Join(volPath, metaFile)
 
 	exists, err := fs.ExistsPath(volPath)
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
-
-	metaPath := path.Join(volPath, metaFile)
-
 	if exists {
 		file, err := ioutil.ReadFile(metaPath)
 		if err != nil {
@@ -118,11 +116,7 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 		if meta.Volume.CapacityBytes >= capacityBytes {
 			return meta.Volume, nil
 		}
-		return Volume{}, status.Errorf(codes.Internal, "Volume name conflict with existing one: %q", volName)
-	}
-
-	if err := fs.MakeDir(volPath); err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
+		return Volume{}, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", volName, capacityBytes)
 	}
 
 	vol := Volume{
@@ -135,7 +129,9 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not marshal meta ID=%q capacityBytes=%v", volName, capacityBytes)
 	}
-
+	if err := fs.MakeDir(volPath); err != nil {
+		return Volume{}, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
+	}
 	if ioutil.WriteFile(metaPath, meta, 0644) != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not write meta to %q", metaPath)
 	}
