@@ -152,7 +152,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		}
 	}
 
-	return &juicefs{}, nil
+	return &juicefs{*mounter}, nil
 }
 
 // MountFs auths and mount the specified file system

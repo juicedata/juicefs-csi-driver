@@ -32,11 +32,7 @@ import (
 )
 
 const (
-	jfsCmdPath  = "/usr/bin/juicefs"
-	jfsBasePath = "/jfs"
-
-	fsTypeJuiceFS = "juicefs"
-	fsTypeNone    = "none"
+	fsTypeNone = "none"
 )
 
 var (
