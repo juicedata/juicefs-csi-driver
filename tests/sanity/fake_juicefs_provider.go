@@ -33,8 +33,9 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) MountFs(name string, secrets map[string]string, options []string) (juicefs.Jfs, error) {
-	fs, ok := j.fs[name]
+func (j *fakeJfsProvider) JfsMount(secrets map[string]string, options []string) (juicefs.Jfs, error) {
+	jfsName := "fake"
+	fs, ok := j.fs[jfsName]
 
 	if ok {
 		return &fs, nil
@@ -45,15 +46,15 @@ func (j *fakeJfsProvider) MountFs(name string, secrets map[string]string, option
 		volumes:  map[string]juicefs.Volume{},
 	}
 
-	j.fs[name] = fs
+	j.fs[jfsName] = fs
 	return &fs, nil
 }
 
-func (j *fakeJfsProvider) Auth(name string, secrets map[string]string) ([]byte, error) {
+func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) SafeMount(name string, options []string) (string, error) {
+func (j *fakeJfsProvider) MountFs(name string, options []string) (string, error) {
 	return "/jfs/fake", nil
 }
 

@@ -25,9 +25,9 @@ const (
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	MountFs(name string, secrets map[string]string, options []string) (Jfs, error)
-	Auth(name string, secrets map[string]string) ([]byte, error)
-	SafeMount(name string, options []string) (string, error)
+	JfsMount(secrets map[string]string, options []string) (Jfs, error)
+	AuthFs(secrets map[string]string) ([]byte, error)
+	MountFs(name string, options []string) (string, error)
 }
 
 type juicefs struct {
@@ -157,35 +157,35 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	return &juicefs{*mounter}, nil
 }
 
-// MountFs auths and mount the specified file system
-func (j *juicefs) MountFs(name string, secrets map[string]string, options []string) (Jfs, error) {
-	stdoutStderr, err := j.Auth(name, secrets)
+// JfsMount auths and mounts juicefs
+func (j *juicefs) JfsMount(secrets map[string]string, options []string) (Jfs, error) {
+	stdoutStderr, err := j.AuthFs(secrets)
 	klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs %s: %v", name, err)
+		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 	}
 
-	mountPath, err := j.SafeMount(name, options)
+	mountPath, err := j.MountFs(secrets["name"], options)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not mount juicefs %s: %v", name, err)
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
 	return &jfs{
 		Provider:  j,
-		Name:      name,
+		Name:      secrets["name"],
 		MountPath: mountPath,
 		Options:   options,
 	}, nil
 }
 
-func (j *juicefs) Auth(name string, secrets map[string]string) ([]byte, error) {
-	if secrets == nil || secrets["token"] == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
+// AuthFs authenticates juicefs
+func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
+	if secrets == nil || secrets["name"] == "" || secrets["token"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets, or empty name or token")
 	}
 
-	token := secrets["token"]
-	args := []string{"auth", name, "--token", token}
-	keys := []string{"accesskey", "secretkey", "accesskey2", "secretkey2"}
+	args := []string{"auth", secrets["name"]}
+	keys := []string{"token", "accesskey", "secretkey", "accesskey2", "secretkey2"}
 	for _, k := range keys {
 		v := secrets[k]
 		args = append(args, "--"+k)
@@ -196,12 +196,12 @@ func (j *juicefs) Auth(name string, secrets map[string]string) ([]byte, error) {
 		}
 	}
 	// DEBUG only, secrets exposed in args
-	// klog.V(5).Infof("Auth: cmd %q, args %#v", cmd, args)
+	// klog.V(5).Infof("AuthFs: cmd %q, args %#v", cmd, args)
 	return j.Exec.Run(cmd, args...)
 }
 
-// SafeMount checks mount point for idempotency
-func (j *juicefs) SafeMount(name string, options []string) (string, error) {
+// MountFs mounts juicefs with idempotency
+func (j *juicefs) MountFs(name string, options []string) (string, error) {
 	mountPath := path.Join(mountBase, name)
 	exists, err := j.ExistsPath(mountPath)
 

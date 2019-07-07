@@ -46,40 +46,40 @@ roleRef:
   name: juicefs-external-provisioner-role
   apiGroup: rbac.authorization.k8s.io
 
-# ---
+---
 
-# kind: ClusterRole
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: juicefs-external-attacher-role
-# rules:
-#   - apiGroups: [""]
-#     resources: ["persistentvolumes"]
-#     verbs: ["get", "list", "watch", "update"]
-#   - apiGroups: [""]
-#     resources: ["nodes"]
-#     verbs: ["get", "list", "watch"]
-#   - apiGroups: ["csi.storage.k8s.io"]
-#     resources: ["csinodeinfos"]
-#     verbs: ["get", "list", "watch"]
-#   - apiGroups: ["storage.k8s.io"]
-#     resources: ["volumeattachments"]
-#     verbs: ["get", "list", "watch", "update"]
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: juicefs-external-attacher-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["csi.storage.k8s.io"]
+    resources: ["csinodeinfos"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
 
-# ---
+---
 
-# kind: ClusterRoleBinding
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: juicefs-csi-attacher-binding
-# subjects:
-#   - kind: ServiceAccount
-#     name: juicefs-csi-controller-sa
-#     namespace: kube-system
-# roleRef:
-#   kind: ClusterRole
-#   name: juicefs-external-attacher-role
-#   apiGroup: rbac.authorization.k8s.io
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: juicefs-csi-attacher-binding
+subjects:
+  - kind: ServiceAccount
+    name: juicefs-csi-controller-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: juicefs-external-attacher-role
+  apiGroup: rbac.authorization.k8s.io
 
 ---
 
@@ -110,55 +110,55 @@ roleRef:
   name: juicefs-cluster-driver-registrar-role
   apiGroup: rbac.authorization.k8s.io
 
----
+# ---
 
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-external-snapshotter-role
-rules:
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshotcontents"]
-    verbs: ["create", "get", "list", "watch", "update", "delete"]
-  - apiGroups: ["snapshot.storage.k8s.io"]
-    resources: ["volumesnapshots"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["create", "list", "watch", "delete"]
+# kind: ClusterRole
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: juicefs-external-snapshotter-role
+# rules:
+#   - apiGroups: [""]
+#     resources: ["persistentvolumes"]
+#     verbs: ["get", "list", "watch"]
+#   - apiGroups: [""]
+#     resources: ["persistentvolumeclaims"]
+#     verbs: ["get", "list", "watch"]
+#   - apiGroups: ["storage.k8s.io"]
+#     resources: ["storageclasses"]
+#     verbs: ["get", "list", "watch"]
+#   - apiGroups: [""]
+#     resources: ["events"]
+#     verbs: ["list", "watch", "create", "update", "patch"]
+#   - apiGroups: [""]
+#     resources: ["secrets"]
+#     verbs: ["get", "list"]
+#   - apiGroups: ["snapshot.storage.k8s.io"]
+#     resources: ["volumesnapshotclasses"]
+#     verbs: ["get", "list", "watch"]
+#   - apiGroups: ["snapshot.storage.k8s.io"]
+#     resources: ["volumesnapshotcontents"]
+#     verbs: ["create", "get", "list", "watch", "update", "delete"]
+#   - apiGroups: ["snapshot.storage.k8s.io"]
+#     resources: ["volumesnapshots"]
+#     verbs: ["get", "list", "watch", "update"]
+#   - apiGroups: ["apiextensions.k8s.io"]
+#     resources: ["customresourcedefinitions"]
+#     verbs: ["create", "list", "watch", "delete"]
 
----
+# ---
 
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-csi-snapshotter-binding
-subjects:
-  - kind: ServiceAccount
-    name: juicefs-csi-controller-sa
-    namespace: kube-system
-roleRef:
-  kind: ClusterRole
-  name: juicefs-external-snapshotter-role
-  apiGroup: rbac.authorization.k8s.io
+# kind: ClusterRoleBinding
+# apiVersion: rbac.authorization.k8s.io/v1
+# metadata:
+#   name: juicefs-csi-snapshotter-binding
+# subjects:
+#   - kind: ServiceAccount
+#     name: juicefs-csi-controller-sa
+#     namespace: kube-system
+# roleRef:
+#   kind: ClusterRole
+#   name: juicefs-external-snapshotter-role
+#   apiGroup: rbac.authorization.k8s.io
 
 ---
 
@@ -236,17 +236,17 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
-        # - name: csi-attacher
-        #   image: quay.io/k8scsi/csi-attacher:v1.1.0
-        #   args:
-        #     - --csi-address=$(ADDRESS)
-        #     - --v=5
-        #   env:
-        #     - name: ADDRESS
-        #       value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        #   volumeMounts:
-        #     - name: socket-dir
-        #       mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v1.1.0
+          args:
+            - --csi-address=$(ADDRESS)
+            - --v=5
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
         ## TODO(yujunz) support snapshot
         # - name: csi-snapshotter
         #   image: quay.io/k8scsi/csi-snapshotter:v1.1.0

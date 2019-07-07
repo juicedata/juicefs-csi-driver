@@ -69,7 +69,7 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO(yujunz): hide NodePublishSecrets from log
-	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
+	klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
 	source := req.GetVolumeId()
 
@@ -95,9 +95,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
-	secrets := req.Secrets
-	klog.V(5).Infof("NodePublishVolume: NodePublishSecret contains keys %+v", reflect.ValueOf(secrets).MapKeys())
-
 	options := make(map[string]string)
 	if req.GetReadonly() {
 		options["ro"] = ""
@@ -108,12 +105,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	var mountOptions = []string{}
-
+	secrets := req.Secrets
+	mountOptions := []string{}
 	if opts, ok := req.GetVolumeContext()["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}
-
 	for k, v := range options {
 		if v != "" {
 			k = fmt.Sprintf("%s=%s", k, v)
@@ -121,18 +117,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = append(mountOptions, k)
 	}
 
-	klog.V(5).Infof("NodePublishVolume: mounting %q with options %v", source, mountOptions)
-
-	jfs, err := d.juicefs.MountFs(source, secrets, mountOptions)
+	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
+	jfs, err := d.juicefs.JfsMount(secrets, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource := jfs.GetBasePath()
-	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
-		bindSource = path.Join(bindSource, bindDir)
-	}
-
+	bindSource := path.Join(jfs.GetBasePath(), source)
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
