@@ -198,6 +198,11 @@ spec:
             - name: healthz
               containerPort: 9808
               protocol: TCP
+          securityContext:
+            capabilities:
+              add:
+              - SYS_ADMIN
+            privileged: true
           livenessProbe:
             httpGet:
               path: /healthz
