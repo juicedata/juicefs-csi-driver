@@ -49,8 +49,7 @@ type Meta struct {
 }
 
 type jfs struct {
-	mount.SafeFormatAndMount
-
+	Provider  *juicefs
 	Name      string
 	MountPath string
 	Options   []string
@@ -70,7 +69,7 @@ var _ Jfs = &jfs{}
 func (fs *jfs) GetVolByID(volID string) (Volume, error) {
 	volPath := path.Join(fs.MountPath, volID)
 
-	exists, err := fs.ExistsPath(volPath)
+	exists, err := fs.Provider.ExistsPath(volPath)
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
@@ -100,11 +99,13 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 	volPath := path.Join(fs.MountPath, volName)
 	metaPath := path.Join(volPath, metaFile)
 
-	exists, err := fs.ExistsPath(volPath)
+	klog.V(5).Infof("CreateVol: checking %q exists in %v", volPath, fs)
+	exists, err := fs.Provider.ExistsPath(volPath)
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
 	if exists {
+		klog.V(5).Infof("CreateVol: reading meta from %q", metaPath)
 		file, err := ioutil.ReadFile(metaPath)
 		if err != nil {
 			return Volume{}, status.Errorf(codes.Internal, "Could not read volume meta from %q", metaPath)
@@ -114,22 +115,23 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 			return Volume{}, status.Errorf(codes.Internal, "Invalid meta %q", metaPath)
 		}
 		if meta.Volume.CapacityBytes >= capacityBytes {
+			klog.V(5).Infof("CreateVol: returning existed volume %v", meta.Volume)
 			return meta.Volume, nil
 		}
 		return Volume{}, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", volName, capacityBytes)
 	}
 
+	klog.V(5).Infof("CreateVol: volume not existed")
 	vol := Volume{
 		CapacityBytes: capacityBytes,
 	}
-
 	meta, err := json.Marshal(Meta{
 		vol,
 	})
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not marshal meta ID=%q capacityBytes=%v", volName, capacityBytes)
 	}
-	if err := fs.MakeDir(volPath); err != nil {
+	if err := fs.Provider.MakeDir(volPath); err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
 	}
 	if ioutil.WriteFile(metaPath, meta, 0644) != nil {
@@ -165,11 +167,11 @@ func (j *juicefs) MountFs(name string, secrets map[string]string, options []stri
 
 	mountPath, err := j.SafeMount(name, options)
 	if err != nil {
-		klog.Errorf("MountFs: failed to mount %q", name)
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs %s: %v", name, err)
 	}
 
 	return &jfs{
+		Provider:  j,
 		Name:      name,
 		MountPath: mountPath,
 		Options:   options,

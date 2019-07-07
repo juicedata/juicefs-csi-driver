@@ -58,16 +58,18 @@ func (d *controllerService) CreateVolume(
 	}
 
 	secrets := req.Secrets
-	klog.V(5).Infof("CreateVolume: ControllerCreateSecrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
+	klog.V(5).Infof("CreateVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
 	jfsName := req.Parameters["jfsName"]
 	capacityBytes := int64(req.CapacityRange.GetRequiredBytes())
 
+	klog.V(5).Infof("CreateVolume: Mounting juicefs %q", req.Name)
 	jfs, err := d.juicefs.MountFs(jfsName, secrets, []string{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs %q: %v", jfsName, err)
 	}
 
+	klog.V(5).Infof("CreateVolume: Creating volume %q, capacity bytes: %d", req.Name, capacityBytes)
 	vol, err := jfs.CreateVol(req.Name, capacityBytes)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		return nil, err
