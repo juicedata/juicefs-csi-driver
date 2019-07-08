@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	cmd       = "/usr/bin/juicefs"
+	cliPath   = "/usr/bin/juicefs"
 	mountBase = "/jfs"
 	fsType    = "juicefs"
 	// DefaultCapacityBytes is 10 Pi
@@ -40,6 +40,7 @@ var _ Interface = &juicefs{}
 type Volume struct {
 	// CapacityBytes of the volume
 	CapacityBytes int64 `json:"capacity_bytes"`
+	MountPoints   map[string]struct{}
 }
 
 // Meta file
@@ -142,7 +143,18 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 }
 
 func (fs *jfs) DeleteVol(volName string) error {
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	jfsProvider := fs.Provider
+	_, err := fs.GetVolByID(volName)
+	st, ok := status.FromError(err)
+	if ok && st.Code() == codes.NotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	stdoutStderr, err := jfsProvider.RmrDir(path.Join(fs.MountPath, volName))
+	klog.V(5).Infof("DeleteVol: rmr output is '%s'\n", stdoutStderr)
+	return err
 }
 
 // NewJfsProvider creates a provider for juicefs file system
@@ -178,6 +190,12 @@ func (j *juicefs) JfsMount(secrets map[string]string, options []string) (Jfs, er
 	}, nil
 }
 
+func (j *juicefs) RmrDir(directory string) ([]byte, error) {
+	args := []string{"rmr", directory}
+	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
+	return j.Exec.Run(cliPath, args...)
+}
+
 // AuthFs authenticates juicefs
 func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 	if secrets == nil || secrets["name"] == "" || secrets["token"] == "" {
@@ -197,7 +215,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 	}
 	// DEBUG only, secrets exposed in args
 	// klog.V(5).Infof("AuthFs: cmd %q, args %#v", cmd, args)
-	return j.Exec.Run(cmd, args...)
+	return j.Exec.Run(cliPath, args...)
 }
 
 // MountFs mounts juicefs with idempotency

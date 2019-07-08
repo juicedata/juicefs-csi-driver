@@ -95,6 +95,19 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
 
+	secrets := req.Secrets
+	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
+
+	jfs, err := d.juicefs.JfsMount(secrets, []string{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
+
+	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
+	err = jfs.DeleteVol(volumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeID)
+	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
 

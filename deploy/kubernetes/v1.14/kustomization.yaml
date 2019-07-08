@@ -7,4 +7,4 @@ resources:
 images:
 - name: juicedata/juicefs-csi-driver
   # newTag: csi-v1
-  digest: sha256:d26191a61bdaea3d49ea240cf2b90e34e6cba353521d230b1020379afcc1753f
+  digest: sha256:964db5dc54fbf7596185dee950b5dd9ff09b96d22cc48b3b266ea4fb4f8a2375
