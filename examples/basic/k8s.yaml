@@ -1,36 +1,32 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name:  juicefs-secret
+  namespace: default
+stringData:
+  # Check https://juicefs.com/console/vol/<name>/setting
+  accesskey: '""'
+  name: '""'
+  secretkey: '""'
+  token: '""'
+type: Opaque
+---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: juicefs
+  name: juicefs-sc
   namespace: default
 provisioner: csi.juicefs.com
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs
-spec:
-  accessModes:
-  - ReadWriteMany
-  capacity:
-    storage: 10Pi
-  csi:
-    driver: csi.juicefs.com
-    fsType: juicefs
-    ## GUIDE: `kubectl create secret generic juicefs --from-literal=token=juicefs-token --from-literal=accesskey=topsecret --from-literal=secretkey=topsecret`
-    nodePublishSecretRef:
-      name: juicefs-secret-not-provided
-      namespace: default
-    ## GUIDE: replace with your own JuiceFS filesystem name
-    volumeHandle: juicefs-name-not-provided
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: juicefs
-  volumeMode: Filesystem
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: juicefs
+  name: juicefs-pvc
   namespace: default
 spec:
   accessModes:
@@ -38,7 +34,7 @@ spec:
   resources:
     requests:
       storage: 10Pi
-  storageClassName: juicefs
+  storageClassName: juicefs-sc
 ---
 apiVersion: v1
 kind: Pod
@@ -60,4 +56,4 @@ spec:
   volumes:
   - name: juicefs-pv
     persistentVolumeClaim:
-      claimName: juicefs
+      claimName: juicefs-pvc
