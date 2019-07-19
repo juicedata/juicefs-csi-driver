@@ -68,8 +68,8 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	// TODO(yujunz): hide NodePublishSecrets from log
-	klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
+	// WARNING: debug only, secrets included
+	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
 	source := req.GetVolumeId()
 
@@ -123,7 +123,10 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource := path.Join(jfs.GetBasePath(), source)
+	bindSource := jfs.GetBasePath()
+	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
+		bindSource = path.Join(bindSource, bindDir)
+	}
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)

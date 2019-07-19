@@ -88,11 +88,11 @@ deploy: deploy/k8s.yaml
 uninstall: deploy/k8s.yaml
 	kubectl delete -f $<
 
-.PHONY: driver-dev-apply
-driver-dev-apply:
-	kustomize build deploy/driver/overlays/dev/ | kubectl apply -f -
+.PHONY: deploy-dev
+deploy-dev:
+	kustomize build deploy/kubernetes/dev/ | kubectl apply -f -
 	kubectl delete -n kube-system pod juicefs-csi-controller-0
 
 .PHONY: driver-dev-delete
-driver-dev-delete:
+deploy-dev-delete:
 	kustomize build deploy/driver/overlays/dev/ | kubectl delete -f -
