@@ -26,9 +26,10 @@ Before the example, you need to:
 
 * [Basic](examples/basic)
 * [Static provisioning](examples/static-provisioning/)
-* [Mount options](examples/mount-options/)
-* [Accessing the filesystem from multiple pods](examples/multiple-pods-read-write-many/)
-* [Scaling pods](examples/pod-scaling/)
+  * [Mount options](examples/static-provisioning-mount-options/)
+  * [Read write nany](examples/static-provisioning-rwx/)
+  * [Sub path](examples/static-provisioning-subpath/)
+* [Dynamic provisioning](examples/dynamic-provisioning/)
 
 **Notes**:
 
@@ -36,9 +37,10 @@ Before the example, you need to:
 
 ## CSI Specification Compatibility
 
-| JuiceFS CSI Driver \ CSI Version       | v0.3.0|
-|----------------------------------------|-------|
-| master branch                          | yes   |
+| JuiceFS CSI Driver \ CSI Version       | v0.3 | v1.0 |
+|----------------------------------------|------|------|
+| master branch (csi-v1)                 | no   | yes  |
+| csi-v0 branch                          | yes  | no   |
 
 ### Interfaces
 
@@ -57,35 +59,44 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 | JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 | v1.13 | v1.14 |
 |----------------------------------------|-------|-------|-------|-------|
-| master branch                          | yes   | yes   | yes   | yes   |
+| master branch (csi-v1)                 |       |       |       | yes   |
+| csi-v0 branch                          | yes   | yes   | yes   | yes   |
 
 ### Container Images
 
 |JuiceFS CSI Driver Version | Image                                   |
 |---------------------------|-----------------------------------------|
-|master branch              |juicedata/juicefs-csi-driver:latest      |
+| master branch             |juicedata/juicefs-csi-driver:latest      |
+| csi-v1 branch             |juicedata/juicefs-csi-driver:csi-v1      |
+| csi-v0 branch             |juicedata/juicefs-csi-driver:csi-v0      |
 
 ### Features
 
 * Static provisioning - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
-* Mount Options - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* Mount options - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* Read write many - Support `ReadWriteMany` access mode
+* Sub path - provision persisten volume with subpath in JuiceFS filesystem
+* Dynamic provisioning - allows storage volumes to be created on-demand
 
-|Feature \ JuiceFS CSI Driver | master |
-|-----------------------------|--------|
-| static provision            | yes    |
-| mount options               | yes    |
+|Feature \ JuiceFS CSI Driver | master (csi-v1) | csi-v0 |
+|-----------------------------|-----------------|--------|
+| static provisioning         |       yes       | yes    |
+|   mount options             |       yes       | yes    |
+|   read write many           |       yes       | yes    |
+|   sub path                  |       yes       | yes    |
+| dynamic provisioning        |       yes       | no     |
 
 ### Validation
 
 JuiceFS CSI driver has been validated in the following Kubernetes version
 
-| Kubernetes \ JuiceFS CSI Driver   | master |
-|-----------------------------------|--------|
-| v1.11.9 / kops 1.11.1             | yes    |
-| v1.12.6-eks-d69f1b / AWS EKS      | yes    |
-| v1.12.6-aliyun.1 / Aliyun CS K8s  | yes    |
-| v1.13.5 / kops 1.13.0-alpha.1     | yes    |
-| v1.14.1 / kops (git-39884d0b5)    | yes    |
+| Kubernetes \ JuiceFS CSI Driver   | master (csi-v1) | csi-v0 |
+|-----------------------------------|-----------------|--------|
+| v1.11.9 / kops 1.11.1             |                 | yes    |
+| v1.12.6-eks-d69f1b / AWS EKS      |                 | yes    |
+| v1.12.6-aliyun.1 / Aliyun CS K8s  |                 | yes    |
+| v1.13.5 / kops 1.13.0-alpha.1     |                 | yes    |
+| v1.14.1 / kops (git-39884d0b5)    |       yes       | yes    |
 
 Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
 
