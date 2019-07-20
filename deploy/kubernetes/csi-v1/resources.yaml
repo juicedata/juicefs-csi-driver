@@ -111,7 +111,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 # ---
-
+# # TODO(yujunz): support snapshot
 # kind: ClusterRole
 # apiVersion: rbac.authorization.k8s.io/v1
 # metadata:
@@ -182,7 +182,8 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:latest
+          image: juicedata/juicefs-csi-driver
+          imagePullPolicy: Always
           args :
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -229,6 +230,7 @@ spec:
             - --provisioner=csi.juicefs.com
             - --csi-address=$(ADDRESS)
             - --v=5
+            # # NOTE: juicefs is not bound to available zones, kind of topology agnostic
             # - --feature-gates=Topology=true
           env:
             - name: ADDRESS
@@ -247,7 +249,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
-        ## TODO(yujunz) support snapshot
+        # # TODO(yujunz) support snapshot
         # - name: csi-snapshotter
         #   image: quay.io/k8scsi/csi-snapshotter:v1.1.0
         #   args:
@@ -296,7 +298,8 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:latest
+          image: juicedata/juicefs-csi-driver
+          imagePullPolicy: Always
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr

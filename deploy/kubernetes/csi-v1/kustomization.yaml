@@ -6,5 +6,4 @@ resources:
 - resources.yaml
 images:
 - name: juicedata/juicefs-csi-driver
-  # newTag: csi-v1
-  digest: sha256:b4ab6767af522ed7f62e651aef257831689ebb46c75e36bb6f047adc65d8f922
+  newTag: csi-v1

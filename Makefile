@@ -49,15 +49,6 @@ push:
 	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
 	docker push $(REGISTRY)/$(IMAGE):latest
 
-.PHONY: image-dev
-image-dev: juicefs-csi-driver
-	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
-
-.PHONY: push-dev
-push-dev:
-	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
-	docker push $(REGISTRY)/$(IMAGE):dev
-
 .PHONY: image-branch
 image-branch:
 	docker build -t $(IMAGE):$(GIT_BRANCH) -f Dockerfile --build-arg=$(BUILD_ARG) .
@@ -87,6 +78,18 @@ deploy: deploy/k8s.yaml
 .PHONY: deploy-delete
 uninstall: deploy/k8s.yaml
 	kubectl delete -f $<
+
+.PHONY: dev
+dev: image-dev push-dev deploy-dev
+
+.PHONY: image-dev
+image-dev: juicefs-csi-driver
+	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
+
+.PHONY: push-dev
+push-dev:
+	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
+	docker push $(REGISTRY)/$(IMAGE):dev
 
 .PHONY: deploy-dev
 deploy-dev:
