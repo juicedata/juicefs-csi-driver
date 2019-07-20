@@ -124,8 +124,8 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	bindSource := jfs.GetBasePath()
-	if bindDir, ok := req.GetVolumeContext()["bindDir"]; ok {
-		bindSource = path.Join(bindSource, bindDir)
+	if subPath, ok := req.GetVolumeContext()["subPath"]; ok {
+		bindSource = path.Join(bindSource, subPath)
 	}
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
