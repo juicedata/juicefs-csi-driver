@@ -24,7 +24,7 @@ kustomize build | kubectl apply -f -
 or apply with kubectl >= 1.14
 
 ```s
-kubectl apply -k -f .
+kubectl apply -k .
 ```
 
 ## Check JuiceFS filesystem is used

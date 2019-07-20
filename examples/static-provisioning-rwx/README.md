@@ -1,4 +1,4 @@
-# Static Provisioning ReadWriteMany
+# Read Write Many
 
 Persistent volume provisioned by JuiceFS supports ReadWriteMany access mode.
 
@@ -19,7 +19,7 @@ kustomize build | kubectl apply -f -
 or apply with kubectl >= 1.14
 
 ```s
-kubectl apply -k -f .
+kubectl apply -k .
 ```
 
 ## Scaling

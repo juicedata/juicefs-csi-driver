@@ -7,6 +7,7 @@ This example shows how to make a static provisioned JuiceFS persistence volume (
 In order to build the example, you need to provide a secret file `Secret-juicefs.env` containing the required credentials
 
 ```ini
+name=<juicefs-name>
 token=<juicefs-token>
 accesskey=<juicefs-accesskey>
 secretkey=<juicefs-secretkey>
@@ -23,7 +24,7 @@ kustomize build | kubectl apply -f -
 or apply with kubectl >= 1.14
 
 ```s
-kubectl apply -k -f .
+kubectl apply -k .
 ```
 
 ## Check JuiceFS filesystem is used
