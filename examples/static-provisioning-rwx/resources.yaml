@@ -1,15 +1,10 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name:  juicefs-csi-scaling
+  name:  scaling-app
 spec:
-  selector:
-    matchLabels:
-      app: juicefs-csi-scaling
   template:
-    metadata:
-      labels:
-        app: juicefs-csi-scaling
     spec:
       containers:
       - name: app
@@ -26,9 +21,9 @@ spec:
             cpu: "20m"
             memory: "55M"
         volumeMounts:
-        - name: persistent-storage
+        - name: data
           mountPath: /data
       volumes:
-      - name: persistent-storage
+      - name: data
         persistentVolumeClaim:
-          claimName: juicefs
+          claimName: ten-pb-fs
