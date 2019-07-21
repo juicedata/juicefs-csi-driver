@@ -72,11 +72,11 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 ### Features
 
-* Static provisioning - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
-* Mount options - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
-* Read write many - Support `ReadWriteMany` access mode
-* Sub path - provision persisten volume with subpath in JuiceFS filesystem
-* Dynamic provisioning - allows storage volumes to be created on-demand
+* **Static provisioning** - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
+* **Mount options** - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* **Read write many** - Support `ReadWriteMany` access mode
+* **Sub path** - provision persisten volume with subpath in JuiceFS filesystem
+* **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 |Feature \ JuiceFS CSI Driver | master (csi-v1) | csi-v0 |
 |-----------------------------|-----------------|--------|
@@ -98,7 +98,7 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | v1.13.5 / kops 1.13.0-alpha.1     |                 | yes    |
 | v1.14.1 / kops (git-39884d0b5)    |       yes       | yes    |
 
-Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
+Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
 
 ## Develop
 
