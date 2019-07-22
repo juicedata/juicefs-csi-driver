@@ -1,10 +1,14 @@
 package juicefs
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -220,7 +224,10 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 
 // MountFs mounts juicefs with idempotency
 func (j *juicefs) MountFs(name string, options []string) (string, error) {
-	mountPath := path.Join(mountBase, name)
+	h := md5.New()
+	h.Write([]byte(strings.Join(options, ",")))
+	mountPath := path.Join(mountBase, fmt.Sprintf("%s-%s", name, hex.EncodeToString(h.Sum(nil))))
+
 	exists, err := j.ExistsPath(mountPath)
 
 	if err != nil {
