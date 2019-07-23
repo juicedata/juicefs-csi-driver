@@ -225,7 +225,9 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 // MountFs mounts juicefs with idempotency
 func (j *juicefs) MountFs(name string, options []string) (string, error) {
 	h := md5.New()
-	h.Write([]byte(strings.Join(options, ",")))
+	if _, err := h.Write([]byte(strings.Join(options, ","))); err != nil {
+		return "", status.Errorf(codes.Internal, "Could not write options to hash: %v", options)
+	}
 	mountPath := path.Join(mountBase, fmt.Sprintf("%s-%s", name, hex.EncodeToString(h.Sum(nil))))
 
 	exists, err := j.ExistsPath(mountPath)
