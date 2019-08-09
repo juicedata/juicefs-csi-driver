@@ -4,7 +4,7 @@ This example shows how to make a static provisioned JuiceFS persistence volume (
 
 ## Provide secret information
 
-In order to build the example, you need to provide a secret file `Secret-juicefs.env` containing the required credentials
+In order to build the example, you need to provide a secret file `secrets.env` containing the required credentials
 
 ```ini
 name=<juicefs-name>
