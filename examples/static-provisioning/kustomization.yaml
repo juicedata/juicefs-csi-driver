@@ -7,5 +7,5 @@ resources:
 - resources.yaml
 secretGenerator:
 - name: juicefs-aws-us-east-1
-  env: Secret-juicefs.env
+  env: secrets.env
   type: Opaque
