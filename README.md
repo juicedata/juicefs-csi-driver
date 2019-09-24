@@ -12,7 +12,7 @@ Deploy the driver:
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
 
-Additional steps could be required on some provider, e.g. Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
+Additional steps could be required on some provider, e.g. Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
 
 ## Examples
 
