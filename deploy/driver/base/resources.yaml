@@ -17,7 +17,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:latest
+          image: juicedata/juicefs-csi-driver:csi-v0
           imagePullPolicy: Always
           args :
             - --endpoint=$(CSI_ENDPOINT)
@@ -72,7 +72,7 @@ spec:
             capabilities:
               add:
                 - SYS_ADMIN
-          image: juicedata/juicefs-csi-driver:latest
+          image: juicedata/juicefs-csi-driver:csi-v0
           imagePullPolicy: Always
           args:
             - --endpoint=$(CSI_ENDPOINT)

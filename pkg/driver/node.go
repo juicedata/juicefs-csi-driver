@@ -119,9 +119,9 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	notMntPoint, err := d.mounter.IsLikelyNotMountPoint(jfsMnt)
 
 	if notMntPoint {
-		if err != os.ErrNotExist {
-			return nil, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", jfsMnt, err)
-		}
+		// if os.IsNotExist(err) {
+		// 	return nil, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", jfsMnt, err)
+		// }
 		klog.V(5).Infof("NodePublishVolume: mounting %q at %q with options %v", source, jfsMnt, mountOptions)
 		if err := d.mounter.Mount(source, jfsMnt, fsTypeJuiceFS, mountOptions); err != nil {
 			os.Remove(jfsMnt)

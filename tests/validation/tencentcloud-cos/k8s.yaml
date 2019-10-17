@@ -1,0 +1,63 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs
+  namespace: default
+provisioner: csi.juicefs.com
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 10Pi
+  csi:
+    driver: csi.juicefs.com
+    fsType: juicefs
+    ## GUIDE: `kubectl create secret generic juicefs-secret --from-literal=token=$JFS_TOKEN --from-literal=accesskey=$JFS_ACCESSKEY --from-literal=secretkey=$JFS_SECRETKEY --from-literal=bucket=JFS_BUCKET`
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    ## GUIDE: replace with your own JuiceFS filesystem name
+    volumeHandle: tencentcloud-ap-hongkong
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: juicefs
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Pi
+  storageClassName: juicefs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: juicefs-pv
+  volumes:
+  - name: juicefs-pv
+    persistentVolumeClaim:
+      claimName: juicefs

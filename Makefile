@@ -15,6 +15,7 @@
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
 VERSION=0.1.0
+DEV_TAG=dev-$(shell git describe --always --dirty)
 
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:
@@ -40,12 +41,12 @@ push:
 
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
-	docker build -t $(IMAGE):dev -f dev.Dockerfile bin
+	docker build -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
 
 .PHONY: push-dev
 push-dev:
-	docker tag $(IMAGE):dev $(REGISTRY)/$(IMAGE):dev
-	docker push $(REGISTRY)/$(IMAGE):dev
+	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(DEV_TAG)
+	docker push $(REGISTRY)/$(IMAGE):$(DEV_TAG)
 
 .PHONY: image-release
 image-release:

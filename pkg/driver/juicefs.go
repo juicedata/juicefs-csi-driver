@@ -12,7 +12,15 @@ func (d *Driver) juicefsAuth(source string, secrets map[string]string) ([]byte, 
 
 	token := secrets["token"]
 	args := []string{"auth", source, "--token", token}
-	keys := []string{"accesskey", "secretkey", "accesskey2", "secretkey2"}
+	keys := []string{
+		"token",
+		"accesskey",
+		"accesskey2",
+		"bucket",
+		"bucket2",
+		"secretkey",
+		"secretkey2",
+		"passphrase"}
 	for _, k := range keys {
 		v := secrets[k]
 		args = append(args, "--"+k)
