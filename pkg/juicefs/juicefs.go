@@ -207,7 +207,15 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 	}
 
 	args := []string{"auth", secrets["name"]}
-	keys := []string{"token", "accesskey", "secretkey", "accesskey2", "secretkey2"}
+	keys := []string{
+		"token",
+		"accesskey",
+		"accesskey2",
+		"bucket",
+		"bucket2",
+		"secretkey",
+		"secretkey2",
+		"passphrase"}
 	for _, k := range keys {
 		v := secrets[k]
 		args = append(args, "--"+k)
@@ -218,7 +226,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		}
 	}
 	// DEBUG only, secrets exposed in args
-	// klog.V(5).Infof("AuthFs: cmd %q, args %#v", cmd, args)
+	// klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, args)
 	return j.Exec.Run(cliPath, args...)
 }
 
