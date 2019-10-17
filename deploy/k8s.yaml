@@ -165,13 +165,16 @@ subjects:
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: juicefs-csi-controller
   serviceName: juicefs-csi-controller
   template:
     metadata:
@@ -262,7 +265,7 @@ spec:
       - emptyDir: {}
         name: socket-dir
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: juicefs-csi-node

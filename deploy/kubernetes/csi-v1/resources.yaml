@@ -163,12 +163,15 @@ roleRef:
 ---
 
 kind: StatefulSet
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
   serviceName: juicefs-csi-controller
+  selector:
+    matchLabels:
+      app: juicefs-csi-controller
   replicas: 1
   template:
     metadata:
@@ -276,7 +279,7 @@ spec:
 ---
 # Node Service
 kind: DaemonSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: juicefs-csi-node
   namespace: kube-system
