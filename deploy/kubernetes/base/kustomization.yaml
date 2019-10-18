@@ -3,7 +3,4 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: kube-system
 resources:
-- ../base
-images:
-- name: juicedata/juicefs-csi-driver
-  newTag: csi-v1
+- resources.yaml
