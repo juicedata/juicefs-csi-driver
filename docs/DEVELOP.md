@@ -17,6 +17,21 @@ make image-dev
 make push-dev
 ```
 
+## Using Minikube
+
+When using [minikube](https://www.github.com/kubernetes/minikube) for local development, modify default docker registry as below so that images can be available for minikube
+
+```sh
+eval $(minikube docker-env)
+```
+
+You may also need to create `plugin_registry` directory manually
+
+```sh
+minikube ssh
+sudo mkdir -p /var/lib/kubelet/plugins_registry/
+```
+
 ## Testing
 
 To execute all unit tests, run: `make test`
