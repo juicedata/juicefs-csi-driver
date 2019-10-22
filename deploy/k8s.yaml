@@ -254,6 +254,7 @@ spec:
       - args:
         - --provisioner=csi.juicefs.com
         - --csi-address=$(ADDRESS)
+        - --timeout=60s
         - --v=5
         env:
         - name: ADDRESS

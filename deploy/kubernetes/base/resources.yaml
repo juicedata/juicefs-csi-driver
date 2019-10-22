@@ -235,6 +235,7 @@ spec:
           args:
             - --provisioner=csi.juicefs.com
             - --csi-address=$(ADDRESS)
+            - --timeout=60s
             - --v=5
             # # NOTE: juicefs is not bound to available zones, kind of topology agnostic
             # - --feature-gates=Topology=true
