@@ -4,6 +4,4 @@ bases:
 - ../base
 images:
 - name: juicedata/juicefs-csi-driver
-  newTag: dev-e0dc0d3
-patches:
-- patches.yaml
+  newTag: dev-ff68c04

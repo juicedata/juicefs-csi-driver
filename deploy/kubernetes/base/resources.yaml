@@ -189,7 +189,6 @@ spec:
       containers:
         - name: juicefs-plugin
           image: juicedata/juicefs-csi-driver
-          imagePullPolicy: Always
           args :
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -306,7 +305,6 @@ spec:
           securityContext:
             privileged: true
           image: juicedata/juicefs-csi-driver
-          imagePullPolicy: Always
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
