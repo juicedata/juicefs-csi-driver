@@ -62,12 +62,11 @@ Events:
   Warning  FailedAttachVolume  1m (x12 over 12m)  attachdetach-controller                           AttachVolume.Attach failed for volume "juicefs-csi-demo" : attachment timeout for volume csi-demo
 ```
 
-Check the logs of the following components
+Use [stern](https://github.com/wercker/stern) to aggregate logs from all `juicefs-csi-driver` containers except `liveness-probe`.
 
-* `juicefs-csi-node`
-* `juicefs-csi-attacher`
-* `kube-controller-manager`
-* `kubelet`
+```sh
+stern -n kube-system -l juicefs-csi-driver=master --exclude-container liveness-probe
+```
 
 `juicefs-csi-driver` **MUST** be deployed to namespace like `kube-system` which supports `system-cluster-critical` priority class.
 

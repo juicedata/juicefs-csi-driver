@@ -4,3 +4,5 @@ kind: Kustomization
 namespace: kube-system
 resources:
 - resources.yaml
+commonLabels:
+  juicefs-csi-driver: master

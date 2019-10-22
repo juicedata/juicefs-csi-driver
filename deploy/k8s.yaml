@@ -2,12 +2,16 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-cluster-driver-registrar-role
 rules:
 - apiGroups:
@@ -30,6 +34,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-external-attacher-role
 rules:
 - apiGroups:
@@ -70,6 +76,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-external-provisioner-role
 rules:
 - apiGroups:
@@ -137,6 +145,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-attacher-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -150,6 +160,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-driver-registrar-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -163,6 +175,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-provisioner-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -176,6 +190,8 @@ subjects:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
@@ -183,11 +199,13 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-controller
+      juicefs-csi-driver: master
   serviceName: juicefs-csi-controller
   template:
     metadata:
       labels:
         app: juicefs-csi-controller
+        juicefs-csi-driver: master
     spec:
       containers:
       - args:
@@ -276,16 +294,20 @@ spec:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
+  labels:
+    juicefs-csi-driver: master
   name: juicefs-csi-node
   namespace: kube-system
 spec:
   selector:
     matchLabels:
       app: juicefs-csi-node
+      juicefs-csi-driver: master
   template:
     metadata:
       labels:
         app: juicefs-csi-node
+        juicefs-csi-driver: master
     spec:
       containers:
       - args:
