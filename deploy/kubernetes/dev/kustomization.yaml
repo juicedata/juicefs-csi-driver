@@ -4,4 +4,4 @@ bases:
 - ../base
 images:
 - name: juicedata/juicefs-csi-driver
-  newTag: dev-ff68c04
+  newTag: dev-fb073a3

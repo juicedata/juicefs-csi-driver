@@ -136,13 +136,16 @@ func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
 	if err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not marshal meta ID=%q capacityBytes=%v", volName, capacityBytes)
 	}
+	klog.V(5).Infof("CreateVol: making directory %q", volPath)
 	if err := fs.Provider.MakeDir(volPath); err != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
 	}
+	klog.V(5).Infof("CreateVol: writing meta to %q", metaPath)
 	if ioutil.WriteFile(metaPath, meta, 0644) != nil {
 		return Volume{}, status.Errorf(codes.Internal, "Could not write meta to %q", metaPath)
 	}
 
+	klog.V(5).Infof("CreateVol: return %v", vol)
 	return vol, nil
 }
 
@@ -202,31 +205,39 @@ func (j *juicefs) RmrDir(directory string) ([]byte, error) {
 
 // AuthFs authenticates juicefs
 func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
-	if secrets == nil || secrets["name"] == "" || secrets["token"] == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets, or empty name or token")
+	if secrets == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
+	}
+
+	if secrets["name"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
+	}
+
+	if secrets["token"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Empty token")
 	}
 
 	args := []string{"auth", secrets["name"]}
+	argsStripped := []string{"auth", secrets["name"]}
 	keys := []string{
-		"token",
 		"accesskey",
 		"accesskey2",
 		"bucket",
-		"bucket2",
+		"bucket2"}
+	keysStripped := []string{
+		"token",
 		"secretkey",
 		"secretkey2",
 		"passphrase"}
 	for _, k := range keys {
-		v := secrets[k]
-		args = append(args, "--"+k)
-		if v != "" {
-			args = append(args, v)
-		} else {
-			args = append(args, "''")
-		}
+		args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+		argsStripped = append(argsStripped, fmt.Sprintf("--%s=%s", k, secrets[k]))
 	}
-	// DEBUG only, secrets exposed in args
-	// klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, args)
+	for _, k := range keysStripped {
+		args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+		argsStripped = append(argsStripped, fmt.Sprintf("--%s=[secret]", k))
+	}
+	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
 	return j.Exec.Run(cliPath, args...)
 }
 
