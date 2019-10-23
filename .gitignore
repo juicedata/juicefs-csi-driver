@@ -4,3 +4,4 @@ vendor/
 profile.cov
 Secret-*
 secret*
+/deploy-dev/

@@ -10,31 +10,15 @@ Please go through [CSI Spec](https://github.com/container-storage-interface/spec
 
 Dependencies are managed through go module. To build the project, first turn on go mod using `export GO111MODULE=on`, to build the project run: `make`
 
-## Build container image
+## Development workflow
 
-```s
+```sh
+make
+make test
 make image-dev
 make push-dev
+make deploy-dev
 ```
-
-## Using Minikube
-
-When using [minikube](https://www.github.com/kubernetes/minikube) for local development, modify default docker registry as below so that images can be available for minikube
-
-```sh
-eval $(minikube docker-env)
-```
-
-You may also need to create `plugin_registry` directory manually
-
-```sh
-minikube ssh
-sudo mkdir -p /var/lib/kubelet/plugins_registry/
-```
-
-## Testing
-
-To execute all unit tests, run: `make test`
 
 ## Troubleshooting
 
@@ -114,3 +98,18 @@ To SSH login worker node, you may need to
 
 * set node password from web console and restart to make it effective
 * login master node first if worker node does not have a public IP
+
+### Using Minikube
+
+When using [minikube](https://www.github.com/kubernetes/minikube) for local development, modify default docker registry as below so that images can be available for minikube
+
+```sh
+eval $(minikube docker-env)
+```
+
+You may also need to create `plugin_registry` directory manually
+
+```sh
+minikube ssh
+sudo mkdir -p /var/lib/kubelet/plugins_registry/
+```
