@@ -59,7 +59,7 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 | JuiceFS CSI Driver \ Kubernetes Version| v1.11 | v1.12 | v1.13 | v1.14 | v1.15 | v1.16 |
 |----------------------------------------|-------|-------|-------|-------|-------|-------|
-| master branch (csi-v1)                 |       |       |       | yes   |       | yes   |
+| master branch (csi-v1)                 | no    | no    | yes   | yes   | yes   | yes   |
 | csi-v0 branch                          | yes   | yes   | yes   | yes   |       |       |
 
 ### Container Images
@@ -95,9 +95,11 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | v1.11.9 / kops 1.11.1             |                 | yes    |
 | v1.12.6-eks-d69f1b / AWS EKS      |                 | yes    |
 | v1.12.6-aliyun.1 / Aliyun CS K8s  |                 | yes    |
+| v1.13.0 / minikube 1.4.0          |       yes       |        |
 | v1.13.5 / kops 1.13.0-alpha.1     |                 | yes    |
 | v1.14.1 / kops (git-39884d0b5)    |       yes       | yes    |
 | v1.14.8 / minikube 1.4.0          |       yes       |        |
+| v1.15.0 / minikube 1.4.0          |       yes       |        |
 | v1.16.0 / minikube 1.4.0          |       yes       |        |
 
 Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
