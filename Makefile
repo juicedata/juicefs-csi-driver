@@ -105,5 +105,5 @@ deploy-dev: deploy-dev/k8s.yaml
 	kubectl delete -n kube-system pod juicefs-csi-controller-0
 
 .PHONY: delete-dev
-delete-dev: deploy/k8s-dev.yaml
+delete-dev: deploy-dev/k8s.yaml
 	kubectl delete -f $<
