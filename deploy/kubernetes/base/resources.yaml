@@ -176,6 +176,7 @@ spec:
     matchLabels:
       app: juicefs-csi-controller
   replicas: 1
+  volumeClaimTemplates: []
   template:
     metadata:
       labels:
@@ -278,7 +279,6 @@ spec:
       volumes:
         - name: socket-dir
           emptyDir: {}
-
 ---
 # Node Service
 kind: DaemonSet

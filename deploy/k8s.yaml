@@ -230,6 +230,13 @@ spec:
         - containerPort: 9808
           name: healthz
           protocol: TCP
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
         securityContext:
           capabilities:
             add:
@@ -290,6 +297,7 @@ spec:
       volumes:
       - emptyDir: {}
         name: socket-dir
+  volumeClaimTemplates: []
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -332,6 +340,13 @@ spec:
         - containerPort: 9808
           name: healthz
           protocol: TCP
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 5Gi
+          requests:
+            cpu: 1000m
+            memory: 1Gi
         securityContext:
           privileged: true
         volumeMounts:

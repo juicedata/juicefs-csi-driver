@@ -6,3 +6,5 @@ resources:
 - resources.yaml
 commonLabels:
   juicefs-csi-driver: master
+patches:
+- container-resources.yaml
