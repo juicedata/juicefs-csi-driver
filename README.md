@@ -104,6 +104,14 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 
 Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
 
+### Known issues
+
+#### JuiceFS CSI volumes can NOT reconcile [#14](https://github.com/juicedata/juicefs-csi-driver/issues/14)
+
+When `juicefs-csi-node` is killed, existing JuiceFS volume will become inaccessible. It will not recover automatically even after `juicefs-csi-node` reconcile.
+
+Delete the pods mounting JuiceFS volume and recreate them to recover.
+
 ## Develop
 
 See [DEVELOP](./docs/DEVELOP.md) document.
