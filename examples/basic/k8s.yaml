@@ -35,7 +35,7 @@ spec:
     - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
     command:
     - /bin/sh
-    image: centos
+    image: busybox
     name: app
     volumeMounts:
     - mountPath: /data

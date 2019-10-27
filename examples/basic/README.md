@@ -9,7 +9,7 @@ Create JuiceFS filesystem in [JuiceFS web console](https://juicefs.com/console)
 Then create secret for access in Kubernetes.
 
 ```sh
->> kubectl create secret generic juicefs-secret --from-literal=name=$JFS_NAME --from-literal=token=$JFS_TOKEN --from-literal=accesskey=$JFS_ACCESSKEY --from-literal=secretkey=$JFS_SECRETKEY
+>> kubectl -n default create secret generic juicefs-secret --from-literal=name=$JFS_NAME --from-literal=token=$JFS_TOKEN --from-literal=accesskey=$JFS_ACCESSKEY --from-literal=secretkey=$JFS_SECRETKEY
 ```
 
 JuiceFS token can be found in `https://juicefs.com/console/vol/{name}/setting`
