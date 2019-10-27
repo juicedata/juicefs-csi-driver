@@ -91,6 +91,7 @@ push-dev:
 
 deploy-dev/kustomization.yaml:
 	mkdir -p $(@D)
+	touch $@
 	cd $(@D); kustomize edit add resource ../deploy/kubernetes/base;
 	cd $(@D); kustomize edit set image juicedata/juicefs-csi-driver=:$(DEV_TAG)
 

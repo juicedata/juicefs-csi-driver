@@ -223,19 +223,31 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		"accesskey",
 		"accesskey2",
 		"bucket",
-		"bucket2"}
+		"bucket2",
+	}
 	keysStripped := []string{
 		"token",
 		"secretkey",
 		"secretkey2",
 		"passphrase"}
+	isOptional := map[string]bool{
+		"accesskey2": true,
+		"secretkey2": true,
+		"bucket":     true,
+		"bucket2":    true,
+		"passphrase": true,
+	}
 	for _, k := range keys {
-		args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
-		argsStripped = append(argsStripped, fmt.Sprintf("--%s=%s", k, secrets[k]))
+		if !isOptional[k] || secrets[k] != "" {
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			argsStripped = append(argsStripped, fmt.Sprintf("--%s=%s", k, secrets[k]))
+		}
 	}
 	for _, k := range keysStripped {
-		args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
-		argsStripped = append(argsStripped, fmt.Sprintf("--%s=[secret]", k))
+		if !isOptional[k] || secrets[k] != "" {
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			argsStripped = append(argsStripped, fmt.Sprintf("--%s=[secret]", k))
+		}
 	}
 	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
 	return j.Exec.Run(cliPath, args...)
