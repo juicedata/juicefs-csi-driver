@@ -18,9 +18,10 @@ set -euo pipefail
 
 if ! which golangci-lint > /dev/null; then
     echo "Cannot find golangci-lint. Installing golangci-lint..."
-    go get -v github.com/golangci/golangci-lint/cmd/golangci-lint
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
+    export PATH="$(go env GOPATH)/bin:$PATH"
 fi
 
-golangci-lint run --deadline=10m 
+golangci-lint run --deadline=10m
 
 echo "Congratulations! All Go source files have been linted."
