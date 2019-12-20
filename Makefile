@@ -15,6 +15,7 @@
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
 VERSION=0.1.0
+IMAGE_TAG=csi-v0
 
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:
@@ -31,12 +32,12 @@ test:
 
 .PHONY: image
 image:
-	docker build -t $(IMAGE):latest .
+	docker build -t $(IMAGE):$(IMAGE_TAG) .
 
 .PHONY: push
 push:
-	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
-	docker push $(REGISTRY)/$(IMAGE):latest
+	docker tag $(IMAGE):$(IMAGE_TAG) $(REGISTRY)/$(IMAGE):$(IMAGE_TAG)
+	docker push $(REGISTRY)/$(IMAGE):$(IMAGE_TAG)
 
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
