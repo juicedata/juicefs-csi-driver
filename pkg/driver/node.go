@@ -86,7 +86,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	stdoutStderr, err := d.juicefsAuth(source, secrets)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", stdoutStderr)
+		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v, output: %v", err, stdoutStderr)
 	}
 
 	klog.V(5).Infof("NodePublishVolume: authentication output is %s\n", stdoutStderr)

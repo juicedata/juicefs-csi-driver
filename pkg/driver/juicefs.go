@@ -6,8 +6,11 @@ import (
 )
 
 func (d *Driver) juicefsAuth(source string, secrets map[string]string) ([]byte, error) {
-	if secrets == nil || secrets["token"] == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets or empty token")
+	if secrets == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
+	}
+	if secrets["token"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Empty token")
 	}
 
 	token := secrets["token"]
