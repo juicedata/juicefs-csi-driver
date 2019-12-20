@@ -150,7 +150,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: juicedata/juicefs-csi-driver:latest
+        image: juicedata/juicefs-csi-driver:csi-v0
         imagePullPolicy: Always
         name: juicefs-plugin
         volumeMounts:
@@ -204,7 +204,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: juicedata/juicefs-csi-driver:latest
+        image: juicedata/juicefs-csi-driver:csi-v0
         imagePullPolicy: Always
         name: juicefs-plugin
         securityContext:

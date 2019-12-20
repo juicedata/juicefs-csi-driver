@@ -9,7 +9,7 @@ The [JuiceFS](https://juicefs.com) Container Storage Interface (CSI) Driver impl
 Deploy the driver:
 
 ```s
-kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/csi-v0/deploy/k8s.yaml
 ```
 
 Additional steps could be required on some provider, e.g. Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](DEVELOP.md#attachvolumeattach-failed) for details.
