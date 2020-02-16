@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"reflect"
 	"strings"
 
@@ -71,9 +70,9 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// WARNING: debug only, secrets included
 	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
-	source := req.GetVolumeId()
+	volumeID := req.GetVolumeId()
 
-	klog.V(5).Infof("NodePublishVolume: volume_id is %s", source)
+	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeID)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
@@ -105,9 +104,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	volCtx := req.GetVolumeContext()
+
 	secrets := req.Secrets
 	mountOptions := []string{}
-	if opts, ok := req.GetVolumeContext()["mountOptions"]; ok {
+	if opts, ok := volCtx["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}
 	for k, v := range options {
@@ -118,38 +119,65 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(secrets, mountOptions)
+	jfs, err := d.juicefs.JfsMount(volumeID, secrets, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource := jfs.GetBasePath()
-	if subPath, ok := req.GetVolumeContext()["subPath"]; ok {
-		bindSource = path.Join(bindSource, subPath)
+	var (
+		subPath string
+		volRoot string
+	)
+	if m, ok := volCtx["mode"]; ok && m == "dynamic" {
+		// dynamic provisioning
+		// /jfs/$(subPath)/$(volumeID) if subPath
+		// /jfs/$(volumeID) else
+		volRoot = volumeID
+	} else if sp, ok := volCtx["subPath"]; ok {
+		// static provisioning
+		// /jfs/$(subPath) if subPath
+		// /jfs else
+		subPath = sp
 	}
+	bindSource, err := jfs.CreateVol(volumeID, volRoot, subPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
+	}
+
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
-	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", source, target, mountOptions)
+	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", volumeID, target, mountOptions)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 // NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
 func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
+	// klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
 	}
 
+	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
+	refs, err := getMountRefs(target)
+
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
-	err := d.juicefs.Unmount(target)
-	if err != nil {
+	if err := d.juicefs.Unmount(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
+	}
+
+	// we can only unmount this when only one is left
+	// since the PVC might be used by more than one container
+	if err == nil && len(refs) == 1 {
+		klog.V(5).Infof("NodeUnpublishVolume: unmounting ref %s", refs[0])
+		if err := d.juicefs.Unmount(refs[0]); err != nil {
+			klog.V(5).Infof("NodeUnpublishVolume: error unmounting mount ref %s, %v", refs[0], err)
+		}
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil

@@ -1,14 +1,13 @@
 package juicefs
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path"
-	"strings"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,16 +21,15 @@ const (
 	fsType    = "juicefs"
 	// DefaultCapacityBytes is 10 Pi
 	DefaultCapacityBytes = 10 * 1024 * 1024 * 1024 * 1024 * 1024
-	// DotFile saves volume attributes
-	metaFile = ".juicefs"
 )
 
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsMount(secrets map[string]string, options []string) (Jfs, error)
+	JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error)
+	JfsUnmount(volumeID string)
 	AuthFs(secrets map[string]string) ([]byte, error)
-	MountFs(name string, options []string) (string, error)
+	MountFs(volumeID, name string, options []string) (string, error)
 }
 
 type juicefs struct {
@@ -40,128 +38,79 @@ type juicefs struct {
 
 var _ Interface = &juicefs{}
 
-// Volume in JuiceFS is a managed directory
-type Volume struct {
-	// CapacityBytes of the volume
-	CapacityBytes int64 `json:"capacity_bytes"`
-	MountPoints   map[string]struct{}
-}
-
-// Meta file
-type Meta struct {
-	// Volume meta
-	Volume Volume `json:"volume"`
-}
-
 type jfs struct {
 	Provider  *juicefs
 	Name      string
 	MountPath string
 	Options   []string
-	Volumes   []Volume
 }
 
 // Jfs is the interface of a mounted file system
 type Jfs interface {
 	GetBasePath() string
-	CreateVol(volName string, capacityBytes int64) (Volume, error)
-	DeleteVol(volName string) error
-	GetVolByID(volID string) (Volume, error)
+	CreateVol(volumeID, volRoot, subPath string) (string, error)
+	DeleteVol(volumeID string) error
+	GetVolByID(volumeID string) (string, error)
 }
 
 var _ Jfs = &jfs{}
 
-func (fs *jfs) GetVolByID(volID string) (Volume, error) {
-	volPath := path.Join(fs.MountPath, volID)
-
+func (fs *jfs) GetVolByID(volumeID string) (string, error) {
+	// it's tricky
+	volPath := filepath.Join(fs.MountPath, volumeID)
 	exists, err := fs.Provider.ExistsPath(volPath)
 	if err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
-		return Volume{}, status.Errorf(codes.NotFound, "Could not find volume: %q", volID)
+		return "", status.Errorf(codes.NotFound, "Could not find volume: %q", volumeID)
 	}
-
-	metaPath := path.Join(volPath, metaFile)
-	file, err := ioutil.ReadFile(metaPath)
-	if err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not read volume meta from %q", metaPath)
-	}
-
-	meta := Meta{}
-	if json.Unmarshal([]byte(file), &meta) != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not unmarshal meta %v", file)
-	}
-
-	return meta.Volume, nil
+	return volPath, nil
 }
 
 func (fs *jfs) GetBasePath() string {
 	return fs.MountPath
 }
 
-func (fs *jfs) CreateVol(volName string, capacityBytes int64) (Volume, error) {
-	volPath := path.Join(fs.MountPath, volName)
-	metaPath := path.Join(volPath, metaFile)
+// CreateVol creates the directory needed
+// when static provisioning, `volRoot` is empty
+// path will be $(mountBase)/$(subPath), and if `subPath` is empty too, path will be $(mountBase)
+// when dynamic provisioning, `volRoot` is not empty
+// path will be $(mountBase)/$(subPath)/$(volRoot), and if `subPath` is empty too, path will be $(mountBase)/$(volRoot)
+func (fs *jfs) CreateVol(volumeID, volRoot, subPath string) (string, error) {
+	volPath := filepath.Join(fs.MountPath, subPath, volRoot)
 
 	klog.V(5).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	exists, err := fs.Provider.ExistsPath(volPath)
 	if err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
-	if exists {
-		klog.V(5).Infof("CreateVol: reading meta from %q", metaPath)
-		file, err := ioutil.ReadFile(metaPath)
+	if !exists {
+		klog.V(5).Infof("CreateVol: volume not existed")
+		err := fs.Provider.MakeDir(volPath)
 		if err != nil {
-			return Volume{}, status.Errorf(codes.Internal, "Could not read volume meta from %q", metaPath)
+			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
 		}
-		meta := Meta{}
-		if json.Unmarshal([]byte(file), &meta) != nil {
-			return Volume{}, status.Errorf(codes.Internal, "Invalid meta %q", metaPath)
-		}
-		if meta.Volume.CapacityBytes >= capacityBytes {
-			klog.V(5).Infof("CreateVol: returning existed volume %v", meta.Volume)
-			return meta.Volume, nil
-		}
-		return Volume{}, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", volName, capacityBytes)
 	}
 
-	klog.V(5).Infof("CreateVol: volume not existed")
-	vol := Volume{
-		CapacityBytes: capacityBytes,
-	}
-	meta, err := json.Marshal(Meta{
-		vol,
-	})
-	if err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not marshal meta ID=%q capacityBytes=%v", volName, capacityBytes)
-	}
-	klog.V(5).Infof("CreateVol: making directory %q", volPath)
-	if err := fs.Provider.MakeDir(volPath); err != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not make directory %q", volPath)
-	}
-	klog.V(5).Infof("CreateVol: writing meta to %q", metaPath)
-	if ioutil.WriteFile(metaPath, meta, 0644) != nil {
-		return Volume{}, status.Errorf(codes.Internal, "Could not write meta to %q", metaPath)
-	}
-
-	klog.V(5).Infof("CreateVol: return %v", vol)
-	return vol, nil
+	return volPath, nil
 }
 
-func (fs *jfs) DeleteVol(volName string) error {
-	jfsProvider := fs.Provider
-	_, err := fs.GetVolByID(volName)
-	st, ok := status.FromError(err)
-	if ok && st.Code() == codes.NotFound {
+func (fs *jfs) DeleteVol(volumeID string) error {
+	volPath, err := fs.GetVolByID(volumeID)
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	stdoutStderr, err := jfsProvider.RmrDir(path.Join(fs.MountPath, volName))
-	klog.V(5).Infof("DeleteVol: rmr output is '%s'\n", stdoutStderr)
-	return err
+	stdoutStderr, err := fs.Provider.RmrDir(volPath)
+	klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // NewJfsProvider creates a provider for juicefs file system
@@ -177,14 +126,15 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 }
 
 // JfsMount auths and mounts juicefs
-func (j *juicefs) JfsMount(secrets map[string]string, options []string) (Jfs, error) {
+func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
+	j.Upgrade()
 	stdoutStderr, err := j.AuthFs(secrets)
 	klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 	}
 
-	mountPath, err := j.MountFs(secrets["name"], options)
+	mountPath, err := j.MountFs(volumeID, secrets["name"], options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -195,6 +145,14 @@ func (j *juicefs) JfsMount(secrets map[string]string, options []string) (Jfs, er
 		MountPath: mountPath,
 		Options:   options,
 	}, nil
+}
+
+func (j *juicefs) JfsUnmount(volumeID string) {
+	mountPath := filepath.Join(mountBase, volumeID)
+	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
+	if err := j.Unmount(mountPath); err != nil {
+		klog.V(5).Infof("JfsUnmount: error umount %s, %v", mountPath, err)
+	}
 }
 
 func (j *juicefs) RmrDir(directory string) ([]byte, error) {
@@ -254,15 +212,10 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 }
 
 // MountFs mounts juicefs with idempotency
-func (j *juicefs) MountFs(name string, options []string) (string, error) {
-	h := md5.New()
-	if _, err := h.Write([]byte(strings.Join(options, ","))); err != nil {
-		return "", status.Errorf(codes.Internal, "Could not write options to hash: %v", options)
-	}
-	mountPath := path.Join(mountBase, fmt.Sprintf("%s-%s", name, hex.EncodeToString(h.Sum(nil))))
+func (j *juicefs) MountFs(volumeID, name string, options []string) (string, error) {
+	mountPath := filepath.Join(mountBase, volumeID)
 
 	exists, err := j.ExistsPath(mountPath)
-
 	if err != nil {
 		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
 	}
@@ -292,4 +245,38 @@ func (j *juicefs) MountFs(name string, options []string) (string, error) {
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 	return mountPath, nil
+}
+
+// Upgrade upgrades binary file in `cliPath` to newest version
+// if JFS_AUTO_UPGRADE is not set, upgrade will be ignored.
+// if JFS_AUTO_UPGRADE is set:
+//   if JFS_AUTO_UPGRADE_TIMEOUT is set to an integer, then upgrade timeout will be this value of unit second.
+//   otherwise upgrade timeout will be 10s.
+func (j *juicefs) Upgrade() {
+	if _, ok := os.LookupEnv("JFS_AUTO_UPGRADE"); !ok {
+		return
+	}
+
+	timeout := 10
+	if t, ok := os.LookupEnv("JFS_AUTO_UPGRADE_TIMEOUT"); ok {
+		if v, err := strconv.Atoi(t); err == nil {
+			timeout = v
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	err := exec.CommandContext(ctx, cliPath, "version", "-u").Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		klog.V(5).Infof("Upgrade: did not finish in %v", timeout)
+		return
+	}
+
+	if err != nil {
+		klog.V(5).Infof("Upgrade: err %v", err)
+		return
+	}
+
+	klog.V(5).Infof("Upgrade: successfully upgraded to newest version")
 }
