@@ -99,6 +99,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeID)
 	}
+	delete(d.vols, volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
