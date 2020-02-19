@@ -78,10 +78,11 @@ func (d *controllerService) CreateVolume(
 		return nil, status.Errorf(codes.InvalidArgument, "Could not create volume %q size %d bytes: %v", req.Name, capacityBytes, err)
 	}
 
-	volCtx := map[string]string{"subPath": req.Name}
+	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		volCtx[k] = v
 	}
+	volCtx["subPath"] = req.Name
 
 	volume := csi.Volume{
 		VolumeId:      req.Name,
