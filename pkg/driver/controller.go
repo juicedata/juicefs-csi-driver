@@ -29,6 +29,7 @@ var (
 
 type controllerService struct {
 	juicefs juicefs.Interface
+	vols    map[string]int64
 }
 
 func newControllerService() controllerService {
@@ -39,6 +40,7 @@ func newControllerService() controllerService {
 
 	return controllerService{
 		juicefs: juicefs,
+		vols:    make(map[string]int64),
 	}
 }
 
@@ -54,6 +56,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
+	capReuired := req.CapacityRange.GetRequiredBytes()
+	if capa, ok := d.vols[req.Name]; ok && capa < capReuired {
+		return nil, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", req.Name, capReuired)
+	}
+	d.vols[req.Name] = capReuired
+
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		volCtx[k] = v
@@ -62,7 +70,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	volume := csi.Volume{
 		VolumeId:      req.Name,
-		CapacityBytes: req.CapacityRange.GetRequiredBytes(),
+		CapacityBytes: capReuired,
 		VolumeContext: volCtx,
 	}
 	return &csi.CreateVolumeResponse{Volume: &volume}, nil
@@ -136,15 +144,8 @@ func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req 
 		return nil, status.Error(codes.InvalidArgument, "Volume capabilities not provided")
 	}
 
-	secrets := req.Secrets
-	jfs, err := d.juicefs.JfsMount(volumeID, secrets, []string{})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not mount juicefs with secret %v: %v", reflect.ValueOf(secrets).MapKeys(), err)
-	}
-
-	volID := req.VolumeId
-	if _, err := jfs.GetVolByID(volID); err != nil {
-		return nil, status.Errorf(codes.NotFound, "Could not get volume by ID %q", volID)
+	if _, ok := d.vols[volumeID]; !ok {
+		return nil, status.Errorf(codes.NotFound, "Could not get volume by ID %q", volumeID)
 	}
 
 	var confirmed *csi.ValidateVolumeCapabilitiesResponse_Confirmed

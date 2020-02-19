@@ -26,6 +26,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 		endpoint: endpoint,
 		controllerService: controllerService{
 			juicefs: fakeProvider,
+			vols:    make(map[string]int64),
 		},
 		nodeService: nodeService{
 			juicefs: fakeProvider,

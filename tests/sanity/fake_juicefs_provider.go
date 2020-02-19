@@ -85,13 +85,6 @@ func (fs *fakeJfs) DeleteVol(name string) error {
 	return nil
 }
 
-func (fs *fakeJfs) GetVolByID(volID string) (string, error) {
-	if vol, ok := fs.volumes[volID]; ok {
-		return vol, nil
-	}
-	return "", status.Error(codes.NotFound, "Volume not found")
-}
-
 func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }

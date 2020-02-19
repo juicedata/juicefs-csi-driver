@@ -50,23 +50,9 @@ type Jfs interface {
 	GetBasePath() string
 	CreateVol(volumeID, subPath string) (string, error)
 	DeleteVol(volumeID string) error
-	GetVolByID(volumeID string) (string, error)
 }
 
 var _ Jfs = &jfs{}
-
-func (fs *jfs) GetVolByID(volumeID string) (string, error) {
-	// it's tricky
-	volPath := filepath.Join(fs.MountPath, volumeID)
-	exists, err := fs.Provider.ExistsPath(volPath)
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
-	}
-	if !exists {
-		return "", status.Errorf(codes.NotFound, "Could not find volume: %q", volumeID)
-	}
-	return volPath, nil
-}
 
 func (fs *jfs) GetBasePath() string {
 	return fs.MountPath
@@ -93,13 +79,7 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 }
 
 func (fs *jfs) DeleteVol(volumeID string) error {
-	volPath, err := fs.GetVolByID(volumeID)
-	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
+	volPath := filepath.Join(fs.MountPath, volumeID)
 	stdoutStderr, err := fs.Provider.RmrDir(volPath)
 	klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 	if err != nil {
