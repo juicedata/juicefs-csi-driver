@@ -48,7 +48,7 @@ type jfs struct {
 // Jfs is the interface of a mounted file system
 type Jfs interface {
 	GetBasePath() string
-	CreateVol(volumeID, volRoot, subPath string) (string, error)
+	CreateVol(volumeID, subPath string) (string, error)
 	DeleteVol(volumeID string) error
 	GetVolByID(volumeID string) (string, error)
 }
@@ -73,12 +73,8 @@ func (fs *jfs) GetBasePath() string {
 }
 
 // CreateVol creates the directory needed
-// when static provisioning, `volRoot` is empty
-// path will be $(mountBase)/$(subPath), and if `subPath` is empty too, path will be $(mountBase)
-// when dynamic provisioning, `volRoot` is not empty
-// path will be $(mountBase)/$(subPath)/$(volRoot), and if `subPath` is empty too, path will be $(mountBase)/$(volRoot)
-func (fs *jfs) CreateVol(volumeID, volRoot, subPath string) (string, error) {
-	volPath := filepath.Join(fs.MountPath, subPath, volRoot)
+func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
+	volPath := filepath.Join(fs.MountPath, subPath)
 
 	klog.V(5).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	exists, err := fs.Provider.ExistsPath(volPath)

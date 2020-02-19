@@ -124,22 +124,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	var (
-		subPath string
-		volRoot string
-	)
+	subPath := ""
 	if m, ok := volCtx["mode"]; ok && m == "dynamic" {
-		// dynamic provisioning
-		// /jfs/$(subPath)/$(volumeID) if subPath
-		// /jfs/$(volumeID) else
-		volRoot = volumeID
+		subPath = volumeID
 	} else if sp, ok := volCtx["subPath"]; ok {
-		// static provisioning
-		// /jfs/$(subPath) if subPath
-		// /jfs else
 		subPath = sp
 	}
-	bindSource, err := jfs.CreateVol(volumeID, volRoot, subPath)
+	bindSource, err := jfs.CreateVol(volumeID, subPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}

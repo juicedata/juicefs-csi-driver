@@ -68,7 +68,7 @@ func newFakeJfsProvider() *fakeJfsProvider {
 	}
 }
 
-func (fs *fakeJfs) CreateVol(name, root, subPath string) (string, error) {
+func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
 	_, ok := fs.volumes[name]
 
 	if !ok {

@@ -59,6 +59,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volCtx[k] = v
 	}
 	// subPath is not supported in dynamic provisioning
+	klog.V(5).Infof("CreateVolume Warning: `subPath` is not supported in dynamic provisioning")
 	delete(volCtx, "subPath")
 
 	volume := csi.Volume{
@@ -71,7 +72,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // DeleteVolume moves directory for the volume to trash (TODO)
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	// klog.V(4).Infof("DeleteVolume: called with args: %#v", req)
+	klog.V(4).Infof("DeleteVolume: called with args: %#v", req)
 	volumeID := req.GetVolumeId()
 
 	if len(volumeID) == 0 {
