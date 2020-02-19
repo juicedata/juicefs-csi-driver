@@ -1,14 +1,18 @@
 package juicefs
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
+	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -178,6 +182,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 
 // JfsMount auths and mounts juicefs
 func (j *juicefs) JfsMount(secrets map[string]string, options []string) (Jfs, error) {
+	j.Upgrade()
 	stdoutStderr, err := j.AuthFs(secrets)
 	klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
 	if err != nil {
@@ -292,4 +297,38 @@ func (j *juicefs) MountFs(name string, options []string) (string, error) {
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 	return mountPath, nil
+}
+
+// Upgrade upgrades binary file in `cliPath` to newest version
+// if JFS_AUTO_UPGRADE is not set, upgrade will be ignored.
+// if JFS_AUTO_UPGRADE is set:
+//   if JFS_AUTO_UPGRADE_TIMEOUT is set to an integer, then upgrade timeout will be this value of unit second.
+//   otherwise upgrade timeout will be 10s.
+func (j *juicefs) Upgrade() {
+	if _, ok := os.LookupEnv("JFS_AUTO_UPGRADE"); !ok {
+		return
+	}
+
+	timeout := 10
+	if t, ok := os.LookupEnv("JFS_AUTO_UPGRADE_TIMEOUT"); ok {
+		if v, err := strconv.Atoi(t); err == nil {
+			timeout = v
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	err := exec.CommandContext(ctx, cliPath, "version", "-u").Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		klog.V(5).Infof("Upgrade: did not finish in %v", timeout)
+		return
+	}
+
+	if err != nil {
+		klog.V(5).Infof("Upgrade: err %v", err)
+		return
+	}
+
+	klog.V(5).Infof("Upgrade: successfully upgraded to newest version")
 }
