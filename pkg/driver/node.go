@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"reflect"
 	"strings"
 
@@ -71,9 +70,9 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// WARNING: debug only, secrets included
 	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
-	source := req.GetVolumeId()
+	volumeID := req.GetVolumeId()
 
-	klog.V(5).Infof("NodePublishVolume: volume_id is %s", source)
+	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeID)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
@@ -105,9 +104,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	volCtx := req.GetVolumeContext()
+
 	secrets := req.Secrets
 	mountOptions := []string{}
-	if opts, ok := req.GetVolumeContext()["mountOptions"]; ok {
+	if opts, ok := volCtx["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}
 	for k, v := range options {
@@ -118,22 +119,23 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(secrets, mountOptions)
+	jfs, err := d.juicefs.JfsMount(volumeID, secrets, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource := jfs.GetBasePath()
-	if subPath, ok := req.GetVolumeContext()["subPath"]; ok {
-		bindSource = path.Join(bindSource, subPath)
+	bindSource, err := jfs.CreateVol(volumeID, volCtx["subPath"])
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
+
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
-	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", source, target, mountOptions)
+	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", volumeID, target, mountOptions)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 

@@ -17,6 +17,8 @@ limitations under the License.
 package sanity
 
 import (
+	"path/filepath"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,7 +27,7 @@ import (
 
 type fakeJfs struct {
 	basePath string
-	volumes  map[string]juicefs.Volume
+	volumes  map[string]string
 }
 
 type fakeJfsProvider struct {
@@ -33,7 +35,7 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) JfsMount(secrets map[string]string, options []string) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsMount(volumeID string, secrets map[string]string, options []string) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 
@@ -43,18 +45,20 @@ func (j *fakeJfsProvider) JfsMount(secrets map[string]string, options []string) 
 
 	fs = fakeJfs{
 		basePath: "/jfs/fake",
-		volumes:  map[string]juicefs.Volume{},
+		volumes:  map[string]string{},
 	}
 
 	j.fs[jfsName] = fs
 	return &fs, nil
 }
 
+func (j *fakeJfsProvider) JfsUnmount(volumeID string) {}
+
 func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) MountFs(name string, options []string) (string, error) {
+func (j *fakeJfsProvider) MountFs(volumeID, name string, options []string) (string, error) {
 	return "/jfs/fake", nil
 }
 
@@ -64,34 +68,21 @@ func newFakeJfsProvider() *fakeJfsProvider {
 	}
 }
 
-func (fs *fakeJfs) CreateVol(name string, capacityBytes int64) (juicefs.Volume, error) {
-	vol, ok := fs.volumes[name]
+func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
+	_, ok := fs.volumes[name]
 
 	if !ok {
-		vol = juicefs.Volume{
-			CapacityBytes: capacityBytes,
-		}
+		vol := filepath.Join(fs.basePath, name)
 		fs.volumes[name] = vol
 		return vol, nil
 	}
 
-	if vol.CapacityBytes >= capacityBytes {
-		return vol, nil
-	}
-
-	return juicefs.Volume{}, status.Error(codes.AlreadyExists, "Volume already exists")
+	return "", status.Error(codes.AlreadyExists, "Volume already exists")
 }
 
 func (fs *fakeJfs) DeleteVol(name string) error {
 	delete(fs.volumes, name)
 	return nil
-}
-
-func (fs *fakeJfs) GetVolByID(volID string) (juicefs.Volume, error) {
-	if vol, ok := fs.volumes[volID]; ok {
-		return vol, nil
-	}
-	return juicefs.Volume{}, status.Error(codes.NotFound, "Volume not found")
 }
 
 func (fs *fakeJfs) GetBasePath() string {
