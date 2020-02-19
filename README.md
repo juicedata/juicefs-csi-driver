@@ -101,6 +101,7 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | v1.14.8 / minikube 1.4.0          |       yes       |        |
 | v1.15.0 / minikube 1.4.0          |       yes       |        |
 | v1.16.0 / minikube 1.4.0          |       yes       |        |
+| v1.17.2 / minikube 1.7.2          |       yes       |        |
 
 Manual configuration is required for Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
 
