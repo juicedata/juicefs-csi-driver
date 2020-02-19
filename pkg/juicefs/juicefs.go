@@ -80,12 +80,15 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 
 func (fs *jfs) DeleteVol(volumeID string) error {
 	volPath := filepath.Join(fs.MountPath, volumeID)
-	stdoutStderr, err := fs.Provider.RmrDir(volPath)
-	klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
-	if err != nil {
-		return err
+	if existed, err := fs.Provider.ExistsPath(volPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+	} else if existed {
+		stdoutStderr, err := fs.Provider.RmrDir(volPath)
+		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
+		}
 	}
-
 	return nil
 }
 
