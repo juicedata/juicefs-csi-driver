@@ -147,7 +147,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 // NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
 func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	// klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
+	klog.V(4).Infof("NodeUnpublishVolume: called with args %+v", req)
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
