@@ -124,11 +124,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	subPath := ""
-	if sp, ok := volCtx["subPath"]; ok {
-		subPath = sp
-	}
-	bindSource, err := jfs.CreateVol(volumeID, subPath)
+	bindSource, err := jfs.CreateVol(volumeID, volCtx["subPath"])
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
