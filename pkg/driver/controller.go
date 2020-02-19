@@ -56,11 +56,11 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
-	capReuired := req.CapacityRange.GetRequiredBytes()
-	if capa, ok := d.vols[req.Name]; ok && capa < capReuired {
-		return nil, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", req.Name, capReuired)
+	requiredCap := req.CapacityRange.GetRequiredBytes()
+	if capa, ok := d.vols[req.Name]; ok && capa < requiredCap {
+		return nil, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", req.Name, requiredCap)
 	}
-	d.vols[req.Name] = capReuired
+	d.vols[req.Name] = requiredCap
 
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
@@ -70,7 +70,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	volume := csi.Volume{
 		VolumeId:      req.Name,
-		CapacityBytes: capReuired,
+		CapacityBytes: requiredCap,
 		VolumeContext: volCtx,
 	}
 	return &csi.CreateVolumeResponse{Volume: &volume}, nil
