@@ -54,13 +54,11 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
-	volCtx := map[string]string{"mode": "dynamic"}
+	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		volCtx[k] = v
 	}
-	// subPath is not supported in dynamic provisioning
-	klog.V(5).Infof("CreateVolume Warning: `subPath` is not supported in dynamic provisioning")
-	delete(volCtx, "subPath")
+	volCtx["subPath"] = req.Name
 
 	volume := csi.Volume{
 		VolumeId:      req.Name,

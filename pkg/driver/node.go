@@ -125,9 +125,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	subPath := ""
-	if m, ok := volCtx["mode"]; ok && m == "dynamic" {
-		subPath = volumeID
-	} else if sp, ok := volCtx["subPath"]; ok {
+	if sp, ok := volCtx["subPath"]; ok {
 		subPath = sp
 	}
 	bindSource, err := jfs.CreateVol(volumeID, subPath)
@@ -154,7 +152,6 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
 	}
 
-	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
 	refs, err := getMountRefs(target)
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
@@ -162,6 +159,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}
 
+	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
 	// we can only unmount this when only one is left
 	// since the PVC might be used by more than one container
 	if err == nil && len(refs) == 1 {
