@@ -1,0 +1,15 @@
+apiVersion: pingcap.com/v1alpha1
+kind: PodChaos
+metadata:
+  name: app-pod-failure
+spec:
+  action: pod-failure # the specific chaos action to inject; supported actions: pod-kill/pod-failure
+  mode: one # the mode to run chaos action; supported modes are one/all/fixed/fixed-percent/random-max-percent
+  duration: "60s" # duration for the injected chaos experiment
+  selector: # pods where to inject chaos actions
+    namespaces:
+      - chaos-victim  # the namespace of the system under test (SUT) you've deployed
+    labelSelectors:
+      chaos: victim
+  scheduler: # scheduler rules for the running time of the chaos experiments about pods.
+    cron: "@every 5m"
