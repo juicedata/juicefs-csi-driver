@@ -25,7 +25,7 @@ We have two components to upgrade:
 
 1. Stop all pods using this driver.
 2. Upgrade driver:
-	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` like [installation](#installation), and make sure juicefs-csi-controller and juicefs-csi-node restarted.
+	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure juicefs-csi-controller and juicefs-csi-node pods are restarted.
 	* If you have pinned to a specific version, modify your k8s.yaml to a newer version, then run `kubectl apply -f k8s.yaml`.
 
 ### Upgrade JuiceFS client
