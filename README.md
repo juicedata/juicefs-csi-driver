@@ -34,6 +34,11 @@ Before the example, you need to:
 **Notes**:
 
 * Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+* JuiceFS CSI Driver now supports automatically upgrade of JuiceFS client. You can use latest docker image to always enable auto-upgrade, or you can still pin to a specific version to disable auto-upgrade. Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions. We support two environment variables to configure auto-upgrade:
+	* `JFS_AUTO_UPGRADE`: auto-upgrade enabled if set, otherwise disabled
+	* `JFS_AUTP_UPGRADE_TIMEOUT`: time in seconds to do auto-upgrade (default 10)
+
+	You can also configure these in your own way.
 
 ## CSI Specification Compatibility
 
