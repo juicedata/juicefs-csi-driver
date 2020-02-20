@@ -14,6 +14,24 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 Additional steps could be required on some provider, e.g. Aliyun Container Service Kubernetes. See [Troubleshooting#AttachVolume.Attach failed](docs/DEVELOP.md#attachvolumeattach-failed) for details.
 
+## Upgrade
+
+We have two components to upgrade:
+
+* CSI Driver
+* JuiceFS client in CSI Driver
+
+### Upgrade CSI Driver
+
+1. Stop all pods using this driver.
+2. Upgrade driver:
+	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure juicefs-csi-controller and juicefs-csi-node pods are restarted.
+	* If you have pinned to a specific version, modify your k8s.yaml to a newer version, then run `kubectl apply -f k8s.yaml`.
+
+### Upgrade JuiceFS client
+
+Refer to the notes in [Examples](#examples) section below.
+
 ## Examples
 
 Before the example, you need to:
@@ -38,7 +56,8 @@ Before the example, you need to:
 	* `JFS_AUTO_UPGRADE`: auto-upgrade enabled if set, otherwise disabled
 	* `JFS_AUTP_UPGRADE_TIMEOUT`: time in seconds to do auto-upgrade (default 10)
 
-	You can also configure these in your own way.
+	You can also configure these in your own way.  
+	JuiceFS client will upgrade itself everytime before mounting. You can achieve this by simply re-deploying your pods.
 
 ## CSI Specification Compatibility
 
