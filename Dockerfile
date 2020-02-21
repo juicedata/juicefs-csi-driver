@@ -31,4 +31,5 @@ COPY THIRD-PARTY /
 
 RUN juicefs version
 
+ENV JFS_AUTO_UPGRADE=true
 ENTRYPOINT ["/bin/juicefs-csi-driver"]
