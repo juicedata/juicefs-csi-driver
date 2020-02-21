@@ -28,6 +28,8 @@ We have two components to upgrade:
 	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure juicefs-csi-controller and juicefs-csi-node pods are restarted.
 	* If you have pinned to a specific version, modify your k8s.yaml to a newer version, then run `kubectl apply -f k8s.yaml`.
 
+Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
+
 ### Upgrade JuiceFS client
 
 Refer to the notes in [Examples](#examples) section below.
@@ -52,12 +54,13 @@ Before the example, you need to:
 **Notes**:
 
 * Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
-* JuiceFS CSI Driver now supports automatically upgrade of JuiceFS client. You can use latest docker image to always enable auto-upgrade, or you can still pin to a specific version to disable auto-upgrade. Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions. We support two environment variables to configure auto-upgrade:
-	* `JFS_AUTO_UPGRADE`: auto-upgrade enabled if set, otherwise disabled
-	* `JFS_AUTP_UPGRADE_TIMEOUT`: time in seconds to do auto-upgrade (default 10)
+* Automatically upgrade of JuiceFS Client in JuiceFS CSI Driver image is now supported, and can be disabled. JuiceFS Client will upgrade automatically everytime before mounting a PersistentVolume if enabled. We also offer different ways to control this function:
+	* If you are using JuiceFS CSI Driver image with `latest` tag, then auto-upgrade is enabled by default. JuiceFS Client will try to upgrade itself everytime before mounting, a very short check time will be taken if no upgrade.
+	* If you have pinned JuiceFS CSI Driver to a specific version, then auto-upgrade is disabled by default. You can still enable this through environment variables:
+		* `JFS_AUTO_UPGRADE`: enable auto-upgrade if set to none empty value, otherwise disable
+		* `JFS_AUTO_UPGRADE_TIMEOUT`: the timeout for auto-upgrade in seconds(default `10`)
 
-	You can also configure these in your own way.  
-	JuiceFS client will upgrade itself everytime before mounting. You can achieve this by simply re-deploying your pods.
+		configure the above environment variables when deploy JuiceFS CSI Driver. Notice JuiceFS CSI Driver need to be re-deployed to ensure the environment variables are applied to controller and node driver.
 
 ## CSI Specification Compatibility
 
