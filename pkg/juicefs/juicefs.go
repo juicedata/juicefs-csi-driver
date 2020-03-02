@@ -104,6 +104,10 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	return &juicefs{*mounter}, nil
 }
 
+func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
+	return mount.IsNotMountPoint(j, dir)
+}
+
 // JfsMount auths and mounts juicefs
 func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
 	j.Upgrade()
