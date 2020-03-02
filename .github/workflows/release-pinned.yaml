@@ -1,11 +1,9 @@
-name: release
+name: release-pinned
 
 on:
   push:
     branches:
       - master
-  schedule:
-    - cron: "0 0 * * *"
 
 jobs:
   test:
@@ -26,16 +24,18 @@ jobs:
       - name: Test sanity
         run: make test-sanity
 
-  publish-latest:
+  publish-pinned:
     needs: test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: Remove environment variables
+      run: sed -i '/JFS_AUTO_UPGRADE/d' Dockerfile
     - name: Build docker image
-      run: make image
+      run: make image-release
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
     - name: Push docker image
-      run: make push
+      run: make push-release
