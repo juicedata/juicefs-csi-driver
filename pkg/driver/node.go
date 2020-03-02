@@ -148,6 +148,15 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
 	}
 
+	notMnt, err := d.juicefs.IsNotMountPoint(target)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Error checking %q is not mount point", target)
+	}
+	if notMnt {
+		klog.V(4).Infof("NodeUnpublishVolume: %q not mount", target)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
 	refs, err := getMountRefs(target)
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
