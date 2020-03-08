@@ -14,7 +14,7 @@
 #
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
-VERSION=0.4.0
+VERSION=$(shell git describe --tags --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DEV_TAG=dev-$(shell git describe --always --dirty)
@@ -23,7 +23,6 @@ BUILD_ARG="GIT_COMMIT=$(GIT_COMMIT) BUILD_DATE=$(BUILD_DATE)"
 PKG=github.com/juicedata/juicefs-csi-driver
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
-
 
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:

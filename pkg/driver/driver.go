@@ -26,7 +26,7 @@ type Driver struct {
 
 // NewDriver creates a new driver
 func NewDriver(endpoint string, nodeID string) (*Driver, error) {
-	klog.Infof("Driver: %v Version: %v", DriverName, driverVersion)
+	klog.Infof("Driver: %v version %v commit %v date %v", DriverName, driverVersion, gitCommit, buildDate)
 
 	return &Driver{
 		endpoint:          endpoint,
