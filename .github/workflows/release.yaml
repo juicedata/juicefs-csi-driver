@@ -45,7 +45,7 @@ jobs:
   publish-tagged:
     needs: test
     runs-on: ubuntu-latest
-    if: startWith(github.ref, "v")
+    if: startsWith(github.ref, "v")
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
