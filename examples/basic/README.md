@@ -14,6 +14,10 @@ Then create secret for access in Kubernetes.
 
 JuiceFS token can be found in `https://juicefs.com/console/vol/{name}/setting`
 
+**Note**: If you are using Tencent Cloud COS, a bucket name with `AppID` as suffix is required.  
+You can find this bucket name in `https://juicefs.com/console/vol/{name}/setting`, `Basic Information` section.  
+Add bucket name like `--from-literal=bucket=$JFS_BUCKET_NAME` when creating kubernetes secret.
+
 ## Apply the Example
 
 Create storage class, persistence volume claim (PVC) and sample pod
