@@ -30,6 +30,7 @@ type Interface interface {
 	JfsUnmount(volumeID string)
 	AuthFs(secrets map[string]string) ([]byte, error)
 	MountFs(volumeID, name string, options []string) (string, error)
+	Version() ([]byte, error)
 }
 
 type juicefs struct {
@@ -262,4 +263,8 @@ func (j *juicefs) Upgrade() {
 	}
 
 	klog.V(5).Infof("Upgrade: successfully upgraded to newest version")
+}
+
+func (j *juicefs) Version() ([]byte, error) {
+	return j.Exec.Run(cliPath, "version")
 }

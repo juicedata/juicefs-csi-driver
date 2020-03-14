@@ -38,6 +38,12 @@ func newControllerService() controllerService {
 		panic(err)
 	}
 
+	stdoutStderr, err := juicefs.Version()
+	if err != nil {
+		panic(err)
+	}
+	klog.V(4).Infof("Controller: %s", stdoutStderr)
+
 	return controllerService{
 		juicefs: juicefs,
 		vols:    make(map[string]int64),
