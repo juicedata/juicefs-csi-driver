@@ -42,17 +42,17 @@ jobs:
     - name: Push docker image
       run: make push
 
-  publish-tagged:
+  publish-version:
     needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'v')
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
-      run: make image-release
+      run: make image-version
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
     - name: Push docker image
-      run: make push-release
+      run: make push-version
