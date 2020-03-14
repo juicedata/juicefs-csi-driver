@@ -62,6 +62,10 @@ func (j *fakeJfsProvider) MountFs(volumeID, name string, options []string) (stri
 	return "/jfs/fake", nil
 }
 
+func (j *fakeJfsProvider) Version() ([]byte, error) {
+	return []byte{}, nil
+}
+
 func newFakeJfsProvider() *fakeJfsProvider {
 	return &fakeJfsProvider{
 		fs: map[string]fakeJfs{},
