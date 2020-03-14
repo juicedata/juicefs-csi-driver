@@ -30,7 +30,7 @@ jobs:
   publish-latest:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'master'
+    if: github.ref == 'ref/heads/master'
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
@@ -45,7 +45,7 @@ jobs:
   publish-version:
     needs: test
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'v')
+    if: startsWith(github.ref, 'ref/tags/')
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
