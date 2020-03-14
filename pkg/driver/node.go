@@ -49,6 +49,12 @@ func newNodeService(nodeID string) nodeService {
 		panic(err)
 	}
 
+	stdoutStderr, err := juicefs.Version()
+	if err != nil {
+		panic(err)
+	}
+	klog.V(4).Infof("Node: %s", stdoutStderr)
+
 	return nodeService{
 		juicefs: juicefs,
 		nodeID:  nodeID,
