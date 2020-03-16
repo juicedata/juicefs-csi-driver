@@ -1,13 +1,12 @@
-name: release
+name: latest
 
 on:
   push:
     branches:
       - master
-    tags:
-      - v*
   schedule:
     - cron: "0 0 * * *"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,7 +29,6 @@ jobs:
   publish-latest:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'ref/heads/master'
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
@@ -41,18 +39,3 @@ jobs:
         PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
     - name: Push docker image
       run: make push
-
-  publish-version:
-    needs: test
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'ref/tags/')
-    steps:
-    - uses: actions/checkout@v1
-    - name: Build docker image
-      run: make image-version
-    - name: Login Docker Hub
-      run: docker login --username juicefs --password ${PASSWORD}
-      env:
-        PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
-    - name: Push docker image
-      run: make push-version

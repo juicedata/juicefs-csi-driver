@@ -63,11 +63,11 @@ push-branch:
 .PHONY: image-version
 image-version:
 	docker build -t $(IMAGE):$(VERSION) .
-	docker tag $(IMAGE):$(VERSION) $(IMAGE_VERSION_ANNOTATED)
 
 .PHONY: push-version
 push-version:
 	docker push $(IMAGE):$(VERSION)
+	docker tag $(IMAGE):$(VERSION) $(IMAGE_VERSION_ANNOTATED)
 	docker push $(IMAGE_VERSION_ANNOTATED)
 
 deploy/k8s.yaml:
