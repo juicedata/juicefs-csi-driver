@@ -206,7 +206,7 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if err := j.Mount(name, mountPath, fsType, []string{}); err != nil {
+		if err := j.Mount(name, mountPath, fsType, options); err != nil {
 			os.Remove(mountPath)
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
 		}
@@ -221,7 +221,7 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if err := j.Mount(name, mountPath, fsType, []string{}); err != nil {
+		if err := j.Mount(name, mountPath, fsType, options); err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
 		}
 		return mountPath, nil
