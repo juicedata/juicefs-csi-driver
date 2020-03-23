@@ -18,8 +18,10 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -113,7 +115,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	secrets := req.Secrets
 	mountOptions := []string{}
 	if opts, ok := volCtx["mountOptions"]; ok {
-		mountOptions = append(mountOptions, opts)
+		mountOptions = strings.Split(opts, ",")
+	}
+	for k, v := range options {
+		if v != "" {
+			k = fmt.Sprintf("%s=%s", k, v)
+		}
+		mountOptions = append(mountOptions, k)
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
