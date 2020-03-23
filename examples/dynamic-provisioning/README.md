@@ -21,12 +21,6 @@ Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize)
 kustomize build | kubectl apply -f -
 ```
 
-or apply with kubectl >= 1.14
-
-```s
-kubectl apply -k .
-```
-
 ## Check JuiceFS filesystem is used
 
 After the objects are created, verify that pod is running:

@@ -61,6 +61,7 @@ Before the example, you need to:
 		* `JFS_AUTO_UPGRADE_TIMEOUT`: the timeout for auto-upgrade in seconds(default `10`)
 
 		configure the above environment variables when deploy JuiceFS CSI Driver. Notice JuiceFS CSI Driver need to be re-deployed to ensure the environment variables are applied to controller and node driver.
+* kustomize 3.x is required to build some examples.
 
 ## CSI Specification Compatibility
 
