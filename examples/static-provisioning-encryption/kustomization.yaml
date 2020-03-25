@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kube-system
+generatorOptions:
+  disableNameSuffixHash: true
+secretGenerator:
+- name: rsa-key
+  files:
+  - aaron.pem
+  literals:
+  - pass=testpass
