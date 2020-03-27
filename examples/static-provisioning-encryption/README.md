@@ -2,12 +2,11 @@
 
 This example shows how to make a static provisioned JuiceFS persistence volume (PV) mounted with encryption method inside container.
 
-
 ## Provide secret information
 
-First we create an RSA key: 
+First we create an RSA key:
 
-```
+```sh
 openssl genrsa -out aaron.pem -aes256 2048
 ```
 
@@ -15,18 +14,18 @@ and the passphrase is `testpass`, will be used later.
 
 Using `kubectl apply -k .` to create secrets containing the content of RSA key and RSA key passphrase. Or create it by your way.
 
-## Reinstall the CSI-Plugin
+## Appliy patches to CSI driver and PV
 
-We need to provide RSA key file and passphrase environment variables in CSI-Node containers. So use `csi.yaml` to reinstall CSI-Plugin:
+We need to provide RSA key file and passphrase environment variables to node driver plugin. Include [driver/pathces.yaml](driver/patches.yaml) as an overlay.
 
-```
-kubectl apply -f csi.yaml
-```
+Patch the persistent volume with `mountOptions` as in [app/patches.yaml](app/patches.yaml).
 
-## Apply the configurations
+Note that the two bases must be separated if they are in different namespaces due to the limitation of `kustomize`
 
-```
-kubectl apply -f k8s.yaml
+Apply the patched manifests.
+
+```sh
+kustomize build | kubectl apply -f -
 ```
 
 ## Check JuiceFS filesystem is used
