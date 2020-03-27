@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: juicefs-csi-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        env:
+        - name: JFS_RSA_PASSPHRASE
+          valueFrom:
+            secretKeyRef:
+              name: rsa-key
+              key: passphrase
+        volumeMounts:
+        - name: rsa-key
+          mountPath: /etc/rsa-key
+          readOnly: true
+      volumes:
+      - name: rsa-key
+        secret:
+          secretName: rsa-key
