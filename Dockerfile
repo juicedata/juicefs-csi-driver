@@ -12,24 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.11.4-stretch as builder
-WORKDIR /go/src/github.com/juicedata/juicefs-csi-driver
-ENV GO111MODULE on
+FROM golang:1.13.9-alpine3.11 as builder
+
+RUN apk add git make
+
+WORKDIR /juicefs-csi-driver
 COPY . .
 RUN make
 
-FROM amazonlinux:2
+FROM python:2.7-alpine
+
 WORKDIR /app
 
-ENV JUICEFS_CLI=/bin/juicefs
+ENV JUICEFS_CLI=/usr/bin/juicefs
+ENV JFS_AUTO_UPGRADE=true
 
-RUN yum install util-linux -y
+RUN apk add --update-cache \
+    curl \
+    util-linux \
+    && rm -rf /var/cache/apk/*
+
 RUN curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
 
-COPY --from=builder /go/src/github.com/juicedata/juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
+COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY THIRD-PARTY /
 
 RUN juicefs version
 
-ENV JFS_AUTO_UPGRADE=true
 ENTRYPOINT ["/bin/juicefs-csi-driver"]
