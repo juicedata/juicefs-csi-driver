@@ -29,12 +29,6 @@ Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize)
 kustomize build | kubectl apply -f -
 ```
 
-or apply with kubectl >= 1.14
-
-```s
-kubectl apply -k .
-```
-
 ## Check mount options are customized
 
 After the configuration is applied, verify that pod is running:
@@ -47,12 +41,9 @@ Also you can verify that mount options are customized in the mounted JuiceFS fil
 
 ```sh
 >> kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
-
-sh-4.2# yum install procps
-sh-4.2# ps xf
+>> ps xf
 ...
-root       342  0.0  1.1 122484 11596 ?        S    12:02   0:00 /usr/bin/python2 /sbin/mount.juicefs csi-demo /var/lib/kubelet/pods/f513c3e5-7576-11e9-a400-0aa5dd01d816/volumes/kubernetes.io~csi/juicefs/mount -o rw,cache-dir=/var/foo,cache-size=124,metacache HOSTNAME=ip-
-root       344  0.5  5.1  70632 52892 ?        S<l  12:02   0:03  \_ juicefs -mountpoint /var/lib/kubelet/pods/f513c3e5-7576-11e9-a400-0aa5dd01d816/volumes/kubernetes.io~csi/juicefs/mount -ssl -cacheDir /var/foo/csi-demo -cacheSize 124 -o fsname=JuiceFS:csi-demo,allow_oth
+   66 root      0:00 /usr/local/bin/python2 /usr/bin/juicefs mount aws-us-east-1 /jfs/aws-us-east-1 --metacache --cache-size=100 --cache-dir=/var/foo
+   68 root      0:00 {jfsmount} juicefs -mountpoint /jfs/aws-us-east-1 -ssl -cacheDir /var/foo/aws-us-east-1 -cacheSize 100 -o fsname=JuiceFS:aws-us-east-1,allow_other,nonempty -metacacheto 300 -attrcacheto 1 -entrycacheto 1 -direntrycacheto 1 -compress zstd
+...
 ```
-
-Note that `-cacheDir` is different from default value `/var/jfsCache/csi-demo` and `-cacheSize` is customized as `124`.

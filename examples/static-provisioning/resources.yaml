@@ -49,6 +49,9 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: data
+    resources:
+      requests:
+        cpu: 10m
   volumes:
   - name: data
     persistentVolumeClaim:

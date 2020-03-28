@@ -5,3 +5,4 @@ bases:
 - ../static-provisioning
 patchesStrategicMerge:
 - patches.yaml
+nameSuffix: -mount-options
