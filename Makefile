@@ -90,6 +90,7 @@ push-dev:
 	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(DEV_TAG)
 	docker push $(REGISTRY)/$(IMAGE):$(DEV_TAG)
 
+.PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
 	mkdir -p $(@D)
 	touch $@
@@ -102,9 +103,8 @@ deploy-dev/k8s.yaml: deploy-dev/kustomization.yaml deploy/kubernetes/base/*.yaml
 
 .PHONY: deploy-dev
 deploy-dev: deploy-dev/k8s.yaml
-	kubectl apply -f $<
-	kubectl delete -n kube-system pod juicefs-csi-controller-0
+	kapp deploy --app juicefs-csi-driver --file $<
 
 .PHONY: delete-dev
 delete-dev: deploy-dev/k8s.yaml
-	kubectl delete -f $<
+	kapp delete --app juicefs-csi-driver
