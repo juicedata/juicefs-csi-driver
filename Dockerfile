@@ -24,7 +24,6 @@ FROM python:2.7-alpine
 
 WORKDIR /app
 
-ENV PATH /usr/local/bin:$PATH
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=true
 
@@ -34,6 +33,7 @@ RUN apk add --update-cache \
     && rm -rf /var/cache/apk/*
 
 RUN curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
+RUN ln -s /usr/local/bin/python /usr/bin/python
 
 COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY THIRD-PARTY /
