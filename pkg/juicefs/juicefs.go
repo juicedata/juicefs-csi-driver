@@ -18,6 +18,7 @@ import (
 const (
 	cliPath   = "/usr/bin/juicefs"
 	mountBase = "/jfs"
+	fsType    = "juicefs"
 	// DefaultCapacityBytes is 10 Pi
 	DefaultCapacityBytes = 10 * 1024 * 1024 * 1024 * 1024 * 1024
 )
@@ -203,16 +204,11 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
 	}
 
-	args := []string{"mount", name, mountPath}
-	for _, opt := range options {
-		args = append(args, fmt.Sprintf("--%s", opt))
-	}
-
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if output, err := j.Exec.Run(cliPath, args...); err != nil {
+		if err := j.Mount(name, mountPath, fsType, options); err != nil {
 			os.Remove(mountPath)
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q, error: %v, ouptut: %q", name, mountPath, err, string(output))
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
 		}
 		return mountPath, nil
 	}
@@ -225,7 +221,7 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if _, err := j.Exec.Run(cliPath, args...); err != nil {
+		if err := j.Mount(name, mountPath, fsType, options); err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
 		}
 		return mountPath, nil
