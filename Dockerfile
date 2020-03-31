@@ -24,6 +24,7 @@ FROM python:2.7-alpine
 
 WORKDIR /app
 
+ENV PATH /usr/local/bin:$PATH
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=true
 
