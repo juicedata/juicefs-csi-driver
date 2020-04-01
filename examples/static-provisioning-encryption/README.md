@@ -10,13 +10,11 @@ First we create an RSA key:
 openssl genrsa -out aaron.pem -aes256 2048
 ```
 
-and the passphrase is `testpass`, will be used later.
+and the passphrase is `testpass`. It will be referred in `kustomization.yaml`
 
-Using `kubectl apply -k .` to create secrets containing the content of RSA key and RSA key passphrase. Or create it by your way.
+## Apply patches to CSI driver and PV
 
-## Appliy patches to CSI driver and PV
-
-We need to provide RSA key file and passphrase environment variables to node driver plugin. Include [driver/pathces.yaml](driver/patches.yaml) as an overlay.
+We need to provide RSA key file and passphrase environment variables to node driver plugin. Include [driver/patches.yaml](driver/patches.yaml) as an overlay.
 
 Patch the persistent volume with `mountOptions` as in [app/patches.yaml](app/patches.yaml).
 
