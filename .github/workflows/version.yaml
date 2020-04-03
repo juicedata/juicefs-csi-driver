@@ -1,6 +1,9 @@
 name: version
 
 on:
+  push:
+    branches:
+      - release*
   release:
     types:
       - created
@@ -29,8 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Remove environment variables
-      run: sed -i '/JFS_AUTO_UPGRADE/d' Dockerfile
     - name: Build docker image
       run: make image-version
     - name: Login Docker Hub
