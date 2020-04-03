@@ -22,10 +22,12 @@ RUN make
 
 FROM python:2.7-alpine
 
+ARG JFS_AUTO_UPGRADE
+
 WORKDIR /app
 
 ENV JUICEFS_CLI=/usr/bin/juicefs
-ENV JFS_AUTO_UPGRADE=true
+ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 
 RUN apk add --update-cache \
     curl \

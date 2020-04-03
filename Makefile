@@ -61,7 +61,8 @@ push-branch:
 
 .PHONY: image-version
 image-version:
-	docker build -t $(IMAGE):$(VERSION) .
+	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
+	docker build -t $(IMAGE):$(VERSION) --build-arg=JFS_AUTO_UPGRADE=disabled .
 
 .PHONY: push-version
 push-version:

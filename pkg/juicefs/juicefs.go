@@ -232,12 +232,8 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 }
 
 // Upgrade upgrades binary file in `cliPath` to newest version
-// if JFS_AUTO_UPGRADE is not set, upgrade will be ignored.
-// if JFS_AUTO_UPGRADE is set:
-//   if JFS_AUTO_UPGRADE_TIMEOUT is set to an integer, then upgrade timeout will be this value of unit second.
-//   otherwise upgrade timeout will be 10s.
 func (j *juicefs) Upgrade() {
-	if _, ok := os.LookupEnv("JFS_AUTO_UPGRADE"); !ok {
+	if v, ok := os.LookupEnv("JFS_AUTO_UPGRADE"); !ok || v != "enabled" {
 		return
 	}
 
