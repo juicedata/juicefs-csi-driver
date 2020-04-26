@@ -347,7 +347,7 @@ spec:
             - name: ADDRESS
               value: /csi/csi.sock
             - name: DRIVER_REG_SOCK_PATH
-              value: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock
+              value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -368,7 +368,7 @@ spec:
             type: Directory
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi.juicefs.com/
+            path: /var/lib/kubelet/csi-plugins/csi.juicefs.com/
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
