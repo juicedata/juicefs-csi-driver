@@ -206,7 +206,8 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
-					klog.V(5).Infof("Create config file: %q failed", confPath)
+					return nil, status.Errorf(codes.Internal,
+						"Create config file %q failed: %v", confPath, err)
 				}
 				klog.V(5).Infof("Create config file: %q success", confPath)
 			}
