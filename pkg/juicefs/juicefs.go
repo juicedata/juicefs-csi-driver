@@ -3,6 +3,7 @@ package juicefs
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -189,6 +190,27 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		if !isOptional[k] || secrets[k] != "" {
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 			argsStripped = append(argsStripped, fmt.Sprintf("--%s=[secret]", k))
+		}
+	}
+	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
+		args = append(args, "--no-update")
+		argsStripped = append(argsStripped, "--no-update")
+
+		if secrets["bucket"] == "" {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"bucket argument is required when --no-update option is provided")
+		}
+		if secrets["initconfig"] != "" {
+			conf := secrets["name"] + ".conf"
+			confPath := filepath.Join("/root/.juicefs", conf)
+			if _, err := os.Stat(confPath); os.IsNotExist(err) {
+				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
+				if err != nil {
+					return nil, status.Errorf(codes.Internal,
+						"Create config file %q failed: %v", confPath, err)
+				}
+				klog.V(5).Infof("Create config file: %q success", confPath)
+			}
 		}
 	}
 	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
