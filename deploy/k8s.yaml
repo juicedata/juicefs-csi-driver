@@ -282,8 +282,14 @@ spec:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
       - args:
-        - --csi-address=/csi/csi.sock
+        - --csi-address=$(ADDRESS)
         - --connection-timeout=3s
+        - --health-port=$(HEALTH_PORT)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: HEALTH_PORT
+          value: 9808
         image: quay.io/k8scsi/livenessprobe:v1.1.0
         name: liveness-probe
         volumeMounts:
@@ -381,8 +387,14 @@ spec:
         - mountPath: /registration
           name: registration-dir
       - args:
-        - --csi-address=/csi/csi.sock
+        - --csi-address=$(ADDRESS)
         - --connection-timeout=3s
+        - --health-port=$(HEALTH_PORT)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: HEALTH_PORT
+          value: 9808
         image: quay.io/k8scsi/livenessprobe:v1.1.0
         name: liveness-probe
         volumeMounts:
