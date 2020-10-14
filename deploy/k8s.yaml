@@ -227,7 +227,7 @@ spec:
           timeoutSeconds: 3
         name: juicefs-plugin
         ports:
-        - containerPort: 9808
+        - containerPort: 9909
           name: healthz
           protocol: TCP
         resources:
@@ -289,7 +289,7 @@ spec:
         - name: ADDRESS
           value: /csi/csi.sock
         - name: HEALTH_PORT
-          value: 9808
+          value: "9909"
         image: quay.io/k8scsi/livenessprobe:v1.1.0
         name: liveness-probe
         volumeMounts:
@@ -343,7 +343,7 @@ spec:
           timeoutSeconds: 3
         name: juicefs-plugin
         ports:
-        - containerPort: 9808
+        - containerPort: 9909
           name: healthz
           protocol: TCP
         resources:
@@ -394,7 +394,7 @@ spec:
         - name: ADDRESS
           value: /csi/csi.sock
         - name: HEALTH_PORT
-          value: 9808
+          value: "9909"
         image: quay.io/k8scsi/livenessprobe:v1.1.0
         name: liveness-probe
         volumeMounts:
