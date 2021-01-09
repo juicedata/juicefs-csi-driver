@@ -6,3 +6,4 @@ Secret-*
 secret*
 /deploy-dev/
 .idea
+dev-image.tar

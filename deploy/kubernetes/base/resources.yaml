@@ -84,35 +84,6 @@ roleRef:
   name: juicefs-external-attacher-role
   apiGroup: rbac.authorization.k8s.io
 
----
-
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-cluster-driver-registrar-role
-rules:
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["create", "list", "watch", "delete"]
-  - apiGroups: ["csi.storage.k8s.io"]
-    resources: ["csidrivers"]
-    verbs: ["create", "delete"]
-
----
-
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-csi-driver-registrar-binding
-subjects:
-  - kind: ServiceAccount
-    name: juicefs-csi-controller-sa
-    namespace: kube-system
-roleRef:
-  kind: ClusterRole
-  name: juicefs-cluster-driver-registrar-role
-  apiGroup: rbac.authorization.k8s.io
-
 # ---
 # # TODO(yujunz): support snapshot
 # kind: ClusterRole
@@ -164,6 +135,14 @@ roleRef:
 #   apiGroup: rbac.authorization.k8s.io
 
 ---
+kind: CSIDriver
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: csi.juicefs.com
+spec:
+  attachRequired: false
+  podInfoOnMount: false
+---
 
 kind: StatefulSet
 apiVersion: apps/v1
@@ -203,7 +182,7 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
           ports:
             - name: healthz
-              containerPort: 9808
+              containerPort: 9909
               protocol: TCP
           securityContext:
             capabilities:
@@ -218,22 +197,9 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 10
             failureThreshold: 5
-        - name: cluster-driver-registrar
-          image: quay.io/k8scsi/csi-cluster-driver-registrar:v1.0.1
-          args:
-            - --csi-address=$(ADDRESS)
-            - --driver-requires-attachment=false
-            - --v=5
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.1.0
           args:
-            - --provisioner=csi.juicefs.com
             - --csi-address=$(ADDRESS)
             - --timeout=60s
             - --v=5
@@ -271,8 +237,13 @@ spec:
         - name: liveness-probe
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
-            - --csi-address=/csi/csi.sock
-            - --connection-timeout=3s
+            - --csi-address=$(ADDRESS)
+            - --health-port=$(HEALTH_PORT)
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: HEALTH_PORT
+              value: "9909"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -323,7 +294,7 @@ spec:
               mountPath: /dev
           ports:
             - name: healthz
-              containerPort: 9808
+              containerPort: 9909
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -356,8 +327,13 @@ spec:
         - name: liveness-probe
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
-            - --csi-address=/csi/csi.sock
-            - --connection-timeout=3s
+            - --csi-address=$(ADDRESS)
+            - --health-port=$(HEALTH_PORT)
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: HEALTH_PORT
+              value: "9909"
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi

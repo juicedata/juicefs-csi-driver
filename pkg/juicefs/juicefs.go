@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -17,9 +19,10 @@ import (
 )
 
 const (
-	cliPath   = "/usr/bin/juicefs"
-	mountBase = "/jfs"
-	fsType    = "juicefs"
+	cliPath     = "/usr/bin/juicefs"
+	ceMountPath = "/bin/mount.juicefs"
+	mountBase   = "/jfs"
+	fsType      = "juicefs"
 	// DefaultCapacityBytes is 10 Pi
 	DefaultCapacityBytes = 10 * 1024 * 1024 * 1024 * 1024 * 1024
 )
@@ -30,7 +33,7 @@ type Interface interface {
 	JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error)
 	JfsUnmount(volumeID string)
 	AuthFs(secrets map[string]string) ([]byte, error)
-	MountFs(volumeID, name string, options []string) (string, error)
+	MountFs(volumeID, source string, options []string) (string, error)
 	Version() ([]byte, error)
 }
 
@@ -112,14 +115,18 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 
 // JfsMount auths and mounts juicefs
 func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
-	j.Upgrade()
-	stdoutStderr, err := j.AuthFs(secrets)
-	klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
+	source, ok := secrets["metaurl"]
+	if !ok {
+		j.Upgrade()
+		stdoutStderr, err := j.AuthFs(secrets)
+		klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
+		}
+		source = secrets["name"]
 	}
 
-	mountPath, err := j.MountFs(volumeID, secrets["name"], options)
+	mountPath, err := j.MountFs(volumeID, source, options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -218,7 +225,12 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 }
 
 // MountFs mounts juicefs with idempotency
-func (j *juicefs) MountFs(volumeID, name string, options []string) (string, error) {
+func (j *juicefs) MountFs(volumeID, source string, options []string) (string, error) {
+	var isCeMount bool
+	if strings.Contains(source, "://") {
+		isCeMount = true
+	}
+
 	mountPath := filepath.Join(mountBase, volumeID)
 
 	exists, err := j.ExistsPath(mountPath)
@@ -227,10 +239,15 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 	}
 
 	if !exists {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if err := j.Mount(name, mountPath, fsType, options); err != nil {
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, mountPath, options)
+		if isCeMount {
+			err = j.ceMount(source, mountPath, fsType, options)
+		} else {
+			j.Mount(source, mountPath, fsType, options)
+		}
+		if err != nil {
 			os.Remove(mountPath)
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
 		}
 		return mountPath, nil
 	}
@@ -242,9 +259,14 @@ func (j *juicefs) MountFs(volumeID, name string, options []string) (string, erro
 	}
 
 	if notMnt {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", name, mountPath, options)
-		if err := j.Mount(name, mountPath, fsType, options); err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", name, mountPath, err)
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, mountPath, options)
+		if isCeMount {
+			err = j.ceMount(source, mountPath, fsType, options)
+		} else {
+			j.Mount(source, mountPath, fsType, options)
+		}
+		if err != nil {
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
 		}
 		return mountPath, nil
 	}
@@ -285,4 +307,46 @@ func (j *juicefs) Upgrade() {
 
 func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Run(cliPath, "version")
+}
+
+func (j *juicefs) ceMount(source string, mountPath string, fsType string, options []string) error {
+	klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
+	mountArgs := []string{source, mountPath}
+	if len(options) > 0 {
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+	}
+
+	if notMounted, err := j.IsLikelyNotMountPoint(mountPath); err != nil {
+		return err
+	} else if !notMounted {
+		err = j.Unmount(mountPath)
+		if err != nil {
+			klog.V(5).Infof("Unmount before mount failed: %v", err)
+			return err
+		}
+		klog.V(5).Infof("Unmount %v", mountPath)
+	}
+
+	out, err := j.Exec.Run(ceMountPath, mountArgs...)
+	if err != nil {
+		klog.V(5).Infof("ceMount failed with output: %v", string(out))
+	}
+
+	// Wait until the mount point is ready
+	for i := 0; i < 30; i++ {
+		finfo, err := os.Stat(mountPath)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", mountPath, err)
+		}
+		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+			if st.Ino == 1 {
+				return nil
+			}
+			klog.V(5).Infof("Mount point %v is not ready", mountPath)
+		} else {
+			klog.V(5).Info("Cannot reach here")
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("Mount %v at %v failed", source, mountPath)
 }
