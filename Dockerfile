@@ -14,8 +14,10 @@
 
 FROM golang:1.13 as builder
 
+ARG GOPROXY
 WORKDIR /juicefs-csi-driver
 COPY . .
+ENV GOPROXY=${GOPROXY:https://proxy.golang.org}
 RUN make
 
 WORKDIR /workspace
@@ -37,7 +39,8 @@ RUN apk add --update-cache curl util-linux && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     ln -s /usr/local/bin/python /usr/bin/python
 
-COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicefs/juicefs /bin/mount.juicefs
+COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
+COPY --from=builder /workspace/juicefs/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
 RUN juicefs version

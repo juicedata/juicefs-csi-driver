@@ -4,19 +4,19 @@ This example shows how a basic example to use JuiceFS in Kubernetes pod.
 
 ## Prerequisite
 
-Create JuiceFS filesystem in [JuiceFS web console](https://juicefs.com/console)
+Create JuiceFS filesystem using [juicefs format](https://github.com/juicedata/juicefs/#format-a-volume). Take Amazon S3 as an example:
+
+```
+./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com redis://user:password@<HOST>:6379/1 <NAME>
+```
+
+
 
 Then create secret for access in Kubernetes.
 
 ```sh
->> kubectl -n default create secret generic juicefs-secret --from-literal=name=$JFS_NAME --from-literal=token=$JFS_TOKEN --from-literal=accesskey=$JFS_ACCESSKEY --from-literal=secretkey=$JFS_SECRETKEY
+>> kubectl -n default create secret generic juicefs-secret --from-literal=metaurl=redis://user:password@<HOST>:6379/1
 ```
-
-JuiceFS token can be found in `https://juicefs.com/console/vol/{name}/setting`
-
-**Note**: If you are using Tencent Cloud COS, a bucket name with `AppID` as suffix is required.  
-You can find this bucket name in `https://juicefs.com/console/vol/{name}/setting`, `Basic Information` section.  
-Add bucket name like `--from-literal=bucket=$JFS_BUCKET_NAME` when creating kubernetes secret.
 
 ## Apply the Example
 

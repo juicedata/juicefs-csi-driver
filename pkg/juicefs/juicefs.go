@@ -316,6 +316,14 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 	}
 
+	if exist, err := j.ExistsPath(mountPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", mountPath, err)
+	} else if !exist {
+		if err = j.MakeDir(mountPath); err != nil {
+			return status.Errorf(codes.Internal, "Could not create dir %q: %v", mountPath, err)
+		}
+	}
+
 	if notMounted, err := j.IsLikelyNotMountPoint(mountPath); err != nil {
 		return err
 	} else if !notMounted {
@@ -348,5 +356,5 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		}
 		time.Sleep(time.Second)
 	}
-	return fmt.Errorf("Mount %v at %v failed", source, mountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
 }
