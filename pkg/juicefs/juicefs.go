@@ -243,7 +243,7 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 		if isCeMount {
 			err = j.ceMount(source, mountPath, fsType, options)
 		} else {
-			j.Mount(source, mountPath, fsType, options)
+			err = j.Mount(source, mountPath, fsType, options)
 		}
 		if err != nil {
 			os.Remove(mountPath)
@@ -263,7 +263,7 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 		if isCeMount {
 			err = j.ceMount(source, mountPath, fsType, options)
 		} else {
-			j.Mount(source, mountPath, fsType, options)
+			err = j.Mount(source, mountPath, fsType, options)
 		}
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
