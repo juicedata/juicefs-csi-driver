@@ -20,6 +20,7 @@ import (
 
 const (
 	cliPath     = "/usr/bin/juicefs"
+	ceCliPath   = "/bin/juicefs"
 	ceMountPath = "/bin/mount.juicefs"
 	mountBase   = "/jfs"
 	fsType      = "juicefs"
@@ -124,6 +125,12 @@ func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options [
 			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 		}
 		source = secrets["name"]
+	} else {
+		stdoutStderr, err := j.ceFormat(secrets)
+		klog.V(5).Infof("MountFs: format output is '%s'\n", stdoutStderr)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
+		}
 	}
 
 	mountPath, err := j.MountFs(volumeID, source, options)
@@ -148,9 +155,16 @@ func (j *juicefs) JfsUnmount(volumeID string) {
 }
 
 func (j *juicefs) RmrDir(directory string) ([]byte, error) {
-	args := []string{"rmr", directory}
+	exists, err := j.ExistsPath(filepath.Join(directory, ".masterinfo"))
+	if err != nil {
+		return nil, err
+	}
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
-	return j.Exec.Run(cliPath, args...)
+	if !exists { // Community edition
+		return j.Exec.Run("rm", "-rf", directory)
+	}
+	// Enterprise edition
+	return j.Exec.Run(cliPath, "rmr", directory)
 }
 
 // AuthFs authenticates juicefs
@@ -307,6 +321,51 @@ func (j *juicefs) Upgrade() {
 
 func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Run(cliPath, "version")
+}
+
+func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
+	if secrets == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
+	}
+
+	if secrets["name"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
+	}
+
+	if secrets["metaurl"] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Empty metaurl")
+	}
+
+	args := []string{"format"}
+	argsStripped := []string{"format"}
+	keys := []string{
+		"storage",
+		"bucket",
+		"access-key",
+		"block-size",
+		"compress",
+	}
+	keysStripped := []string{"secret-key"}
+	isOptional := map[string]bool{
+		"block-size": true,
+		"compress":   true,
+	}
+	for _, k := range keys {
+		if !isOptional[k] || secrets[k] != "" {
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			argsStripped = append(argsStripped, fmt.Sprintf("--%s=%s", k, secrets[k]))
+		}
+	}
+	for _, k := range keysStripped {
+		if !isOptional[k] || secrets[k] != "" {
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			argsStripped = append(argsStripped, fmt.Sprintf("--%s=[secret]", k))
+		}
+	}
+	args = append(args, secrets["metaurl"], secrets["name"])
+	argsStripped = append(argsStripped, "[metaurl]", secrets["name"])
+	klog.V(5).Infof("ceFormat: cmd %q, args %#v", ceCliPath, argsStripped)
+	return j.Exec.Run(ceCliPath, args...)
 }
 
 func (j *juicefs) ceMount(source string, mountPath string, fsType string, options []string) error {
