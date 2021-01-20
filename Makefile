@@ -88,8 +88,7 @@ image-dev: juicefs-csi-driver
 
 .PHONY: push-dev
 push-dev:
-	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(DEV_TAG)
-	docker push $(REGISTRY)/$(IMAGE):$(DEV_TAG)
+	minikube cache add $(IMAGE):$(DEV_TAG)
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:

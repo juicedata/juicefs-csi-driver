@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.13.9-alpine3.11 as builder
+FROM golang:1.13 as builder
 
-RUN apk add git make
-
+ARG GOPROXY
 WORKDIR /juicefs-csi-driver
 COPY . .
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make
+
+WORKDIR /workspace
+RUN apt-get update && apt-get install -y musl-tools && \
+    git clone --depth=1 https://github.com/juicedata/juicefs && \
+    cd juicefs && STATIC=1 make
 
 FROM python:2.7-alpine
 
@@ -29,15 +34,13 @@ WORKDIR /app
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 
-RUN apk add --update-cache \
-    curl \
-    util-linux \
-    && rm -rf /var/cache/apk/*
+RUN apk add --update-cache curl util-linux && \
+    rm -rf /var/cache/apk/* && \
+    curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
+    ln -s /usr/local/bin/python /usr/bin/python
 
-RUN curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
-RUN ln -s /usr/local/bin/python /usr/bin/python
-
-COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/juicefs-csi-driver
+COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicefs/juicefs /bin/
+RUN ln -s /bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
 RUN juicefs version
