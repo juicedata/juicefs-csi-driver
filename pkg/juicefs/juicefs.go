@@ -131,6 +131,10 @@ func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options [
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
 		}
+		// Default use redis:// scheme
+		if !strings.Contains(source, "://") {
+			source = "redis://" + source
+		}
 	}
 
 	mountPath, err := j.MountFs(volumeID, source, options)
