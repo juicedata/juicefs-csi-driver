@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM juicedata/juicefs-csi-driver:dev-latest
+FROM juicedata/juicefs-csi-driver:latest
 
 COPY juicefs-csi-driver /bin/juicefs-csi-driver
 
