@@ -63,7 +63,7 @@ Verify that data is written onto JuiceFS filesystem:
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
-Verify the directory created as PV in by mounting it in a host
+Verify the directory created as PV in JuiceFS filesystem by mounting it in a host:
 
 ```
 juicefs mount -d redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] /jfs
