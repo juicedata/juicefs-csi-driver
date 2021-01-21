@@ -16,10 +16,10 @@ metadata:
 spec:
   csi:
     volumeAttributes:
-      mountOptions: "metacache,cache-size=100,cache-dir=/var/foo"
+      mountOptions: "enable-xattr,max-uploads=50,cache-size=100,cache-dir=/var/foo"
 ```
 
-Refer to [JuiceFS command reference](https://juicefs.com/docs/zh/commands_reference.html#juicefs-mount) for all supported options.
+Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
 
 ## Apply the configurations
 
@@ -34,16 +34,12 @@ kustomize build | kubectl apply -f -
 After the configuration is applied, verify that pod is running:
 
 ```sh
->> kubectl get pods
+kubectl get pods
 ```
 
 Also you can verify that mount options are customized in the mounted JuiceFS filesystem:
 
 ```sh
->> kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
->> ps xf
-...
-   66 root      0:00 /usr/local/bin/python2 /usr/bin/juicefs mount aws-us-east-1 /jfs/aws-us-east-1 --metacache --cache-size=100 --cache-dir=/var/foo
-   68 root      0:00 {jfsmount} juicefs -mountpoint /jfs/aws-us-east-1 -ssl -cacheDir /var/foo/aws-us-east-1 -cacheSize 100 -o fsname=JuiceFS:aws-us-east-1,allow_other,nonempty -metacacheto 300 -attrcacheto 1 -entrycacheto 1 -direntrycacheto 1 -compress zstd
-...
+kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
+ps xf
 ```

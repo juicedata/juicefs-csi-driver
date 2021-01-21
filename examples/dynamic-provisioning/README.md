@@ -7,10 +7,12 @@ This example shows how to make a dynamic provisioned JuiceFS persistence volume 
 In order to build the example, you need to provide a secret file `Secret-juicefs.env` containing the required credentials
 
 ```ini
-name=<juicefs-name>
-token=<juicefs-token>
-accesskey=<juicefs-accesskey>
-secretkey=<juicefs-secretkey>
+name=<name>
+metaurl=<metaurl>
+access-key=<access-key>
+secret-key=<secret-key>
+storage=<storage>
+bucket=<bucket>
 ```
 
 ## Apply the configurations
@@ -34,5 +36,3 @@ Also you can verify that data is written onto JuiceFS filesystem:
 ```sh
 >> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
-
-Check for the directory created as PV https://juicefs.com/console/vol/<juicefs-name>/

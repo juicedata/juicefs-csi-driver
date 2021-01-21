@@ -4,7 +4,7 @@ How does JuiceFS CSI driver work in Kubernetes?
 
 ## Current implementation
 
-JuiceFS CSI driver implements [CSI spec v0.3.0](https://github.com/container-storage-interface/spec/blob/v0.3.0/spec.md)
+JuiceFS CSI driver implements [CSI spec v1.0](https://github.com/container-storage-interface/spec/blob/release-1.0/spec.md)
 
 ### Architecture
 
@@ -92,7 +92,7 @@ May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    
 
 ### Creating volume
 
-Volume needs to be created before mounting, but JuiceFS CSI driver does nothing in this step since the file system is provisioned outside Kubernetes via [JuiceFS console](https://juicefs.com/console/) and configured statically in `spec/csi/volumeHandler` attribute of the [PersistentVolume](https://kubernetes.io/docs/concepts/storage/persistent-volumes/).
+Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](../examples/basic) for details.
 
 Kubernetes will proceed the following actions:
 
@@ -127,11 +127,9 @@ Kubernetes will take the following actions when related resources are deleted:
   * PV unbound from PVC
     * PV deleted
 
-The file system is NOT destroyed when PV is deleted. The only way to delete it is using [JuiceFS console](https://juicefs.com/console/).
+The file system is NOT destroyed when PV is deleted. 
 
 ## Next in CSI spec v1.x
-
-There are some significant changes in [latest CSI spec](https://github.com/container-storage-interface/spec/blob/master/spec.md) comparing to v0.3.0.
 
 ### Deprecated
 

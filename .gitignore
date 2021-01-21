@@ -6,3 +6,4 @@ Secret-*
 secret*
 /deploy-dev/
 .idea
+.DS_Store
