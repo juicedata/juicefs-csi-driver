@@ -46,5 +46,3 @@ Also you can verify that data is written onto JuiceFS filesystem:
 ```sh
 >> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
-
-Check that file is created under the subpath in [JuiceFS console](https://juicefs.com/console).

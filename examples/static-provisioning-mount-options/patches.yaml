@@ -5,4 +5,4 @@ metadata:
 spec:
   csi:
     volumeAttributes:
-      mountOptions: "metacache,cache-size=100,cache-dir=/var/foo"
+      mountOptions: "enable-xattr,max-uploads=50,cache-size=100,cache-dir=/var/foo"
