@@ -62,7 +62,7 @@ The following sections are Kubernetes specific. If you are a Kubernetes user, us
 
 ### Kubernetes Version Compatibility
 
-JuiceFS CSI Driver is compatible with Kubernetes **v1.13+**
+JuiceFS CSI Driver is compatible with Kubernetes **v1.14+**
 
 Container Images
 

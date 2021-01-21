@@ -369,7 +369,7 @@ spec:
           type: Directory
         name: device-dir
 ---
-apiVersion: storage.k8s.io/v1
+apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   labels:

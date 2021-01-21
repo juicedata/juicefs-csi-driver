@@ -136,7 +136,7 @@ roleRef:
 
 ---
 kind: CSIDriver
-apiVersion: storage.k8s.io/v1
+apiVersion: storage.k8s.io/v1beta1
 metadata:
   name: csi.juicefs.com
 spec:
