@@ -4,22 +4,7 @@ This example shows how a basic example to use JuiceFS in Kubernetes pod.
 
 ## Prerequisite
 
-Create JuiceFS filesystem using [juicefs format](https://github.com/juicedata/juicefs/#format-a-volume). Take Amazon S3 as an example:
-
-```
-./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
-    redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
-```
-
-Replace fields enclosed by `<>` with your own environment variables. The fields enclosed `[]` is optional which related your deployment environment.
-
-This step can also executed by CSI driver in Kubernetes, but you should make sure:
-
-1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
-2. The redis db is clean and the password (if provided) is right
-
-Then create secret for access in Kubernetes.
+Create secrets for CSI driver in Kubernetes(take Amazon S3 as an example):
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
@@ -29,8 +14,25 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY>
+```
+- `name`: The JuiceFS filesystem name.
+- `metaurl`: Connection URL for redis database.
+- `storage`: Object storage scheme, such as `s3`, `gs`, `oss`, read [juicesync README](https://github.com/juicedata/juicesync/blob/master/README.md) for the full supported list.
+- `bucket`: Vhost style bucket naming style.
+- `access-key`: Access key.
+- `secret-key`: Secret access key.
 
+Replace fields enclosed by `<>` with your own environment variables. The fields enclosed `[]` is optional which related your deployment environment.
 
+You should ensure:
+1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
+2. The redis db is clean and the password (if provided) is right
+
+You can execute the [juicefs format](https://github.com/juicedata/juicefs/#format-a-volume) command to ensure the secret is OK.
+```
+./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
+    --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
+    redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
 ```
 
 ## Apply the Example
