@@ -23,10 +23,10 @@ Then create secret for access in Kubernetes.
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME>
+    --from-literal=name=<NAME> \
     --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com
+    --from-literal=storage=s3 \
+    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY>
 
