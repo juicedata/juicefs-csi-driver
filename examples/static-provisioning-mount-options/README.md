@@ -6,6 +6,14 @@ This example shows how to apply mount options to JuiceFS persistence volume (PV)
 
 Ensure you have already get familiar with [static-provisioning](../static-provisioning/README.md) example.
 
+The CSI driver support the `juicefs mount` command line options and _fuse_ mount options (`-o` for `juicefs mount` command).
+
+```
+juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <REDIS-URL> <MOUNTPOINT>
+```
+
+The command line options and fuse options of above example can be provided by `mountOptions`.
+
 Patch the persistent volume spec with `csi/volumeAttributes/mountOptions`.
 
 ```yaml
@@ -16,7 +24,7 @@ metadata:
 spec:
   csi:
     volumeAttributes:
-      mountOptions: "enable-xattr,max-uploads=50,cache-size=100,cache-dir=/var/foo"
+      mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
 Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
