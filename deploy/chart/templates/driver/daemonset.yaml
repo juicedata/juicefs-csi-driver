@@ -1,0 +1,127 @@
+{{- if .Values.driver.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    {{- include "juicefs-csi.driverLabels" . | nindent 4 }}
+  name: {{ include "juicefs-csi.driverFullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+       {{- include "juicefs-csi.controllerSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+         {{- include "juicefs-csi.controllerSelectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - args:
+        - --endpoint=$(CSI_ENDPOINT)
+        - --logtostderr
+        - --nodeid=$(NODE_ID)
+        - --v=5
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:/csi/csi.sock
+        image: "{{- include "juicefs-csi.driverImage" . }}"
+        imagePullPolicy: {{ .Values.driver.pullPolicy }}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+        name: juicefs-plugin
+        resources:
+          {{- toYaml .Values.driver.resources | nindent 12 }}
+        ports:
+        - containerPort: 9909
+          name: healthz
+          protocol: TCP
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/kubelet
+          mountPropagation: Bidirectional
+          name: kubelet-dir
+        - mountPath: /csi
+          name: plugin-dir
+        - mountPath: /dev
+          name: device-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+        - --v=5
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: DRIVER_REG_SOCK_PATH
+          value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
+        image: "{{ .Values.driver.registrarComponent.registry }}/{{ .Values.driver.registrarComponent.repository }}:{{ .Values.driver.registrarComponent.tag }}"
+        imagePullPolicy: {{ .Values.driver.registrarComponent.pullPolicy }}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - rm -rf /registration/csi.juicefs.com-reg.sock /csi/csi.sock
+        name: node-driver-registrar
+        resources:
+          {{- toYaml .Values.driver.registrarComponent.resources | nindent 12 }}
+        volumeMounts:
+        - mountPath: /csi
+          name: plugin-dir
+        - mountPath: /registration
+          name: registration-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --health-port=$(HEALTH_PORT)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: HEALTH_PORT
+          value: "9909"
+        image: "{{ .Values.driver.livenessComponent.registry }}/{{ .Values.driver.livenessComponent.repository }}:{{ .Values.driver.livenessComponent.tag }}"
+        imagePullPolicy: {{ .Values.driver.livenessComponent.pullPolicy }}
+        name: liveness-probe
+        resources:
+          {{- toYaml .Values.driver.livenessComponent.resources | nindent 12 }}
+        volumeMounts:
+        - mountPath: /csi
+          name: plugin-dir
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      {{- with .Values.driver.affinity }}
+      affinity:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.driver.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.driver.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+        name: kubelet-dir
+      - hostPath:
+          path: /var/lib/kubelet/csi-plugins/csi.juicefs.com/
+          type: DirectoryOrCreate
+        name: plugin-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins_registry/
+          type: Directory
+        name: registration-dir
+      - hostPath:
+          path: /dev
+          type: Directory
+        name: device-dir
+{{- end }}
