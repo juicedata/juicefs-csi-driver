@@ -12,6 +12,33 @@ Deploy the driver:
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
 
+## Installation with Helm
+
+## Prerequisites
+- Kubernetes 1.12+
+- Helm 3.1.0
+
+### Install Helm
+
+Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
+
+To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#install) and ensure that the `helm` binary is in the `PATH` of your shell.
+
+
+### Using Helm To Deploy
+
+1. edit your self backend by copy `values.yaml`
+```bash
+cp deploy/chart/values.yaml ./self-values.yaml
+```
+
+2. edit backend part
+
+3. deploy
+```shell
+helm install -f self-values.yaml juicefs ./deploy/chart -n SELF_NAMESPACE
+```
+
 ### Upgrade CSI Driver
 
 1. Stop all pods using this driver.
