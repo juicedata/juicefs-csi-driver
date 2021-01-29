@@ -410,7 +410,7 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 	mntCmd.Env = envs
 	mntCmd.Stderr = os.Stderr
 	mntCmd.Stdout = os.Stdout
-	go mntCmd.Run()
+	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
 		finfo, err := os.Stat(mountPath)
