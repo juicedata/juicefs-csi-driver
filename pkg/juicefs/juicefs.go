@@ -253,7 +253,14 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 
 	exists, err := j.ExistsPath(mountPath)
 	if err != nil {
-		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
+		// Try to resolve 'Transport endpoint is not connected' failure
+		if err1 := j.Unmount(mountPath); err1 != nil {
+			klog.V(5).Infof("MountFs: unmount failed: %v", err1)
+		}
+		exists, err = j.ExistsPath(mountPath)
+		if err != nil {
+			return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
+		}
 	}
 
 	if !exists {
@@ -398,11 +405,12 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	out, err := j.Exec.Run(ceMountPath, mountArgs...)
-	if err != nil {
-		klog.V(5).Infof("ceMount failed with output: %v", string(out))
-	}
-
+	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
+	mntCmd := exec.Command(ceMountPath, mountArgs...)
+	mntCmd.Env = envs
+	mntCmd.Stderr = os.Stderr
+	mntCmd.Stdout = os.Stdout
+	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
 		finfo, err := os.Stat(mountPath)
