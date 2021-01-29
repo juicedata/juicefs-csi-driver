@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/mount"
+	k8sexec "k8s.io/utils/exec"
 )
 
 const (
@@ -253,7 +254,14 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 
 	exists, err := j.ExistsPath(mountPath)
 	if err != nil {
-		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
+		// Try to resolve 'Transport endpoint is not connected' failure
+		if err1 := j.Unmount(mountPath); err1 != nil {
+			klog.V(5).Infof("MountFs: unmount failed: %v", err1)
+		}
+		exists, err = j.ExistsPath(mountPath)
+		if err != nil {
+			return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
+		}
 	}
 
 	if !exists {
@@ -398,11 +406,10 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	out, err := j.Exec.Run(ceMountPath, mountArgs...)
-	if err != nil {
-		klog.V(5).Infof("ceMount failed with output: %v", string(out))
-	}
-
+	environ := append(syscall.Environ(), "JFS_FOREGROUND=1")
+	mntCmd := k8sexec.New().Command(ceMountPath, mountArgs...)
+	mntCmd.SetEnv(environ)
+	go mntCmd.Run()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
 		finfo, err := os.Stat(mountPath)
