@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/mount"
-	k8sexec "k8s.io/utils/exec"
 )
 
 const (
@@ -406,9 +405,11 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	environ := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	mntCmd := k8sexec.New().Command(ceMountPath, mountArgs...)
-	mntCmd.SetEnv(environ)
+	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
+	mntCmd := exec.Command(ceMountPath, mountArgs...)
+	mntCmd.Env = envs
+	mntCmd.Stderr = os.Stderr
+	mntCmd.Stdout = os.Stdout
 	go mntCmd.Run()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
