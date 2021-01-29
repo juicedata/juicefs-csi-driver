@@ -14,6 +14,6 @@
 
 FROM juicedata/juicefs-csi-driver:latest
 
-COPY juicefs-csi-driver juicefs /bin/
+COPY juicefs-csi-driver /bin/
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]
