@@ -94,6 +94,7 @@ spec:
         - mountPath: /csi
           name: plugin-dir
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       priorityClassName: system-node-critical
       {{- with .Values.driver.affinity }}
       affinity:
