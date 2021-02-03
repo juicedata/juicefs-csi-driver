@@ -49,41 +49,6 @@ roleRef:
   name: juicefs-external-provisioner-role
   apiGroup: rbac.authorization.k8s.io
 
----
-
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-external-attacher-role
-rules:
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["csi.storage.k8s.io"]
-    resources: ["csinodeinfos"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-
----
-
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: juicefs-csi-attacher-binding
-subjects:
-  - kind: ServiceAccount
-    name: juicefs-csi-controller-sa
-    namespace: kube-system
-roleRef:
-  kind: ClusterRole
-  name: juicefs-external-attacher-role
-  apiGroup: rbac.authorization.k8s.io
-
 # ---
 # # TODO(yujunz): support snapshot
 # kind: ClusterRole
@@ -211,29 +176,6 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
-        - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.1.0
-          args:
-            - --csi-address=$(ADDRESS)
-            - --v=5
-          env:
-            - name: ADDRESS
-              value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
-        # # TODO(yujunz) support snapshot
-        # - name: csi-snapshotter
-        #   image: quay.io/k8scsi/csi-snapshotter:v1.1.0
-        #   args:
-        #     - --csi-address=$(ADDRESS)
-        #     - --connection-timeout=15s
-        #   env:
-        #     - name: ADDRESS
-        #       value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        #   volumeMounts:
-        #     - name: socket-dir
-        #       mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: liveness-probe
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
