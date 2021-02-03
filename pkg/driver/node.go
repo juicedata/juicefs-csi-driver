@@ -44,19 +44,19 @@ type nodeService struct {
 }
 
 func newNodeService(nodeID string) nodeService {
-	juicefs, err := juicefs.NewJfsProvider(nil)
+	jfsProvider, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	stdoutStderr, err := juicefs.Version()
+	stdoutStderr, err := jfsProvider.Version()
 	if err != nil {
 		panic(err)
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
 	return nodeService{
-		juicefs: juicefs,
+		juicefs: jfsProvider,
 		nodeID:  nodeID,
 	}
 }
@@ -155,6 +155,14 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	refs, err := getMountRefs(target)
+
+	// From the spec: If the volume corresponding to the volume_id
+	// is not staged to the staging_target_path, the Plugin MUST
+	// reply 0 OK.
+	if len(refs) == 0 {
+		klog.V(5).Infof("NodeUnpublishVolume: %s target not mounted", target)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
 	if err := d.juicefs.Unmount(target); err != nil {
