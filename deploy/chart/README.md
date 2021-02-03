@@ -15,11 +15,6 @@ A Helm chart for JuiceFS CSI Driver
 | backend.secretKey | string | `""` |  |
 | backend.storage | string | `""` |  |
 | controller.affinity | object | Hard node and soft zone anti-affinity | Affinity for gateway pods. Passed through `tpl` and, thus, to be configured as string |
-| controller.attacher.pullPolicy | string | `"IfNotPresent"` |  |
-| controller.attacher.registry | string | `"quay.io"` | The Docker registry |
-| controller.attacher.repository | string | `"k8scsi/csi-attacher"` | Docker image repository |
-| controller.attacher.resources | object | `{}` | Resource requests and limits for the gateway |
-| controller.attacher.tag | string | `"v1.1.0"` | Overrides the image tag whose default is the chart's appVersion |
 | controller.enabled | bool | `true` |  |
 | controller.livenessComponent.pullPolicy | string | `"IfNotPresent"` |  |
 | controller.livenessComponent.registry | string | `"quay.io"` | The Docker registry |
