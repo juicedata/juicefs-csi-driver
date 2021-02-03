@@ -22,20 +22,6 @@ app.kubernetes.io/component: controller
 {{- end }}
 
 {{/*
-attacherRole fullname
-*/}}
-{{- define "juicefs-csi.attacherRole" -}}
-{{ include "juicefs-csi.fullname" . }}-attach-role
-{{- end }}
-
-{{/*
-attacherRoleBinding fullname
-*/}}
-{{- define "juicefs-csi.attacherRoleBinding" -}}
-{{ include "juicefs-csi.fullname" . }}-attach-role-binding
-{{- end }}
-
-{{/*
 provisionerRole fullname
 */}}
 {{- define "juicefs-csi.provisionerRole" -}}

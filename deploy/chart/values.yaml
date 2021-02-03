@@ -30,16 +30,6 @@ controller:
   pullPolicy: IfNotPresent
   # -- Resource requests and limits for the gateway
   sresources: {}
-  attacher:
-    # -- The Docker registry
-    registry: quay.io
-    # -- Docker image repository
-    repository: k8scsi/csi-attacher
-    # -- Overrides the image tag whose default is the chart's appVersion
-    tag: v1.1.0
-    pullPolicy: IfNotPresent
-    # -- Resource requests and limits for the gateway
-    resources: {}
   livenessComponent:
     # -- The Docker registry
     registry: quay.io
