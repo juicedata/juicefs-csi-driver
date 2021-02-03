@@ -347,6 +347,7 @@ spec:
         - mountPath: /csi
           name: plugin-dir
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       priorityClassName: system-node-critical
       tolerations:
       - key: CriticalAddonsOnly

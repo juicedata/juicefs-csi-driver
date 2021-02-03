@@ -121,26 +121,9 @@ driver:
     - key: CriticalAddonsOnly
       operator: Exists
 
-backend:
-  # The JuiceFS filesystem name.
-  name: "juice"
-  # Connection URL for redis database.
-  # redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
-  # no auth:   redis://192.168.0.1:6379/7
-  # root auth:   redis://:password@192.168.0.1:6379/7
-  metaurl: ""
-  # Object storage scheme, such as `s3`, `gs`, `oss`, read [juicesync README](https://github.com/juicedata/juicesync/blob/master/README.md) for the full supported list.
-  storage: ""
-  # accessKey: access-key
-  accessKey: ""
-  # secretKey: secret-key
-  secretKey: ""
-  # Vhost style bucket naming style.
-  bucket: ""
-
-storageClass:
+storageClasses:
   # StorageClass Name. It is important.
-  name: juicefs-sc
+- name: juicefs-sc
   # Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver
   # when set false, existingStorageClass should be set.
   enabled: true
@@ -154,3 +137,20 @@ storageClass:
   reclaimPolicy: Delete
   # The volumeBindingMode field controls when volume binding and dynamic provisioning should occur.
   volumeBindingMode: Immediate
+
+  backend:
+    # The JuiceFS filesystem name.
+    name: "juice"
+    # Connection URL for redis database.
+    # redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+    # no auth:   redis://192.168.0.1:6379/7
+    # root auth:   redis://:password@192.168.0.1:6379/7
+    metaurl: ""
+    # Object storage scheme, such as `s3`, `gs`, `oss`, read [juicesync README](https://github.com/juicedata/juicesync/blob/master/README.md) for the full supported list.
+    storage: ""
+    # accessKey: access-key
+    accessKey: ""
+    # secretKey: secret-key
+    secretKey: ""
+    # Vhost style bucket naming style.
+    bucket: ""
