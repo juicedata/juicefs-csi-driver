@@ -24,8 +24,6 @@ const (
 	ceMountPath = "/bin/mount.juicefs"
 	mountBase   = "/jfs"
 	fsType      = "juicefs"
-	// DefaultCapacityBytes is 10 Pi
-	DefaultCapacityBytes = 10 * 1024 * 1024 * 1024 * 1024 * 1024
 )
 
 // Interface of juicefs provider
@@ -98,7 +96,7 @@ func (fs *jfs) DeleteVol(volumeID string) error {
 	return nil
 }
 
-// NewJfsProvider creates a provider for juicefs file system
+// NewJfsProvider creates a provider for JuiceFS file system
 func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
@@ -114,7 +112,7 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 	return mount.IsNotMountPoint(j, dir)
 }
 
-// JfsMount auths and mounts juicefs
+// JfsMount auths and mounts JuiceFS
 func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
 	source, ok := secrets["metaurl"]
 	if !ok {
@@ -171,7 +169,7 @@ func (j *juicefs) RmrDir(directory string) ([]byte, error) {
 	return j.Exec.Run(cliPath, "rmr", directory)
 }
 
-// AuthFs authenticates juicefs
+// AuthFs authenticates JuiceFS, enterprise edition only
 func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
@@ -242,7 +240,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 	return j.Exec.Run(cliPath, args...)
 }
 
-// MountFs mounts juicefs with idempotency
+// MountFs mounts JuiceFS with idempotency
 func (j *juicefs) MountFs(volumeID, source string, options []string) (string, error) {
 	var isCeMount bool
 	if strings.Contains(source, "://") {
