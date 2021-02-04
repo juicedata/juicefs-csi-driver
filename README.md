@@ -54,7 +54,7 @@ Before the example, you need to:
 
 * Get yourself familiar with how to setup Kubernetes and how to [use JuiceFS filesystem](https://github.com/juicedata/juicefs).
 * Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the filesystem inside the same region as Kubernetes cluster.
-* Install JuiceFS CSI driver following the [Installation](README.md#Installation) steps.
+* Install JuiceFS CSI driver following the [Installation](#installation) steps.
 
 ### Example links
 

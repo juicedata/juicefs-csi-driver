@@ -136,7 +136,7 @@ storageClasses:
     # no auth:   redis://192.168.0.1:6379/7
     # root auth:   redis://:password@192.168.0.1:6379/7
     metaurl: ""
-    # Object storage scheme, such as `s3`, `gs`, `oss`, read [juicesync README](https://github.com/juicedata/juicesync/blob/master/README.md) for the full supported list.
+    # Object storage scheme, such as `s3`, `gs`, `oss`, read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
     storage: ""
     # accessKey: access-key
     accessKey: ""
