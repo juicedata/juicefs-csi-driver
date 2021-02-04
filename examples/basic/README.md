@@ -20,7 +20,7 @@ kubectl -n default create secret generic juicefs-secret \
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
 - `bucket`: Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
 - `access-key`: Access key.
-- `secret-key`: Secret access key.
+- `secret-key`: Secret key.
 
 Replace fields enclosed by `<>` with your own environment variables. The fields enclosed `[]` is optional which related your deployment environment.
 

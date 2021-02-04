@@ -129,18 +129,18 @@ storageClasses:
   volumeBindingMode: Immediate
 
   backend:
-    # The JuiceFS filesystem name.
+    # The JuiceFS file system name.
     name: "juice"
     # Connection URL for redis database.
     # redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
     # no auth:   redis://192.168.0.1:6379/7
     # root auth:   redis://:password@192.168.0.1:6379/7
     metaurl: ""
-    # Object storage scheme, such as `s3`, `gs`, `oss`, read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
+    # Object storage type, such as `s3`, `gs`, `oss`. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
     storage: ""
-    # accessKey: access-key
+    # Access key
     accessKey: ""
-    # secretKey: secret-key
+    # Secret key
     secretKey: ""
-    # Vhost style bucket naming style.
+    # Bucket URL. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
     bucket: ""
