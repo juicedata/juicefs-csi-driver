@@ -25,9 +25,9 @@ spec:
       containers:
       - name: juicefs-plugin
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-	{{- if .Values.image.pullPolicy }}
+        {{- if .Values.image.pullPolicy }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-	{{- end }}
+        {{- end }}
         args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
