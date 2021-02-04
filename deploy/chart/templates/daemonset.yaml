@@ -18,6 +18,10 @@ spec:
         app: juicefs-csi-node
         {{- include "juicefs-csi.selectorLabels" . | nindent 8 }}
     spec:
+    {{- if .Values.hostAliases }}
+      hostAliases:
+      {{- toYaml .Values.hostAliases | nindent 6 }}
+    {{- end }}
       containers:
       - name: juicefs-plugin
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}

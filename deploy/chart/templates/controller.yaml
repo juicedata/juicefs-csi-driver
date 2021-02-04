@@ -1,6 +1,6 @@
 {{- if .Values.controller.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   labels:
     app.kubernetes.io/component: controller
@@ -13,6 +13,7 @@ spec:
     matchLabels:
       app: juicefs-csi-controller
       {{- include "juicefs-csi.selectorLabels" . | nindent 6 }}
+  serviceName: juicefs-csi-controller
   template:
     metadata:
       labels:
@@ -21,13 +22,7 @@ spec:
     spec:
     {{- if .Values.hostAliases }}
       hostAliases:
-      {{- range .Values.hostAliases }}
-      - ip: {{ .ip }}
-        hostnames:
-        {{- range .hostnames }}
-        - {{ . }}
-        {{- end }}
-      {{- end }}
+      {{- toYaml .Values.hostAliases | nindent 6 }}
     {{- end }}
       containers:
       - name: juicefs-plugin
