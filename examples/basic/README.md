@@ -44,7 +44,7 @@ Create storage class, persistence volume claim (PVC) and sample pod
 kubectl apply -f basic.yaml
 ```
 
-The persisten volume will be dynamically provisioned as a directory in the JuiceFS filesystem configured in storage class.
+The persisten volume will be dynamically provisioned as a directory in the JuiceFS file system configured in storage class.
 
 ## Check JuiceFS file system is used
 
@@ -60,13 +60,13 @@ Verify the pod is running:
 kubectl get pods
 ```
 
-Verify that data is written onto JuiceFS filesystem:
+Verify that data is written onto JuiceFS file system:
 
 ```sh
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
-Verify the directory created as PV in JuiceFS filesystem by mounting it in a host:
+Verify the directory created as PV in JuiceFS file system by mounting it in a host:
 
 ```
 juicefs mount -d redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] /jfs

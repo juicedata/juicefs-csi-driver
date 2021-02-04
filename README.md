@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/juicedata/juicefs-csi-driver.svg?token=ACsZ5AkewTgk5D5wzzds&branch=master)](https://travis-ci.com/juicedata/juicefs-csi-driver)
 
-The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface (CSI) Driver implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS filesystems.
+The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface (CSI) Driver implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS file system.
 
 ## Installation
 
@@ -52,8 +52,8 @@ Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more ver
 
 Before the example, you need to:
 
-* Get yourself familiar with how to setup Kubernetes and how to [use JuiceFS filesystem](https://github.com/juicedata/juicefs).
-* Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the filesystem inside the same region as Kubernetes cluster.
+* Get yourself familiar with how to setup Kubernetes and how to [use JuiceFS file system](https://github.com/juicedata/juicefs).
+* Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
 * Install JuiceFS CSI driver following the [Installation](#installation) steps.
 
 ### Example links
@@ -67,7 +67,7 @@ Before the example, you need to:
 
 **Notes**:
 
-* Since JuiceFS is an elastic filesystem it doesn't really enforce any filesystem capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the filesystem. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+* Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 * kustomize 3.x is required to build some examples.
 
 ## CSI Specification Compatibility
@@ -99,10 +99,10 @@ Container Images
 
 ### Features
 
-* **Static provisioning** - JuiceFS filesystem needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
+* **Static provisioning** - JuiceFS file system needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
 * **Mount options** - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
 * **Read write many** - Support `ReadWriteMany` access mode
-* **Sub path** - provision persisten volume with subpath in JuiceFS filesystem
+* **Sub path** - provision persisten volume with subpath in JuiceFS file system
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation

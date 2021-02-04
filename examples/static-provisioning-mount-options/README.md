@@ -45,7 +45,7 @@ After the configuration is applied, verify that pod is running:
 kubectl get pods
 ```
 
-Also you can verify that mount options are customized in the mounted JuiceFS filesystem:
+Also you can verify that mount options are customized in the mounted JuiceFS file system:
 
 ```sh
 kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh

@@ -23,7 +23,7 @@ Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize)
 kustomize build | kubectl apply -f -
 ```
 
-## Check JuiceFS filesystem is used
+## Check JuiceFS file system is used
 
 After the objects are created, verify that pod is running:
 
@@ -31,7 +31,7 @@ After the objects are created, verify that pod is running:
 >> kubectl get pods
 ```
 
-Also you can verify that data is written onto JuiceFS filesystem:
+Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
 >> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
