@@ -36,7 +36,7 @@ Scale down
 kubectl scale -n default deployment scaling-app-rwx --replicas=1
 ```
 
-## Check JuiceFS filesystem is used
+## Check JuiceFS file system is used
 
 After the configuration is applied, verify that pod is running:
 
@@ -44,7 +44,7 @@ After the configuration is applied, verify that pod is running:
 >> kubectl get pods
 ```
 
-Also you can verify that data is written onto JuiceFS filesystem:
+Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
 >> kubectl exec -ti juicefs-csi-scaling-85676b4c7c-rzzlf -- ls /data

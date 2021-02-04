@@ -1,6 +1,6 @@
 # Static Provisioning Subpath
 
-Persisten volume can be provisioned as a subpath in juicefs filesystem.
+Persisten volume can be provisioned as a subpath in juicefs file system.
 
 ## Patches
 
@@ -33,7 +33,7 @@ or apply with kubectl >= 1.14
 kubectl apply -k .
 ```
 
-## Check JuiceFS filesystem is used
+## Check JuiceFS file system is used
 
 After the objects are created, verify that pod is running:
 
@@ -41,7 +41,7 @@ After the objects are created, verify that pod is running:
 >> kubectl get pods
 ```
 
-Also you can verify that data is written onto JuiceFS filesystem:
+Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
 >> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
