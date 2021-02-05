@@ -1,23 +1,36 @@
 {{- if .Values.controller.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   labels:
-    {{- include "juicefs-csi.controllerLabels" . | nindent 4 }}
-  name: {{ include "juicefs-csi.controllerFullname" . }}
-  namespace: {{ .Release.Namespace }}
+    app.kubernetes.io/component: controller
+    {{- include "juicefs-csi.labels" . | nindent 4 }}
+  name: juicefs-csi-controller
+  namespace: kube-system
 spec:
   replicas: {{ .Values.controller.replicas }}
   selector:
     matchLabels:
-      {{- include "juicefs-csi.controllerSelectorLabels" . | nindent 6 }}
+      app: juicefs-csi-controller
+      {{- include "juicefs-csi.selectorLabels" . | nindent 6 }}
+  serviceName: juicefs-csi-controller
   template:
     metadata:
       labels:
-        {{- include "juicefs-csi.controllerSelectorLabels" . | nindent 8 }}
+        app: juicefs-csi-controller
+        {{- include "juicefs-csi.selectorLabels" . | nindent 8 }}
     spec:
+    {{- if .Values.hostAliases }}
+      hostAliases:
+      {{- toYaml .Values.hostAliases | nindent 6 }}
+    {{- end }}
       containers:
-      - args:
+      - name: juicefs-plugin
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        {{- if .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- end }}
+        args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_ID)
@@ -25,8 +38,6 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
-        image: "{{- include "juicefs-csi.controllerImage" . }}"
-        imagePullPolicy: {{ .Values.controller.pullPolicy }}
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -35,9 +46,8 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 3
-        name: juicefs-plugin
         resources:
-          {{- toYaml .Values.controller.resources | nindent 12 }}
+          {{- toYaml .Values.controller.resources | nindent 10 }}
         ports:
         - containerPort: 9909
           name: healthz
@@ -50,22 +60,21 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
-      - args:
+      - name: csi-provisioner
+        image: {{ printf "%s:%s" .Values.sidecars.csiProvisionerImage.repository .Values.sidecars.csiProvisionerImage.tag }}
+        args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
         - --v=5
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: "{{ .Values.controller.provisioner.registry }}/{{ .Values.controller.provisioner.repository }}:{{ .Values.controller.provisioner.tag }}"
-        imagePullPolicy: {{ .Values.controller.provisioner.pullPolicy }}
-        name: csi-provisioner
-        resources:
-          {{- toYaml .Values.controller.provisioner.resources | nindent 12 }}
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
-      - args:
+      - name: liveness-probe
+        image: {{ printf "%s:%s" .Values.sidecars.livenessProbeImage.repository .Values.sidecars.livenessProbeImage.tag }}
+        args:
         - --csi-address=$(ADDRESS)
         - --health-port=$(HEALTH_PORT)
         env:
@@ -73,11 +82,6 @@ spec:
           value: /csi/csi.sock
         - name: HEALTH_PORT
           value: "9909"
-        name: liveness-probe
-        image: "{{ .Values.controller.livenessComponent.registry }}/{{ .Values.controller.livenessComponent.repository }}:{{ .Values.controller.livenessComponent.tag }}"
-        imagePullPolicy: {{ .Values.controller.livenessComponent.pullPolicy }}
-        resources:
-          {{- toYaml .Values.controller.livenessComponent.resources | nindent 12 }}
         volumeMounts:
         - mountPath: /csi
           name: socket-dir
@@ -93,7 +97,7 @@ spec:
       {{- end }}
       {{- with .Values.controller.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
       volumes:
       - emptyDir: {}

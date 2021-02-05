@@ -15,7 +15,7 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 ## Installation with Helm
 
 ## Prerequisites
-- Kubernetes 1.12+
+- Kubernetes 1.14+
 - Helm 3.1.0
 
 ### Install Helm
@@ -36,7 +36,7 @@ cp deploy/chart/values.yaml ./self-values.yaml
 
 3. deploy
 ```shell
-helm install -f self-values.yaml juicefs ./deploy/chart -n SELF_NAMESPACE
+helm install -f self-values.yaml juicefs-csi ./deploy/chart
 ```
 
 ### Upgrade CSI Driver

@@ -5,7 +5,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: {{ $sc.name }}-secret
-  namespace: {{ $.Release.Namespace }}
+  namespace: kube-system
   labels:
     {{- include "juicefs-csi.labels" $ | nindent 4 }}
 type: Opaque
@@ -27,9 +27,9 @@ metadata:
   name: {{ $sc.name }}
 parameters:
   csi.storage.k8s.io/node-publish-secret-name: {{ $sc.name }}-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/node-publish-secret-namespace: kube-system
   csi.storage.k8s.io/provisioner-secret-name: {{ $sc.name }}-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: {{ $.Release.Namespace }}
+  csi.storage.k8s.io/provisioner-secret-namespace: kube-system
 provisioner: {{ $sc.provisioner }}
 reclaimPolicy: {{ $sc.reclaimPolicy }}
 volumeBindingMode: {{ $sc.volumeBindingMode }}

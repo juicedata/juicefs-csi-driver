@@ -8,63 +8,53 @@ A Helm chart for JuiceFS CSI Driver
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| backend.accessKey | string | `""` |  |
-| backend.bucket | string | `""` |  |
-| backend.metaurl | string | `""` |  |
-| backend.name | string | `"juice"` |  |
-| backend.secretKey | string | `""` |  |
-| backend.storage | string | `""` |  |
-| controller.affinity | object | Hard node and soft zone anti-affinity | Affinity for gateway pods. Passed through `tpl` and, thus, to be configured as string |
+| controller.affinity | object | Hard node and soft zone anti-affinity | Affinity for controller pods. |
 | controller.enabled | bool | `true` |  |
-| controller.livenessComponent.pullPolicy | string | `"IfNotPresent"` |  |
-| controller.livenessComponent.registry | string | `"quay.io"` | The Docker registry |
-| controller.livenessComponent.repository | string | `"k8scsi/livenessprobe"` | Docker image repository |
-| controller.livenessComponent.resources | object | `{}` | Resource requests and limits for the gateway |
-| controller.livenessComponent.tag | string | `"v1.1.0"` | Overrides the image tag whose default is the chart's appVersion |
-| controller.nodeSelector | object | `{}` | Node selector for gateway pods |
-| controller.provisioner.pullPolicy | string | `"IfNotPresent"` |  |
-| controller.provisioner.registry | string | `"quay.io"` | The Docker registry |
-| controller.provisioner.repository | string | `"k8scsi/csi-provisioner"` | Docker image repository |
-| controller.provisioner.resources | object | `{}` | Resource requests and limits for the gateway |
-| controller.provisioner.tag | string | `"v1.6.0"` | Overrides the image tag whose default is the chart's appVersion |
-| controller.pullPolicy | string | `"IfNotPresent"` |  |
-| controller.registry | string | `"docker.io"` | The Docker registry |
+| controller.nodeSelector | object | `{}` | Node selector for controller pods |
 | controller.replicas | int | `1` |  |
-| controller.repository | string | `"juicedata/juicefs-csi-driver"` | Docker image repository |
+| controller.resources.limits.cpu | string | `"1000m"` |  |
+| controller.resources.limits.memory | string | `"1Gi"` |  |
+| controller.resources.requests.cpu | string | `"100m"` |  |
+| controller.resources.requests.memory | string | `"512Mi"` |  |
 | controller.service.port | int | `9909` |  |
 | controller.service.trpe | string | `"ClusterIP"` |  |
-| controller.sresources | object | `{}` | Resource requests and limits for the gateway |
-| controller.tag | string | `nil` | Overrides the image tag whose default is the chart's appVersion |
-| controller.terminationGracePeriodSeconds | int | `30` | Grace period to allow the gateway to shutdown before it is killed |
-| controller.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations for gateway pods |
-| driver.affinity | object | Hard node and soft zone anti-affinity | Affinity for gateway pods. Passed through `tpl` and, thus, to be configured as string |
-| driver.enabled | bool | `true` |  |
-| driver.livenessComponent.pullPolicy | string | `"IfNotPresent"` |  |
-| driver.livenessComponent.registry | string | `"quay.io"` | The Docker registry |
-| driver.livenessComponent.repository | string | `"k8scsi/livenessprobe"` | Docker image repository |
-| driver.livenessComponent.resources | object | `{}` | Resource requests and limits for the gateway |
-| driver.livenessComponent.tag | string | `"v1.1.0"` | Overrides the image tag whose default is the chart's appVersion |
-| driver.nodeSelector | object | `{}` | Node selector for gateway pods |
-| driver.pullPolicy | string | `"IfNotPresent"` |  |
-| driver.registrarComponent.pullPolicy | string | `"IfNotPresent"` |  |
-| driver.registrarComponent.registry | string | `"quay.io"` | The Docker registry |
-| driver.registrarComponent.repository | string | `"k8scsi/csi-node-driver-registrar"` | Docker image repository |
-| driver.registrarComponent.resources | object | `{}` | Resource requests and limits for the gateway |
-| driver.registrarComponent.tag | string | `"v1.1.0"` | Overrides the image tag whose default is the chart's appVersion |
-| driver.registry | string | `"docker.io"` | The Docker registry |
-| driver.repository | string | `"juicedata/juicefs-csi-driver"` | Docker image repository |
-| driver.resources | object | `{}` | Resource requests and limits for the gateway |
-| driver.tag | string | `nil` | Overrides the image tag whose default is the chart's appVersion |
-| driver.terminationGracePeriodSeconds | int | `30` | Grace period to allow the gateway to shutdown before it is killed |
-| driver.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations for gateway pods |
-| serviceAccount.annotations | object | `{}` |  |
-| serviceAccount.create | bool | `true` |  |
-| serviceAccount.name | string | `""` |  |
-| storageClass.enabled | bool | `true` |  |
-| storageClass.name | string | `"juicefs-sc"` |  |
-| storageClass.provisioner | string | `"csi.juicefs.com"` |  |
-| storageClass.reclaimPolicy | string | `"Delete"` |  |
-| storageClass.volumeBindingMode | string | `"Immediate"` |  |
+| controller.terminationGracePeriodSeconds | int | `30` | Grace period to allow the controller to shutdown before it is killed |
+| controller.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations for controller pods |
+| dnsConfig | object | `{}` |  |
+| dnsPolicy | string | `"ClusterFirstWithHostNet"` |  |
+| hostAliases | list | `[]` |  |
+| image.pullPolicy | string | `""` |  |
+| image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
+| image.tag | string | `"latest"` |  |
+| node.affinity | object | Hard node and soft zone anti-affinity | Affinity for node pods. |
+| node.enabled | bool | `true` |  |
+| node.nodeSelector | object | `{}` | Node selector for node pods |
+| node.resources.limits.cpu | string | `"2000m"` |  |
+| node.resources.limits.memory | string | `"5Gi"` |  |
+| node.resources.requests.cpu | string | `"1000m"` |  |
+| node.resources.requests.memory | string | `"1Gi"` |  |
+| node.terminationGracePeriodSeconds | int | `30` | Grace period to allow the node pod to shutdown before it is killed |
+| node.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations for node pods |
+| serviceAccount.controller.annotations | object | `{}` |  |
+| serviceAccount.controller.create | bool | `true` |  |
+| serviceAccount.controller.name | string | `"juicefs-csi-controller-sa"` |  |
+| sidecars.csiProvisionerImage.repository | string | `"quay.io/k8scsi/csi-provisioner"` |  |
+| sidecars.csiProvisionerImage.tag | string | `"v1.6.0"` |  |
+| sidecars.livenessProbeImage.repository | string | `"quay.io/k8scsi/livenessprobe"` |  |
+| sidecars.livenessProbeImage.tag | string | `"v1.1.0"` |  |
+| sidecars.nodeDriverRegistrarImage.repository | string | `"quay.io/k8scsi/csi-node-driver-registrar"` |  |
+| sidecars.nodeDriverRegistrarImage.tag | string | `"v1.1.0"` |  |
+| storageClasses[0].backend.accessKey | string | `""` | Access key for object storage |
+| storageClasses[0].backend.bucket | string | `""` | Bucket URL. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage. |
+| storageClasses[0].backend.metaurl | string | `""` | Connection URL for redis database. redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] no auth:   redis://192.168.0.1:6379/7 root auth:   redis://:password@192.168.0.1:6379/7 |
+| storageClasses[0].backend.name | string | `"juice"` | The JuiceFS file system name. |
+| storageClasses[0].backend.secretKey | string | `""` | Secret key for object storage |
+| storageClasses[0].backend.storage | string | `""` | Object storage type, such as `s3`, `gs`, `oss`. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list. |
+| storageClasses[0].enabled | bool | `true` | Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver when set false, existingStorageClass should be set. |
+| storageClasses[0].name | string | `"juicefs-sc"` |  |
+| storageClasses[0].provisioner | string | `"csi.juicefs.com"` |  |
+| storageClasses[0].reclaimPolicy | string | `"Delete"` |  |
+| storageClasses[0].volumeBindingMode | string | `"Immediate"` |  |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.4.0](https://github.com/norwoodj/helm-docs/releases/v1.4.0)
