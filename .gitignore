@@ -7,3 +7,5 @@ secret*
 /deploy-dev/
 .idea
 .DS_Store
+.cr-release-packages
+.cr-index
