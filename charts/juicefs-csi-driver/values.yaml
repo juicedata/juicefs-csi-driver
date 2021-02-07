@@ -104,18 +104,9 @@ storageClasses:
   # StorageClass Name. It is important.
 - name: juicefs-sc
   # -- Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver
-  # when set false, existingStorageClass should be set.
   enabled: true
-  # Default will create StorageClass, If use self create or exist, set this value.
-  #   existingStorageClass: null
-  # StorageClass will read a secret. Set this value if you want use exist
-  #   existingSecret: null
-  # Determines what volume plugin is used for provisioning PVs
-  provisioner: csi.juicefs.com
-  # which can be either Delete or Retain. If no reclaimPolicy is specified when a StorageClass object is created, it will default to Delete.
+  # -- Either Delete or Retain.
   reclaimPolicy: Delete
-  # The volumeBindingMode field controls when volume binding and dynamic provisioning should occur.
-  volumeBindingMode: Immediate
 
   backend:
     # -- The JuiceFS file system name.

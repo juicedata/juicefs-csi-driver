@@ -26,18 +26,29 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 
 ### Using Helm To Deploy
-
-1. edit your self backend by copy `values.yaml`
-```bash
-cp deploy/chart/values.yaml ./self-values.yaml
+1. Prepare a `values.yaml` file with access infomation about redis and object storage
+```yaml
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  reclaimPolicy: Delete
+  backend:
+    name: "<name>"
+    metaurl: "<redis-url>"
+    storage: "<storage-type>"
+    accessKey: "<access-key>"
+    secretKey: "<secret-key>"
+    bucket: "<bucket>"
 ```
 
-2. edit backend part
-
-3. deploy
-```shell
-helm install -f self-values.yaml juicefs-csi ./deploy/chart
+2. Install
+```sh
+helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
+helm repo update
+helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
 ```
+
+3. After above steps, _juicefs-sc_ storage class is created
 
 ### Upgrade CSI Driver
 
@@ -45,8 +56,10 @@ helm install -f self-values.yaml juicefs-csi ./deploy/chart
 2. Upgrade driver:
 	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure juicefs-csi-controller and juicefs-csi-node pods are restarted.
 	* If you have pinned to a specific version, modify your k8s.yaml to a newer version, then run `kubectl apply -f k8s.yaml`.
+   Alternatively, if _juicefs-csi-driver_ is installed using helm, we can also use helm to upgrade it.
 
 Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
+
 
 ## Examples
 
