@@ -1,6 +1,6 @@
-# juicefs-csi
+# juicefs-csi-driver
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.6.1](https://img.shields.io/badge/AppVersion-0.6.1-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.7.0](https://img.shields.io/badge/AppVersion-0.7.0-informational?style=flat-square)
 
 A Helm chart for JuiceFS CSI Driver
 
@@ -25,7 +25,7 @@ A Helm chart for JuiceFS CSI Driver
 | hostAliases | list | `[]` |  |
 | image.pullPolicy | string | `""` |  |
 | image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
-| image.tag | string | `"latest"` |  |
+| image.tag | string | `"v0.7.0"` |  |
 | node.affinity | object | Hard node and soft zone anti-affinity | Affinity for node pods. |
 | node.enabled | bool | `true` |  |
 | node.nodeSelector | object | `{}` | Node selector for node pods |
@@ -45,11 +45,11 @@ A Helm chart for JuiceFS CSI Driver
 | sidecars.nodeDriverRegistrarImage.repository | string | `"quay.io/k8scsi/csi-node-driver-registrar"` |  |
 | sidecars.nodeDriverRegistrarImage.tag | string | `"v1.1.0"` |  |
 | storageClasses[0].backend.accessKey | string | `""` | Access key for object storage |
-| storageClasses[0].backend.bucket | string | `""` | Bucket URL. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage. |
+| storageClasses[0].backend.bucket | string | `""` | Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage. |
 | storageClasses[0].backend.metaurl | string | `""` | Connection URL for redis database. redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] no auth:   redis://192.168.0.1:6379/7 root auth:   redis://:password@192.168.0.1:6379/7 |
 | storageClasses[0].backend.name | string | `"juice"` | The JuiceFS file system name. |
 | storageClasses[0].backend.secretKey | string | `""` | Secret key for object storage |
-| storageClasses[0].backend.storage | string | `""` | Object storage type, such as `s3`, `gs`, `oss`. Read this document (https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list. |
+| storageClasses[0].backend.storage | string | `""` | Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list. |
 | storageClasses[0].enabled | bool | `true` | Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver when set false, existingStorageClass should be set. |
 | storageClasses[0].name | string | `"juicefs-sc"` |  |
 | storageClasses[0].provisioner | string | `"csi.juicefs.com"` |  |
