@@ -27,7 +27,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 ### Using Helm To Deploy
 1. Prepare a `values.yaml` file with access infomation about redis and object storage
-```
+```yaml
 storageClasses:
 - name: juicefs-sc
   enabled: true
@@ -42,7 +42,7 @@ storageClasses:
 ```
 
 2. Install
-```
+```sh
 helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
 helm repo update
 helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
