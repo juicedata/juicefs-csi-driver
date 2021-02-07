@@ -30,9 +30,9 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: kube-system
   csi.storage.k8s.io/provisioner-secret-name: {{ $sc.name }}-secret
   csi.storage.k8s.io/provisioner-secret-namespace: kube-system
-provisioner: {{ $sc.provisioner }}
+provisioner: csi.juicefs.com
 reclaimPolicy: {{ $sc.reclaimPolicy }}
-volumeBindingMode: {{ $sc.volumeBindingMode }}
+volumeBindingMode: Immediate
 {{- end }}
 ---
 
