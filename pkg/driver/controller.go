@@ -98,7 +98,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
-	defer d.juicefs.JfsUnmount(volumeID)
+	defer d.juicefs.JfsUnmount(jfs.GetBasePath())
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
 	err = jfs.DeleteVol(volumeID)
