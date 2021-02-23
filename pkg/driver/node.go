@@ -55,6 +55,11 @@ func newNodeService(nodeID string) nodeService {
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
+	go func() {
+		klog.V(4).Info("Serve metrics on :9560")
+		jfsProvider.ServeMetrics(9560)
+	}()
+
 	return nodeService{
 		juicefs: jfsProvider,
 		nodeID:  nodeID,
@@ -174,7 +179,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// since the PVC might be used by more than one container
 	if err == nil && len(refs) == 1 {
 		klog.V(5).Infof("NodeUnpublishVolume: unmounting ref %s", refs[0])
-		if err := d.juicefs.Unmount(refs[0]); err != nil {
+		if err := d.juicefs.JfsUnmount(refs[0]); err != nil {
 			klog.V(5).Infof("NodeUnpublishVolume: error unmounting mount ref %s, %v", refs[0], err)
 		}
 	}

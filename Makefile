@@ -14,7 +14,7 @@
 #
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY=docker.io
-VERSION=$(shell git describe --tags --always --dirty)
+VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DEV_TAG=dev-$(shell git describe --always --dirty)
