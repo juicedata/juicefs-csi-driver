@@ -117,8 +117,8 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
-	source, ok := secrets["metaurl"]
-	if !ok {
+	source, isCe := secrets["metaurl"]
+	if !isCe {
 		j.Upgrade()
 		stdoutStderr, err := j.AuthFs(secrets)
 		klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
@@ -141,6 +141,10 @@ func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options [
 	mountPath, err := j.MountFs(volumeID, source, options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
+
+	if isCe {
+		j.ceCheckMetrics(secrets["name"], mountPath)
 	}
 
 	return &jfs{
@@ -426,7 +430,6 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				j.ceCheckMetrics(mountPath)
 				return nil
 			}
 			klog.V(5).Infof("Mount point %v is not ready", mountPath)
@@ -438,8 +441,9 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
 }
 
-func (j *juicefs) ceCheckMetrics(mountPath string) {
-	j.mountMetricsPort[mountPath] = j.nextMetricsPort
+func (j *juicefs) ceCheckMetrics(volumeName, mountPath string) {
+	key := fmt.Sprintf("%s:%s", volumeName, mountPath)
+	j.mountMetricsPort[key] = j.nextMetricsPort
 	j.nextMetricsPort += 1
 }
 

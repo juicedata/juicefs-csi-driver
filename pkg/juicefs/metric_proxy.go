@@ -6,6 +6,7 @@ import (
 	"k8s.io/klog"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,8 +17,8 @@ import (
 )
 
 type metricsProxy struct {
-	client *http.Client
-	nextMetricsPort int
+	client           *http.Client
+	nextMetricsPort  int
 	mountMetricsPort map[string]int
 }
 
@@ -26,7 +27,7 @@ func newMetricsProxy() *metricsProxy {
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		nextMetricsPort: 9567,
+		nextMetricsPort:  9567,
 		mountMetricsPort: make(map[string]int),
 	}
 }
@@ -36,7 +37,7 @@ func (e *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request
 	mfsCh := make(chan []*dto.MetricFamily)
 	mfsResultCh := make(chan []*dto.MetricFamily)
 
-	for mp, port := range e.mountMetricsPort {
+	for key, port := range e.mountMetricsPort {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -46,8 +47,10 @@ func (e *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request
 				klog.V(5).Infof("Scrape metrics from %s error: %q", endpoint, err)
 				return
 			}
+			fields := strings.SplitN(key, ":", 2)
 			labels := model.LabelSet{
-				"mount_point": model.LabelValue(mp),
+				"volume_name": model.LabelValue(fields[0]),
+				"mount_point": model.LabelValue(fields[1]),
 			}
 			rewriteMetrics(labels, metricFamilies)
 			mfsCh <- metricFamilies
@@ -127,7 +130,7 @@ func rewriteMetrics(labels model.LabelSet, metricFamilies []*dto.MetricFamily) {
 			}
 			mergedLabels := labelSet.Merge(labels)
 			labelNames := make(model.LabelNames, 0, len(mergedLabels))
-			for name, _ := range mergedLabels {
+			for name := range mergedLabels {
 				labelNames = append(labelNames, name)
 			}
 			sort.Sort(labelNames)
