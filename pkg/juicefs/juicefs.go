@@ -118,17 +118,22 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error) {
 	source, isCe := secrets["metaurl"]
+	var mountPath string
 	if !isCe {
 		j.Upgrade()
 		stdoutStderr, err := j.AuthFs(secrets)
-		klog.V(5).Infof("MountFs: authentication output is '%s'\n", stdoutStderr)
+		klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 		}
 		source = secrets["name"]
+		mountPath, err = j.MountFs(volumeID, source, options)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+		}
 	} else {
 		stdoutStderr, err := j.ceFormat(secrets)
-		klog.V(5).Infof("MountFs: format output is '%s'\n", stdoutStderr)
+		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
 		}
@@ -136,15 +141,17 @@ func (j *juicefs) JfsMount(volumeID string, secrets map[string]string, options [
 		if !strings.Contains(source, "://") {
 			source = "redis://" + source
 		}
-	}
-
-	mountPath, err := j.MountFs(volumeID, source, options)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-	}
-
-	if isCe {
-		j.ceCheckMetrics(secrets["name"], mountPath)
+		metricsPort, err := getFreePort()
+		if err != nil {
+			klog.V(5).Infof("getFreePort error: %q", err)
+		} else {
+			options = append(options, fmt.Sprintf("metrics=localhost:%d", metricsPort))
+		}
+		mountPath, err = j.MountFs(volumeID, source, options)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+		}
+		j.ceCheckMetrics(secrets["name"], mountPath, metricsPort)
 	}
 
 	return &jfs{
@@ -160,9 +167,11 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 	if err = j.Unmount(mountPath); err != nil {
 		klog.V(5).Infof("JfsUnmount: error umount %s, %v", mountPath, err)
 	}
-	if _, ok := j.mountMetricsPort[mountPath]; ok {
-		delete(j.mountMetricsPort, mountPath)
+	j.mpLock.Lock()
+	if _, ok := j.mountedFs[mountPath]; ok {
+		delete(j.mountedFs, mountPath)
 	}
+	j.mpLock.Unlock()
 	return
 }
 
@@ -391,11 +400,9 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 	klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
 	mountArgs := []string{source, mountPath}
 
-	mountOption := fmt.Sprintf("metrics=:%d", j.nextMetricsPort)
 	if len(options) > 0 {
-		mountOption = mountOption + "," + strings.Join(options, ",")
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 	}
-	mountArgs = append(mountArgs, "-o", mountOption)
 
 	if exist, err := j.ExistsPath(mountPath); err != nil {
 		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", mountPath, err)
@@ -441,13 +448,18 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
 }
 
-func (j *juicefs) ceCheckMetrics(volumeName, mountPath string) {
-	key := fmt.Sprintf("%s:%s", volumeName, mountPath)
-	j.mountMetricsPort[key] = j.nextMetricsPort
-	j.nextMetricsPort += 1
+func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {
+	j.mpLock.Lock()
+	defer j.mpLock.Unlock()
+	j.mountedFs[mountPath] = &mountInfo{
+		Name:        name,
+		MetricsPort: metricsPort,
+	}
 }
 
 func (j *juicefs) ServeMetrics(port int) {
 	http.HandleFunc("/metrics", j.serveMetricsHTTP)
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+		klog.V(5).Infof("Start metrics server :%d failed: %q", port, err)
+	}
 }

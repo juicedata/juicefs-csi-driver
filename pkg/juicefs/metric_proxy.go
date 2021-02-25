@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 	"k8s.io/klog"
+	"net"
 	"net/http"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,9 +17,9 @@ import (
 )
 
 type metricsProxy struct {
-	client           *http.Client
-	nextMetricsPort  int
-	mountMetricsPort map[string]int
+	client    *http.Client
+	mpLock    sync.RWMutex
+	mountedFs map[string]*mountInfo
 }
 
 func newMetricsProxy() *metricsProxy {
@@ -27,35 +27,40 @@ func newMetricsProxy() *metricsProxy {
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		nextMetricsPort:  9567,
-		mountMetricsPort: make(map[string]int),
+		mountedFs: make(map[string]*mountInfo),
 	}
 }
 
-func (e *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request) {
+type mountInfo struct {
+	Name        string
+	MetricsPort int
+}
+
+func (p *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request) {
 	wg := new(sync.WaitGroup)
 	mfsCh := make(chan []*dto.MetricFamily)
 	mfsResultCh := make(chan []*dto.MetricFamily)
 
-	for key, port := range e.mountMetricsPort {
+	p.mpLock.RLock()
+	for mp, info := range p.mountedFs {
 		wg.Add(1)
-		go func() {
+		go func(mp string, mi *mountInfo) {
 			defer wg.Done()
-			endpoint := fmt.Sprintf("http://localhost:%d/metrics", port)
-			metricFamilies, err := e.scrape(endpoint)
+			endpoint := fmt.Sprintf("http://localhost:%d/metrics", mi.MetricsPort)
+			metricFamilies, err := p.scrape(endpoint)
 			if err != nil {
 				klog.V(5).Infof("Scrape metrics from %s error: %q", endpoint, err)
 				return
 			}
-			fields := strings.SplitN(key, ":", 2)
 			labels := model.LabelSet{
-				"volume_name": model.LabelValue(fields[0]),
-				"mount_point": model.LabelValue(fields[1]),
+				"vol_name": model.LabelValue(mi.Name),
+				"mp":       model.LabelValue(mp),
 			}
 			rewriteMetrics(labels, metricFamilies)
 			mfsCh <- metricFamilies
-		}()
+		}(mp, info)
 	}
+	p.mpLock.RUnlock()
 
 	go func() {
 		metricFamilies := make([]*dto.MetricFamily, 0)
@@ -81,13 +86,13 @@ func (e *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request
 	}
 }
 
-func (e *metricsProxy) scrape(address string) ([]*dto.MetricFamily, error) { // nolint: lll
+func (p *metricsProxy) scrape(address string) ([]*dto.MetricFamily, error) { // nolint: lll
 	req, err := http.NewRequest("GET", address, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := e.client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +103,20 @@ func (e *metricsProxy) scrape(address string) ([]*dto.MetricFamily, error) { // 
 	}
 
 	return decodeMetrics(resp.Body, expfmt.ResponseFormat(resp.Header))
+}
+
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
 func decodeMetrics(reader io.Reader, format expfmt.Format) ([]*dto.MetricFamily, error) {
