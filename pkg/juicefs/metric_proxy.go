@@ -71,7 +71,7 @@ func (p *metricsProxy) serveMetricsHTTP(w http.ResponseWriter, req *http.Request
 		close(mfsResultCh)
 	}()
 
-	klog.V(5).Infof("Waiting for scrape to return ...")
+	// klog.V(5).Infof("Waiting for scrape to return ...")
 	wg.Wait()
 	close(mfsCh)
 
