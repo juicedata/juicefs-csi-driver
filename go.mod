@@ -12,6 +12,7 @@ require (
 	github.com/spf13/afero v1.1.2 // indirect
 	golang.org/x/net v0.0.0-20210220033124-5f55cee0dc0d // indirect
 	google.golang.org/grpc v1.26.0
+	google.golang.org/protobuf v1.23.0
 	k8s.io/apimachinery v0.0.0-20190416092415-3370b4aef5d6 // indirect
 	k8s.io/klog v0.1.0
 	k8s.io/kubernetes v1.13.1

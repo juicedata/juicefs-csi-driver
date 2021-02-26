@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
+	"google.golang.org/protobuf/proto"
 )
 
 type metricsProxy struct {

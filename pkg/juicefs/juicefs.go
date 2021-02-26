@@ -31,7 +31,7 @@ const (
 type Interface interface {
 	mount.Interface
 	JfsMount(volumeID string, secrets map[string]string, options []string) (Jfs, error)
-	JfsUnmount(volumeID string) error
+	JfsUnmount(mountPath string) error
 	AuthFs(secrets map[string]string) ([]byte, error)
 	MountFs(volumeID, source string, options []string) (string, error)
 	Version() ([]byte, error)
@@ -168,9 +168,7 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 		klog.V(5).Infof("JfsUnmount: error umount %s, %v", mountPath, err)
 	}
 	j.mpLock.Lock()
-	if _, ok := j.mountedFs[mountPath]; ok {
-		delete(j.mountedFs, mountPath)
-	}
+	delete(j.mountedFs, mountPath)
 	j.mpLock.Unlock()
 	return
 }
