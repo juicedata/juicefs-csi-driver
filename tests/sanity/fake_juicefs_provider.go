@@ -52,7 +52,9 @@ func (j *fakeJfsProvider) JfsMount(volumeID string, secrets map[string]string, o
 	return &fs, nil
 }
 
-func (j *fakeJfsProvider) JfsUnmount(volumeID string) {}
+func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
+	return nil
+}
 
 func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
@@ -65,6 +67,8 @@ func (j *fakeJfsProvider) MountFs(volumeID, name string, options []string) (stri
 func (j *fakeJfsProvider) Version() ([]byte, error) {
 	return []byte{}, nil
 }
+
+func (j *fakeJfsProvider) ServeMetrics(port int) {}
 
 func newFakeJfsProvider() *fakeJfsProvider {
 	return &fakeJfsProvider{
