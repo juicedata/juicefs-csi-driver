@@ -449,9 +449,12 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {
 	j.mpLock.Lock()
 	defer j.mpLock.Unlock()
-	j.mountedFs[mountPath] = &mountInfo{
-		Name:        name,
-		MetricsPort: metricsPort,
+	// If the mountPath already exist, it means mount is skipped in MountFs()
+	if _, ok := j.mountedFs[mountPath]; !ok {
+		j.mountedFs[mountPath] = &mountInfo{
+			Name:        name,
+			MetricsPort: metricsPort,
+		}
 	}
 }
 
