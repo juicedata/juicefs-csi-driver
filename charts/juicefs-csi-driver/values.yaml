@@ -30,6 +30,9 @@ sidecars:
 #   - "redis.juicefs.local"
 hostAliases: []
 
+# -- kubelet working directory,can be set using `--root-dir` when starting kubelet
+kubeletDir: /var/lib/kubelet
+
 dnsPolicy: ClusterFirstWithHostNet
 dnsConfig:
   {}

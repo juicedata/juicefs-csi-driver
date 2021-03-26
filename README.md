@@ -12,6 +12,20 @@ Deploy the driver:
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
 
+If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers** , check the kubelet path for kubernetes deployment from the kubelet process running with `--root-dir` . Run the following command:
+
+```
+ps -ef | grep kubelet | grep root-dir
+```
+
+on any non-master node of you Kubernetes cluster. If the result isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and redeploy the CSI Storage Plugin again.
+
+```
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+```
+**Replace** `{{KUBELET_DIR}}` with your own `--root-dir` value in above command.
+
+
 ## Installation with Helm
 
 ## Prerequisites
