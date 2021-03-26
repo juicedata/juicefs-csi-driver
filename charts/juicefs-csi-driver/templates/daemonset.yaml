@@ -53,7 +53,7 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-        - mountPath: /var/lib/kubelet
+        - mountPath: {{ .Values.kubeletDir }}
           mountPropagation: Bidirectional
           name: kubelet-dir
         - mountPath: /csi
@@ -70,7 +70,7 @@ spec:
         - name: ADDRESS
           value: /csi/csi.sock
         - name: DRIVER_REG_SOCK_PATH
-          value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
+          value: {{ .Values.kubeletDir }}/csi-plugins/csi.juicefs.com/csi.sock
         lifecycle:
           preStop:
             exec:
@@ -119,15 +119,15 @@ spec:
       {{- end }}
       volumes:
       - hostPath:
-          path: /var/lib/kubelet
+          path: {{ .Values.kubeletDir }}
           type: Directory
         name: kubelet-dir
       - hostPath:
-          path: /var/lib/kubelet/csi-plugins/csi.juicefs.com/
+          path: {{ .Values.kubeletDir }}/csi-plugins/csi.juicefs.com/
           type: DirectoryOrCreate
         name: plugin-dir
       - hostPath:
-          path: /var/lib/kubelet/plugins_registry/
+          path: {{ .Values.kubeletDir }}/plugins_registry/
           type: Directory
         name: registration-dir
       - hostPath:

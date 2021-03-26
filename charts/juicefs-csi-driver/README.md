@@ -36,6 +36,7 @@ Kubernetes: `>=1.14.0-0`
 | image.pullPolicy | string | `""` |  |
 | image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
 | image.tag | string | `"v0.7.0"` |  |
+| kubeletDir | string | `"/var/lib/kubelet"` | kubelet working directory,can be set using `--root-dir` when starting kubelet |
 | node.affinity | object | Hard node and soft zone anti-affinity | Affinity for node pods. |
 | node.enabled | bool | `true` |  |
 | node.nodeSelector | object | `{}` | Node selector for node pods |
