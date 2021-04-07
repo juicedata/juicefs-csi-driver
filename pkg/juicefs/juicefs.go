@@ -362,7 +362,7 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty metaurl")
 	}
 
-	args := []string{"format"}
+	args := []string{"format", "--no-upate"}
 	argsStripped := []string{"format"}
 	keys := []string{
 		"storage",
