@@ -4,43 +4,28 @@
 
 The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface (CSI) Driver implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS file system.
 
+## Prerequisites
+
+- Kubernetes 1.14+
+
 ## Installation
 
-Deploy the driver:
+### Installation with Helm
 
-```shell
-kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
-```
+#### Prerequisites
 
-If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers** , check the kubelet path for kubernetes deployment from the kubelet process running with `--root-dir` . Run the following command:
+- Helm 3.1.0+
 
-```
-ps -ef | grep kubelet | grep root-dir
-```
-
-on any non-master node of you Kubernetes cluster. If the result isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and redeploy the CSI Storage Plugin again.
-
-```
-curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-```
-**Replace** `{{KUBELET_DIR}}` with your own `--root-dir` value in above command.
-
-
-## Installation with Helm
-
-## Prerequisites
-- Kubernetes 1.14+
-- Helm 3.1.0
-
-### Install Helm
+#### Install Helm
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
 To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#install) and ensure that the `helm` binary is in the `PATH` of your shell.
 
+#### Using Helm To Deploy
 
-### Using Helm To Deploy
-1. Prepare a `values.yaml` file with access infomation about redis and object storage
+1. Prepare a `values.yaml` file with access information about Redis and object storage
+
 ```yaml
 storageClasses:
 - name: juicefs-sc
@@ -56,30 +41,53 @@ storageClasses:
 ```
 
 2. Install
+
 ```sh
 helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
 helm repo update
 helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
 ```
 
-3. After above steps, _juicefs-sc_ storage class is created
+3. After above steps, `juicefs-sc` storage class is created.
 
-### Upgrade CSI Driver
+### Install with kubectl
+
+Deploy the driver:
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+```
+
+If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers**, check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
+
+```shell
+ps -ef | grep kubelet | grep root-dir
+```
+
+If the result isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and redeploy the CSI driver again.
+
+```shell
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+```
+
+**Replace** `{{KUBELET_DIR}}` with your own `--root-dir` value in above command.
+
+## Upgrade CSI Driver
 
 1. Stop all pods using this driver.
 2. Upgrade driver:
-	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure juicefs-csi-controller and juicefs-csi-node pods are restarted.
-	* If you have pinned to a specific version, modify your k8s.yaml to a newer version, then run `kubectl apply -f k8s.yaml`.
-   Alternatively, if _juicefs-csi-driver_ is installed using helm, we can also use helm to upgrade it.
+	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
+	* If you have pinned to a specific version, modify your `k8s.yaml` to an newer version, then run `kubectl apply -f k8s.yaml`.
+    * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-Visit [here](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
+Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
 
 
 ## Examples
 
 Before the example, you need to:
 
-* Get yourself familiar with how to setup Kubernetes and how to [use JuiceFS file system](https://github.com/juicedata/juicefs).
+* Get yourself familiar with how to setup Kubernetes and [how to use JuiceFS file system](https://github.com/juicedata/juicefs).
 * Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
 * Install JuiceFS CSI driver following the [Installation](#installation) steps.
 

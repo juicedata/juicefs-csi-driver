@@ -17,10 +17,16 @@ bucket=<bucket>
 
 ## Apply the configurations
 
-Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`
+Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`:
 
-```s
+```sh
 kustomize build | kubectl apply -f -
+```
+
+Or apply with `kubectl` >= 1.14:
+
+```sh
+kubectl apply -k .
 ```
 
 ## Check JuiceFS file system is used
@@ -28,11 +34,11 @@ kustomize build | kubectl apply -f -
 After the objects are created, verify that pod is running:
 
 ```sh
->> kubectl get pods
+kubectl get pods
 ```
 
 Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
->> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```

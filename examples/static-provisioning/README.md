@@ -17,15 +17,15 @@ bucket=<bucket>
 
 ## Apply the configurations
 
-Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`
+Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`:
 
-```s
+```sh
 kustomize build | kubectl apply -f -
 ```
 
-or apply with kubectl >= 1.14
+Or apply with `kubectl` >= 1.14:
 
-```s
+```sh
 kubectl apply -k .
 ```
 
