@@ -1,4 +1,4 @@
-# Build CSI with librados support
+# Access ceph cluster with librados
 
 If the object storage is [Ceph](https://ceph.io/), we can access [radosgw](https://docs.ceph.com/en/latest/radosgw/) using [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) . JuiceFS support using [librados](https://docs.ceph.com/en/latest/rados/api/librados/) which radosgw is built on to access the storage, this increases the performance as it reduce the radosgw layer.
 
