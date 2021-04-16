@@ -74,15 +74,18 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 ## Upgrade CSI Driver
 
+Upgrade of CSI Driver requires restart the DaemonSet, which has all the JuiceFS client running inside. The restart will cause all PVs become unavailable, so we need to stop all the application pod first.
+
 1. Stop all pods using this driver.
 2. Upgrade driver:
 	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
 	* If you have pinned to a specific version, modify your `k8s.yaml` to an newer version, then run `kubectl apply -f k8s.yaml`.
     * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+3. Start all the application pods.
+
+We are working on launching the JuiceFS client in separate container, so the upgrade will NOT interrupt existing PVs. Before that, we can upgrade the JuiceFS client without upgrading the CSI driver, please follow [this workaround](./docs/upgrade-juicefs.md).
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
-
-If we only want to upgrade the `juicefs` binary in CSI driver, to reduce the impact, we supply a [workaround script](./docs/upgrade-juicefs.md) .
 
 
 ## Examples
