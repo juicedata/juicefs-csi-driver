@@ -82,6 +82,8 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
 
+If we only want to upgrade the `juicefs` binary in CSI driver, to reduce the impact, we supply a [workaround script](./docs/upgrade-juicefs.md) .
+
 
 ## Examples
 
