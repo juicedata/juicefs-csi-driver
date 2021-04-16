@@ -157,6 +157,12 @@ When `juicefs-csi-node` is killed, existing JuiceFS volume will become inaccessi
 
 Delete the pods mounting JuiceFS volume and recreate them to recover.
 
+## Miscellaneous
+
+- [Access ceph cluster with librados](./docs/ceph.md)
+
+
+
 ## Develop
 
 See [DEVELOP](./docs/DEVELOP.md) document.
