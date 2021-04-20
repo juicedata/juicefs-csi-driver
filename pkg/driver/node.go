@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -56,8 +57,16 @@ func newNodeService(nodeID string) nodeService {
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
 	go func() {
-		klog.V(4).Info("Serve metrics on :9560")
-		jfsProvider.ServeMetrics(9560)
+		metricsPort := 9567
+		if v, ok := os.LookupEnv("JFS_METRICS_PORT"); ok {
+			if i, err := strconv.Atoi(v); err != nil || i <= 0 || i >= 65536 {
+				klog.V(4).Infof("Skip invalid JuiceFS metrics port %s", v)
+			} else {
+				metricsPort = i
+			}
+		}
+		klog.V(4).Infof("Serve metrics on :%d", metricsPort)
+		jfsProvider.ServeMetrics(metricsPort)
 	}()
 
 	return nodeService{
