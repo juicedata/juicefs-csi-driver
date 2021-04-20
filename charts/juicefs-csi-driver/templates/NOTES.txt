@@ -1,19 +1,20 @@
 Examples on how to configure a storage class and start using the driver are here:
 https://github.com/juicedata/juicefs-csi-driver/tree/master/examples
 # You can refer demos in 'juicefs-csi-driver/examples'
-For quickly test, you can use this file to test 
+For quickly test, you can use this file to test:
+
 ```
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: jtext-pvc
+  name: juicefs-pvc
   namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
   - ReadWriteMany
   resources:
     requests:
-      storage: 10Gi
+      storage: 10Pi
   storageClassName: juicefs-sc
 ---
 apiVersion: v1
@@ -36,6 +37,5 @@ spec:
   volumes:
   - name: juicefs-pv
     persistentVolumeClaim:
-      claimName: jtext-pvc
-
+      claimName: juicefs-pvc
 ```

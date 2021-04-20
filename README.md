@@ -30,7 +30,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 storageClasses:
 - name: juicefs-sc
   enabled: true
-  reclaimPolicy: Delete
+  reclaimPolicy: Retain
   backend:
     name: "<name>"
     metaurl: "<redis-url>"
@@ -48,7 +48,47 @@ helm repo update
 helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
 ```
 
-3. After above steps, `juicefs-sc` storage class is created.
+3. Check the deployment
+
+- Check pods are running: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods | grep juicefs-csi` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
+
+```sh
+$ kubectl -n kube-system get pods | grep juicefs-csi
+juicefs-csi-controller-0               3/3     Running   0          25m
+juicefs-csi-node-hzczw                 3/3     Running   0          25m
+```
+
+- Check secret: `kubectl -n kube-system describe secret juicefs-sc-secret` will show the secret with above `backend` fields in `values.yaml`:
+
+```
+Name:         juicefs-sc-secret
+Namespace:    kube-system
+Labels:       app.kubernetes.io/instance=juicefs-csi-driver
+              app.kubernetes.io/managed-by=Helm
+              app.kubernetes.io/name=juicefs-csi-driver
+              app.kubernetes.io/version=0.7.0
+              helm.sh/chart=juicefs-csi-driver-0.1.0
+Annotations:  meta.helm.sh/release-name: juicefs-csi-driver
+              meta.helm.sh/release-namespace: default
+
+Type:  Opaque
+
+Data
+====
+access-key:  0 bytes
+bucket:      47 bytes
+metaurl:     54 bytes
+name:        4 bytes
+secret-key:  0 bytes
+storage:     2 bytes
+```
+
+- Check storage class: `kubectl get sc juicefs-sc` will show the storage class like this:
+
+```
+NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
+```
 
 ### Install with kubectl
 
@@ -87,7 +127,6 @@ We are working on launching the JuiceFS client in separate container, so the upg
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
 
-
 ## Examples
 
 Before the example, you need to:
@@ -122,6 +161,10 @@ The following CSI interfaces are implemented:
 
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
+
+## Troubleshooting
+
+If you encounter any issue, please refer to [Troubleshooting](docs/troubleshooting.md) document.
 
 ## JuiceFS CSI Driver on Kubernetes
 
@@ -165,8 +208,6 @@ Delete the pods mounting JuiceFS volume and recreate them to recover.
 ## Miscellaneous
 
 - [Access ceph cluster with librados](./docs/ceph.md)
-
-
 
 ## Develop
 
