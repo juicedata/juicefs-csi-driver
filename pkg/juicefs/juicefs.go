@@ -16,7 +16,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/util/mount"
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -70,13 +71,13 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
 
 	klog.V(5).Infof("CreateVol: checking %q exists in %v", volPath, fs)
-	exists, err := fs.Provider.ExistsPath(volPath)
+	exists, err := mount.PathExists(volPath)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		err := fs.Provider.MakeDir(volPath)
+		err := os.MkdirAll(volPath, os.FileMode(0755))
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
 		}
@@ -87,7 +88,7 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 
 func (fs *jfs) DeleteVol(volumeID string) error {
 	volPath := filepath.Join(fs.MountPath, volumeID)
-	if existed, err := fs.Provider.ExistsPath(volPath); err != nil {
+	if existed, err := mount.PathExists(volPath); err != nil {
 		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
 		stdoutStderr, err := fs.Provider.RmrDir(volPath)
@@ -104,7 +105,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
-			Exec:      mount.NewOsExec(),
+			Exec:      k8sexec.New(),
 		}
 	}
 
@@ -174,16 +175,8 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 }
 
 func (j *juicefs) RmrDir(directory string) ([]byte, error) {
-	exists, err := j.ExistsPath(filepath.Join(directory, ".masterinfo"))
-	if err != nil {
-		return nil, err
-	}
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
-	if !exists { // Community edition
-		return j.Exec.Run("rm", "-rf", directory)
-	}
-	// Enterprise edition
-	return j.Exec.Run(cliPath, "rmr", directory)
+	return j.Exec.Command(cliPath, "rmr", directory).CombinedOutput()
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
@@ -254,7 +247,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		}
 	}
 	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
-	return j.Exec.Run(cliPath, args...)
+	return j.Exec.Command(cliPath, args...).CombinedOutput()
 }
 
 // MountFs mounts JuiceFS with idempotency
@@ -266,16 +259,15 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 
 	mountPath := filepath.Join(mountBase, volumeID)
 
-	exists, err := j.ExistsPath(mountPath)
-	if err != nil {
-		// Try to resolve 'Transport endpoint is not connected' failure
-		if err1 := j.Unmount(mountPath); err1 != nil {
-			klog.V(5).Infof("MountFs: unmount failed: %v", err1)
+	exists, err := mount.PathExists(mountPath)
+	if err != nil && mount.IsCorruptedMnt(err) {
+		klog.V(5).Infof("MountFs: %s is a corrupted mountpoint, unmounting", mountPath)
+		if err = j.Unmount(mountPath); err != nil {
+			klog.V(5).Infof("Unmount corrupted mount point %s failed: %v", mountPath, err)
+			return mountPath, err
 		}
-		exists, err = j.ExistsPath(mountPath)
-		if err != nil {
-			return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
-		}
+	} else if err != nil {
+		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
 	}
 
 	if !exists {
@@ -286,7 +278,6 @@ func (j *juicefs) MountFs(volumeID, source string, options []string) (string, er
 			err = j.Mount(source, mountPath, fsType, options)
 		}
 		if err != nil {
-			os.Remove(mountPath)
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
 		}
 		return mountPath, nil
@@ -346,7 +337,7 @@ func (j *juicefs) Upgrade() {
 }
 
 func (j *juicefs) Version() ([]byte, error) {
-	return j.Exec.Run(cliPath, "version")
+	return j.Exec.Command(cliPath, "version").CombinedOutput()
 }
 
 func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
@@ -391,7 +382,7 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	args = append(args, secrets["metaurl"], secrets["name"])
 	argsStripped = append(argsStripped, "[metaurl]", secrets["name"])
 	klog.V(5).Infof("ceFormat: cmd %q, args %#v", ceCliPath, argsStripped)
-	return j.Exec.Run(ceCliPath, args...)
+	return j.Exec.Command(ceCliPath, args...).CombinedOutput()
 }
 
 func (j *juicefs) ceMount(source string, mountPath string, fsType string, options []string) error {
@@ -402,10 +393,10 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 	}
 
-	if exist, err := j.ExistsPath(mountPath); err != nil {
+	if exist, err := mount.PathExists(mountPath); err != nil {
 		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", mountPath, err)
 	} else if !exist {
-		if err = j.MakeDir(mountPath); err != nil {
+		if err = os.MkdirAll(mountPath, os.FileMode(0755)); err != nil {
 			return status.Errorf(codes.Internal, "Could not create dir %q: %v", mountPath, err)
 		}
 	}
