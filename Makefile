@@ -88,7 +88,13 @@ image-dev: juicefs-csi-driver
 
 .PHONY: push-dev
 push-dev:
+ifeq ("$(DEV_K8S)", "microk8s")
+	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
+	microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
+	rm -f juicefs-csi-driver-$(DEV_TAG).tar
+else
 	minikube cache add $(IMAGE):$(DEV_TAG)
+endif
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
