@@ -195,7 +195,6 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
 	}
 
-
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
 	if err := d.juicefs.Unmount(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
