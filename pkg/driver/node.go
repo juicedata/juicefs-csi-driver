@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -110,7 +111,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: creating dir %s", target)
-	if err := d.juicefs.MakeDir(target); err != nil {
+	if err := os.MkdirAll(target, os.FileMode(0755)); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
@@ -168,14 +169,30 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
 	}
 
-	refs, err := getMountRefs(target)
+	var corruptedMnt bool
+	exists, err := mount.PathExists(target)
+	if err == nil {
+		if !exists {
+			klog.V(5).Infof("NodeUnpublishVolume: %s target not exists", target)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+		var notMnt bool
+		notMnt, err = mount.IsNotMountPoint(d.juicefs, target)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
+		}
+		if notMnt { // target exists but not a mountpoint
+			klog.V(5).Infof("NodeUnpublishVolume: %s target not mounted", target)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+	} else if corruptedMnt = mount.IsCorruptedMnt(err); !corruptedMnt {
+		return nil, status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
+	}
 
-	// From the spec: If the volume corresponding to the volume_id
-	// is not staged to the staging_target_path, the Plugin MUST
-	// reply 0 OK.
-	if len(refs) == 0 {
-		klog.V(5).Infof("NodeUnpublishVolume: %s target not mounted", target)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
+	var refs []string
+	refs, err = getMountDeviceRefs(target, corruptedMnt)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
 	}
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)

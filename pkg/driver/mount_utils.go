@@ -21,7 +21,6 @@ package driver
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -166,16 +165,22 @@ func searchMountPoints(hostSource, mountInfoPath string) ([]string, error) {
 	return refs, nil
 }
 
-// get all sources for this `pathname`
-// they are bound as the same mount point
-func getMountRefs(pathname string) ([]string, error) {
-	if _, err := os.Stat(pathname); os.IsNotExist(err) {
-		return []string{}, nil
-	} else if err != nil {
-		return nil, err
-	}
-	realpath, err := filepath.EvalSymlinks(pathname)
-	if err != nil {
+// Get all mountpoints whose source is the device of `pathname` mountpoint,
+// the `pathname` will be excluded.
+// The `pathname` must be a mountpoint, and if the `corrupted` is true,
+// the `pathname` is a corrupted mountpoint.
+func getMountDeviceRefs(pathname string, corrupted bool) ([]string, error) {
+	var realpath string
+	var err error
+
+	if corrupted { // Corrupted mountpoint will fail in Lstat which is used by filepath.EvalSymlinks()
+		pathname = strings.TrimSuffix(pathname, string(filepath.Separator))
+		realpath, err = filepath.EvalSymlinks(filepath.Dir(pathname))
+		if err != nil {
+			return nil, err
+		}
+		realpath = filepath.Join(realpath, filepath.Base(pathname))
+	} else if realpath, err = filepath.EvalSymlinks(pathname); err != nil {
 		return nil, err
 	}
 	return searchMountPoints(realpath, procMountInfoPath)
