@@ -100,7 +100,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
-	err = jfs.DeleteVol(volumeID)
+	err = jfs.DeleteVol(volumeID, secrets)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeID)
 	}
