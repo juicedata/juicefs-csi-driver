@@ -57,7 +57,7 @@ type jfs struct {
 type Jfs interface {
 	GetBasePath() string
 	CreateVol(volumeID, subPath string) (string, error)
-	DeleteVol(volumeID string) error
+	DeleteVol(volumeID string, secrets map[string]string) error
 }
 
 var _ Jfs = &jfs{}
@@ -77,21 +77,30 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		err := os.MkdirAll(volPath, os.FileMode(0755))
+		err := os.MkdirAll(volPath, os.FileMode(0777))
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
+		}
+	}
+	if fi, err := os.Stat(volPath); err != nil {
+		return "", status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
+	} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
+		err = os.Chmod(volPath, os.FileMode(0777))
+		if err != nil {
+			return "", status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
 		}
 	}
 
 	return volPath, nil
 }
 
-func (fs *jfs) DeleteVol(volumeID string) error {
+func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 	volPath := filepath.Join(fs.MountPath, volumeID)
 	if existed, err := mount.PathExists(volPath); err != nil {
 		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
-		stdoutStderr, err := fs.Provider.RmrDir(volPath)
+		_, isCeMount := secrets["metaurl"]
+		stdoutStderr, err := fs.Provider.RmrDir(volPath, isCeMount)
 		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
@@ -174,9 +183,13 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 	return
 }
 
-func (j *juicefs) RmrDir(directory string) ([]byte, error) {
+func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
-	return j.Exec.Command(cliPath, "rmr", directory).CombinedOutput()
+	cmd := cliPath
+	if isCeMount {
+		cmd = ceCliPath
+	}
+	return j.Exec.Command(cmd, "rmr", directory).CombinedOutput()
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
