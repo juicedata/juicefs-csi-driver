@@ -18,6 +18,8 @@ FROM ${BASE_IMAGE} as builder
 ARG GO_ARCH=amd64
 ARG GOROOT=/usr/local/go
 ARG GOPROXY
+ARG JUICEFS_REPO_BRANCH=main
+
 RUN mkdir -p ${GOROOT} && \
     curl -fsSL https://golang.org/dl/go1.14.linux-${GO_ARCH}.tar.gz | \
     tar -xzf - -C ${GOROOT} --strip-components=1 && \
@@ -35,7 +37,7 @@ COPY . .
 RUN make
 
 WORKDIR /workspace
-RUN git clone --depth=1 https://github.com/juicedata/juicefs && \
+RUN git clone --depth=1 --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && make juicefs.ceph
 
 FROM ${BASE_IMAGE}
