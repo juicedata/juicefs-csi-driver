@@ -34,7 +34,7 @@ kubectl apply -k .
 After the objects are created, verify that pod is running:
 
 ```sh
-kubectl get pods
+kubectl get pods juicefs-app
 ```
 
 Also you can verify that data is written onto JuiceFS file system:

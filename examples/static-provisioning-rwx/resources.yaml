@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: juicefs-scaling-app
+  name: juicefs-app
 spec:
   template:
     spec:

@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: default
 nameSuffix: -perms
 commonLabels:
-  app: perms
+  app: juicefs-perms
 bases:
 - ../static-provisioning
 resources:

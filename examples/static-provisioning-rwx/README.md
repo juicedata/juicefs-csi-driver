@@ -27,13 +27,13 @@ kubectl apply -k .
 Scale up
 
 ```s
-kubectl scale -n default deployment scaling-app-rwx --replicas=64
+kubectl scale -n default deployment juicefs-app-rwx --replicas=64
 ```
 
 Scale down
 
 ```s
-kubectl scale -n default deployment scaling-app-rwx --replicas=1
+kubectl scale -n default deployment juicefs-app-rwx --replicas=1
 ```
 
 ## Check JuiceFS file system is used
@@ -41,7 +41,7 @@ kubectl scale -n default deployment scaling-app-rwx --replicas=1
 After the configuration is applied, verify that pod is running:
 
 ```sh
->> kubectl get pods
+>> kubectl get pods -l app=juicefs-pv-rwx
 ```
 
 Also you can verify that data is written onto JuiceFS file system:

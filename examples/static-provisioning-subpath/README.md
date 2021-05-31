@@ -38,11 +38,11 @@ kubectl apply -k .
 After the objects are created, verify that pod is running:
 
 ```sh
->> kubectl get pods
+>> kubectl get pods juicefs-app-subpath
 ```
 
 Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
->> kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+>> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
