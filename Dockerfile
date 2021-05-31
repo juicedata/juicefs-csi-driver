@@ -23,9 +23,9 @@ ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make
 
 WORKDIR /workspace
-RUN apt-get update && apt-get install -y musl-tools && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
     git clone --depth=1 --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && STATIC=1 make
+    cd juicefs && STATIC=1 make && upx juicefs
 
 FROM python:2.7-alpine
 
@@ -45,6 +45,6 @@ COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicef
 RUN ln -s /bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
-RUN juicefs version
+RUN /usr/bin/juicefs version && /bin/juicefs --version
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]
