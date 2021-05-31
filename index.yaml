@@ -2,6 +2,23 @@ apiVersion: v1
 entries:
   juicefs-csi-driver:
   - apiVersion: v2
+    appVersion: 0.9.0
+    created: "2021-05-31T10:33:29.053415636Z"
+    description: A Helm chart for JuiceFS CSI Driver
+    digest: bcc34a69a43c8387b4bf9606869a409685551a743174715e92d99c6e8a3cca78
+    home: https://github.com/juicedata/juicefs-csi-driver
+    keywords:
+    - juicefs
+    - csi
+    kubeVersion: '>=1.14.0-0'
+    name: juicefs-csi-driver
+    sources:
+    - https://github.com/juicedata/juicefs-csi-driver
+    type: application
+    urls:
+    - https://github.com/juicedata/juicefs-csi-driver/releases/download/helm-chart-juicefs-csi-driver-0.4.0/juicefs-csi-driver-0.4.0.tgz
+    version: 0.4.0
+  - apiVersion: v2
     appVersion: 0.8.0
     created: "2021-04-20T11:43:02.570825224Z"
     description: A Helm chart for JuiceFS CSI Driver
@@ -52,4 +69,4 @@ entries:
     urls:
     - https://github.com/juicedata/juicefs-csi-driver/releases/download/helm-chart-juicefs-csi-driver-0.1.0/juicefs-csi-driver-0.1.0.tgz
     version: 0.1.0
-generated: "2021-04-20T11:43:02.570838723Z"
+generated: "2021-05-31T10:33:29.053438037Z"
