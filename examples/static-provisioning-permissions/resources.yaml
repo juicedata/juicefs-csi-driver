@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app
+  name: juicefs-app
 spec:
   template:
     spec:
@@ -67,4 +67,4 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: ten-pb-fs
+          claimName: juicefs-pvc

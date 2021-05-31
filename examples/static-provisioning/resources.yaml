@@ -35,7 +35,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: app
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -55,4 +55,4 @@ spec:
   volumes:
   - name: data
     persistentVolumeClaim:
-      claimName: ten-pb-fs
+      claimName: juicefs-pvc
