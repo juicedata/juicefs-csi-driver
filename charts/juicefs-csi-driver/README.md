@@ -1,6 +1,6 @@
 # juicefs-csi-driver
 
-![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.8.0](https://img.shields.io/badge/AppVersion-0.8.0-informational?style=flat-square)
+![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.9.0](https://img.shields.io/badge/AppVersion-0.9.0-informational?style=flat-square)
 
 A Helm chart for JuiceFS CSI Driver
 
@@ -35,7 +35,7 @@ Kubernetes: `>=1.14.0-0`
 | hostAliases | list | `[]` |  |
 | image.pullPolicy | string | `""` |  |
 | image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
-| image.tag | string | `"v0.8.0"` |  |
+| image.tag | string | `"v0.9.0"` |  |
 | kubeletDir | string | `"/var/lib/kubelet"` | kubelet working directory,can be set using `--root-dir` when starting kubelet |
 | node.affinity | object | Hard node and soft zone anti-affinity | Affinity for node pods. |
 | node.enabled | bool | `true` |  |
