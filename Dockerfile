@@ -15,6 +15,8 @@
 FROM golang:1.14 as builder
 
 ARG GOPROXY
+ARG JUICEFS_REPO_BRANCH=main
+
 WORKDIR /juicefs-csi-driver
 COPY . .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
@@ -22,7 +24,7 @@ RUN make
 
 WORKDIR /workspace
 RUN apt-get update && apt-get install -y musl-tools && \
-    git clone --depth=1 https://github.com/juicedata/juicefs && \
+    git clone --depth=1 --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && STATIC=1 make
 
 FROM python:2.7-alpine
