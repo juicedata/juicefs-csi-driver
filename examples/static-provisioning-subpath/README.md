@@ -6,13 +6,13 @@ Persisten volume can be provisioned as a subpath in juicefs file system.
 
 Ensure you have already get familiar with [static-provisioning](../static-provisioning/README.md) example.
 
-Patch the persistent volume spec with `csi/volumeAttributes/subPath`. The subPath must pre-exist.
+Patch the persistent volume spec with `csi/volumeAttributes/subPath`. The `subPath` must pre-exist.
 
 ```yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: juicefs-aws-us-east-1
+  name: juicefs-pv
 spec:
   csi:
     volumeAttributes:

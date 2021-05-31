@@ -20,7 +20,7 @@ Patch the persistent volume spec with `csi/volumeAttributes/mountOptions`.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: juicefs-aws-us-east-1
+  name: juicefs-pv
 spec:
   csi:
     volumeAttributes:
