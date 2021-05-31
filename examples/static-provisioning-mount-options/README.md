@@ -20,7 +20,7 @@ Patch the persistent volume spec with `csi/volumeAttributes/mountOptions`.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: juicefs-aws-us-east-1
+  name: juicefs-pv
 spec:
   csi:
     volumeAttributes:
@@ -42,7 +42,7 @@ kustomize build | kubectl apply -f -
 After the configuration is applied, verify that pod is running:
 
 ```sh
-kubectl get pods
+kubectl get pods juicefs-app-mount-options
 ```
 
 Also you can verify that mount options are customized in the mounted JuiceFS file system:

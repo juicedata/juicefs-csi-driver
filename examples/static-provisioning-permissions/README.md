@@ -30,21 +30,21 @@ The `owner` container is run as user `1000` and group `3000`. Check the file it 
 umask is `0022`
 
 ```sh
->> kubectl exec -it app-perms-7c6c95b68-76g8g -c owner -- id
+>> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- id
 uid=1000 gid=3000 groups=3000
->> kubectl exec -it app-perms-7c6c95b68-76g8g -c owner -- umask
+>> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- umask
 0022
->> kubectl exec -it app-perms-7c6c95b68-76g8g -c owner -- ls -l /data
+>> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- ls -l /data
 total 707088
--rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-app-perms-7c6c95b68-76g8g.txtkubectl get pods
+-rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txtkubectl get pods
 ```
 
 The `group` container is run as user `2000` and group `3000`. Check the file is readable by other user in the group.
 
 ```sh
->> kubectl exec -it app-perms-7c6c95b68-76g8g -c group -- id
+>> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c group -- id
 uid=2000 gid=3000 groups=3000
->> kubectl logs app-perms-7c6c95b68-76g8g group
+>> kubectl logs juicefs-app-perms-7c6c95b68-76g8g group
 Fri Aug 9 10:08:32 UTC 2019
 Fri Aug 9 10:08:37 UTC 2019
 ...
@@ -53,9 +53,9 @@ Fri Aug 9 10:08:37 UTC 2019
 The `other` container is run as user `3000` and group `4000`. Check the file is not writable for users not in the group.
 
 ```sh
->> kubectl exec -it app-perms-7c6c95b68-76g8g -c other -- id
+>> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c other -- id
 uid=3000 gid=4000 groups=4000
->> kubectl logs app-perms-7c6c95b68-76g8g -c other
-/bin/sh: /data/out-app-perms-7c6c95b68-76g8g.txt: Permission denied
+>> kubectl logs juicefs-app-perms-7c6c95b68-76g8g -c other
+/bin/sh: /data/out-juicefs-app-perms-7c6c95b68-76g8g.txt: Permission denied
 ...
 ```

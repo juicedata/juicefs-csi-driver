@@ -6,6 +6,6 @@ configurations:
 resources:
 - resources.yaml
 secretGenerator:
-- name: juicefs-aws-us-east-1
+- name: juicefs-secret
   envs:
   - secrets.env

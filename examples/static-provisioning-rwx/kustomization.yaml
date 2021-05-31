@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: default
 nameSuffix: -rwx
 commonLabels:
-  app: pv-rwx
+  app: juicefs-pv-rwx
 bases:
 - ../static-provisioning
 resources:
