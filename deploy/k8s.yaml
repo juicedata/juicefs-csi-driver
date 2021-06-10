@@ -3,7 +3,9 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
@@ -11,7 +13,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-external-provisioner-role
 rules:
 - apiGroups:
@@ -80,7 +84,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-provisioner-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -95,7 +101,10 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
@@ -103,13 +112,17 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-controller
-      juicefs-csi-driver: master
+      app.kubernetes.io/instance: juicefs-csi-driver
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/version: master
   serviceName: juicefs-csi-controller
   template:
     metadata:
       labels:
         app: juicefs-csi-controller
-        juicefs-csi-driver: master
+        app.kubernetes.io/instance: juicefs-csi-driver
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/version: master
     spec:
       containers:
       - args:
@@ -121,6 +134,7 @@ spec:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
         image: juicedata/juicefs-csi-driver
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -188,19 +202,26 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/component: node
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-node
   namespace: kube-system
 spec:
   selector:
     matchLabels:
       app: juicefs-csi-node
-      juicefs-csi-driver: master
+      app.kubernetes.io/instance: juicefs-csi-driver
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/version: master
   template:
     metadata:
       labels:
         app: juicefs-csi-node
-        juicefs-csi-driver: master
+        app.kubernetes.io/instance: juicefs-csi-driver
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/version: master
     spec:
       containers:
       - args:
@@ -212,6 +233,7 @@ spec:
         - name: CSI_ENDPOINT
           value: unix:/csi/csi.sock
         image: juicedata/juicefs-csi-driver
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -306,7 +328,9 @@ apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   labels:
-    juicefs-csi-driver: master
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: csi.juicefs.com
 spec:
   attachRequired: false
