@@ -121,16 +121,12 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-controller
-      app.kubernetes.io/name: juicefs-csi-driver
-      app.kubernetes.io/instance: juicefs-csi-driver
   replicas: 1
   volumeClaimTemplates: []
   template:
     metadata:
       labels:
         app: juicefs-csi-controller
-        app.kubernetes.io/name: juicefs-csi-driver
-        app.kubernetes.io/instance: juicefs-csi-driver
     spec:
       serviceAccount: juicefs-csi-controller-sa
       priorityClassName: system-cluster-critical
@@ -212,14 +208,10 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-node
-      app.kubernetes.io/name: juicefs-csi-driver
-      app.kubernetes.io/instance: juicefs-csi-driver
   template:
     metadata:
       labels:
         app: juicefs-csi-node
-        app.kubernetes.io/name: juicefs-csi-driver
-        app.kubernetes.io/instance: juicefs-csi-driver
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
