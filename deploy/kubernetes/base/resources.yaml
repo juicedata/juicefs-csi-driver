@@ -114,17 +114,26 @@ apiVersion: apps/v1
 metadata:
   name: juicefs-csi-controller
   namespace: kube-system
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/version: master
 spec:
   serviceName: juicefs-csi-controller
   selector:
     matchLabels:
       app: juicefs-csi-controller
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/instance: juicefs-csi-driver
   replicas: 1
   volumeClaimTemplates: []
   template:
     metadata:
       labels:
         app: juicefs-csi-controller
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/instance: juicefs-csi-driver
     spec:
       serviceAccount: juicefs-csi-controller-sa
       priorityClassName: system-cluster-critical
@@ -134,6 +143,7 @@ spec:
       containers:
         - name: juicefs-plugin
           image: juicedata/juicefs-csi-driver
+          imagePullPolicy: Always
           args :
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -199,14 +209,23 @@ apiVersion: apps/v1
 metadata:
   name: juicefs-csi-node
   namespace: kube-system
+  labels:
+    app.kubernetes.io/component: node
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/version: master
 spec:
   selector:
     matchLabels:
       app: juicefs-csi-node
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/instance: juicefs-csi-driver
   template:
     metadata:
       labels:
         app: juicefs-csi-node
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/instance: juicefs-csi-driver
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
@@ -219,6 +238,7 @@ spec:
           securityContext:
             privileged: true
           image: juicedata/juicefs-csi-driver
+          imagePullPolicy: Always
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
