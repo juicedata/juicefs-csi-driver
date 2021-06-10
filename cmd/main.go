@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"os"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
@@ -27,31 +28,38 @@ import (
 
 func main() {
 	var (
-		endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-		version  = flag.Bool("version", false, "Print the version and exit.")
-		nodeID   = flag.String("nodeid", "", "Node ID")
+		endpoint       = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+		version        = flag.Bool("version", false, "Print the version and exit.")
+		nodeID         = flag.String("nodeid", "", "Node ID")
+		enableOperator = flag.Bool("enableOperator", false, "Enable operator or not.")
 	)
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	if *version {
-		info, err := driver.GetVersionJSON()
+	if *enableOperator {
+		klog.V(5).Info("Enable operator.")
+		mgr := apps.NewManager()
+		mgr.Run()
+	} else {
+		if *version {
+			info, err := driver.GetVersionJSON()
+			if err != nil {
+				klog.Fatalln(err)
+			}
+			fmt.Println(info)
+			os.Exit(0)
+		}
+
+		if *nodeID == "" {
+			klog.Fatalln("nodeID must be provided")
+		}
+
+		drv, err := driver.NewDriver(*endpoint, *nodeID)
 		if err != nil {
 			klog.Fatalln(err)
 		}
-		fmt.Println(info)
-		os.Exit(0)
-	}
-
-	if *nodeID == "" {
-		klog.Fatalln("nodeID must be provided")
-	}
-
-	drv, err := driver.NewDriver(*endpoint, *nodeID)
-	if err != nil {
-		klog.Fatalln(err)
-	}
-	if err := drv.Run(); err != nil {
-		klog.Fatalln(err)
+		if err := drv.Run(); err != nil {
+			klog.Fatalln(err)
+		}
 	}
 }
