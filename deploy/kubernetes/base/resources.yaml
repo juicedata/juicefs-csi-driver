@@ -116,9 +116,6 @@ metadata:
   namespace: kube-system
   labels:
     app.kubernetes.io/component: controller
-    app.kubernetes.io/name: juicefs-csi-driver
-    app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: master
 spec:
   serviceName: juicefs-csi-controller
   selector:
@@ -211,9 +208,6 @@ metadata:
   namespace: kube-system
   labels:
     app.kubernetes.io/component: node
-    app.kubernetes.io/name: juicefs-csi-driver
-    app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: master
 spec:
   selector:
     matchLabels:

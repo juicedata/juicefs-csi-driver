@@ -5,6 +5,8 @@ namespace: kube-system
 resources:
 - resources.yaml
 commonLabels:
-  juicefs-csi-driver: master
+  app.kubernetes.io/name: juicefs-csi-driver
+  app.kubernetes.io/instance: juicefs-csi-driver
+  app.kubernetes.io/version: master
 patches:
 - container-resources.yaml
