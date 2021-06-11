@@ -60,6 +60,23 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
+    {{- if semverCompare "<1.16-0" .Capabilities.KubeVersion.Version }}
+      - args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: {{ printf "%s:%s" .Values.sidecars.csiAttacherImage.repository .Values.sidecars.csiAttacherImage.tag }}
+        imagePullPolicy: IfNotPresent
+        name: csi-attacher
+        resources: { }
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      {{- end }}
       - name: csi-provisioner
         image: {{ printf "%s:%s" .Values.sidecars.csiProvisionerImage.repository .Values.sidecars.csiProvisionerImage.tag }}
         args:

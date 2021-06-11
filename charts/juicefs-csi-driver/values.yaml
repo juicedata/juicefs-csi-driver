@@ -22,6 +22,9 @@ sidecars:
   csiProvisionerImage:
     repository: quay.io/k8scsi/csi-provisioner
     tag: "v1.6.0"
+  csiAttacherImage:
+    repository: quay.io/k8scsi/csi-attacher
+    tag: "v2.0.0"
 
 # for some environment without dns server and want to use /etc/hosts instead
 # - ip: "127.0.0.1"

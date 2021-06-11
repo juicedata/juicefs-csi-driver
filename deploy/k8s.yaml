@@ -333,5 +333,7 @@ metadata:
     app.kubernetes.io/version: master
   name: csi.juicefs.com
 spec:
+  # when kubernetes version below v1.16, attachRequired should be removed
+  # https://github.com/kubernetes/kubernetes/pull/81456
   attachRequired: false
   podInfoOnMount: false

@@ -7,5 +7,9 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation
     "helm.sh/resource-policy": keep
 spec:
+  {{- if semverCompare ">=1.16-0" .Capabilities.KubeVersion.Version}}
   attachRequired: false
+  {{- else }}
+  attachRequired: true
+  {{- end }}
   podInfoOnMount: false

@@ -206,12 +206,16 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-// ControllerPublishVolume unimplemented
+// ControllerPublishVolume implemented
 func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	// to avoid hitting kubelet issue(https://github.com/kubernetes/kubernetes/pull/81456) which fixed in kubernetes v1.16
+	// add an empty response here
+	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-// ControllerUnpublishVolume unimplemented
+// ControllerUnpublishVolume implemented
 func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	// to avoid hitting kubelet issue(https://github.com/kubernetes/kubernetes/pull/81456) which fixed in kubernetes v1.16
+	// add an empty response here
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

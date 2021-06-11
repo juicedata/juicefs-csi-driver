@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# MUST be kube-system for pods with system-cluster-critical priorityClass
+namespace: kube-system
+resources:
+- ../base
+# when kubernetes version below v1.16, attachRequired should be true
+# https://github.com/kubernetes/kubernetes/pull/81456
+patchesJSON6902:
+- target:
+    group: storage.k8s.io
+    version: v1beta1
+    kind: CSIDriver
+    name: csi.juicefs.com
+  patch: |-
+    - op: replace
+      path: /spec/attachRequired
+      value: true
+patchesStrategicMerge:
+  - controller-patch.yaml

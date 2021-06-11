@@ -1,0 +1,24 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: juicefs-csi-controller
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+      - args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: quay.io/k8scsi/csi-attacher:v2.0.0
+        imagePullPolicy: IfNotPresent
+        name: csi-attacher
+        resources: { }
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
