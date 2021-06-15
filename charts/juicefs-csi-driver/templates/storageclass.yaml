@@ -13,10 +13,18 @@ data:
   {{- with $sc.backend }}
   name: {{ .name | b64enc | quote }}
   metaurl: {{ .metaurl | b64enc | quote }}
+  {{- if .storage }}
   storage: {{ .storage | b64enc | quote }}
+  {{- end }}
+  {{- if .accessKey }}
   access-key: {{ .accessKey | b64enc | quote }}
+  {{- end }}
+  {{- if .secretKey }}
   secret-key: {{ .secretKey | b64enc | quote }}
+  {{- end }}
+  {{- if .bucket }}
   bucket: {{ .bucket | b64enc | quote }}
+  {{- end }}
   {{- end }}
 ---
 apiVersion: storage.k8s.io/v1
