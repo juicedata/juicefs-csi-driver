@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme         = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	controllerName = "juicefs-controller"
 )
 
 func init() {
@@ -67,7 +68,10 @@ func NewManager() *Manager {
 	}
 
 	if err = (&controllers.JuicefsReconciler{
-		Client: mgr.GetClient(),
+		Client: controllers.Client{
+			Client:   mgr.GetClient(),
+			Recorder: mgr.GetEventRecorderFor(controllerName),
+		},
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Juicefs")

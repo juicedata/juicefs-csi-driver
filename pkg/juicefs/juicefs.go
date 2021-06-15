@@ -3,14 +3,16 @@ package juicefs
 import (
 	"context"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/apis/juicefs.com/client"
+	mountv1 "github.com/juicedata/juicefs-csi-driver/pkg/apis/juicefs.com/v1"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -21,11 +23,12 @@ import (
 )
 
 const (
-	cliPath     = "/usr/bin/juicefs"
-	ceCliPath   = "/bin/juicefs"
-	ceMountPath = "/bin/mount.juicefs"
-	mountBase   = "/jfs"
-	fsType      = "juicefs"
+	cliPath          = "/usr/bin/juicefs"
+	ceCliPath        = "/bin/juicefs"
+	ceMountPath      = "/bin/mount.juicefs"
+	mountBase        = "/jfs"
+	fsType           = "juicefs"
+	defaultNamespace = "kube-system"
 )
 
 // Interface of juicefs provider
@@ -425,29 +428,55 @@ func (j *juicefs) ceMount(source string, mountPath string, fsType string, option
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	mntCmd := exec.Command(ceMountPath, mountArgs...)
-	mntCmd.Env = envs
-	mntCmd.Stderr = os.Stderr
-	mntCmd.Stdout = os.Stdout
-	go func() { _ = mntCmd.Run() }()
-	// Wait until the mount point is ready
+	// create CR
+	juiceMount := newJuiceMount(source, mountPath)
+	clientset, err := client.NewForConfig()
+	if err != nil {
+		klog.V(5).Infof("Get clientset incluster error: %v", err)
+		return status.Errorf(codes.Internal, "Can't get clientset in cluster.")
+	}
+	juiceMount, err = clientset.JuiceMounts(defaultNamespace).Create(context.Background(), juiceMount, metav1.CreateOptions{})
+	if err != nil {
+		return status.Errorf(codes.Internal, "Create JuiceMount error: %v", err)
+	}
+
+	// Wait until the juiceMount is successful
 	for i := 0; i < 30; i++ {
-		finfo, err := os.Stat(mountPath)
+		jm, err := clientset.JuiceMounts(defaultNamespace).Get(context.Background(), juiceMount.Name, metav1.GetOptions{})
 		if err != nil {
-			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", mountPath, err)
+			return status.Errorf(codes.Internal, "Get JuiceMount %v failed: %v", juiceMount.Name, err)
 		}
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				return nil
-			}
-			klog.V(5).Infof("Mount point %v is not ready", mountPath)
-		} else {
-			klog.V(5).Info("Cannot reach here")
+		if jm.Status.MountStatus == mountv1.JMountSuccess {
+			klog.V(5).Infof("JuiceMount %v is successful", juiceMount.Name)
+			return nil
+		} else if jm.Status.MountStatus == mountv1.JMountFailed {
+			return status.Errorf(codes.Internal, "JuiceMount %v is failed", juiceMount.Name)
 		}
 		time.Sleep(time.Second)
 	}
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
+}
+
+func newJuiceMount(source, mountPath string) *mountv1.JuiceMount {
+	return &mountv1.JuiceMount{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       mountv1.Kind,
+			APIVersion: mountv1.Version,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "",
+			Namespace: defaultNamespace,
+		},
+		Spec: mountv1.JuiceMountSpec{
+			MountSpec: mountv1.MountSpec{
+				Image:       MountImage,
+				MetaUrl:     source,
+				JuiceFsPath: ceMountPath,
+				MountPath:   mountPath,
+			},
+			NodeName: NodeName,
+		},
+	}
 }
 
 func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {

@@ -4,6 +4,7 @@ require (
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/kubernetes-csi/csi-test v1.1.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0

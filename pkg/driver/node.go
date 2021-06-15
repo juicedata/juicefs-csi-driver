@@ -203,6 +203,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
 	// we can only unmount this when only one is left
 	// since the PVC might be used by more than one container
+	// todo think about CR
 	if err == nil && len(refs) == 1 {
 		klog.V(5).Infof("NodeUnpublishVolume: unmounting ref %s", refs[0])
 		if err := d.juicefs.JfsUnmount(refs[0]); err != nil {

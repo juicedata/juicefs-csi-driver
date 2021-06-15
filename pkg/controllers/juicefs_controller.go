@@ -18,15 +18,15 @@ package controllers
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	mountv1 "github.com/juicedata/juicefs-csi-driver/pkg/apis/juicefs.com/v1"
-	"github.com/pkg/errors"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	reconciler "github.com/juicedata/juicefs-csi-driver/pkg/reconcile"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	_ "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,8 +34,14 @@ import (
 
 // JuicefsReconciler reconciles a Juicefs object
 type JuicefsReconciler struct {
-	Client client.Client
+	Client
+	Log    logr.Logger
 	Scheme *runtime.Scheme
+}
+
+type Client struct {
+	client.Client
+	Recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=mount.juicefs.com,resources=juicemount,verbs=get;list;watch;create;update;patch;delete
@@ -51,141 +57,87 @@ type JuicefsReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
-func (r *JuicefsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (j *JuicefsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// reconcile pod
-	result, err := r.reconcilePod(ctx, req)
-	if err != nil {
-		klog.Error(err)
-	}
-
-	// reconcile mount
-	result, err = r.reconcileMount(ctx, req)
-	if err != nil {
-		klog.Error(err)
-	}
-
-	return result, nil
-}
-
-func (r *JuicefsReconciler) reconcileMount(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	result := common.NewResults(ctx)
 	// fetching jfsMount instance
-	jfsMountInstance := &mountv1.JuiceMount{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, jfsMountInstance)
-	if kerrors.IsNotFound(err) {
-		klog.V(5).Infof("jfsMount instance not found for %v.", req.NamespacedName)
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch jfsMount %s", req.NamespacedName)
-	}
-
-	switch jfsMountInstance.Status.MountStatus {
-	case mountv1.JMountInit:
-		// create jfsMount pod if instance status is init
-		klog.V(5).Infof("create pod of jfsMount %v.", jfsMountInstance.Name)
-		mountPod := NewMountPod(jfsMountInstance)
-		err = r.Client.Create(ctx, mountPod)
-		if err != nil {
-			klog.Errorf("create pod of jfsMount %v error: %v", jfsMountInstance.Name, err)
-		}
-		jfsMountInstance.Status.MountStatus = mountv1.JMountRunning
-		break
-
-	case mountv1.JMountFailed:
-		// check jfsMount pod if instance status is failed
-		klog.V(5).Infof("check pod of jfsMount %v.", jfsMountInstance.Name)
-
-		mountPods := &corev1.PodList{}
-		err := r.Client.List(context.TODO(), mountPods, client.InNamespace(req.Namespace),
-			client.MatchingLabels{podMountRef: jfsMountInstance.Name})
-		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "get pod of juicefsMount %v error: %v", jfsMountInstance.Name, err)
-		}
-
-		if len(mountPods.Items) == 0 {
-			klog.V(5).Infof("pod of jfsMount instance %v not found for %v. create now.", jfsMountInstance.Name)
-			mountPod := NewMountPod(jfsMountInstance)
-			err = r.Client.Create(ctx, mountPod)
-			if err != nil {
-				klog.Errorf("create pod of jfsMount %v error: %v", jfsMountInstance.Name, err)
-			}
-			jfsMountInstance.Status.MountStatus = mountv1.JMountRunning
-			break
-		}
-
-	case mountv1.JMountSuccess:
-		// do nothing if status is success
-		klog.V(5).Infof("jfsMount %v status is success, do nothing.", jfsMountInstance.Name)
-		return reconcile.Result{}, nil
-	}
-
-	// update mount instance status
-	if err = r.Client.Update(ctx, jfsMountInstance); err != nil {
-		klog.V(5).Infof("update jfsMount instance err: %v", err)
+	jfsMountInstance, err := j.fetchJuiceMount(ctx, req.NamespacedName)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
-	return reconcile.Result{}, nil
+
+	// todo CR check
+
+	sts := reconciler.NewStatus(jfsMountInstance)
+	internalResult := j.internalReconcile(ctx, jfsMountInstance, sts)
+	err = j.updateStatus(ctx, jfsMountInstance, sts)
+	return result.WithError(err).WithResult(internalResult).Aggregate()
 }
 
-func (r *JuicefsReconciler) reconcilePod(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// fetching pod
-	mountPod := &corev1.Pod{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, mountPod)
-	if kerrors.IsNotFound(err) {
-		klog.V(5).Infof("jfsMount pod not found for %v.", req.NamespacedName)
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch jfsMount pod %s", req.NamespacedName)
+func (j *JuicefsReconciler) fetchJuiceMount(ctx context.Context, name types.NamespacedName) (*mountv1.JuiceMount, error) {
+	juiceMount := &mountv1.JuiceMount{}
+	if err := j.Get(ctx, name, juiceMount); err != nil {
+		j.Log.Error(err, "get juice mount cr failed", "namespace", name.Namespace, "name", name.Name)
+		return nil, err
+	}
+	return juiceMount, nil
+}
+
+func (j *JuicefsReconciler) fetchPods(ctx context.Context, name types.NamespacedName) (*mountv1.JuiceMount, error) {
+	juiceMount := &mountv1.JuiceMount{}
+	if err := j.Get(ctx, name, juiceMount); err != nil {
+		j.Log.Error(err, "get juice mount cr failed", "namespace", name.Namespace, "name", name.Name)
+		return nil, err
+	}
+	return juiceMount, nil
+}
+
+// internal check
+func (j *JuicefsReconciler) internalReconcile(ctx context.Context, juiceMount *mountv1.JuiceMount, status *reconciler.Status) *common.Results {
+	results := common.NewResult(ctx)
+
+	//deal with jm is deleted
+	if juiceMount.IsMarkDeleted() {
+		return results.WithError(j.onDelete(*juiceMount))
 	}
 
-	if len(mountPod.OwnerReferences) != 1 {
-		return ctrl.Result{}, errors.Wrapf(err, "jfsMount pod ownerRef isn't 1 %s", req.NamespacedName)
+	// todo mount check
+
+	resourceParam := reconciler.ResourceParameters{
+		JM:             *juiceMount,
+		Client:         j.Client,
+		Recorder:       j.Recorder,
+		ReconcileState: status,
+	}
+	resourceReconciler := reconciler.NewResourceReconciler(resourceParam)
+	resourceResult := resourceReconciler.Reconcile(ctx)
+	return results.WithResult(resourceResult)
+}
+
+func (j *JuicefsReconciler) updateStatus(ctx context.Context, juiceMount *mountv1.JuiceMount, status *reconciler.Status) error {
+	events, crt := status.Apply()
+	if crt == nil {
+		return nil
 	}
 
-	// get pod owner mount instance
-	jfsMountName := mountPod.OwnerReferences[0].Name
-	jfsInstance := &mountv1.JuiceMount{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{
-		Namespace: req.Namespace,
-		Name:      jfsMountName,
-	}, jfsInstance)
-	if kerrors.IsNotFound(err) {
-		klog.V(5).Infof("jfsMount not found for pod %v.", req.NamespacedName)
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to fetch jfsMount for pod %s", req.NamespacedName)
+	// record event to k8s
+	for _, evt := range events {
+		klog.V(5).InfoS("Record events", "event", evt)
+		j.Recorder.Event(juiceMount, evt.EventType, evt.Reason, evt.Message)
 	}
 
-	switch mountPod.Status.Phase {
-	case corev1.PodRunning:
-		// update jfsMount instance status when pod is ready
-		for _, cn := range mountPod.Status.ContainerStatuses {
-			if cn.State.Running == nil {
-				jfsInstance.Status.MountStatus = mountv1.JMountRunning
-				break
-			}
-		}
-		jfsInstance.Status.MountStatus = mountv1.JMountSuccess
-		break
-	case corev1.PodFailed:
-	case corev1.PodUnknown:
-	case corev1.PodReasonUnschedulable:
-		// update jfsMount instance status when pod is error
-		jfsInstance.Status.MountStatus = mountv1.JMountFailed
-		break
-	}
+	// update status to k8s
+	klog.V(5).InfoS("Update juiceMount status", "namespace", crt.Namespace, "name", crt.Name)
+	return j.Client.Status().Update(ctx, crt)
+}
 
-	if err = r.Client.Update(ctx, jfsInstance); err != nil {
-		klog.V(5).Infof("update jfsMount instance err: %v", err)
-		return ctrl.Result{}, err
-	}
-	return reconcile.Result{}, nil
+func (j *JuicefsReconciler) onDelete(jm mountv1.JuiceMount) error {
+	return reconciler.GarbageCollectSoftOwnedResource(j.Client, jm)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *JuicefsReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (j *JuicefsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&mountv1.JuiceMount{}).For(&corev1.Pod{}).
-		Complete(r)
+		For(&mountv1.JuiceMount{}).Complete(j)
 }

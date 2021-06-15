@@ -23,8 +23,14 @@ import (
 	"os"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"k8s.io/klog"
 )
+
+func init() {
+	juicefs.NodeName = os.Getenv("NODE_NAME")
+	juicefs.MountImage= os.Getenv("MOUNT_IMAGE")
+}
 
 func main() {
 	var (

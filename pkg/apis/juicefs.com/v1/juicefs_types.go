@@ -29,15 +29,12 @@ type JuiceMountSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	MountSpec MountSpec `json:"mount_spec"`
-
-	PodName   string    `json:"pod_name"`
 	NodeName  string    `json:"node_name"`
-	Image     string    `json:"image"`
 }
 
 type MountSpec struct {
-	VolumeId    string `json:"volume_id"`
-	Secret      string `json:"secret"`
+	Image       string `json:"image"`
+	MetaUrl     string `json:"meta_url"`
 	JuiceFsPath string `json:"juice_fs_path"`
 	MountPath   string `json:"mount_path"`
 }
@@ -68,6 +65,10 @@ type JuiceMount struct {
 
 	Spec   JuiceMountSpec   `json:"spec,omitempty"`
 	Status JuiceMountStatus `json:"status,omitempty"`
+}
+
+func (jm JuiceMount) IsMarkDeleted() bool {
+	return !jm.DeletionTimestamp.IsZero()
 }
 
 //+kubebuilder:object:root=true
