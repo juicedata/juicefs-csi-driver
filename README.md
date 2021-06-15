@@ -24,7 +24,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 #### Using Helm To Deploy
 
-1. Prepare a `values.yaml` file with access information about Redis and object storage
+1. Prepare a `values.yaml` file with access information about Redis and object storage. If already formatted a volume, only `name` and `metaurl` is required.
 
 ```yaml
 storageClasses:
