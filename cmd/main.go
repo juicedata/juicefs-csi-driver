@@ -19,11 +19,19 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"os"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"k8s.io/klog"
 )
+
+func init() {
+	juicefs.NodeName = os.Getenv("NODE_NAME")
+	juicefs.Namespace = os.Getenv("MOUNT_NAMESPACE")
+	juicefs.MountImage = os.Getenv("MOUNT_IMAGE")
+	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
+}
 
 func main() {
 	var (

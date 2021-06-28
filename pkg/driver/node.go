@@ -18,11 +18,13 @@ package driver
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -140,7 +142,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(volumeID, secrets, mountOptions)
+	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -167,6 +169,56 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	target := req.GetTargetPath()
 	if len(target) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
+	}
+
+	volumeId := req.GetVolumeId()
+	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeId)
+
+	// check mount pod is need to delete
+	klog.V(5).Infof("Check mount pod is need to delete or not.")
+	k8sClient, err := juicefs.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
+	pod, err := juicefs.GetPod(k8sClient, volumeId)
+	if err != nil {
+		klog.V(5).Infof("Can't get pod of volumeId %s: %v", volumeId, err)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
+	cm, err := juicefs.GetConfigMap(k8sClient, volumeId)
+	if err != nil {
+		klog.V(5).Infof("Can't get configMap of volumeId %s: %v", volumeId, err)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
+	cmRefs := cm.Data
+	key := base64.StdEncoding.EncodeToString([]byte(target))
+	if _, ok := cmRefs[key]; ok {
+		var lock sync.RWMutex
+		lock.RLock()
+		delete(cmRefs, key)
+		lock.Unlock()
+		if len(cmRefs) == 0 {
+			// delete pod & cm of volumeId when refs is last one.
+			if err := juicefs.DeleteConfigMap(k8sClient, cm); err != nil {
+				klog.V(5).Infof("Delete configMap of volumeId %s error: %v", volumeId, err)
+				return &csi.NodeUnpublishVolumeResponse{}, nil
+			}
+			if err := juicefs.DeletePod(k8sClient, pod); err != nil {
+				klog.V(5).Infof("Delete pod of volumeId %s error: %v", volumeId, err)
+				return &csi.NodeUnpublishVolumeResponse{}, nil
+			}
+		} else {
+			// delete ref of volumeId in cm.
+			cm.Data = cmRefs
+			if err := juicefs.UpdateConfigMap(k8sClient, cm); err != nil {
+				klog.V(5).Infof("Update configMap of volumeId %s error: %v", volumeId, err)
+				return &csi.NodeUnpublishVolumeResponse{}, nil
+			}
+		}
 	}
 
 	var corruptedMnt bool
