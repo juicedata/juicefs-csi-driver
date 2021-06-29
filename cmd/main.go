@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"os"
 
@@ -31,6 +32,10 @@ func init() {
 	juicefs.Namespace = os.Getenv("MOUNT_NAMESPACE")
 	juicefs.MountImage = os.Getenv("MOUNT_IMAGE")
 	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
+	juicefs.MountPodCpuLimit = os.Getenv("JUICEFS_MOUNT_POD_CPU_LIMIT")
+	juicefs.MountPodMemLimit = os.Getenv("JUICEFS_MOUNT_POD_MEM_LIMIT")
+	juicefs.MountPodCpuRequest = os.Getenv("JUICEFS_MOUNT_POD_CPU_REQUEST")
+	juicefs.MountPodMemRequest = os.Getenv("JUICEFS_MOUNT_POD_MEM_REQUEST")
 }
 
 func main() {
@@ -54,6 +59,10 @@ func main() {
 	if *nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
 	}
+
+	go func() {
+		apps.Run()
+	}()
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)
 	if err != nil {

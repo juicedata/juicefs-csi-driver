@@ -9,6 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
+	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func GetOrCreatePod(k8sClient *kubernetes.Clientset, volumeId, metaUrl string) (*corev1.Pod, error) {
@@ -26,6 +28,16 @@ func GetOrCreatePod(k8sClient *kubernetes.Clientset, volumeId, metaUrl string) (
 		return mntPod, nil
 	} else if err != nil {
 		klog.V(5).Infof("Can't get pod of volumeId %s: %v", volumeId, err)
+		return nil, err
+	}
+	return mntPod, nil
+}
+
+func CreatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) (*corev1.Pod, error) {
+	klog.V(5).Infof("Create pod %s", pod.Name)
+	mntPod, err := k8sClient.CoreV1().Pods(Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	if err != nil {
+		klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
 		return nil, err
 	}
 	return mntPod, nil
@@ -101,6 +113,7 @@ func NewMountConfigMap(volumeId string) *corev1.ConfigMap {
 }
 
 func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
+	cnMountPath := filepath.Join(mountBase, volumeId)
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -109,7 +122,8 @@ func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
 			Name:      volumeId,
 			Namespace: Namespace,
 			Labels: map[string]string{
-				VolumeId: volumeId,
+				VolumeId:   volumeId,
+				PodTypeKey: PodTypeValue,
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -118,14 +132,14 @@ func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
 				Image:           MountImage,
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{"sh", "-c", fmt.Sprintf("%v %v %v && sleep infinity",
-					ceMountPath, metaUrl, MountPointPath)},
+					ceMountPath, metaUrl, cnMountPath)},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
 				Resources: parsePodResources(),
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:             "jfs-dir",
-					MountPath:        "/jfs",
+					MountPath:        mountBase,
 					MountPropagation: &mp,
 				}},
 			}},
@@ -141,24 +155,17 @@ func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
 			NodeName: NodeName,
 		},
 	}
+	controllerutil.AddFinalizer(pod, Finalizer)
 	return pod
 }
 
 func parsePodResources() corev1.ResourceRequirements {
-	podLimit := corev1.ResourceList{}
-	podRequest := corev1.ResourceList{}
-	if MountPodCpuLimit != "" {
-		podLimit.Cpu().Add(resource.MustParse(MountPodCpuLimit))
-	}
-	if MountPodMemLimit != "" {
-		podLimit.Memory().Add(resource.MustParse(MountPodMemLimit))
-	}
-	if MountPodCpuRequest != "" {
-		podRequest.Cpu().Add(resource.MustParse(MountPodCpuRequest))
-	}
-	if MountPodMemRequest != "" {
-		podRequest.Memory().Add(resource.MustParse(MountPodMemRequest))
-	}
+	podLimit := map[corev1.ResourceName]resource.Quantity{}
+	podRequest := map[corev1.ResourceName]resource.Quantity{}
+	podLimit[corev1.ResourceCPU] = resource.MustParse(MountPodCpuLimit)
+	podLimit[corev1.ResourceMemory] = resource.MustParse(MountPodMemLimit)
+	podRequest[corev1.ResourceCPU] = resource.MustParse(MountPodCpuRequest)
+	podRequest[corev1.ResourceMemory] = resource.MustParse(MountPodMemRequest)
 	return corev1.ResourceRequirements{
 		Limits:   podLimit,
 		Requests: podRequest,

@@ -36,6 +36,26 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:/csi/csi.sock
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MOUNT_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MOUNT_IMAGE
+          value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        - name: JUICEFS_MOUNT_PATH
+          value: {{ .Values.jfsMountDir }}
+        - name: JUICEFS_MOUNT_POD_CPU_LIMIT
+          value: '{{ .Values.mountPod.resources.limits.cpu }}'
+        - name: JUICEFS_MOUNT_POD_MEM_LIMIT
+          value: '{{ .Values.mountPod.resources.limits.memory }}'
+        - name: JUICEFS_MOUNT_POD_CPU_REQUEST
+          value: '{{ .Values.mountPod.resources.requests.cpu }}'
+        - name: JUICEFS_MOUNT_POD_MEM_REQUEST
+          value: '{{ .Values.mountPod.resources.requests.memory }}'
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -60,6 +80,9 @@ spec:
           name: plugin-dir
         - mountPath: /dev
           name: device-dir
+        - mountPath: /jfs
+          mountPropagation: Bidirectional
+          name: jfs-dir
       - name: node-driver-registrar
         image: {{ printf "%s:%s" .Values.sidecars.nodeDriverRegistrarImage.repository .Values.sidecars.nodeDriverRegistrarImage.tag }}
         args:
@@ -117,6 +140,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccount: {{ include "juicefs-csi.serviceAccountName" . }}
       volumes:
       - hostPath:
           path: {{ .Values.kubeletDir }}
@@ -134,4 +158,8 @@ spec:
           path: /dev
           type: Directory
         name: device-dir
+      - hostPath:
+          path: {{ .Values.jfsMountDir }}
+          type: DirectoryOrCreate
+        name: jfs-dir
 {{- end }}

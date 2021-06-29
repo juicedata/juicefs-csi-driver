@@ -2,10 +2,12 @@ package juicefs
 
 import (
 	"context"
-	"encoding/base64"
+	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"os"
 	"os/exec"
@@ -43,6 +45,7 @@ type Interface interface {
 type juicefs struct {
 	mount.SafeFormatAndMount
 	metricsProxy
+	*kubernetes.Clientset
 }
 
 var _ Interface = &juicefs{}
@@ -118,8 +121,13 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 			Exec:      k8sexec.New(),
 		}
 	}
+	k8sClient, err := NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
+	}
 
-	return &juicefs{*mounter, *newMetricsProxy()}, nil
+	return &juicefs{*mounter, *newMetricsProxy(), k8sClient}, nil
 }
 
 func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
@@ -317,7 +325,15 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 	}
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
-	return mountPath, nil
+	klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
+
+	cm, err := GetOrCreateConfigMap(j.Clientset, volumeID)
+	if err != nil {
+		return mountPath, err
+	}
+
+	err = j.addRefOfMount(target, cm)
+	return mountPath, err
 }
 
 // Upgrade upgrades binary file in `cliPath` to newest version
@@ -426,47 +442,67 @@ func (j *juicefs) ceMount(volumeId, source string, mountPath string, fsType stri
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	k8sClient, err := NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		return err
-	}
-	// todo: pod image is related to juicefs version. Get it from PV/StorageClass.
-	_, err = GetOrCreatePod(k8sClient, volumeId, source)
+	_, err := GetOrCreatePod(j.Clientset, volumeId, source)
 	if err != nil {
 		return err
 	}
-	cm, err := GetOrCreateConfigMap(k8sClient, volumeId)
+	cm, err := GetOrCreateConfigMap(j.Clientset, volumeId)
 	if err != nil {
 		return err
 	}
 
 	// Wait until the mount pod is ready
+loop:
 	for i := 0; i < 30; i++ {
-		pod, err := GetPod(k8sClient, volumeId)
+		pod, err := GetPod(j.Clientset, volumeId)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Get pod %v failed: %v", volumeId, err)
 		}
 		if util.IsPodReady(pod) {
 			klog.V(5).Infof("Pod %v is successful", volumeId)
-
 			// add volumeId ref in configMap
-			// mount target base64 as key
-			j.mpLock.Lock()
-			refs := cm.Data
-			key := base64.StdEncoding.EncodeToString([]byte(target))
-			refs[key] = ""
-			cm.Data = refs
-			j.mpLock.Unlock()
-			err = UpdateConfigMap(k8sClient, cm)
-			return err
-		} else if util.IsPodError(pod) {
-			// todo: if pod is failed because of resource, delete resource and deploy pod again.
-			return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
+			klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeId)
+			return j.addRefOfMount(target, cm)
+		} else if util.IsPodResourceError(pod) {
+			klog.V(5).Infof("Pod is failed because of resource.")
+			if !util.IsPodHasResource(*pod) {
+				return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
+			}
+
+			// if pod is failed because of resource, delete resource and deploy pod again.
+			klog.V(5).Infof("Delete it and deploy again with no resource.")
+			if err := DeletePod(j.Clientset, pod); err != nil {
+				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
+			}
+			time.Sleep(time.Second * 5)
+			newPod := NewMountPod(volumeId, source)
+			util.DeleteResourceOfPod(newPod)
+			klog.V(5).Infof("Deploy again with no resource.")
+			if _, err := CreatePod(j.Clientset, newPod); err != nil {
+				return status.Errorf(codes.Internal, "Can't create Pod %v", volumeId)
+			}
+			goto loop
 		}
 		time.Sleep(time.Second)
 	}
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
+}
+
+func (j *juicefs) addRefOfMount(target string, cm *corev1.ConfigMap) error {
+	// add volumeId ref in configMap
+	// mount target hash as key
+	j.mpLock.Lock()
+	refs := cm.Data
+	if refs == nil {
+		refs = map[string]string{}
+	}
+	h := sha256.New()
+	h.Write([]byte(target))
+	key := fmt.Sprintf("%x", h.Sum(nil))
+	refs[key] = ""
+	cm.Data = refs
+	j.mpLock.Unlock()
+	return UpdateConfigMap(j.Clientset, cm)
 }
 
 func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {

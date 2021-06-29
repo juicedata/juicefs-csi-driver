@@ -18,7 +18,7 @@ package driver
 
 import (
 	"context"
-	"encoding/base64"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"reflect"
@@ -195,14 +195,21 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	cmRefs := cm.Data
-	key := base64.StdEncoding.EncodeToString([]byte(target))
+	if cmRefs == nil {
+		cmRefs = map[string]string{}
+	}
+	h := sha256.New()
+	h.Write([]byte(target))
+	key := fmt.Sprintf("%x", h.Sum(nil))
+	klog.V(5).Infof("target: %v hash of target: %v", target, key)
 	if _, ok := cmRefs[key]; ok {
 		var lock sync.RWMutex
 		lock.RLock()
 		delete(cmRefs, key)
-		lock.Unlock()
+		lock.RUnlock()
 		if len(cmRefs) == 0 {
 			// delete pod & cm of volumeId when refs is last one.
+			klog.V(5).Infof("VolumeId %s ref is last one, delete po and cm.", volumeId)
 			if err := juicefs.DeleteConfigMap(k8sClient, cm); err != nil {
 				klog.V(5).Infof("Delete configMap of volumeId %s error: %v", volumeId, err)
 				return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -213,6 +220,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			}
 		} else {
 			// delete ref of volumeId in cm.
+			klog.V(5).Infof("Delete ref of VolumeId %s, update cm.", volumeId)
 			cm.Data = cmRefs
 			if err := juicefs.UpdateConfigMap(k8sClient, cm); err != nil {
 				klog.V(5).Infof("Update configMap of volumeId %s error: %v", volumeId, err)

@@ -14,5 +14,8 @@ var (
 )
 
 const (
-	VolumeId = "juicefs.com/volume-id"
+	VolumeId     = "juicefs.com/volume-id"
+	PodTypeKey   = "app.kubernetes.io/name"
+	PodTypeValue = "juicefs-mount"
+	Finalizer    = "juicefs.com/finalizer"
 )
