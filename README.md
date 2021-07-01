@@ -35,8 +35,8 @@ storageClasses:
     name: "<name>"
     metaurl: "<redis-url>"
     storage: "<storage-type>"
-    accessKey: "<access-key>"
-    secretKey: "<secret-key>"
+    access-key: "<access-key>"
+    secret-key: "<secret-key>"
     bucket: "<bucket>"
 ```
 
