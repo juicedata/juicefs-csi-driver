@@ -20,18 +20,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
-	"sync"
-
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -203,10 +201,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	key := fmt.Sprintf("%x", h.Sum(nil))
 	klog.V(5).Infof("target: %v hash of target: %v", target, key)
 	if _, ok := cmRefs[key]; ok {
-		var lock sync.RWMutex
-		lock.RLock()
 		delete(cmRefs, key)
-		lock.RUnlock()
 		if len(cmRefs) == 0 {
 			// delete pod & cm of volumeId when refs is last one.
 			klog.V(5).Infof("VolumeId %s ref is last one, delete po and cm.", volumeId)

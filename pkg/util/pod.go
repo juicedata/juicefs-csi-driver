@@ -16,9 +16,8 @@ func IsPodReady(pod *corev1.Pod) bool {
 }
 
 func IsPodError(pod *corev1.Pod) bool {
-	statusFalse := 0
 	if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodUnknown {
-		statusFalse++
+		return true
 	}
 	conditionsFalse := 0
 	for _, cond := range pod.Status.Conditions {
@@ -26,23 +25,20 @@ func IsPodError(pod *corev1.Pod) bool {
 			conditionsFalse++
 		}
 	}
-	return statusFalse == 1 || conditionsFalse == 2
+	return conditionsFalse == 2
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
-	statusFalse := 0
-	conditionsFalse := 0
 	if pod.Status.Phase == corev1.PodFailed && strings.Contains(pod.Status.Reason, "OutOf") {
-		statusFalse = 1
+		return true
 	}
 	for _, cond := range pod.Status.Conditions {
 		if cond.Status == corev1.ConditionFalse && cond.Type == corev1.PodScheduled && cond.Reason == corev1.PodReasonUnschedulable &&
 			(strings.Contains(cond.Message, "Insufficient cpu") || strings.Contains(cond.Message, "Insufficient memory")) {
-			conditionsFalse++
+			return true
 		}
 	}
-
-	return statusFalse == 1 || conditionsFalse == 1
+	return false
 }
 
 func DeleteResourceOfPod(pod *corev1.Pod) {
@@ -54,7 +50,7 @@ func DeleteResourceOfPod(pod *corev1.Pod) {
 
 func IsPodHasResource(pod corev1.Pod) bool {
 	for _, cn := range pod.Spec.Containers {
-		if len(cn.Resources.Limits) != 0 || len(cn.Resources.Requests) != 0 {
+		if len(cn.Resources.Requests) != 0 {
 			return true
 		}
 	}

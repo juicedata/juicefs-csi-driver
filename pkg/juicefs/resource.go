@@ -2,24 +2,24 @@ package juicefs
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func GetOrCreatePod(k8sClient *kubernetes.Clientset, volumeId, metaUrl string) (*corev1.Pod, error) {
+func GetOrCreatePod(k8sClient *kubernetes.Clientset, volumeId string, cmd string) (*corev1.Pod, error) {
 	klog.V(5).Infof("Get pod of volumeId %s", volumeId)
 	mntPod, err := k8sClient.CoreV1().Pods(Namespace).Get(context.TODO(), volumeId, metav1.GetOptions{})
 	if err != nil && k8serrors.IsNotFound(err) {
 		// if not exist, create pod
 		klog.V(5).Infof("Pod of volumeId %s does not exist, create it.", volumeId)
-		mntPod = NewMountPod(volumeId, metaUrl)
+		mntPod = NewMountPod(volumeId, cmd)
 		mntPod, err = k8sClient.CoreV1().Pods(Namespace).Create(context.TODO(), mntPod, metav1.CreateOptions{})
 		if err != nil {
 			klog.V(5).Infof("Can't create pod of volumeId %s: %v", volumeId, err)
@@ -94,6 +94,14 @@ func UpdateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) erro
 	return err
 }
 
+func PatchConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap, payload map[string]string) error {
+	klog.V(5).Infof("Patch configMap %v", cm.Name)
+	playLoadBytes, _ := json.Marshal(payload)
+	_, err := k8sClient.CoreV1().ConfigMaps(Namespace).Patch(
+		context.TODO(), cm.Name, types.StrategicMergePatchType, playLoadBytes, metav1.PatchOptions{})
+	return err
+}
+
 func DeleteConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
 	klog.V(5).Infof("Delete configMap %v", cm.Name)
 	return k8sClient.CoreV1().ConfigMaps(Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
@@ -112,8 +120,7 @@ func NewMountConfigMap(volumeId string) *corev1.ConfigMap {
 	}
 }
 
-func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
-	cnMountPath := filepath.Join(mountBase, volumeId)
+func NewMountPod(volumeId string, cmd string) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -131,8 +138,7 @@ func NewMountPod(volumeId, metaUrl string) *corev1.Pod {
 				Name:            "jfs-mount",
 				Image:           MountImage,
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{"sh", "-c", fmt.Sprintf("%v %v %v && sleep infinity",
-					ceMountPath, metaUrl, cnMountPath)},
+				Command:         []string{"sh", "-c", cmd},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},

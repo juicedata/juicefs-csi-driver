@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -24,11 +24,12 @@ import (
 )
 
 const (
-	cliPath     = "/usr/bin/juicefs"
-	ceCliPath   = "/bin/juicefs"
-	ceMountPath = "/bin/mount.juicefs"
-	mountBase   = "/jfs"
-	fsType      = "juicefs"
+	cliPath      = "/usr/bin/juicefs"
+	ceCliPath    = "/bin/juicefs"
+	ceMountPath  = "/bin/mount.juicefs"
+	jfsMountPath = "/sbin/mount.juicefs"
+	mountBase    = "/jfs"
+	fsType       = "juicefs"
 )
 
 // Interface of juicefs provider
@@ -36,7 +37,7 @@ type Interface interface {
 	mount.Interface
 	JfsMount(volumeID string, target string, secrets map[string]string, options []string) (Jfs, error)
 	JfsUnmount(mountPath string) error
-	AuthFs(secrets map[string]string) ([]byte, error)
+	AuthFs(secrets map[string]string) ([]string, error)
 	MountFs(volumeID, source string, target string, options []string) (string, error)
 	Version() ([]byte, error)
 	ServeMetrics(port int)
@@ -82,6 +83,10 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
 		err := os.MkdirAll(volPath, os.FileMode(0777))
+		fi, err := os.Stat(fs.MountPath)
+		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+			klog.V(5).Info("stat: %v", st.Ino)
+		}
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
 		}
@@ -140,12 +145,13 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets map[string]st
 	var mountPath string
 	if !isCe {
 		j.Upgrade()
-		stdoutStderr, err := j.AuthFs(secrets)
-		klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
+		authFsCmd, err := j.AuthFs(secrets)
+		//klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 		}
 		source = secrets["name"]
+		options = append(options, strings.Join(authFsCmd, " "))
 		mountPath, err = j.MountFs(volumeID, source, target, options)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
@@ -202,7 +208,8 @@ func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
+func (j *juicefs) AuthFs(secrets map[string]string) ([]string, error) {
+	cmd := make([]string, 0)
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -258,18 +265,21 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		if secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
 			confPath := filepath.Join("/root/.juicefs", conf)
-			if _, err := os.Stat(confPath); os.IsNotExist(err) {
-				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
-				if err != nil {
-					return nil, status.Errorf(codes.Internal,
-						"Create config file %q failed: %v", confPath, err)
-				}
-				klog.V(5).Infof("Create config file: %q success", confPath)
-			}
+			cmd = append(cmd, fmt.Sprintf("echo %v > %v &&", secrets["initconfig"], confPath))
+			//if _, err := os.Stat(confPath); os.IsNotExist(err) {
+			//	err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
+			//	if err != nil {
+			//		return nil, status.Errorf(codes.Internal,
+			//			"Create config file %q failed: %v", confPath, err)
+			//	}
+			//	klog.V(5).Infof("Create config file: %q success", confPath)
+			//}
 		}
 	}
 	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
-	return j.Exec.Command(cliPath, args...).CombinedOutput()
+	cmd = append(cmd, append([]string{cliPath}, args...)...)
+	//return j.Exec.Command(cliPath, args...).CombinedOutput()
+	return cmd, nil
 }
 
 // MountFs mounts JuiceFS with idempotency
@@ -294,11 +304,7 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, mountPath, options)
-		if isCeMount {
-			err = j.ceMount(volumeID, source, mountPath, fsType, target, options)
-		} else {
-			err = j.Mount(source, mountPath, fsType, options)
-		}
+		err = j.jMount(volumeID, source, mountPath, target, options, isCeMount)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
 		}
@@ -313,11 +319,7 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", source, mountPath, options)
-		if isCeMount {
-			err = j.ceMount(volumeID, source, mountPath, fsType, target, options)
-		} else {
-			err = j.Mount(source, mountPath, fsType, options)
-		}
+		err = j.jMount(volumeID, source, mountPath, target, options, isCeMount)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, mountPath, err)
 		}
@@ -415,12 +417,26 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	return j.Exec.Command(ceCliPath, args...).CombinedOutput()
 }
 
-func (j *juicefs) ceMount(volumeId, source string, mountPath string, fsType string, target string, options []string) error {
-	klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
-	mountArgs := []string{source, mountPath}
-
-	if len(options) > 0 {
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+func (j *juicefs) jMount(volumeId, source string, mountPath string, target string, options []string, isCeMount bool) error {
+	cmd := ""
+	if isCeMount {
+		klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
+		mountArgs := []string{ceMountPath, source, mountPath}
+		if len(options) > 0 {
+			mountArgs = append(mountArgs, "-o", strings.Join(options, ","), " && sleep infinity")
+		}
+		cmd = strings.Join(mountArgs, " ")
+	} else {
+		klog.V(5).Infof("Mount: mount %v at %v", source, mountPath)
+		authFs := options[len(options)-1]
+		options = options[:len(options)-1]
+		mountArgs := []string{jfsMountPath, source, mountPath}
+		options = append(options, "foreground")
+		if len(options) > 0 {
+			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		}
+		mountCmd := strings.Join(mountArgs, " ")
+		cmd = fmt.Sprintf("%s && %s", authFs, mountCmd)
 	}
 
 	if exist, err := mount.PathExists(mountPath); err != nil {
@@ -442,7 +458,12 @@ func (j *juicefs) ceMount(volumeId, source string, mountPath string, fsType stri
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	_, err := GetOrCreatePod(j.Clientset, volumeId, source)
+	return j.waitUtilMount(volumeId, target, cmd)
+}
+
+func (j *juicefs) waitUtilMount(volumeId, target, cmd string) error {
+	klog.V(5).Infof("Mount pod cmd: %v", cmd)
+	_, err := GetOrCreatePod(j.Clientset, volumeId, cmd)
 	if err != nil {
 		return err
 	}
@@ -452,7 +473,6 @@ func (j *juicefs) ceMount(volumeId, source string, mountPath string, fsType stri
 	}
 
 	// Wait until the mount pod is ready
-loop:
 	for i := 0; i < 30; i++ {
 		pod, err := GetPod(j.Clientset, volumeId)
 		if err != nil {
@@ -474,18 +494,18 @@ loop:
 			if err := DeletePod(j.Clientset, pod); err != nil {
 				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
 			}
+
 			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(volumeId, source)
+			newPod := NewMountPod(volumeId, cmd)
 			util.DeleteResourceOfPod(newPod)
 			klog.V(5).Infof("Deploy again with no resource.")
 			if _, err := CreatePod(j.Clientset, newPod); err != nil {
 				return status.Errorf(codes.Internal, "Can't create Pod %v", volumeId)
 			}
-			goto loop
 		}
 		time.Sleep(time.Second)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", source, mountPath)
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
 }
 
 func (j *juicefs) addRefOfMount(target string, cm *corev1.ConfigMap) error {

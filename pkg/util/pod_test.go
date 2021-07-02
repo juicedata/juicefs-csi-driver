@@ -28,6 +28,10 @@ func TestDeleteResourceOfPod(t *testing.T) {
 			Containers: []corev1.Container{{
 				Name:  "test-cn",
 				Image: "nginx",
+				Resources: corev1.ResourceRequirements{
+					Limits: podLimit,
+					Requests: map[corev1.ResourceName]resource.Quantity{},
+				},
 			}},
 			NodeName: "test-node",
 		},
@@ -99,8 +103,8 @@ func TestIsPodHasResource(t *testing.T) {
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{{
-							Name:      "test-cn",
-							Image:     "nginx",
+							Name:  "test-cn",
+							Image: "nginx",
 						}},
 						NodeName: "test-node",
 					},

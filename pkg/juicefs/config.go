@@ -5,10 +5,10 @@ var (
 	Namespace  = ""
 	MountImage = ""
 
-	MountPodCpuLimit   = "1"
-	MountPodMemLimit   = "1G"
-	MountPodCpuRequest = "1"
-	MountPodMemRequest = "1G"
+	MountPodCpuLimit   = "5000m"
+	MountPodMemLimit   = "5Gi"
+	MountPodCpuRequest = "1000m"
+	MountPodMemRequest = "1Gi"
 
 	MountPointPath = "/run/juicefs/volume"
 )
