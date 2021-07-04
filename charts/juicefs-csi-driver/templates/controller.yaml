@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/component: controller
     {{- include "juicefs-csi.labels" . | nindent 4 }}
   name: juicefs-csi-controller
-  namespace: kube-system
+  namespace: {{ .Values.namespace }}
 spec:
   replicas: {{ .Values.controller.replicas }}
   selector:
@@ -86,7 +86,7 @@ spec:
         - mountPath: /csi
           name: socket-dir
       priorityClassName: system-cluster-critical
-      serviceAccount: {{ include "juicefs-csi.serviceAccountName" . }}
+      serviceAccount: {{ include "juicefs-csi.controller.serviceAccountName" . }}
       {{- with .Values.controller.affinity }}
       affinity:
         {{- tpl . $ | nindent 8 }}

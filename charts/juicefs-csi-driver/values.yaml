@@ -12,6 +12,8 @@ image:
   tag: "v0.9.0"
   pullPolicy: ""
 
+namespace: kube-system
+
 sidecars:
   livenessProbeImage:
     repository: quay.io/k8scsi/livenessprobe
@@ -47,13 +49,19 @@ dnsConfig:
 
 serviceAccount:
   controller:
-    # Specifies whether a service account should be created
+    # Specifies whether a service account of controller should be created
     create: true
     # Annotations to add to the service account
     annotations: {}
     # The name of the service account to use.
     # If not set and create is true, a name is generated using the fullname template
     name: "juicefs-csi-controller-sa"
+  node:
+    # Specifies whether a service account of node service should be created
+    create: true
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: "juicefs-csi-node-sa"
 
 controller:
   # Default is true. This Component will control CSI Driver deployed on node
@@ -87,11 +95,11 @@ mountPod:
   # mount pod resource requests & limits
   resources:
     limits:
-      cpu: 2000m
+      cpu: 5000m
       memory: 5Gi
     requests:
-      cpu: 2000m
-      memory: 5Gi
+      cpu: 1000m
+      memory: 1Gi
 
 node:
   # Default is true. Node will be deployed every node to server CSI Plugin

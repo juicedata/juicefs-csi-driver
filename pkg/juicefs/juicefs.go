@@ -1,3 +1,18 @@
+/*
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package juicefs
 
 import (
@@ -6,6 +21,7 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"os"
@@ -13,7 +29,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -83,10 +98,6 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
 		err := os.MkdirAll(volPath, os.FileMode(0777))
-		fi, err := os.Stat(fs.MountPath)
-		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-			klog.V(5).Info("stat: %v", st.Ino)
-		}
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
 		}
@@ -329,7 +340,7 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 	klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
 
-	cm, err := GetOrCreateConfigMap(j.Clientset, volumeID)
+	cm, err := GetOrCreateConfigMap(j.Clientset, NewMountConfigMap(GetConfigMapNameByVolumeId(volumeID)))
 	if err != nil {
 		return mountPath, err
 	}
@@ -458,23 +469,32 @@ func (j *juicefs) jMount(volumeId, source string, mountPath string, target strin
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	return j.waitUtilMount(volumeId, target, cmd)
+	return j.waitUtilMount(volumeId, target, mountPath, cmd)
 }
 
-func (j *juicefs) waitUtilMount(volumeId, target, cmd string) error {
+func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
+	podName := GetPodNameByVolumeId(volumeId)
+	rp := ResourceParams{
+		VolumeId:      volumeId,
+		PodName:       podName,
+		ConfigMapName: GetConfigMapNameByVolumeId(volumeId),
+		NodeName:      NodeName,
+		Namespace:     Namespace,
+		MountPath:     mountPath,
+	}
 	klog.V(5).Infof("Mount pod cmd: %v", cmd)
-	_, err := GetOrCreatePod(j.Clientset, volumeId, cmd)
+	_, err := GetOrCreatePod(j.Clientset, NewMountPod(rp, cmd))
 	if err != nil {
 		return err
 	}
-	cm, err := GetOrCreateConfigMap(j.Clientset, volumeId)
+	cm, err := GetOrCreateConfigMap(j.Clientset, NewMountConfigMap(rp.ConfigMapName))
 	if err != nil {
 		return err
 	}
 
 	// Wait until the mount pod is ready
 	for i := 0; i < 30; i++ {
-		pod, err := GetPod(j.Clientset, volumeId)
+		pod, err := GetPod(j.Clientset, podName, Namespace)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Get pod %v failed: %v", volumeId, err)
 		}
@@ -496,7 +516,7 @@ func (j *juicefs) waitUtilMount(volumeId, target, cmd string) error {
 			}
 
 			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(volumeId, cmd)
+			newPod := NewMountPod(rp, cmd)
 			util.DeleteResourceOfPod(newPod)
 			klog.V(5).Infof("Deploy again with no resource.")
 			if _, err := CreatePod(j.Clientset, newPod); err != nil {
@@ -511,18 +531,47 @@ func (j *juicefs) waitUtilMount(volumeId, target, cmd string) error {
 func (j *juicefs) addRefOfMount(target string, cm *corev1.ConfigMap) error {
 	// add volumeId ref in configMap
 	// mount target hash as key
-	j.mpLock.Lock()
-	refs := cm.Data
-	if refs == nil {
-		refs = map[string]string{}
-	}
 	h := sha256.New()
 	h.Write([]byte(target))
 	key := fmt.Sprintf("%x", h.Sum(nil))
-	refs[key] = ""
-	cm.Data = refs
-	j.mpLock.Unlock()
-	return UpdateConfigMap(j.Clientset, cm)
+
+	updateCMFunc := func(cm *corev1.ConfigMap, key string) error {
+		j.mpLock.Lock()
+		defer j.mpLock.Unlock()
+
+		cmGet, err := GetConfigMap(j.Clientset, cm.Name, cm.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			klog.V(5).Infof("Get configMap %s error: %v", cm.Name, err)
+			return err
+		}
+		if _, ok := cmGet.Data[key]; ok {
+			return nil
+		}
+		refs := cm.Data
+		if refs == nil {
+			refs = map[string]string{}
+		}
+		refs[key] = ""
+		cmGet.Data = refs
+		if err := UpdateConfigMap(j.Clientset, cmGet); err != nil {
+			klog.V(5).Infof("Update configMap %s error: %v", cm.Name, err)
+			return err
+		}
+		return nil
+	}
+
+	go func() {
+		for true {
+			err := updateCMFunc(cm, key)
+			if err == nil {
+				break
+			}
+		}
+	}()
+	return nil
 }
 
 func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {

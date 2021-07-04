@@ -1,135 +1,64 @@
+/*
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package juicefs
 
 import (
-	"context"
-	"encoding/json"
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func GetOrCreatePod(k8sClient *kubernetes.Clientset, volumeId string, cmd string) (*corev1.Pod, error) {
-	klog.V(5).Infof("Get pod of volumeId %s", volumeId)
-	mntPod, err := k8sClient.CoreV1().Pods(Namespace).Get(context.TODO(), volumeId, metav1.GetOptions{})
-	if err != nil && k8serrors.IsNotFound(err) {
-		// if not exist, create pod
-		klog.V(5).Infof("Pod of volumeId %s does not exist, create it.", volumeId)
-		mntPod = NewMountPod(volumeId, cmd)
-		mntPod, err = k8sClient.CoreV1().Pods(Namespace).Create(context.TODO(), mntPod, metav1.CreateOptions{})
-		if err != nil {
-			klog.V(5).Infof("Can't create pod of volumeId %s: %v", volumeId, err)
-			return nil, err
-		}
-		return mntPod, nil
-	} else if err != nil {
-		klog.V(5).Infof("Can't get pod of volumeId %s: %v", volumeId, err)
-		return nil, err
-	}
-	return mntPod, nil
+type ResourceParams struct {
+	VolumeId      string
+	PodName       string
+	ConfigMapName string
+	NodeName      string
+	Namespace     string
+	MountPath     string
 }
 
-func CreatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) (*corev1.Pod, error) {
-	klog.V(5).Infof("Create pod %s", pod.Name)
-	mntPod, err := k8sClient.CoreV1().Pods(Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-	if err != nil {
-		klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
-		return nil, err
-	}
-	return mntPod, nil
+func GetPodNameByVolumeId(volumeId string) string {
+	return fmt.Sprintf("%s-%s", NodeName, volumeId)
+}
+func GetConfigMapNameByVolumeId(volumeId string) string {
+	return fmt.Sprintf("%s-%s", NodeName, volumeId)
 }
 
-func GetPod(k8sClient *kubernetes.Clientset, volumeId string) (*corev1.Pod, error) {
-	klog.V(5).Infof("Get pod of volumeId %s", volumeId)
-	mntPod, err := k8sClient.CoreV1().Pods(Namespace).Get(context.TODO(), volumeId, metav1.GetOptions{})
-	if err != nil {
-		klog.V(5).Infof("Can't get pod of volumeId %s: %v", volumeId, err)
-		return nil, err
-	}
-	return mntPod, nil
-}
-
-func DeletePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) error {
-	klog.V(5).Infof("Delete pod %v", pod.Name)
-	return k8sClient.CoreV1().Pods(Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-}
-
-func GetOrCreateConfigMap(k8sClient *kubernetes.Clientset, volumeId string) (*corev1.ConfigMap, error) {
-	klog.V(5).Infof("Get pod of volumeId %s", volumeId)
-	cm, err := k8sClient.CoreV1().ConfigMaps(Namespace).Get(context.TODO(), volumeId, metav1.GetOptions{})
-	if err != nil && k8serrors.IsNotFound(err) {
-		// if not exist, create cm
-		klog.V(5).Infof("ConfigMap of volumeId %s does not exist, create it.", volumeId)
-		cm = NewMountConfigMap(volumeId)
-		cm, err = k8sClient.CoreV1().ConfigMaps(Namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
-		if err != nil {
-			klog.V(5).Infof("Can't create configMap of volumeId %s: %v", volumeId, err)
-			return nil, err
-		}
-		return cm, nil
-	} else if err != nil {
-		klog.V(5).Infof("Can't get configMap of volumeId %s: %v", volumeId, err)
-		return nil, err
-	}
-	return cm, nil
-}
-
-func GetConfigMap(k8sClient *kubernetes.Clientset, volumeId string) (*corev1.ConfigMap, error) {
-	klog.V(5).Infof("Get configMap of volumeId %s", volumeId)
-	cm, err := k8sClient.CoreV1().ConfigMaps(Namespace).Get(context.TODO(), volumeId, metav1.GetOptions{})
-	if err != nil {
-		klog.V(5).Infof("Can't get configMap of volumeId %s: %v", volumeId, err)
-		return nil, err
-	}
-	return cm, nil
-}
-
-func UpdateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
-	klog.V(5).Infof("Update configMap %v", cm.Name)
-	_, err := k8sClient.CoreV1().ConfigMaps(Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-	return err
-}
-
-func PatchConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap, payload map[string]string) error {
-	klog.V(5).Infof("Patch configMap %v", cm.Name)
-	playLoadBytes, _ := json.Marshal(payload)
-	_, err := k8sClient.CoreV1().ConfigMaps(Namespace).Patch(
-		context.TODO(), cm.Name, types.StrategicMergePatchType, playLoadBytes, metav1.PatchOptions{})
-	return err
-}
-
-func DeleteConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
-	klog.V(5).Infof("Delete configMap %v", cm.Name)
-	return k8sClient.CoreV1().ConfigMaps(Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
-}
-
-func NewMountConfigMap(volumeId string) *corev1.ConfigMap {
+func NewMountConfigMap(cnName string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      volumeId,
+			Name:      cnName,
 			Namespace: Namespace,
-			Labels: map[string]string{
-				volumeId: volumeId,
-			},
 		},
 		Data: map[string]string{},
 	}
 }
 
-func NewMountPod(volumeId string, cmd string) *corev1.Pod {
+func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
+	statCmd := "stat -c %i " + rp.MountPath
 	var pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      volumeId,
+			Name:      rp.PodName,
 			Namespace: Namespace,
 			Labels: map[string]string{
-				VolumeId:   volumeId,
 				PodTypeKey: PodTypeValue,
 			},
 		},
@@ -148,6 +77,14 @@ func NewMountPod(volumeId string, cmd string) *corev1.Pod {
 					MountPath:        mountBase,
 					MountPropagation: &mp,
 				}},
+				ReadinessProbe: &corev1.Probe{
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
+							"if [ $(%v) == 1 ]; then exit 0; else exit 1; fi ", statCmd)},
+						}},
+					InitialDelaySeconds: 5,
+					PeriodSeconds:       5,
+				},
 			}},
 			Volumes: []corev1.Volume{{
 				Name: "jfs-dir",

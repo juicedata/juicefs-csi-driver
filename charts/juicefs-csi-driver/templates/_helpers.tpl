@@ -53,11 +53,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "juicefs-csi.serviceAccountName" -}}
+{{- define "juicefs-csi.controller.serviceAccountName" -}}
 {{- if .Values.serviceAccount.controller.create }}
 {{- default (include "juicefs-csi.fullname" .) .Values.serviceAccount.controller.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.controller.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "juicefs-csi.node.serviceAccountName" -}}
+{{- if .Values.serviceAccount.node.create }}
+{{- default (include "juicefs-csi.fullname" .) .Values.serviceAccount.node.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.node.name }}
 {{- end }}
 {{- end }}
 

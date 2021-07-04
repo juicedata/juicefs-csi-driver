@@ -20,17 +20,17 @@ import (
 	"flag"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"os"
-
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"k8s.io/klog"
+	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func init() {
 	juicefs.NodeName = os.Getenv("NODE_NAME")
-	juicefs.Namespace = os.Getenv("MOUNT_NAMESPACE")
-	juicefs.MountImage = os.Getenv("MOUNT_IMAGE")
+	juicefs.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
+	juicefs.MountImage = os.Getenv("JUICEFS_MOUNT_IMAGE")
 	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	juicefs.MountPodCpuLimit = os.Getenv("JUICEFS_MOUNT_POD_CPU_LIMIT")
 	juicefs.MountPodMemLimit = os.Getenv("JUICEFS_MOUNT_POD_MEM_LIMIT")
@@ -60,8 +60,12 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
+	manager := apps.NewManager()
 	go func() {
-		apps.Run()
+		if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
+			klog.V(5).Infof("Could not start manager: %v", err)
+			os.Exit(1)
+		}
 	}()
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)
