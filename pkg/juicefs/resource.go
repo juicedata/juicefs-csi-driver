@@ -73,8 +73,8 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 				},
 				Resources: parsePodResources(),
 				Env: []corev1.EnvVar{{
-					Name:      "JFS_FOREGROUND",
-					Value:     "1",
+					Name:  "JFS_FOREGROUND",
+					Value: "1",
 				}},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:             "jfs-dir",
@@ -103,7 +103,7 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 					},
 				},
 			}, {
-				Name:         "jfs-root-dir",
+				Name: "jfs-root-dir",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: JFSConfigPath,
@@ -121,10 +121,18 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 func parsePodResources() corev1.ResourceRequirements {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	podLimit[corev1.ResourceCPU] = resource.MustParse(MountPodCpuLimit)
-	podLimit[corev1.ResourceMemory] = resource.MustParse(MountPodMemLimit)
-	podRequest[corev1.ResourceCPU] = resource.MustParse(MountPodCpuRequest)
-	podRequest[corev1.ResourceMemory] = resource.MustParse(MountPodMemRequest)
+	if MountPodCpuLimit != "" {
+		podLimit[corev1.ResourceCPU] = resource.MustParse(MountPodCpuLimit)
+	}
+	if MountPodMemLimit != "" {
+		podLimit[corev1.ResourceMemory] = resource.MustParse(MountPodMemLimit)
+	}
+	if MountPodCpuRequest != "" {
+		podRequest[corev1.ResourceCPU] = resource.MustParse(MountPodCpuRequest)
+	}
+	if MountPodMemRequest != "" {
+		podRequest[corev1.ResourceMemory] = resource.MustParse(MountPodMemRequest)
+	}
 	return corev1.ResourceRequirements{
 		Limits:   podLimit,
 		Requests: podRequest,

@@ -20,10 +20,10 @@ var (
 	Namespace  = ""
 	MountImage = ""
 
-	MountPodCpuLimit   = "5000m"
-	MountPodMemLimit   = "5Gi"
-	MountPodCpuRequest = "1000m"
-	MountPodMemRequest = "1Gi"
+	MountPodCpuLimit   = ""
+	MountPodMemLimit   = ""
+	MountPodCpuRequest = ""
+	MountPodMemRequest = ""
 
 	MountPointPath = "/var/lib/juicefs/volume"
 	RootJfsPath    = "/root/.juicefs/jfsmount"

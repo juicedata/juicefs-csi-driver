@@ -30,14 +30,8 @@ func Test_parsePodResources(t *testing.T) {
 		{
 			name: "test",
 			want: v1.ResourceRequirements{
-				Limits: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceCPU:    resource.MustParse("5000m"),
-					v1.ResourceMemory: resource.MustParse("5Gi"),
-				},
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceCPU:    resource.MustParse("1000m"),
-					v1.ResourceMemory: resource.MustParse("1Gi"),
-				},
+				Limits:   map[v1.ResourceName]resource.Quantity{},
+				Requests: map[v1.ResourceName]resource.Quantity{},
 			},
 		},
 	}
