@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -33,19 +34,27 @@ type controllerService struct {
 }
 
 func newControllerService() controllerService {
-	juicefs, err := juicefs.NewJfsProvider(nil)
+	jfs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	stdoutStderr, err := juicefs.Version()
+	// check .juicefs
+	exist := util.PathExist(juicefs.RootJfsPath)
+	if !exist {
+		if err := util.Copy("/run/juicefs/mount/jfsmount", juicefs.RootJfsPath); err != nil {
+			panic(err)
+		}
+	}
+
+	stdoutStderr, err := jfs.Version()
 	if err != nil {
 		panic(err)
 	}
 	klog.V(4).Infof("Controller: %s", stdoutStderr)
 
 	return controllerService{
-		juicefs: juicefs,
+		juicefs: jfs,
 		vols:    make(map[string]int64),
 	}
 }

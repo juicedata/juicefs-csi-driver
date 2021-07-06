@@ -36,7 +36,8 @@ hostAliases: []
 kubeletDir: /var/lib/kubelet
 
 # -- juicefs mount dir
-jfsMountDir: /run/juicefs/volume
+jfsMountDir: /var/lib/juicefs/volume
+jfsConfigDir: /var/lib/juicefs/config
 
 dnsPolicy: ClusterFirstWithHostNet
 dnsConfig:

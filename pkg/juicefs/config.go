@@ -25,11 +25,12 @@ var (
 	MountPodCpuRequest = "1000m"
 	MountPodMemRequest = "1Gi"
 
-	MountPointPath = "/run/juicefs/volume"
+	MountPointPath = "/var/lib/juicefs/volume"
+	RootJfsPath    = "/root/.juicefs/jfsmount"
+	JFSConfigPath = "/var/lib/juicefs/config"
 )
 
 const (
-	VolumeIdLabel = "juicefs.com/volume-id"
 	PodTypeKey    = "app.kubernetes.io/name"
 	PodTypeValue  = "juicefs-mount"
 	Finalizer     = "juicefs.com/finalizer"

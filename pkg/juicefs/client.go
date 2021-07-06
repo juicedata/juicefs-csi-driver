@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
@@ -40,7 +41,10 @@ func GetOrCreatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) (*corev1.P
 		// if not exist, create pod
 		klog.V(5).Infof("Pod %s does not exist, create it.", pod.Name)
 		mntPod, err = k8sClient.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-		if err != nil {
+		if err != nil && k8serrors.IsAlreadyExists(err) {
+			klog.V(5).Infof("Pod %s already exist.", pod.Name)
+			return mntPod, nil
+		} else if err != nil {
 			klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
 			return nil, err
 		}
@@ -84,7 +88,10 @@ func GetOrCreateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap)
 		// if not exist, create cm
 		klog.V(5).Infof("ConfigMap %s does not exist, create it.", cm.Name)
 		created, e := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
-		if e != nil {
+		if e != nil && k8serrors.IsAlreadyExists(e) {
+			klog.V(5).Infof("ConfigMap %s already exist", cm.Name)
+			return created, nil
+		} else if e != nil {
 			klog.V(5).Infof("Can't create configMap %s: %v", cm.Name, err)
 			return nil, e
 		}
@@ -109,6 +116,13 @@ func GetConfigMap(k8sClient *kubernetes.Clientset, cmName, namespace string) (*c
 func UpdateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
 	klog.V(5).Infof("Update configMap %v", cm.Name)
 	_, err := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
+	return err
+}
+
+func PatchConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap, data []byte) error {
+	klog.V(5).Infof("Update configMap %v", cm.Name)
+	_, err := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Patch(context.TODO(),
+		cm.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 

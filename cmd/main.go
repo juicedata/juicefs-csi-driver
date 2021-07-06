@@ -36,6 +36,7 @@ func init() {
 	juicefs.MountPodMemLimit = os.Getenv("JUICEFS_MOUNT_POD_MEM_LIMIT")
 	juicefs.MountPodCpuRequest = os.Getenv("JUICEFS_MOUNT_POD_CPU_REQUEST")
 	juicefs.MountPodMemRequest = os.Getenv("JUICEFS_MOUNT_POD_MEM_REQUEST")
+	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 }
 
 func main() {
@@ -43,6 +44,7 @@ func main() {
 		endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
 		version  = flag.Bool("version", false, "Print the version and exit.")
 		nodeID   = flag.String("nodeid", "", "Node ID")
+		enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
 	)
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -60,13 +62,15 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
-	manager := apps.NewManager()
-	go func() {
-		if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
-			klog.V(5).Infof("Could not start manager: %v", err)
-			os.Exit(1)
-		}
-	}()
+	if *enableManager {
+		manager := apps.NewManager()
+		go func() {
+			if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
+				klog.V(5).Infof("Could not start manager: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)
 	if err != nil {

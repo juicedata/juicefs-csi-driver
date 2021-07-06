@@ -33,6 +33,7 @@ spec:
         - --logtostderr
         - --nodeid=$(NODE_ID)
         - --v=5
+        - --enable-manager=true
         env:
         - name: CSI_ENDPOINT
           value: unix:/csi/csi.sock
@@ -48,6 +49,8 @@ spec:
           value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         - name: JUICEFS_MOUNT_PATH
           value: {{ .Values.jfsMountDir }}
+        - name: JUICEFS_CONFIG_PATH
+          value: {{ .Values.jfsConfigDir }}
         - name: JUICEFS_MOUNT_POD_CPU_LIMIT
           value: '{{ .Values.mountPod.resources.limits.cpu }}'
         - name: JUICEFS_MOUNT_POD_MEM_LIMIT
@@ -83,6 +86,9 @@ spec:
         - mountPath: /jfs
           mountPropagation: Bidirectional
           name: jfs-dir
+        - mountPath: /root/.juicefs
+          mountPropagation: Bidirectional
+          name: jfs-root-dir
       - name: node-driver-registrar
         image: {{ printf "%s:%s" .Values.sidecars.nodeDriverRegistrarImage.repository .Values.sidecars.nodeDriverRegistrarImage.tag }}
         args:
@@ -162,4 +168,8 @@ spec:
           path: {{ .Values.jfsMountDir }}
           type: DirectoryOrCreate
         name: jfs-dir
+      - hostPath:
+          path: /var/lib/juicefs/config
+          type: DirectoryOrCreate
+        name: jfs-root-dir
 {{- end }}

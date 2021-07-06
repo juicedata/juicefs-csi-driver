@@ -32,10 +32,10 @@ type ResourceParams struct {
 	MountPath     string
 }
 
-func GetPodNameByVolumeId(volumeId string) string {
+func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("%s-%s", NodeName, volumeId)
 }
-func GetConfigMapNameByVolumeId(volumeId string) string {
+func GenerateConfigMapNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("%s-%s", NodeName, volumeId)
 }
 
@@ -72,9 +72,17 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 					Privileged: &isPrivileged,
 				},
 				Resources: parsePodResources(),
+				Env: []corev1.EnvVar{{
+					Name:      "JFS_FOREGROUND",
+					Value:     "1",
+				}},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:             "jfs-dir",
 					MountPath:        mountBase,
+					MountPropagation: &mp,
+				}, {
+					Name:             "jfs-root-dir",
+					MountPath:        "/root/.juicefs",
 					MountPropagation: &mp,
 				}},
 				ReadinessProbe: &corev1.Probe{
@@ -82,8 +90,8 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
 							"if [ $(%v) == 1 ]; then exit 0; else exit 1; fi ", statCmd)},
 						}},
-					InitialDelaySeconds: 5,
-					PeriodSeconds:       5,
+					InitialDelaySeconds: 1,
+					PeriodSeconds:       1,
 				},
 			}},
 			Volumes: []corev1.Volume{{
@@ -91,6 +99,14 @@ func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: MountPointPath,
+						Type: &dir,
+					},
+				},
+			}, {
+				Name:         "jfs-root-dir",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: JFSConfigPath,
 						Type: &dir,
 					},
 				},
