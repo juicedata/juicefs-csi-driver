@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -67,6 +68,7 @@ type juicefs struct {
 }
 
 var _ Interface = &juicefs{}
+var JLock = sync.RWMutex{}
 
 type jfs struct {
 	Provider  *juicefs
@@ -337,15 +339,15 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 	}
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
-	klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
 
-	cm, err := GetOrCreateConfigMap(j.Clientset, NewMountConfigMap(GenerateConfigMapNameByVolumeId(volumeID)))
+	pod, err := GetPod(j.Clientset, GeneratePodNameByVolumeId(volumeID), Namespace)
 	if err != nil {
+		klog.V(5).Infof("Can't find pod of volumeId %s but mount point %q already exist.", volumeID, mountPath)
 		return mountPath, err
 	}
-
-	j.addRefOfMount(target, cm)
-	return mountPath, nil
+	klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
+	err = j.addRefOfMount(target, pod)
+	return mountPath, err
 }
 
 // Upgrade upgrades binary file in `cliPath` to newest version
@@ -470,54 +472,69 @@ func (j *juicefs) jMount(volumeId, source string, mountPath string, target strin
 
 func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
-	rp := ResourceParams{
-		VolumeId:      volumeId,
-		PodName:       podName,
-		ConfigMapName: GenerateConfigMapNameByVolumeId(volumeId),
-		NodeName:      NodeName,
-		Namespace:     Namespace,
-		MountPath:     mountPath,
-	}
-	klog.V(5).Infof("Mount pod cmd: %v", cmd)
-	_, err := GetOrCreatePod(j.Clientset, NewMountPod(rp, cmd))
-	if err != nil {
-		return err
-	}
-	cm, err := GetOrCreateConfigMap(j.Clientset, NewMountConfigMap(rp.ConfigMapName))
-	if err != nil {
+	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
+
+	h := sha256.New()
+	h.Write([]byte(target))
+	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
+	_, err := GetPod(j.Clientset, podName, Namespace)
+	if err != nil && k8serrors.IsNotFound(err) {
+		// need create
+		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
+		newPod := NewMountPod(podName, cmd, mountPath)
+		if newPod.Annotations == nil {
+			newPod.Annotations = make(map[string]string)
+		}
+		newPod.Annotations[key] = ""
+		if _, e := CreatePod(j.Clientset, newPod); e != nil && k8serrors.IsAlreadyExists(e) {
+			// add ref of pod when pod exists
+			klog.V(5).Infof("waitUtilMount: Pod %s already exist.", podName)
+			exist, err := GetPod(j.Clientset, podName, Namespace)
+			if err != nil {
+				return err
+			}
+			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
+			if err = j.addRefOfMount(target, exist); err != nil {
+				return err
+			}
+		} else if e != nil {
+			return e
+		}
+	} else if err != nil {
 		return err
 	}
 
+	// create pod successfully
 	// Wait until the mount pod is ready
 	for i := 0; i < 30; i++ {
 		pod, err := GetPod(j.Clientset, podName, Namespace)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Get pod %v failed: %v", volumeId, err)
+			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
 		}
 		if util.IsPodReady(pod) {
-			klog.V(5).Infof("Pod %v is successful", volumeId)
+			klog.V(5).Infof("waitUtilMount: Pod %v is successful", volumeId)
 			// add volumeId ref in configMap
-			klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeId)
-			j.addRefOfMount(target, cm)
-			return nil
+			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
+			return j.addRefOfMount(target, pod)
 		} else if util.IsPodResourceError(pod) {
-			klog.V(5).Infof("Pod is failed because of resource.")
+			klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
 			if !util.IsPodHasResource(*pod) {
 				return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
 			}
 
 			// if pod is failed because of resource, delete resource and deploy pod again.
-			klog.V(5).Infof("Delete it and deploy again with no resource.")
+			klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
 			if err := DeletePod(j.Clientset, pod); err != nil {
 				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
 			}
 
 			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(rp, cmd)
+			newPod := NewMountPod(podName, cmd, mountPath)
+			newPod.Annotations = pod.Annotations
 			util.DeleteResourceOfPod(newPod)
-			klog.V(5).Infof("Deploy again with no resource.")
+			klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
 			if _, err := CreatePod(j.Clientset, newPod); err != nil {
-				return status.Errorf(codes.Internal, "Can't create Pod %v", volumeId)
+				return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
 			}
 		}
 		time.Sleep(time.Microsecond * 100)
@@ -525,46 +542,30 @@ func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
 	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
 }
 
-func (j *juicefs) addRefOfMount(target string, cm *corev1.ConfigMap) {
-	// add volumeId ref in configMap
+func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
+	// add volumeId ref in pod annotation
 	// mount target hash as key
 	h := sha256.New()
 	h.Write([]byte(target))
 	key := fmt.Sprintf("%x", h.Sum(nil))
 
-	updateCMFunc := func(cm *corev1.ConfigMap, key string) error {
-		j.mpLock.Lock()
-		defer j.mpLock.Unlock()
+	JLock.Lock()
+	defer JLock.Unlock()
 
-		cmGet, err := GetConfigMap(j.Clientset, cm.Name, cm.Namespace)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return nil
-			}
-			klog.V(5).Infof("Get configMap %s error: %v", cm.Name, err)
-			return err
-		}
-		if _, ok := cmGet.Data[key]; ok {
-			return nil
-		}
-		patchBody := make(map[string]interface{})
-		patchBody["data"] = map[string]string{key: ""}
-		payloadBytes, _ := json.Marshal(patchBody)
-		if err := PatchConfigMap(j.Clientset, cmGet, payloadBytes); err != nil && k8serrors.IsConflict(err) {
-			klog.V(5).Infof("Update configMap %s error: %v", cm.Name, err)
-			return err
-		}
+	annotation := pod.Annotations
+	if _, ok := annotation[key]; ok {
+		klog.V(5).Infof("addRefOfMount: Target ref [%s] in pod [%s] already exists.", target, pod.Name)
 		return nil
 	}
-
-	go func() {
-		for true {
-			err := updateCMFunc(cm, key)
-			if err == nil {
-				break
-			}
-		}
-	}()
+	patchBody := make(map[string]interface{})
+	patchBody["data"] = map[string]string{key: target}
+	payloadBytes, _ := json.Marshal(patchBody)
+	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
+	if err := PatchPod(j.Clientset, pod, payloadBytes); err != nil && k8serrors.IsConflict(err) {
+		klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", pod.Name, err)
+		return err
+	}
+	return nil
 }
 
 func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {

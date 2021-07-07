@@ -175,57 +175,31 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	volumeId := req.GetVolumeId()
-	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeId)
+	klog.V(5).Infof("NodeUnpublishVolume: volume_id is %s", volumeId)
 
 	// check mount pod is need to delete
-	klog.V(5).Infof("Check mount pod is need to delete or not.")
+	klog.V(5).Infof("NodeUnpublishVolume: Check mount pod is need to delete or not.")
 	k8sClient, err := juicefs.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
+		klog.V(5).Infof("NodeUnpublishVolume: Can't get k8s client: %v", err)
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
 	pod, err := juicefs.GetPod(k8sClient, juicefs.GeneratePodNameByVolumeId(volumeId), juicefs.Namespace)
-	// ignore if there is no pod, maybe pv is not used, or used pod is deleted.
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.V(5).Infof("Get pod of volumeId %s err: %v", volumeId, err)
+		klog.V(5).Infof("NodeUnpublishVolume: Get pod of volumeId %s err: %v", volumeId, err)
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
-	cm, err := juicefs.GetConfigMap(k8sClient, juicefs.GenerateConfigMapNameByVolumeId(volumeId), juicefs.Namespace)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.V(5).Infof("Get configMap of volumeId %s err: %v", volumeId, err)
-		return &csi.NodeUnpublishVolumeResponse{}, err
-	}
-
-	// if configmap exists.
-	if cm != nil {
-		cmRefs := cm.Data
-		if cmRefs == nil {
-			cmRefs = map[string]string{}
+	// if mount pod exists.
+	if pod != nil {
+		klog.V(5).Infof("NodeUnpublishVolume: Delete target ref [%s] in pod [%s].", target, pod.Name)
+		err := d.deleteRefOfMount(k8sClient, pod, volumeId, target)
+		if err != nil {
+			return &csi.NodeUnpublishVolumeResponse{}, err
 		}
-		h := sha256.New()
-		h.Write([]byte(target))
-		key := fmt.Sprintf("%x", h.Sum(nil))
-		klog.V(5).Infof("target: %v hash of target: %v", target, key)
-		if _, ok := cmRefs[key]; ok {
-			if len(cmRefs) == 1 {
-				// delete pod & cm of volumeId when refs is last one.
-				klog.V(5).Infof("VolumeId %s ref is last one, delete po and cm.", volumeId)
-				if err := juicefs.DeleteConfigMap(k8sClient, cm); err != nil {
-					klog.V(5).Infof("Delete configMap of volumeId %s error: %v", volumeId, err)
-					return &csi.NodeUnpublishVolumeResponse{}, err
-				}
-				if err := juicefs.DeletePod(k8sClient, pod); err != nil {
-					klog.V(5).Infof("Delete pod of volumeId %s error: %v", volumeId, err)
-					return &csi.NodeUnpublishVolumeResponse{}, err
-				}
-			} else {
-				// delete ref of volumeId in cm.
-				klog.V(5).Infof("Delete ref of VolumeId %s, update cm.", volumeId)
-				d.deleteRefOfMount(k8sClient, cm, key)
-			}
-		}
+	} else {
+		klog.V(5).Infof("NodeUnpublishVolume: Mount pod of volumeId %v not exists.", volumeId)
 	}
 
 	var corruptedMnt bool
@@ -307,36 +281,44 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats is not implemented yet")
 }
 
-func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap, key string) {
-	updateCMFunc := func(cm *corev1.ConfigMap, key string) error {
-		d.mpLock.Lock()
-		defer d.mpLock.Unlock()
+func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *corev1.Pod, volumeId, target string) error {
+	h := sha256.New()
+	h.Write([]byte(target))
+	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
+	klog.V(5).Infof("deleteRefOfMount: Target %v hash of target %v", target, key)
 
-		cmGet, err := juicefs.GetConfigMap(k8sClient, cm.Name, cm.Namespace)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return nil
-			}
-			klog.V(5).Infof("Get configMap %s error: %v", cm.Name, err)
-			return err
-		}
-		if _, ok := cmGet.Data[key]; !ok {
-			return nil
-		}
-		delete(cmGet.Data, key)
-		if err := juicefs.UpdateConfigMap(k8sClient, cmGet); err != nil && k8serrors.IsConflict(err) {
-			klog.V(5).Infof("Update configMap %s error: %v", cm.Name, err)
+	annotation := pod.Annotations
+	if _, ok := annotation[key]; !ok {
+		klog.V(5).Infof("deleteRefOfMount: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
+		return nil
+	}
+	delete(annotation, key)
+	klog.V(5).Infof("deleteRefOfMount: Remove ref of volumeId %v, target %v", volumeId, target)
+	pod.Annotations = annotation
+	err := juicefs.UpdatePod(k8sClient, pod)
+	if err != nil {
+		return err
+	}
+
+	dealWithRefFunc := func(pod *corev1.Pod) error {
+		juicefs.JLock.Lock()
+		defer juicefs.JLock.Unlock()
+
+		klog.V(5).Infof("deleteRefOfMount: Pod of volumeId %v has not refs, delete it.", volumeId)
+		if err := juicefs.DeletePod(k8sClient, pod); err != nil {
+			klog.V(5).Infof("deleteRefOfMount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
 		return nil
 	}
 
-	go func() {
-		for true {
-			err := updateCMFunc(cm, key)
-			if err == nil {
-				break
-			}
-		}
-	}()
+	newPod, err := juicefs.GetPod(k8sClient, pod.Name, pod.Namespace)
+	if err != nil {
+		return err
+	}
+	if newPod.Annotations == nil || len(newPod.Annotations) == 0 {
+		// if pod annotation is none, delete pod
+		return dealWithRefFunc(newPod)
+	}
+	return nil
 }

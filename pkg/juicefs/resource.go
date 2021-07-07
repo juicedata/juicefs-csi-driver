@@ -24,44 +24,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-type ResourceParams struct {
-	VolumeId      string
-	PodName       string
-	ConfigMapName string
-	NodeName      string
-	Namespace     string
-	MountPath     string
-}
-
 func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("%s-%s", NodeName, volumeId)
 }
-func GenerateConfigMapNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("%s-%s", NodeName, volumeId)
-}
 
-func NewMountConfigMap(cnName string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cnName,
-			Namespace: Namespace,
-		},
-		Data: map[string]string{},
-	}
-}
-
-func NewMountPod(rp ResourceParams, cmd string) *corev1.Pod {
+func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
-	statCmd := "stat -c %i " + rp.MountPath
+	statCmd := "stat -c %i " + mountPath
 	var pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      rp.PodName,
+			Name:      podName,
 			Namespace: Namespace,
 			Labels: map[string]string{
 				PodTypeKey: PodTypeValue,
 			},
+			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{

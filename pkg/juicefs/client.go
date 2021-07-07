@@ -19,7 +19,6 @@ package juicefs
 import (
 	"context"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -33,28 +32,6 @@ func NewClient() (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 	return kubernetes.NewForConfig(config)
-}
-
-func GetOrCreatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) (*corev1.Pod, error) {
-	klog.V(5).Infof("Get pod %s", pod.Name)
-	mntPod, err := k8sClient.CoreV1().Pods(pod.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
-	if err != nil && k8serrors.IsNotFound(err) {
-		// if not exist, create pod
-		klog.V(5).Infof("Pod %s does not exist, create it.", pod.Name)
-		mntPod, err = k8sClient.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
-		if err != nil && k8serrors.IsAlreadyExists(err) {
-			klog.V(5).Infof("Pod %s already exist.", pod.Name)
-			return mntPod, nil
-		} else if err != nil {
-			klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
-			return nil, err
-		}
-		return mntPod, nil
-	} else if err != nil {
-		klog.V(5).Infof("Can't get pod %s: %v", pod.Name, err)
-		return nil, err
-	}
-	return mntPod, nil
 }
 
 func CreatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) (*corev1.Pod, error) {
@@ -77,57 +54,20 @@ func GetPod(k8sClient *kubernetes.Clientset, podName, namespace string) (*corev1
 	return mntPod, nil
 }
 
+func PatchPod(k8sClient *kubernetes.Clientset, pod *corev1.Pod, data []byte) error {
+	klog.V(5).Infof("Patch pod %v", pod.Name)
+	_, err := k8sClient.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
+		pod.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
+	return err
+}
+
+func UpdatePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) error {
+	klog.V(5).Infof("Update pod %v", pod.Name)
+	_, err := k8sClient.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+	return err
+}
+
 func DeletePod(k8sClient *kubernetes.Clientset, pod *corev1.Pod) error {
 	klog.V(5).Infof("Delete pod %v", pod.Name)
 	return k8sClient.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-}
-
-func GetOrCreateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	klog.V(5).Infof("Get configMap %s", cm.Name)
-	exit, err := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
-	if err != nil && k8serrors.IsNotFound(err) {
-		// if not exist, create cm
-		klog.V(5).Infof("ConfigMap %s does not exist, create it.", cm.Name)
-		created, e := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
-		if e != nil && k8serrors.IsAlreadyExists(e) {
-			klog.V(5).Infof("ConfigMap %s already exist", cm.Name)
-			return created, nil
-		} else if e != nil {
-			klog.V(5).Infof("Can't create configMap %s: %v", cm.Name, err)
-			return nil, e
-		}
-		return created, nil
-	} else if err != nil {
-		klog.V(5).Infof("Can't get configMap %s: %v", cm.Name, err)
-		return nil, err
-	}
-	return exit, nil
-}
-
-func GetConfigMap(k8sClient *kubernetes.Clientset, cmName, namespace string) (*corev1.ConfigMap, error) {
-	klog.V(5).Infof("Get configMap %s", cmName)
-	cm, err := k8sClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), cmName, metav1.GetOptions{})
-	if err != nil {
-		klog.V(5).Infof("Can't get configMap %s: %v", cmName, err)
-		return nil, err
-	}
-	return cm, nil
-}
-
-func UpdateConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
-	klog.V(5).Infof("Update configMap %v", cm.Name)
-	_, err := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-	return err
-}
-
-func PatchConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap, data []byte) error {
-	klog.V(5).Infof("Update configMap %v", cm.Name)
-	_, err := k8sClient.CoreV1().ConfigMaps(cm.Namespace).Patch(context.TODO(),
-		cm.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
-	return err
-}
-
-func DeleteConfigMap(k8sClient *kubernetes.Clientset, cm *corev1.ConfigMap) error {
-	klog.V(5).Infof("Delete configMap %v", cm.Name)
-	return k8sClient.CoreV1().ConfigMaps(cm.Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
 }
