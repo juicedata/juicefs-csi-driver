@@ -485,7 +485,7 @@ func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
 		if newPod.Annotations == nil {
 			newPod.Annotations = make(map[string]string)
 		}
-		newPod.Annotations[key] = ""
+		newPod.Annotations[key] = target
 		if _, e := CreatePod(j.Clientset, newPod); e != nil && k8serrors.IsAlreadyExists(e) {
 			// add ref of pod when pod exists
 			klog.V(5).Infof("waitUtilMount: Pod %s already exist.", podName)
@@ -547,7 +547,7 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	// mount target hash as key
 	h := sha256.New()
 	h.Write([]byte(target))
-	key := fmt.Sprintf("%x", h.Sum(nil))
+	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
 
 	JLock.Lock()
 	defer JLock.Unlock()
@@ -558,7 +558,7 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 		return nil
 	}
 	patchBody := make(map[string]interface{})
-	patchBody["data"] = map[string]string{key: target}
+	patchBody["metadata"] = map[string]map[string]string{"annotations": {key: target}}
 	payloadBytes, _ := json.Marshal(patchBody)
 	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
 	if err := PatchPod(j.Clientset, pod, payloadBytes); err != nil && k8serrors.IsConflict(err) {

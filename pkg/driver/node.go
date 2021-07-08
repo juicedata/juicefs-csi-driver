@@ -300,12 +300,22 @@ func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *cor
 		return err
 	}
 
-	dealWithRefFunc := func(pod *corev1.Pod) error {
+	dealWithRefFunc := func(podName, namespace string) error {
 		juicefs.JLock.Lock()
 		defer juicefs.JLock.Unlock()
 
+		po, err := juicefs.GetPod(k8sClient, podName, namespace)
+		if err != nil {
+			return err
+		}
+
+		if po.Annotations != nil && len(po.Annotations) != 0 {
+			// if pod annotation is not none, ignore.
+			return nil
+		}
+
 		klog.V(5).Infof("deleteRefOfMount: Pod of volumeId %v has not refs, delete it.", volumeId)
-		if err := juicefs.DeletePod(k8sClient, pod); err != nil {
+		if err := juicefs.DeletePod(k8sClient, po); err != nil {
 			klog.V(5).Infof("deleteRefOfMount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
@@ -318,7 +328,7 @@ func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *cor
 	}
 	if newPod.Annotations == nil || len(newPod.Annotations) == 0 {
 		// if pod annotation is none, delete pod
-		return dealWithRefFunc(newPod)
+		return dealWithRefFunc(pod.Name, pod.Namespace)
 	}
 	return nil
 }
