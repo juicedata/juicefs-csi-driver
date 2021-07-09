@@ -223,7 +223,6 @@ func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 
 // AuthFs authenticates JuiceFS, enterprise edition only
 func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
-	//cmd := make([]string, 0)
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -279,7 +278,6 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		if secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
 			confPath := filepath.Join("/root/.juicefs", conf)
-			//cmd = append(cmd, fmt.Sprintf("echo %v > %v &&", secrets["initconfig"], confPath))
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
