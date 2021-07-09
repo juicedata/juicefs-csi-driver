@@ -33,7 +33,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 const (
@@ -47,7 +46,6 @@ var (
 type nodeService struct {
 	juicefs juicefs.Interface
 	nodeID  string
-	mpLock  sync.RWMutex
 }
 
 func newNodeService(nodeID string) nodeService {
