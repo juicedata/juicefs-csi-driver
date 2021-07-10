@@ -180,17 +180,10 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets map[string]st
 		if !strings.Contains(source, "://") {
 			source = "redis://" + source
 		}
-		metricsPort, err := getFreePort()
-		if err != nil {
-			klog.V(5).Infof("getFreePort error: %q", err)
-		} else {
-			options = append(options, fmt.Sprintf("metrics=localhost:%d", metricsPort))
-		}
 		mountPath, err = j.MountFs(volumeID, source, target, options)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 		}
-		j.ceCheckMetrics(secrets["name"], mountPath, metricsPort)
 	}
 
 	return &jfs{
@@ -428,6 +421,7 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 }
 
 func (j *juicefs) jMount(volumeId, source string, mountPath string, target string, options []string, isCeMount bool) error {
+	options = append(options, "metrics=0.0.0.0:9567")
 	cmd := ""
 	if isCeMount {
 		klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
@@ -465,16 +459,16 @@ func (j *juicefs) jMount(volumeId, source string, mountPath string, target strin
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	return j.waitUtilMount(volumeId, target, mountPath, cmd)
+	return j.waitUntilMount(volumeId, target, mountPath, cmd)
 }
 
-func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
+func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
 	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
 
 	h := sha256.New()
 	h.Write([]byte(target))
-	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
+	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 	_, err := GetPod(j.Clientset, podName, Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
@@ -535,9 +529,9 @@ func (j *juicefs) waitUtilMount(volumeId, target, mountPath, cmd string) error {
 				return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
 			}
 		}
-		time.Sleep(time.Microsecond * 100)
+		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 15 seconds", volumeId)
 }
 
 func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
@@ -545,7 +539,7 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	// mount target hash as key
 	h := sha256.New()
 	h.Write([]byte(target))
-	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
+	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 
 	JLock.Lock()
 	defer JLock.Unlock()

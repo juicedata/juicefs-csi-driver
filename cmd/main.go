@@ -37,13 +37,14 @@ func init() {
 	juicefs.MountPodCpuRequest = os.Getenv("JUICEFS_MOUNT_POD_CPU_REQUEST")
 	juicefs.MountPodMemRequest = os.Getenv("JUICEFS_MOUNT_POD_MEM_REQUEST")
 	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
+	juicefs.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
 }
 
 func main() {
 	var (
-		endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-		version  = flag.Bool("version", false, "Print the version and exit.")
-		nodeID   = flag.String("nodeid", "", "Node ID")
+		endpoint      = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+		version       = flag.Bool("version", false, "Print the version and exit.")
+		nodeID        = flag.String("nodeid", "", "Node ID")
 		enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
 	)
 	klog.InitFlags(nil)

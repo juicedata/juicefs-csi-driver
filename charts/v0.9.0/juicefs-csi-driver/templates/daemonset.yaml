@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/component: node
     {{- include "juicefs-csi.labels" . | nindent 4 }}
   name: juicefs-csi-node
-  namespace: {{ .Values.namespace }}
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
@@ -33,32 +33,9 @@ spec:
         - --logtostderr
         - --nodeid=$(NODE_ID)
         - --v=5
-        - --enable-manager=true
         env:
         - name: CSI_ENDPOINT
           value: unix:/csi/csi.sock
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: JUICEFS_MOUNT_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: JUICEFS_MOUNT_IMAGE
-          value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        - name: JUICEFS_MOUNT_PATH
-          value: {{ .Values.jfsMountDir }}
-        - name: JUICEFS_CONFIG_PATH
-          value: {{ .Values.jfsConfigDir }}
-        - name: JUICEFS_MOUNT_POD_CPU_LIMIT
-          value: '{{ .Values.mountPod.resources.limits.cpu }}'
-        - name: JUICEFS_MOUNT_POD_MEM_LIMIT
-          value: '{{ .Values.mountPod.resources.limits.memory }}'
-        - name: JUICEFS_MOUNT_POD_CPU_REQUEST
-          value: '{{ .Values.mountPod.resources.requests.cpu }}'
-        - name: JUICEFS_MOUNT_POD_MEM_REQUEST
-          value: '{{ .Values.mountPod.resources.requests.memory }}'
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -83,12 +60,6 @@ spec:
           name: plugin-dir
         - mountPath: /dev
           name: device-dir
-        - mountPath: /jfs
-          mountPropagation: Bidirectional
-          name: jfs-dir
-        - mountPath: /root/.juicefs
-          mountPropagation: Bidirectional
-          name: jfs-root-dir
       - name: node-driver-registrar
         image: {{ printf "%s:%s" .Values.sidecars.nodeDriverRegistrarImage.repository .Values.sidecars.nodeDriverRegistrarImage.tag }}
         args:
@@ -146,7 +117,6 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccount: {{ include "juicefs-csi.node.serviceAccountName" . }}
       volumes:
       - hostPath:
           path: {{ .Values.kubeletDir }}
@@ -164,12 +134,4 @@ spec:
           path: /dev
           type: Directory
         name: device-dir
-      - hostPath:
-          path: {{ .Values.jfsMountDir }}
-          type: DirectoryOrCreate
-        name: jfs-dir
-      - hostPath:
-          path: /var/lib/juicefs/config
-          type: DirectoryOrCreate
-        name: jfs-root-dir
 {{- end }}

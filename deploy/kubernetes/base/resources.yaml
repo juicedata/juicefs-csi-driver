@@ -167,6 +167,14 @@ spec:
   attachRequired: false
   podInfoOnMount: false
 ---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: juicefs-mount-critical
+value: 1000000000
+preemptionPolicy: PreemptLowerPriority
+description: "Juicefs mount pod priority, should not be preempted."
+---
 
 kind: StatefulSet
 apiVersion: apps/v1
@@ -316,6 +324,8 @@ spec:
               value: 1000m
             - name: JUICEFS_MOUNT_POD_MEM_REQUEST
               value: 1Gi
+            - name: JUICEFS_MOUNT_PRIORITY_NAME
+              value: juicefs-mount-critical
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet

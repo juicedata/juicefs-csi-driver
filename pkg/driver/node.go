@@ -31,7 +31,6 @@ import (
 	"k8s.io/utils/mount"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -59,19 +58,6 @@ func newNodeService(nodeID string) nodeService {
 		panic(err)
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
-
-	go func() {
-		metricsPort := 9567
-		if v, ok := os.LookupEnv("JFS_METRICS_PORT"); ok {
-			if i, err := strconv.Atoi(v); err != nil || i <= 0 || i >= 65536 {
-				klog.V(4).Infof("Skip invalid JuiceFS metrics port %s", v)
-			} else {
-				metricsPort = i
-			}
-		}
-		klog.V(4).Infof("Serve metrics on :%d", metricsPort)
-		jfsProvider.ServeMetrics(metricsPort)
-	}()
 
 	return nodeService{
 		juicefs: jfsProvider,
@@ -282,7 +268,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *corev1.Pod, volumeId, target string) error {
 	h := sha256.New()
 	h.Write([]byte(target))
-	key := fmt.Sprintf("%x", h.Sum(nil))[:63]
+	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 	klog.V(5).Infof("deleteRefOfMount: Target %v hash of target %v", target, key)
 
 	annotation := pod.Annotations
@@ -324,9 +310,15 @@ func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *cor
 	if err != nil {
 		return err
 	}
-	if newPod.Annotations == nil || len(newPod.Annotations) == 0 {
-		// if pod annotation is none, delete pod
-		return dealWithRefFunc(pod.Name, pod.Namespace)
+	annotations := newPod.Annotations
+	if annotations == nil {
+		annotations = map[string]string{}
 	}
-	return nil
+	for _, a := range newPod.Annotations {
+		if strings.HasPrefix(a, "juicefs-") {
+			return nil
+		}
+	}
+	// if pod annotations has no "juicefs-" prefix, delete pod
+	return dealWithRefFunc(pod.Name, pod.Namespace)
 }

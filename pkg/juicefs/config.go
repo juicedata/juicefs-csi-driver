@@ -26,13 +26,14 @@ var (
 	MountPodCpuRequest = ""
 	MountPodMemRequest = ""
 
-	MountPointPath = "/var/lib/juicefs/volume"
-	RootJfsPath    = "/root/.juicefs/jfsmount"
-	JFSConfigPath = "/var/lib/juicefs/config"
+	MountPointPath       = "/var/lib/juicefs/volume"
+	RootJfsPath          = "/root/.juicefs/jfsmount"
+	JFSConfigPath        = "/var/lib/juicefs/config"
+	JFSMountPriorityName = ""
 )
 
 const (
-	PodTypeKey    = "app.kubernetes.io/name"
-	PodTypeValue  = "juicefs-mount"
-	Finalizer     = "juicefs.com/finalizer"
+	PodTypeKey   = "app.kubernetes.io/name"
+	PodTypeValue = "juicefs-mount"
+	Finalizer    = "juicefs.com/finalizer"
 )

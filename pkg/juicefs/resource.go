@@ -56,6 +56,10 @@ func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
 				}},
+				Ports: []corev1.ContainerPort{{
+					Name:          "metrics",
+					ContainerPort: 9567,
+				}},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:             "jfs-dir",
 					MountPath:        mountBase,
@@ -95,6 +99,9 @@ func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
 		},
 	}
 	controllerutil.AddFinalizer(pod, Finalizer)
+	if JFSMountPriorityName != "" {
+		pod.Spec.PriorityClassName = JFSMountPriorityName
+	}
 	return pod
 }
 
