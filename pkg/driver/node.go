@@ -271,16 +271,25 @@ func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *cor
 	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 	klog.V(5).Infof("deleteRefOfMount: Target %v hash of target %v", target, key)
 
-	annotation := pod.Annotations
+loop:
+	po, err := juicefs.GetPod(k8sClient, pod.Name, pod.Namespace)
+	if err != nil {
+		return err
+	}
+	annotation := po.Annotations
 	if _, ok := annotation[key]; !ok {
 		klog.V(5).Infof("deleteRefOfMount: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
 		return nil
 	}
 	delete(annotation, key)
 	klog.V(5).Infof("deleteRefOfMount: Remove ref of volumeId %v, target %v", volumeId, target)
-	pod.Annotations = annotation
-	err := juicefs.UpdatePod(k8sClient, pod)
-	if err != nil {
+	po.Annotations = annotation
+	err = juicefs.UpdatePod(k8sClient, po)
+	if err != nil && k8serrors.IsConflict(err) {
+		// if can't update pod because of conflict, retry
+		klog.V(5).Infof("deleteRefOfMount: Update pod conflict, retry.")
+		goto loop
+	} else if err != nil {
 		return err
 	}
 
