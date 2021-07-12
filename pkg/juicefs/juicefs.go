@@ -421,14 +421,12 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 }
 
 func (j *juicefs) jMount(volumeId, source string, mountPath string, target string, options []string, isCeMount bool) error {
-	options = append(options, "metrics=0.0.0.0:9567")
 	cmd := ""
 	if isCeMount {
 		klog.V(5).Infof("ceMount: mount %v at %v", source, mountPath)
 		mountArgs := []string{ceMountPath, source, mountPath}
-		if len(options) > 0 {
-			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		}
+		options = append(options, "metrics=0.0.0.0:9567")
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
 		klog.V(5).Infof("Mount: mount %v at %v", source, mountPath)
