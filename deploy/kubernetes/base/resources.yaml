@@ -100,6 +100,65 @@ roleRef:
 #   apiGroup: rbac.authorization.k8s.io
 
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: juicefs-csi-node-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: juicefs-csi-external-node-service-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - create
+      - delete
+      - update
+      - patch
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: juicefs-csi-node-service-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-csi-external-node-service-role
+subjects:
+  - kind: ServiceAccount
+    name: juicefs-csi-node-sa
+    namespace: kube-system
+---
 kind: CSIDriver
 apiVersion: storage.k8s.io/v1beta1
 metadata:
@@ -107,6 +166,14 @@ metadata:
 spec:
   attachRequired: false
   podInfoOnMount: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: juicefs-mount-critical
+value: 1000000000
+preemptionPolicy: PreemptLowerPriority
+description: "Juicefs mount pod priority, should not be preempted."
 ---
 
 kind: StatefulSet
@@ -213,6 +280,7 @@ spec:
       labels:
         app: juicefs-csi-node
     spec:
+      serviceAccount: juicefs-csi-node-sa
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       priorityClassName: system-node-critical
@@ -230,9 +298,34 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_ID)
             - --v=5
+            - --enable-manager=true
           env:
             - name: CSI_ENDPOINT
               value: unix:/csi/csi.sock
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: JUICEFS_MOUNT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: JUICEFS_MOUNT_IMAGE
+              value: juicedata/juicefs-csi-driver
+            - name: JUICEFS_MOUNT_PATH
+              value: /var/lib/juicefs/volume
+            - name: JUICEFS_CONFIG_PATH
+              value: /var/lib/juicefs/config
+            - name: JUICEFS_MOUNT_POD_CPU_LIMIT
+              value: 5000m
+            - name: JUICEFS_MOUNT_POD_MEM_LIMIT
+              value: 5Gi
+            - name: JUICEFS_MOUNT_POD_CPU_REQUEST
+              value: 1000m
+            - name: JUICEFS_MOUNT_POD_MEM_REQUEST
+              value: 1Gi
+            - name: JUICEFS_MOUNT_PRIORITY_NAME
+              value: juicefs-mount-critical
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
@@ -241,6 +334,12 @@ spec:
               mountPath: /csi
             - name: device-dir
               mountPath: /dev
+            - mountPath: /jfs
+              mountPropagation: Bidirectional
+              name: jfs-dir
+            - mountPath: /root/.juicefs
+              mountPropagation: Bidirectional
+              name: jfs-root-dir
           ports:
             - name: healthz
               containerPort: 9909
@@ -303,3 +402,7 @@ spec:
           hostPath:
             path: /dev
             type: Directory
+        - hostPath:
+            path: /var/lib/juicefs/config
+            type: DirectoryOrCreate
+          name: jfs-root-dir

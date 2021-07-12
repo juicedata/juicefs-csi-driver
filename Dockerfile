@@ -45,6 +45,7 @@ COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicef
 RUN ln -s /bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
-RUN /usr/bin/juicefs version && /bin/juicefs --version
+RUN /usr/bin/juicefs version && /bin/juicefs --version && \
+    mkdir -p /run/juicefs/mount && cp /root/.juicefs/jfsmount /run/juicefs/mount/jfsmount
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]

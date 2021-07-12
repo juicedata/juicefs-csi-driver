@@ -19,17 +19,33 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
+	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"k8s.io/klog"
+	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+func init() {
+	juicefs.NodeName = os.Getenv("NODE_NAME")
+	juicefs.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
+	juicefs.MountImage = os.Getenv("JUICEFS_MOUNT_IMAGE")
+	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
+	juicefs.MountPodCpuLimit = os.Getenv("JUICEFS_MOUNT_POD_CPU_LIMIT")
+	juicefs.MountPodMemLimit = os.Getenv("JUICEFS_MOUNT_POD_MEM_LIMIT")
+	juicefs.MountPodCpuRequest = os.Getenv("JUICEFS_MOUNT_POD_CPU_REQUEST")
+	juicefs.MountPodMemRequest = os.Getenv("JUICEFS_MOUNT_POD_MEM_REQUEST")
+	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
+	juicefs.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+}
 
 func main() {
 	var (
-		endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-		version  = flag.Bool("version", false, "Print the version and exit.")
-		nodeID   = flag.String("nodeid", "", "Node ID")
+		endpoint      = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+		version       = flag.Bool("version", false, "Print the version and exit.")
+		nodeID        = flag.String("nodeid", "", "Node ID")
+		enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
 	)
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -45,6 +61,16 @@ func main() {
 
 	if *nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
+	}
+
+	if *enableManager {
+		manager := apps.NewManager()
+		go func() {
+			if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
+				klog.V(5).Infof("Could not start manager: %v", err)
+				os.Exit(1)
+			}
+		}()
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

@@ -1,0 +1,48 @@
+{{ $namespace := .Values.namespace }}
+{{- range $_, $sc := .Values.storageClasses }}
+
+{{- if $sc.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $sc.name }}-secret
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "juicefs-csi.labels" $ | nindent 4 }}
+type: Opaque
+data:
+  {{- with $sc.backend }}
+  name: {{ .name | b64enc | quote }}
+  metaurl: {{ .metaurl | b64enc | quote }}
+  {{- if .storage }}
+  storage: {{ .storage | b64enc | quote }}
+  {{- end }}
+  {{- if .accessKey }}
+  access-key: {{ .accessKey | b64enc | quote }}
+  {{- end }}
+  {{- if .secretKey }}
+  secret-key: {{ .secretKey | b64enc | quote }}
+  {{- end }}
+  {{- if .bucket }}
+  bucket: {{ .bucket | b64enc | quote }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  labels:
+    {{- include "juicefs-csi.labels" $ | nindent 4 }}
+  name: {{ $sc.name }}
+parameters:
+  csi.storage.k8s.io/node-publish-secret-name: {{ $sc.name }}-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: {{ $namespace }}
+  csi.storage.k8s.io/provisioner-secret-name: {{ $sc.name }}-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: {{ $namespace }}
+provisioner: csi.juicefs.com
+reclaimPolicy: {{ $sc.reclaimPolicy }}
+volumeBindingMode: Immediate
+{{- end }}
+---
+
+{{- end }}
