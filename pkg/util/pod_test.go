@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,9 +43,6 @@ func TestDeleteResourceOfPod(t *testing.T) {
 			Containers: []corev1.Container{{
 				Name:  "test-cn",
 				Image: "nginx",
-				Resources: corev1.ResourceRequirements{
-					Limits: podLimit,
-				},
 			}},
 			NodeName: "test-node",
 		},
@@ -80,9 +76,7 @@ func TestDeleteResourceOfPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println(tt.args.pod)
 			DeleteResourceOfPod(tt.args.pod)
-			fmt.Println(tt.args.pod)
 			if !reflect.DeepEqual(pod, tt.args.pod) {
 				t.Errorf("deleteResourceOfPod err. got = %v, want = %v", tt.args.pod, pod)
 			}

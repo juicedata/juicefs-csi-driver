@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func NewManager() manager.Manager{
+func NewManager() manager.Manager {
 	manager, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
 	if err != nil {
 		klog.V(5).Infof("Could not create manager %v", err)
@@ -43,5 +43,4 @@ func NewManager() manager.Manager{
 		os.Exit(1)
 	}
 	return manager
-
 }
