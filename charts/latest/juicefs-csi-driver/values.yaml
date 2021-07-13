@@ -97,16 +97,6 @@ controller:
     port: 9909
     trpe: ClusterIP
 
-mountPod:
-  # mount pod resource requests & limits
-  resources:
-    limits:
-      cpu: 5000m
-      memory: 5Gi
-    requests:
-      cpu: 1000m
-      memory: 1Gi
-
 node:
   # Default is true. Node will be deployed every node to server CSI Plugin
   enabled: true
@@ -153,3 +143,13 @@ storageClasses:
     secretKey: ""
     # -- Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
     bucket: ""
+
+  mountPod:
+    # mount pod resource requests & limits
+    resources:
+      limits:
+        cpu: 5000m
+        memory: 5Gi
+      requests:
+        cpu: 1000m
+        memory: 1Gi

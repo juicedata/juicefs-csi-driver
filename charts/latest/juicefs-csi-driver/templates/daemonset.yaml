@@ -51,14 +51,6 @@ spec:
           value: {{ .Values.jfsMountDir }}
         - name: JUICEFS_CONFIG_PATH
           value: {{ .Values.jfsConfigDir }}
-        - name: JUICEFS_MOUNT_POD_CPU_LIMIT
-          value: '{{ .Values.mountPod.resources.limits.cpu }}'
-        - name: JUICEFS_MOUNT_POD_MEM_LIMIT
-          value: '{{ .Values.mountPod.resources.limits.memory }}'
-        - name: JUICEFS_MOUNT_POD_CPU_REQUEST
-          value: '{{ .Values.mountPod.resources.requests.cpu }}'
-        - name: JUICEFS_MOUNT_POD_MEM_REQUEST
-          value: '{{ .Values.mountPod.resources.requests.memory }}'
         {{- if .Values.jfsMountPriority.enable }}
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: '{{ .Values.jfsMountPriority.name }}'

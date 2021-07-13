@@ -4,6 +4,5 @@ kind: PriorityClass
 metadata:
   name: {{ .Values.jfsMountPriority.name }}
 value: 1000000000
-preemptionPolicy: PreemptLowerPriority
 description: "Juicefs mount pod priority, should not be preempted."
 {{- end }}

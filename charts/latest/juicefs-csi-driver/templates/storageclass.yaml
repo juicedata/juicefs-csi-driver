@@ -27,6 +27,12 @@ data:
   bucket: {{ .bucket | b64enc | quote }}
   {{- end }}
   {{- end }}
+  {{- with $sc.mountPod }}
+  cpu-limit: {{ .resources.limits.cpu | b64enc | quote }}
+  memory-limit: {{ .resources.limits.memory | b64enc | quote }}
+  cpu-request: {{ .resources.requests.cpu | b64enc | quote }}
+  memory-request: {{ .resources.requests.memory | b64enc | quote }}
+  {{- end }}
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

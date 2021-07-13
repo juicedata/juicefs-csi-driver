@@ -28,7 +28,7 @@ func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("%s-%s", NodeName, volumeId)
 }
 
-func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
+func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -51,7 +51,7 @@ func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
-				Resources: parsePodResources(),
+				Resources: resourceRequirements,
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
@@ -105,7 +105,7 @@ func NewMountPod(podName, cmd, mountPath string) *corev1.Pod {
 	return pod
 }
 
-func parsePodResources() corev1.ResourceRequirements {
+func parsePodResources(MountPodCpuLimit, MountPodMemLimit, MountPodCpuRequest, MountPodMemRequest string) corev1.ResourceRequirements {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
 	if MountPodCpuLimit != "" {

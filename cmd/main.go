@@ -32,10 +32,6 @@ func init() {
 	juicefs.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	juicefs.MountImage = os.Getenv("JUICEFS_MOUNT_IMAGE")
 	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
-	juicefs.MountPodCpuLimit = os.Getenv("JUICEFS_MOUNT_POD_CPU_LIMIT")
-	juicefs.MountPodMemLimit = os.Getenv("JUICEFS_MOUNT_POD_MEM_LIMIT")
-	juicefs.MountPodCpuRequest = os.Getenv("JUICEFS_MOUNT_POD_CPU_REQUEST")
-	juicefs.MountPodMemRequest = os.Getenv("JUICEFS_MOUNT_POD_MEM_REQUEST")
 	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 	juicefs.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
 }
