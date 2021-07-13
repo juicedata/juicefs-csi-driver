@@ -25,23 +25,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-func NewManager() manager.Manager{
-	manager, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
+func NewManager() manager.Manager {
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
 	if err != nil {
-		klog.V(5).Infof("Could not create manager %v", err)
+		klog.V(5).Infof("Could not create mgr %v", err)
 		os.Exit(1)
 	}
 
-	err = ctrl.NewControllerManagedBy(manager).
+	err = ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(&controller.PodReconciler{
-			Client: manager.GetClient(),
+			Client: mgr.GetClient(),
 		})
 
 	if err != nil {
 		klog.V(5).Infof("Could not create controller: %v", err)
 		os.Exit(1)
 	}
-	return manager
-
+	return mgr
 }

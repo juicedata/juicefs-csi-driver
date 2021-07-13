@@ -26,7 +26,6 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"os"
@@ -43,11 +42,12 @@ var (
 )
 
 type nodeService struct {
-	juicefs juicefs.Interface
-	nodeID  string
+	juicefs   juicefs.Interface
+	nodeID    string
+	k8sClient juicefs.K8sClient
 }
 
-func newNodeService(nodeID string) nodeService {
+func newNodeService(nodeID string) (*nodeService, error) {
 	jfsProvider, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
@@ -59,10 +59,17 @@ func newNodeService(nodeID string) nodeService {
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
-	return nodeService{
-		juicefs: jfsProvider,
-		nodeID:  nodeID,
+	k8sClient, err := juicefs.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
 	}
+
+	return &nodeService{
+		juicefs:   jfsProvider,
+		nodeID:    nodeID,
+		k8sClient: k8sClient,
+	}, nil
 }
 
 // NodeStageVolume is called by the CO prior to the volume being consumed by any workloads on the node by `NodePublishVolume`
@@ -163,13 +170,8 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	// check mount pod is need to delete
 	klog.V(5).Infof("NodeUnpublishVolume: Check mount pod is need to delete or not.")
-	k8sClient, err := juicefs.NewClient()
-	if err != nil {
-		klog.V(5).Infof("NodeUnpublishVolume: Can't get k8s client: %v", err)
-		return &csi.NodeUnpublishVolumeResponse{}, err
-	}
 
-	pod, err := juicefs.GetPod(k8sClient, juicefs.GeneratePodNameByVolumeId(volumeId), juicefs.Namespace)
+	pod, err := d.k8sClient.GetPod(juicefs.GeneratePodNameByVolumeId(volumeId), juicefs.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("NodeUnpublishVolume: Get pod of volumeId %s err: %v", volumeId, err)
 		return &csi.NodeUnpublishVolumeResponse{}, err
@@ -178,7 +180,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// if mount pod exists.
 	if pod != nil {
 		klog.V(5).Infof("NodeUnpublishVolume: Delete target ref [%s] in pod [%s].", target, pod.Name)
-		err := d.deleteRefOfMount(k8sClient, pod, volumeId, target)
+		err := d.deleteRefOfMount(pod, volumeId, target)
 		if err != nil {
 			return &csi.NodeUnpublishVolumeResponse{}, err
 		}
@@ -265,14 +267,14 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats is not implemented yet")
 }
 
-func (d *nodeService) deleteRefOfMount(k8sClient *kubernetes.Clientset, pod *corev1.Pod, volumeId, target string) error {
+func (d *nodeService) deleteRefOfMount(pod *corev1.Pod, volumeId, target string) error {
 	h := sha256.New()
 	h.Write([]byte(target))
 	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 	klog.V(5).Infof("deleteRefOfMount: Target %v hash of target %v", target, key)
 
 loop:
-	po, err := juicefs.GetPod(k8sClient, pod.Name, pod.Namespace)
+	po, err := d.k8sClient.GetPod(pod.Name, pod.Namespace)
 	if err != nil {
 		return err
 	}
@@ -284,7 +286,7 @@ loop:
 	delete(annotation, key)
 	klog.V(5).Infof("deleteRefOfMount: Remove ref of volumeId %v, target %v", volumeId, target)
 	po.Annotations = annotation
-	err = juicefs.UpdatePod(k8sClient, po)
+	err = d.k8sClient.UpdatePod(po)
 	if err != nil && k8serrors.IsConflict(err) {
 		// if can't update pod because of conflict, retry
 		klog.V(5).Infof("deleteRefOfMount: Update pod conflict, retry.")
@@ -297,7 +299,7 @@ loop:
 		juicefs.JLock.Lock()
 		defer juicefs.JLock.Unlock()
 
-		po, err := juicefs.GetPod(k8sClient, podName, namespace)
+		po, err := d.k8sClient.GetPod(podName, namespace)
 		if err != nil {
 			return err
 		}
@@ -308,14 +310,14 @@ loop:
 		}
 
 		klog.V(5).Infof("deleteRefOfMount: Pod of volumeId %v has not refs, delete it.", volumeId)
-		if err := juicefs.DeletePod(k8sClient, po); err != nil {
+		if err := d.k8sClient.DeletePod(po); err != nil {
 			klog.V(5).Infof("deleteRefOfMount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
 		return nil
 	}
 
-	newPod, err := juicefs.GetPod(k8sClient, pod.Name, pod.Namespace)
+	newPod, err := d.k8sClient.GetPod(pod.Name, pod.Namespace)
 	if err != nil {
 		return err
 	}
