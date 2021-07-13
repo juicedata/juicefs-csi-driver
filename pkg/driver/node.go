@@ -122,6 +122,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	volCtx := req.GetVolumeContext()
+	klog.V(5).Infof("NodePublishVolume: volume context: %v", volCtx)
 
 	secrets := req.Secrets
 	mountOptions := []string{}
@@ -136,7 +137,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, mountOptions)
+	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}

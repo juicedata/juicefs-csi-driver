@@ -17,6 +17,7 @@ limitations under the License.
 package sanity
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -35,7 +36,7 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets map[string]string, options []string) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 
@@ -60,7 +61,7 @@ func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) MountFs(volumeID, name, target string, options []string) (string, error) {
+func (j *fakeJfsProvider) MountFs(volumeID, name, target string, options []string, podResource corev1.ResourceRequirements) (string, error) {
 	return "/jfs/fake", nil
 }
 

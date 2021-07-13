@@ -24,17 +24,22 @@ import (
 	"testing"
 )
 
-func TestDeleteResourceOfPod(t *testing.T) {
-	podLimit := map[corev1.ResourceName]resource.Quantity{}
-	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	podLimit[corev1.ResourceCPU] = resource.MustParse("1")
-	podLimit[corev1.ResourceMemory] = resource.MustParse("1G")
-	podRequest[corev1.ResourceCPU] = resource.MustParse("1")
-	podRequest[corev1.ResourceMemory] = resource.MustParse("1G")
-	resources := corev1.ResourceRequirements{
+var (
+	podLimit = map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceCPU:    resource.MustParse("1"),
+		corev1.ResourceMemory: resource.MustParse("1G"),
+	}
+	podRequest = map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceCPU:    resource.MustParse("1"),
+		corev1.ResourceMemory: resource.MustParse("1G"),
+	}
+	testResources = corev1.ResourceRequirements{
 		Limits:   podLimit,
 		Requests: podRequest,
 	}
+)
+
+func TestDeleteResourceOfPod(t *testing.T) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
@@ -66,7 +71,7 @@ func TestDeleteResourceOfPod(t *testing.T) {
 						Containers: []corev1.Container{{
 							Name:      "test-cn",
 							Image:     "nginx",
-							Resources: resources,
+							Resources: testResources,
 						}},
 						NodeName: "test-node",
 					},
@@ -85,16 +90,6 @@ func TestDeleteResourceOfPod(t *testing.T) {
 }
 
 func TestIsPodHasResource(t *testing.T) {
-	podLimit := map[corev1.ResourceName]resource.Quantity{}
-	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	podLimit[corev1.ResourceCPU] = resource.MustParse("1")
-	podLimit[corev1.ResourceMemory] = resource.MustParse("1G")
-	podRequest[corev1.ResourceCPU] = resource.MustParse("1")
-	podRequest[corev1.ResourceMemory] = resource.MustParse("1G")
-	resources := corev1.ResourceRequirements{
-		Limits:   podLimit,
-		Requests: podRequest,
-	}
 	type args struct {
 		pod corev1.Pod
 	}
@@ -132,7 +127,7 @@ func TestIsPodHasResource(t *testing.T) {
 						Containers: []corev1.Container{{
 							Name:      "test-cn",
 							Image:     "nginx",
-							Resources: resources,
+							Resources: testResources,
 						}},
 						NodeName: "test-node",
 					},
