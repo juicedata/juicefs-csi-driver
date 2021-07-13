@@ -105,20 +105,20 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	return pod
 }
 
-func parsePodResources(MountPodCpuLimit, MountPodMemLimit, MountPodCpuRequest, MountPodMemRequest string) corev1.ResourceRequirements {
+func parsePodResources(mountPodCpuLimit, mountPodMemLimit, mountPodCpuRequest, mountPodMemRequest string) corev1.ResourceRequirements {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	if MountPodCpuLimit != "" {
-		podLimit[corev1.ResourceCPU] = resource.MustParse(MountPodCpuLimit)
+	if mountPodCpuLimit != "" {
+		podLimit[corev1.ResourceCPU] = resource.MustParse(mountPodCpuLimit)
 	}
-	if MountPodMemLimit != "" {
-		podLimit[corev1.ResourceMemory] = resource.MustParse(MountPodMemLimit)
+	if mountPodMemLimit != "" {
+		podLimit[corev1.ResourceMemory] = resource.MustParse(mountPodMemLimit)
 	}
-	if MountPodCpuRequest != "" {
-		podRequest[corev1.ResourceCPU] = resource.MustParse(MountPodCpuRequest)
+	if mountPodCpuRequest != "" {
+		podRequest[corev1.ResourceCPU] = resource.MustParse(mountPodCpuRequest)
 	}
-	if MountPodMemRequest != "" {
-		podRequest[corev1.ResourceMemory] = resource.MustParse(MountPodMemRequest)
+	if mountPodMemRequest != "" {
+		podRequest[corev1.ResourceMemory] = resource.MustParse(mountPodMemRequest)
 	}
 	return corev1.ResourceRequirements{
 		Limits:   podLimit,
