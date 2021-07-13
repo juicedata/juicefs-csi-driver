@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"os"
 	"os/exec"
@@ -64,7 +63,7 @@ type Interface interface {
 type juicefs struct {
 	mount.SafeFormatAndMount
 	metricsProxy
-	*kubernetes.Clientset
+	K8sClient
 }
 
 var _ Interface = &juicefs{}
@@ -331,7 +330,7 @@ func (j *juicefs) MountFs(volumeID, source string, target string, options []stri
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 
-	pod, err := GetPod(j.Clientset, GeneratePodNameByVolumeId(volumeID), Namespace)
+	pod, err := j.K8sClient.GetPod(GeneratePodNameByVolumeId(volumeID), Namespace)
 	if err != nil {
 		klog.V(5).Infof("Can't find pod of volumeId %s but mount point %q already exist.", volumeID, mountPath)
 		return mountPath, err
@@ -467,7 +466,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error 
 	h := sha256.New()
 	h.Write([]byte(target))
 	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
-	_, err := GetPod(j.Clientset, podName, Namespace)
+	_, err := j.K8sClient.GetPod(podName, Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
 		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
@@ -476,10 +475,10 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error 
 			newPod.Annotations = make(map[string]string)
 		}
 		newPod.Annotations[key] = target
-		if _, e := CreatePod(j.Clientset, newPod); e != nil && k8serrors.IsAlreadyExists(e) {
+		if _, e := j.K8sClient.CreatePod(newPod); e != nil && k8serrors.IsAlreadyExists(e) {
 			// add ref of pod when pod exists
 			klog.V(5).Infof("waitUtilMount: Pod %s already exist.", podName)
-			exist, err := GetPod(j.Clientset, podName, Namespace)
+			exist, err := j.K8sClient.GetPod(podName, Namespace)
 			if err != nil {
 				return err
 			}
@@ -497,7 +496,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error 
 	// create pod successfully
 	// Wait until the mount pod is ready
 	for i := 0; i < 30; i++ {
-		pod, err := GetPod(j.Clientset, podName, Namespace)
+		pod, err := j.K8sClient.GetPod(podName, Namespace)
 		if err != nil {
 			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
 		}
@@ -514,7 +513,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error 
 
 			// if pod is failed because of resource, delete resource and deploy pod again.
 			klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
-			if err := DeletePod(j.Clientset, pod); err != nil {
+			if err := j.K8sClient.DeletePod(pod); err != nil {
 				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
 			}
 
@@ -523,7 +522,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string) error 
 			newPod.Annotations = pod.Annotations
 			util.DeleteResourceOfPod(newPod)
 			klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
-			if _, err := CreatePod(j.Clientset, newPod); err != nil {
+			if _, err := j.K8sClient.CreatePod(newPod); err != nil {
 				return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
 			}
 		}
@@ -551,7 +550,7 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	patchBody["metadata"] = map[string]map[string]string{"annotations": {key: target}}
 	payloadBytes, _ := json.Marshal(patchBody)
 	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
-	if err := PatchPod(j.Clientset, pod, payloadBytes); err != nil && k8serrors.IsConflict(err) {
+	if err := j.K8sClient.PatchPod(pod, payloadBytes); err != nil && k8serrors.IsConflict(err) {
 		klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", pod.Name, err)
 		return err
 	}
