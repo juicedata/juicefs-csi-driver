@@ -36,7 +36,7 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets map[string]string, options []string) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 

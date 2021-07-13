@@ -52,7 +52,7 @@ const (
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsMount(volumeID string, target string, secrets map[string]string, options []string) (Jfs, error)
+	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsUnmount(mountPath string) error
 	AuthFs(secrets map[string]string) ([]byte, error)
 	MountFs(volumeID, source string, target string, options []string, podResource corev1.ResourceRequirements) (string, error)
@@ -154,14 +154,17 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) JfsMount(volumeID string, target string, secrets map[string]string, options []string) (Jfs, error) {
+func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
 	source, isCe := secrets["metaurl"]
-	podResource := parsePodResources(
-		secrets["cpu-limit"],
-		secrets["memory-limit"],
-		secrets["cpu-request"],
-		secrets["memory-request"],
-	)
+	podResource := corev1.ResourceRequirements{}
+	if volCtx != nil {
+		podResource = parsePodResources(
+			volCtx["juicefs/mount-cpu-limit"],
+			volCtx["juicefs/mount-memory-limit"],
+			volCtx["juicefs/mount-cpu-request"],
+			volCtx["juicefs/mount-memory-request"],
+		)
+	}
 	var mountPath string
 	if !isCe {
 		j.Upgrade()

@@ -77,6 +77,8 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	d.vols[req.Name] = requiredCap
 
+	klog.V(5).Infof("CreateVolume: parameters %v", req.Parameters)
+
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		volCtx[k] = v
@@ -103,7 +105,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	jfs, err := d.juicefs.JfsMount(volumeID, "", secrets, []string{})
+	jfs, err := d.juicefs.JfsMount(volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
