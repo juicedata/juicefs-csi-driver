@@ -125,13 +125,13 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 ### After v0.10.0
 
-Juicefs csi driver separated JuiceFS client from CSI Driver since v0.10.0, . If csi driver version >= v0.10.0, 
+Juicefs csi driver separated JuiceFS client from CSI Driver since v0.10.0, csi driver upgrade will not interrupt existing PVs. If csi driver version >= v0.10.0, 
 
 * If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
 * If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`. 
 * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-
+If you want to upgrade csi driver from v0.9.0 to v0.10.0, follow [how to upgrade csi-driver from v0.9.0 to v0.10.0](./docs/upgrade-csi-driver.md).
 
 ### Before v0.9.0
 
@@ -163,6 +163,7 @@ Before the example, you need to:
   * [Mount options](examples/static-provisioning-mount-options/)
   * [Read write many](examples/static-provisioning-rwx/)
   * [Sub path](examples/static-provisioning-subpath/)
+  * [Mount resources](examples/static-provisioning-mount-resources/)
 * [Dynamic provisioning](examples/dynamic-provisioning/)
 
 **Notes**:
@@ -206,7 +207,8 @@ Container Images
 * **Static provisioning** - JuiceFS file system needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
 * **Mount options** - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
 * **Read write many** - Support `ReadWriteMany` access mode
-* **Sub path** - provision persisten volume with subpath in JuiceFS file system
+* **Sub path** - provision persist volume with subpath in JuiceFS file system
+* **Mount resources** - CSI volume attributes can be specified in the persistence volume (PV) to define cpu/memory limits/requests of mount pod. (above v0.10.0)
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation
