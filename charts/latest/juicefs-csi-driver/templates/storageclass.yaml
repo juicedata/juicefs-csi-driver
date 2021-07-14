@@ -40,10 +40,22 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-name: {{ $sc.name }}-secret
   csi.storage.k8s.io/provisioner-secret-namespace: {{ $namespace }}
   {{- with $sc.mountPod }}
+  {{- if .resources.limits }}
+  {{- if .resources.limits.cpu }}
   juicefs/mount-cpu-limit: {{ .resources.limits.cpu }}
+  {{- end }}
+  {{- if .resources.limits.memory }}
   juicefs/mount-memory-limit: {{ .resources.limits.memory }}
+  {{- end }}
+  {{- end }}
+  {{- if .resources.requests }}
+  {{- if .resources.requests.cpu }}
   juicefs/mount-cpu-request: {{ .resources.requests.cpu }}
+  {{- end }}
+  {{- if .resources.requests.memory }}
   juicefs/mount-memory-request: {{ .resources.requests.memory }}
+  {{- end }}
+  {{- end }}
   {{- end }}
 provisioner: csi.juicefs.com
 reclaimPolicy: {{ $sc.reclaimPolicy }}
