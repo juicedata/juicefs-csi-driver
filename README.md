@@ -125,13 +125,13 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 ### After v0.10.0
 
-Juicefs csi driver separated JuiceFS client from CSI Driver since v0.10.0, csi driver upgrade will not interrupt existing PVs. If csi driver version >= v0.10.0, 
+Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt existing PVs. If CSI Driver version >= v0.10.0, do operations below:
 
 * If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
 * If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`. 
 * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-If you want to upgrade csi driver from v0.9.0 to v0.10.0, follow [how to upgrade csi-driver from v0.9.0 to v0.10.0](./docs/upgrade-csi-driver.md).
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0, follow [how to upgrade csi-driver from v0.9.0 to v0.10.0](./docs/upgrade-csi-driver.md).
 
 ### Before v0.9.0
 
@@ -208,7 +208,7 @@ Container Images
 * **Mount options** - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
 * **Read write many** - Support `ReadWriteMany` access mode
 * **Sub path** - provision persist volume with subpath in JuiceFS file system
-* **Mount resources** - CSI volume attributes can be specified in the persistence volume (PV) to define cpu/memory limits/requests of mount pod. (above v0.10.0)
+* **Mount resources** - CSI volume attributes can be specified in the persistence volume (PV) to define cpu/memory limits/requests of mount pod. 
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation
@@ -219,14 +219,6 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | -------------------------- | ------ |
 | v1.19.2 / minikube v1.16.0 | Yes    |
 | v1.20.2 / minikube v1.16.0 | Yes    |
-
-### Known issues
-
-#### JuiceFS CSI volumes can NOT reconcile [#14](https://github.com/juicedata/juicefs-csi-driver/issues/14)
-
-When `juicefs-csi-node` is killed, existing JuiceFS volume will become inaccessible. It will not recover automatically even after `juicefs-csi-node` reconcile.
-
-Delete the pods mounting JuiceFS volume and recreate them to recover.
 
 ## Miscellaneous
 
