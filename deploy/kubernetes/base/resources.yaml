@@ -403,6 +403,10 @@ spec:
             path: /dev
             type: Directory
         - hostPath:
+            path: /var/lib/juicefs/volume
+            type: DirectoryOrCreate
+          name: jfs-dir
+        - hostPath:
             path: /var/lib/juicefs/config
             type: DirectoryOrCreate
           name: jfs-root-dir
