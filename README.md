@@ -24,7 +24,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 #### Using Helm To Deploy
 
-1. Prepare a `values.yaml` file with access information about Redis and object storage. If already formatted a volume, only `name` and `metaurl` is required.
+1. Prepare a `values.yaml` file with access information about Redis and object storage. If already formatted a volume, only `name` and `metaurl` is required. You can specify cpu/memory limits and requests of mount pod for pods using this driver. 
 
 ```yaml
 storageClasses:
@@ -35,9 +35,17 @@ storageClasses:
     name: "<name>"
     metaurl: "<redis-url>"
     storage: "<storage-type>"
-    access-key: "<access-key>"
-    secret-key: "<secret-key>"
+    accessKey: "<access-key>"
+    secretKey: "<secret-key>"
     bucket: "<bucket>"
+  mountPod:
+    resources:
+      limits:
+        cpu: "<cpu_limit>"
+        memory: "<memory_limit>"
+      requests:
+        cpu: "<cpu_request>"
+        memory: "<memory_request>"
 ```
 
 2. Install
@@ -115,12 +123,24 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 ## Upgrade CSI Driver
 
+### After v0.10.0
+
+Juicefs csi driver separated JuiceFS client from CSI Driver since v0.10.0, . If csi driver version >= v0.10.0, 
+
+* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
+* If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`. 
+* Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+
+
+
+### Before v0.9.0
+
 Upgrade of CSI Driver requires restart the DaemonSet, which has all the JuiceFS client running inside. The restart will cause all PVs become unavailable, so we need to stop all the application pod first.
 
 1. Stop all pods using this driver.
 2. Upgrade driver:
 	* If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
-	* If you have pinned to a specific version, modify your `k8s.yaml` to an newer version, then run `kubectl apply -f k8s.yaml`.
+	* If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`.
     * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 3. Start all the application pods.
 
