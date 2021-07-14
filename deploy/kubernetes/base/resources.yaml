@@ -316,14 +316,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_POD_CPU_LIMIT
-              value: 5000m
-            - name: JUICEFS_MOUNT_POD_MEM_LIMIT
-              value: 5Gi
-            - name: JUICEFS_MOUNT_POD_CPU_REQUEST
-              value: 1000m
-            - name: JUICEFS_MOUNT_POD_MEM_REQUEST
-              value: 1Gi
             - name: JUICEFS_MOUNT_PRIORITY_NAME
               value: juicefs-mount-critical
           volumeMounts:
