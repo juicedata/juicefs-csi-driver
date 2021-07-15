@@ -1,6 +1,6 @@
 # Dynamic Provisioning
 
-This example shows how to make a dynamic provisioned JuiceFS persistence volume (PV) mounted inside container.
+This example shows how to make a dynamic provisioned JuiceFS PersistentVolume (PV) mounted inside container.
 
 ## Provide secret information
 

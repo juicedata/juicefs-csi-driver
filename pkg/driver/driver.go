@@ -28,6 +28,8 @@ type Driver struct {
 func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 	klog.Infof("Driver: %v version %v commit %v date %v", DriverName, driverVersion, gitCommit, buildDate)
 
+	cs := newControllerService()
+
 	ns, err := newNodeService(nodeID)
 	if err != nil {
 		return nil, err
@@ -35,7 +37,7 @@ func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 
 	return &Driver{
 		endpoint:          endpoint,
-		controllerService: newControllerService(),
+		controllerService: cs,
 		nodeService:       *ns,
 	}, nil
 }
