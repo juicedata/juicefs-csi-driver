@@ -42,7 +42,7 @@ func newControllerService() controllerService {
 	// check .juicefs
 	exist := util.PathExist(juicefs.RootJfsPath)
 	if !exist {
-		if err := util.Copy("/run/juicefs/mount/jfsmount", juicefs.RootJfsPath); err != nil {
+		if err := util.Copy("/usr/local/juicefs/mount/jfsmount", juicefs.RootJfsPath); err != nil {
 			panic(err)
 		}
 	}
