@@ -38,13 +38,13 @@ You can execute the [`juicefs format`](https://github.com/juicedata/juicefs/#for
 
 ## Apply the Example
 
-Create storage class, persistence volume claim (PVC) and sample pod
+Create storage class, PersistentVolumeClaim (PVC) and sample pod
 
 ```sh
 kubectl apply -f basic.yaml
 ```
 
-The persisten volume will be dynamically provisioned as a directory in the JuiceFS file system configured in storage class.
+The PersistentVolume will be dynamically provisioned as a directory in the JuiceFS file system configured in storage class.
 
 ## Check JuiceFS file system is used
 

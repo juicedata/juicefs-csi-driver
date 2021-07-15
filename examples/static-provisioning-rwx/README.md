@@ -1,6 +1,6 @@
 # Read Write Many
 
-Persistent volume provisioned by JuiceFS supports ReadWriteMany access mode.
+PersistentVolume provisioned by JuiceFS supports ReadWriteMany access mode.
 
 ## Resources
 

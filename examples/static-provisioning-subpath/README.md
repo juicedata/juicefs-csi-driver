@@ -1,12 +1,12 @@
 # Static Provisioning Subpath
 
-Persisten volume can be provisioned as a subpath in juicefs file system.
+PersistentVolume can be provisioned as a subpath in juicefs file system.
 
 ## Patches
 
 Ensure you have already get familiar with [static-provisioning](../static-provisioning/README.md) example.
 
-Patch the persistent volume spec with `csi/volumeAttributes/subPath`. The `subPath` must pre-exist.
+Patch the PersistentVolume spec with `csi/volumeAttributes/subPath`. The `subPath` must pre-exist.
 
 ```yaml
 apiVersion: v1

@@ -168,7 +168,7 @@ Before the example, you need to:
 
 **Notes**:
 
-* Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in persistence volume and persistence volume claim is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+* Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in PersistentVolume and PersistentVolumeClaim is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 * kustomize 3.x is required to build some examples.
 
 ## CSI Specification Compatibility
@@ -204,11 +204,11 @@ Container Images
 
 ### Features
 
-* **Static provisioning** - JuiceFS file system needs to be created manually first, then it could be mounted inside container as a persistent volume (PV) using the driver.
-* **Mount options** - CSI volume attributes can be specified in the persistence volume (PV) to define how the volume should be mounted.
+* **Static provisioning** - JuiceFS file system needs to be created manually first, then it could be mounted inside container as a PersistentVolume (PV) using the driver.
+* **Mount options** - CSI volume attributes can be specified in the PersistentVolume (PV) to define how the volume should be mounted.
 * **Read write many** - Support `ReadWriteMany` access mode
-* **Sub path** - provision persist volume with subpath in JuiceFS file system
-* **Mount resources** - CSI volume attributes can be specified in the persistence volume (PV) to define cpu/memory limits/requests of mount pod. 
+* **Sub path** - provision PersistentVolume with subpath in JuiceFS file system
+* **Mount resources** - CSI volume attributes can be specified in the PersistentVolume (PV) to define cpu/memory limits/requests of mount pod. 
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation

@@ -1,6 +1,6 @@
 # Mount Resources
 
-This example shows how to apply mount resources to JuiceFS persistence volume (PV).
+This example shows how to apply mount resources to JuiceFS PersistentVolume (PV).
 
 ## Patches
 
@@ -8,7 +8,7 @@ Ensure you have already get familiar with [static-provisioning](../static-provis
 
 The CSI driver support to set resource limits/requests of mount pod. 
 
-Patch the persistent volume spec with `csi/volumeAttributes`.
+Patch the PersistentVolume spec with `csi/volumeAttributes`.
 
 ```yaml
 apiVersion: v1

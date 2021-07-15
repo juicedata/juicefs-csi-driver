@@ -1,6 +1,6 @@
 # Mount Options
 
-This example shows how to apply mount options to JuiceFS persistence volume (PV).
+This example shows how to apply mount options to JuiceFS PersistentVolume (PV).
 
 ## Patches
 
@@ -14,7 +14,7 @@ juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-x
 
 The command line options and fuse options of above example can be provided by `mountOptions`.
 
-Patch the persistent volume spec with `csi/volumeAttributes/mountOptions`.
+Patch the PersistentVolume spec with `csi/volumeAttributes/mountOptions`.
 
 ```yaml
 apiVersion: v1
