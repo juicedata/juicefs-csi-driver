@@ -123,7 +123,7 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 ## Upgrade CSI Driver
 
-### After v0.10.0
+### v0.10+
 
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt existing PVs. If CSI Driver version >= v0.10.0, do operations below:
 
@@ -133,7 +133,7 @@ Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI D
 
 If you want to upgrade CSI Driver from v0.9.0 to v0.10.0, follow [how to upgrade csi-driver from v0.9.0 to v0.10.0](./docs/upgrade-csi-driver.md).
 
-### Before v0.9.0
+### Before v0.10
 
 Upgrade of CSI Driver requires restart the DaemonSet, which has all the JuiceFS client running inside. The restart will cause all PVs become unavailable, so we need to stop all the application pod first.
 
