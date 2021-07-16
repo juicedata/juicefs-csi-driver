@@ -24,7 +24,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 #### Using Helm To Deploy
 
-1. Prepare a `values.yaml` file with access information about Redis and object storage. If already formatted a volume, only `name` and `metaurl` is required. You can specify cpu/memory limits and requests of mount pod for pods using this driver. 
+1. Prepare a `values.yaml` file with access information about metadata engine (e.g. Redis) and object storage. If already formatted a volume, only `name` and `metaurl` is required. You can specify CPU/memory limits and requests of mount pod for pods using this driver.
 
 ```yaml
 storageClasses:
@@ -33,7 +33,7 @@ storageClasses:
   reclaimPolicy: Retain
   backend:
     name: "<name>"
-    metaurl: "<redis-url>"
+    metaurl: "<meta-url>"
     storage: "<storage-type>"
     accessKey: "<access-key>"
     secretKey: "<secret-key>"
@@ -41,11 +41,11 @@ storageClasses:
   mountPod:
     resources:
       limits:
-        cpu: "<cpu_limit>"
-        memory: "<memory_limit>"
+        cpu: "<cpu-limit>"
+        memory: "<memory-limit>"
       requests:
-        cpu: "<cpu_request>"
-        memory: "<memory_request>"
+        cpu: "<cpu-request>"
+        memory: "<memory-request>"
 ```
 
 2. Install
@@ -128,10 +128,10 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt existing PVs. If CSI Driver version >= v0.10.0, do operations below:
 
 * If you're using `latest` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller` and `juicefs-csi-node` pods are restarted.
-* If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`. 
+* If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`.
 * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0, follow [how to upgrade csi-driver from v0.9.0 to v0.10.0](./docs/upgrade-csi-driver.md).
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0"](./docs/upgrade-csi-driver.md).
 
 ### Before v0.10
 
@@ -208,7 +208,7 @@ Container Images
 * **Mount options** - CSI volume attributes can be specified in the PersistentVolume (PV) to define how the volume should be mounted.
 * **Read write many** - Support `ReadWriteMany` access mode
 * **Sub path** - provision PersistentVolume with subpath in JuiceFS file system
-* **Mount resources** - CSI volume attributes can be specified in the PersistentVolume (PV) to define cpu/memory limits/requests of mount pod. 
+* **Mount resources** - CSI volume attributes can be specified in the PersistentVolume (PV) to define CPU/memory limits/requests of mount pod.
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation

@@ -9,7 +9,7 @@ Ensure you have already get familiar with [static-provisioning](../static-provis
 The CSI driver support the `juicefs mount` command line options and _fuse_ mount options (`-o` for `juicefs mount` command).
 
 ```
-juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <REDIS-URL> <MOUNTPOINT>
+juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <META-URL> <MOUNTPOINT>
 ```
 
 The command line options and fuse options of above example can be provided by `mountOptions`.

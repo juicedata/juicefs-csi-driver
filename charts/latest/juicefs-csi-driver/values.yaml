@@ -131,10 +131,7 @@ storageClasses:
   backend:
     # -- The JuiceFS file system name.
     name: "juice"
-    # -- Connection URL for redis database.
-    # redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
-    # no auth:   redis://192.168.0.1:6379/7
-    # root auth:   redis://:password@192.168.0.1:6379/7
+    # -- Connection URL for metadata engine (e.g. Redis). Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/databases_for_metadata.md) for more information.
     metaurl: ""
     # -- Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
     storage: ""

@@ -16,7 +16,7 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=secret-key=<SECRET_KEY>
 ```
 - `name`: The JuiceFS file system name.
-- `metaurl`: Connection URL for Redis database.
+- `metaurl`: Connection URL for metadata engine (e.g. Redis). Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/databases_for_metadata.md) for more information.
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
 - `bucket`: Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
 - `access-key`: Access key.
