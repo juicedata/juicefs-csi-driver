@@ -280,7 +280,6 @@ spec:
         app: juicefs-csi-node
     spec:
       serviceAccount: juicefs-csi-node-sa
-      hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       priorityClassName: system-node-critical
       tolerations:
