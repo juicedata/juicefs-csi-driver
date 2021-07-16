@@ -25,7 +25,7 @@ import (
 )
 
 func GeneratePodNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("%s-%s", NodeName, volumeId)
+	return fmt.Sprintf("juicefs-%s-%s", NodeName, volumeId)
 }
 
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements) *corev1.Pod {
