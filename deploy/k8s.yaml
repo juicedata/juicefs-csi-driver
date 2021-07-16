@@ -177,7 +177,6 @@ metadata:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/version: master
   name: juicefs-mount-critical
-preemptionPolicy: PreemptLowerPriority
 value: 1000000000
 ---
 apiVersion: apps/v1
@@ -407,7 +406,6 @@ spec:
         - mountPath: /csi
           name: plugin-dir
       dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: true
       priorityClassName: system-node-critical
       serviceAccount: juicefs-csi-node-sa
       tolerations:

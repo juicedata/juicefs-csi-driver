@@ -96,7 +96,9 @@ spec:
         volumeMounts:
         - mountPath: /csi
           name: plugin-dir
+      {{- if .Values.node.hostNetwork }}
       hostNetwork: true
+      {{- end }}
       {{- if .Values.dnsPolicy }}
       dnsPolicy: {{ .Values.dnsPolicy }}
       {{- end }}
