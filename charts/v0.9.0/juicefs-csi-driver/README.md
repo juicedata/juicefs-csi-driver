@@ -57,7 +57,7 @@ Kubernetes: `>=1.14.0-0`
 | sidecars.nodeDriverRegistrarImage.tag | string | `"v1.1.0"` |  |
 | storageClasses[0].backend.accessKey | string | `""` | Access key for object storage |
 | storageClasses[0].backend.bucket | string | `""` | Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage. |
-| storageClasses[0].backend.metaurl | string | `""` | Connection URL for redis database. redis examples: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] no auth:   redis://192.168.0.1:6379/7 root auth:   redis://:password@192.168.0.1:6379/7 |
+| storageClasses[0].backend.metaurl | string | `""` | Connection URL for metadata engine (e.g. Redis). Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/databases_for_metadata.md) for more information. |
 | storageClasses[0].backend.name | string | `"juice"` | The JuiceFS file system name. |
 | storageClasses[0].backend.secretKey | string | `""` | Secret key for object storage |
 | storageClasses[0].backend.storage | string | `""` | Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list. |

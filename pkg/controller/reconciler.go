@@ -43,7 +43,7 @@ func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request)
 
 	// check label
 	if value, ok := pod.Labels[juicefs.PodTypeKey]; !ok || value != juicefs.PodTypeValue {
-		klog.V(6).Infof("Pod %s is not juicefs mount pod. ignore.", pod.Name)
+		klog.V(6).Infof("Pod %s is not JuiceFS mount pod. ignore.", pod.Name)
 		return reconcile.Result{Requeue: true}, nil
 	}
 

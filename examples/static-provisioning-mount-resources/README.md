@@ -4,9 +4,9 @@ This example shows how to apply mount resources to JuiceFS PersistentVolume (PV)
 
 ## Patches
 
-Ensure you have already get familiar with [static-provisioning](../static-provisioning/README.md) example. Make sure the CSI driver version is above v0.10.0. 
+Ensure you have already get familiar with [static-provisioning](../static-provisioning/README.md) example. Make sure the CSI driver version is above v0.10.0.
 
-The CSI driver support to set resource limits/requests of mount pod. 
+The CSI driver support to set resource limits/requests of mount pod.
 
 Patch the PersistentVolume spec with `csi/volumeAttributes`.
 
@@ -26,7 +26,7 @@ spec:
 
 ## Apply the configurations
 
-Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`
+Build the example with [kustomize](https://github.com/kubernetes-sigs/kustomize) and apply with `kubectl`:
 
 ```s
 kustomize build | kubectl apply -f -
@@ -49,5 +49,5 @@ kubectl -n kube-system get pods
 Also you can verify that mount resources are customized in mount pod:
 
 ```sh
-kubectl -n kube-system get po kube-node-2-test-bucket -oyaml |grep resources -A 6
+kubectl -n kube-system get po kube-node-2-test-bucket -o yaml | grep -A 6 resources
 ```
