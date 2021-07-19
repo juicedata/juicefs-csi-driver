@@ -66,10 +66,6 @@ push-latest:
 	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
 	docker push $(REGISTRY)/$(IMAGE):latest
 
-.PHONY: image-latest
-image-nightly:
-	docker build -t $(IMAGE):nightly -f Dockerfile .
-
 .PHONY: image-branch
 image-branch:
 	docker build -t $(IMAGE):$(GIT_BRANCH) -f Dockerfile .
