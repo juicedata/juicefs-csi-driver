@@ -23,6 +23,8 @@ PKG=github.com/juicedata/juicefs-csi-driver
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
 IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoint=juicefs $(IMAGE):$(VERSION) version | cut -d' ' -f3)
+JUICEFS_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[1-9][0-9]*(\.[0-9]+)?')
+JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[1-9][0-9]*(\.[0-9]+)?')
 
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:
@@ -41,14 +43,32 @@ test:
 test-sanity:
 	go test -v ./tests/sanity/...
 
-.PHONY: image
-image:
-	docker build -t $(IMAGE):latest .
+.PHONY: image-nightly
+image-nightly:
+	# Build image with newest juicefs-csi-driver and juicefs
+	docker build -t $(IMAGE):nightly .
 
 .PHONY: push
-push:
+push-nightly:
+	docker tag $(IMAGE):nightly $(REGISTRY)/$(IMAGE):nightly
+	docker push $(REGISTRY)/$(IMAGE):nightly
+
+.PHONY: image-latest
+image-latest:
+	# Build image with latest stable juicefs-csi-driver and juicefs
+	docker build --build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_LATEST_VERSION) \
+		--build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled \
+		-t $(IMAGE):latest -f Dockerfile .
+
+.PHONY: push-latest
+push-latest:
 	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
 	docker push $(REGISTRY)/$(IMAGE):latest
+
+.PHONY: image-latest
+image-nightly:
+	docker build -t $(IMAGE):nightly -f Dockerfile .
 
 .PHONY: image-branch
 image-branch:

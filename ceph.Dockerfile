@@ -19,16 +19,17 @@ ARG GO_ARCH=amd64
 ARG GOROOT=/usr/local/go
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
+ARG JUICEFS_REPO_TAG
 
 RUN mkdir -p ${GOROOT} && \
     curl -fsSL https://golang.org/dl/go1.14.linux-${GO_ARCH}.tar.gz | \
     tar -xzf - -C ${GOROOT} --strip-components=1 && \
     ${GOROOT}/bin/go version && ${GOROOT}/bin/go env && \
-    yum -y install libcephfs-devel librados-devel librbd-devel gcc make git
+    yum -y install libcephfs-devel librados-devel librbd-devel gcc make git upx
 
 ENV GOROOT=${GOROOT} \
     GOPATH=/go \
-    GOPROXY=${GOPROXY:-https://proxy.golang.org} \
+    GOPROXY=${GOPROXY:-https://proxy.golang.org,direct} \
     CGO_ENABLED=1 \
     PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 
@@ -37,16 +38,18 @@ COPY . .
 RUN make
 
 WORKDIR /workspace
-RUN git clone --depth=1 --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && make juicefs.ceph
+RUN git clone --depth=50 --single-branch --branch=$JUICEFS_REPO_BRANCH \
+    https://github.com/juicedata/juicefs && cd juicefs && \
+    git checkout $JUICEFS_REPO_TAG && make juicefs.ceph && upx juicefs.ceph && mv juicefs.ceph juicefs
 
 FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
-COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicefs/juicefs.ceph /bin/
+COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/
+COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
-RUN mv /bin/juicefs.ceph /bin/juicefs && ln -s /bin/juicefs /bin/mount.juicefs
+RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
 RUN juicefs --version

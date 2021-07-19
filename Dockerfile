@@ -16,16 +16,16 @@ FROM golang:1.14 as builder
 
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
-
-WORKDIR /juicefs-csi-driver
-COPY . .
-ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN make
+ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
+ARG JUICEFS_CSI_REPO_REF=master
 
 WORKDIR /workspace
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
-    git clone --depth=1 --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && STATIC=1 make && upx juicefs
+    git clone https://github.com/juicedata/juicefs-csi-driver && \
+    cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
+    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
+    cd juicefs && git checkout $JUICEFS_REPO_REF && STATIC=1 make && upx juicefs
 
 FROM python:2.7-alpine
 
@@ -41,11 +41,13 @@ RUN apk add --update-cache curl util-linux && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     ln -s /usr/local/bin/python /usr/bin/python
 
-COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /workspace/juicefs/juicefs /bin/
-RUN ln -s /bin/juicefs /bin/mount.juicefs
+COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
+COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
+
+RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
-RUN /usr/bin/juicefs version && /bin/juicefs --version && \
+RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version && \
     mkdir -p /usr/local/juicefs/mount && cp /root/.juicefs/jfsmount /usr/local/juicefs/mount/jfsmount
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]

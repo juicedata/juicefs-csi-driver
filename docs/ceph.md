@@ -9,7 +9,7 @@ If the object storage is [Ceph](https://ceph.io/), we can access [radosgw](https
 We use the official [ceph/ceph](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) :
 
 ```bash
-docker build --build-arg BASE_IMAGE=ceph/ceph:v14 -f Dockerfile.ceph -t juicefs-csi-driver:ceph-nautilus .
+docker build --build-arg BASE_IMAGE=ceph/ceph:v14 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
 ```
 
 The `ceph/ceph:v14` image is the official ceph image for ceph nautilus. For other ceph release base images, see the [repository](https://hub.docker.com/r/ceph/ceph) .
