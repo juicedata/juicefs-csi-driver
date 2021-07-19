@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - image-tags
   schedule:
     - cron: "0 0 * * *"
 

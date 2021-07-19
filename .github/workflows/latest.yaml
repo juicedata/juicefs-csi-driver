@@ -32,7 +32,7 @@ jobs:
     - name: Check if the latest image is required
       run: |
         image_required=$($GITHUB_ACTION_PATH/scripts/check-latest-image-required.sh)
-	echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
+        echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
       shell: bash
     - name: Build docker stable image
       if: ${{ env.IMAGE_REQUIRED == 'yes' }}
