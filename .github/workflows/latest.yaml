@@ -31,7 +31,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Check if the latest image is required
       run: |
-        image_required=$($GITHUB_WORKSPACE/.github/workflows/scripts/check-latest-image-required.sh)
+        image_required=$(./.github/workflows/scripts/check-latest-image-required.sh)
         echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
       shell: bash
     - name: Build docker stable image
