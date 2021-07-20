@@ -164,6 +164,7 @@ Before the example, you need to:
   * [Read write many](examples/static-provisioning-rwx/)
   * [Sub path](examples/static-provisioning-subpath/)
   * [Mount resources](examples/static-provisioning-mount-resources/)
+  * [Config and env](examples/static-provisioning-config-and-env/)
 * [Dynamic provisioning](examples/dynamic-provisioning/)
 
 **Notes**:
@@ -209,6 +210,7 @@ Container Images
 * **Read write many** - Support `ReadWriteMany` access mode
 * **Sub path** - provision PersistentVolume with subpath in JuiceFS file system
 * **Mount resources** - CSI volume attributes can be specified in the PersistentVolume (PV) to define CPU/memory limits/requests of mount pod.
+* **Config files & env in mount pod** - Support set config files and envs in mount pod.
 * **Dynamic provisioning** - allows storage volumes to be created on-demand
 
 ### Validation
