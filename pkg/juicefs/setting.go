@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-type JfsSecret struct {
+type JfsSetting struct {
 	IsCe bool
 
 	Name    string `json:"name"`
@@ -39,16 +39,16 @@ type JfsSecret struct {
 	MountPodMemRequest string `json:"mount_pod_mem_request"`
 }
 
-func ParseSecret(secrets, volCtx map[string]string) (*JfsSecret, error) {
-	jfsSecret := JfsSecret{}
+func ParseSetting(secrets, volCtx map[string]string) (*JfsSetting, error) {
+	jfsSetting := JfsSetting{}
 	if secrets["name"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
 	}
-	jfsSecret.Name = secrets["name"]
+	jfsSetting.Name = secrets["name"]
 
 	m, ok := secrets["metaurl"]
-	jfsSecret.MetaUrl = m
-	jfsSecret.IsCe = ok
+	jfsSetting.MetaUrl = m
+	jfsSetting.IsCe = ok
 
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
@@ -60,7 +60,7 @@ func ParseSecret(secrets, volCtx map[string]string) (*JfsSecret, error) {
 					"Parse envs in secret error: %v", err)
 			}
 		}
-		jfsSecret.Configs = configs
+		jfsSetting.Configs = configs
 	}
 
 	if secrets["envs"] != "" {
@@ -70,13 +70,13 @@ func ParseSecret(secrets, volCtx map[string]string) (*JfsSecret, error) {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"Parse envs in secret error: %v", err)
 		}
-		jfsSecret.Envs = env
+		jfsSetting.Envs = env
 	}
 	if volCtx != nil {
-		jfsSecret.MountPodCpuLimit = volCtx["juicefs/mount-cpu-limit"]
-		jfsSecret.MountPodMemLimit = volCtx["juicefs/mount-memory-limit"]
-		jfsSecret.MountPodCpuRequest = volCtx["juicefs/mount-cpu-request"]
-		jfsSecret.MountPodMemRequest = volCtx["juicefs/mount-memory-request"]
+		jfsSetting.MountPodCpuLimit = volCtx["juicefs/mount-cpu-limit"]
+		jfsSetting.MountPodMemLimit = volCtx["juicefs/mount-memory-limit"]
+		jfsSetting.MountPodCpuRequest = volCtx["juicefs/mount-cpu-request"]
+		jfsSetting.MountPodMemRequest = volCtx["juicefs/mount-memory-request"]
 	}
-	return &jfsSecret, nil
+	return &jfsSetting, nil
 }

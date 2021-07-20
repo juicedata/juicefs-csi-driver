@@ -55,7 +55,7 @@ type Interface interface {
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsUnmount(mountPath string) error
 	AuthFs(secrets map[string]string) ([]byte, error)
-	MountFs(volumeID string, target string, options []string, jfsSecret *JfsSecret) (string, error)
+	MountFs(volumeID string, target string, options []string, jfsSetting *JfsSetting) (string, error)
 	Version() ([]byte, error)
 	ServeMetrics(port int)
 }
@@ -155,7 +155,7 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	jfsSecret, err := ParseSecret(secrets, volCtx)
+	jfsSecret, err := ParseSetting(secrets, volCtx)
 	if err != nil {
 		klog.V(5).Infof("Parse secrets error: %v", err)
 		return nil, err
@@ -291,7 +291,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSecret *JfsSecret) (string, error) {
+func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *JfsSetting) (string, error) {
 	mountPath := filepath.Join(mountBase, volumeID)
 
 	exists, err := mount.PathExists(mountPath)
@@ -306,10 +306,10 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSecret *
 	}
 
 	if !exists {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSecret.Source, mountPath, options)
-		err = j.jMount(volumeID, mountPath, target, options, jfsSecret)
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
+		err = j.jMount(volumeID, mountPath, target, options, jfsSetting)
 		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSecret.Source, mountPath, err)
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
 		return mountPath, nil
 	}
@@ -321,10 +321,10 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSecret *
 	}
 
 	if notMnt {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSecret.Source, mountPath, options)
-		err = j.jMount(volumeID, mountPath, target, options, jfsSecret)
+		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
+		err = j.jMount(volumeID, mountPath, target, options, jfsSetting)
 		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSecret.Source, mountPath, err)
+			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
 		return mountPath, nil
 	}
@@ -420,17 +420,17 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	return j.Exec.Command(ceCliPath, args...).CombinedOutput()
 }
 
-func (j *juicefs) jMount(volumeId, mountPath string, target string, options []string, jfsSecret *JfsSecret) error {
+func (j *juicefs) jMount(volumeId, mountPath string, target string, options []string, jfsSetting *JfsSetting) error {
 	cmd := ""
-	if jfsSecret.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", jfsSecret.Source, mountPath)
-		mountArgs := []string{ceMountPath, jfsSecret.Source, mountPath}
+	if jfsSetting.IsCe {
+		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
+		mountArgs := []string{ceMountPath, jfsSetting.Source, mountPath}
 		options = append(options, "metrics=0.0.0.0:9567")
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", jfsSecret.Source, mountPath)
-		mountArgs := []string{jfsMountPath, jfsSecret.Source, mountPath}
+		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, mountPath)
+		mountArgs := []string{jfsMountPath, jfsSetting.Source, mountPath}
 		options = append(options, "foreground")
 		if len(options) > 0 {
 			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
@@ -457,17 +457,17 @@ func (j *juicefs) jMount(volumeId, mountPath string, target string, options []st
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	return j.waitUntilMount(volumeId, target, mountPath, cmd, jfsSecret)
+	return j.waitUntilMount(volumeId, target, mountPath, cmd, jfsSetting)
 }
 
-func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSecret *JfsSecret) error {
+func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSetting *JfsSetting) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
 	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
 	podResource := parsePodResources(
-		jfsSecret.MountPodCpuLimit,
-		jfsSecret.MountPodMemLimit,
-		jfsSecret.MountPodCpuRequest,
-		jfsSecret.MountPodMemRequest,
+		jfsSetting.MountPodCpuLimit,
+		jfsSetting.MountPodMemLimit,
+		jfsSetting.MountPodCpuRequest,
+		jfsSetting.MountPodMemRequest,
 	)
 
 	h := sha256.New()
@@ -477,7 +477,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSec
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
 		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
-		newPod := NewMountPod(podName, cmd, mountPath, podResource, jfsSecret.Configs, jfsSecret.Envs)
+		newPod := NewMountPod(podName, cmd, mountPath, podResource, jfsSetting.Configs, jfsSetting.Envs)
 		if newPod.Annotations == nil {
 			newPod.Annotations = make(map[string]string)
 		}
@@ -525,7 +525,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSec
 			}
 
 			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(podName, cmd, mountPath, podResource, jfsSecret.Configs, jfsSecret.Envs)
+			newPod := NewMountPod(podName, cmd, mountPath, podResource, jfsSetting.Configs, jfsSetting.Envs)
 			newPod.Annotations = pod.Annotations
 			util.DeleteResourceOfPod(newPod)
 			klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")

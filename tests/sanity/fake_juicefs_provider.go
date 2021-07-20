@@ -60,7 +60,7 @@ func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSecret *juicefs.JfsSecret) (string, error) {
+func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSetting *juicefs.JfsSetting) (string, error) {
 	return "/jfs/fake", nil
 }
 

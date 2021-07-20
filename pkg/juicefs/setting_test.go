@@ -35,7 +35,7 @@ func TestParseSecret(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *JfsSecret
+		want    *JfsSetting
 		wantErr bool
 	}{
 		{
@@ -46,7 +46,7 @@ func TestParseSecret(t *testing.T) {
 					"envs": "GOOGLE_CLOUD_PROJECT: \"/root/.config/gcloud/application_default_credentials.json\"",
 				},
 			},
-			want: &JfsSecret{
+			want: &JfsSetting{
 				Name: "test",
 				Envs: s,
 			},
@@ -55,7 +55,7 @@ func TestParseSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseSecret(tt.args.secrets, tt.args.volCtx)
+			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return
