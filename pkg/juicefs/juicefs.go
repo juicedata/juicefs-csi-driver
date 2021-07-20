@@ -43,7 +43,7 @@ import (
 
 const (
 	cliPath      = "/usr/bin/juicefs"
-	ceCliPath    = "/bin/juicefs"
+	ceCliPath    = "/usr/local/bin/juicefs"
 	ceMountPath  = "/bin/mount.juicefs"
 	jfsMountPath = "/sbin/mount.juicefs"
 	mountBase    = "/jfs"

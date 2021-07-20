@@ -1,9 +1,9 @@
-name: latest
+name: nightly
 
 on:
-  release:
-    types:
-      - created
+  push:
+    branches:
+      - master
   schedule:
     - cron: "0 0 * * *"
 
@@ -26,27 +26,16 @@ jobs:
       - name: Test sanity
         run: make test-sanity
 
-  publish-latest:
+  publish-nightly:
     needs: test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Check if the latest image is required
-      run: |
-        image_required=$(${GITHUB_WORKSPACE}/.github/scripts/check-latest-image-required.sh)
-        echo "IMAGE_REQUIRED: $image_required"
-        echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
-      shell: bash
-    - name: Build docker stable image
-      if: ${{ env.IMAGE_REQUIRED == 'yes' }}
-      run: make image-latest
+    - name: Build docker image nightly
+      run: make image-nightly
     - name: Login Docker Hub
-      if: ${{ env.IMAGE_REQUIRED == 'yes' }}
       run: docker login --username juicefs --password ${PASSWORD}
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
-    - name: Push docker stable image
-      if: ${{ env.IMAGE_REQUIRED == 'yes' }}
-      run: make push-latest
+    - name: Push docker image nightly
+      run: make push-nightly
