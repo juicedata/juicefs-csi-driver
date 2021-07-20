@@ -58,7 +58,7 @@ image-latest:
 	# Build image with latest stable juicefs-csi-driver and juicefs
 	docker build --build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_LATEST_VERSION) \
 		--build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
-		--build-arg=JFS_AUTO_UPGRADE=disabled \
+		--build-arg JFS_AUTO_UPGRADE=disabled \
 		-t $(IMAGE):latest -f Dockerfile .
 
 .PHONY: push-latest

@@ -1,7 +1,9 @@
 name: latest
 
 on:
-  push:
+  release:
+    types:
+      - created
   schedule:
     - cron: "0 0 * * *"
 
@@ -35,8 +37,7 @@ jobs:
       run: |
         image_required=$(${GITHUB_WORKSPACE}/.github/scripts/check-latest-image-required.sh)
         echo "IMAGE_REQUIRED: $image_required"
-        # echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
-        echo "IMAGE_REQUIRED=yes" >> $GITHUB_ENV
+        echo "IMAGE_REQUIRED=$image_required" >> $GITHUB_ENV
       shell: bash
     - name: Build docker stable image
       if: ${{ env.IMAGE_REQUIRED == 'yes' }}
