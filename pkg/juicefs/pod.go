@@ -109,32 +109,28 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	if JFSMountPriorityName != "" {
 		pod.Spec.PriorityClassName = JFSMountPriorityName
 	}
-	if configs != nil {
-		i := 1
-		for k, v := range configs {
-			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
-				corev1.VolumeMount{
-					Name:      fmt.Sprintf("config-%v", i),
-					MountPath: v,
-				})
-			pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-				Name: fmt.Sprintf("config-%v", i),
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: k,
-					},
+	i := 1
+	for k, v := range configs {
+		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      fmt.Sprintf("config-%v", i),
+				MountPath: v,
+			})
+		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+			Name: fmt.Sprintf("config-%v", i),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: k,
 				},
-			})
-			i++
-		}
+			},
+		})
+		i++
 	}
-	if env != nil {
-		for k, v := range env {
-			pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-				Name:  k,
-				Value: v,
-			})
-		}
+	for k, v := range env {
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  k,
+			Value: v,
+		})
 	}
 	return pod
 }
