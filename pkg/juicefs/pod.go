@@ -24,11 +24,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+type ConfigSecretVolume struct {
+	SecretName string
+	Key        string
+	ConfigPath string
+}
+
 func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", NodeName, volumeId)
 }
 
-func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements) *corev1.Pod {
+func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
+	configs, env map[string]string) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -101,6 +108,29 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	controllerutil.AddFinalizer(pod, Finalizer)
 	if JFSMountPriorityName != "" {
 		pod.Spec.PriorityClassName = JFSMountPriorityName
+	}
+	i := 1
+	for k, v := range configs {
+		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      fmt.Sprintf("config-%v", i),
+				MountPath: v,
+			})
+		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+			Name: fmt.Sprintf("config-%v", i),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: k,
+				},
+			},
+		})
+		i++
+	}
+	for k, v := range env {
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  k,
+			Value: v,
+		})
 	}
 	return pod
 }
