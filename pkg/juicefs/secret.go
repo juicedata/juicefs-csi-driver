@@ -17,6 +17,7 @@ limitations under the License.
 package juicefs
 
 import (
+	"encoding/json"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -52,9 +53,12 @@ func ParseSecret(secrets, volCtx map[string]string) (*JfsSecret, error) {
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
 		configs := make(map[string]string)
+		// json or yaml format
 		if err := yaml.Unmarshal([]byte(configStr), &configs); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"Parse envs in secret error: %v", err)
+			if err := json.Unmarshal([]byte(configStr), &configs); err != nil {
+				return nil, status.Errorf(codes.InvalidArgument,
+					"Parse envs in secret error: %v", err)
+			}
 		}
 		jfsSecret.Configs = configs
 	}
