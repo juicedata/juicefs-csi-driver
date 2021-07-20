@@ -41,9 +41,13 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test",
 			args: args{
-				secrets: map[string]string{"envs": "GOOGLE_CLOUD_PROJECT: \"/root/.config/gcloud/application_default_credentials.json\""},
+				secrets: map[string]string{
+					"name": "test",
+					"envs": "GOOGLE_CLOUD_PROJECT: \"/root/.config/gcloud/application_default_credentials.json\"",
+				},
 			},
 			want: &JfsSecret{
+				Name: "test",
 				Envs: s,
 			},
 			wantErr: false,
