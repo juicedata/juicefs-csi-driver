@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.14 as builder
+FROM golang:1.15-buster as builder
 
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
@@ -21,13 +21,13 @@ ARG JUICEFS_CSI_REPO_REF=master
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && git checkout $JUICEFS_REPO_REF && STATIC=1 make && upx juicefs
+    cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs && upx juicefs
 
-FROM python:2.7-alpine
+FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
 
@@ -36,8 +36,8 @@ WORKDIR /app
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 
-RUN apk add --update-cache curl util-linux && \
-    rm -rf /var/cache/apk/* && \
+RUN apt-get update && apt-get install -y librados2 curl && \
+    rm -rf /var/cache/apt/* && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     ln -s /usr/local/bin/python /usr/bin/python
 
