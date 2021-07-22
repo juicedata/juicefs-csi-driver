@@ -54,6 +54,7 @@ type Interface interface {
 	mount.Interface
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsUnmount(mountPath string) error
+	DelRefOfMountPod(volumeId, target string) error
 	AuthFs(secrets map[string]string) ([]byte, error)
 	MountFs(volumeID string, target string, options []string, jfsSetting *JfsSetting) (string, error)
 	Version() ([]byte, error)
@@ -157,7 +158,7 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
 	jfsSecret, err := ParseSetting(secrets, volCtx)
 	if err != nil {
-		klog.V(5).Infof("Parse secrets error: %v", err)
+		klog.V(5).Infof("Parse settings error: %v", err)
 		return nil, err
 	}
 	source, isCe := secrets["metaurl"]
@@ -208,6 +209,90 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 	delete(j.mountedFs, mountPath)
 	j.mpLock.Unlock()
 	return
+}
+
+func (j *juicefs) DelRefOfMountPod(volumeId, target string) error {
+	// check mount pod is need to delete
+	klog.V(5).Infof("DeleteRefOfMountPod: Check mount pod is need to delete or not.")
+
+	pod, err := j.GetPod(GeneratePodNameByVolumeId(volumeId), Namespace)
+	if err != nil && !k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("DeleteRefOfMountPod: Get pod of volumeId %s err: %v", volumeId, err)
+		return err
+	}
+
+	// if mount pod not exists.
+	if pod == nil {
+		klog.V(5).Infof("DeleteRefOfMountPod: Mount pod of volumeId %v not exists.", volumeId)
+		return nil
+	}
+
+	klog.V(5).Infof("DeleteRefOfMountPod: Delete target ref [%s] in pod [%s].", target, pod.Name)
+
+	h := sha256.New()
+	h.Write([]byte(target))
+	key := fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
+	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
+
+loop:
+	po, err := j.GetPod(pod.Name, pod.Namespace)
+	if err != nil {
+		return err
+	}
+	annotation := po.Annotations
+	if _, ok := annotation[key]; !ok {
+		klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
+		return nil
+	}
+	delete(annotation, key)
+	klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
+	po.Annotations = annotation
+	err = j.UpdatePod(po)
+	if err != nil && k8serrors.IsConflict(err) {
+		// if can't update pod because of conflict, retry
+		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
+		goto loop
+	} else if err != nil {
+		return err
+	}
+
+	dealWithRefFunc := func(podName, namespace string) error {
+		JLock.Lock()
+		defer JLock.Unlock()
+
+		po, err := j.GetPod(podName, namespace)
+		if err != nil {
+			return err
+		}
+
+		if po.Annotations != nil && len(po.Annotations) != 0 {
+			// if pod annotation is not none, ignore.
+			return nil
+		}
+
+		klog.V(5).Infof("DeleteRefOfMountPod: Pod of volumeId %v has not refs, delete it.", volumeId)
+		if err := j.DeletePod(po); err != nil {
+			klog.V(5).Infof("DeleteRefOfMountPod: Delete pod of volumeId %s error: %v", volumeId, err)
+			return err
+		}
+		return nil
+	}
+
+	newPod, err := j.GetPod(pod.Name, pod.Namespace)
+	if err != nil {
+		return err
+	}
+	annotations := newPod.Annotations
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	for _, a := range newPod.Annotations {
+		if strings.HasPrefix(a, "juicefs-") {
+			return nil
+		}
+	}
+	// if pod annotations has no "juicefs-" prefix, delete pod
+	return dealWithRefFunc(pod.Name, pod.Namespace)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {

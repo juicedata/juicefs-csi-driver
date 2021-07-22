@@ -116,6 +116,10 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeID)
 	}
 	delete(d.vols, volumeID)
+
+	if err := d.juicefs.DelRefOfMountPod(volumeID, ""); err != nil {
+		return &csi.DeleteVolumeResponse{}, err
+	}
 	if err = d.juicefs.JfsUnmount(jfs.GetBasePath()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
 	}
