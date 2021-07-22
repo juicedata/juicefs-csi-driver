@@ -33,6 +33,9 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 ---
 
@@ -134,17 +137,6 @@ rules:
       - delete
       - patch
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - create
-      - delete
-      - update
-      - patch
-      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -202,8 +194,7 @@ spec:
       containers:
         - name: juicefs-plugin
           image: juicedata/juicefs-csi-driver
-          imagePullPolicy: Always
-          args :
+          args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_ID)
@@ -211,9 +202,31 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: JUICEFS_MOUNT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: JUICEFS_MOUNT_IMAGE
+              value: juicedata/juicefs-csi-driver
+            - name: JUICEFS_MOUNT_PATH
+              value: /var/lib/juicefs/volume
+            - name: JUICEFS_CONFIG_PATH
+              value: /var/lib/juicefs/config
+            - name: JUICEFS_MOUNT_PRIORITY_NAME
+              value: juicefs-mount-critical
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+            - mountPath: /jfs
+              mountPropagation: Bidirectional
+              name: jfs-dir
+            - mountPath: /root/.juicefs
+              mountPropagation: Bidirectional
+              name: jfs-root-dir
           ports:
             - name: healthz
               containerPort: 9909
@@ -261,6 +274,14 @@ spec:
       volumes:
         - name: socket-dir
           emptyDir: {}
+        - hostPath:
+            path: /var/lib/juicefs/volume
+            type: DirectoryOrCreate
+          name: jfs-dir
+        - hostPath:
+            path: /var/lib/juicefs/config
+            type: DirectoryOrCreate
+          name: jfs-root-dir
 ---
 # Node Service
 kind: DaemonSet
@@ -290,7 +311,6 @@ spec:
           securityContext:
             privileged: true
           image: juicedata/juicefs-csi-driver
-          imagePullPolicy: Always
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr

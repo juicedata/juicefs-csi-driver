@@ -126,7 +126,7 @@ storageClasses:
   # -- Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver
   enabled: true
   # -- Either Delete or Retain.
-  reclaimPolicy: Retain
+  reclaimPolicy: Delete
 
   backend:
     # -- The JuiceFS file system name.

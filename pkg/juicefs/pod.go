@@ -79,7 +79,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 				ReadinessProbe: &corev1.Probe{
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-							"if [ $(%v) == 1 ]; then exit 0; else exit 1; fi ", statCmd)},
+							"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", statCmd)},
 						}},
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,

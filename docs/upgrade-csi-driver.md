@@ -50,17 +50,6 @@ rules:
       - delete
       - patch
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - create
-      - delete
-      - update
-      - patch
-      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -233,17 +222,6 @@ rules:
       - delete
       - patch
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
-      - create
-      - delete
-      - update
-      - patch
-      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

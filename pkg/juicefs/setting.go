@@ -41,6 +41,9 @@ type JfsSetting struct {
 
 func ParseSetting(secrets, volCtx map[string]string) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{}
+	if secrets == nil {
+		return &jfsSetting, nil
+	}
 	if secrets["name"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
 	}
