@@ -159,7 +159,7 @@ juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kub
 
 4. Verify if the pods mounting JuiceFS volume is ready, and check them if works well.
 
-### 5. Upgrade CSI Driver controller service
+### 5. Upgrade CSI Driver controller service and its role
 
 Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n <namespace> patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
