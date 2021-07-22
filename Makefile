@@ -108,6 +108,9 @@ ifeq ("$(DEV_K8S)", "microk8s")
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
 	microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
+else ifeq ("$(DEV_K8S)", "aliyun")
+	docker tag $(IMAGE):$(DEV_TAG) $(DEV_REGISTRY):$(DEV_TAG)
+	docker push $(DEV_REGISTRY):$(DEV_TAG)
 else
 	minikube cache add $(IMAGE):$(DEV_TAG)
 endif
