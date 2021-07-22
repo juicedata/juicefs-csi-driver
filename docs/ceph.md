@@ -127,5 +127,5 @@ Please refer [examples/dynamic-provisioning](../examples/dynamic-provisioning/re
 
 ### Static provisioning
 
-Please refer [examples/static-provisioning](../examples/static-provisioning/resources.yaml) for how to access JuiceFS using storage class. Replace  `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system` .
+Please refer [examples/static-provisioning](../examples/static-provisioning/resources.yaml) for how to access JuiceFS using static provisioning. Replace  `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system` .
 
