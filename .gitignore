@@ -9,3 +9,4 @@ secret*
 .DS_Store
 .cr-release-packages
 .cr-index
+/devops.sh

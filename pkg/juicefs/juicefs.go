@@ -242,18 +242,18 @@ loop:
 	annotation := po.Annotations
 	if _, ok := annotation[key]; !ok {
 		klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
-		return nil
-	}
-	delete(annotation, key)
-	klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
-	po.Annotations = annotation
-	err = j.UpdatePod(po)
-	if err != nil && k8serrors.IsConflict(err) {
-		// if can't update pod because of conflict, retry
-		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-		goto loop
-	} else if err != nil {
-		return err
+	} else {
+		delete(annotation, key)
+		klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
+		po.Annotations = annotation
+		err = j.UpdatePod(po)
+		if err != nil && k8serrors.IsConflict(err) {
+			// if can't update pod because of conflict, retry
+			klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
+			goto loop
+		} else if err != nil {
+			return err
+		}
 	}
 
 	dealWithRefFunc := func(podName, namespace string) error {

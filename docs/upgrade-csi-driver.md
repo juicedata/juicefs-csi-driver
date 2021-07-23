@@ -159,7 +159,7 @@ juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kub
 
 4. Verify if the pods mounting JuiceFS volume is ready, and check them if works well.
 
-### 5. Upgrade CSI Driver controller service
+### 5. Upgrade CSI Driver controller service and its role
 
 Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n <namespace> patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
@@ -168,8 +168,120 @@ spec:
   template:
     spec:
       containers:
-        - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:latest
+      - name: juicefs-plugin
+        image: juicedata/juicefs-csi-driver:latest
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: JUICEFS_MOUNT_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: JUICEFS_MOUNT_IMAGE
+          value: juicedata/juicefs-csi-driver
+        - name: JUICEFS_MOUNT_PATH
+          value: /var/lib/juicefs/volume
+        - name: JUICEFS_CONFIG_PATH
+          value: /var/lib/juicefs/config
+        - name: JUICEFS_MOUNT_PRIORITY_NAME
+          value: juicefs-mount-critical
+        volumeMounts:
+        - mountPath: /jfs
+          mountPropagation: Bidirectional
+          name: jfs-dir
+        - mountPath: /root/.juicefs
+          mountPropagation: Bidirectional
+          name: jfs-root-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/juicefs/volume
+            type: DirectoryOrCreate
+          name: jfs-dir
+        - hostPath:
+            path: /var/lib/juicefs/config
+            type: DirectoryOrCreate
+          name: jfs-root-dir
+```
+
+Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl -n <namespace> patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+
+```yaml
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
 ```
 
 ## Upgrade the whole cluster
@@ -251,7 +363,7 @@ metadata:
     app.kubernetes.io/version: "latest"
 ```
 
-#### 2. Update CSI Driver node service DaemonSet 
+#### 2. Update CSI Driver node service DaemonSet
 
 Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n <namespace> patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
 
@@ -306,9 +418,9 @@ spec:
           name: jfs-root-dir
 ```
 
-Make sure all juicefs-csi-node-*** pods are updated. 
+Make sure all juicefs-csi-node-*** pods are updated.
 
-#### 3. Upgrade CSI Driver controller service
+#### 3. Upgrade CSI Driver controller service and its role
 
 Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n <namespace> patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
@@ -319,6 +431,118 @@ spec:
       containers:
         - name: juicefs-plugin
           image: juicedata/juicefs-csi-driver:latest
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: JUICEFS_MOUNT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: JUICEFS_MOUNT_IMAGE
+              value: juicedata/juicefs-csi-driver
+            - name: JUICEFS_MOUNT_PATH
+              value: /var/lib/juicefs/volume
+            - name: JUICEFS_CONFIG_PATH
+              value: /var/lib/juicefs/config
+            - name: JUICEFS_MOUNT_PRIORITY_NAME
+              value: juicefs-mount-critical
+          volumeMounts:
+            - mountPath: /jfs
+              mountPropagation: Bidirectional
+              name: jfs-dir
+            - mountPath: /root/.juicefs
+              mountPropagation: Bidirectional
+              name: jfs-root-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/juicefs/volume
+            type: DirectoryOrCreate
+          name: jfs-dir
+        - hostPath:
+            path: /var/lib/juicefs/config
+            type: DirectoryOrCreate
+          name: jfs-root-dir
+```
+
+Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl -n <namespace> patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+
+```yaml
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
 ```
 
 Make sure all juicefs-csi-controller-*** pods are updated.
