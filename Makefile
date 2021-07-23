@@ -100,6 +100,7 @@ uninstall: deploy/k8s.yaml
 
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
+	docker pull $(IMAGE):nightly
 	docker build -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
 
 .PHONY: push-dev
