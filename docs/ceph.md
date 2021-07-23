@@ -54,7 +54,7 @@ data:
 EOF
 ```
 
-> **Note**: The `$` at the beginning of line is the shell prompt. `base64` command is required, if it isn't present, try to install `coreutils` package with your OS package manager such as `apt-get` or `yum` .
+> **Note**: The `$` at the beginning of line is the shell prompt. `base64` command is required, if it isn't present, try to install `coreutils` package with your OS package manager such as `apt-get` or `yum`.
 
 Apply the generated `ceph-conf.yaml` to the Kubernetes cluster:
 
