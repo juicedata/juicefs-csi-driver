@@ -170,7 +170,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 		}
-		jfsSecret.Source = source
+		jfsSecret.Source = secrets["name"]
 		mountPath, err = j.MountFs(volumeID, target, options, jfsSecret)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
@@ -265,9 +265,12 @@ loop:
 			return err
 		}
 
-		if po.Annotations != nil && len(po.Annotations) != 0 {
-			// if pod annotation is not none, ignore.
-			return nil
+		for _, a := range po.Annotations {
+			if strings.HasPrefix(a, "juicefs-") {
+				// if pod annotation is not none, ignore.
+				klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
+				return nil
+			}
 		}
 
 		klog.V(5).Infof("DeleteRefOfMountPod: Pod of volumeId %v has not refs, delete it.", volumeId)
@@ -282,26 +285,23 @@ loop:
 	if err != nil {
 		return err
 	}
-	annotations := newPod.Annotations
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
 	for _, a := range newPod.Annotations {
 		if strings.HasPrefix(a, "juicefs-") {
+			klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
 			return nil
 		}
 	}
+	klog.V(5).Infof("DeleteRefOfMountPod: pod has no juicefs- refs.")
 	// if pod annotations has no "juicefs-" prefix, delete pod
 	return dealWithRefFunc(pod.Name, pod.Namespace)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
-	cmd := cliPath
 	if isCeMount {
-		cmd = ceCliPath
+		return j.Exec.Command(ceCliPath, "rmr", directory).CombinedOutput()
 	}
-	return j.Exec.Command(cmd, "rmr", directory).CombinedOutput()
+	return j.Exec.Command("rm", "-rf", directory).CombinedOutput()
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
