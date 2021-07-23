@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"os"
+	"os/exec"
 	"reflect"
 	"strings"
 )
@@ -197,8 +198,16 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
-	if err := d.juicefs.Unmount(target); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
+	if err = d.juicefs.Unmount(target); err != nil {
+		klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
+		output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
+		if err1 != nil {
+			return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
+		}
+	}
+	// Related issue: https://github.com/kubernetes/kubernetes/issues/60987
+	if err = os.Remove(target); err != nil {
+		klog.V(5).Infof("Remove target directory %s failed: %q", target, err)
 	}
 
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
