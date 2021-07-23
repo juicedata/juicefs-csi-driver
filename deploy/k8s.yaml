@@ -233,7 +233,6 @@ spec:
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
         image: juicedata/juicefs-csi-driver
-        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -363,7 +362,6 @@ spec:
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
         image: juicedata/juicefs-csi-driver
-        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -409,14 +407,7 @@ spec:
           value: /csi/csi.sock
         - name: DRIVER_REG_SOCK_PATH
           value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
-        image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
-        lifecycle:
-          preStop:
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - rm -rf /registration/csi.juicefs.com-reg.sock /csi/csi.sock
+        image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
         name: node-driver-registrar
         volumeMounts:
         - mountPath: /csi
