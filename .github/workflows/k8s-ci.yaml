@@ -24,7 +24,7 @@ jobs:
                 node_pod=$(sudo microk8s.kubectl -n kube-system get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
                 echo "JUICEFS_CSI_NODE_POD=$node_pod" >> $GITHUB_ENV
                 sudo microk8s.kubectl cp kube-system/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin \
-                    && juicefs -V
+                    && sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
                 echo "JuiceFS CSI is ready."
                 break
             fi
