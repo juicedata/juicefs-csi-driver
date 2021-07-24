@@ -32,7 +32,7 @@ function add_kube_resolv() {
     fi
     sudo mkdir -p /etc/systemd/resolved.conf.d/
     echo "Use kube-dns ${kube_dns_ip} to resolve .svc.cluster.local and .cluster.local"
-    sudo cat > /etc/systemd/resolved.conf.d/microk8s.conf <<EOF
+    cat >/tmp/microk8s.conf <<EOF
 [Resolve]
 DNS=${kube_dns_ip}
 #FallbackDNS=
@@ -43,6 +43,7 @@ Domains=~svc.cluster.local ~cluster.local
 #Cache=yes
 #DNSStubListener=yes
 EOF
+    sudo mv /tmp/microk8s.conf /etc/systemd/resolved.conf.d/microk8s.conf
     sudo systemctl status systemd-resolved.service
     local resolved_ip=$(dig -4 kube-dns.kube-system.svc.cluster.local +short)
     if [ "x$resolved_ip" != "x$kube_dns_ip" ]; then
