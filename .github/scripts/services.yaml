@@ -1,0 +1,125 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-redis-data
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-minio-data
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    app: redis-server
+  ports:
+  - protocol: TCP
+    port: 6379
+    targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    app: minio-server
+  ports:
+  - protocol: TCP
+    port: 9000
+    targetPort: 9000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-server
+  namespace: default
+  labels:
+    app: redis-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-server
+  serviceName: redis
+  template:
+    metadata:
+      labels:
+        app: redis-server
+    spec:
+      containers:
+      - name: redis
+        image: redis
+        volumeMounts:
+        - mountPath: /data
+          name: redis-data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100m
+        ports:
+        - containerPort: 6379
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: pvc-redis-data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio-server
+  namespace: default
+  labels:
+    app: minio-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-server
+  serviceName: minio
+  template:
+    metadata:
+      labels:
+        app: minio-server
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio
+        args:
+        - server
+        - /data
+        volumeMounts:
+        - mountPath: /data
+          name: minio-data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100m
+        ports:
+        - containerPort: 9000
+      volumes:
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: pvc-minio-data

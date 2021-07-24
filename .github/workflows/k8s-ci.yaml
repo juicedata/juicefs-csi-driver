@@ -1,0 +1,13 @@
+name: k8s-ci
+
+on:
+  push:
+    branches:
+      - k8s-ci
+jobs:
+  k8s-ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Prepare k8s environment
+      run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
