@@ -30,9 +30,9 @@ function add_kube_resolv() {
     if ! grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' <<<"$kube_dns_ip" ; then
         die "Invalid kube-dns IP: $kube_dns_ip"
     fi
-    mkdir -p /etc/systemd/resolved.conf.d/
+    sudo mkdir -p /etc/systemd/resolved.conf.d/
     echo "Use kube-dns ${kube_dns_ip} to resolve .svc.cluster.local and .cluster.local"
-    cat > /etc/systemd/resolved.conf.d/microk8s.conf <<EOF
+    sudo cat > /etc/systemd/resolved.conf.d/microk8s.conf <<EOF
 [Resolve]
 DNS=${kube_dns_ip}
 #FallbackDNS=
