@@ -103,3 +103,4 @@ function main() {
     wait_for_ready
 }
 
+main
