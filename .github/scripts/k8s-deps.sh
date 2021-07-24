@@ -15,14 +15,24 @@ function wait_for_ready() {
     local minio_ip=''
 
     echo "Trying to get redis and minio pod IP ..."
+    local wait_seconds=2
+    local max_wait_seconds=16
     while true; do
-        redis_ip=$(sudo microk8s.kubectl -n default get pods/redis-server-0 --output go-template='{{.status.podIP}}' || true)
-        minio_ip=$(sudo microk8s.kubectl -n default get pods/minio-server-0 --output go-template='{{.status.podIP}}' || true)
+        redis_ip=$(sudo microk8s.kubectl -n default get pods/redis-server-0 --output go-template='{{.status.podIP}}' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        minio_ip=$(sudo microk8s.kubectl -n default get pods/minio-server-0 --output go-template='{{.status.podIP}}' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
         if [ -n "$redis_ip" -a -n "$minio_ip" ]; then
-            echo "Redis IP: $redis_ip, MinIO IP: $minio_ip"
-            break
+            if [ -n "$redis_ip" -a -n "$minio_ip" ]; then
+                echo "Redis IP: $redis_ip, MinIO IP: $minio_ip"
+                break
+            fi
         fi
-        sleep 2
+        sleep $wait_seconds
+        wait_seconds=$((wait_seconds * 2))
+        if [ $wait_seconds -gt $max_wait_seconds ]; then
+            wait_seconds=2
+        fi
     done
 
     echo "Checking if Redis is OK ..."
