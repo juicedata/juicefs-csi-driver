@@ -4,7 +4,7 @@ This example shows how to make a dynamic provisioned JuiceFS PersistentVolume (P
 
 ## Provide secret information
 
-In order to build the example, you need to provide a secret file `Secret-juicefs.env` containing the required credentials
+In order to build the example, you need to provide a secret file `secrets.env` containing the required credentials
 
 ```ini
 name=<name>

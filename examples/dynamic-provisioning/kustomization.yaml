@@ -6,20 +6,20 @@ configurations:
 resources:
 - resources.yaml
 secretGenerator:
-- name: juicefs
+- name: juicefs-sc-secret
   envs:
-    - Secret-juicefs.env
+    - secrets.env
   type: Opaque
 vars:
 - name: SECRET_NAME
   objref:
     apiVersion: v1
     kind: Secret
-    name: juicefs
+    name: juicefs-sc-secret
 - name: SECRET_NAMESPACE
   objref:
     apiVersion: v1
     kind: Secret
-    name: juicefs
+    name: juicefs-sc-secret
   fieldRef:
     fieldPath: metadata.namespace
