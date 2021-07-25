@@ -58,6 +58,7 @@ jobs:
             echo "Expected 1 PV, got $pv_count"
             exit 1
         fi
+        sleep 5
         dt1=$(tail -n 1 /jfs/pvc-*/out.txt)
         if [ -z "$dt1" ]; then
             echo "Could not read from out.txt"
