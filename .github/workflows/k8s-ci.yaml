@@ -65,6 +65,9 @@ jobs:
                 dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
                 break
             fi
+            sudo microk8s.kubectl -n default exec minio-server-0 -- /bin/sh -c 'df -h && stat /data'
+            echo "===================="
+            stat /jfs/$pv_id
             sleep 5
         done
         if [ -z "$dt1" ]; then
