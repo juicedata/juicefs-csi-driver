@@ -74,6 +74,7 @@ jobs:
             if [ -n "$dt1" ]; then
                 break
             fi
+            sleep 5
         done
         unix_ts1=$(date -d "$dt1" +%s)
         unix_ts2=$(date +%s)
