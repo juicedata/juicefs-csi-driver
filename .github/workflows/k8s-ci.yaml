@@ -45,8 +45,8 @@ jobs:
         kustomize build | sudo microk8s.kubectl apply -f -
         while true; do
             echo "Wait juicefs-app pod to be ready ..."
-            retval=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-app | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' || true)
-            if [ $retval = 0 ]; then
+            retval=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' || true)
+            if [ x$retval = x0 ]; then
                 echo "Pod juicefs-app is ready."
                 break
             fi
