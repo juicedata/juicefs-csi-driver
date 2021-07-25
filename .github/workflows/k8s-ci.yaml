@@ -64,20 +64,17 @@ jobs:
         while true; do
             echo "Wait /jfs/$pv_id/out.txt to be ready ..."
             if [ -e /jfs/$pv_id/out.txt ]; then
-                dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
                 break
             fi
-            sudo microk8s.kubectl -n default exec juicefs-app -- /bin/sh -c 'df -h && stat /data && ls -l /data'
-            sudo microk8s.kubectl -n default get pvc
-            sudo microk8s.kubectl -n default get events -A
-            echo "===================="
-            stat /jfs/$pv_id
             sleep 5
         done
-        if [ -z "$dt1" ]; then
-            echo "Could not read from out.txt"
-            exit 1
-        fi
+        while true; do
+            echo "Wait content from /jfs/$pv_id/out.txt ..."
+            dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
+            if [ -n "$dt1" ]; then
+                break
+            fi
+        done
         unix_ts1=$(date -d "$dt1" +%s)
         unix_ts2=$(date +%s)
         diff=$(echo "$unix_ts2-$unix_ts1" | bc)
