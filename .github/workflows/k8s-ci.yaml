@@ -58,8 +58,15 @@ jobs:
             echo "Expected 1 PV, got $pv_count"
             exit 1
         fi
-        sleep 5
-        dt1=$(tail -n 1 /jfs/pvc-*/out.txt)
+        pv_id=$(ls /jfs | grep '^pvc-')
+        while true; do
+            echo "Wait /jfs/$pv_id/out.txt to be ready ..."
+            if [ -e /jfs/$pv_id/out.txt ]; then
+                dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
+                break
+            fi
+            sleep 5
+        done
         if [ -z "$dt1" ]; then
             echo "Could not read from out.txt"
             exit 1
