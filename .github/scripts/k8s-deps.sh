@@ -45,8 +45,15 @@ Domains=~svc.cluster.local ~cluster.local
 EOF
     sudo mv /tmp/microk8s.conf /etc/systemd/resolved.conf.d/microk8s.conf
     sudo systemctl restart systemd-resolved.service
-    sleep 5
-    local resolved_ip=$(dig -4 kube-dns.kube-system.svc.cluster.local +short)
+    local resolved_ip=
+    while true; do
+        echo "Wait kube-dns to resolve DNS query from node ..."
+        resolved_ip=$(dig -4 kube-dns.kube-system.svc.cluster.local +short | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+        if [ -n "$resolved_ip" ]; then
+            break
+        fi
+        sleep 5
+    done
     if [ "x$resolved_ip" != "x$kube_dns_ip" ]; then
         die "Resolved kube-dns IP: ${resolved_ip} should equal kube-dns clusterIP: ${kube_dns_ip}"
     fi
