@@ -13,7 +13,8 @@ jobs:
       run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
     - name: Deploy JuiceFS CSI
       run: |
-        sed -i 's@juicedata/juicefs-csi-driver@juicedata/juicefs-csi-driver:nightly@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
+        sed -i -e 's@juicedata/juicefs-csi-driver@juicedata/juicefs-csi-driver:nightly@g' \
+               -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         # Wait until the deploy finish
         while true; do
