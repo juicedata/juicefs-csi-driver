@@ -65,7 +65,9 @@ jobs:
                 dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
                 break
             fi
-            sudo microk8s.kubectl -n default exec juicefs-app -- /bin/sh -c 'df -h && stat /data'
+            sudo microk8s.kubectl -n default exec juicefs-app -- /bin/sh -c 'df -h && stat /data && ls -l /data'
+            sudo microk8s.kubectl -n default get pvc
+            sudo microk8s.kubectl -n default get events -A
             echo "===================="
             stat /jfs/$pv_id
             sleep 5
