@@ -206,6 +206,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		}
 	}
 	// Related issue: https://github.com/kubernetes/kubernetes/issues/60987
+	klog.V(5).Infof("NodeUnpublishVolume: remove target %s", target)
 	if err = os.Remove(target); err != nil {
 		klog.V(5).Infof("Remove target directory %s failed: %q", target, err)
 	}
