@@ -133,7 +133,8 @@ deploy-dev/k8s.yaml: deploy-dev/kustomization.yaml deploy/kubernetes/base/*.yaml
 ifeq ("$(DEV_K8S)", "microk8s")
 	sed -i 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' $@
 endif
-	sed -i 's@value: juicedata/juicefs-csi-driver$$@value: juicedata/juicefs-csi-driver:$(DEV_TAG)@g' $@
+	# Add .orig suffix only for compactiblity on macOS
+	sed -i.orig 's@value: juicedata/juicefs-csi-driver$$@value: juicedata/juicefs-csi-driver:$(DEV_TAG)@g' $@
 
 .PHONY: deploy-dev
 deploy-dev: deploy-dev/k8s.yaml
