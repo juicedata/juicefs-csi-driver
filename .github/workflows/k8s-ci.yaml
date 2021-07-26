@@ -3,7 +3,7 @@ name: k8s-ci
 on:
   push:
     branches:
-      - k8s-ci
+      - master
 jobs:
   k8s-ci:
     runs-on: ubuntu-latest
@@ -51,7 +51,6 @@ jobs:
                 echo "Pod juicefs-app is ready."
                 break
             fi
-            sudo microk8s.kubectl -n kube-system logs $JUICEFS_CSI_NODE_POD -c juicefs-plugin --tail=100
             sleep 5
         done
         sudo juicefs mount -d "$JUICEFS_REDIS_URL/$redis_db" /jfs
