@@ -1,6 +1,6 @@
 # juicefs-csi-driver
 
-![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.9.0](https://img.shields.io/badge/AppVersion-0.9.0-informational?style=flat-square)
+![Version: 0.5.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: latest](https://img.shields.io/badge/AppVersion-latest-informational?style=flat-square)
 
 A Helm chart for JuiceFS CSI Driver
 
@@ -35,8 +35,12 @@ Kubernetes: `>=1.14.0-0`
 | hostAliases | list | `[]` |  |
 | image.pullPolicy | string | `""` |  |
 | image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
-| image.tag | string | `"v0.9.0"` |  |
+| image.tag | string | `"latest"` |  |
+| jfsConfigDir | string | `"/var/lib/juicefs/config"` |  |
+| jfsMountDir | string | `"/var/lib/juicefs/volume"` | juicefs mount dir |
+| jfsMountPriority | object | `{"enable":true,"name":"juicefs-mount-critical"}` | juicefs mount pod priority |
 | kubeletDir | string | `"/var/lib/kubelet"` | kubelet working directory,can be set using `--root-dir` when starting kubelet |
+| namespace | string | `"kube-system"` |  |
 | node.affinity | object | Hard node and soft zone anti-affinity | Affinity for node pods. |
 | node.enabled | bool | `true` |  |
 | node.nodeSelector | object | `{}` | Node selector for node pods |
@@ -49,6 +53,8 @@ Kubernetes: `>=1.14.0-0`
 | serviceAccount.controller.annotations | object | `{}` |  |
 | serviceAccount.controller.create | bool | `true` |  |
 | serviceAccount.controller.name | string | `"juicefs-csi-controller-sa"` |  |
+| serviceAccount.node.create | bool | `true` |  |
+| serviceAccount.node.name | string | `"juicefs-csi-node-sa"` |  |
 | sidecars.csiProvisionerImage.repository | string | `"quay.io/k8scsi/csi-provisioner"` |  |
 | sidecars.csiProvisionerImage.tag | string | `"v1.6.0"` |  |
 | sidecars.livenessProbeImage.repository | string | `"quay.io/k8scsi/livenessprobe"` |  |
@@ -62,6 +68,10 @@ Kubernetes: `>=1.14.0-0`
 | storageClasses[0].backend.secretKey | string | `""` | Secret key for object storage |
 | storageClasses[0].backend.storage | string | `""` | Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list. |
 | storageClasses[0].enabled | bool | `true` | Default is true will create a new StorageClass. It will create Secret and StorageClass used by CSI driver |
+| storageClasses[0].mountPod.resources.limits.cpu | string | `"5000m"` |  |
+| storageClasses[0].mountPod.resources.limits.memory | string | `"5Gi"` |  |
+| storageClasses[0].mountPod.resources.requests.cpu | string | `"1000m"` |  |
+| storageClasses[0].mountPod.resources.requests.memory | string | `"1Gi"` |  |
 | storageClasses[0].name | string | `"juicefs-sc"` |  |
 | storageClasses[0].reclaimPolicy | string | `"Retain"` | Either Delete or Retain. |
 
