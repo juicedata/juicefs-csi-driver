@@ -51,9 +51,9 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
-				Name:            "jfs-mount",
-				Image:           MountImage,
-				Command:         []string{"sh", "-c", cmd},
+				Name:    "jfs-mount",
+				Image:   MountImage,
+				Command: []string{"sh", "-c", cmd},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
