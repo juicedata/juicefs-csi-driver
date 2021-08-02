@@ -69,3 +69,60 @@ func Test_parsePodResources(t *testing.T) {
 		})
 	}
 }
+
+func Test_getCacheDirVolumes(t *testing.T) {
+	cmdWithoutCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet`
+	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o prefetch=1,cache-dir=/dev/shm/imagenet,cache-size=10240,open-cache=7200,metrics=0.0.0.0:9567`
+	cmdWithCacheDir2 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
+
+	mp := corev1.MountPropagationBidirectional
+	dir := corev1.HostPathDirectory
+	volumeMounts := []corev1.VolumeMount{{
+		Name:             "jfs-dir",
+		MountPath:        mountBase,
+		MountPropagation: &mp,
+	}, {
+		Name:             "jfs-root-dir",
+		MountPath:        "/root/.juicefs",
+		MountPropagation: &mp,
+	}}
+
+	volumes := []corev1.Volume{{
+		Name: "jfs-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: MountPointPath,
+				Type: &dir,
+			},
+		},
+	}, {
+		Name: "jfs-root-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: JFSConfigPath,
+				Type: &dir,
+			},
+		},
+	}}
+
+	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmdWithoutCacheDir)
+	volumes = append(volumes, cacheVolumes...)
+	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	if len(volumes) != 2 || len(volumeMounts) != 2 {
+		t.Error("getCacheDirVolumes can't work properly")
+	}
+
+	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir)
+	volumes = append(volumes, cacheVolumes...)
+	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	if len(volumes) != 3 || len(volumeMounts) != 3 {
+		t.Error("getCacheDirVolumes can't work properly")
+	}
+
+	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir2)
+	volumes = append(volumes, cacheVolumes...)
+	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	if len(volumes) != 5 || len(volumeMounts) != 5 {
+		t.Error("getCacheDirVolumes can't work properly")
+	}
+}

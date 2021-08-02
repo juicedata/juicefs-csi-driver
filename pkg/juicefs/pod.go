@@ -18,6 +18,8 @@ package juicefs
 
 import (
 	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +42,42 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
 	statCmd := "stat -c %i " + mountPath
+
+	volumeMounts := []corev1.VolumeMount{{
+		Name:             "jfs-dir",
+		MountPath:        mountBase,
+		MountPropagation: &mp,
+	}, {
+		Name:             "jfs-root-dir",
+		MountPath:        "/root/.juicefs",
+		MountPropagation: &mp,
+	}}
+
+	volumes := []corev1.Volume{{
+		Name: "jfs-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: MountPointPath,
+				Type: &dir,
+			},
+		},
+	}, {
+		Name: "jfs-root-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: JFSConfigPath,
+				Type: &dir,
+			},
+		},
+	}}
+
+	// add cache-dir host path volume
+	if strings.Contains(cmd, "cache-dir") {
+		cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmd)
+		volumes = append(volumes, cacheVolumes...)
+		volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	}
+
 	var pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -67,15 +105,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					Name:          "metrics",
 					ContainerPort: 9567,
 				}},
-				VolumeMounts: []corev1.VolumeMount{{
-					Name:             "jfs-dir",
-					MountPath:        mountBase,
-					MountPropagation: &mp,
-				}, {
-					Name:             "jfs-root-dir",
-					MountPath:        "/root/.juicefs",
-					MountPropagation: &mp,
-				}},
+				VolumeMounts: volumeMounts,
 				ReadinessProbe: &corev1.Probe{
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
@@ -85,23 +115,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					PeriodSeconds:       1,
 				},
 			}},
-			Volumes: []corev1.Volume{{
-				Name: "jfs-dir",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: MountPointPath,
-						Type: &dir,
-					},
-				},
-			}, {
-				Name: "jfs-root-dir",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: JFSConfigPath,
-						Type: &dir,
-					},
-				},
-			}},
+			Volumes: volumes,
 			NodeName: NodeName,
 		},
 	}
@@ -154,4 +168,55 @@ func parsePodResources(mountPodCpuLimit, mountPodMemLimit, mountPodCpuRequest, m
 		Limits:   podLimit,
 		Requests: podRequest,
 	}
+}
+
+func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
+	var cacheVolumes []corev1.Volume
+	var cacheVolumeMounts []corev1.VolumeMount
+
+	cmdSplits := strings.Split(cmd, " -o ")
+	if len(cmdSplits) != 2 {
+		return cacheVolumes, cacheVolumeMounts
+	}
+
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	mountPropagation := corev1.MountPropagationBidirectional
+
+	for _, optSubStr := range strings.Split(cmdSplits[1], ",") {
+		optValStr := strings.TrimSpace(optSubStr)
+		if !strings.HasPrefix(optValStr, "cache-dir") {
+			continue
+		}
+		optValPair := strings.Split(optValStr, "=")
+		if len(optValPair) != 2 {
+			continue
+		}
+		cacheDirs := strings.Split(strings.TrimSpace(optValPair[1]), ":")
+
+		for _, cacheDir := range cacheDirs {
+			dirTrimPrefix := strings.TrimPrefix(cacheDir, "/")
+			name := strings.ReplaceAll(dirTrimPrefix, "/", "-")
+
+			hostPath := corev1.HostPathVolumeSource{
+				Path: cacheDir,
+				Type: &hostPathType,
+			}
+			hostPathVolume := corev1.Volume{
+				Name: name,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &hostPath,
+				},
+			}
+			cacheVolumes = append(cacheVolumes, hostPathVolume)
+
+			volumeMount := corev1.VolumeMount{
+				Name: name,
+				MountPath: cacheDir,
+				MountPropagation: &mountPropagation,
+			}
+			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+		}
+	}
+
+	return cacheVolumes, cacheVolumeMounts
 }
