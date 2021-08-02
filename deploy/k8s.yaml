@@ -225,14 +225,14 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: JUICEFS_MOUNT_IMAGE
-          value: juicedata/juicefs-csi-driver
+          value: juicedata/juicefs-csi-driver:v0.10.0
         - name: JUICEFS_MOUNT_PATH
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver
+        image: juicedata/juicefs-csi-driver:v0.10.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -354,14 +354,14 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: JUICEFS_MOUNT_IMAGE
-          value: juicedata/juicefs-csi-driver
+          value: juicedata/juicefs-csi-driver:v0.10.0
         - name: JUICEFS_MOUNT_PATH
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver
+        image: juicedata/juicefs-csi-driver:v0.10.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
