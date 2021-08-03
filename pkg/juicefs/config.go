@@ -19,6 +19,7 @@ package juicefs
 var (
 	NodeName   = ""
 	Namespace  = ""
+	PodName    = ""
 	MountImage = ""
 
 	MountPointPath       = "/var/lib/juicefs/volume"

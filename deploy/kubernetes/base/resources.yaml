@@ -210,8 +210,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: JUICEFS_MOUNT_IMAGE
-              value: juicedata/juicefs-csi-driver:v0.10.0
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: JUICEFS_MOUNT_PATH
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
@@ -328,8 +330,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: JUICEFS_MOUNT_IMAGE
-              value: juicedata/juicefs-csi-driver:v0.10.0
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: JUICEFS_MOUNT_PATH
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
