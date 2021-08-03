@@ -34,6 +34,8 @@ jobs:
         while true; do
             if [ $timeout -gt 60 ]; then
                 echo "JuiceFS CSI is not ready within 5min."
+                node_pod=$(sudo microk8s.kubectl -n kube-system get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
+                sudo microk8s.kubectl -n kube-system describe po $node_pod
                 exit 1
             fi
             timeout=`expr $timeout + 1`
