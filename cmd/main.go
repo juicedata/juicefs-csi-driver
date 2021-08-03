@@ -40,12 +40,12 @@ func init() {
 	}
 	k8sclient, err := juicefs.NewClient()
 	if err != nil {
-		klog.Fatalln("Can't get k8s client: %v", err)
+		klog.V(5).Infof("Can't get k8s client: %v", err)
 		os.Exit(0)
 	}
 	pod, err := k8sclient.GetPod(juicefs.PodName, juicefs.Namespace)
 	if err != nil {
-		klog.Fatalln("Can't get pod %s: %v", juicefs.PodName, err)
+		klog.V(5).Infof("Can't get pod %s: %v", juicefs.PodName, err)
 		os.Exit(0)
 	}
 	for i := range pod.Spec.Containers {
@@ -54,7 +54,7 @@ func init() {
 			return
 		}
 	}
-	klog.Fatalln("Can't get container juicefs-plugin in pod %s", juicefs.PodName)
+	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", juicefs.PodName)
 	os.Exit(0)
 }
 
