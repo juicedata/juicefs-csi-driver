@@ -22,7 +22,8 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}
         dev_tag=$(git describe --always)
-        sed -i -e 's@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:${dev_tag}@g' \
+        echo "Dev tag is: " $dev_tag
+        sed -i -e 's@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:$dev_tag@g' \
                -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         # Wait until the deploy finish
@@ -32,7 +33,7 @@ jobs:
                 echo "JuiceFS CSI is not ready within 5min."
                 exit 1
             fi
-            timeout=timeout+1
+            timeout=$timeout + 1
             echo "Wait JuiceFS CSI to be ready ..."
             # The juicefs-csi-{node|controller} pods' containers should be all ready
             count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | awk '{print $2}' | tr '/' '-' | bc | grep -v '^0$' | wc -l)
@@ -65,7 +66,7 @@ jobs:
                 echo "pod/juicefs-app is not ready within 5min."
                 exit 1
             fi
-            timeount+=1
+            timeout=$timeout + 1
             echo "Wait pod/juicefs-app to be ready ..."
             retval=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' || true)
             if [ x$retval = x0 ]; then
@@ -87,7 +88,7 @@ jobs:
                 echo "/jfs/$pv_id/out.txt is not ready within 5min."
                 exit 1
             fi
-            timeount+=1
+            timeout=$timeout + 1
             echo "Wait /jfs/$pv_id/out.txt to be ready ..."
             if [ -e /jfs/$pv_id/out.txt ]; then
                 break
@@ -100,7 +101,7 @@ jobs:
                 echo "content from /jfs/$pv_id/out.txt is null within 5min."
                 exit 1
             fi
-            timeount+=1
+            timeout=$timeout + 1
             echo "Wait content from /jfs/$pv_id/out.txt ..."
             dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
             if [ -n "$dt1" ]; then
