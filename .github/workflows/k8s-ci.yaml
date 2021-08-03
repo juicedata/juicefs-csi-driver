@@ -121,4 +121,3 @@ jobs:
             echo "Unexpected time skew: $dt1, $(date -d@$unix_ts2 -u)"
             exit 1
         fi
-
