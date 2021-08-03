@@ -15,9 +15,12 @@ jobs:
     - name: Prepare microk8s environment
       run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
     - name: Build image
+      env:
+        DEV_K8S: microk8s
       run: |
         cd ${GITHUB_WORKSPACE}
         make image-dev
+        make push-dev
     - name: Deploy JuiceFS CSI
       run: |
         cd ${GITHUB_WORKSPACE}
