@@ -26,7 +26,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}
         dev_tag=dev-$(git describe --always)
         echo "Dev tag is: " $dev_tag
-        sed -i -e 's@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:$dev_tag@g' \
+        sed -i -e "s@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:$dev_tag@g" \
                -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         # Wait until the deploy finish
