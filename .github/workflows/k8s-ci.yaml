@@ -17,11 +17,11 @@ jobs:
     - name: Build image
       run: |
         cd ${GITHUB_WORKSPACE}
-        make image-branch
+        make image-dev
     - name: Deploy JuiceFS CSI
       run: |
-        git_branch=$(git rev-parse --abbrev-ref HEAD)
-        sed -i -e 's@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:${git_branch}@g' \
+        dev_tag=$(git describe --always)
+        sed -i -e 's@juicedata/juicefs-csi-driver.*$@juicedata/juicefs-csi-driver:${dev_tag}@g' \
                -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         # Wait until the deploy finish
