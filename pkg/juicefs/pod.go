@@ -40,7 +40,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	configs, env map[string]string) *corev1.Pod {
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
-	dir := corev1.HostPathDirectory
+	dir := corev1.HostPathDirectoryOrCreate
 	statCmd := "stat -c %i " + mountPath
 
 	volumeMounts := []corev1.VolumeMount{{
