@@ -114,7 +114,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					PeriodSeconds:       1,
 				},
 			}},
-			Volumes: volumes,
+			Volumes:  volumes,
 			NodeName: NodeName,
 		},
 	}
@@ -209,8 +209,8 @@ func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
 			cacheVolumes = append(cacheVolumes, hostPathVolume)
 
 			volumeMount := corev1.VolumeMount{
-				Name: name,
-				MountPath: cacheDir,
+				Name:             name,
+				MountPath:        cacheDir,
 				MountPropagation: &mountPropagation,
 			}
 			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
