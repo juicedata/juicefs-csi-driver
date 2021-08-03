@@ -27,7 +27,7 @@ jobs:
         # Wait until the deploy finish
         timeout=0
         while true; do
-            if [ timeout>60 ]; then
+            if [ timeout -gt 60 ]; then
                 echo "JuiceFS CSI is not ready within 5min."
                 exit 1
             fi
@@ -60,7 +60,7 @@ jobs:
         kustomize build | sudo microk8s.kubectl apply -f -
         timeout=0
         while true; do
-            if [ timeout>60 ]; then
+            if [ timeout -gt 60 ]; then
                 echo "pod/juicefs-app is not ready within 5min."
                 exit 1
             fi
@@ -82,7 +82,7 @@ jobs:
         pv_id=$(ls /jfs | grep '^pvc-')
         timeout=0
         while true; do
-            if [ timeout>60 ]; then
+            if [ timeout -gt 60 ]; then
                 echo "/jfs/$pv_id/out.txt is not ready within 5min."
                 exit 1
             fi
@@ -95,7 +95,7 @@ jobs:
         done
         timeout=1
         while true; do
-            if [ timeout>60 ]; then
+            if [ timeout -gt 60 ]; then
                 echo "content from /jfs/$pv_id/out.txt is null within 5min."
                 exit 1
             fi
