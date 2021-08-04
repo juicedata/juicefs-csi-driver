@@ -9,7 +9,7 @@
 
 image:
   repository: juicedata/juicefs-csi-driver
-  tag: "v0.10.0"
+  tag: "v0.10.1"
   pullPolicy: ""
 
 namespace: kube-system
