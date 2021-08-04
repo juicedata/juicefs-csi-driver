@@ -72,8 +72,6 @@ func (j *fakeJfsProvider) Version() ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) ServeMetrics(port int) {}
-
 func newFakeJfsProvider() *fakeJfsProvider {
 	return &fakeJfsProvider{
 		fs: map[string]fakeJfs{},

@@ -26,7 +26,9 @@ import (
 )
 
 func NewManager() manager.Manager {
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MetricsBindAddress: ":9908",
+	})
 	if err != nil {
 		klog.V(5).Infof("Could not create mgr %v", err)
 		os.Exit(1)
