@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,12 +57,10 @@ type Interface interface {
 	AuthFs(secrets map[string]string) ([]byte, error)
 	MountFs(volumeID string, target string, options []string, jfsSetting *JfsSetting) (string, error)
 	Version() ([]byte, error)
-	ServeMetrics(port int)
 }
 
 type juicefs struct {
 	mount.SafeFormatAndMount
-	metricsProxy
 	K8sClient
 }
 
@@ -147,7 +144,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		return nil, err
 	}
 
-	return &juicefs{*mounter, *newMetricsProxy(), k8sClient}, nil
+	return &juicefs{*mounter, k8sClient}, nil
 }
 
 func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
@@ -205,9 +202,6 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 	if err = j.Unmount(mountPath); err != nil {
 		klog.V(5).Infof("JfsUnmount: error umount %s, %v", mountPath, err)
 	}
-	j.mpLock.Lock()
-	delete(j.mountedFs, mountPath)
-	j.mpLock.Unlock()
 	return
 }
 
@@ -647,23 +641,4 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 		return err
 	}
 	return nil
-}
-
-func (j *juicefs) ceCheckMetrics(name, mountPath string, metricsPort int) {
-	j.mpLock.Lock()
-	defer j.mpLock.Unlock()
-	// If the mountPath already exist, it means mount is skipped in MountFs()
-	if _, ok := j.mountedFs[mountPath]; !ok {
-		j.mountedFs[mountPath] = &mountInfo{
-			Name:        name,
-			MetricsPort: metricsPort,
-		}
-	}
-}
-
-func (j *juicefs) ServeMetrics(port int) {
-	http.HandleFunc("/metrics", j.serveMetricsHTTP)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		klog.V(5).Infof("Start metrics server :%d failed: %q", port, err)
-	}
 }
