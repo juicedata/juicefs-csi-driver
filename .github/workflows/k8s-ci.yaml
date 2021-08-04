@@ -67,8 +67,10 @@ jobs:
         kustomize build | sudo microk8s.kubectl apply -f -
         timeout=0
         while true; do
-            if [ $timeout -gt 60 ]; then
+            if [ $timeout -gt 10 ]; then
                 echo "pod/juicefs-app is not ready within 5min."
+                app=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $1}' )
+                sudo microk8s.kubectl -n default describe po app
                 exit 1
             fi
             timeout=`expr $timeout + 1`
