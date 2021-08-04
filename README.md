@@ -222,6 +222,10 @@ JuiceFS CSI driver has been validated in the following Kubernetes version
 | v1.19.2 / minikube v1.16.0 | Yes    |
 | v1.20.2 / minikube v1.16.0 | Yes    |
 
+### Known issues
+
+The mount option `--cache-dir` in JuiceFS CSI driver (>=v0.10.0) does not support wildcards currently.
+
 ## Miscellaneous
 
 - [Access ceph cluster with librados](./docs/ceph.md)
