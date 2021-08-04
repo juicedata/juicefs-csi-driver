@@ -34,7 +34,7 @@ jobs:
     - name: Build docker image nightly
       run: |
         make image-nightly
-        docker image save -o juicefs-csi-driver-nightly.tar juicefs-csi-driver:nightly
+        docker image save -o juicefs-csi-driver-nightly.tar juicedata/juicefs-csi-driver:nightly
         sudo microk8s.ctr image import juicefs-csi-driver-nightly.tar
         rm -f juicefs-csi-driver-nightly.tar
     - name: Prepare microk8s environment
