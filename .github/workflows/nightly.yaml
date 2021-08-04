@@ -32,7 +32,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build docker image nightly
-      run: make image-nightly
+      run: |
+        make image-nightly
+        docker image save -o juicefs-csi-driver-nightly.tar juicefs-csi-driver:nightly
+        sudo microk8s.ctr image import juicefs-csi-driver-nightly.tar
+        rm -f juicefs-csi-driver-nightly.tar
     - name: Prepare microk8s environment
       run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
     - name: Deploy JuiceFS CSI
@@ -80,6 +84,8 @@ jobs:
         while true; do
             if [ $timeout -gt 60 ]; then
                 echo "pod/juicefs-app is not ready within 5min."
+                app=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $1}' )
+                sudo microk8s.kubectl -n default describe po app
                 exit 1
             fi
             timeout=`expr $timeout + 1`
@@ -132,7 +138,6 @@ jobs:
             echo "Unexpected time skew: $dt1, $(date -d@$unix_ts2 -u)"
             exit 1
         fi
-
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:
