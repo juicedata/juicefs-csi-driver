@@ -46,8 +46,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: JUICEFS_MOUNT_IMAGE
-          value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: JUICEFS_MOUNT_PATH
           value: {{ .Values.jfsMountDir }}
         - name: JUICEFS_CONFIG_PATH

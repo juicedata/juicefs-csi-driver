@@ -108,7 +108,7 @@ image-dev: juicefs-csi-driver
 push-dev:
 ifeq ("$(DEV_K8S)", "microk8s")
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
-	microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
+	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
 else ifeq ("$(DEV_K8S)", "kubeadm")
 	docker tag $(IMAGE):$(DEV_TAG) $(DEV_REGISTRY):$(DEV_TAG)

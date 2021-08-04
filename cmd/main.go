@@ -30,10 +30,32 @@ import (
 func init() {
 	juicefs.NodeName = os.Getenv("NODE_NAME")
 	juicefs.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
-	juicefs.MountImage = os.Getenv("JUICEFS_MOUNT_IMAGE")
+	juicefs.PodName = os.Getenv("POD_NAME")
 	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 	juicefs.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	if juicefs.PodName == "" || juicefs.Namespace == "" {
+		klog.Fatalln("Pod name & namespace can't be null.")
+		os.Exit(0)
+	}
+	k8sclient, err := juicefs.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		os.Exit(0)
+	}
+	pod, err := k8sclient.GetPod(juicefs.PodName, juicefs.Namespace)
+	if err != nil {
+		klog.V(5).Infof("Can't get pod %s: %v", juicefs.PodName, err)
+		os.Exit(0)
+	}
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
+			juicefs.MountImage = pod.Spec.Containers[i].Image
+			return
+		}
+	}
+	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", juicefs.PodName)
+	os.Exit(0)
 }
 
 func main() {
