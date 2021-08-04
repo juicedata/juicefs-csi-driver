@@ -1,6 +1,6 @@
-# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0
+# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.1
 
-Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0. But the upgrade from v0.9.0 to v0.10.0 will 
+Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.1. But the upgrade from v0.9.0 to v0.10.1 will 
 cause all PVs become unavailable, we can upgrade one by one node to make the upgrade smooth. If your application using 
 JuiceFS volume service can be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
 
@@ -25,7 +25,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
 rules:
   - apiGroups:
       - ""
@@ -57,7 +57,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
   name: juicefs-csi-node-service-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -76,7 +76,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
 ```
 
 ### 2. Update node service DaemonSet `updateStrategy` to `OnDelete`
@@ -95,7 +95,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.0
+          image: juicedata/juicefs-csi-driver:v0.10.1
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -111,8 +111,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: JUICEFS_MOUNT_IMAGE
-              value: juicedata/juicefs-csi-driver:v0.10.0
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: JUICEFS_MOUNT_PATH
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
@@ -169,7 +171,7 @@ spec:
     spec:
       containers:
       - name: juicefs-plugin
-        image: juicedata/juicefs-csi-driver:v0.10.0
+        image: juicedata/juicefs-csi-driver:v0.10.1
         env:
         - name: NODE_NAME
           valueFrom:
@@ -179,8 +181,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: JUICEFS_MOUNT_IMAGE
-          value: juicedata/juicefs-csi-driver:v0.10.0
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: JUICEFS_MOUNT_PATH
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
@@ -309,7 +313,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
 rules:
   - apiGroups:
       - ""
@@ -341,7 +345,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
   name: juicefs-csi-node-service-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -360,7 +364,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.0"
+    app.kubernetes.io/version: "v0.10.1"
 ```
 
 #### 2. Update CSI Driver node service DaemonSet
@@ -375,7 +379,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.0
+          image: juicedata/juicefs-csi-driver:v0.10.1
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -391,8 +395,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: JUICEFS_MOUNT_IMAGE
-              value: juicedata/juicefs-csi-driver:v0.10.0
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: JUICEFS_MOUNT_PATH
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
@@ -430,7 +436,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.0
+          image: juicedata/juicefs-csi-driver:v0.10.1
           env:
             - name: NODE_NAME
               valueFrom:
@@ -440,8 +446,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: JUICEFS_MOUNT_IMAGE
-              value: juicedata/juicefs-csi-driver:v0.10.0
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: JUICEFS_MOUNT_PATH
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH

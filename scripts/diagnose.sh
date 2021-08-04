@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set +x
 
+# This script is a reference to the fluid project's diagnostic script, thanks to the fluid project for the inspiration.
+
 print_usage() {
   echo "Usage:"
   echo "    ./diagnose-juicefs.sh COMMAND [OPTIONS]"

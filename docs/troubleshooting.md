@@ -89,3 +89,44 @@ $ kubectl -n kube-system logs juicefs-csi-node-hzczw -c juicefs-plugin
 ```
 
 4. Find any log contains `WARNING`, `ERROR` or `FATAL`.
+
+## diagnose
+
+You can also use the [diagnose script](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh) to collect logs and related information.
+
+1. Download the diagnose script to the node which can exec kubectl.
+
+```shell
+wget  https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
+```
+
+2. Add exec permission to script.
+
+```shell
+chmod a+x diagnose.sh
+```
+
+3. Collect diagnose information using the script. For example, your juicefs csi driver is deployed in kube-system namespace, 
+and you want to see information in node named `kube-node-2`.
+
+```shell
+$ ./diagnose.sh
+Usage:
+    ./diagnose-juicefs.sh COMMAND [OPTIONS]
+COMMAND:
+    help
+        Display this help message.
+    collect
+        Collect pods logs of juicefs.
+OPTIONS:
+    -no, --node name
+        Set the name of node.
+    -n, --namespace name
+        Set the namespace of juicefs csi driver.
+$ ./diagnose.sh -n kube-system -no kube-node-2 collect
+Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
+...
+please get diagnose_juicefs_1628069696.tar.gz for diagnostics
+```
+
+All relevant information is collected and packaged in a zip archive under the execution path.
