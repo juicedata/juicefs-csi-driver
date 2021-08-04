@@ -99,7 +99,7 @@ NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEX
 juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
 ```
 
-### Install with kubectl
+### Installation with kubectl
 
 Deploy the driver:
 
