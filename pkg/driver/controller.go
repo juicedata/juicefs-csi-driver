@@ -2,7 +2,6 @@ package driver
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -37,14 +36,6 @@ func newControllerService() controllerService {
 	jfs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
-	}
-
-	// check .juicefs
-	exist := util.PathExist(juicefs.RootJfsPath)
-	if !exist {
-		if err := util.Copy("/usr/local/juicefs/mount/jfsmount", juicefs.RootJfsPath); err != nil {
-			panic(err)
-		}
 	}
 
 	stdoutStderr, err := jfs.Version()

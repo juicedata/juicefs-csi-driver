@@ -23,7 +23,6 @@ var (
 	MountImage = ""
 
 	MountPointPath       = "/var/lib/juicefs/volume"
-	RootJfsPath          = "/root/.juicefs/jfsmount"
 	JFSConfigPath        = "/var/lib/juicefs/config"
 	JFSMountPriorityName = ""
 )
