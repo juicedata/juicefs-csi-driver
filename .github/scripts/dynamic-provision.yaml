@@ -29,9 +29,9 @@ metadata:
   name: juicefs-sc-secret
   namespace: default
 data:
-  name: secret-name
-  metaurl: secret-metaurl
-  access-key: secret-access-key
-  secret-key: secret-secret-key
-  storage: secret-storagename
-  bucket: secret-bucket
+  name: juicefs-secret-name
+  metaurl: juicefs-secret-metaurl
+  access-key: juicefs-secret-access-key
+  secret-key: juicefs-secret-secret-key
+  storage: juicefs-secret-storagename
+  bucket: juicefs-secret-bucket

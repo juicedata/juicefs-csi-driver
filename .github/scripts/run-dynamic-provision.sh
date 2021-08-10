@@ -8,12 +8,12 @@ function deploy_dynamic_provision() {
   secret_secretkey=$(echo -n ${JUICEFS_SECRET_KEY} | base64 -w 0)
   secret_storagename=$(echo -n ${JUICEFS_STORAGE} | base64 -w 0)
   secret_bucket=$(echo -n ${JUICEFS_BUCKET} | base64 -w 0)
-  sed -i -e "s@secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-secret-key@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-storagename@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-bucket@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-secret-key@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-storagename@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-bucket@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
 
   echo "deploy storageclass & pvc & secret"
   sudo microk8s.kubectl create -f ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
@@ -50,6 +50,7 @@ function check_pod_delete() {
       echo "pod/${pod_name} is not deleted within 5min."
       app=$(sudo microk8s.kubectl -n default get pods | grep ${pod_name} | awk '{print $1}')
       sudo microk8s.kubectl -n default describe po app
+      sudo microk8s.kubectl -n default describe pvc juicefs-pvc
       exit 1
     fi
     timeout=$(expr $timeout + 1)
@@ -120,12 +121,17 @@ function create_pods() {
     }
   done
   check_mount_point ${redis_db}
+  get_mount_pod_annotations
+  annotations_num=$?
+  if [ x$annotations_num = x3 ]; then
+    echo "Pod ${mount_pod_name} has 3 juicefs- annotation."
+  else
+    echo "Pod ${mount_pod_name} has ${annotations_num} juicefs- annotation."
+    exit 1
+  fi
 }
 
-function check_delete_one() {
-  echo "Check if it works well when delete one pod."
-  sudo microk8s.kubectl -n default delete po app-1
-  check_pod_delete app-1
+function get_mount_pod_annotations() {
   volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName |awk '{print $2}')
   volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle | awk '{print $2}')
   node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
@@ -138,6 +144,15 @@ function check_delete_one() {
     exit 1
   fi
   annotations_num=$(sudo microk8s.kubectl -n kube-system get po ${mount_pod_name} -oyaml  | sed -n '/annotations:/,/creationTimestamp:/p' |sed  '$d' |grep juicefs- |awk '{print $1}' |wc -l)
+  return ${annotations_num}
+}
+
+function check_delete_one() {
+  echo "Check if it works well when delete one pod."
+  sudo microk8s.kubectl -n default delete po app-1
+  check_pod_delete app-1
+  get_mount_pod_annotations
+  annotations_num=$?
   if [ x$annotations_num = x2 ]; then
     echo "Pod ${mount_pod_name} has 2 juicefs- annotation."
   else
