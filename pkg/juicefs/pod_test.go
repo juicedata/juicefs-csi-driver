@@ -19,6 +19,7 @@ package juicefs
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
 )
@@ -124,5 +125,60 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 5 || len(volumeMounts) != 5 {
 		t.Error("getCacheDirVolumes can't work properly")
+	}
+}
+
+func TestHasRef(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: map[string]string{"a": "b", "juicefs-aa": "bb"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: map[string]string{"a": "b"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "test-null",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: nil,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasRef(tt.args.pod); got != tt.want {
+				t.Errorf("HasRef() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
