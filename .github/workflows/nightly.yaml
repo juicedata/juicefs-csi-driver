@@ -52,7 +52,7 @@ jobs:
         echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_REDIS_URL=redis://redis.default.svc.cluster.local:6379" >> $GITHUB_ENV
-    - name: Run examples/dynamic-provisioning
+    - name: Run dynamic-provisioning test
       run: |
         .github/scripts/run-dynamic-provision.sh
     - name: Login Docker Hub

@@ -8,15 +8,15 @@ function deploy_dynamic_provision() {
   secret_secretkey=$(echo -n ${JUICEFS_SECRET_KEY} | base64 -w 0)
   secret_storagename=$(echo -n ${JUICEFS_STORAGE} | base64 -w 0)
   secret_bucket=$(echo -n ${JUICEFS_BUCKET} | base64 -w 0)
-  sed -i "s@juicefs-secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i "s@juicefs-secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i "s@juicefs-secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i "s@juicefs-secret-secret-key@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i "s@juicefs-secret-storagename@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i "s@juicefs-secret-bucket@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i "s@juicefs-secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
+  sed -i "s@juicefs-secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
+  sed -i "s@juicefs-secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
+  sed -i "s@juicefs-secret-secret-key@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
+  sed -i "s@juicefs-secret-storagename@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
+  sed -i "s@juicefs-secret-bucket@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
 
   echo "deploy storageclass & pvc & secret"
-  sudo microk8s.kubectl create -f ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sudo microk8s.kubectl create -f ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision-ce.yaml
 }
 
 function check_pod_success() {
@@ -64,7 +64,6 @@ function check_pod_delete() {
   done
 }
 
-
 function check_mount_point() {
   redis_db=$1
   sudo juicefs mount -d "$JUICEFS_REDIS_URL/$redis_db" /jfs
@@ -110,7 +109,7 @@ function check_mount_point() {
   fi
 }
 
-function create_pods() {
+function test_many_pods_in_one_pvc() {
   redis_db=$1
   for ((i = 1; i <= 3; i++)); do
     {
@@ -131,11 +130,17 @@ function create_pods() {
   fi
 }
 
-function get_mount_pod_annotations() {
+function get_mount_pod() {
   volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName |awk '{print $2}')
   volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle | awk '{print $2}')
   node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
   mount_pod_name=juicefs-${node_name}-${volume_id}
+  return ${mount_pod_name}
+}
+
+function get_mount_pod_annotations() {
+  get_mount_pod
+  mount_pod_name=$?
   echo "Mount pod name: " ${mount_pod_name}
   echo "Check if mount pod is exist or not."
   retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}')
@@ -147,7 +152,7 @@ function get_mount_pod_annotations() {
   return ${annotations_num}
 }
 
-function check_delete_one() {
+function test_delete_one() {
   echo "Check if it works well when delete one pod."
   sudo microk8s.kubectl -n default delete po app-1
   check_pod_delete app-1
@@ -161,10 +166,34 @@ function check_delete_one() {
   fi
 }
 
+function test_delete_all() {
+  echo "Check if it works well when delete all pods."
+
+  pods=$(sudo microk8s.kubectl -n default get po |grep app- |awk '{print $1}')
+  for po in ${pods}; do
+    {
+      echo "delete pod" ${po}
+      sudo microk8s.kubectl -n default delete po ${po}
+      check_pod_delete ${po}
+    }
+  done
+
+  get_mount_pod
+  mount_pod_name=$?
+  echo "Mount pod name: " ${mount_pod_name}
+  echo "Check if mount pod is exist or not."
+  retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}' |wc -l)
+  if [ x$retval != x0 ]; then
+    echo "Pod ${mount_pod_name} is not deleted."
+    exit 1
+  fi
+}
+
 function main() {
   deploy_dynamic_provision 1
-  create_pods 1
-  check_delete_one
+  test_many_pods_in_one_pvc 1
+  test_delete_one
+  test_delete_all
 }
 
 main
