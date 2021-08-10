@@ -130,17 +130,11 @@ function test_many_pods_in_one_pvc() {
   fi
 }
 
-function get_mount_pod() {
+function get_mount_pod_annotations() {
   volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName |awk '{print $2}')
   volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle | awk '{print $2}')
   node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
   mount_pod_name=juicefs-${node_name}-${volume_id}
-  return ${mount_pod_name}
-}
-
-function get_mount_pod_annotations() {
-  get_mount_pod
-  mount_pod_name=$?
   echo "Mount pod name: " ${mount_pod_name}
   echo "Check if mount pod is exist or not."
   retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}')
@@ -178,8 +172,10 @@ function test_delete_all() {
     }
   done
 
-  get_mount_pod
-  mount_pod_name=$?
+  volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName |awk '{print $2}')
+  volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle | awk '{print $2}')
+  node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
+  mount_pod_name=juicefs-${node_name}-${volume_id}
   echo "Mount pod name: " ${mount_pod_name}
   echo "Check if mount pod is exist or not."
   retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}' |wc -l)
