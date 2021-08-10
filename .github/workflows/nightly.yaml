@@ -44,30 +44,7 @@ jobs:
       run: |
         sed -i -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:nightly@g" \
                -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
-        sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
-        # Wait until the deploy finish
-        timeout=0
-        while true; do
-            if [ $timeout -gt 60 ]; then
-                echo "JuiceFS CSI is not ready within 5min."
-                node_pod=$(sudo microk8s.kubectl -n kube-system get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
-                sudo microk8s.kubectl -n kube-system describe po $node_pod
-                exit 1
-            fi
-            timeout=`expr $timeout + 1`
-            echo "Wait JuiceFS CSI to be ready ..."
-            # The juicefs-csi-{node|controller} pods' containers should be all ready
-            count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | awk '{print $2}' | tr '/' '-' | bc | grep -v '^0$' | wc -l)
-            if [ $count = 0 ]; then
-                node_pod=$(sudo microk8s.kubectl -n kube-system get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
-                echo "JUICEFS_CSI_NODE_POD=$node_pod" >> $GITHUB_ENV
-                sudo microk8s.kubectl cp kube-system/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin \
-                    && sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
-                echo "JuiceFS CSI is ready."
-                break
-            fi
-            sleep 5
-        done
+        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh
     - name: Setup secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
@@ -77,68 +54,7 @@ jobs:
         echo "JUICEFS_REDIS_URL=redis://redis.default.svc.cluster.local:6379" >> $GITHUB_ENV
     - name: Run examples/dynamic-provisioning
       run: |
-        redis_db=1
-        cd ${GITHUB_WORKSPACE}/examples/dynamic-provisioning
-        printf "name=dynamic-provisioning\nmetaurl=${JUICEFS_REDIS_URL}/%d\naccess-key=${JUICEFS_ACCESS_KEY}\nsecret-key=${JUICEFS_SECRET_KEY}\nstorage=${JUICEFS_STORAGE}\nbucket=${JUICEFS_BUCKET}" $redis_db > secrets.env
-        kustomize build | sudo microk8s.kubectl apply -f -
-        timeout=0
-        while true; do
-            if [ $timeout -gt 60 ]; then
-                echo "pod/juicefs-app is not ready within 5min."
-                app=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $1}' )
-                sudo microk8s.kubectl -n default describe po app
-                exit 1
-            fi
-            timeout=`expr $timeout + 1`
-            echo "Wait pod/juicefs-app to be ready ..."
-            retval=$(sudo microk8s.kubectl -n default get pods | grep juicefs-app | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' || true)
-            if [ x$retval = x0 ]; then
-                echo "Pod juicefs-app is ready."
-                break
-            fi
-            sleep 5
-        done
-        sudo juicefs mount -d "$JUICEFS_REDIS_URL/$redis_db" /jfs
-        pv_count=$(ls /jfs | grep '^pvc-' | wc -l)
-        if [ "x$pv_count" != x1 ]; then
-            echo "Expected 1 PV, got $pv_count"
-            exit 1
-        fi
-        pv_id=$(ls /jfs | grep '^pvc-')
-        timeout=0
-        while true; do
-            if [ $timeout -gt 60 ]; then
-                echo "/jfs/$pv_id/out.txt is not ready within 5min."
-                exit 1
-            fi
-            timeout=`expr $timeout + 1`
-            echo "Wait /jfs/$pv_id/out.txt to be ready ..."
-            if [ -e /jfs/$pv_id/out.txt ]; then
-                break
-            fi
-            sleep 5
-        done
-        timeout=1
-        while true; do
-            if [ $timeout -gt 60 ]; then
-                echo "content from /jfs/$pv_id/out.txt is null within 5min."
-                exit 1
-            fi
-            timeout=`expr $timeout + 1`
-            echo "Wait content from /jfs/$pv_id/out.txt ..."
-            dt1=$(tail -n 1 /jfs/$pv_id/out.txt)
-            if [ -n "$dt1" ]; then
-                break
-            fi
-            sleep 5
-        done
-        unix_ts1=$(date -d "$dt1" +%s)
-        unix_ts2=$(date +%s)
-        diff=$(echo "$unix_ts2-$unix_ts1" | bc)
-        if [ "$diff" -lt 0 -o "$diff" -gt 15 ]; then
-            echo "Unexpected time skew: $dt1, $(date -d@$unix_ts2 -u)"
-            exit 1
-        fi
+        .github/scripts/run-dynamic-provision.sh
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:
