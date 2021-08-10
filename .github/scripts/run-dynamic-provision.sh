@@ -2,12 +2,12 @@
 
 function deploy_dynamic_provision() {
   redis_db=$1
-  secret_name=$(echo -n dynamic-provisioning | base64)
-  secret_metaurl=$(echo -n ${JUICEFS_REDIS_URL}/${redis_db} | base64)
-  secret_accesskey=$(echo -n ${JUICEFS_ACCESS_KEY} | base64)
-  secret_secretkey=$(echo -n ${JUICEFS_SECRET_KEY} | base64)
-  secret_storagename=$(echo -n ${JUICEFS_STORAGE} | base64)
-  secret_bucket=$(echo -n ${JUICEFS_BUCKET} | base64)
+  secret_name=$(echo -n dynamic-provisioning | base64 -w 0)
+  secret_metaurl=$(echo -n ${JUICEFS_REDIS_URL}/${redis_db} | base64 -w 0)
+  secret_accesskey=$(echo -n ${JUICEFS_ACCESS_KEY} | base64 -w 0)
+  secret_secretkey=$(echo -n ${JUICEFS_SECRET_KEY} | base64 -w 0)
+  secret_storagename=$(echo -n ${JUICEFS_STORAGE} | base64 -w 0)
+  secret_bucket=$(echo -n ${JUICEFS_BUCKET} | base64 -w 0)
   sed -i -e "s@secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
   sed -i -e "s@secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
   sed -i -e "s@secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
