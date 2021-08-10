@@ -8,20 +8,21 @@ function deploy_dynamic_provision() {
   secret_secretkey=$(echo -n ${JUICEFS_SECRET_KEY} | base64)
   secret_storagename=$(echo -n ${JUICEFS_STORAGE} | base64)
   secret_bucket=$(echo -n ${JUICEFS_BUCKET} | base64)
-  sed -i -e "s@secret-name\$@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-metaurl\$@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-access-key\$@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-secret-key\$@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-name\$@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
-  sed -i -e "s@secret-name\$@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-name@${secret_name}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-metaurl@${secret_metaurl}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-access-key@${secret_accesskey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-secret-key@${secret_secretkey}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-storagename@${secret_storagename}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
+  sed -i -e "s@secret-bucket@${secret_bucket}@g" ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
 
   echo "deploy storageclass & pvc & secret"
-  sudo microk8s.kubectl create -f ${GITHUB_WORKSPACE}/.github/scripts/dynamic_provision.yaml
+  sudo microk8s.kubectl create -f ${GITHUB_WORKSPACE}/.github/scripts/dynamic-provision.yaml
 }
 
 function check_pod_success() {
   pod_name=$1
   timeout=0
+  echo "Check app ${pod_name} is ready or not."
   while true; do
     if [ $timeout -gt 60 ]; then
       echo "pod/${pod_name} is not ready within 5min."
@@ -43,6 +44,7 @@ function check_pod_success() {
 function check_pod_delete() {
   pod_name=$1
   timeout=0
+  echo "Check app ${pod_name} is deleted or not."
   while true; do
     if [ $timeout -gt 60 ]; then
       echo "pod/${pod_name} is not deleted within 5min."

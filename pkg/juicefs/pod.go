@@ -37,7 +37,7 @@ func GeneratePodNameByVolumeId(volumeId string) string {
 }
 
 func HasRef(pod *corev1.Pod) bool {
-	for k, _ := range pod.Annotations {
+	for k := range pod.Annotations {
 		if strings.HasPrefix(k, "juicefs-") {
 			return true
 		}

@@ -66,8 +66,8 @@ func TestParseEndpoint(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "test",
-			args:    args{
+			name: "test",
+			args: args{
 				endpoint: "unix://tmp/csi.sock",
 			},
 			want:    "unix",
