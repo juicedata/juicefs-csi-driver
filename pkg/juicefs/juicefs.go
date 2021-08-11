@@ -223,7 +223,7 @@ func (j *juicefs) DelRefOfMountPod(volumeId, target string) error {
 
 	klog.V(5).Infof("DeleteRefOfMountPod: Delete target ref [%s] in pod [%s].", target, pod.Name)
 
-	key := getJuiceFSHash(target)
+	key := getReferenceKey(target)
 	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
 
 loop:
@@ -549,7 +549,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 		env = jfsSetting.Envs
 	}
 
-	key := getJuiceFSHash(target)
+	key := getReferenceKey(target)
 	_, err := j.K8sClient.GetPod(podName, Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
@@ -618,7 +618,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	// add volumeId ref in pod annotation
 	// mount target hash as key
-	key := getJuiceFSHash(target)
+	key := getReferenceKey(target)
 
 	JLock.Lock()
 	defer JLock.Unlock()
@@ -639,7 +639,7 @@ func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	return nil
 }
 
-func getJuiceFSHash(target string) string {
+func getReferenceKey(target string) string {
 	h := sha256.New()
 	h.Write([]byte(target))
 	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]

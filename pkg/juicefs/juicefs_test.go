@@ -34,7 +34,7 @@ var test2 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-b",
 		Annotations: map[string]string{
-			getJuiceFSHash("/mnt/abc"): "/mnt/abc"},
+			getReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
 }
 
@@ -42,7 +42,7 @@ var test3 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-c",
 		Annotations: map[string]string{
-			getJuiceFSHash("/mnt/abc"): "/mnt/abc"},
+			getReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
 }
 
@@ -50,7 +50,7 @@ var test4 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-d",
 		Annotations: map[string]string{"a": "b",
-			getJuiceFSHash("/mnt/def"): "/mnt/def"},
+			getReferenceKey("/mnt/def"): "/mnt/def"},
 	},
 }
 
@@ -58,8 +58,8 @@ var test5 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-e",
 		Annotations: map[string]string{
-			getJuiceFSHash("/mnt/abc"): "/mnt/abc",
-			getJuiceFSHash("/mnt/def"): "/mnt/def",
+			getReferenceKey("/mnt/abc"): "/mnt/abc",
+			getReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
 }
@@ -74,8 +74,8 @@ var test7 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-g",
 		Annotations: map[string]string{
-			getJuiceFSHash("/mnt/abc"): "/mnt/abc",
-			getJuiceFSHash("/mnt/def"): "/mnt/def",
+			getReferenceKey("/mnt/abc"): "/mnt/abc",
+			getReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
 }
@@ -148,7 +148,7 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 			if err := j.addRefOfMount(tt.args.target, tt.args.pod); (err != nil) != tt.wantErr {
 				t.Errorf("addRefOfMount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			key := getJuiceFSHash(tt.args.target)
+			key := getReferenceKey(tt.args.target)
 			wanted := tt.args.pod
 			if wanted.Annotations == nil {
 				wanted.Annotations = make(map[string]string)
@@ -222,7 +222,7 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 			wantErr:        false,
 			wantPodDeleted: false,
 			wantAnnotations: map[string]string{
-				getJuiceFSHash("/mnt/abc"): "/mnt/abc",
+				getReferenceKey("/mnt/abc"): "/mnt/abc",
 			},
 		},
 		{
@@ -293,7 +293,7 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 				jfsSetting: nil,
 			},
 			wantErr:  false,
-			wantAnno: map[string]string{getJuiceFSHash("/mnt/hhh"): "/mnt/hhh"},
+			wantAnno: map[string]string{getReferenceKey("/mnt/hhh"): "/mnt/hhh"},
 		},
 		{
 			name: "test-exists",
@@ -310,9 +310,9 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 			},
 			wantErr: false,
 			wantAnno: map[string]string{
-				getJuiceFSHash("/mnt/abc"): "/mnt/abc",
-				getJuiceFSHash("/mnt/def"): "/mnt/def",
-				getJuiceFSHash("/mnt/ggg"): "/mnt/ggg",
+				getReferenceKey("/mnt/abc"): "/mnt/abc",
+				getReferenceKey("/mnt/def"): "/mnt/def",
+				getReferenceKey("/mnt/ggg"): "/mnt/ggg",
 			},
 		},
 	}
