@@ -228,7 +228,7 @@ func (j *juicefs) DelRefOfMountPod(volumeId, target string) error {
 
 loop:
 	err = func() error {
-		JLock.RLock()
+		JLock.Lock()
 		defer JLock.Unlock()
 
 		po, err := j.GetPod(pod.Name, pod.Namespace)

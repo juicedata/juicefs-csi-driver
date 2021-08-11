@@ -176,7 +176,7 @@ func TestHasRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasRef(tt.args.pod); got != tt.want {
+			if got := hasRef(tt.args.pod); got != tt.want {
 				t.Errorf("HasRef() = %v, want %v", got, tt.want)
 			}
 		})
