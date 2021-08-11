@@ -36,7 +36,7 @@ func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", NodeName, volumeId)
 }
 
-func HasRef(pod *corev1.Pod) bool {
+func hasRef(pod *corev1.Pod) bool {
 	for k := range pod.Annotations {
 		if strings.HasPrefix(k, "juicefs-") {
 			return true

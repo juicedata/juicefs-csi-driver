@@ -227,28 +227,33 @@ func (j *juicefs) DelRefOfMountPod(volumeId, target string) error {
 	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
 
 loop:
-	po, err := j.GetPod(pod.Name, pod.Namespace)
-	if err != nil {
-		return err
-	}
-	annotation := po.Annotations
-	if _, ok := annotation[key]; !ok {
-		klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
-	} else {
+	err = func() error {
+		JLock.RLock()
+		defer JLock.Unlock()
+
+		po, err := j.GetPod(pod.Name, pod.Namespace)
+		if err != nil {
+			return err
+		}
+		annotation := po.Annotations
+		if _, ok := annotation[key]; !ok {
+			klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
+			return nil
+		}
 		delete(annotation, key)
 		klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
 		po.Annotations = annotation
-		err = j.UpdatePod(po)
-		if err != nil && k8serrors.IsConflict(err) {
-			// if can't update pod because of conflict, retry
-			klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-			goto loop
-		} else if err != nil {
-			return err
-		}
+		return j.UpdatePod(po)
+	}()
+	if err != nil && k8serrors.IsConflict(err) {
+		// if can't update pod because of conflict, retry
+		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
+		goto loop
+	} else if err != nil {
+		return err
 	}
 
-	dealWithRefFunc := func(podName, namespace string) error {
+	deleteMountPod := func(podName, namespace string) error {
 		JLock.Lock()
 		defer JLock.Unlock()
 
@@ -257,7 +262,7 @@ loop:
 			return err
 		}
 
-		if HasRef(po) {
+		if hasRef(po) {
 			klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
 			return nil
 		}
@@ -274,13 +279,13 @@ loop:
 	if err != nil {
 		return err
 	}
-	if HasRef(newPod) {
+	if hasRef(newPod) {
 		klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
 		return nil
 	}
 	klog.V(5).Infof("DeleteRefOfMountPod: pod has no juicefs- refs.")
 	// if pod annotations has no "juicefs-" prefix, delete pod
-	return dealWithRefFunc(pod.Name, pod.Namespace)
+	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {

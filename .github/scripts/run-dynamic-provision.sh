@@ -20,8 +20,8 @@ function deploy_dynamic_provision() {
 }
 
 function check_pod_success() {
-  pod_name=$1
-  timeout=0
+  local pod_name=$1
+  local timeout=0
   echo "Check app ${pod_name} is ready or not."
   while true; do
     if [ $timeout -gt 60 ]; then
@@ -42,14 +42,13 @@ function check_pod_success() {
 }
 
 function check_pod_delete() {
-  pod_name=$1
-  timeout=0
+  local pod_name=$1
+  local timeout=0
   echo "Check app ${pod_name} is deleted or not."
   while true; do
     if [ $timeout -gt 60 ]; then
       echo "pod/${pod_name} is not deleted within 5min."
-      app=$(sudo microk8s.kubectl -n default get pods | grep ${pod_name} | awk '{print $1}')
-      sudo microk8s.kubectl -n default describe po app
+      sudo microk8s.kubectl -n default describe po ${pod_name}
       sudo microk8s.kubectl -n default describe pvc juicefs-pvc
       exit 1
     fi
@@ -65,7 +64,7 @@ function check_pod_delete() {
 }
 
 function check_mount_point() {
-  redis_db=$1
+  local redis_db=$1
   sudo juicefs mount -d "$JUICEFS_REDIS_URL/$redis_db" /jfs
   pv_count=$(ls /jfs | grep '^pvc-' | wc -l)
   if [ "x$pv_count" != x1 ]; then
