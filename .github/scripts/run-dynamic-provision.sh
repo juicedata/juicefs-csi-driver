@@ -119,8 +119,19 @@ function test_many_pods_in_one_pvc() {
     }
   done
   check_mount_point ${redis_db}
-  get_mount_pod_annotations
-  annotations_num=$?
+
+  volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName: |awk '{print $2}')
+  volume_id=$(sudo microk8s.kubectl get pv "${volume_name}" -oyaml |grep volumeHandle: | awk '{print $2}')
+  node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
+  mount_pod_name=juicefs-${node_name}-${volume_id}
+  echo "Mount pod name: " ${mount_pod_name}
+  echo "Check if mount pod is exist or not."
+  retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}')
+  if [ x$retval = x ]; then
+    echo "Can't find Pod ${mount_pod_name}."
+    exit 1
+  fi
+  annotations_num=$(sudo microk8s.kubectl -n kube-system get po ${mount_pod_name} -oyaml  | sed -n '/annotations:/,/creationTimestamp:/p' |sed  '$d' |grep juicefs- |awk '{print $1}' |wc -l)
   if [ x$annotations_num = x3 ]; then
     echo "Pod ${mount_pod_name} has 3 juicefs- annotation."
   else
@@ -129,9 +140,13 @@ function test_many_pods_in_one_pvc() {
   fi
 }
 
-function get_mount_pod_annotations() {
-  volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName |awk '{print $2}')
-  volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle | awk '{print $2}')
+function test_delete_one() {
+  echo "Check if it works well when delete one pod."
+  sudo microk8s.kubectl -n default delete po app-1
+  check_pod_delete app-1
+
+  volume_name=$(sudo microk8s.kubectl get pvc juicefs-pvc -oyaml |grep volumeName: |awk '{print $2}')
+  volume_id=$(sudo microk8s.kubectl get pv ${volume_name} -oyaml |grep volumeHandle: | awk '{print $2}')
   node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
   mount_pod_name=juicefs-${node_name}-${volume_id}
   echo "Mount pod name: " ${mount_pod_name}
@@ -142,15 +157,6 @@ function get_mount_pod_annotations() {
     exit 1
   fi
   annotations_num=$(sudo microk8s.kubectl -n kube-system get po ${mount_pod_name} -oyaml  | sed -n '/annotations:/,/creationTimestamp:/p' |sed  '$d' |grep juicefs- |awk '{print $1}' |wc -l)
-  return ${annotations_num}
-}
-
-function test_delete_one() {
-  echo "Check if it works well when delete one pod."
-  sudo microk8s.kubectl -n default delete po app-1
-  check_pod_delete app-1
-  get_mount_pod_annotations
-  annotations_num=$?
   if [ x$annotations_num = x2 ]; then
     echo "Pod ${mount_pod_name} has 2 juicefs- annotation."
   else
