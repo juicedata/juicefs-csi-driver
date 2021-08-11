@@ -26,8 +26,8 @@ function check_pod_success() {
   while true; do
     if [ $timeout -gt 60 ]; then
       echo "pod/${pod_name} is not ready within 5min."
-      app=$(sudo microk8s.kubectl -n default get pods | grep ${pod_name} | awk '{print $1}')
-      sudo microk8s.kubectl -n default describe po app
+      sudo microk8s.kubectl -n default describe po ${pod_name}
+      sudo microk8s.kubectl -n default describe pvc juicefs-pvc
       exit 1
     fi
     timeout=$(expr $timeout + 1)
