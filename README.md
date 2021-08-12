@@ -131,7 +131,7 @@ Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI D
 * If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`.
 * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.2"](./docs/upgrade-csi-driver.md).
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](./docs/upgrade-csi-driver.md).
 
 ### Before v0.10
 
