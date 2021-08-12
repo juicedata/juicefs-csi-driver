@@ -182,12 +182,8 @@ function test_delete_all() {
   node_name=$(sudo microk8s.kubectl get no | awk 'NR!=1' |sed -n '1p' |awk '{print $1}')
   mount_pod_name=juicefs-${node_name}-${volume_id}
   echo "Mount pod name: " ${mount_pod_name}
-  echo "Check if mount pod is exist or not."
-  retval=$(sudo microk8s.kubectl -n kube-system get pods | grep ${mount_pod_name} | awk '{print $1}' |wc -l)
-  if [ x$retval != x0 ]; then
-    echo "Pod ${mount_pod_name} is not deleted."
-    exit 1
-  fi
+
+  check_pod_delete ${mount_pod_name}
 }
 
 function main() {
