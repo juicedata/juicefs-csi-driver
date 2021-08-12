@@ -150,4 +150,4 @@ delete-dev: deploy-dev/k8s.yaml
 	kapp delete --app juicefs-csi-driver
 
 .PHONY: install-dev
-install-dev: image-dev push-dev deploy-dev/k8s.yaml deploy-dev
+install-dev: verify test image-dev push-dev deploy-dev/k8s.yaml deploy-dev

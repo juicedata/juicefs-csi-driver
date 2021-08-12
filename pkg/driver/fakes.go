@@ -18,7 +18,6 @@ package driver
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // NewFakeDriver creates a new mock driver used for testing
@@ -32,30 +31,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 		nodeService: nodeService{
 			juicefs:   fakeProvider,
 			nodeID:    "fake-node-id",
-			k8sClient: fakeK8sClient{},
+			k8sClient: juicefs.FakeClient,
 		},
 	}
-}
-
-type fakeK8sClient struct {
-}
-
-func (f fakeK8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
-	return nil, nil
-}
-
-func (f fakeK8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
-	return nil, nil
-}
-
-func (f fakeK8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
-	return nil
-}
-
-func (f fakeK8sClient) UpdatePod(pod *corev1.Pod) error {
-	return nil
-}
-
-func (f fakeK8sClient) DeletePod(pod *corev1.Pod) error {
-	return nil
 }

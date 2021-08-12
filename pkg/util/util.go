@@ -18,11 +18,6 @@ package util
 
 import (
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog"
-	k8sexec "k8s.io/utils/exec"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -60,44 +55,4 @@ func ContainsString(slice []string, s string) bool {
 		}
 	}
 	return false
-}
-
-func PathExist(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	} else if os.IsNotExist(err) {
-		return false
-	}
-	return false
-}
-
-func Copy(fromPath, toPath string) error {
-	if !PathExist(fromPath) {
-		return status.Errorf(codes.NotFound, "Path %v not found.", fromPath)
-	}
-
-	baseToPath := ""
-	if strings.HasSuffix(toPath, "/") {
-		baseToPath = toPath
-	} else {
-		pathStr := strings.Split(toPath, "/")
-		baseToPath = strings.Join(pathStr[:len(pathStr)-1], "/")
-	}
-	if !PathExist(baseToPath) {
-		err := os.MkdirAll(baseToPath, os.FileMode(0755))
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	exec := k8sexec.New()
-	args := []string{fromPath, toPath}
-	out, err := exec.Command("cp", args...).CombinedOutput()
-	klog.V(5).Infof("cp output: '%s'", out)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Can't cp %s %s: %v", fromPath, toPath, err)
-	}
-
-	return nil
 }

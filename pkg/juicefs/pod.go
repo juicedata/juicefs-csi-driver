@@ -36,6 +36,15 @@ func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", NodeName, volumeId)
 }
 
+func hasRef(pod *corev1.Pod) bool {
+	for k := range pod.Annotations {
+		if strings.HasPrefix(k, "juicefs-") {
+			return true
+		}
+	}
+	return false
+}
+
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
 	configs, env map[string]string) *corev1.Pod {
 	isPrivileged := true

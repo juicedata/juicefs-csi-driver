@@ -144,3 +144,203 @@ func TestIsPodHasResource(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPodReady(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.ContainersReady,
+								Status: corev1.ConditionTrue,
+							},
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.ContainersReady,
+								Status: corev1.ConditionFalse,
+							},
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPodReady(tt.args.pod); got != tt.want {
+				t.Errorf("IsPodReady() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPodError(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.ContainersReady,
+								Status: corev1.ConditionFalse,
+							},
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.ContainersReady,
+								Status: corev1.ConditionTrue,
+							},
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPodError(tt.args.pod); got != tt.want {
+				t.Errorf("IsPodError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsPodResourceError(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase:  corev1.PodFailed,
+						Reason: "OutOfCpu",
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.ContainersReady,
+								Status: corev1.ConditionFalse,
+							},
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-true2",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:    corev1.PodScheduled,
+								Status:  corev1.ConditionFalse,
+								Reason:  corev1.PodReasonUnschedulable,
+								Message: "Insufficient cpu",
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPodResourceError(tt.args.pod); got != tt.want {
+				t.Errorf("IsPodResourceError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
