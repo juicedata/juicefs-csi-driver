@@ -167,10 +167,6 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	klog.V(5).Infof("NodeUnpublishVolume: volume_id is %s", volumeId)
 
-	if err := d.juicefs.DelRefOfMountPod(volumeId, target); err != nil {
-		return &csi.NodeUnpublishVolumeResponse{}, err
-	}
-
 	var corruptedMnt bool
 	exists, err := mount.PathExists(target)
 	if err == nil {
@@ -191,12 +187,6 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
 	}
 
-	var refs []string
-	refs, err = getMountDeviceRefs(target, corruptedMnt)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
-	}
-
 	klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
 	if err = d.juicefs.Unmount(target); err != nil {
 		klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
@@ -211,14 +201,8 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		klog.V(5).Infof("Remove target directory %s failed: %q", target, err)
 	}
 
-	klog.V(5).Infof("NodeUnpublishVolume: unmounting ref for target %s", target)
-	// we can only unmount this when only one is left
-	// since the PVC might be used by more than one container
-	if err == nil && len(refs) == 1 {
-		klog.V(5).Infof("NodeUnpublishVolume: unmounting ref %s", refs[0])
-		if err := d.juicefs.JfsUnmount(refs[0]); err != nil {
-			klog.V(5).Infof("NodeUnpublishVolume: error unmounting mount ref %s, %v", refs[0], err)
-		}
+	if err := d.juicefs.DelRefOfMountPod(volumeId, target); err != nil {
+		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
