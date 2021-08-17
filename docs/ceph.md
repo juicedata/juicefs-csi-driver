@@ -38,7 +38,7 @@ ceph-test
 
 ## Create secret for Ceph configuration files
 
-Create a YAML file `ceph-conf.yaml` on the same Ceph node where above commands executed:
+Create a YAML file `ceph-conf.yaml` on the same Ceph node where below commands executed with replace `CEPH_CLUSTER_NAME`:
 
 ```yaml
 $ cat > ceph-conf.yaml <<EOF
@@ -49,8 +49,8 @@ metadata:
   namespace: kube-system
 type: Opaque
 data:
-  ceph.conf: $(base64 -w 0 /etc/ceph/ceph.conf)
-  ceph.client.admin.keyring: $(base64 -w 0 /etc/ceph/ceph.client.admin.keyring)
+  <CEPH_CLUSTER_NAME>.conf: $(base64 -w 0 /etc/ceph/ceph.conf)
+  <CEPH_CLUSTER_NAME>.client.admin.keyring: $(base64 -w 0 /etc/ceph/ceph.client.admin.keyring)
 EOF
 ```
 
