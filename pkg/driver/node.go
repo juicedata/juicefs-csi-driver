@@ -110,7 +110,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	options := make(map[string]string)
-	if req.GetReadonly() {
+	if req.GetReadonly() || req.VolumeCapability.AccessMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 		options["ro"] = ""
 	}
 	if m := volCap.GetMount(); m != nil {
