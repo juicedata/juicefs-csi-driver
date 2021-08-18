@@ -140,11 +140,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource, err := jfs.CreateVol(volumeID, volCtx["subPath"])
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
-	}
-
+	bindSource := jfs.GetBasePath()
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)

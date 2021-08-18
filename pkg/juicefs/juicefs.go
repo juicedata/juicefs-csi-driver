@@ -100,7 +100,7 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 		klog.V(5).Infof("CreateVol: volume not existed")
 		err := os.MkdirAll(volPath, os.FileMode(0777))
 		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q", volPath)
+			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
 		}
 	}
 	if fi, err := os.Stat(volPath); err != nil {
