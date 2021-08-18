@@ -137,6 +137,11 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
 				},
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s", mountPath)}},
+					},
+				},
 			}},
 			Volumes:  volumes,
 			NodeName: NodeName,
