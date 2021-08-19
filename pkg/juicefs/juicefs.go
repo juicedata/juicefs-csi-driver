@@ -19,7 +19,6 @@ package juicefs
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
@@ -555,7 +554,7 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 	}
 
 	key := getReferenceKey(target)
-	_, err := j.K8sClient.GetPod(podName, Namespace)
+	po, err := j.K8sClient.GetPod(podName, Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
 		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
@@ -571,6 +570,9 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 			if err != nil {
 				return err
 			}
+			if exist.DeletionTimestamp != nil {
+				return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
+			}
 			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
 			if err = j.addRefOfMount(target, exist); err != nil {
 				return err
@@ -580,6 +582,8 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 		}
 	} else if err != nil {
 		return err
+	} else if po.DeletionTimestamp != nil {
+		return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
 	}
 
 	// create pod successfully
@@ -622,23 +626,39 @@ func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSet
 
 func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
 	// add volumeId ref in pod annotation
-	// mount target hash as key
 	key := getReferenceKey(target)
 
-	JLock.Lock()
-	defer JLock.Unlock()
+loop:
+	err := func() error {
+		JLock.Lock()
+		defer JLock.Unlock()
 
-	annotation := pod.Annotations
-	if _, ok := annotation[key]; ok {
-		klog.V(5).Infof("addRefOfMount: Target ref [%s] in pod [%s] already exists.", target, pod.Name)
+		exist, err := j.K8sClient.GetPod(pod.Name, Namespace)
+		if err != nil {
+			return err
+		}
+		annotation := exist.Annotations
+		if _, ok := annotation[key]; ok {
+			klog.V(5).Infof("addRefOfMount: Target ref [%s] in pod [%s] already exists.", target, pod.Name)
+			return nil
+		}
+		if annotation == nil {
+			annotation = make(map[string]string)
+		}
+		annotation[key] = target
+		exist.Annotations = annotation
+		klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
+		if err := j.K8sClient.UpdatePod(exist); err != nil && k8serrors.IsConflict(err) {
+			klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", pod.Name, err)
+			return err
+		}
 		return nil
-	}
-	patchBody := make(map[string]interface{})
-	patchBody["metadata"] = map[string]map[string]string{"annotations": {key: target}}
-	payloadBytes, _ := json.Marshal(patchBody)
-	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
-	if err := j.K8sClient.PatchPod(pod, payloadBytes); err != nil && k8serrors.IsConflict(err) {
-		klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", pod.Name, err)
+	}()
+	if err != nil && k8serrors.IsConflict(err) {
+		// if can't update pod because of conflict, retry
+		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
+		goto loop
+	} else if err != nil {
 		return err
 	}
 	return nil
