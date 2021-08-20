@@ -47,7 +47,7 @@ From above output, the `spec.csi.volumeHandle` is the volume ID, i.e. `juicefs-v
 3. Find JuiceFS mount pod by node name and volume ID. For example:
 
 ```sh
-$ kubectl get pod -l app.kubernetes.io/name=juicefs-mount -o wide | grep 172.16.2.87 | grep juicefs-volume-abc
+$ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o wide | grep 172.16.2.87 | grep juicefs-volume-abc
 juicefs-172.16.2.87-juicefs-volume-abc   1/1     Running   0          20h    172.16.2.100   172.16.2.87   <none>           <none>
 ```
 
@@ -56,7 +56,7 @@ From above output, the name of JuiceFS mount pod is `juicefs-172.16.2.87-juicefs
 4. Get JuiceFS mount pod logs. For example:
 
 ```sh
-$ kubectl logs juicefs-172.16.2.87-juicefs-volume-abc
+$ kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
 ```
 
 5. Find any log contains `WARNING`, `ERROR` or `FATAL`.
@@ -106,7 +106,7 @@ wget  https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scri
 chmod a+x diagnose.sh
 ```
 
-3. Collect diagnose information using the script. For example, your juicefs csi driver is deployed in kube-system namespace, 
+3. Collect diagnose information using the script. For example, your juicefs csi driver is deployed in kube-system namespace,
 and you want to see information in node named `kube-node-2`.
 
 ```shell
