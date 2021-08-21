@@ -17,11 +17,10 @@ limitations under the License.
 package sanity
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/utils/mount"
 )
 
@@ -39,7 +38,7 @@ func (j *fakeJfsProvider) DelRefOfMountPod(volumeId, target string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[string]string, options []string, usePod bool) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 
@@ -64,7 +63,7 @@ func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSetting *juicefs.JfsSetting) (string, error) {
+func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
 	return "/jfs/fake", nil
 }
 
@@ -87,7 +86,7 @@ func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
 		return vol, nil
 	}
 
-	return "", status.Error(codes.AlreadyExists, "Volume already exists")
+	return fs.volumes[name], nil
 }
 
 func (fs *fakeJfs) DeleteVol(name string, secrets map[string]string) error {

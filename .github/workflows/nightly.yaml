@@ -45,16 +45,28 @@ jobs:
         sed -i -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:nightly@g" \
                -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
         ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh
-    - name: Setup secret env
+    - name: Set ce secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
         echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_REDIS_URL=redis://redis.default.svc.cluster.local:6379" >> $GITHUB_ENV
-    - name: Run dynamic-provisioning test
+    - name: Run ce test
       run: |
-        python3 .github/scripts/k8s_ci.py
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 k8s-ci.py
+    - name: Set ee secret env
+      run: |
+        echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
+        echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
+        echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_TOKEN=ZDhmN2ZkMDEzOGM3ZmE4MmMzNzE3MDAxNzFhODUxZWViNjRlYjRhOQ==" >> $GITHUB_ENV
+    - name: Run ee test
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 k8s-ci.py
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:

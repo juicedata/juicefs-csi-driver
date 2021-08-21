@@ -21,40 +21,41 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func init() {
-	juicefs.NodeName = os.Getenv("NODE_NAME")
-	juicefs.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
-	juicefs.PodName = os.Getenv("POD_NAME")
-	juicefs.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
-	juicefs.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
-	juicefs.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
-	if juicefs.PodName == "" || juicefs.Namespace == "" {
+	config.NodeName = os.Getenv("NODE_NAME")
+	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
+	config.PodName = os.Getenv("POD_NAME")
+	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
+	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
+	config.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
 	}
-	k8sclient, err := juicefs.NewClient()
+	k8sclient, err := k8s.NewClient()
 	if err != nil {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
 		os.Exit(0)
 	}
-	pod, err := k8sclient.GetPod(juicefs.PodName, juicefs.Namespace)
+	pod, err := k8sclient.GetPod(config.PodName, config.Namespace)
 	if err != nil {
-		klog.V(5).Infof("Can't get pod %s: %v", juicefs.PodName, err)
+		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
 		os.Exit(0)
 	}
 	for i := range pod.Spec.Containers {
 		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
-			juicefs.MountImage = pod.Spec.Containers[i].Image
+			config.MountImage = pod.Spec.Containers[i].Image
 			return
 		}
 	}
-	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", juicefs.PodName)
+	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", config.PodName)
 	os.Exit(0)
 }
 

@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package mount
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,7 +81,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	dir := corev1.HostPathDirectory
 	volumeMounts := []corev1.VolumeMount{{
 		Name:             "jfs-dir",
-		MountPath:        mountBase,
+		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
 		Name:             "jfs-root-dir",
@@ -92,7 +93,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		Name: "jfs-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: MountPointPath,
+				Path: config.MountPointPath,
 				Type: &dir,
 			},
 		},
@@ -100,7 +101,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		Name: "jfs-root-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: JFSConfigPath,
+				Path: config.JFSConfigPath,
 				Type: &dir,
 			},
 		},

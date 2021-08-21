@@ -14,7 +14,6 @@ function die() {
 
 function install_deps() {
     sudo apt-get install -y snapd curl netcat-openbsd bc dnsutils redis-tools librados2 python3
-    sudo pip install Jinja2==3.0.1
     sudo pip install kubernetes==18.20.0
     curl -fsSL -o /tmp/kustomize.tar.gz "$KUSTOMIZE_URL" \
         && tar -xf /tmp/kustomize.tar.gz -C /usr/local/bin \
@@ -23,6 +22,8 @@ function install_deps() {
     sudo snap install microk8s --classic
     sudo microk8s start && sudo microk8s enable dns storage rbac
     sudo mkdir $HOME/.kube
+    sudo touch $HOME/.kube/config
+    sudo chmod 777 $HOME/.kube/config
     sudo microk8s config > $HOME/.kube/config
 }
 

@@ -18,7 +18,7 @@ package controller
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -81,7 +81,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 
 func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
 	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
-	if !util.ContainsString(pod.GetFinalizers(), juicefs.Finalizer) {
+	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
 		// do nothing
 		return reconcile.Result{}, nil
 	}
@@ -89,7 +89,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	// todo
 
 	klog.V(5).Infof("Remove finalizer of pod %s namespace %s", pod.Name, pod.Namespace)
-	controllerutil.RemoveFinalizer(pod, juicefs.Finalizer)
+	controllerutil.RemoveFinalizer(pod, config.Finalizer)
 	if err := p.Client.Update(ctx, pod); err != nil {
 		return reconcile.Result{}, err
 	}

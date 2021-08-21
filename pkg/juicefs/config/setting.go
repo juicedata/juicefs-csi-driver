@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package config
 
 import (
 	"encoding/json"
@@ -24,7 +24,8 @@ import (
 )
 
 type JfsSetting struct {
-	IsCe bool
+	IsCe   bool
+	UsePod bool
 
 	Name    string `json:"name"`
 	MetaUrl string `json:"metaurl"`
@@ -39,7 +40,7 @@ type JfsSetting struct {
 	MountPodMemRequest string `json:"mount_pod_mem_request"`
 }
 
-func ParseSetting(secrets, volCtx map[string]string) (*JfsSetting, error) {
+func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{}
 	if secrets == nil {
 		return &jfsSetting, nil
@@ -52,6 +53,7 @@ func ParseSetting(secrets, volCtx map[string]string) (*JfsSetting, error) {
 	m, ok := secrets["metaurl"]
 	jfsSetting.MetaUrl = m
 	jfsSetting.IsCe = ok
+	jfsSetting.UsePod = usePod
 
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]

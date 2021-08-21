@@ -20,6 +20,8 @@ function main() {
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
       sudo microk8s.kubectl cp kube-system/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
         sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
+      sudo microk8s.kubectl cp kube-system/$node_pod:/usr/bin/juicefs /usr/bin/juicefs -c juicefs-plugin &&
+        sudo chmod a+x /usr/bin/juicefs && /usr/bin/juicefs -V
       echo "JuiceFS CSI is ready."
       break
     fi

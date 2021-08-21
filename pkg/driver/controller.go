@@ -79,7 +79,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// create volume
 	// 1. mount juicefs
-	jfs, err := d.juicefs.JfsMount(volumeId, "", secrets, nil, []string{})
+	jfs, err := d.juicefs.JfsMount(volumeId, "", secrets, nil, []string{}, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -88,12 +88,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	klog.V(5).Infof("CreateVolume: Creating volume %q", volumeId)
 	_, err = jfs.CreateVol(volumeId, subPath)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeId)
+		return nil, status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeId, err)
 	}
 
-	// 3. delete mount pod
-	if err := d.juicefs.DelRefOfMountPod(volumeId, ""); err != nil {
-		return &csi.CreateVolumeResponse{}, err
+	// 3. umount
+	if err = d.juicefs.JfsUnmount(jfs.GetBasePath()); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeId, err)
 	}
 
 	// set volume context
@@ -122,7 +122,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	jfs, err := d.juicefs.JfsMount(volumeID, "", secrets, nil, []string{})
+	jfs, err := d.juicefs.JfsMount(volumeID, "", secrets, nil, []string{}, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -134,8 +134,8 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	delete(d.vols, volumeID)
 
-	if err := d.juicefs.DelRefOfMountPod(volumeID, ""); err != nil {
-		return &csi.DeleteVolumeResponse{}, err
+	if err = d.juicefs.JfsUnmount(jfs.GetBasePath()); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }

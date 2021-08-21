@@ -14,21 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package mount
 
-var (
-	NodeName   = ""
-	Namespace  = ""
-	PodName    = ""
-	MountImage = ""
+import k8sMount "k8s.io/utils/mount"
 
-	MountPointPath       = "/var/lib/juicefs/volume"
-	JFSConfigPath        = "/var/lib/juicefs/config"
-	JFSMountPriorityName = ""
-)
-
-const (
-	PodTypeKey   = "app.kubernetes.io/name"
-	PodTypeValue = "juicefs-mount"
-	Finalizer    = "juicefs.com/finalizer"
-)
+type Interface interface {
+	k8sMount.Interface
+	JMount(volumeId, mountPath string, target string, options []string) error
+	JUmount(volumeId, target string) error
+	AddRefOfMount(target string, podName string) error
+}

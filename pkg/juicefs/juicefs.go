@@ -18,18 +18,16 @@ package juicefs
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -39,32 +37,22 @@ import (
 	"k8s.io/utils/mount"
 )
 
-const (
-	cliPath      = "/usr/bin/juicefs"
-	ceCliPath    = "/usr/local/bin/juicefs"
-	ceMountPath  = "/bin/mount.juicefs"
-	jfsMountPath = "/sbin/mount.juicefs"
-	mountBase    = "/jfs"
-)
-
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
+	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error)
 	JfsUnmount(mountPath string) error
-	DelRefOfMountPod(volumeId, target string) error
 	AuthFs(secrets map[string]string) ([]byte, error)
-	MountFs(volumeID string, target string, options []string, jfsSetting *JfsSetting) (string, error)
+	MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error)
 	Version() ([]byte, error)
 }
 
 type juicefs struct {
 	mount.SafeFormatAndMount
-	K8sClient
+	k8sclient.K8sClient
 }
 
 var _ Interface = &juicefs{}
-var JLock = sync.RWMutex{}
 
 type jfs struct {
 	Provider  *juicefs
@@ -137,7 +125,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 			Exec:      k8sexec.New(),
 		}
 	}
-	k8sClient, err := NewClient()
+	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
 		return nil, err
@@ -151,10 +139,10 @@ func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	jfsSecret, err := ParseSetting(secrets, volCtx)
+func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error) {
+	jfsSecret, err := config.ParseSetting(secrets, volCtx, usePod)
 	if err != nil {
-		klog.V(5).Infof("Parse settings error: %v", err)
+		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
 	source, isCe := secrets["metaurl"]
@@ -167,10 +155,6 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 		}
 		jfsSecret.Source = secrets["name"]
-		mountPath, err = j.MountFs(volumeID, target, options, jfsSecret)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-		}
 	} else {
 		stdoutStderr, err := j.ceFormat(secrets)
 		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
@@ -182,10 +166,10 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 			source = "redis://" + source
 		}
 		jfsSecret.Source = source
-		mountPath, err = j.MountFs(volumeID, target, options, jfsSecret)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-		}
+	}
+	mountPath, err = j.MountFs(volumeID, target, options, jfsSecret)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
 	return &jfs{
@@ -204,93 +188,10 @@ func (j *juicefs) JfsUnmount(mountPath string) (err error) {
 	return
 }
 
-func (j *juicefs) DelRefOfMountPod(volumeId, target string) error {
-	// check mount pod is need to delete
-	klog.V(5).Infof("DeleteRefOfMountPod: Check mount pod is need to delete or not.")
-
-	pod, err := j.GetPod(GeneratePodNameByVolumeId(volumeId), Namespace)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.V(5).Infof("DeleteRefOfMountPod: Get pod of volumeId %s err: %v", volumeId, err)
-		return err
-	}
-
-	// if mount pod not exists.
-	if pod == nil {
-		klog.V(5).Infof("DeleteRefOfMountPod: Mount pod of volumeId %v not exists.", volumeId)
-		return nil
-	}
-
-	klog.V(5).Infof("DeleteRefOfMountPod: Delete target ref [%s] in pod [%s].", target, pod.Name)
-
-	key := getReferenceKey(target)
-	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
-
-loop:
-	err = func() error {
-		JLock.Lock()
-		defer JLock.Unlock()
-
-		po, err := j.GetPod(pod.Name, pod.Namespace)
-		if err != nil {
-			return err
-		}
-		annotation := po.Annotations
-		if _, ok := annotation[key]; !ok {
-			klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
-			return nil
-		}
-		delete(annotation, key)
-		klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
-		po.Annotations = annotation
-		return j.UpdatePod(po)
-	}()
-	if err != nil && k8serrors.IsConflict(err) {
-		// if can't update pod because of conflict, retry
-		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-		goto loop
-	} else if err != nil {
-		return err
-	}
-
-	deleteMountPod := func(podName, namespace string) error {
-		JLock.Lock()
-		defer JLock.Unlock()
-
-		po, err := j.GetPod(podName, namespace)
-		if err != nil {
-			return err
-		}
-
-		if hasRef(po) {
-			klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
-			return nil
-		}
-
-		klog.V(5).Infof("DeleteRefOfMountPod: Pod of volumeId %v has not refs, delete it.", volumeId)
-		if err := j.DeletePod(po); err != nil {
-			klog.V(5).Infof("DeleteRefOfMountPod: Delete pod of volumeId %s error: %v", volumeId, err)
-			return err
-		}
-		return nil
-	}
-
-	newPod, err := j.GetPod(pod.Name, pod.Namespace)
-	if err != nil {
-		return err
-	}
-	if hasRef(newPod) {
-		klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
-		return nil
-	}
-	klog.V(5).Infof("DeleteRefOfMountPod: pod has no juicefs- refs.")
-	// if pod annotations has no "juicefs-" prefix, delete pod
-	return deleteMountPod(pod.Name, pod.Namespace)
-}
-
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
 	if isCeMount {
-		return j.Exec.Command(ceCliPath, "rmr", directory).CombinedOutput()
+		return j.Exec.Command(config.CeCliPath, "rmr", directory).CombinedOutput()
 	}
 	return j.Exec.Command("rm", "-rf", directory).CombinedOutput()
 }
@@ -362,13 +263,21 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 			}
 		}
 	}
-	klog.V(5).Infof("AuthFs: cmd %q, args %#v", cliPath, argsStripped)
-	return j.Exec.Command(cliPath, args...).CombinedOutput()
+	klog.V(5).Infof("AuthFs: cmd %q, args %#v", config.CliPath, argsStripped)
+	return j.Exec.Command(config.CliPath, args...).CombinedOutput()
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *JfsSetting) (string, error) {
-	mountPath := filepath.Join(mountBase, volumeID)
+func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+	var mountPath string
+	var mountUtil podmount.Interface
+	if jfsSetting.UsePod {
+		mountPath = filepath.Join(config.PodMountBase, volumeID)
+		mountUtil = podmount.NewPodMount(jfsSetting, j.K8sClient)
+	} else {
+		mountPath = filepath.Join(config.MountBase, volumeID)
+		mountUtil = podmount.NewProcessMount(jfsSetting)
+	}
 
 	exists, err := mount.PathExists(mountPath)
 	if err != nil && mount.IsCorruptedMnt(err) {
@@ -383,7 +292,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = j.jMount(volumeID, mountPath, target, options, jfsSetting)
+		err = mountUtil.JMount(volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -398,7 +307,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = j.jMount(volumeID, mountPath, target, options, jfsSetting)
+		err = mountUtil.JMount(volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -407,13 +316,10 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 
-	pod, err := j.K8sClient.GetPod(GeneratePodNameByVolumeId(volumeID), Namespace)
-	if err != nil {
-		klog.V(5).Infof("Can't find pod of volumeId %s but mount point %q already exist.", volumeID, mountPath)
-		return mountPath, err
+	if jfsSetting.UsePod {
+		klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
+		err = mountUtil.AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeID))
 	}
-	klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
-	err = j.addRefOfMount(target, pod)
 	return mountPath, err
 }
 
@@ -433,7 +339,7 @@ func (j *juicefs) Upgrade() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	err := exec.CommandContext(ctx, cliPath, "version", "-u").Run()
+	err := exec.CommandContext(ctx, config.CliPath, "version", "-u").Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		klog.V(5).Infof("Upgrade: did not finish in %v", timeout)
 		return
@@ -448,7 +354,7 @@ func (j *juicefs) Upgrade() {
 }
 
 func (j *juicefs) Version() ([]byte, error) {
-	return j.Exec.Command(cliPath, "version").CombinedOutput()
+	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
 func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
@@ -492,180 +398,6 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	}
 	args = append(args, secrets["metaurl"], secrets["name"])
 	argsStripped = append(argsStripped, "[metaurl]", secrets["name"])
-	klog.V(5).Infof("ceFormat: cmd %q, args %#v", ceCliPath, argsStripped)
-	return j.Exec.Command(ceCliPath, args...).CombinedOutput()
-}
-
-func (j *juicefs) jMount(volumeId, mountPath string, target string, options []string, jfsSetting *JfsSetting) error {
-	cmd := ""
-	if jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
-		mountArgs := []string{ceMountPath, jfsSetting.Source, mountPath}
-		options = append(options, "metrics=0.0.0.0:9567")
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		cmd = strings.Join(mountArgs, " ")
-	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, mountPath)
-		mountArgs := []string{jfsMountPath, jfsSetting.Source, mountPath}
-		options = append(options, "foreground")
-		if len(options) > 0 {
-			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		}
-		cmd = strings.Join(mountArgs, " ")
-	}
-
-	if exist, err := mount.PathExists(mountPath); err != nil {
-		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", mountPath, err)
-	} else if !exist {
-		if err = os.MkdirAll(mountPath, os.FileMode(0755)); err != nil {
-			return status.Errorf(codes.Internal, "Could not create dir %q: %v", mountPath, err)
-		}
-	}
-
-	if notMounted, err := j.IsLikelyNotMountPoint(mountPath); err != nil {
-		return err
-	} else if !notMounted {
-		err = j.Unmount(mountPath)
-		if err != nil {
-			klog.V(5).Infof("Unmount before mount failed: %v", err)
-			return err
-		}
-		klog.V(5).Infof("Unmount %v", mountPath)
-	}
-
-	return j.waitUntilMount(volumeId, target, mountPath, cmd, jfsSetting)
-}
-
-func (j *juicefs) waitUntilMount(volumeId, target, mountPath, cmd string, jfsSetting *JfsSetting) error {
-	podName := GeneratePodNameByVolumeId(volumeId)
-	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
-	podResource := corev1.ResourceRequirements{}
-	config := make(map[string]string)
-	env := make(map[string]string)
-	if jfsSetting != nil {
-		podResource = parsePodResources(
-			jfsSetting.MountPodCpuLimit,
-			jfsSetting.MountPodMemLimit,
-			jfsSetting.MountPodCpuRequest,
-			jfsSetting.MountPodMemRequest,
-		)
-		config = jfsSetting.Configs
-		env = jfsSetting.Envs
-	}
-
-	key := getReferenceKey(target)
-	po, err := j.K8sClient.GetPod(podName, Namespace)
-	if err != nil && k8serrors.IsNotFound(err) {
-		// need create
-		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
-		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env)
-		if newPod.Annotations == nil {
-			newPod.Annotations = make(map[string]string)
-		}
-		newPod.Annotations[key] = target
-		if _, e := j.K8sClient.CreatePod(newPod); e != nil && k8serrors.IsAlreadyExists(e) {
-			// add ref of pod when pod exists
-			klog.V(5).Infof("waitUtilMount: Pod %s already exist.", podName)
-			exist, err := j.K8sClient.GetPod(podName, Namespace)
-			if err != nil {
-				return err
-			}
-			if exist.DeletionTimestamp != nil {
-				return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
-			}
-			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
-			if err = j.addRefOfMount(target, exist); err != nil {
-				return err
-			}
-		} else if e != nil {
-			return e
-		}
-	} else if err != nil {
-		return err
-	} else if po.DeletionTimestamp != nil {
-		return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
-	}
-
-	// create pod successfully
-	// Wait until the mount pod is ready
-	for i := 0; i < 30; i++ {
-		pod, err := j.K8sClient.GetPod(podName, Namespace)
-		if err != nil {
-			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
-		}
-		if util.IsPodReady(pod) {
-			klog.V(5).Infof("waitUtilMount: Pod %v is successful", volumeId)
-			// add volumeId ref in configMap
-			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
-			return j.addRefOfMount(target, pod)
-		} else if util.IsPodResourceError(pod) {
-			klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
-			if !util.IsPodHasResource(*pod) {
-				return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
-			}
-
-			// if pod is failed because of resource, delete resource and deploy pod again.
-			klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
-			if err := j.K8sClient.DeletePod(pod); err != nil {
-				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
-			}
-
-			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(podName, cmd, mountPath, podResource, jfsSetting.Configs, jfsSetting.Envs)
-			newPod.Annotations = pod.Annotations
-			util.DeleteResourceOfPod(newPod)
-			klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
-			if _, err := j.K8sClient.CreatePod(newPod); err != nil {
-				return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
-			}
-		}
-		time.Sleep(time.Millisecond * 500)
-	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 15 seconds", volumeId)
-}
-
-func (j *juicefs) addRefOfMount(target string, pod *corev1.Pod) error {
-	// add volumeId ref in pod annotation
-	key := getReferenceKey(target)
-
-loop:
-	err := func() error {
-		JLock.Lock()
-		defer JLock.Unlock()
-
-		exist, err := j.K8sClient.GetPod(pod.Name, Namespace)
-		if err != nil {
-			return err
-		}
-		annotation := exist.Annotations
-		if _, ok := annotation[key]; ok {
-			klog.V(5).Infof("addRefOfMount: Target ref [%s] in pod [%s] already exists.", target, pod.Name)
-			return nil
-		}
-		if annotation == nil {
-			annotation = make(map[string]string)
-		}
-		annotation[key] = target
-		exist.Annotations = annotation
-		klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", pod.Name, target)
-		if err := j.K8sClient.UpdatePod(exist); err != nil && k8serrors.IsConflict(err) {
-			klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", pod.Name, err)
-			return err
-		}
-		return nil
-	}()
-	if err != nil && k8serrors.IsConflict(err) {
-		// if can't update pod because of conflict, retry
-		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-		goto loop
-	} else if err != nil {
-		return err
-	}
-	return nil
-}
-
-func getReferenceKey(target string) string {
-	h := sha256.New()
-	h.Write([]byte(target))
-	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
+	klog.V(5).Infof("ceFormat: cmd %q, args %#v", config.CeCliPath, argsStripped)
+	return j.Exec.Command(config.CeCliPath, args...).CombinedOutput()
 }

@@ -1,20 +1,22 @@
 import base64
 import os
+import subprocess
 import time
 
 from kubernetes import config, client, watch
 
 KUBE_SYSTEM = "kube-system"
-META_URL = os.getenv("JUICEFS_REDIS_URL") + "/1" if os.getenv("JUICEFS_REDIS_URL") != "" else ""
+META_URL = os.getenv("JUICEFS_REDIS_URL") + "/1" if os.getenv("JUICEFS_REDIS_URL") is not None \
+                                                    and os.getenv("JUICEFS_REDIS_URL") != "" else ""
 ACCESS_KEY = os.getenv("JUICEFS_ACCESS_KEY")
 SECRET_KEY = os.getenv("JUICEFS_SECRET_KEY")
 STORAGE = os.getenv("JUICEFS_STORAGE")
 BUCKET = os.getenv("JUICEFS_BUCKET")
 TOKEN = os.getenv("JUICEFS_TOKEN")
-RESOURCE_PREFIX = "ce-" if META_URL != "" else "ee-"
+RESOURCE_PREFIX = "ce-" if TOKEN is None else "ee-"
 
-SECRET_NAME = "ce-juicefs-secret" if META_URL != "" else "ee-juicefs-secret"
-STORAGECLASS_NAME = "ce-juicefs-sc" if META_URL != "" else "ee-juicefs-sc"
+SECRET_NAME = "ce-juicefs-secret" if os.getenv("JUICEFS_NAME") is None else os.getenv("JUICEFS_NAME")
+STORAGECLASS_NAME = "ce-juicefs-sc" if TOKEN is None else "ee-juicefs-sc"
 SECRETs = []
 STORAGECLASSs = []
 DEPLOYMENTs = []
@@ -46,7 +48,7 @@ class Secret:
         else:
             data = {
                 "name": base64.b64encode(self.secret_name.encode('utf-8')).decode("utf-8"),
-                "token": base64.b64encode(self.token.encode('utf-8')).decode("utf-8"),
+                "token": self.token,
                 "accesskey": base64.b64encode(self.access_key.encode('utf-8')).decode("utf-8"),
                 "secretkey": base64.b64encode(self.secret_key.encode('utf-8')).decode("utf-8"),
                 "storage": base64.b64encode(self.storage_name.encode('utf-8')).decode("utf-8"),
@@ -167,6 +169,10 @@ class PV:
     def delete(self):
         client.CoreV1Api().delete_persistent_volume(name=self.name)
         PVs.remove(self)
+
+    def get_volume_id(self):
+        p = client.CoreV1Api().read_persistent_volume(name=self.name)
+        return p.spec.csi.volume_handle
 
 
 class Deployment:
@@ -296,14 +302,34 @@ class Pod:
         return po.metadata.deletion_timestamp != ""
 
 
-def check_mount_point(volume_id):
-    os.system("juicefs mount -d {} /jfs".format(META_URL))
+def check_mount_point(volume_id, is_static=False):
+    print("mount /jfs.")
+    if TOKEN is None:
+        subprocess.run(["sudo", "juicefs", "mount", "-d", META_URL, "/jfs"])
+    else:
+        subprocess.run(
+            ["sudo", "/usr/bin/juicefs", "auth", SECRET_NAME, "--token", base64.b64decode(TOKEN.encode("utf-8")),
+             "--accesskey", ACCESS_KEY, "--secretkey", SECRET_KEY, "--bucket", BUCKET, SECRET_NAME])
+        subprocess.run(["sudo", "/usr/bin/juicefs", "mount", "-d", SECRET_NAME, "/jfs"])
+
+    check_path = "/jfs/{}/out.txt".format(volume_id) if not is_static else "/jfs/out.txt"
     for i in range(0, 60):
-        f = open("/jfs/{}/out.txt".format(volume_id))
+        try:
+            f = open(check_path)
+        except FileNotFoundError:
+            print("Can't find file: {}".format(check_path))
+            time.sleep(5)
+            continue
         context = f.read(1)
         if context is not None and context != "":
+            f.close()
+            print("umount /jfs.")
+            subprocess.run(["sudo", "umount", "/jfs"])
             return True
         time.sleep(5)
+        f.close()
+    print("umount /jfs.")
+    subprocess.run(["sudo", "umount", "/jfs"])
     return False
 
 
@@ -370,13 +396,13 @@ def test_deployment_using_storage_rw():
     if not result:
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
-    # check mount point
-    print("check mount point..")
-    volume_id = pvc.get_volume_id()
-    print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    # # check mount point
+    # print("check mount point..")
+    # volume_id = pvc.get_volume_id()
+    # print("get volume_id {}".format(volume_id))
+    # result = check_mount_point(volume_id)
+    # if not result:
+    #     raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
     print("test pass.")
     return
 
@@ -397,14 +423,6 @@ def test_deployment_using_storage_ro():
     result = pod.watch_for_success()
     if not result:
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
-
-    # check mount point
-    print("check mount point..")
-    volume_id = pvc.get_volume_id()
-    print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     print("test pass.")
     return
@@ -432,12 +450,12 @@ def test_deployment_use_pv_rw():
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
-    print("check mount point..")
-    volume_id = pvc.get_volume_id()
-    print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    # print("check mount point..")
+    # volume_id = pv.get_volume_id()
+    # print("get volume_id {}".format(volume_id))
+    # result = check_mount_point(volume_id, True)
+    # if not result:
+    #     raise Exception("mount point of /jfs/out.txt are not ready within 5 min.")
 
     print("test pass.")
     return
@@ -464,14 +482,6 @@ def test_deployment_use_pv_ro():
     if not result:
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
-    # check mount point
-    print("check mount point..")
-    volume_id = pvc.get_volume_id()
-    print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-
     print("test pass.")
     return
 
@@ -493,13 +503,8 @@ def test_delete_one():
     if not result:
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
-    # check mount point
-    print("check mount point..")
     volume_id = pvc.get_volume_id()
     print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # check mount pod refs
     mount_pod_name = get_mount_pod_name(volume_id)
@@ -544,13 +549,8 @@ def test_delete_all():
     if not result:
         raise Exception("pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
-    # check mount point
-    print("check mount point..")
     volume_id = pvc.get_volume_id()
     print("get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
-    if not result:
-        raise Exception("mount point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # check mount pod refs
     mount_pod_name = get_mount_pod_name(volume_id)
