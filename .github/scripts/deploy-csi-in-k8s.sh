@@ -18,10 +18,10 @@ function main() {
     if [ $count = 0 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
-      sudo microk8s.kubectl cp kube-system/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
-        sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
-      sudo microk8s.kubectl cp kube-system/$node_pod:/usr/bin/juicefs /usr/bin/juicefs -c juicefs-plugin &&
-        sudo chmod a+x /usr/bin/juicefs && /usr/bin/juicefs -V
+      sudo microk8s.kubectl cp kube-system/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin && \
+          sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
+      sudo microk8s.kubectl cp kube-system/$node_pod:/usr/bin/juicefs /usr/bin/juicefs -c juicefs-plugin && \
+          sudo chmod a+x /usr/bin/juicefs && /usr/bin/juicefs version
       echo "JuiceFS CSI is ready."
       break
     fi

@@ -35,19 +35,25 @@ jobs:
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
         echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
-        echo "JUICEFS_REDIS_URL=redis://redis.default.svc.cluster.local:6379" >> $GITHUB_ENV
+        echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
+        echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
+        echo "IS_CE=True" >> $GITHUB_ENV
     - name: Run ce test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 k8s-ci.py
     - name: Set ee secret env
+      env:
+        JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
         echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
-        echo "JUICEFS_TOKEN=ZDhmN2ZkMDEzOGM3ZmE4MmMzNzE3MDAxNzFhODUxZWViNjRlYjRhOQ==" >> $GITHUB_ENV
+        echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
+        echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
+        echo "IS_CE=False" >> $GITHUB_ENV
     - name: Run ee test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
