@@ -19,19 +19,20 @@ package driver
 import (
 	"context"
 	"fmt"
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog"
-	"k8s.io/utils/mount"
 	"os"
 	"os/exec"
 	"reflect"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog"
+	"k8s.io/utils/mount"
+
+	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 )
 
 const (

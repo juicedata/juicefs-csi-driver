@@ -19,9 +19,9 @@ package mount
 import (
 	"crypto/sha256"
 	"fmt"
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"strings"
+	"time"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +29,10 @@ import (
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
-	"strings"
-	"time"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodMount struct {

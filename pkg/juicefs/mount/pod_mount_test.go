@@ -17,13 +17,15 @@ limitations under the License.
 package mount
 
 import (
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"reflect"
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/mount"
-	"reflect"
-	"testing"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 )
 
 var test1 = &corev1.Pod{

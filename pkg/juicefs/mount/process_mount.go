@@ -17,17 +17,19 @@ limitations under the License.
 package mount
 
 import (
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog"
-	k8sexec "k8s.io/utils/exec"
-	k8sMount "k8s.io/utils/mount"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
+	k8sMount "k8s.io/utils/mount"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type ProcessMount struct {
