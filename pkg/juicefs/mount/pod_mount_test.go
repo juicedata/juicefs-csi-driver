@@ -14,14 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package mount
 
 import (
+	"reflect"
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/mount"
-	"reflect"
-	"testing"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 )
 
 var test1 = &corev1.Pod{
@@ -81,20 +85,20 @@ var test7 = &corev1.Pod{
 }
 
 func setup() {
-	FakeClient.Flush()
-	NodeName = "test-node"
-	Namespace = "kube-system"
-	_, _ = FakeClient.CreatePod(test1)
-	_, _ = FakeClient.CreatePod(test2)
-	_, _ = FakeClient.CreatePod(test3)
-	_, _ = FakeClient.CreatePod(test4)
-	_, _ = FakeClient.CreatePod(test5)
-	_, _ = FakeClient.CreatePod(test6)
-	_, _ = FakeClient.CreatePod(test7)
+	k8sclient.FakeClient.Flush()
+	jfsConfig.NodeName = "test-node"
+	jfsConfig.Namespace = "kube-system"
+	_, _ = k8sclient.FakeClient.CreatePod(test1)
+	_, _ = k8sclient.FakeClient.CreatePod(test2)
+	_, _ = k8sclient.FakeClient.CreatePod(test3)
+	_, _ = k8sclient.FakeClient.CreatePod(test4)
+	_, _ = k8sclient.FakeClient.CreatePod(test5)
+	_, _ = k8sclient.FakeClient.CreatePod(test6)
+	_, _ = k8sclient.FakeClient.CreatePod(test7)
 }
 
 func teardown() {
-	FakeClient.Flush()
+	k8sclient.FakeClient.Flush()
 }
 
 func Test_juicefs_addRefOfMount(t *testing.T) {
@@ -102,11 +106,12 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 	setup()
 	type fields struct {
 		SafeFormatAndMount mount.SafeFormatAndMount
-		K8sClient          K8sClient
+		jfsSetting         *jfsConfig.JfsSetting
+		K8sClient          k8sclient.K8sClient
 	}
 	type args struct {
-		target string
-		pod    *corev1.Pod
+		target  string
+		podName string
 	}
 	tests := []struct {
 		name    string
@@ -118,11 +123,12 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 			name: "test-nil",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				jfsSetting:         &jfsConfig.JfsSetting{},
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
-				target: "/mnt/abc",
-				pod:    test1,
+				target:  "/mnt/abc",
+				podName: test1.Name,
 			},
 			wantErr: false,
 		},
@@ -130,44 +136,50 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 			name: "test2",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				jfsSetting:         &jfsConfig.JfsSetting{},
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
-				target: "/mnt/abc",
-				pod:    test2,
+				target:  "/mnt/abc",
+				podName: test2.Name,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			j := &juicefs{
+			key := getReferenceKey(tt.args.target)
+			old, err := k8sclient.FakeClient.GetPod(tt.args.podName, jfsConfig.Namespace)
+			if err != nil {
+				t.Errorf("Can't get pod: %v", tt.args.podName)
+			}
+			if old.Annotations == nil {
+				old.Annotations = make(map[string]string)
+			}
+			old.Annotations[key] = tt.args.target
+			p := &PodMount{
 				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
+				jfsSetting:         tt.fields.jfsSetting,
 				K8sClient:          tt.fields.K8sClient,
 			}
-			if err := j.addRefOfMount(tt.args.target, tt.args.pod); (err != nil) != tt.wantErr {
-				t.Errorf("addRefOfMount() error = %v, wantErr %v", err, tt.wantErr)
+			if err := p.AddRefOfMount(tt.args.target, tt.args.podName); (err != nil) != tt.wantErr {
+				t.Errorf("AddRefOfMount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			key := getReferenceKey(tt.args.target)
-			wanted := tt.args.pod
-			if wanted.Annotations == nil {
-				wanted.Annotations = make(map[string]string)
-			}
-			wanted.Annotations[key] = tt.args.target
-			newPod, _ := FakeClient.GetPod(tt.args.pod.Name, tt.args.pod.Namespace)
-			if !reflect.DeepEqual(newPod.Annotations, wanted.Annotations) {
-				t.Errorf("addRefOfMount err, wanted: %v, got: %v", wanted, tt.args.pod)
+			newPod, _ := k8sclient.FakeClient.GetPod(tt.args.podName, jfsConfig.Namespace)
+			if !reflect.DeepEqual(newPod.Annotations, old.Annotations) {
+				t.Errorf("addRefOfMount err, wanted: %v, got: %v", old.Annotations, newPod.Annotations)
 			}
 		})
 	}
 }
 
-func Test_juicefs_DelRefOfMountPod(t *testing.T) {
+func Test_juicefs_JUmount(t *testing.T) {
 	teardown()
 	setup()
 	type fields struct {
 		SafeFormatAndMount mount.SafeFormatAndMount
-		K8sClient          K8sClient
+		jfsSetting         *jfsConfig.JfsSetting
+		K8sClient          k8sclient.K8sClient
 	}
 	type args struct {
 		volumeId string
@@ -185,7 +197,7 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 			name: "test-delete",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId: "c",
@@ -199,7 +211,7 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 			name: "test-delete2",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId: "d",
@@ -213,7 +225,7 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 			name: "test-true",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId: "e",
@@ -229,7 +241,7 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 			name: "test-delete3",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId: "f",
@@ -242,14 +254,15 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			j := &juicefs{
+			p := &PodMount{
 				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
+				jfsSetting:         tt.fields.jfsSetting,
 				K8sClient:          tt.fields.K8sClient,
 			}
-			if err := j.DelRefOfMountPod(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
-				t.Errorf("DelRefOfMountPod() error = %v, wantErr %v", err, tt.wantErr)
+			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
+				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			got, _ := FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), Namespace)
+			got, _ := k8sclient.FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
 			}
@@ -263,14 +276,15 @@ func Test_juicefs_DelRefOfMountPod(t *testing.T) {
 func Test_juicefs_waitUntilMount(t *testing.T) {
 	type fields struct {
 		SafeFormatAndMount mount.SafeFormatAndMount
-		K8sClient          K8sClient
+		jfsSetting         *jfsConfig.JfsSetting
+		K8sClient          k8sclient.K8sClient
 	}
 	type args struct {
 		volumeId   string
 		target     string
 		mountPath  string
 		cmd        string
-		jfsSetting *JfsSetting
+		jfsSetting *jfsConfig.JfsSetting
 	}
 	tests := []struct {
 		name     string
@@ -283,7 +297,8 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 			name: "test-new",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				jfsSetting:         &jfsConfig.JfsSetting{},
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId:   "h",
@@ -299,7 +314,8 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 			name: "test-exists",
 			fields: fields{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          FakeClient,
+				jfsSetting:         &jfsConfig.JfsSetting{},
+				K8sClient:          k8sclient.FakeClient,
 			},
 			args: args{
 				volumeId:   "g",
@@ -318,15 +334,15 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			j := &juicefs{
+			p := &PodMount{
 				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
+				jfsSetting:         tt.fields.jfsSetting,
 				K8sClient:          tt.fields.K8sClient,
 			}
-			if err := j.waitUntilMount(tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd, tt.args.jfsSetting); (err != nil) != tt.wantErr {
+			if err := p.waitUntilMount(tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {
 				t.Errorf("waitUntilMount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
-			newPod, _ := FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), Namespace)
+			newPod, _ := k8sclient.FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
 				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
 			}

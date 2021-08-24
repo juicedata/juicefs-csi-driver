@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package mount
 
 import (
 	"fmt"
@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type ConfigSecretVolume struct {
@@ -33,7 +35,7 @@ type ConfigSecretVolume struct {
 }
 
 func GeneratePodNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s-%s", NodeName, volumeId)
+	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
 }
 
 func hasRef(pod *corev1.Pod) bool {
@@ -54,7 +56,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 
 	volumeMounts := []corev1.VolumeMount{{
 		Name:             "jfs-dir",
-		MountPath:        mountBase,
+		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
 		Name:             "jfs-root-dir",
@@ -66,7 +68,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		Name: "jfs-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: MountPointPath,
+				Path: config.MountPointPath,
 				Type: &dir,
 			},
 		},
@@ -74,7 +76,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		Name: "jfs-root-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: JFSConfigPath,
+				Path: config.JFSConfigPath,
 				Type: &dir,
 			},
 		},
@@ -105,16 +107,16 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	var pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
-			Namespace: Namespace,
+			Namespace: config.Namespace,
 			Labels: map[string]string{
-				PodTypeKey: PodTypeValue,
+				config.PodTypeKey: config.PodTypeValue,
 			},
 			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   MountImage,
+				Image:   config.MountImage,
 				Command: []string{"sh", "-c", cmd},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
@@ -144,12 +146,12 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 				},
 			}},
 			Volumes:  volumes,
-			NodeName: NodeName,
+			NodeName: config.NodeName,
 		},
 	}
-	controllerutil.AddFinalizer(pod, Finalizer)
-	if JFSMountPriorityName != "" {
-		pod.Spec.PriorityClassName = JFSMountPriorityName
+	controllerutil.AddFinalizer(pod, config.Finalizer)
+	if config.JFSMountPriorityName != "" {
+		pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	}
 	i := 1
 	for k, v := range configs {

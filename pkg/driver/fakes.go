@@ -18,6 +18,7 @@ package driver
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 )
 
 // NewFakeDriver creates a new mock driver used for testing
@@ -31,7 +32,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 		nodeService: nodeService{
 			juicefs:   fakeProvider,
 			nodeID:    "fake-node-id",
-			k8sClient: juicefs.FakeClient,
+			k8sClient: k8sclient.FakeClient,
 		},
 	}
 }

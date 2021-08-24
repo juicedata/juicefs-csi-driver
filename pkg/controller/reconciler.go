@@ -18,13 +18,15 @@ package controller
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type PodReconciler struct {
@@ -42,14 +44,14 @@ func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	// check label
-	if value, ok := pod.Labels[juicefs.PodTypeKey]; !ok || value != juicefs.PodTypeValue {
+	if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 		klog.V(6).Infof("Pod %s is not JuiceFS mount pod. ignore.", pod.Name)
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// check nodeName
-	if pod.Spec.NodeName != juicefs.NodeName {
-		klog.V(6).Infof("Pod %s is not this node: %s. ignore.", pod.Name, juicefs.NodeName)
+	if pod.Spec.NodeName != config.NodeName {
+		klog.V(6).Infof("Pod %s is not this node: %s. ignore.", pod.Name, config.NodeName)
 		return reconcile.Result{Requeue: true}, nil
 	}
 

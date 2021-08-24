@@ -19,16 +19,20 @@ package driver
 import (
 	"context"
 	"fmt"
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog"
-	"k8s.io/utils/mount"
 	"os"
 	"os/exec"
 	"reflect"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog"
+	"k8s.io/utils/mount"
+
+	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 )
 
 const (
@@ -42,7 +46,7 @@ var (
 type nodeService struct {
 	juicefs   juicefs.Interface
 	nodeID    string
-	k8sClient juicefs.K8sClient
+	k8sClient k8sclient.K8sClient
 }
 
 func newNodeService(nodeID string) (*nodeService, error) {
@@ -57,7 +61,7 @@ func newNodeService(nodeID string) (*nodeService, error) {
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
-	k8sClient, err := juicefs.NewClient()
+	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
 		return nil, err
@@ -86,7 +90,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
 
 	volumeID := req.GetVolumeId()
-
 	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeID)
 
 	target := req.GetTargetPath()
@@ -135,7 +138,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions)
+	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions, true)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -144,7 +147,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
-
 	klog.V(5).Infof("NodePublishVolume: binding %s at %s with options %v", bindSource, target, mountOptions)
 	if err := d.juicefs.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
 		os.Remove(target)
@@ -201,7 +203,8 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		klog.V(5).Infof("Remove target directory %s failed: %q", target, err)
 	}
 
-	if err := d.juicefs.DelRefOfMountPod(volumeId, target); err != nil {
+	mountUtil := podmount.NewPodMount(nil, d.k8sClient)
+	if err := mountUtil.JUmount(volumeId, target); err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 

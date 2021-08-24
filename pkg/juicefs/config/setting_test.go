@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package juicefs
+package config
 
 import (
 	"encoding/json"
@@ -47,15 +47,16 @@ func TestParseSecret(t *testing.T) {
 				},
 			},
 			want: &JfsSetting{
-				Name: "test",
-				Envs: s,
+				Name:   "test",
+				Envs:   s,
+				UsePod: true,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx)
+			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, true)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return
