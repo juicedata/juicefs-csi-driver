@@ -66,6 +66,7 @@ jobs:
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
         echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
         echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
         echo "IS_CE=False" >> $GITHUB_ENV
