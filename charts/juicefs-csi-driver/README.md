@@ -1,6 +1,6 @@
 # juicefs-csi-driver
 
-![Version: 0.5.3](https://img.shields.io/badge/Version-0.5.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.10.3](https://img.shields.io/badge/AppVersion-0.10.3-informational?style=flat-square)
+![Version: 0.5.5](https://img.shields.io/badge/Version-0.5.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.10.5](https://img.shields.io/badge/AppVersion-0.10.5-informational?style=flat-square)
 
 A Helm chart for JuiceFS CSI Driver
 
@@ -35,7 +35,7 @@ Kubernetes: `>=1.14.0-0`
 | hostAliases | list | `[]` |  |
 | image.pullPolicy | string | `""` |  |
 | image.repository | string | `"juicedata/juicefs-csi-driver"` |  |
-| image.tag | string | `"v0.10.3"` |  |
+| image.tag | string | `"v0.10.5"` |  |
 | jfsConfigDir | string | `"/var/lib/juicefs/config"` |  |
 | jfsMountDir | string | `"/var/lib/juicefs/volume"` | juicefs mount dir |
 | jfsMountPriority | object | `{"enable":true,"name":"juicefs-mount-critical"}` | juicefs mount pod priority |
