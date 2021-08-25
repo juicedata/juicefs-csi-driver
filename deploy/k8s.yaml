@@ -234,7 +234,7 @@ spec:
           value: /var/lib/juicefs/config
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver:v0.10.4
+        image: juicedata/juicefs-csi-driver:v0.10.5
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -365,7 +365,7 @@ spec:
           value: /var/lib/juicefs/config
         - name: JUICEFS_MOUNT_PRIORITY_NAME
           value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver:v0.10.4
+        image: juicedata/juicefs-csi-driver:v0.10.5
         livenessProbe:
           failureThreshold: 5
           httpGet:
