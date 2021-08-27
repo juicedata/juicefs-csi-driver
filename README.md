@@ -104,7 +104,10 @@ juicefs-sc   csi.juicefs.com   Retain          Immediate           false        
 Deploy the driver:
 
 ```shell
+# if k8s version >= v1.18
 kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+# if k8s version < v1.18
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
 ```
 
 If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers**, check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
