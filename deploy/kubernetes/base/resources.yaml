@@ -152,7 +152,7 @@ subjects:
     namespace: kube-system
 ---
 kind: CSIDriver
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: csi.juicefs.com
 spec:
