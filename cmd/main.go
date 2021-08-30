@@ -34,7 +34,6 @@ func init() {
 	config.PodName = os.Getenv("POD_NAME")
 	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
-	config.JFSMountPriorityName = os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)

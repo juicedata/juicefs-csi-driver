@@ -28,7 +28,7 @@ var (
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
-	JFSMountPriorityName = ""
+	JFSMountPriorityName = "system-node-critical"
 
 	PodMountBase = "/jfs"
 	MountBase    = "/var/lib/jfs"
