@@ -153,9 +153,9 @@ Juicefs CSI Driver 从 v0.10.0 开始分离了 JuiceFS client 客户端，升级
 * 如果您已固定到特定版本，请将您的 `k8s.yaml` 修改为要更新的版本，然后运行 `kubectl apply -f k8s.yaml`。
 * 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](./docs/upgrade-csi-driver.md).
-
 ### CSI Driver v0.10 以下版本
+
+#### 小版本升级
 
 升级 CSI Driver 需要重启 `DaemonSet`。由于 v0.10.0 之前的版本所有的 JuiceFS 客户端都运行在 `DaemonSet` 中，重启的过程中相关的 PV 都将不可用，因此需要先停止相关的 pod。
 
@@ -166,9 +166,15 @@ If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgra
   * 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
 3. 启动 pod。
 
-我们正在尝试让 JuiceFS 客户端从单独的容器中启动，从而避免让升级操作影响已存在的 PV。在该功能推出之前，你可以在不升级 CSI 驱动的情况下升级 JuiceFS 客户端，详情参考[这篇文档](./docs/upgrade-juicefs.md)。
+#### 跨版本升级
 
-访问 [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) 查看更多版本。
+如果你想从 CSI Driver v0.9.0 升级到 v0.10.0 及以上版本，请参考[这篇文档](./docs/upgrade-csi-driver.md)。
+
+#### 其他
+
+对于使用较低版本的用户，你还可以在不升级 CSI 驱动的情况下升级 JuiceFS 客户端，详情参考[这篇文档](./docs/upgrade-juicefs.md)。
+
+访问 [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) 查看更多版本信息。
 
 ## 示例
 
