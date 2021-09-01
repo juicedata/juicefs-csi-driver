@@ -45,8 +45,14 @@ func IsPodError(pod *corev1.Pod) bool {
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
-	if pod.Status.Phase == corev1.PodFailed && strings.Contains(pod.Status.Reason, "OutOf") {
-		return true
+	if pod.Status.Phase == corev1.PodFailed {
+		if strings.Contains(pod.Status.Reason, "OutOf") {
+			return true
+		}
+		if pod.Status.Reason == "UnexpectedAdmissionError" &&
+			strings.Contains(pod.Status.Message, "to reclaim resources") {
+			return true
+		}
 	}
 	for _, cond := range pod.Status.Conditions {
 		if cond.Status == corev1.ConditionFalse && cond.Type == corev1.PodScheduled && cond.Reason == corev1.PodReasonUnschedulable &&

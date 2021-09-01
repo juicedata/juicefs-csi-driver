@@ -150,9 +150,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		},
 	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
-	if config.JFSMountPriorityName != "" {
-		pod.Spec.PriorityClassName = config.JFSMountPriorityName
-	}
+	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	i := 1
 	for k, v := range configs {
 		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
