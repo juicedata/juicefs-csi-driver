@@ -37,7 +37,7 @@ type ProcessMount struct {
 	jfsSetting *jfsConfig.JfsSetting
 }
 
-func NewProcessMount(setting *jfsConfig.JfsSetting) *ProcessMount {
+func NewProcessMount(setting *jfsConfig.JfsSetting) Interface {
 	mounter := &k8sMount.SafeFormatAndMount{
 		Interface: k8sMount.New(""),
 		Exec:      k8sexec.New(),
