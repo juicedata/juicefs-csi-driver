@@ -10,7 +10,9 @@ The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface 
 
 ## Installation
 
-### Installation with Helm
+There are two ways to install JuiceFS CSI Driver.
+
+### 1. Install via Helm
 
 #### Prerequisites
 
@@ -24,7 +26,9 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 #### Using Helm To Deploy
 
-1. Prepare a `values.yaml` file with access information about metadata engine (e.g. Redis) and object storage. If already formatted a volume, only `name` and `metaurl` is required. You can specify CPU/memory limits and requests of mount pod for pods using this driver.
+1. Prepare a YAML file
+
+Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to [JuiceFS Quick Start Guide](https://github.com/juicedata/juicefs/blob/main/docs/zh_cn/quick_start_guide.md) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank.
 
 ```yaml
 storageClasses:
@@ -48,7 +52,7 @@ storageClasses:
         memory: "<memory-request>"
 ```
 
-2. Install
+2. Deploy
 
 ```sh
 helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
@@ -58,7 +62,7 @@ helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install 
 
 3. Check the deployment
 
-- Check pods are running: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
+- **Check pods are running**: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
 
 ```sh
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
@@ -67,7 +71,7 @@ juicefs-csi-controller-0   3/3     Running   0          22m
 juicefs-csi-node-v9tzb     3/3     Running   0          14m
 ```
 
-- Check secret: `kubectl -n kube-system describe secret juicefs-sc-secret` will show the secret with above `backend` fields in `values.yaml`:
+- **Check secret**: `kubectl -n kube-system describe secret juicefs-sc-secret` will show the secret with above `backend` fields in `values.yaml`:
 
 ```
 Name:         juicefs-sc-secret
@@ -92,23 +96,30 @@ secret-key:  0 bytes
 storage:     2 bytes
 ```
 
-- Check storage class: `kubectl get sc juicefs-sc` will show the storage class like this:
+- **Check storage class**: `kubectl get sc juicefs-sc` will show the storage class like this:
 
 ```
 NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
 juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
 ```
 
-### Installation with kubectl
+### 2. Install via kubectl
 
-Deploy the driver:
+Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
+
+#### Kubernetes version >= v1.18
 
 ```shell
-# if k8s version >= v1.18
-kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
-# if k8s version < v1.18
-kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
+
+#### Kubernetes version < v1.18
+
+```shell
+$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+```
+
+#### Troubleshooting
 
 If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers**, check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
 
@@ -122,11 +133,11 @@ If the result isn't empty, modify the CSI driver deployment `k8s.yaml` file with
 curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
 ```
 
-**Replace** `{{KUBELET_DIR}}` with your own `--root-dir` value in above command.
+> **Note**: please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
 
 ## Upgrade CSI Driver
 
-### v0.10+
+### CSI Driver version >= v0.10
 
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt existing PVs. If CSI Driver version >= v0.10.0, do operations below:
 
@@ -134,9 +145,9 @@ Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI D
 * If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then run `kubectl apply -f k8s.yaml`.
 * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](./docs/upgrade-csi-driver.md).
+### CSI Driver version < v0.10
 
-### Before v0.10
+#### Minor version upgrade
 
 Upgrade of CSI Driver requires restart the DaemonSet, which has all the JuiceFS client running inside. The restart will cause all PVs become unavailable, so we need to stop all the application pod first.
 
@@ -147,7 +158,13 @@ Upgrade of CSI Driver requires restart the DaemonSet, which has all the JuiceFS 
     * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 3. Start all the application pods.
 
-We are working on launching the JuiceFS client in separate container, so the upgrade will NOT interrupt existing PVs. Before that, we can upgrade the JuiceFS client without upgrading the CSI driver, please follow [this workaround](./docs/upgrade-juicefs.md).
+#### Cross-version upgrade
+
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](./docs/upgrade-csi-driver.md).
+
+#### Other
+
+For users of the old version, you can also upgrade the JuiceFS client without upgrading the CSI driver. For details, refer to [this document](./docs/upgrade-juicefs.md).
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.
 
