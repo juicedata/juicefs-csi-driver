@@ -52,6 +52,7 @@ func (p *ProcessMount) JMount(volumeId, mountPath string, target string, options
 		if err != nil {
 			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", p.jfsSetting.Source, mountPath, err)
 		}
+		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
 	klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)

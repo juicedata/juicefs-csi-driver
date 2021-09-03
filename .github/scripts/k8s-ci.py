@@ -1,5 +1,6 @@
 import base64
 import os
+import pathlib
 import subprocess
 import time
 
@@ -127,6 +128,15 @@ class PVC:
     def delete(self):
         client.CoreV1Api().delete_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
         PVCs.remove(self)
+
+    def check_is_deleted(self):
+        try:
+            client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                return True
+            raise e
+        return False
 
     def get_volume_id(self):
         p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
@@ -432,10 +442,13 @@ def del_path(path):
 
 
 def die(e):
-    csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
-    po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    print("Get csi node log:")
-    print(po.get_log("juicefs-plugin"))
+    # csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
+    # po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    # print("Get csi node log:")
+    # print(po.get_log("juicefs-plugin"))
+    print("Get csi controller log:")
+    controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    print(controller_po.get_log("juicefs-plugin"))
     print("Get event: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
     print("Get pvc: ")
@@ -663,6 +676,65 @@ def test_delete_all():
     return
 
 
+def test_delete_pvc():
+    print("[test case] Deployment and delete pvc begin..")
+    # deploy pvc
+    pvc = PVC(name="pvc-delete", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    print("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    deployment = Deployment(name="app-delete-pvc", pvc=pvc.name, replicas=1)
+    print("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
+
+    # check mount point
+    print("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    print("Get volume_id {}".format(volume_id))
+    result = check_mount_point(volume_id)
+    if not result:
+        die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    print("Development delete..")
+    deployment.delete()
+    print("Watch deployment deleteed..")
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        die("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
+    print("PVC delete..")
+    pvc.delete()
+    for i in range(0, 60):
+        if pvc.check_is_deleted():
+            print("PVC is deleted.")
+            break
+        time.sleep(5)
+
+    print("Check dir is deleted or not..")
+    mount_on_host("/mnt/jfs")
+    file_exist = True
+    for i in range(0, 60):
+        f = pathlib.Path("/mnt/jfs/" + volume_id)
+        if f.exists() is False:
+            file_exist = False
+            break
+        time.sleep(5)
+    if file_exist:
+        die("SubPath of volume_id {} still exists.".format(volume_id))
+    print("Umount /mnt/jfs.")
+    subprocess.run(["sudo", "umount", "/mnt/jfs"])
+
+    print("Test pass.")
+
+
 if __name__ == "__main__":
     config.load_kube_config()
     try:
@@ -673,5 +745,6 @@ if __name__ == "__main__":
         test_deployment_use_pv_ro()
         test_delete_one()
         test_delete_all()
+        test_delete_pvc()
     finally:
         tear_down()
