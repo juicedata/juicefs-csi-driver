@@ -270,13 +270,13 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 // MountFs mounts JuiceFS with idempotency
 func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
 	var mountPath string
-	var mountUtil podmount.Interface
+	var mnt podmount.Interface
 	if jfsSetting.UsePod {
 		mountPath = filepath.Join(config.PodMountBase, volumeID)
-		mountUtil = podmount.NewPodMount(jfsSetting, j.K8sClient)
+		mnt = podmount.NewPodMount(jfsSetting, j.K8sClient)
 	} else {
 		mountPath = filepath.Join(config.MountBase, volumeID)
-		mountUtil = podmount.NewProcessMount(jfsSetting)
+		mnt = podmount.NewProcessMount(jfsSetting)
 	}
 
 	exists, err := mount.PathExists(mountPath)
@@ -292,7 +292,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mountUtil.JMount(volumeID, mountPath, target, options)
+		err = mnt.JMount(volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -307,7 +307,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mountUtil.JMount(volumeID, mountPath, target, options)
+		err = mnt.JMount(volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -318,7 +318,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if jfsSetting.UsePod {
 		klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
-		err = mountUtil.AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeID))
+		err = mnt.AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeID))
 	}
 	return mountPath, err
 }

@@ -41,7 +41,7 @@ type PodMount struct {
 	K8sClient  k8sclient.K8sClient
 }
 
-func NewPodMount(setting *jfsConfig.JfsSetting, client k8sclient.K8sClient) *PodMount {
+func NewPodMount(setting *jfsConfig.JfsSetting, client k8sclient.K8sClient) Interface {
 	mounter := &k8sMount.SafeFormatAndMount{
 		Interface: k8sMount.New(""),
 		Exec:      k8sexec.New(),
