@@ -142,9 +142,3 @@ docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v
 ```
 
 The `ceph/ceph:v14` image is the official ceph image for ceph nautilus. For other ceph release base images, see the [repository](https://hub.docker.com/r/ceph/ceph) .
-
-### How to deploy
-
-If we want to deploy JuiceFS CSI with librados support, we have to supply the configuration files in `/etc/ceph/` for JuiceFS to access ceph cluster.
-
-Use the above CSI image as our base image, add the configuration files in `/etc/ceph/` of the ceph cluster into the base image `/etc/ceph/` directory to generate a new CSI image. Use this CSI image to replace `juicedata/juicefs-csi-driver` in the [k8s.yaml](../deploy/k8s.yaml) .
