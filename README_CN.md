@@ -256,7 +256,7 @@ JuiceFS CSI driver 已在下列 Kubernetes 版本中验证：
 
 ## 其他资源
 
-- [Access ceph cluster with librados](./docs/ceph.md)
+- [通过 librados 访问 Ceph 集群](./docs/ceph.md)
 
 ## 开发
 
