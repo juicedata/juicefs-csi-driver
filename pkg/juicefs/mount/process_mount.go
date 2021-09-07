@@ -81,7 +81,7 @@ func (p *ProcessMount) JMount(volumeId, mountPath string, target string, options
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
+	envs := append(syscall.Environ(), "JFS_FOREGROUND=1", "NO_CHECK_OBJECT_STORAGE=1")
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
 	mntCmd.Env = envs
 	mntCmd.Stderr = os.Stderr
