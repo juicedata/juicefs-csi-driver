@@ -371,6 +371,9 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	}
 
 	args := []string{"format", "--no-update"}
+	if secrets["name"] == "ceph" {
+		args = append(args, "--no-check")
+	}
 	argsStripped := []string{"format"}
 	keys := []string{
 		"storage",
