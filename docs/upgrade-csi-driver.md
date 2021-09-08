@@ -2,7 +2,7 @@
 
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.3. But the upgrade from v0.9.0 to v0.10.3 will 
 cause all PVs become unavailable, we can upgrade one by one node to make the upgrade smooth. If your application using 
-JuiceFS volume service can't be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
+JuiceFS volume service can be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
 
 ## Upgrade one by one node
 
