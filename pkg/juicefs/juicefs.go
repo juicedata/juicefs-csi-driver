@@ -166,9 +166,6 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 			source = "redis://" + source
 		}
 		jfsSecret.Source = source
-		if secrets["name"] == "ceph" && !usePod {
-			options = append(options, "no-check")
-		}
 	}
 	mountPath, err = j.MountFs(volumeID, target, options, jfsSecret)
 	if err != nil {
@@ -374,8 +371,8 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	}
 
 	args := []string{"format", "--no-update"}
-	if secrets["name"] == "ceph" {
-		os.Setenv("NO_CHECK_OBJECT_STORAGE", "")
+	if secrets["storage"] == "ceph" {
+		os.Setenv("NO_CHECK_OBJECT_STORAGE", "1")
 	}
 	argsStripped := []string{"format"}
 	keys := []string{
