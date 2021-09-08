@@ -2,11 +2,11 @@
 
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.3. But the upgrade from v0.9.0 to v0.10.3 will 
 cause all PVs become unavailable, we can upgrade one by one node to make the upgrade smooth. If your application using 
-JuiceFS volume service can be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
+JuiceFS volume service can't be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
 
 ## Upgrade one by one node
 
-### 1. Create resources added in new verison
+### 1. Create resources added in new version
 
 Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
 
@@ -72,7 +72,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: juicefs-csi-node-sa
-  namespace: <namespace>
+  namespace: kube-system
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
@@ -82,12 +82,12 @@ metadata:
 ### 2. Update node service DaemonSet `updateStrategy` to `OnDelete`
 
 ```shell
-kubectl -n <namespace> patch ds <ds_name> -p '{"spec": {"updateStrategy": {"type": "OnDelete"}}}'
+kubectl -n kube-system patch ds <ds_name> -p '{"spec": {"updateStrategy": {"type": "OnDelete"}}}'
 ```
 
 ### 3. Update CSI Driver node service DaemonSet
 
-Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n <namespace> patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
+Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
 
 ```yaml
 spec:
@@ -163,7 +163,7 @@ juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kub
 
 ### 5. Upgrade CSI Driver controller service and its role
 
-Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n <namespace> patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
+Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
 ```yaml
 spec:
@@ -209,7 +209,7 @@ spec:
           name: jfs-root-dir
 ```
 
-Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl -n <namespace> patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
 
 ```yaml
 rules:
@@ -294,7 +294,7 @@ rules:
 
 ### 2. Upgrade CSI driver
 
-#### 1. Create resources added in new verison
+#### 1. Create resources added in new version
 
 Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
 
@@ -360,7 +360,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: juicefs-csi-node-sa
-  namespace: <namespace>
+  namespace: kube-system
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
@@ -369,7 +369,7 @@ metadata:
 
 #### 2. Update CSI Driver node service DaemonSet
 
-Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n <namespace> patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
+Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
 
 ```yaml
 spec:
@@ -428,7 +428,7 @@ Make sure all juicefs-csi-node-*** pods are updated.
 
 #### 3. Upgrade CSI Driver controller service and its role
 
-Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n <namespace> patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
+Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
 ```yaml
 spec:
@@ -474,7 +474,7 @@ spec:
           name: jfs-root-dir
 ```
 
-Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl -n <namespace> patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
 
 ```yaml
 rules:

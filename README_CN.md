@@ -163,7 +163,7 @@ Juicefs CSI Driver 从 v0.10.0 开始分离了 JuiceFS client 客户端，升级
 2. 升级驱动：
 	* 如果您使用的是 `latest` 标签，只需运行 `kubectl rollout restart -f k8s.yaml` 并确保重启 `juicefs-csi-controller` 和 `juicefs-csi-node` pod。
 	* 如果您已固定到特定版本，请将您的 `k8s.yaml` 修改为要更新的版本，然后运行 `kubectl apply -f k8s.yaml`。
-  * 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
+    * 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
 3. 启动 pod。
 
 #### 跨版本升级
