@@ -64,7 +64,7 @@ $ helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --instal
 
 3. 检查部署状态
 
-**检查 Pods**：部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个 pod 在运行，例如：
+- **检查 Pods**：部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个 pod 在运行，例如：
 
 ```sh
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
@@ -73,7 +73,7 @@ juicefs-csi-controller-0   3/3     Running   0          22m
 juicefs-csi-node-v9tzb     3/3     Running   0          14m
 ```
 
-**检查 secret**：通过命令 `kubectl -n kube-system describe secret juicefs-sc-secret` 可以看到前面 `values.yaml` 配置文件中 `backend` 部分的 secret 信息。
+- **检查 secret**：通过命令 `kubectl -n kube-system describe secret juicefs-sc-secret` 可以看到前面 `values.yaml` 配置文件中 `backend` 部分的 secret 信息。
 
 ```
 Name:         juicefs-sc-secret
@@ -98,7 +98,7 @@ secret-key:  0 bytes
 storage:     2 bytes
 ```
 
-****：通过命令 `kubectl get sc juicefs-sc` 会看到类似下面的存储类信息。
+- **检查存储类（storage class）**：通过命令 `kubectl get sc juicefs-sc` 会看到类似下面的存储类信息。
 
 ```
 NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
@@ -256,7 +256,7 @@ JuiceFS CSI driver 已在下列 Kubernetes 版本中验证：
 
 ## 其他资源
 
-- [Access ceph cluster with librados](./docs/ceph.md)
+- [通过 librados 访问 Ceph 集群](./docs/ceph.md)
 
 ## 开发
 

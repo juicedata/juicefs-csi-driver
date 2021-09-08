@@ -20,6 +20,7 @@ ARG GOROOT=/usr/local/go
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_TAG
+ARG JUICEFS_CSI_REPO_REF=master
 
 RUN mkdir -p ${GOROOT} && \
     curl -fsSL https://golang.org/dl/go1.14.linux-${GO_ARCH}.tar.gz | \
@@ -38,20 +39,30 @@ COPY . .
 RUN make
 
 WORKDIR /workspace
-RUN git clone --depth=50 --single-branch --branch=$JUICEFS_REPO_BRANCH \
-    https://github.com/juicedata/juicefs && cd juicefs && \
-    git checkout $JUICEFS_REPO_TAG && make juicefs.ceph && upx juicefs.ceph && mv juicefs.ceph juicefs
+RUN git clone https://github.com/juicedata/juicefs-csi-driver && \
+    cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
+    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
+    cd juicefs && git checkout $JUICEFS_REPO_TAG && make juicefs.ceph && mv juicefs.ceph juicefs && upx juicefs
 
 FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
-COPY --from=builder /juicefs-csi-driver/bin/juicefs-csi-driver /bin/
+ENV JUICEFS_CLI=/usr/bin/juicefs
+ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
+ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
+
+RUN yum install -y librados2 curl fuse && \
+    rm -rf /var/cache/yum/* && \
+    curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
+    mkdir -p /root/.juicefs
+
+COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
-RUN juicefs --version
+RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 
 ENTRYPOINT ["/bin/juicefs-csi-driver"]

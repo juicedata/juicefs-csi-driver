@@ -248,7 +248,7 @@ The mount option `--cache-dir` in JuiceFS CSI driver (>=v0.10.0) does not suppor
 
 ## Miscellaneous
 
-- [Access ceph cluster with librados](./docs/ceph.md)
+- [Access Ceph cluster with librados](./docs/ceph.md)
 
 ## Develop
 
