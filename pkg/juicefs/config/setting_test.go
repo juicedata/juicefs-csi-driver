@@ -64,9 +64,9 @@ func TestParseSecret(t *testing.T) {
 				usePod: true,
 			},
 			want: &JfsSetting{
-				Name:   "test",
+				Name:    "test",
 				Storage: "",
-				UsePod: true,
+				UsePod:  true,
 			},
 			wantErr: false,
 		},
@@ -74,15 +74,15 @@ func TestParseSecret(t *testing.T) {
 			name: "test-storage",
 			args: args{
 				secrets: map[string]string{
-					"name": "test",
+					"name":    "test",
 					"storage": "ceph",
 				},
 				usePod: true,
 			},
 			want: &JfsSetting{
-				Name:   "test",
+				Name:    "test",
 				Storage: "ceph",
-				UsePod: true,
+				UsePod:  true,
 			},
 			wantErr: false,
 		},
