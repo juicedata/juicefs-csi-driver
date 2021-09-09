@@ -20,7 +20,7 @@ import k8sMount "k8s.io/utils/mount"
 
 type Interface interface {
 	k8sMount.Interface
-	JMount(volumeId, mountPath string, target string, options []string) error
+	JMount(storage, volumeId, mountPath string, target string, options []string) error
 	JUmount(volumeId, target string) error
 	AddRefOfMount(target string, podName string) error
 }

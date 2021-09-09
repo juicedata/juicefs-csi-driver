@@ -45,7 +45,7 @@ func NewProcessMount(setting *jfsConfig.JfsSetting) Interface {
 	return &ProcessMount{*mounter, setting}
 }
 
-func (p *ProcessMount) JMount(volumeId, mountPath string, target string, options []string) error {
+func (p *ProcessMount) JMount(storage, volumeId, mountPath string, target string, options []string) error {
 	if !strings.Contains(p.jfsSetting.Source, "://") {
 		klog.V(5).Infof("eeMount: mount %v at %v", p.jfsSetting.Source, mountPath)
 		err := p.Mount(p.jfsSetting.Source, mountPath, jfsConfig.FsType, options)
@@ -81,7 +81,10 @@ func (p *ProcessMount) JMount(volumeId, mountPath string, target string, options
 		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
-	envs := append(syscall.Environ(), "JFS_FOREGROUND=1", "NO_CHECK_OBJECT_STORAGE=1")
+	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
+	if storage == "ceph" {
+		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
+	}
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
 	mntCmd.Env = envs
 	mntCmd.Stderr = os.Stderr

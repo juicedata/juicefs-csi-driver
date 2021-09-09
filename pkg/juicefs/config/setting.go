@@ -31,6 +31,7 @@ type JfsSetting struct {
 	Name    string `json:"name"`
 	MetaUrl string `json:"metaurl"`
 	Source  string `json:"source"`
+	Storage string `json:"storage"`
 
 	Configs map[string]string `json:"configs"`
 	Envs    map[string]string `json:"envs"`
@@ -50,6 +51,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
 	}
 	jfsSetting.Name = secrets["name"]
+	jfsSetting.Storage = secrets["storage"]
 
 	m, ok := secrets["metaurl"]
 	jfsSetting.MetaUrl = m
