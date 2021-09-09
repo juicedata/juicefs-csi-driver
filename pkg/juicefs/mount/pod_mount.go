@@ -49,7 +49,7 @@ func NewPodMount(setting *jfsConfig.JfsSetting, client k8sclient.K8sClient) Inte
 	return &PodMount{*mounter, setting, client}
 }
 
-func (p *PodMount) JMount(volumeId, mountPath string, target string, options []string) error {
+func (p *PodMount) JMount(storage, volumeId, mountPath string, target string, options []string) error {
 	cmd := ""
 	if p.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)

@@ -1,9 +1,11 @@
+import time
+
 import base64
 import os
 import pathlib
+import random
+import string
 import subprocess
-import time
-
 from kubernetes import client, watch, config
 
 KUBE_SYSTEM = "kube-system"
@@ -188,19 +190,23 @@ class PV:
 
 
 class Deployment:
-    def __init__(self, *, name, pvc, replicas):
+    def __init__(self, *, name, pvc, replicas, out_put=""):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
         self.pvc = pvc
         self.replicas = replicas
+        self.out_put = out_put
 
     def create(self):
+        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"
+        if self.out_put != "":
+            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 5; done".format(self.out_put)
         container = client.V1Container(
             name="app",
             image="centos",
             command=["/bin/sh"],
-            args=["-c", "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"],
+            args=["-c", cmd],
             volume_mounts=[client.V1VolumeMount(
                 name="juicefs-pv",
                 mount_path="/data"
@@ -341,28 +347,32 @@ def mount_on_host(mount_path):
         raise e
 
 
-def check_mount_point(volume_id, is_static=False):
-    mount_on_host("/jfs")
-    check_path = f"/jfs/{volume_id}/out.txt" if not is_static else "/jfs/out.txt"
+def check_mount_point(mount_path, check_path):
+    mount_on_host(mount_path)
     for i in range(0, 60):
         try:
             print("Open file {}".format(check_path))
             f = open(check_path)
+            content = f.read(1)
+            if content is not None and content != "":
+                f.close()
+                print(f"Umount {mount_path}.")
+                subprocess.run(["sudo", "umount", mount_path])
+                return True
+            time.sleep(5)
+            f.close()
         except FileNotFoundError:
-            print(os.listdir("/jfs"))
+            print(os.listdir(mount_path))
             print("Can't find file: {}".format(check_path))
             time.sleep(5)
             continue
-        content = f.read(1)
-        if content is not None and content != "":
-            f.close()
-            print("Umount /jfs.")
-            subprocess.run(["sudo", "umount", "/jfs"])
-            return True
-        time.sleep(5)
-        f.close()
-    print("Umount /jfs.")
-    subprocess.run(["sudo", "umount", "/jfs"])
+        except Exception as e:
+            print(e)
+            log = open("/var/log/juicefs.log", "rt")
+            print(log.read())
+            raise e
+    print(f"Umount {mount_path}.")
+    subprocess.run(["sudo", "umount", mount_path])
     return False
 
 
@@ -422,23 +432,16 @@ def tear_down():
             print("Delete secret {}".format(secret.secret_name))
             secret.delete()
         print("Delete all volumes in file system.")
-        mount_on_host("/jfs")
-        del_path("/jfs")
-        subprocess.run(["sudo", "umount", "/jfs"])
+        clean_juicefs_volume("/mnt/jfs")
     except Exception as e:
         print("Error in tear down: {}".format(e))
     print("Tear down success.")
 
 
-def del_path(path):
-    ls = os.listdir(path)
-    for i in ls:
-        c_path = os.path.join(path, i)
-        if os.path.isdir(c_path):
-            del_path(c_path)
-            os.removedirs(c_path)
-        else:
-            os.remove(c_path)
+def clean_juicefs_volume(mount_path):
+    mount_on_host(mount_path)
+    subprocess.run(["sudo", "rm", "-rf", mount_path + "/*"])
+    subprocess.run(["sudo", "umount", mount_path])
 
 
 def die(e):
@@ -458,6 +461,10 @@ def die(e):
     print("Get sc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "sc"], check=True)
     raise Exception(e)
+
+
+def gen_random_string(slen=10):
+    return ''.join(random.sample(string.ascii_letters + string.digits, slen))
 
 
 ###### test case in ci ######
@@ -482,7 +489,9 @@ def test_deployment_using_storage_rw():
     print("Check mount point..")
     volume_id = pvc.get_volume_id()
     print("Get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/" + volume_id + "/out.txt"
+    result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
     print("Test pass.")
@@ -523,7 +532,8 @@ def test_deployment_use_pv_rw():
     pvc.create()
 
     # deploy pod
-    deployment = Deployment(name="app-static-rw", pvc=pvc.name, replicas=1)
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-static-rw", pvc=pvc.name, replicas=1, out_put=out_put)
     print("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -536,7 +546,9 @@ def test_deployment_use_pv_rw():
     print("Check mount point..")
     volume_id = pv.get_volume_id()
     print("Get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id, True)
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/" + out_put
+    result = check_mount_point(mount_path, check_path)
     if not result:
         print("Get pvc: ")
         subprocess.run(["sudo", "microk8s.kubectl", "-n", "default", "get", "pvc", pvc.name, "-oyaml"], check=True)
@@ -552,7 +564,7 @@ def test_deployment_use_pv_rw():
             print(mount_pod.get_log("jfs-mount"))
         except client.ApiException as e:
             print("Get log error: {}".format(e))
-        die("Mount point of /jfs/out.txt are not ready within 5 min.")
+        die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     print("Test pass.")
     return
@@ -571,7 +583,8 @@ def test_deployment_use_pv_ro():
     pvc.create()
 
     # deploy pod
-    deployment = Deployment(name="app-static-ro", pvc=pvc.name, replicas=1)
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-static-ro", pvc=pvc.name, replicas=1, out_put=out_put)
     print("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -697,7 +710,9 @@ def test_delete_pvc():
     print("Check mount point..")
     volume_id = pvc.get_volume_id()
     print("Get volume_id {}".format(volume_id))
-    result = check_mount_point(volume_id)
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/" + volume_id + "/out.txt"
+    result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
@@ -737,6 +752,9 @@ def test_delete_pvc():
 
 if __name__ == "__main__":
     config.load_kube_config()
+    # clear juicefs volume first.
+    print("clean juicefs volume first.")
+    clean_juicefs_volume("/mnt/jfs")
     try:
         deploy_secret_and_sc()
         test_deployment_using_storage_rw()

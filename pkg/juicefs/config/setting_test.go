@@ -31,6 +31,7 @@ func TestParseSecret(t *testing.T) {
 	type args struct {
 		secrets map[string]string
 		volCtx  map[string]string
+		usePod  bool
 	}
 	tests := []struct {
 		name    string
@@ -45,6 +46,7 @@ func TestParseSecret(t *testing.T) {
 					"name": "test",
 					"envs": "GOOGLE_CLOUD_PROJECT: \"/root/.config/gcloud/application_default_credentials.json\"",
 				},
+				usePod: true,
 			},
 			want: &JfsSetting{
 				Name:   "test",
@@ -53,10 +55,41 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test-storage-nil",
+			args: args{
+				secrets: map[string]string{
+					"name": "test",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:    "test",
+				Storage: "",
+				UsePod:  true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-storage",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "ceph",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:    "test",
+				Storage: "ceph",
+				UsePod:  true,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, true)
+			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.usePod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return

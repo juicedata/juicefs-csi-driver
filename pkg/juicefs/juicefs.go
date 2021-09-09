@@ -292,7 +292,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -307,7 +307,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -371,6 +371,9 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	}
 
 	args := []string{"format", "--no-update"}
+	if secrets["storage"] == "ceph" {
+		os.Setenv("JFS_NO_CHECK_OBJECT_STORAGE", "1")
+	}
 	argsStripped := []string{"format"}
 	keys := []string{
 		"storage",
