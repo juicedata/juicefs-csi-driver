@@ -15,7 +15,7 @@ spec:
   resources:
     requests:
       storage: 10Pi
-  storageClassName: juicefs-sc
+  storageClassName: {{ (index .Values.storageClasses 0).name }}
 ---
 apiVersion: v1
 kind: Pod
