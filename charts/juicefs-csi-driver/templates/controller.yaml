@@ -54,10 +54,6 @@ spec:
           value: {{ .Values.jfsMountDir }}
         - name: JUICEFS_CONFIG_PATH
           value: {{ .Values.jfsConfigDir }}
-        {{- if .Values.jfsMountPriority.enable }}
-        - name: JUICEFS_MOUNT_PRIORITY_NAME
-          value: '{{ .Values.jfsMountPriority.name }}'
-        {{- end }}
         livenessProbe:
           failureThreshold: 5
           httpGet:

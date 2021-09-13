@@ -169,17 +169,6 @@ subjects:
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
-apiVersion: scheduling.k8s.io/v1
-description: Juicefs mount pod priority, should not be preempted.
-kind: PriorityClass
-metadata:
-  labels:
-    app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/name: juicefs-csi-driver
-    app.kubernetes.io/version: master
-  name: juicefs-mount-critical
-value: 1000000000
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -232,9 +221,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        - name: JUICEFS_MOUNT_PRIORITY_NAME
-          value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver:v0.10.5
+        image: juicedata/juicefs-csi-driver:v0.10.6
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -363,9 +350,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        - name: JUICEFS_MOUNT_PRIORITY_NAME
-          value: juicefs-mount-critical
-        image: juicedata/juicefs-csi-driver:v0.10.5
+        image: juicedata/juicefs-csi-driver:v0.10.6
         livenessProbe:
           failureThreshold: 5
           httpGet:

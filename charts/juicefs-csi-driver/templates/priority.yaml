@@ -1,8 +1,0 @@
-{{- if .Values.jfsMountPriority.enable -}}
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: {{ .Values.jfsMountPriority.name }}
-value: 1000000000
-description: "Juicefs mount pod priority, should not be preempted."
-{{- end }}

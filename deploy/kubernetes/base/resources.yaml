@@ -159,13 +159,6 @@ spec:
   attachRequired: false
   podInfoOnMount: false
 ---
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: juicefs-mount-critical
-value: 1000000000
-description: "Juicefs mount pod priority, should not be preempted."
----
 
 kind: StatefulSet
 apiVersion: apps/v1
@@ -193,7 +186,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.5
+          image: juicedata/juicefs-csi-driver:v0.10.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -218,8 +211,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_PRIORITY_NAME
-              value: juicefs-mount-critical
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -312,7 +303,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.10.5
+          image: juicedata/juicefs-csi-driver:v0.10.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -338,8 +329,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_PRIORITY_NAME
-              value: juicefs-mount-critical
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
