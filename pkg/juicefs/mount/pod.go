@@ -49,6 +49,7 @@ func hasRef(pod *corev1.Pod) bool {
 
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
 	configs, env map[string]string) *corev1.Pod {
+	cmd = quoteForShell(cmd)
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectoryOrCreate
@@ -247,4 +248,14 @@ func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
 	}
 
 	return cacheVolumes, cacheVolumeMounts
+}
+
+func quoteForShell(cmd string) string {
+	if strings.Contains(cmd, "(") {
+		cmd = strings.ReplaceAll(cmd, "(", "\\(")
+	}
+	if strings.Contains(cmd, ")") {
+		cmd = strings.ReplaceAll(cmd, ")", "\\)")
+	}
+	return cmd
 }
