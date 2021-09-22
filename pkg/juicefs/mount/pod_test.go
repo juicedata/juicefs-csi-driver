@@ -186,7 +186,7 @@ func TestHasRef(t *testing.T) {
 	}
 }
 
-func Test_transformCmd(t *testing.T) {
+func Test_quoteForShell(t *testing.T) {
 	type args struct {
 		cmd string
 	}
@@ -212,7 +212,7 @@ func Test_transformCmd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := transformCmd(tt.args.cmd); got != tt.want {
+			if got := quoteForShell(tt.args.cmd); got != tt.want {
 				t.Errorf("transformCmd() = %v, want %v", got, tt.want)
 			}
 		})
