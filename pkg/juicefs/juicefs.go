@@ -149,17 +149,25 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 	var mountPath string
 	if !isCe {
 		j.Upgrade()
-		stdoutStderr, err := j.AuthFs(secrets)
-		klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
+		if secrets["token"] == "" {
+			klog.V(5).Infof("token is empty, skip authfs.")
+		} else {
+			stdoutStderr, err := j.AuthFs(secrets)
+			klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
+			}
 		}
 		jfsSecret.Source = secrets["name"]
 	} else {
-		stdoutStderr, err := j.ceFormat(secrets)
-		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
+		if secrets["storage"] == "" || secrets["bucket"] == "" {
+			klog.V(5).Infof("storage or bucket is empty, skip format.")
+		} else {
+			stdoutStderr, err := j.ceFormat(secrets)
+			klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
+			}
 		}
 		// Default use redis:// scheme
 		if !strings.Contains(source, "://") {
@@ -204,10 +212,6 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 
 	if secrets["name"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
-	}
-
-	if secrets["token"] == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Empty token")
 	}
 
 	args := []string{"auth", secrets["name"]}
@@ -370,7 +374,7 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty metaurl")
 	}
 
-	args := []string{"format", "--no-update"}
+	args := []string{"format"}
 	if secrets["storage"] == "ceph" {
 		os.Setenv("JFS_NO_CHECK_OBJECT_STORAGE", "1")
 	}
