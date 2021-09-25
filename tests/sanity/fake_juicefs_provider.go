@@ -59,7 +59,7 @@ func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) AuthFs(secrets map[string]string) ([]byte, error) {
+func (j *fakeJfsProvider) AuthFs(secrets map[string]string, extraEnvs map[string]string) ([]byte, error) {
 	return []byte{}, nil
 }
 
