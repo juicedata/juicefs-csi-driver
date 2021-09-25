@@ -247,6 +247,9 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		}
 	}
 	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
+		args = append(args, "--no-update")
+		argsStripped = append(argsStripped, "--no-update")
+
 		if secrets["bucket"] == "" {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"bucket argument is required when --no-update option is provided")
