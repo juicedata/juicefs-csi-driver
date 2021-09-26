@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -42,7 +43,7 @@ type Interface interface {
 	mount.Interface
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error)
 	JfsUnmount(mountPath string) error
-	AuthFs(secrets map[string]string) ([]byte, error)
+	AuthFs(secrets map[string]string, extraEnvs map[string]string) ([]byte, error)
 	MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error)
 	Version() ([]byte, error)
 }
@@ -152,7 +153,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
-			stdoutStderr, err := j.AuthFs(secrets)
+			stdoutStderr, err := j.AuthFs(secrets, jfsSecret.Envs)
 			klog.V(5).Infof("JfsMount: authentication output is '%s'\n", stdoutStderr)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
@@ -205,7 +206,7 @@ func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
+func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string) ([]byte, error) {
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -268,7 +269,13 @@ func (j *juicefs) AuthFs(secrets map[string]string) ([]byte, error) {
 		}
 	}
 	klog.V(5).Infof("AuthFs: cmd %q, args %#v", config.CliPath, argsStripped)
-	return j.Exec.Command(config.CliPath, args...).CombinedOutput()
+	authCmd := j.Exec.Command(config.CliPath, args...)
+	envs := syscall.Environ()
+	for key, val := range extraEnvs {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
+	authCmd.SetEnv(envs)
+	return authCmd.CombinedOutput()
 }
 
 // MountFs mounts JuiceFS with idempotency
