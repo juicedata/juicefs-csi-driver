@@ -9,7 +9,7 @@
 
 image:
   repository: juicedata/juicefs-csi-driver
-  tag: "v0.10.5"
+  tag: "v0.10.6"
   pullPolicy: ""
 
 namespace: kube-system
@@ -38,11 +38,6 @@ kubeletDir: /var/lib/kubelet
 # -- juicefs mount dir
 jfsMountDir: /var/lib/juicefs/volume
 jfsConfigDir: /var/lib/juicefs/config
-
-# -- juicefs mount pod priority
-jfsMountPriority:
-  enable: true
-  name: juicefs-mount-critical
 
 dnsPolicy: ClusterFirstWithHostNet
 dnsConfig:
