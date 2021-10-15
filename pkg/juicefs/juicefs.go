@@ -161,14 +161,15 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 		}
 		jfsSecret.Source = secrets["name"]
 	} else {
+		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {
-			klog.V(5).Infof("storage or bucket is empty, skip format.")
-		} else {
-			stdoutStderr, err := j.ceFormat(secrets)
-			klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
-			}
+			klog.V(5).Infof("JfsMount: storage or bucket is empty, format --no-update.")
+			noUpdate = true
+		}
+		stdoutStderr, err := j.ceFormat(secrets, noUpdate)
+		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
 		}
 		// Default use redis:// scheme
 		if !strings.Contains(source, "://") {
@@ -368,7 +369,7 @@ func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
-func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
+func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) ([]byte, error) {
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -382,6 +383,9 @@ func (j *juicefs) ceFormat(secrets map[string]string) ([]byte, error) {
 	}
 
 	args := []string{"format"}
+	if noUpdate {
+		args = append(args, "--no-update")
+	}
 	if secrets["storage"] == "ceph" {
 		os.Setenv("JFS_NO_CHECK_OBJECT_STORAGE", "1")
 	}
