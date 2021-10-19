@@ -93,7 +93,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 			Name: "jfs-default-cache",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/jfsCache",
+					Path: config.DefaultCachePath,
 					Type: &dir,
 				},
 			},
