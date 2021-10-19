@@ -200,6 +200,8 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
+        - name: JUICEFS_DEFAULT_CACHE_PATH
+          value: /var/jfsCache
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -318,6 +320,8 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
+            - name: JUICEFS_DEFAULT_CACHE_PATH
+              value: /var/jfsCache
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
