@@ -129,7 +129,7 @@ spec:
           type: DirectoryOrCreate
         name: jfs-dir
       - hostPath:
-          path: /var/lib/juicefs/config
+          path: {{ .Values.jfsConfigDir }}
           type: DirectoryOrCreate
         name: jfs-root-dir
 {{- end }}
