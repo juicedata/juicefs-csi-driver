@@ -139,7 +139,7 @@ storageClasses:
 
 
   mountOptions:
-  # -- Mount Options. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/cache_management.md) to learn how to set mount options.
+  # -- Mount Options. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/command_reference.md#juicefs-mount) to learn how to set different mount options.
 
   mountPod:
     # mount pod resource requests & limits
