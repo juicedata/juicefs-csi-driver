@@ -139,9 +139,7 @@ storageClasses:
 
 
   mountOptions:
-  #   - enable-xattr
-  #   - allow_other
-  #   - cache-dir=/tmp/cache
+  # -- Mount Options. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/cache_management.md) to learn how to set mount options.
 
   mountPod:
     # mount pod resource requests & limits
