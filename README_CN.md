@@ -121,27 +121,9 @@ $ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-drive
 $ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
 ```
 
-#### 故障排查
+## 故障排查
 
-如果 Kubernetes 无法发现 CSI 驱动并返回类似下面的错误：
-
-```
-driver name csi.juicefs.com not found in the list of registered CSI drivers, check the root directory path of `kubelet`.
-```
-
-请尝试在集群中任何一个非 master 节点执行命令：
-
-```shell
-$ ps -ef | grep kubelet | grep root-dir
-```
-
-如果结果不为空，请手动修改 CSI 驱动的部署文件 `k8s.yaml`，替换其中的 Kubelet 根目录，然后重新进行部署。
-
-```shell
-$ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-```
-
-> 注意：请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 实际的根目录路径。
+请参考 [Troubleshooting](docs/troubleshooting.md) 或 [FAQs](docs/FAQs.md) 文档。
 
 ## 升级 CSI Driver
 
@@ -212,10 +194,6 @@ Juicefs CSI Driver 从 v0.10.0 开始分离了 JuiceFS client 客户端，升级
 
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
-
-## 故障排查
-
-请参考 [Troubleshooting](docs/troubleshooting.md) 文档。
 
 ## Kubernetes
 
