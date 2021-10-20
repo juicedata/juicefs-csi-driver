@@ -137,6 +137,12 @@ storageClasses:
     # -- Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
     bucket: ""
 
+
+  mountOptions:
+  #   - enable-xattr
+  #   - allow_other
+  #   - cache-dir=/tmp/cache
+
   mountPod:
     # mount pod resource requests & limits
     resources:

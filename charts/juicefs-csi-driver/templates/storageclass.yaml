@@ -34,6 +34,10 @@ metadata:
   labels:
     {{- include "juicefs-csi.labels" $ | nindent 4 }}
   name: {{ $sc.name }}
+{{- if $sc.mountOptions }}
+mountOptions:
+  {{- toYaml $sc.mountOptions | nindent 2 }}
+{{- end }}
 parameters:
   csi.storage.k8s.io/node-publish-secret-name: {{ $sc.name }}-secret
   csi.storage.k8s.io/node-publish-secret-namespace: {{ $namespace }}
