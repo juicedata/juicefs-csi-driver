@@ -55,11 +55,13 @@ storageClasses:
 
 2. 检查 kubelet root-dir
 
+执行以下命令
+
 ```shell
-ps -ef | grep kubelet | grep root-dir
+$ ps -ef | grep kubelet | grep root-dir
 ```
 
-如果上述结果不为空, 更新 `values.yaml` 中的 `kubeletDir`:
+如果上述结果不为空，则代表 kubelet 的 root-dir 路径不是默认值，需要在第一步准备的配置文件 `values.yaml` 中将 `kubeletDir` 设置为 kubelet 当前的 root-dir 路径：
 
 ```yaml
 kubeletDir: <kubelet-dir>
@@ -122,15 +124,17 @@ juicefs-sc   csi.juicefs.com   Retain          Immediate           false        
 
 由于 Kubernetes 在版本变更过程中会废弃部分旧的 API，因此需要根据你使用 Kubernetes 版本选择适用的部署文件：
 
-1. 检查 `kubelet root-dir` 路径. 在 k8s 集群中任意不是 Master 的节点上执行：
+1. 检查 `kubelet root-dir` 路径
+
+在 Kubernetes 集群中任意一个非 Master 节点上执行以下命令：
 
 ```shell
-ps -ef | grep kubelet | grep root-dir
+$ ps -ef | grep kubelet | grep root-dir
 ```
 
 2. 部署
 
-如果上述运行结果不为空，在 CSI Driver 的部署文件中更新 kubeletDir 路径并部署：
+**如果前面检查命令返回的结果不为空**，则代表 kubelet 的 root-dir 路径不是默认值，因此需要在 CSI Driver 的部署文件中更新 `kubeletDir` 路径并部署：
 
 ```shell
 # Kubernetes version >= v1.18
@@ -140,9 +144,9 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
 ```
 
-> **注意**: 请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 实际的根目录路径。
+> **注意**: 请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
 
-如果第一步中运行结果为空，直接部署：
+**如果前面检查命令返回的结果不为空**，无需修改配置，可直接部署：
 
 ```shell
 # Kubernetes version >= v1.18
