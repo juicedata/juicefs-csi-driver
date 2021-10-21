@@ -119,21 +119,9 @@ $ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-drive
 $ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
 ```
 
-#### Troubleshooting
+## Troubleshooting & FAQs
 
-If the CSI driver couldn't be discovered by Kubernetes and the error like this: **driver name csi.juicefs.com not found in the list of registered CSI drivers**, check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
-
-```shell
-ps -ef | grep kubelet | grep root-dir
-```
-
-If the result isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and redeploy the CSI driver again.
-
-```shell
-curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-```
-
-> **Note**: please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
+If you encounter any issue, please refer to [Troubleshooting](docs/troubleshooting.md) or [FAQs](docs/FAQs.md) document. 
 
 ## Upgrade CSI Driver
 
@@ -204,10 +192,6 @@ The following CSI interfaces are implemented:
 
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
-
-## Troubleshooting
-
-If you encounter any issue, please refer to [Troubleshooting](docs/troubleshooting.md) document.
 
 ## JuiceFS CSI Driver on Kubernetes
 

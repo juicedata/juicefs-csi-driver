@@ -7,6 +7,7 @@ import random
 import string
 import subprocess
 from kubernetes import client, watch, config
+from kubernetes.dynamic.exceptions import ConflictError
 
 KUBE_SYSTEM = "kube-system"
 META_URL = os.getenv("JUICEFS_META_URL") or ""
@@ -238,7 +239,14 @@ class Deployment:
     def update_replicas(self, replicas):
         deployment = client.AppsV1Api().read_namespaced_deployment(name=self.name, namespace=self.namespace)
         deployment.spec.replicas = replicas
-        client.AppsV1Api().patch_namespaced_deployment(name=self.name, namespace=self.namespace, body=deployment)
+        while True:
+            try:
+                client.AppsV1Api().patch_namespaced_deployment(name=self.name, namespace=self.namespace,
+                                                               body=deployment)
+            except ConflictError as e:
+                print(e)
+                continue
+            break
 
     def delete(self):
         client.AppsV1Api().delete_namespaced_deployment(name=self.name, namespace=self.namespace)
