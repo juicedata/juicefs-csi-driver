@@ -54,11 +54,13 @@ storageClasses:
 
 2. Check and update kubelet root-dir
 
+Execute the following command.
+
 ```shell
-ps -ef | grep kubelet | grep root-dir
+$ ps -ef | grep kubelet | grep root-dir
 ```
 
-If the result isn't empty, update kubeletDir in `values.yaml`:
+If the result is not empty, it means that the `root-dir` path of kubelet is not the default value and you need to set `kubeletDir` to the current root-dir path of kubelet in the configuration file `values.yaml` prepared in the first step.
 
 ```yaml
 kubeletDir: <kubelet-dir>
@@ -119,15 +121,17 @@ juicefs-sc   csi.juicefs.com   Retain          Immediate           false        
 
 Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
 
-1. Check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
+1. Check the root directory path of `kubelet`.
+
+Execute the following command on any non-Master node in the Kubernetes cluster.
 
 ```shell
-ps -ef | grep kubelet | grep root-dir
+$ ps -ef | grep kubelet | grep root-dir
 ```
 
 2. Deploy
 
-If the result of cmd above isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and deploy:
+**If the check command returns a non-empty result**, it means that the `root-dir` path of the kubelet is not the default, so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
 
 ```shell
 # Kubernetes version >= v1.18
@@ -139,7 +143,7 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 > **Note**: please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
 
-If the result of cmd above is empty, deploy directly:
+**If the check command returns an empty result**, you can deploy directly without modifying the configuration:
 
 ```shell
 # Kubernetes version >= v1.18

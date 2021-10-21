@@ -61,7 +61,7 @@ storageClasses:
 $ ps -ef | grep kubelet | grep root-dir
 ```
 
-如果上述结果不为空，则代表 kubelet 的 root-dir 路径不是默认值，需要在第一步准备的配置文件 `values.yaml` 中将 `kubeletDir` 设置为 kubelet 当前的 root-dir 路径：
+如果结果不为空，则代表 kubelet 的 root-dir 路径不是默认值，需要在第一步准备的配置文件 `values.yaml` 中将 `kubeletDir` 设置为 kubelet 当前的 root-dir 路径：
 
 ```yaml
 kubeletDir: <kubelet-dir>
@@ -146,7 +146,7 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 
 > **注意**: 请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
 
-**如果前面检查命令返回的结果不为空**，无需修改配置，可直接部署：
+**如果前面检查命令返回的结果为空**，无需修改配置，可直接部署：
 
 ```shell
 # Kubernetes version >= v1.18
