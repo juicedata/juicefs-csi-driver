@@ -52,7 +52,19 @@ storageClasses:
         memory: "<memory-request>"
 ```
 
-2. Deploy
+2. Check and update kubelet root-dir
+
+```shell
+ps -ef | grep kubelet | grep root-dir
+```
+
+If the result isn't empty, update kubeletDir in `values.yaml`:
+
+```yaml
+kubeletDir: <kubelet-dir>
+```
+
+3. Deploy
 
 ```sh
 helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
@@ -60,7 +72,7 @@ helm repo update
 helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
 ```
 
-3. Check the deployment
+4. Check the deployment
 
 - **Check pods are running**: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
 
@@ -107,16 +119,34 @@ juicefs-sc   csi.juicefs.com   Retain          Immediate           false        
 
 Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
 
-#### Kubernetes version >= v1.18
+1. Check the root directory path of `kubelet`. Run the following command on any non-master node in your Kubernetes cluster:
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+ps -ef | grep kubelet | grep root-dir
 ```
 
-#### Kubernetes version < v1.18
+2. Deploy
+
+If the result of cmd above isn't empty, modify the CSI driver deployment `k8s.yaml` file with the new path and deploy:
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+# Kubernetes version >= v1.18
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+
+# Kubernetes version < v1.18
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+```
+
+> **Note**: please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
+
+If the result of cmd above is empty, deploy directly:
+
+```shell
+# Kubernetes version >= v1.18
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+
+# Kubernetes version < v1.18
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
 ```
 
 ## Troubleshooting & FAQs

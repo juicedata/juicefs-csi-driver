@@ -52,7 +52,20 @@ storageClasses:
         memory: "<memory-request>"
 ```
 
-2. 部署
+
+2. 检查 kubelet root-dir
+
+```shell
+ps -ef | grep kubelet | grep root-dir
+```
+
+如果上述结果不为空, 更新 `values.yaml` 中的 `kubeletDir`:
+
+```yaml
+kubeletDir: <kubelet-dir>
+```
+
+3. 部署
 
 依次执行以下三条命令，通过 helm 部署 JuiceFS CSI Driver。
 
@@ -62,7 +75,7 @@ $ helm repo update
 $ helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver --install -f ./values.yaml
 ```
 
-3. 检查部署状态
+4. 检查部署状态
 
 - **检查 Pods**：部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个 pod 在运行，例如：
 
@@ -109,16 +122,34 @@ juicefs-sc   csi.juicefs.com   Retain          Immediate           false        
 
 由于 Kubernetes 在版本变更过程中会废弃部分旧的 API，因此需要根据你使用 Kubernetes 版本选择适用的部署文件：
 
-#### Kubernetes v1.18 及以上版本
+1. 检查 `kubelet root-dir` 路径. 在 k8s 集群中任意不是 Master 的节点上执行：
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+ps -ef | grep kubelet | grep root-dir
 ```
 
-#### Kubernetes v1.18 以下版本
+2. 部署
+
+如果上述运行结果不为空，在 CSI Driver 的部署文件中更新 kubeletDir 路径并部署：
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+# Kubernetes version >= v1.18
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+
+# Kubernetes version < v1.18
+curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+```
+
+> **注意**: 请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 实际的根目录路径。
+
+如果第一步中运行结果为空，直接部署：
+
+```shell
+# Kubernetes version >= v1.18
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+
+# Kubernetes version < v1.18
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
 ```
 
 ## 故障排查
