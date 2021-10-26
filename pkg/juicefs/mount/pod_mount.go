@@ -215,26 +215,27 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 			// add volumeId ref in configMap
 			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
 			return p.AddRefOfMount(target, podName)
-		} else if util.IsPodResourceError(pod) {
-			klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
-			if !util.IsPodHasResource(*pod) {
-				return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
-			}
-
-			// if pod is failed because of resource, delete resource and deploy pod again.
-			klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
-			if err := p.K8sClient.DeletePod(pod); err != nil {
-				return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
-			}
-
-			time.Sleep(time.Second * 5)
-			newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env)
-			newPod.Annotations = pod.Annotations
-			util.DeleteResourceOfPod(newPod)
-			klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
-			if _, err := p.K8sClient.CreatePod(newPod); err != nil {
-				return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
-			}
+			//} else if util.IsPodResourceError(pod) {
+			//	klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
+			//	if !util.IsPodHasResource(*pod) {
+			//		return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
+			//	}
+			//
+			//	// if pod is failed because of resource, delete resource and deploy pod again.
+			//	klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
+			//	if err := p.K8sClient.DeletePod(pod); err != nil {
+			//		return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
+			//	}
+			//
+			//	time.Sleep(time.Second * 5)
+			//	newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env)
+			//	newPod.Annotations = pod.Annotations
+			//	util.DeleteResourceOfPod(newPod)
+			//	klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
+			//	if _, err := p.K8sClient.CreatePod(newPod); err != nil {
+			//		return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
+			//	}
+			//}
 		}
 		time.Sleep(time.Millisecond * 500)
 	}

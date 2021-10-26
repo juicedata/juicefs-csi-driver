@@ -229,7 +229,7 @@ func TestIsPodError(t *testing.T) {
 						Name: "test",
 					},
 					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
+						Phase: corev1.PodFailed,
 						Conditions: []corev1.PodCondition{
 							{
 								Type:   corev1.ContainersReady,

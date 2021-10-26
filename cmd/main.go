@@ -28,7 +28,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+var (
+	endpoint      = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+	version       = flag.Bool("version", false, "Print the version and exit.")
+	nodeID        = flag.String("nodeid", "", "Node ID")
+	enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
+)
+
 func init() {
+	klog.InitFlags(nil)
+	flag.Parse()
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.PodName = os.Getenv("POD_NAME")
@@ -59,15 +68,6 @@ func init() {
 }
 
 func main() {
-	var (
-		endpoint      = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-		version       = flag.Bool("version", false, "Print the version and exit.")
-		nodeID        = flag.String("nodeid", "", "Node ID")
-		enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
-	)
-	klog.InitFlags(nil)
-	flag.Parse()
-
 	if *version {
 		info, err := driver.GetVersionJSON()
 		if err != nil {
@@ -76,7 +76,6 @@ func main() {
 		fmt.Println(info)
 		os.Exit(0)
 	}
-
 	if *nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
 	}
