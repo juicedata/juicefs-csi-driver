@@ -29,8 +29,8 @@ The key of `configs` is the secret name, value is the path of secret being mount
 
 ```
 bucket=<bucket>
-envs='{GOOGLE_CLOUD_PROJECT: "/root/.config/gcloud/application_default_credentials.json"}'
-configs='{"gc-secret": "/root/.config/gcloud"}'
+envs={GOOGLE_CLOUD_PROJECT: "/root/.config/gcloud/application_default_credentials.json"}
+configs={"gc-secret": "/root/.config/gcloud"}
 metaurl=<metaurl>
 name=<name>
 storage=<storage>

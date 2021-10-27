@@ -65,7 +65,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		if err := yaml.Unmarshal([]byte(configStr), &configs); err != nil {
 			if err := json.Unmarshal([]byte(configStr), &configs); err != nil {
 				return nil, status.Errorf(codes.InvalidArgument,
-					"Parse envs in secret error: %v", err)
+					"Parse configs in secret error: %v", err)
 			}
 		}
 		jfsSetting.Configs = configs
@@ -74,9 +74,12 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["envs"] != "" {
 		envStr := secrets["envs"]
 		env := make(map[string]string)
+		// json or yaml format
 		if err := yaml.Unmarshal([]byte(envStr), &env); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"Parse envs in secret error: %v", err)
+			if err := json.Unmarshal([]byte(envStr), &env); err != nil {
+				return nil, status.Errorf(codes.InvalidArgument,
+					"Parse envs in secret error: %v", err)
+			}
 		}
 		jfsSetting.Envs = env
 	}
