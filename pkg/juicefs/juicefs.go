@@ -386,7 +386,7 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) ([]byte, er
 	if noUpdate {
 		args = append(args, "--no-update")
 	}
-	if secrets["storage"] == "ceph" {
+	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
 		os.Setenv("JFS_NO_CHECK_OBJECT_STORAGE", "1")
 	}
 	argsStripped := []string{"format"}
