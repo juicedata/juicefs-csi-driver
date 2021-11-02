@@ -65,7 +65,7 @@ $ kubectl get po juicefs-kube-node-3-test-bucket -oyaml |grep env -A 4
     env:
     - name: JFS_FOREGROUND
       value: "1"
-    - name: GOOGLE_CLOUD_PROJECT
+    - name: GOOGLE_APPLICATION_CREDENTIALS
       value: /root/.config/gcloud/application_default_credentials.json
 ```
 

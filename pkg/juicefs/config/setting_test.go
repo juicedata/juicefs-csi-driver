@@ -24,7 +24,7 @@ import (
 )
 
 func TestParseSecret(t *testing.T) {
-	s := map[string]string{"GOOGLE_CLOUD_PROJECT": "/root/.config/gcloud/application_default_credentials.json"}
+	s := map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"}
 	ss, _ := json.Marshal(s)
 	fmt.Println(string(ss))
 
@@ -44,7 +44,7 @@ func TestParseSecret(t *testing.T) {
 			args: args{
 				secrets: map[string]string{
 					"name": "test",
-					"envs": "GOOGLE_CLOUD_PROJECT: \"/root/.config/gcloud/application_default_credentials.json\"",
+					"envs": "GOOGLE_APPLICATION_CREDENTIALS: \"/root/.config/gcloud/application_default_credentials.json\"",
 				},
 				usePod: true,
 			},
