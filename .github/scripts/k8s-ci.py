@@ -15,7 +15,7 @@ ACCESS_KEY = os.getenv("JUICEFS_ACCESS_KEY") or ""
 SECRET_KEY = os.getenv("JUICEFS_SECRET_KEY") or ""
 STORAGE = os.getenv("JUICEFS_STORAGE") or ""
 BUCKET = os.getenv("JUICEFS_BUCKET") or ""
-TOKEN = os.getenv("JUICEFS_TOKEN")
+TOKEN = os.getenv("JUICEFS_TOKEN") or ""
 IS_CE = os.getenv("IS_CE") == "True"
 RESOURCE_PREFIX = "ce-" if IS_CE else "ee-"
 
@@ -758,19 +758,30 @@ def test_delete_pvc():
     print("Test pass.")
 
 
+def check_do_test():
+    if IS_CE:
+        return True
+    if TOKEN == "":
+        return False
+    return True
+
+
 if __name__ == "__main__":
-    config.load_kube_config()
-    # clear juicefs volume first.
-    print("clean juicefs volume first.")
-    clean_juicefs_volume("/mnt/jfs")
-    try:
-        deploy_secret_and_sc()
-        test_deployment_using_storage_rw()
-        test_deployment_using_storage_ro()
-        test_deployment_use_pv_rw()
-        test_deployment_use_pv_ro()
-        test_delete_one()
-        test_delete_all()
-        test_delete_pvc()
-    finally:
-        tear_down()
+    if check_do_test():
+        config.load_kube_config()
+        # clear juicefs volume first.
+        print("clean juicefs volume first.")
+        clean_juicefs_volume("/mnt/jfs")
+        try:
+            deploy_secret_and_sc()
+            test_deployment_using_storage_rw()
+            test_deployment_using_storage_ro()
+            test_deployment_use_pv_rw()
+            test_deployment_use_pv_ro()
+            test_delete_one()
+            test_delete_all()
+            test_delete_pvc()
+        finally:
+            tear_down()
+    else:
+        print("skip test.")
