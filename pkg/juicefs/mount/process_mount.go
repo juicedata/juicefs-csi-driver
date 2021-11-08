@@ -82,7 +82,7 @@ func (p *ProcessMount) JMount(storage, volumeId, mountPath string, target string
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	if storage == "ceph" {
+	if storage == "ceph" || storage == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)

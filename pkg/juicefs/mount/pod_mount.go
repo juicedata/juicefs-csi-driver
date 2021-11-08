@@ -17,7 +17,6 @@ limitations under the License.
 package mount
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"strings"
 	"time"
@@ -88,7 +87,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 
 	klog.V(5).Infof("DeleteRefOfMountPod: Delete target ref [%s] in pod [%s].", target, pod.Name)
 
-	key := getReferenceKey(target)
+	key := util.GetReferenceKey(target)
 	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
 
 loop:
@@ -170,7 +169,7 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 		env = p.jfsSetting.Envs
 	}
 
-	key := getReferenceKey(target)
+	key := util.GetReferenceKey(target)
 	po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
@@ -215,27 +214,6 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 			// add volumeId ref in configMap
 			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
 			return p.AddRefOfMount(target, podName)
-			//} else if util.IsPodResourceError(pod) {
-			//	klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
-			//	if !util.IsPodHasResource(*pod) {
-			//		return status.Errorf(codes.Internal, "Pod %v is failed", volumeId)
-			//	}
-			//
-			//	// if pod is failed because of resource, delete resource and deploy pod again.
-			//	klog.V(5).Infof("waitUtilMount: Delete it and deploy again with no resource.")
-			//	if err := p.K8sClient.DeletePod(pod); err != nil {
-			//		return status.Errorf(codes.Internal, "Can't delete Pod %v", volumeId)
-			//	}
-			//
-			//	time.Sleep(time.Second * 5)
-			//	newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env)
-			//	newPod.Annotations = pod.Annotations
-			//	util.DeleteResourceOfPod(newPod)
-			//	klog.V(5).Infof("waitUtilMount: Deploy again with no resource.")
-			//	if _, err := p.K8sClient.CreatePod(newPod); err != nil {
-			//		return status.Errorf(codes.Internal, "waitUtilMount: Can't create Pod %v", volumeId)
-			//	}
-			//}
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -244,7 +222,7 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	// add volumeId ref in pod annotation
-	key := getReferenceKey(target)
+	key := util.GetReferenceKey(target)
 
 loop:
 	err := func() error {
@@ -280,10 +258,4 @@ loop:
 		return err
 	}
 	return nil
-}
-
-func getReferenceKey(target string) string {
-	h := sha256.New()
-	h.Write([]byte(target))
-	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 }

@@ -91,3 +91,33 @@ func TestParseEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMntPath(t *testing.T) {
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := ParseMntPath(tt.args.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseMntPath() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
