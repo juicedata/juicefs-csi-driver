@@ -18,6 +18,7 @@ package apps
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"os"
@@ -34,10 +35,15 @@ func NewManager() manager.Manager {
 		os.Exit(1)
 	}
 
+	client, err := k8s.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Could not create k8s client %v", err)
+		os.Exit(0)
+	}
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(&controller.PodReconciler{
-			Client: mgr.GetClient(),
+			K8sClient: client,
 		})
 
 	if err != nil {
