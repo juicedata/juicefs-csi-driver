@@ -188,12 +188,21 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	if !notMnt || corruptedMnt {
 		klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
-		if err = d.juicefs.Unmount(target); err != nil {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
-			output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
-			if err1 != nil {
-				return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
+		for {
+			//err = d.juicefs.Unmount(target)
+			out, err := exec.Command("umount", target).CombinedOutput()
+			if err == nil {
+				continue
 			}
+			if !strings.Contains(string(out), "not mounted") || strings.Contains(string(out), "mountpoint not found") {
+				klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
+				output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
+				if err1 != nil {
+					return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
+				}
+			}
+			klog.V(5).Infof("umount:%s success", target)
+			break
 		}
 	}
 	// Related issue: https://github.com/kubernetes/kubernetes/issues/60987

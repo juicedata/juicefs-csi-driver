@@ -31,17 +31,30 @@ func IsPodReady(pod *corev1.Pod) bool {
 	return conditionsTrue == 2
 }
 
+func podNotRunning(statuses []corev1.ContainerStatus) bool {
+	for _, status := range statuses {
+		if status.State.Terminated == nil && status.State.Waiting == nil {
+			return false
+		}
+	}
+	return true
+}
+
 func IsPodError(pod *corev1.Pod) bool {
 	if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodUnknown {
 		return true
 	}
-	conditionsFalse := 0
-	for _, cond := range pod.Status.Conditions {
-		if pod.Status.Phase == corev1.PodRunning && cond.Status == corev1.ConditionFalse && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
-			conditionsFalse++
-		}
+	if pod.DeletionTimestamp != nil && podNotRunning(pod.Status.ContainerStatuses) {
+		return true
 	}
-	return conditionsFalse == 2
+	return false
+	//conditionsFalse := 0
+	//for _, cond := range pod.Status.Conditions {
+	//	if pod.Status.Phase == corev1.PodRunning && cond.Status == corev1.ConditionFalse && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
+	//		conditionsFalse++
+	//	}
+	//}
+	//return conditionsFalse == 2
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
