@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"reflect"
 	"testing"
 
@@ -38,7 +39,7 @@ var test2 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-b",
 		Annotations: map[string]string{
-			getReferenceKey("/mnt/abc"): "/mnt/abc"},
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
 }
 
@@ -46,7 +47,7 @@ var test3 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-c",
 		Annotations: map[string]string{
-			getReferenceKey("/mnt/abc"): "/mnt/abc"},
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
 }
 
@@ -54,7 +55,7 @@ var test4 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-d",
 		Annotations: map[string]string{"a": "b",
-			getReferenceKey("/mnt/def"): "/mnt/def"},
+			util.GetReferenceKey("/mnt/def"): "/mnt/def"},
 	},
 }
 
@@ -62,8 +63,8 @@ var test5 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-e",
 		Annotations: map[string]string{
-			getReferenceKey("/mnt/abc"): "/mnt/abc",
-			getReferenceKey("/mnt/def"): "/mnt/def",
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
+			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
 }
@@ -78,8 +79,8 @@ var test7 = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-g",
 		Annotations: map[string]string{
-			getReferenceKey("/mnt/abc"): "/mnt/abc",
-			getReferenceKey("/mnt/def"): "/mnt/def",
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
+			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
 }
@@ -148,7 +149,7 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			key := getReferenceKey(tt.args.target)
+			key := util.GetReferenceKey(tt.args.target)
 			old, err := k8sclient.FakeClient.GetPod(tt.args.podName, jfsConfig.Namespace)
 			if err != nil {
 				t.Errorf("Can't get pod: %v", tt.args.podName)
@@ -234,7 +235,7 @@ func Test_juicefs_JUmount(t *testing.T) {
 			wantErr:        false,
 			wantPodDeleted: false,
 			wantAnnotations: map[string]string{
-				getReferenceKey("/mnt/abc"): "/mnt/abc",
+				util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
 			},
 		},
 		{
@@ -308,7 +309,7 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 				jfsSetting: nil,
 			},
 			wantErr:  false,
-			wantAnno: map[string]string{getReferenceKey("/mnt/hhh"): "/mnt/hhh"},
+			wantAnno: map[string]string{util.GetReferenceKey("/mnt/hhh"): "/mnt/hhh"},
 		},
 		{
 			name: "test-exists",
@@ -326,9 +327,9 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 			},
 			wantErr: false,
 			wantAnno: map[string]string{
-				getReferenceKey("/mnt/abc"): "/mnt/abc",
-				getReferenceKey("/mnt/def"): "/mnt/def",
-				getReferenceKey("/mnt/ggg"): "/mnt/ggg",
+				util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
+				util.GetReferenceKey("/mnt/def"): "/mnt/def",
+				util.GetReferenceKey("/mnt/ggg"): "/mnt/ggg",
 			},
 		},
 	}
