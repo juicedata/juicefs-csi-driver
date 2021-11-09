@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	. "github.com/agiledragon/gomonkey"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
@@ -9,6 +10,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"os"
 	"reflect"
@@ -16,6 +18,12 @@ import (
 	"testing"
 	"time"
 )
+
+func init() {
+	klog.InitFlags(nil)
+}
+
+var volErr = errors.New("not connected")
 
 var readyPod = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
@@ -45,6 +53,22 @@ var readyPod = &corev1.Pod{
 				StartedAt: metav1.Time{},
 			}},
 			Ready: true,
+		}},
+	},
+}
+
+var errCmdPod = &corev1.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "juicefs-test-err-mount-cmd-pod",
+		Annotations: map[string]string{
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Finalizers: []string{jfsConfig.Finalizer},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{
+			Name:    "test",
+			Image:   "juicedata/juicefs-csi-driver",
+			Command: []string{"sh", "-c"},
 		}},
 	},
 }
@@ -173,6 +197,24 @@ var errorPod4 = &corev1.Pod{
 	},
 }
 
+// running pod
+var runningPod = &corev1.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "juicefs-test-pod-running",
+		Annotations: map[string]string{
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Finalizers: []string{jfsConfig.Finalizer},
+	},
+	Status: corev1.PodStatus{
+		Phase: corev1.PodRunning,
+		Conditions: []corev1.PodCondition{
+			{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			{Type: corev1.ContainersReady, Status: corev1.ConditionTrue},
+		},
+		ContainerStatuses: []corev1.ContainerStatus{},
+	},
+}
+
 func setup() {
 	k8sclient.FakeClient.Flush()
 	jfsConfig.NodeName = "test-node"
@@ -202,6 +244,16 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		args   args
 		want   podStatus
 	}{
+		{
+			name: "error-nil pod",
+			fields: fields{
+				Client: k8sclient.FakeClient,
+			},
+			args: args{
+				pod: nil,
+			},
+			want: podError,
+		},
 		{
 			name: "ready",
 			fields: fields{
@@ -261,6 +313,15 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 				pod: deletedPod,
 			},
 			want: podDeleted,
+		}, {
+			name: "running",
+			fields: fields{
+				Client: k8sclient.FakeClient,
+			},
+			args: args{
+				pod: runningPod,
+			},
+			want: podRunning,
 		},
 	}
 	for _, tt := range tests {
@@ -291,6 +352,91 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			defer patch2.Reset()
 
 			_, err := d.podReadyHandler(context.Background(), readyPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("get nil pod", func() {
+			d := NewPodDriver(k8sclient.FakeClient)
+			_, err := d.podReadyHandler(context.Background(), nil)
+			So(err, ShouldBeNil)
+		})
+		Convey("pod mount cmd <3", func() {
+			d := NewPodDriver(k8sclient.FakeClient)
+			_, err := d.podReadyHandler(context.Background(), errCmdPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("parse pod mount cmd mntPath err", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "juicefs-test-err-mount-cmd-pod",
+					Annotations: map[string]string{
+						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+					Finalizers: []string{jfsConfig.Finalizer},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:    "test",
+						Image:   "juicedata/juicefs-csi-driver",
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379/jfs/pvc-xxx"},
+					}},
+				},
+			}
+			d := NewPodDriver(k8sclient.FakeClient)
+			_, err := d.podReadyHandler(context.Background(), pod)
+			So(err, ShouldBeNil)
+		})
+		Convey("stat static-pv sourcePath err", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "juicefs-test-err-mount-cmd-pod",
+					Annotations: map[string]string{
+						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+					Finalizers: []string{jfsConfig.Finalizer},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:    "test",
+						Image:   "juicedata/juicefs-csi-driver",
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/static-pv-xxx"},
+					}},
+				},
+			}
+			patch1 := ApplyFunc(os.Stat, func(target string) (os.FileInfo, error) {
+				return nil, errors.New("not exists")
+			})
+			defer patch1.Reset()
+			d := NewPodDriver(k8sclient.FakeClient)
+			_, err := d.podReadyHandler(context.Background(), pod)
+			So(err, ShouldBeNil)
+		})
+		Convey("stat static-pv sourcePath normal", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "juicefs-test-err-mount-cmd-pod",
+					Annotations: map[string]string{
+						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+					Finalizers: []string{jfsConfig.Finalizer},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:    "test",
+						Image:   "juicedata/juicefs-csi-driver",
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+					}},
+				},
+			}
+			outputs := []OutputCell{
+				{Values: Params{nil, volErr}},
+				{Values: Params{nil, nil}, Times: 2},
+			}
+			patch1 := ApplyFuncSeq(os.Stat, outputs)
+			defer patch1.Reset()
+			d := NewPodDriver(k8sclient.FakeClient)
+			patch2 := ApplyMethod(reflect.TypeOf(d.Mounter), "Mount",
+				func(_ *mount.Mounter, source string, target string, fstype string, options []string) error {
+					return nil
+				})
+			defer patch2.Reset()
+			_, err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})
 	})

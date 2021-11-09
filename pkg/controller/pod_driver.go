@@ -28,8 +28,10 @@ import (
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 	"os"
+	"os/exec"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strings"
 	"time"
 )
 
@@ -151,6 +153,10 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 }
 
 func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
+	if pod == nil {
+		klog.Errorf("get nil pod")
+		return reconcile.Result{}, nil
+	}
 	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
 		// do nothing
@@ -160,7 +166,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		klog.V(5).Infof("the pod is PodResourceError, podDeletedHandler skip delete the pod:%s", pod.Name)
 		return reconcile.Result{}, nil
 	}
-	// todo
 	klog.V(5).Infof("Remove finalizer of pod %s namespace %s", pod.Name, pod.Namespace)
 	controllerutil.RemoveFinalizer(pod, config.Finalizer)
 	if err := p.Client.UpdatePod(pod); err != nil {
@@ -222,11 +227,16 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		klog.Error(err)
 		return reconcile.Result{}, nil
 	}
-
 	klog.Infof("start umount :%s", sourcePath)
-	if err := p.Mounter.Unmount(sourcePath); err != nil {
-		klog.Errorf("umount %s err:%v\n", sourcePath, err)
-		//return reconcile.Result{}, nil
+	out, err := exec.Command("umount", sourcePath).CombinedOutput()
+	if err != nil {
+		if !strings.Contains(string(out), "not mounted") || !strings.Contains(string(out), "mountpoint not found") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
+			output, err1 := exec.Command("umount", "-l", sourcePath).CombinedOutput()
+			if err1 != nil {
+				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, string(output))
+			}
+		}
 	}
 	// create
 	klog.V(5).Infof("pod targetPath not empty, need create thd pod:%s", pod.Name)
@@ -234,8 +244,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 }
 
 func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
-	// bind target
-	// do recovery
+	if pod == nil {
+		klog.Errorf("[podReadyHandler] get nil pod")
+		return reconcile.Result{}, nil
+	}
 	if pod.Annotations == nil {
 		return reconcile.Result{}, nil
 	}
