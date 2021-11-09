@@ -34,11 +34,10 @@ type PodReconciler struct {
 }
 
 func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
+	klog.V(5).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
 
 	// fetch pod
-	pod := &corev1.Pod{}
-	requeue, err := p.fetchPod(request.NamespacedName, pod)
+	requeue, pod, err := p.fetchPod(request.NamespacedName)
 	if err != nil || requeue {
 		return ctrl.Result{}, err
 	}
@@ -59,12 +58,11 @@ func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request)
 	return podDriver.Run(ctx, pod)
 }
 
-func (p *PodReconciler) fetchPod(name types.NamespacedName, pod *corev1.Pod) (bool, error) {
+func (p *PodReconciler) fetchPod(name types.NamespacedName) (bool, *corev1.Pod, error) {
 	if reach, err := p.GetPod(name.Name, name.Namespace); err != nil {
 		klog.V(6).Infof("Get pod namespace %s name %s failed: %v", name.Namespace, name.Name, err)
-		return true, err
+		return true, nil, err
 	} else {
-		pod = reach.DeepCopy()
+		return false, reach, nil
 	}
-	return false, nil
 }

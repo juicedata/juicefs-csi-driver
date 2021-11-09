@@ -246,6 +246,107 @@ func TestIsPodError(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "test-true: pod-unknown-status",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodUnknown,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-true: waiting reason != ContainerCreating",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: &corev1.ContainerStateWaiting{
+										Reason:  "CrashLoopBackoff",
+										Message: "",
+									},
+									Running:    nil,
+									Terminated: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		}, {
+			name: "test-true: container State is Terminated and Terminated.ExitCode != 0",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: nil,
+									Running: nil,
+									Terminated: &corev1.ContainerStateTerminated{
+										ExitCode:    1,
+										Signal:      0,
+										Reason:      "",
+										Message:     "",
+										StartedAt:   metav1.Time{},
+										FinishedAt:  metav1.Time{},
+										ContainerID: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false: container Terminated and Terminated.ExitCode is 0",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: nil,
+									Running: nil,
+									Terminated: &corev1.ContainerStateTerminated{
+										ExitCode:    0,
+										Signal:      0,
+										Reason:      "",
+										Message:     "",
+										StartedAt:   metav1.Time{},
+										FinishedAt:  metav1.Time{},
+										ContainerID: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
 			name: "test-false",
 			args: args{
 				pod: &corev1.Pod{
@@ -262,6 +363,31 @@ func TestIsPodError(t *testing.T) {
 							{
 								Type:   corev1.PodReady,
 								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		}, {
+			name: "test-false- waiting reason is ContainerCreating",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: &corev1.ContainerStateWaiting{
+										Reason:  "ContainerCreating",
+										Message: "",
+									},
+									Running:    nil,
+									Terminated: nil,
+								},
 							},
 						},
 					},

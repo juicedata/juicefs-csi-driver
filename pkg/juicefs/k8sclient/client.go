@@ -62,7 +62,7 @@ func (k *k8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
 }
 
 func (k *k8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
-	klog.V(5).Infof("Get pod %s", podName)
+	klog.V(6).Infof("Get pod %s", podName)
 	mntPod, err := k.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(5).Infof("Can't get pod %s namespace %s: %v", podName, namespace, err)
