@@ -91,6 +91,9 @@ func (f *FakeK8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
 		return err
 	}
 	originalPatchedObjJS, err := strategicpatch.StrategicMergePatch(originalObjJS, data, po)
+	if err != nil {
+		return err
+	}
 	newPod := &corev1.Pod{}
 	err = json.Unmarshal(originalPatchedObjJS, newPod)
 	if err != nil {
