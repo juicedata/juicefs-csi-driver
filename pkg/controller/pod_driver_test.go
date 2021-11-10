@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"testing"
 	"time"
 )
@@ -745,40 +744,4 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 	})
-}
-
-func TestPodDriver_podRunningHandler(t *testing.T) {
-	type fields struct {
-		Client   k8sclient.K8sClient
-		handlers map[podStatus]podHandler
-	}
-	type args struct {
-		ctx context.Context
-		pod *corev1.Pod
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    reconcile.Result
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &PodDriver{
-				Client:   tt.fields.Client,
-				handlers: tt.fields.handlers,
-			}
-			got, err := p.podPendingHandler(tt.args.ctx, tt.args.pod)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("podRunningHandler() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("podRunningHandler() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

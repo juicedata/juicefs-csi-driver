@@ -833,6 +833,14 @@ def test_dynamic_delete_pod():
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
     app_pod_id = pod.get_id()
+    deployment = Deployment(name="app-dynamic-available", pvc=pvc.name, replicas=1)
+    print("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
     print("Check mount point..")
@@ -849,6 +857,10 @@ def test_dynamic_delete_pod():
     mount_pod.delete()
     print("Wait for a sec..")
     time.sleep(5)
+    print("Watch pod deleted..")
+    result = mount_pod.watch_for_delete(1)
+    if not result:
+        die("Mount pod {} are not delete within 5 min.".format(mount_pod.name))
 
     # watch mount pod recovery
     print("Watch mount pod recovery..")
