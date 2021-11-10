@@ -103,7 +103,34 @@ func TestParseMntPath(t *testing.T) {
 		want1   string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "get sourcePath from pod cmd success",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name:    "err-pod cmd args <3",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name:    "err-cmd sourcePath no MountBase prefix",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name:    "err-cmd sourcePath length err",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

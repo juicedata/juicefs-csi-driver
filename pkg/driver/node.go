@@ -194,7 +194,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			if err == nil {
 				continue
 			}
-			if !strings.Contains(string(out), "not mounted") || !strings.Contains(string(out), "mountpoint not found") {
+			if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
 				klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
 				output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
 				if err1 != nil {

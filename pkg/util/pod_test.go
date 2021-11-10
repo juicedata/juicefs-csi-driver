@@ -470,3 +470,84 @@ func TestIsPodResourceError(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMountPathOfPod(t *testing.T) {
+	type args struct {
+		pod corev1.Pod
+	}
+	var normalPod = corev1.Pod{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:    "pvc-node01-xxx",
+				Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+				Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			},
+		},
+	}}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		{
+			name:    "get mntPath from pod cmd success",
+			args:    args{pod: normalPod},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name:    "nil pod ",
+			args:    args{pod: corev1.Pod{}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "err-pod cmd <3",
+			//args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379"},
+			args: args{pod: corev1.Pod{Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "pvc-node01-xxx",
+						Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+						Command: []string{"sh", "-c"},
+					},
+				}}}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "err-cmd sourcePath no MountBase prefix",
+			args: args{pod: corev1.Pod{Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "pvc-node01-xxx",
+						Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx}"},
+					},
+				}}}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := GetMountPathOfPod(tt.args.pod)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseMntPath() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
