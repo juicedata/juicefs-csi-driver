@@ -849,10 +849,6 @@ def test_dynamic_delete_pod():
     mount_pod.delete()
     print("Wait for a sec..")
     time.sleep(5)
-    print("Watch pod deleted..")
-    result = mount_pod.watch_for_delete(1)
-    if not result:
-        die("Mount pod {} are not delete within 5 min.".format(mount_pod.name))
 
     # watch mount pod recovery
     print("Watch mount pod recovery..")
