@@ -24,6 +24,7 @@ STORAGECLASS_NAME = "ce-juicefs-sc" if IS_CE else "ee-juicefs-sc"
 SECRETs = []
 STORAGECLASSs = []
 DEPLOYMENTs = []
+PODS = []
 PVCs = []
 PVs = []
 
@@ -244,9 +245,10 @@ class Deployment:
             try:
                 client.AppsV1Api().patch_namespaced_deployment(name=self.name, namespace=self.namespace,
                                                                body=deployment)
-            except ConflictError as e:
-                print(e)
-                continue
+            except (client.ApiException, ConflictError) as e:
+                if e.reason == "Conflict":
+                    print(e)
+                    continue
             break
 
     def delete(self):
@@ -260,12 +262,16 @@ class Deployment:
 
 
 class Pod:
-    def __init__(self, name, deployment_name, replicas, namespace="default"):
+    def __init__(self, name, deployment_name, replicas, namespace="default", pvc="", out_put=""):
         self.name = name
         self.namespace = namespace
         self.deployment = deployment_name
         self.pods = []
         self.replicas = replicas
+        self.image = "centos"
+        self.pvc = pvc
+        self.replicas = replicas
+        self.out_put = out_put
 
     def watch_for_success(self):
         v1 = client.CoreV1Api()
@@ -347,6 +353,33 @@ class Pod:
 
     def delete(self):
         client.CoreV1Api().delete_namespaced_pod(name=self.name, namespace=self.namespace)
+
+    def create(self):
+        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"
+        if self.out_put != "":
+            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 5; done".format(self.out_put)
+        container = client.V1Container(
+            name="app",
+            image="centos",
+            command=["/bin/sh"],
+            args=["-c", cmd],
+            volume_mounts=[client.V1VolumeMount(
+                name="juicefs-pv",
+                mount_path="/data",
+                mount_propagation="HostToContainer",
+            )]
+        )
+        pod = client.V1Pod(
+            metadata=client.V1ObjectMeta(name=self.name, namespace=self.namespace),
+            spec=client.V1PodSpec(
+                containers=[container],
+                volumes=[client.V1Volume(
+                    name="juicefs-pv",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
+                )]),
+        )
+        client.CoreV1Api().create_namespaced_pod(namespace=self.namespace, body=pod)
+        PODS.append(self)
 
     def get_id(self):
         try:
@@ -438,6 +471,13 @@ def deploy_secret_and_sc():
 def tear_down():
     print("Tear down all resources begin..")
     try:
+        for po in PODS:
+            print("Delete pod {}".format(po.name))
+            po.delete()
+            print("Watch for pods {} for delete.".format(po.name))
+            result = po.watch_for_delete(1)
+            if not result:
+                raise Exception("Pods {} are not delete within 5 min.".format(po.name))
         for deploy in DEPLOYMENTs:
             print("Delete deployment {}".format(deploy.name))
             deploy = deploy.refresh()
@@ -786,14 +826,13 @@ def test_dynamic_delete_pod():
     pvc.create()
 
     # deploy pod
-    deployment = Deployment(name="app-dynamic-available", pvc=pvc.name, replicas=1)
-    print("Deploy deployment {}".format(deployment.name))
-    deployment.create()
-    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    pod = Pod(name="app-dynamic-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
+    pod.create()
+    print("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
     if not result:
-        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
+        die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
+    app_pod_id = pod.get_id()
 
     # check mount point
     print("Check mount point..")
@@ -808,10 +847,8 @@ def test_dynamic_delete_pod():
     print("Mount pod delete..")
     mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
-    print("Watch pod deleted..")
-    result = mount_pod.watch_for_delete(1)
-    if not result:
-        die("Mount pod {} are not delete within 5 min.".format(mount_pod.name))
+    print("Wait for a sec..")
+    time.sleep(5)
 
     # watch mount pod recovery
     print("Watch mount pod recovery..")
@@ -829,8 +866,71 @@ def test_dynamic_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    pod_id = mount_pod.get_id()
-    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(pod_id, volume_id)
+    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, volume_id)
+    try:
+        subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        print(e)
+        raise e
+
+    print("Test pass.")
+
+
+def test_static_delete_pod():
+    print("[test case] Pod with static storage and delete mount pod begin..")
+    # deploy pv
+    pv = PV(name="pv-static-available", access_mode="ReadWriteMany", volume_handle="pv-static-available",
+            secret_name=SECRET_NAME)
+    print("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-static-available", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
+    print("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
+    pod.create()
+    print("Watch for pod {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
+    app_pod_id = pod.get_id()
+
+    # check mount point
+    print("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    print("Get volume_id {}".format(volume_id))
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/out.txt"
+    result = check_mount_point(mount_path, check_path)
+    if not result:
+        die("mount Point of /jfs/out.txt are not ready within 5 min.")
+
+    print("Mount pod delete..")
+    mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod.delete()
+    print("Wait for a sec..")
+    time.sleep(5)
+
+    # watch mount pod recovery
+    print("Watch mount pod recovery..")
+    is_ready = False
+    for i in range(0, 60):
+        try:
+            is_ready = mount_pod.is_ready()
+            if is_ready:
+                break
+            time.sleep(5)
+        except Exception as e:
+            print(e)
+            raise e
+    if not is_ready:
+        die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
+
+    print("Check mount point is ok..")
+    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, pv.name)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -864,6 +964,7 @@ if __name__ == "__main__":
             test_delete_all()
             test_delete_pvc()
             test_dynamic_delete_pod()
+            test_static_delete_pod()
         finally:
             tear_down()
     else:
