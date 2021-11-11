@@ -890,7 +890,9 @@ def test_static_delete_pod():
     pvc.create()
 
     # deploy pod
-    pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
+    out_put = gen_random_string(6) + ".txt"
+    pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
+              out_put=out_put)
     pod.create()
     print("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
@@ -903,7 +905,7 @@ def test_static_delete_pod():
     volume_id = pvc.get_volume_id()
     print("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
-    check_path = mount_path + "/out.txt"
+    check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/out.txt are not ready within 5 min.")
