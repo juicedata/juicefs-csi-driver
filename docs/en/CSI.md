@@ -92,7 +92,7 @@ May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    
 
 ### Creating volume
 
-Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](../examples/basic) for details.
+Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](../../examples/basic) for details.
 
 Kubernetes will proceed the following actions:
 
