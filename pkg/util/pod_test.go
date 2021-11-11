@@ -229,7 +229,7 @@ func TestIsPodError(t *testing.T) {
 						Name: "test",
 					},
 					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning,
+						Phase: corev1.PodFailed,
 						Conditions: []corev1.PodCondition{
 							{
 								Type:   corev1.ContainersReady,
@@ -244,6 +244,107 @@ func TestIsPodError(t *testing.T) {
 				},
 			},
 			want: true,
+		},
+		{
+			name: "test-true: pod-unknown-status",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodUnknown,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-true: waiting reason != ContainerCreating",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: &corev1.ContainerStateWaiting{
+										Reason:  "CrashLoopBackoff",
+										Message: "",
+									},
+									Running:    nil,
+									Terminated: nil,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		}, {
+			name: "test-true: container State is Terminated and Terminated.ExitCode != 0",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: nil,
+									Running: nil,
+									Terminated: &corev1.ContainerStateTerminated{
+										ExitCode:    1,
+										Signal:      0,
+										Reason:      "",
+										Message:     "",
+										StartedAt:   metav1.Time{},
+										FinishedAt:  metav1.Time{},
+										ContainerID: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false: container Terminated and Terminated.ExitCode is 0",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: nil,
+									Running: nil,
+									Terminated: &corev1.ContainerStateTerminated{
+										ExitCode:    0,
+										Signal:      0,
+										Reason:      "",
+										Message:     "",
+										StartedAt:   metav1.Time{},
+										FinishedAt:  metav1.Time{},
+										ContainerID: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
 		},
 		{
 			name: "test-false",
@@ -262,6 +363,31 @@ func TestIsPodError(t *testing.T) {
 							{
 								Type:   corev1.PodReady,
 								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		}, {
+			name: "test-false- waiting reason is ContainerCreating",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: &corev1.ContainerStateWaiting{
+										Reason:  "ContainerCreating",
+										Message: "",
+									},
+									Running:    nil,
+									Terminated: nil,
+								},
 							},
 						},
 					},
@@ -340,6 +466,87 @@ func TestIsPodResourceError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsPodResourceError(tt.args.pod); got != tt.want {
 				t.Errorf("IsPodResourceError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMountPathOfPod(t *testing.T) {
+	type args struct {
+		pod corev1.Pod
+	}
+	var normalPod = corev1.Pod{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:    "pvc-node01-xxx",
+				Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+				Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			},
+		},
+	}}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		{
+			name:    "get mntPath from pod cmd success",
+			args:    args{pod: normalPod},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name:    "nil pod ",
+			args:    args{pod: corev1.Pod{}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "err-pod cmd <3",
+			//args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379"},
+			args: args{pod: corev1.Pod{Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "pvc-node01-xxx",
+						Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+						Command: []string{"sh", "-c"},
+					},
+				}}}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "err-cmd sourcePath no MountBase prefix",
+			args: args{pod: corev1.Pod{Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "pvc-node01-xxx",
+						Image:   "juicedata/juicefs-csi-driver:v0.10.6",
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx}"},
+					},
+				}}}},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := GetMountPathOfPod(tt.args.pod)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseMntPath() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

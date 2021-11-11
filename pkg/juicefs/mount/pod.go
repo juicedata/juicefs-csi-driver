@@ -18,6 +18,7 @@ package mount
 
 import (
 	"fmt"
+	"k8s.io/klog"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +64,8 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		Name:             "jfs-root-dir",
 		MountPath:        "/root/.juicefs",
 		MountPropagation: &mp,
-	}}
+	},
+	}
 
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
@@ -81,7 +83,8 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 				Type: &dir,
 			},
 		},
-	}}
+	},
+	}
 
 	// add cache-dir host path volume
 	if strings.Contains(cmd, "cache-dir") {
@@ -104,7 +107,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 			MountPropagation: &mp,
 		})
 	}
-
+	klog.V(5).Infof("NewMountPod cmd :%+v\n", cmd)
 	var pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -123,10 +126,12 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					Privileged: &isPrivileged,
 				},
 				Resources: resourceRequirements,
-				Env: []corev1.EnvVar{{
-					Name:  "JFS_FOREGROUND",
-					Value: "1",
-				}},
+				Env: []corev1.EnvVar{
+					{
+						Name:  "JFS_FOREGROUND",
+						Value: "1",
+					},
+				},
 				Ports: []corev1.ContainerPort{{
 					Name:          "metrics",
 					ContainerPort: 9567,
@@ -152,6 +157,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
+	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 	i := 1
 	for k, v := range configs {
 		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,

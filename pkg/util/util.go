@@ -17,7 +17,9 @@ limitations under the License.
 package util
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	"net/url"
 	"os"
 	"path"
@@ -55,4 +57,23 @@ func ContainsString(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func GetReferenceKey(target string) string {
+	h := sha256.New()
+	h.Write([]byte(target))
+	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
+}
+
+// ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
+func ParseMntPath(cmd string) (string, string, error) {
+	args := strings.Fields(cmd)
+	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
+		return "", "", fmt.Errorf("err cmd:%s", cmd)
+	}
+	argSlice := strings.Split(args[2], "/")
+	if len(argSlice) < 3 {
+		return "", "", fmt.Errorf("err mntPath:%s", args[2])
+	}
+	return args[2], argSlice[2], nil
 }

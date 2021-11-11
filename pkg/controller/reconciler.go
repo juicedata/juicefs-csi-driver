@@ -18,27 +18,26 @@ package controller
 
 import (
 	"context"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type PodReconciler struct {
-	client.Client
+	k8sclient.K8sClient
 }
 
 func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
+	klog.V(5).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
 
 	// fetch pod
-	pod := &corev1.Pod{}
-	requeue, err := p.fetchPod(ctx, request.NamespacedName, pod)
+	requeue, pod, err := p.fetchPod(request.NamespacedName)
 	if err != nil || requeue {
 		return ctrl.Result{}, err
 	}
@@ -55,14 +54,15 @@ func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request)
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	podDriver := NewPodDriver(p.Client)
+	podDriver := NewPodDriver(p.K8sClient)
 	return podDriver.Run(ctx, pod)
 }
 
-func (p *PodReconciler) fetchPod(ctx context.Context, name types.NamespacedName, pod *corev1.Pod) (bool, error) {
-	if err := p.Get(ctx, name, pod); err != nil {
+func (p *PodReconciler) fetchPod(name types.NamespacedName) (bool, *corev1.Pod, error) {
+	if reach, err := p.GetPod(name.Name, name.Namespace); err != nil {
 		klog.V(6).Infof("Get pod namespace %s name %s failed: %v", name.Namespace, name.Name, err)
-		return true, err
+		return true, nil, err
+	} else {
+		return false, reach, nil
 	}
-	return false, nil
 }

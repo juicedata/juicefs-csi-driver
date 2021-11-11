@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"strings"
 )
@@ -31,17 +32,21 @@ func IsPodReady(pod *corev1.Pod) bool {
 	return conditionsTrue == 2
 }
 
+func containError(statuses []corev1.ContainerStatus) bool {
+	for _, status := range statuses {
+		if (status.State.Waiting != nil && status.State.Waiting.Reason != "ContainerCreating") ||
+			(status.State.Terminated != nil && status.State.Terminated.ExitCode != 0) {
+			return true
+		}
+	}
+	return false
+}
+
 func IsPodError(pod *corev1.Pod) bool {
 	if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodUnknown {
 		return true
 	}
-	conditionsFalse := 0
-	for _, cond := range pod.Status.Conditions {
-		if pod.Status.Phase == corev1.PodRunning && cond.Status == corev1.ConditionFalse && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
-			conditionsFalse++
-		}
-	}
-	return conditionsFalse == 2
+	return containError(pod.Status.ContainerStatuses)
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
@@ -77,4 +82,19 @@ func IsPodHasResource(pod corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := ParseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
 }

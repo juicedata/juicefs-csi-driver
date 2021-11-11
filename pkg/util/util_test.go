@@ -91,3 +91,60 @@ func TestParseEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMntPath(t *testing.T) {
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		{
+			name:    "get sourcePath from pod cmd success",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name:    "err-pod cmd args <3",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name:    "err-cmd sourcePath no MountBase prefix",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name:    "err-cmd sourcePath length err",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs"},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := ParseMntPath(tt.args.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseMntPath() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
