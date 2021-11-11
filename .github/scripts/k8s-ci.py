@@ -905,7 +905,7 @@ def test_static_delete_pod():
     volume_id = pvc.get_volume_id()
     print("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
-    check_path = mount_path + "/out.txt"
+    check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/out.txt are not ready within 5 min.")
