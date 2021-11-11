@@ -890,7 +890,9 @@ def test_static_delete_pod():
     pvc.create()
 
     # deploy pod
-    pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
+    out_put = gen_random_string(6) + ".txt"
+    pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
+              out_put=out_put)
     pod.create()
     print("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
