@@ -101,12 +101,12 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			controllerutil.RemoveFinalizer(pod, config.Finalizer)
 			if err := p.Client.UpdatePod(pod); err != nil {
 				klog.Errorf("Update pod err:%v", err)
-				return reconcile.Result{}, nil
+				return reconcile.Result{Requeue: true}, nil
 			}
 			klog.V(5).Infof("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(pod); err != nil {
 				klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
-				return reconcile.Result{}, nil
+				return reconcile.Result{Requeue: true}, nil
 			}
 			// wait pod delete
 			for i := 0; i < 30; i++ {
@@ -168,7 +168,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 		klog.V(5).Infof("Get pod %s in namespace %s is err status, deleting thd pod.", pod.Name, pod.Namespace)
 		if err := p.Client.DeletePod(pod); err != nil {
 			klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
-			return reconcile.Result{}, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
 	}
 	return reconcile.Result{}, nil
@@ -198,7 +198,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	controllerutil.RemoveFinalizer(pod, config.Finalizer)
 	if err := p.Client.UpdatePod(pod); err != nil {
 		klog.Errorf("Update pod err:%v", err)
-		return reconcile.Result{}, err
+		return reconcile.Result{Requeue: true}, err
 	}
 
 	// check if need to do recovery
