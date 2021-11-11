@@ -1,6 +1,6 @@
-# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.3
+# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.6
 
-Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.3. But the upgrade from v0.9.0 to v0.10.3 will 
+Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.6. But the upgrade from v0.9.0 to v0.10.6 will 
 cause all PVs become unavailable, we can upgrade one by one node to make the upgrade smooth. If your application using 
 JuiceFS volume service can be interrupted, you can choose the method of [upgrading the whole cluster](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/upgrade-csi-driver.md#upgrade-the-whole-cluster).
 
@@ -11,13 +11,6 @@ JuiceFS volume service can be interrupted, you can choose the method of [upgradi
 Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
 
 ```yaml
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: juicefs-mount-critical
-value: 1000000000
-description: "Juicefs mount pod priority, should not be preempted."
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -25,19 +18,8 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
   - apiGroups:
       - ""
     resources:
@@ -57,7 +39,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
   name: juicefs-csi-node-service-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -76,7 +58,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
 ```
 
 ### 2. Update node service DaemonSet `updateStrategy` to `OnDelete`
@@ -95,7 +77,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.3
+          image: juicedata/juicefs-csi-driver:v0.10.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -103,6 +85,8 @@ spec:
             - --v=5
             - --enable-manager=true
           env:
+            - name: CSI_ENDPOINT
+              value: unix:/csi/csi.sock
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
@@ -119,8 +103,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_PRIORITY_NAME
-              value: 'juicefs-mount-critical'
           volumeMounts:
             - mountPath: /jfs
               mountPropagation: Bidirectional
@@ -171,7 +153,7 @@ spec:
     spec:
       containers:
       - name: juicefs-plugin
-        image: juicedata/juicefs-csi-driver:v0.10.3
+        image: juicedata/juicefs-csi-driver:v0.10.6
         env:
         - name: NODE_NAME
           valueFrom:
@@ -189,8 +171,6 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        - name: JUICEFS_MOUNT_PRIORITY_NAME
-          value: juicefs-mount-critical
         volumeMounts:
         - mountPath: /jfs
           mountPropagation: Bidirectional
@@ -299,13 +279,6 @@ rules:
 Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
 
 ```yaml
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: juicefs-mount-critical
-value: 1000000000
-description: "Juicefs mount pod priority, should not be preempted."
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -313,19 +286,8 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
   - apiGroups:
       - ""
     resources:
@@ -345,7 +307,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
   name: juicefs-csi-node-service-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -364,7 +326,7 @@ metadata:
   labels:
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/instance: juicefs-csi-driver
-    app.kubernetes.io/version: "v0.10.3"
+    app.kubernetes.io/version: "v0.10.6"
 ```
 
 #### 2. Update CSI Driver node service DaemonSet
@@ -379,7 +341,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.3
+          image: juicedata/juicefs-csi-driver:v0.10.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -387,6 +349,8 @@ spec:
             - --v=5
             - --enable-manager=true
           env:
+            - name: CSI_ENDPOINT
+              value: unix:/csi/csi.sock
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
@@ -403,8 +367,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_PRIORITY_NAME
-              value: 'juicefs-mount-critical'
           volumeMounts:
             - mountPath: /jfs
               mountPropagation: Bidirectional
@@ -436,7 +398,7 @@ spec:
     spec:
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.10.3
+          image: juicedata/juicefs-csi-driver:v0.10.6
           env:
             - name: NODE_NAME
               valueFrom:
@@ -454,8 +416,6 @@ spec:
               value: /var/lib/juicefs/volume
             - name: JUICEFS_CONFIG_PATH
               value: /var/lib/juicefs/config
-            - name: JUICEFS_MOUNT_PRIORITY_NAME
-              value: juicefs-mount-critical
           volumeMounts:
             - mountPath: /jfs
               mountPropagation: Bidirectional

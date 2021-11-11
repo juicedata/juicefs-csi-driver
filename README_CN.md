@@ -160,40 +160,11 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 ## 故障排查
 
-请参考 [Troubleshooting](docs/troubleshooting.md) 或 [FAQs](docs/FAQs.md) 文档。
+请参考 [Troubleshooting](docs/en/troubleshooting.md) 或 [FAQs](docs/en/FAQs.md) 文档。
 
 ## 升级 CSI Driver
 
-### CSI Driver v0.10 及以上版本
-
-Juicefs CSI Driver 从 v0.10.0 开始分离了 JuiceFS client 客户端，升级 CSI Driver 不会影响已存在的 PV。如果你使用的是 CSI Driver v0.10.0 及以上的版本，执行以下命令进行升级：
-
-* 如果您使用的是 `latest` 标签，只需运行 `kubectl rollout restart -f k8s.yaml` 并确保重启 `juicefs-csi-controller` 和 `juicefs-csi-node` pod。
-* 如果您已固定到特定版本，请将您的 `k8s.yaml` 修改为要更新的版本，然后运行 `kubectl apply -f k8s.yaml`。
-* 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
-
-### CSI Driver v0.10 以下版本
-
-#### 小版本升级
-
-升级 CSI Driver 需要重启 `DaemonSet`。由于 v0.10.0 之前的版本所有的 JuiceFS 客户端都运行在 `DaemonSet` 中，重启的过程中相关的 PV 都将不可用，因此需要先停止相关的 pod。
-
-1. 停止所有使用此驱动的 pod。
-2. 升级驱动：
-	* 如果您使用的是 `latest` 标签，只需运行 `kubectl rollout restart -f k8s.yaml` 并确保重启 `juicefs-csi-controller` 和 `juicefs-csi-node` pod。
-	* 如果您已固定到特定版本，请将您的 `k8s.yaml` 修改为要更新的版本，然后运行 `kubectl apply -f k8s.yaml`。
-    * 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
-3. 启动 pod。
-
-#### 跨版本升级
-
-如果你想从 CSI Driver v0.9.0 升级到 v0.10.0 及以上版本，请参考[这篇文档](./docs/upgrade-csi-driver.md)。
-
-#### 其他
-
-对于使用较低版本的用户，你还可以在不升级 CSI 驱动的情况下升级 JuiceFS 客户端，详情参考[这篇文档](./docs/upgrade-juicefs.md)。
-
-访问 [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) 查看更多版本信息。
+请参考 [CSI Driver](docs/zh_cn/upgrade-csi-driver.md) 文档
 
 ## 示例
 
@@ -256,26 +227,17 @@ JuiceFS CSI Driver 兼容 Kubernetes **v1.14+**
 * **挂载 pod 中的配置文件和环境变量** - 支持在挂载 pod 中设置配置文件和环境变量。
 * **动态配置** - 允许按需动态创建存储卷
 
-### 版本验证
-
-JuiceFS CSI driver 已在下列 Kubernetes 版本中验证：
-
-| Kubernetes                 | master |
-| -------------------------- | ------ |
-| v1.19.2 / minikube v1.16.0 | Yes    |
-| v1.20.2 / minikube v1.16.0 | Yes    |
-
 ### 已知问题
 
 - JuiceFS CSI 驱动程序 (>=v0.10.0) 中的挂载选项 `--cache-dir` 目前不支持通配符。
 
 ## 其他资源
 
-- [通过 librados 访问 Ceph 集群](./docs/ceph.md)
+- [通过 librados 访问 Ceph 集群](docs/en/ceph.md)
 
 ## 开发
 
-请查阅 [DEVELOP](./docs/DEVELOP.md) 文档。
+请查阅 [DEVELOP](docs/en/DEVELOP.md) 文档。
 
 ## 授权许可
 
