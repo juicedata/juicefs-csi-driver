@@ -160,7 +160,7 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 ## 故障排查
 
-请参考 [Troubleshooting](docs/en/troubleshooting.md) 或 [FAQs](docs/en/FAQs.md) 文档。
+请参考 [Troubleshooting](docs/zh_cn/troubleshooting.md) 或 [FAQs](docs/zh_cn/FAQs.md) 文档。
 
 ## 升级 CSI Driver
 
