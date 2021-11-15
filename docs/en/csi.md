@@ -1,4 +1,4 @@
-# Understand how it works
+# Understand how CSI works
 
 How does JuiceFS CSI driver work in Kubernetes?
 
@@ -54,7 +54,7 @@ Publish |    | Unpublish
     | PUBLISHED  |
     +------------+
 
-Figure 8: Plugins may forego other lifecycle steps by contraindicating
+Figure 2: Plugins may forego other lifecycle steps by contraindicating
 them via the capabilities API. Interactions with the volumes of such
 plugins is reduced to `NodePublishVolume` and `NodeUnpublishVolume`
 calls.
@@ -111,11 +111,11 @@ JuiceFS CSI driver does not require attachment. The node plugin publishes volume
 
 ### End using volume
 
-JuiceFS CSI driver does not require deattachment either. The node plugin unpublishes volume when the Pod mounting the volume is removed (unscheduled) from a node.
+JuiceFS CSI driver does not require detachment either. The node plugin unpublishes volume when the Pod mounting the volume is removed (unscheduled) from a node.
 
 * Pod deleted
   * NodeUnpublishVolume called
-  * When `--driver-requires-attachment=false`, volume deattach is not necessary.
+  * When `--driver-requires-attachment=false`, volume detach is not necessary.
 
 ### Deleting volume
 

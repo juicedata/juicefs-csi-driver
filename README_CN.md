@@ -233,11 +233,7 @@ JuiceFS CSI Driver 兼容 Kubernetes **v1.14+**
 
 ## 其他资源
 
-- [通过 librados 访问 Ceph 集群](docs/en/ceph.md)
-
-## 开发
-
-请查阅 [DEVELOP](docs/en/DEVELOP.md) 文档。
+- [通过 librados 访问 Ceph 集群](docs/zh_cn/ceph.md)
 
 ## 授权许可
 
