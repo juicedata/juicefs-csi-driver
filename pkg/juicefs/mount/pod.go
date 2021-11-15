@@ -49,7 +49,7 @@ func hasRef(pod *corev1.Pod) bool {
 }
 
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
-	configs, env map[string]string) *corev1.Pod {
+	configs, env, labels, annotations map[string]string) *corev1.Pod {
 	cmd = quoteForShell(cmd)
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
@@ -64,8 +64,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		Name:             "jfs-root-dir",
 		MountPath:        "/root/.juicefs",
 		MountPropagation: &mp,
-	},
-	}
+	}}
 
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
@@ -83,8 +82,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 				Type: &dir,
 			},
 		},
-	},
-	}
+	}}
 
 	// add cache-dir host path volume
 	if strings.Contains(cmd, "cache-dir") {
@@ -126,12 +124,10 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 					Privileged: &isPrivileged,
 				},
 				Resources: resourceRequirements,
-				Env: []corev1.EnvVar{
-					{
-						Name:  "JFS_FOREGROUND",
-						Value: "1",
-					},
-				},
+				Env: []corev1.EnvVar{{
+					Name:  "JFS_FOREGROUND",
+					Value: "1",
+				}},
 				Ports: []corev1.ContainerPort{{
 					Name:          "metrics",
 					ContainerPort: 9567,
@@ -181,6 +177,13 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 			Value: v,
 		})
 	}
+	for k, v := range labels {
+		pod.Labels[k] = v
+	}
+	for k, v := range annotations {
+		pod.Annotations[k] = v
+	}
+
 	return pod
 }
 

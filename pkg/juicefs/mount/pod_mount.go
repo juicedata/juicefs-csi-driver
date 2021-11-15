@@ -158,6 +158,8 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 	podResource := corev1.ResourceRequirements{}
 	config := make(map[string]string)
 	env := make(map[string]string)
+	labels := make(map[string]string)
+	anno := make(map[string]string)
 	if p.jfsSetting != nil {
 		podResource = parsePodResources(
 			p.jfsSetting.MountPodCpuLimit,
@@ -167,6 +169,8 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 		)
 		config = p.jfsSetting.Configs
 		env = p.jfsSetting.Envs
+		labels = p.jfsSetting.MountPodLabels
+		anno = p.jfsSetting.MountPodAnnotations
 	}
 
 	key := util.GetReferenceKey(target)
@@ -174,7 +178,7 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 	if err != nil && k8serrors.IsNotFound(err) {
 		// need create
 		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
-		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env)
+		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno)
 		if newPod.Annotations == nil {
 			newPod.Annotations = make(map[string]string)
 		}

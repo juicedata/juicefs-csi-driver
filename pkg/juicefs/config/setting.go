@@ -36,10 +36,12 @@ type JfsSetting struct {
 	Configs map[string]string `json:"configs"`
 	Envs    map[string]string `json:"envs"`
 
-	MountPodCpuLimit   string `json:"mount_pod_cpu_limit"`
-	MountPodMemLimit   string `json:"mount_pod_mem_limit"`
-	MountPodCpuRequest string `json:"mount_pod_cpu_request"`
-	MountPodMemRequest string `json:"mount_pod_mem_request"`
+	MountPodCpuLimit    string            `json:"mount_pod_cpu_limit"`
+	MountPodMemLimit    string            `json:"mount_pod_mem_limit"`
+	MountPodCpuRequest  string            `json:"mount_pod_cpu_request"`
+	MountPodMemRequest  string            `json:"mount_pod_mem_request"`
+	MountPodLabels      map[string]string `json:"mount_pod_labels"`
+	MountPodAnnotations map[string]string `json:"mount_pod_annotations"`
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
@@ -61,12 +63,8 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
 		configs := make(map[string]string)
-		// json or yaml format
-		if err := yaml.Unmarshal([]byte(configStr), &configs); err != nil {
-			if err := json.Unmarshal([]byte(configStr), &configs); err != nil {
-				return nil, status.Errorf(codes.InvalidArgument,
-					"Parse configs in secret error: %v", err)
-			}
+		if err := parseYamlOrJson(configStr, &configs); err != nil {
+			return nil, err
 		}
 		jfsSetting.Configs = configs
 	}
@@ -74,20 +72,43 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["envs"] != "" {
 		envStr := secrets["envs"]
 		env := make(map[string]string)
-		// json or yaml format
-		if err := yaml.Unmarshal([]byte(envStr), &env); err != nil {
-			if err := json.Unmarshal([]byte(envStr), &env); err != nil {
-				return nil, status.Errorf(codes.InvalidArgument,
-					"Parse envs in secret error: %v", err)
-			}
+		if err := parseYamlOrJson(envStr, &env); err != nil {
+			return nil, err
 		}
 		jfsSetting.Envs = env
 	}
 	if volCtx != nil {
-		jfsSetting.MountPodCpuLimit = volCtx["juicefs/mount-cpu-limit"]
-		jfsSetting.MountPodMemLimit = volCtx["juicefs/mount-memory-limit"]
-		jfsSetting.MountPodCpuRequest = volCtx["juicefs/mount-cpu-request"]
-		jfsSetting.MountPodMemRequest = volCtx["juicefs/mount-memory-request"]
+		jfsSetting.MountPodCpuLimit = volCtx[mountPodCpuLimitKey]
+		jfsSetting.MountPodMemLimit = volCtx[mountPodMemLimitKey]
+		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
+		jfsSetting.MountPodMemRequest = volCtx[mountPodMemRequestKey]
+
+		labelString := volCtx[mountPodLabelKey]
+		annotationSting := volCtx[mountPodAnnotationKey]
+		if labelString != "" {
+			labels := make(map[string]string)
+			if err := parseYamlOrJson(labelString, &labels); err != nil {
+				return nil, err
+			}
+			jfsSetting.MountPodLabels = labels
+		}
+		if annotationSting != "" {
+			annos := make(map[string]string)
+			if err := parseYamlOrJson(annotationSting, &annos); err != nil {
+				return nil, err
+			}
+			jfsSetting.MountPodAnnotations = annos
+		}
 	}
 	return &jfsSetting, nil
+}
+
+func parseYamlOrJson(source string, dst interface{}) error {
+	if err := yaml.Unmarshal([]byte(source), &dst); err != nil {
+		if err := json.Unmarshal([]byte(source), &dst); err != nil {
+			return status.Errorf(codes.InvalidArgument,
+				"Parse yaml or json error: %v", err)
+		}
+	}
+	return nil
 }
