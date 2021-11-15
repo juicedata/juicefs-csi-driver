@@ -21,10 +21,10 @@ import "sync"
 var JLock = sync.RWMutex{}
 
 var (
-	NodeName   = ""
-	Namespace  = ""
-	PodName    = ""
-	MountImage = ""
+	NodeName    = ""
+	Namespace   = ""
+	PodName     = ""
+	MountImage  = ""
 	MountLabels = ""
 
 	MountPointPath       = "/var/lib/juicefs/volume"
