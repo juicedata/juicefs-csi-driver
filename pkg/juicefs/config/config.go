@@ -25,6 +25,7 @@ var (
 	Namespace  = ""
 	PodName    = ""
 	MountImage = ""
+	MountLabels = ""
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"

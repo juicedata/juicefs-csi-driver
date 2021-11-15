@@ -77,6 +77,14 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		}
 		jfsSetting.Envs = env
 	}
+
+	labels := make(map[string]string)
+	if MountLabels != "" {
+		if err := parseYamlOrJson(MountLabels, &labels); err != nil {
+			return nil, err
+		}
+	}
+
 	if volCtx != nil {
 		jfsSetting.MountPodCpuLimit = volCtx[mountPodCpuLimitKey]
 		jfsSetting.MountPodMemLimit = volCtx[mountPodMemLimitKey]
@@ -85,12 +93,14 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 
 		labelString := volCtx[mountPodLabelKey]
 		annotationSting := volCtx[mountPodAnnotationKey]
+		ctxLabel := make(map[string]string)
 		if labelString != "" {
-			labels := make(map[string]string)
-			if err := parseYamlOrJson(labelString, &labels); err != nil {
+			if err := parseYamlOrJson(labelString, &ctxLabel); err != nil {
 				return nil, err
 			}
-			jfsSetting.MountPodLabels = labels
+		}
+		for k, v := range ctxLabel {
+			labels[k] = v
 		}
 		if annotationSting != "" {
 			annos := make(map[string]string)
@@ -99,6 +109,9 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 			}
 			jfsSetting.MountPodAnnotations = annos
 		}
+	}
+	if len(labels) != 0 {
+		jfsSetting.MountPodLabels = labels
 	}
 	return &jfsSetting, nil
 }
