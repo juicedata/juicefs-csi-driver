@@ -23,10 +23,10 @@ Juicefs CSI Driver 从 v0.10.0 开始分离了 JuiceFS client 客户端，升级
 
 ### 跨版本升级
 
-如果你想从 CSI Driver v0.9.0 升级到 v0.10.0 及以上版本，请参考[这篇文档](docs/en/upgrade-csi-driver-from-0.9-to-0.10.md)。
+如果你想从 CSI Driver v0.9.0 升级到 v0.10.0 及以上版本，请参考[这篇文档](docs/zh_cn/upgrade-csi-driver-from-0.9-to-0.10.md)。
 
 ### 其他
 
-对于使用较低版本的用户，你还可以在不升级 CSI 驱动的情况下升级 JuiceFS 客户端，详情参考[这篇文档](docs/en/upgrade-juicefs.md)。
+对于使用较低版本的用户，你还可以在不升级 CSI 驱动的情况下升级 JuiceFS 客户端，详情参考[这篇文档](docs/zh_cn/upgrade-juicefs.md)。
 
 访问 [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) 查看更多版本信息。

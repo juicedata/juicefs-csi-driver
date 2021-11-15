@@ -2,7 +2,7 @@
 
 If the object storage is [Ceph](https://ceph.io/), we can access [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/) using [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/). JuiceFS supports using [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) which RGW is built on to access the storage, this increases the performance as it reduce the RGW layer.
 
-Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["static-provisioning-config-and-env"](../examples/static-provisioning-config-and-env/) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
+Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["static-provisioning-config-and-env"](../../examples/static-provisioning-config-and-env/) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
 
 Here we demonstrate how to access Ceph cluster with `librados` in Kubernetes.
 
@@ -131,7 +131,7 @@ Please refer ["examples/static-provisioning"](../../examples/static-provisioning
 
 ## Other ceph versions
 
-The latest JuiceFS v0.10.5 only supports ceph 12. If your ceph version is greater than 12, you need to compile it yourself. 
+The latest JuiceFS only supports ceph 12. If your ceph version is greater than 12, you need to compile it yourself. 
 
 ### How to build
 
