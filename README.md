@@ -232,10 +232,6 @@ The mount option `--cache-dir` in JuiceFS CSI driver (>=v0.10.0) does not suppor
 
 - [Access Ceph cluster with librados](docs/en/ceph.md)
 
-## Develop
-
-See [DEVELOP](docs/en/DEVELOP.md) document.
-
 ## License
 
 This library is licensed under the Apache 2.0 License.

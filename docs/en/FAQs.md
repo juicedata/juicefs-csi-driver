@@ -34,3 +34,22 @@ kubectl get po -owide -A | grep <your_pod>
 
 If there are no juicefs csi node running in the node where your pod in, check if the node has some taints. You can delete the taint or add the relevant tolerance in csi node deamonset and redeploy it.
 
+## Q: Two pods use PVC separately, but only one runs well and the other can't get up.
+
+Check the PV of related PVC, the volumeHandle of PV should be different. You can check volumeHandle with the following cmd:
+
+```yaml
+$ kubectl get pv -o yaml juicefs-pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  ...
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    fsType: juicefs
+    volumeHandle: juicefs-volume-abc
+    ...
+```

@@ -160,7 +160,7 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 ## 故障排查
 
-请参考 [Troubleshooting](docs/en/troubleshooting.md) 或 [FAQs](docs/en/FAQs.md) 文档。
+请参考 [Troubleshooting](docs/zh_cn/troubleshooting.md) 或 [FAQs](docs/zh_cn/FAQs.md) 文档。
 
 ## 升级 CSI Driver
 
@@ -233,11 +233,7 @@ JuiceFS CSI Driver 兼容 Kubernetes **v1.14+**
 
 ## 其他资源
 
-- [通过 librados 访问 Ceph 集群](docs/en/ceph.md)
-
-## 开发
-
-请查阅 [DEVELOP](docs/en/DEVELOP.md) 文档。
+- [通过 librados 访问 Ceph 集群](docs/zh_cn/ceph.md)
 
 ## 授权许可
 
