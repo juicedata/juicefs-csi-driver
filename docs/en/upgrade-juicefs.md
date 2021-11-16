@@ -1,6 +1,6 @@
-# Upgrade juicefs binary
+# Upgrade JuiceFS Client Individually
 
-In the case we only need to upgrade the JuiceFS binary, please follow these steps:
+For versions prior to v0.10.0, the JuiceFS client can be upgraded separately without upgrading the CSI Driver by the following method.
 
 1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` pod with the new built one: 
 
@@ -18,6 +18,6 @@ $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
     $KUBECTL -n kube-system exec -i '{}' -c juicefs-plugin -- \
     chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
 ```
-Replace `/path/to/kubectl` and `/path/to/new/juicefs` to your environment path and execute this script.
+> **Note**: Replace `/path/to/kubectl` and `/path/to/new/juicefs` in the script with the actual values, then execute the script.
 
 2. Restart the applications one by one, or kill the existing pods.
