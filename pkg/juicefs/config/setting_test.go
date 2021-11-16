@@ -86,6 +86,146 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test-cpu-limit",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					mountPodCpuLimitKey: "1",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:             "test",
+				Storage:          "s3",
+				UsePod:           true,
+				MountPodCpuLimit: "1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-mem-limit",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					mountPodMemLimitKey: "1G",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:             "test",
+				Storage:          "s3",
+				UsePod:           true,
+				MountPodMemLimit: "1G",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-mem-request",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					mountPodMemRequestKey: "1G",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:               "test",
+				Storage:            "s3",
+				UsePod:             true,
+				MountPodMemRequest: "1G",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-cpu-request",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					mountPodCpuRequestKey: "1",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:               "test",
+				Storage:            "s3",
+				UsePod:             true,
+				MountPodCpuRequest: "1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-labels",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-labels": "a: b",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:           "test",
+				Storage:        "s3",
+				MountPodLabels: map[string]string{"a": "b"},
+				UsePod:         true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-labels-json",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-labels": "{\"a\": \"b\"}",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:           "test",
+				Storage:        "s3",
+				MountPodLabels: map[string]string{"a": "b"},
+				UsePod:         true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-annotation",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-annotations": "a: b",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				Name:                "test",
+				Storage:             "s3",
+				MountPodAnnotations: map[string]string{"a": "b"},
+				UsePod:              true,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -96,6 +236,58 @@ func TestParseSecret(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseSecret() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_parseYamlOrJson(t *testing.T) {
+	jsonDst := make(map[string]string)
+	yamlDst := make(map[string]string)
+	type args struct {
+		source string
+		dst    interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		wantDst interface{}
+	}{
+		{
+			name: "test-json",
+			args: args{
+				source: "{\"a\": \"b\", \"c\": \"d\"}",
+				dst:    &jsonDst,
+			},
+			wantErr: false,
+			wantDst: map[string]string{
+				"a": "b",
+				"c": "d",
+			},
+		},
+		{
+			name: "test-yaml",
+			args: args{
+				source: "c: d\ne: f",
+				dst:    &yamlDst,
+			},
+			wantErr: false,
+			wantDst: map[string]string{
+				"c": "d",
+				"e": "f",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := parseYamlOrJson(tt.args.source, tt.args.dst); (err != nil) != tt.wantErr {
+				t.Errorf("parseYamlOrJson() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			wantString, _ := json.Marshal(tt.wantDst)
+			gotString, _ := json.Marshal(tt.args.dst)
+			if string(wantString) != string(gotString) {
+				t.Errorf("parseYamlOrJson() parse error, wantDst %v, gotDst %v", tt.wantDst, tt.args.dst)
 			}
 		})
 	}

@@ -100,6 +100,8 @@ func setup() {
 
 func teardown() {
 	k8sclient.FakeClient.Flush()
+	jfsConfig.NodeName = ""
+	jfsConfig.Namespace = ""
 }
 
 func Test_juicefs_addRefOfMount(t *testing.T) {
