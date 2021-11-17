@@ -226,6 +226,26 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test-serviceaccount",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"storage": "s3",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-service-account": "test",
+				},
+				usePod: true,
+			},
+			want: &JfsSetting{
+				UsePod:                 true,
+				Name:                   "test",
+				Storage:                "s3",
+				MountPodServiceAccount: "test",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

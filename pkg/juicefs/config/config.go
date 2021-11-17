@@ -21,11 +21,12 @@ import "sync"
 var JLock = sync.RWMutex{}
 
 var (
-	NodeName    = ""
-	Namespace   = ""
-	PodName     = ""
-	MountImage  = ""
-	MountLabels = ""
+	NodeName              = ""
+	Namespace             = ""
+	PodName               = ""
+	PodServiceAccountName = ""
+	MountImage            = ""
+	MountLabels           = ""
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
@@ -45,10 +46,11 @@ const (
 	PodTypeValue = "juicefs-mount"
 	Finalizer    = "juicefs.com/finalizer"
 
-	mountPodCpuLimitKey   = "juicefs/mount-cpu-limit"
-	mountPodMemLimitKey   = "juicefs/mount-memory-limit"
-	mountPodCpuRequestKey = "juicefs/mount-cpu-request"
-	mountPodMemRequestKey = "juicefs/mount-memory-request"
-	mountPodLabelKey      = "juicefs/mount-labels"
-	mountPodAnnotationKey = "juicefs/mount-annotations"
+	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
+	mountPodMemLimitKey    = "juicefs/mount-memory-limit"
+	mountPodCpuRequestKey  = "juicefs/mount-cpu-request"
+	mountPodMemRequestKey  = "juicefs/mount-memory-request"
+	mountPodLabelKey       = "juicefs/mount-labels"
+	mountPodAnnotationKey  = "juicefs/mount-annotations"
+	mountPodServiceAccount = "juicefs/mount-service-account"
 )

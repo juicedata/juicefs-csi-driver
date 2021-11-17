@@ -49,7 +49,7 @@ func hasRef(pod *corev1.Pod) bool {
 }
 
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
-	configs, env, labels, annotations map[string]string) *corev1.Pod {
+	configs, env, labels, annotations map[string]string, serviceAccount string) *corev1.Pod {
 	cmd = quoteForShell(cmd)
 	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
@@ -116,6 +116,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
+			ServiceAccountName: serviceAccount,
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
 				Image:   config.MountImage,
