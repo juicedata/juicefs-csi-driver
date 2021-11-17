@@ -1,12 +1,10 @@
-# 如何将 JuiceFS CSI Driver 从 v0.9.0 升级到 v0.10.6
+# JuiceFS CSI Driver 从 v0.9.0 升级到 v0.10.6
 
-JuiceFS CSI 驱动从 v0.10.0 开始将 JuiceFS 客户端与 CSI 驱动分开。但从 v0.9.0 升级到 v0.10.0+ 会导致所有的PV不可用。 您可以采用逐台升级的方法，使升级过程平滑进行。如果您使用
-JuiceFS
-的服务可以被中断，您可以选择 [升级整个集群的方法](/docs/zh_cn/upgrade-csi-driver-from-0.9-to-0.10.md#方案二整体升级)。
+为了降低升级操作对业务系统的影响，JuiceFS CSI Driver 从 v0.10.0 开始将 JuiceFS 客户端与 CSI Driver 进行了分离，用户可以根据需要单独对 JuiceFS 客户端或  CSI Driver 进行升级。但从 v0.9.0 升级到 v0.10.0+ 时需要重启服务，这会导致所有的 PV 在升级过程中不可用。您可以根据实际情况，参考以下两种方案进行升级。
 
 ## 方案一：逐台升级
 
-如果您的使用 JuiceFS 的应用不可被中断，可以采用该方案。
+如果使用 JuiceFS 的应用不可被中断，可以采用此方案。
 
 ### 1. 创建新版本新增的资源
 
@@ -515,7 +513,7 @@ rules:
       - delete
 ```
 
-确认 `juicefs-csi-controller-0` pod 已经升级.
+确认 `juicefs-csi-controller-***` pod 已经升级.
 
 另外，如果 JuiceFS CSI Driver 是使用 Helm 安装的，也可以使用 Helm 来升级。
 

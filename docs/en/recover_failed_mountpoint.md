@@ -2,7 +2,7 @@
 
 JuiceFS CSI Driver started to support automatic mount point recovery since version v0.10.7.
 
-## How to use it in application
+## Usage
 
 Applications need to set `mountPropagation` to `HostToContainer` or `Bidirectional`(privileged required) in the
 MountVolume of the pod. In this way, the mount information of the host is transmitted to the pod. The configuration is

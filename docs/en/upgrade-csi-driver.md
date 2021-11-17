@@ -1,4 +1,4 @@
-# Upgrade CSI Driver
+# Upgrade JuiceFS CSI Driver
 
 ## CSI Driver version >= v0.10
 
@@ -29,12 +29,11 @@ cause all PVs become unavailable, so we need to stop all the application pod fir
 
 ### Cross-version upgrade
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+,
-follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](./docs/upgrade-csi-driver-from-0.9-to-0.10.md).
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](upgrade-csi-driver-from-0.9-to-0.10.md).
 
 ### Other
 
-For users of the old version, you can also upgrade the JuiceFS client without upgrading the CSI driver. For details,
+For versions prior to v0.10.0, you can upgrade only the JuiceFS client without upgrading the CSI Driver. For details,
 refer to [this document](./docs/upgrade-juicefs.md).
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.

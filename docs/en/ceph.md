@@ -1,8 +1,8 @@
 # Access Ceph cluster with `librados`
 
-If the object storage is [Ceph](https://ceph.io/), we can access [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/) using [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/). JuiceFS supports using [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) which RGW is built on to access the storage, this increases the performance as it reduce the RGW layer.
+If you use [Ceph](https://ceph.io/) as the underlying storage for JucieFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
 
-Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["static-provisioning-config-and-env"](../../examples/static-provisioning-config-and-env/) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
+Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["static-provisioning-config-and-env"](https://github.com/juicedata/juicefs-csi-driver/tree/master/examples/static-provisioning-config-and-env) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
 
 Here we demonstrate how to access Ceph cluster with `librados` in Kubernetes.
 
@@ -20,7 +20,7 @@ Assume we have an Ceph cluster, and in one node of this cluster, list the conten
 
 With `ceph.conf` and `ceph.client.admin.keyring`, we can access Ceph cluster with `librados`.
 
-On this node, we create an new JuiceFS volume `ceph-volume`, for more details about the `--access-key` and `--secret-key` of Ceph RADOS, refer [here](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md#ceph-rados).
+On this node, we create an new JuiceFS volume `ceph-volume`
 
 ```sh
 $ ./juicefs format --storage=ceph \
@@ -29,16 +29,20 @@ $ ./juicefs format --storage=ceph \
     --secret-key=client.admin \
     redis://juicefs-redis.example.com/2 \
     ceph-volume
+```
 
+> **Note**: Here we assume the Redis URL is `redis://juicefs-redis.example.com/2`, replace it with your own. For more details about the `--access-key` and `--secret-key` of Ceph RADOS, refer [How to Setup Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage/).
+
+View Ceph storage status.
+
+```sh
 $ ceph osd pool ls
 ceph-test
 ```
 
-> **Note**: Here we assume the Redis URL is `redis://juicefs-redis.example.com/2`, replace it with your own.
-
 ## Create secret for Ceph configuration files
 
-Create a YAML file `ceph-conf.yaml` on the same Ceph node where below commands executed with replace `CEPH_CLUSTER_NAME`:
+The following command creates a YAML file named `ceph-conf.yaml` on the node where Ceph is located, replacing `CEPH_CLUSTER_NAME` with the actual name.
 
 ```yaml
 $ cat > ceph-conf.yaml <<EOF
@@ -77,6 +81,8 @@ ceph.conf:                  257 bytes
 
 ## Create secret for JuiceFS CSI Driver
 
+Create a Secret profile by referring to the following command.
+
 ```sh
 $ cat > juicefs-secret.yaml <<EOF
 apiVersion: v1
@@ -94,10 +100,18 @@ data:
   secret-key: $(echo -n client.admin | base64 -w 0)
   configs: $(echo -n '{"ceph-conf": "/etc/ceph"}' | base64 -w 0)
 EOF
+```
 
+Apply the configuration.
+
+```sh
 $ kubectl apply -f juicefs-secret.yaml
 secret/juicefs-secret created
+```
 
+To see if the configuration is in effect.
+
+```sh
 $ kubectl -n kube-system describe secret juicefs-secret
 Name:         juicefs-secret
 Namespace:    kube-system
@@ -123,15 +137,15 @@ As we want the `ceph-conf` secret we created before to be mounted under `/etc/ce
 
 ### Dynamic provisioning
 
-Please refer ["examples/dynamic-provisioning"](../../examples/dynamic-provisioning/resources.yaml) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
+Please refer ["examples/dynamic-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/examples/dynamic-provisioning/resources.yaml) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
 
 ### Static provisioning
 
-Please refer ["examples/static-provisioning"](../../examples/static-provisioning/resources.yaml) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
+Please refer ["examples/static-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/examples/static-provisioning/resources.yaml) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
 
 ## Other ceph versions
 
-The latest JuiceFS only supports ceph 12. If your ceph version is greater than 12, you need to compile it yourself. 
+JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph higher than 12, please refer to the following method to build the image.
 
 ### How to build
 

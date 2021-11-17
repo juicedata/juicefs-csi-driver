@@ -2,10 +2,9 @@
 
 JuiceFS CSI Driver v0.10.7 开始支持挂载点自动恢复。
 
-## 业务应用中如何使用
+## 使用方法
 
-业务应用需要在 pod 的 MountVolume 中设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`（需要设置 pod 为特权 pod），
-从而将 host 的挂载信息传送给 pod。配置如下：
+业务应用需要在 pod 的 MountVolume 中设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`（需要设置 pod 为特权 pod），从而将 host 的挂载信息传送给 pod。配置如下：
 
 ```yaml
 apiVersion: apps/v1

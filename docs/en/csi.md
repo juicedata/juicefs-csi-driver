@@ -1,10 +1,10 @@
-# Understand how CSI works
+# How JuiceFS CSI works
 
-How does JuiceFS CSI driver work in Kubernetes?
+This article describes how the JuiceFS CSI Driver works in Kubernetes.
 
 ## Current implementation
 
-JuiceFS CSI driver implements [CSI spec v1.0](https://github.com/container-storage-interface/spec/blob/release-1.0/spec.md)
+The JuiceFS CSI Driver follows the [CSI spec v1.0](https://github.com/container-storage-interface/spec/blob/release-1.0/spec.md) implementation.
 
 ### Architecture
 
@@ -40,7 +40,7 @@ Plugin is available on all of the CO Nodes.
 
 ### Volume Life Cycle
 
-Volume life cycle in JuiceFS CSI driver is quite simple, no controller, no staging, only [NodePublishVolume](https://github.com/container-storage-interface/spec/blob/v0.3.0/spec.md#nodepublishvolume) and [NodeUnpublishVolume](https://github.com/container-storage-interface/spec/blob/v0.3.0/spec.md#nodeunpublishvolume) is implemented.
+The lifecycle of a volume in the JuiceFS CSI Driver is relatively simple, and the CSI currently implements the CreateVolume, DeleteVolume, [NodePublishVolume](https://github.com/container-storage-interface/spec/blob/v0.3.0/spec.md#nodepublishvolume) and [NodeUnpublishVolume](https://github.com/container-storage-interface/spec/blob/v0.3.0/spec.md#nodeunpublishvolume) interface. 
 
 ```txt
        +-+  +-+
@@ -62,9 +62,7 @@ calls.
 
 ### Communication with Kubernetes
 
-> Kubernetes is as minimally prescriptive about packaging and deployment of a CSI Volume Driver as possible.
-
-See [Minimum Requirements (for Developing and Deploying a CSI driver for Kubernetes)](https://kubernetes-csi.github.io/docs/introduction.html#minimum-requirements-for-developing-and-deploying-a-csi-driver-for-kubernetes) for details.
+> Kubernetes is as minimally prescriptive about packaging and deployment of a CSI Volume Driver as possible. See [Minimum Requirements (for Developing and Deploying a CSI driver for Kubernetes)](https://kubernetes-csi.github.io/docs/introduction.html#minimum-requirements-for-developing-and-deploying-a-csi-driver-for-kubernetes) for details.
 
 JuiceFS CSI driver implements a minimal set of required gRPC calls to satisfy those requirements. It uses a Unix Domain Socket to interact with [Kubernetes CSI sidecar containers](https://kubernetes-csi.github.io/docs/sidecar-containers.html) which encapsulates all the Kubernetes specific code. So the CSI driver is actually orchestrator agnostic.
 
@@ -72,7 +70,7 @@ JuiceFS CSI driver implements a minimal set of required gRPC calls to satisfy th
 
 The driver is deployed according to the recommended mechanism in [CSI Volume Plugins in Kubernetes Design Doc](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/storage/container-storage-interface.md#recommended-mechanism-for-deploying-csi-drivers-on-kubernetes)
 
-![CSI](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/storage/container-storage-interface_diagram1.png?raw=true)
+![](images/container-storage-interface_diagram1.png)
 
 Note that `external-attacher` and `external-provisioner` is not used in JuiceFS CSI driver.
 
@@ -84,15 +82,15 @@ When `--mode=node-register`, driver is registered to kubelet on nodes. This is h
 
 The sidecar container fetches driver information (using NodeGetInfo) from a CSI endpoint and registers it with the kubelet on that node.
 
-```s
-# journalctl -u kubelet -f
+```shell
+$ journalctl -u kubelet -f
 May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360149    1458 csi_plugin.go:111] kubernetes.io/csi: Trying to register a new plugin with name: csi.juicefs.com endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock versions: 0.2.0,0.3.0
 May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    1458 csi_plugin.go:119] kubernetes.io/csi: Register new plugin with name: csi.juicefs.com at endpoint: /var/lib/kubelet/plugins/csi.juicefs.com/csi.sock
 ```
 
 ### Creating volume
 
-Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](../../examples/basic) for details.
+Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](https://github.com/juicedata/juicefs-csi-driver/tree/master/examples/basic) for details.
 
 Kubernetes will proceed the following actions:
 
@@ -119,7 +117,7 @@ JuiceFS CSI driver does not require detachment either. The node plugin unpublish
 
 ### Deleting volume
 
-Deleting volume is out of scope of JuiceFS CSI driver.
+> Deleting volume is out of scope of JuiceFS CSI driver.
 
 Kubernetes will take the following actions when related resources are deleted:
 
