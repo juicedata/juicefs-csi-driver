@@ -36,12 +36,13 @@ type JfsSetting struct {
 	Configs map[string]string `json:"configs"`
 	Envs    map[string]string `json:"envs"`
 
-	MountPodCpuLimit    string            `json:"mount_pod_cpu_limit"`
-	MountPodMemLimit    string            `json:"mount_pod_mem_limit"`
-	MountPodCpuRequest  string            `json:"mount_pod_cpu_request"`
-	MountPodMemRequest  string            `json:"mount_pod_mem_request"`
-	MountPodLabels      map[string]string `json:"mount_pod_labels"`
-	MountPodAnnotations map[string]string `json:"mount_pod_annotations"`
+	MountPodCpuLimit       string            `json:"mount_pod_cpu_limit"`
+	MountPodMemLimit       string            `json:"mount_pod_mem_limit"`
+	MountPodCpuRequest     string            `json:"mount_pod_cpu_request"`
+	MountPodMemRequest     string            `json:"mount_pod_mem_request"`
+	MountPodLabels         map[string]string `json:"mount_pod_labels"`
+	MountPodAnnotations    map[string]string `json:"mount_pod_annotations"`
+	MountPodServiceAccount string            `json:"mount_pod_service_account"`
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
@@ -90,6 +91,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		jfsSetting.MountPodMemLimit = volCtx[mountPodMemLimitKey]
 		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
 		jfsSetting.MountPodMemRequest = volCtx[mountPodMemRequestKey]
+		jfsSetting.MountPodServiceAccount = volCtx[mountPodServiceAccount]
 
 		labelString := volCtx[mountPodLabelKey]
 		annotationSting := volCtx[mountPodAnnotationKey]

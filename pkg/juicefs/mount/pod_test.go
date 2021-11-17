@@ -331,6 +331,10 @@ func TestNewMountPod(t *testing.T) {
 	deepcopyPodFromDefault(&podAnnoTest)
 	podAnnoTest.Annotations = make(map[string]string)
 	podAnnoTest.Annotations["a"] = "b"
+
+	podSATest := corev1.Pod{}
+	deepcopyPodFromDefault(&podSATest)
+	podSATest.Spec.ServiceAccountName = "test"
 	type args struct {
 		podName              string
 		cmd                  string
@@ -340,6 +344,7 @@ func TestNewMountPod(t *testing.T) {
 		env                  map[string]string
 		labels               map[string]string
 		annotations          map[string]string
+		serviceAccount       string
 	}
 	tests := []struct {
 		name string
@@ -360,38 +365,54 @@ func TestNewMountPod(t *testing.T) {
 			},
 			want: podDefaultTest,
 		},
-		//{
-		//	name: "test-labels",
-		//	args: args{
-		//		podName:              "test",
-		//		cmd:                  "",
-		//		mountPath:            "",
-		//		resourceRequirements: corev1.ResourceRequirements{},
-		//		configs:              nil,
-		//		env:                  nil,
-		//		labels:               map[string]string{"a": "b", "c": "d"},
-		//		annotations:          nil,
-		//	},
-		//	want: podLabelTest,
-		//},
-		//{
-		//	name: "test-annotation",
-		//	args: args{
-		//		podName:              "test",
-		//		cmd:                  "",
-		//		mountPath:            "",
-		//		resourceRequirements: corev1.ResourceRequirements{},
-		//		configs:              nil,
-		//		env:                  nil,
-		//		labels:               nil,
-		//		annotations:          map[string]string{"a": "b"},
-		//	},
-		//	want: podAnnoTest,
-		//},
+		{
+			name: "test-labels",
+			args: args{
+				podName:              "test",
+				cmd:                  "",
+				mountPath:            "",
+				resourceRequirements: corev1.ResourceRequirements{},
+				configs:              nil,
+				env:                  nil,
+				labels:               map[string]string{"a": "b", "c": "d"},
+				annotations:          nil,
+			},
+			want: podLabelTest,
+		},
+		{
+			name: "test-annotation",
+			args: args{
+				podName:              "test",
+				cmd:                  "",
+				mountPath:            "",
+				resourceRequirements: corev1.ResourceRequirements{},
+				configs:              nil,
+				env:                  nil,
+				labels:               nil,
+				annotations:          map[string]string{"a": "b"},
+			},
+			want: podAnnoTest,
+		},
+		{
+			name: "test-serviceaccount",
+			args: args{
+				podName:              "test",
+				cmd:                  "",
+				mountPath:            "",
+				resourceRequirements: corev1.ResourceRequirements{},
+				configs:              nil,
+				env:                  nil,
+				labels:               nil,
+				annotations:          nil,
+				serviceAccount:       "test",
+			},
+			want: podSATest,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewMountPod(tt.args.podName, tt.args.cmd, tt.args.mountPath, tt.args.resourceRequirements, tt.args.configs, tt.args.env, tt.args.labels, tt.args.annotations)
+			got := NewMountPod(tt.args.podName, tt.args.cmd, tt.args.mountPath, tt.args.resourceRequirements,
+				tt.args.configs, tt.args.env, tt.args.labels, tt.args.annotations, tt.args.serviceAccount)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {
