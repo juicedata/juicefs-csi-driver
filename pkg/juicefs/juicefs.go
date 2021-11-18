@@ -329,7 +329,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
 
 	if jfsSetting.UsePod {
-		klog.V(5).Infof("Mount: add mount ref of configMap of volumeId %q", volumeID)
+		klog.V(5).Infof("Mount: add mount ref of volumeId %q", volumeID)
 		err = mnt.AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeID))
 	}
 	return mountPath, err

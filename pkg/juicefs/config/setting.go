@@ -18,6 +18,7 @@ package config
 
 import (
 	"encoding/json"
+	"k8s.io/klog"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -64,6 +65,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
 		configs := make(map[string]string)
+		klog.V(5).Infof("Get configs in secret: %v", configStr)
 		if err := parseYamlOrJson(configStr, &configs); err != nil {
 			return nil, err
 		}
@@ -73,6 +75,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["envs"] != "" {
 		envStr := secrets["envs"]
 		env := make(map[string]string)
+		klog.V(5).Infof("Get envs in secret: %v", envStr)
 		if err := parseYamlOrJson(envStr, &env); err != nil {
 			return nil, err
 		}
@@ -81,12 +84,14 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 
 	labels := make(map[string]string)
 	if MountLabels != "" {
+		klog.V(5).Infof("Get MountLabels from csi env: %v", MountLabels)
 		if err := parseYamlOrJson(MountLabels, &labels); err != nil {
 			return nil, err
 		}
 	}
 
 	if volCtx != nil {
+		klog.V(5).Infof("VolCtx got in config: %v", volCtx)
 		jfsSetting.MountPodCpuLimit = volCtx[mountPodCpuLimitKey]
 		jfsSetting.MountPodMemLimit = volCtx[mountPodMemLimitKey]
 		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
