@@ -1,16 +1,16 @@
-# How to use Mount Options in Kubernetes
+# 如何在 Kubernetes 中使用 Mount Options
 
-This document shows how to apply mount options to JuiceFS.
+本文档展示了如何将 mount options 应用到 JuiceFS。
 
-The CSI driver support the `juicefs mount` command line options and _fuse_ mount options (`-o` for `juicefs mount` command).
+CSI Driver 支持 `juicefs mount` 命令行选项和 _fuse_ 挂载选项（`-o` 表示 `juicefs mount` 命令）。
 
 ```
 juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <META-URL> <MOUNTPOINT>
 ```
 
-## Static provisioning
+## 静态配置
 
-You can use mountOptions in PV:
+您可以在 PV 中使用 mountOptions：
 
 ```yaml
 apiVersion: v1
@@ -37,9 +37,9 @@ spec:
       mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
+更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
 
-Apply PVC and sample pod as follows:
+部署 PVC 和示例 pod：
 
 ```yaml
 apiVersion: v1
@@ -85,24 +85,24 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### Check mount options are customized
+### 检查 mount options
 
-After the configuration is applied, verify that pod is running:
+应用配置后，验证 pod 是否正在运行：
 
 ```sh
 kubectl get pods juicefs-app-mount-options
 ```
 
-Also you can verify that mount options are customized in the mounted JuiceFS file system:
+您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
 
 ```sh
 kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
 ps xf
 ```
 
-## Dynamic provisioning
+## 动态配置
 
-You can use mountOptions in StorageClass:
+您也可以在 StorageClass 中使用 mountOptions：
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -119,9 +119,9 @@ parameters:
 mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
+更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
 
-Apply PVC and sample pod as follows:
+部署 PVC 和示例 pod：
 
 ```yaml
 apiVersion: v1
@@ -160,15 +160,15 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### Check mount options are customized
+### 检查 mount options
 
-After the configuration is applied, verify that pod is running:
+应用配置后，验证 pod 是否正在运行：
 
 ```sh
 kubectl get pods juicefs-app-mount-options
 ```
 
-Also you can verify that mount options are customized in the mounted JuiceFS file system:
+您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
 
 ```sh
 kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh

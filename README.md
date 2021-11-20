@@ -173,14 +173,13 @@ Before the example, you need to:
 
 ### Example links
 
-* [Basic](examples/basic)
-* [Static provisioning](examples/static-provisioning/)
-  * [Mount options](examples/static-provisioning-mount-options/)
-  * [Read write many](examples/static-provisioning-rwx/)
-  * [Sub path](examples/static-provisioning-subpath/)
-  * [Mount resources](examples/static-provisioning-mount-resources/)
-  * [Config and env](examples/static-provisioning-config-and-env/)
-* [Dynamic provisioning](examples/dynamic-provisioning/)
+* [Static provisioning](docs/en/examples/static-provisioning.md)
+* [Dynamic provisioning](docs/en/examples/dynamic-provisioning.md)
+* [Mount options](docs/en/examples/mount-options.md)
+* [ReadWriteMany and ReadOnlyMany](docs/en/examples/rwx-and-rox.md)
+* [Sub path](docs/en/examples/subpath.md)
+* [Mount resources](docs/en/examples/mount-resources.md)
+* [Config and env](docs/en/examples/config-and-env.md)
 
 **Notes**:
 

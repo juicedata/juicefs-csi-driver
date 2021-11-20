@@ -90,7 +90,7 @@ May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    
 
 ### Creating volume
 
-Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](https://github.com/juicedata/juicefs-csi-driver/tree/master/examples/basic) for details.
+Volume can be created before mounting or the first time mounting in Kubernetes, read [basic example](https://github.com/juicedata/juicefs-csi-driver/tree/master/docs/en/examples/static-provisioning.md) for details.
 
 Kubernetes will proceed the following actions:
 

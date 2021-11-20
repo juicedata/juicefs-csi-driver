@@ -1,16 +1,10 @@
-# 如何在 Kubernetes 中使用 Mount Options
+# 如何在 Kubernetes 中使用 subpath
 
-本文档展示了如何将 mount options 应用到 JuiceFS。
-
-CSI Driver 支持 `juicefs mount` 命令行选项和 _fuse_ 挂载选项（`-o` 表示 `juicefs mount` 命令）。
-
-```
-juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <META-URL> <MOUNTPOINT>
-```
+本文档展示了如何在 Kubernets 中使用 subpath。
 
 ## 静态配置
 
-您可以在 PV 中使用 mountOptions：
+您可以在 PV 中使用 subpath： 
 
 ```yaml
 apiVersion: v1
@@ -34,10 +28,8 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
+      subPath: fluentd
 ```
-
-更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
 
 部署 PVC 和示例 pod：
 
@@ -62,7 +54,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app-subpath
   namespace: default
 spec:
   containers:
@@ -85,24 +77,23 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### 检查 mount options
+### 检查 subpath 是否被正确配置
 
 应用配置后，验证 pod 是否正在运行：
 
 ```sh
-kubectl get pods juicefs-app-mount-options
+kubectl get pods juicefs-app-subpath
 ```
 
-您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义：
+确认数据被正确地写入 JuiceFS 文件系统中：
 
 ```sh
-kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
-ps xf
+>> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
 
 ## 动态配置
 
-您也可以在 StorageClass 中使用 mountOptions：
+您也可以在 StorageClass 中使用 subpath: 
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -116,10 +107,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
+  subPath: fluentd
 ```
-
-更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
 
 部署 PVC 和示例 pod：
 
@@ -140,7 +129,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app-subpath
   namespace: default
 spec:
   containers:
@@ -160,17 +149,16 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### 检查 mount options
+### 检查 subpath 是否被正确配置
 
 应用配置后，验证 pod 是否正在运行：
 
 ```sh
-kubectl get pods juicefs-app-mount-options
+kubectl get pods juicefs-app-subpath
 ```
 
-您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义：
+确认数据被正确地写入 JuiceFS 文件系统中：
 
 ```sh
-kubectl exec -ti juicefs-csi-node-2zz7h -c juicefs-plugin sh
-ps xf
+>> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```

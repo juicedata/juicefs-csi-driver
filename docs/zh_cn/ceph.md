@@ -2,7 +2,7 @@
 
 如果使用 [Ceph](https://ceph.io/) 作为 JucieFS 的底层存储，既可以使用标准的  [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/) ，也可以使用效率更高的  [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
 
-JuiceFS CSI Driver 从 v0.10.0 版本开始支持向 JuiceFS 提供配置文件，更多细节可以参考文档 ["static-provisioning-config-and-env"](https://github.com/juicedata/juicefs-csi-driver/tree/master/examples/static-provisioning-config-and-env)。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件传递给运行在 Kubernetes 中的 JuiceFS mount 进程。
+JuiceFS CSI Driver 从 v0.10.0 版本开始支持向 JuiceFS 提供配置文件，更多细节可以参考文档 ["static-provisioning-config-and-env"](https://github.com/juicedata/juicefs-csi-driver/tree/master/docs/zh_cn/examples/config-and-env.md) 。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件传递给运行在 Kubernetes 中的 JuiceFS mount 进程。
 
 这篇文档来描述如何在 Kubernetes 中使用 `librados` 访问 Ceph 集群。
 
@@ -137,11 +137,11 @@ storage:     4 bytes
 
 ### 动态挂载
 
-如何使用 StorageClass 访问 JuiceFS，请参考 ["examples/dynamic-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/examples/dynamic-provisioning/resources.yaml) 将 `$(SECRET_NAME)` 替换为 `juicefs-secret`，将 `$(SECRET_NAMESPACE)` 替换为 `kube-system`。
+如何使用 StorageClass 访问 JuiceFS，请参考 ["examples/dynamic-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/zh_cn/examples/dynamic-provisioning.md) 将 `$(SECRET_NAME)` 替换为 `juicefs-secret`，将 `$(SECRET_NAMESPACE)` 替换为 `kube-system`。
 
 ### 静态挂载
 
-如何使用 Persistent Volume 访问 JuiceFS，请参考 ["examples/static-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/examples/static-provisioning/resources.yaml) 将 `nodePublishSecretRef` 的 `name` 和 `namespace` 替换为 `juicefs-sceret` 和 `kube-system`。
+如何使用 Persistent Volume 访问 JuiceFS，请参考 ["examples/static-provisioning"](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/zh_cn/examples/static-provisioning.md) 将 `nodePublishSecretRef` 的 `name` 和 `namespace` 替换为 `juicefs-sceret` 和 `kube-system`。
 
 ## 其他 Ceph 版本
 

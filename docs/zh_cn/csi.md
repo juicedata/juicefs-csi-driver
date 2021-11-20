@@ -84,7 +84,7 @@ May 25 19:27:42 iZuf65o45s4xllq6ghmvkhZ kubelet[1458]: I0525 19:27:42.360204    
 
 ### 创建卷
 
-卷可以在挂载前或在 Kubernetes 中第一次挂载时创建，详情请阅读 [basic example](https://github.com/juicedata/juicefs-csi-driver/tree/master/examples/basic)。
+卷可以在挂载前或在 Kubernetes 中第一次挂载时创建，详情请阅读 [examples](https://github.com/juicedata/juicefs-csi-driver/tree/master/docs/zh_cn/examples/static_provisioning.md)。
 
 Kubernetes 将进行以下操作。
 
