@@ -17,9 +17,9 @@ kubectl -n default create secret generic juicefs-secret \
 ```
 
 - `name`: The JuiceFS file system name.
-- `metaurl`: Connection URL for metadata engine (e.g. Redis). Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/databases_for_metadata.md) for more information.
-- `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) for the full supported list.
-- `bucket`: Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
+- `metaurl`: Connection URL for metadata engine (e.g. Redis). Read [this document](https://juicefs.com/docs/community/databases_for_metadata) for more information.
+- `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list.
+- `bucket`: Bucket URL. Read [this document](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage.
 - `access-key`: Access key.
 - `secret-key`: Secret key.
 
@@ -29,7 +29,7 @@ You should ensure:
 1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
 2. The Redis DB is clean and the password (if provided) is right
 
-You can execute the [`juicefs format`](https://github.com/juicedata/juicefs/#format-a-volume) command to ensure the secret is OK.
+You can execute the [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-mount) command to ensure the secret is OK.
 
 ```sh
 ./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \

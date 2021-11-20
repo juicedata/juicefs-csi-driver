@@ -37,7 +37,7 @@ spec:
       mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
+Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported options.
 
 Apply PVC and sample pod as follows:
 
@@ -118,7 +118,7 @@ parameters:
 mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-Refer to [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) for all supported options.
+Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported options.
 
 Apply PVC and sample pod as follows:
 

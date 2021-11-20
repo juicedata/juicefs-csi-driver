@@ -37,7 +37,7 @@ spec:
       mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
+更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 
@@ -119,7 +119,7 @@ parameters:
 mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-更多配置选项参考 [JuiceFS mount command](https://github.com/juicedata/juicefs/#mount-a-volume) 。
+更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 
