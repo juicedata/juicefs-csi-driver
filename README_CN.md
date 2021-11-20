@@ -172,18 +172,17 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 * 了解如何设置 Kubernetes 和 [JuiceFS](https://github.com/juicedata/juicefs)
 * 确保 JuiceFS 能够被 Kuberenetes 集群访问。建议在与 Kubernetes 集群相同的区域创建文件系统。
-* 参照[说明](#installation)安装 JuiceFS CSI driver。
+* 参照[说明](#安装)安装 JuiceFS CSI driver。
 
 ### 目录
 
-* [Basic](examples/basic)
-* [Static provisioning](examples/static-provisioning/)
-  * [Mount options](examples/static-provisioning-mount-options/)
-  * [Read write many](examples/static-provisioning-rwx/)
-  * [Sub path](examples/static-provisioning-subpath/)
-  * [Mount resources](examples/static-provisioning-mount-resources/)
-  * [Config and env](examples/static-provisioning-config-and-env/)
-* [Dynamic provisioning](examples/dynamic-provisioning/)
+* [Static provisioning](docs/zh_cn/examples/static-provisioning.md)
+* [Dynamic provisioning](docs/zh_cn/examples/dynamic-provisioning.md)
+* [Mount options](docs/zh_cn/examples/mount-options.md)
+* [ReadWriteMany and ReadOnlyMany](docs/zh_cn/examples/rwx-and-rox.md)
+* [Sub path](docs/zh_cn/examples/subpath.md)
+* [Mount resources](docs/zh_cn/examples/mount-resources.md)
+* [Config and env](docs/zh_cn/examples/config-and-env.md)
 
 **备注**:
 

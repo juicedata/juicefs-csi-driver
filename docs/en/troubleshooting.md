@@ -4,6 +4,8 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
 ## JuiceFS CSI Driver v0.10+
 
+### Get mount pod
+
 1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
 
 ```sh
@@ -53,13 +55,15 @@ juicefs-172.16.2.87-juicefs-volume-abc   1/1     Running   0          20h    172
 
 From above output, the name of JuiceFS mount pod is `juicefs-172.16.2.87-juicefs-volume-abc`.
 
-4. Get JuiceFS mount pod logs. For example:
+### Get logs of mount pod
+
+1. Get JuiceFS mount pod logs. For example:
 
 ```sh
 $ kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
 ```
 
-5. Find any log contains `WARNING`, `ERROR` or `FATAL`.
+2. Find any log contains `WARNING`, `ERROR` or `FATAL`.
 
 ## Before JuiceFS CSI Driver v0.10
 

@@ -1,0 +1,173 @@
+# 如何在 JuiceFS 中使用 ReadWriteMany 和 ReadOnlyMany
+
+JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。
+
+## ReadWriteMany
+
+您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们采取静态配置为例：
+
+创建 Secret:
+
+```sh
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=<NAME> \
+    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
+    --from-literal=storage=s3 \
+    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
+    --from-literal=access-key=<ACCESS_KEY> \
+    --from-literal=secret-key=<SECRET_KEY>
+```
+
+在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadWriteMany`：
+
+```shell
+kubectl apply -f - <<EOF
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: test-bucket
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app-rwx
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+EOF
+```
+
+## ReadOnlyMany
+
+创建 Secret:
+
+```sh
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=<NAME> \
+    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
+    --from-literal=storage=s3 \
+    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
+    --from-literal=access-key=<ACCESS_KEY> \
+    --from-literal=secret-key=<SECRET_KEY>
+```
+
+在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadOnlyMany`：
+
+```shell
+kubectl apply -f - <<EOF
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: test-bucket
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadOnlyMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app-rox
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+EOF
+```

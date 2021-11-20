@@ -1,8 +1,0 @@
-nameReference:
-- kind: Secret
-  fieldSpecs:
-  - path: spec/csi/nodePublishSecretRef/name
-    kind: PersistentVolume
-namespace:
-- path: spec/csi/nodePublishSecretRef/namespace
-  kind: PersistentVolume

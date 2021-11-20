@@ -4,6 +4,8 @@
 
 ## JuiceFS CSI Driver v0.10 及以后版本
 
+### 找到 mount pod
+
 1. 找到您的 pod 所在的节点。比如，假设您的 pod 名为 `juicefs-app`：
 
 ```sh
@@ -53,13 +55,15 @@ juicefs-172.16.2.87-juicefs-volume-abc   1/1     Running   0          20h    172
 
 从以上输出可以看出，JuiceFS mount pod 名为 `juicefs-172.16.2.87-juicefs-volume-abc`。
 
-4. 获取 JuiceFS mount pod 的日志，如：
+### 找到 mount pod 的日志
+
+1. 获取 JuiceFS mount pod 的日志，如：
 
 ```sh
 $ kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
 ```
 
-5. 找到所有包含 `WARNING`，`ERROR` 或 `FATAL` 的日志。
+2. 找到所有包含 `WARNING`，`ERROR` 或 `FATAL` 的日志。
 
 ## JuiceFS CSI Driver v0.10 以前的版本
 
