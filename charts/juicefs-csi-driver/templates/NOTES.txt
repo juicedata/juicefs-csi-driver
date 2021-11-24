@@ -8,7 +8,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: juicefs-pvc
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
   accessModes:
   - ReadWriteMany
@@ -21,7 +21,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: juicefs-app
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
   containers:
   - args:

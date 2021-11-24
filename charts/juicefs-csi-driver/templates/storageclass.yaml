@@ -1,4 +1,4 @@
-{{ $namespace := .Values.namespace }}
+{{ $namespace := .Release.Namespace | quote }}
 {{- range $_, $sc := .Values.storageClasses }}
 
 {{- if $sc.enabled }}

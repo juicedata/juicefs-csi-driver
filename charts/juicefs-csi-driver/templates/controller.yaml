@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/component: controller
     {{- include "juicefs-csi.labels" . | nindent 4 }}
   name: juicefs-csi-controller
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
   replicas: {{ .Values.controller.replicas }}
   selector:
