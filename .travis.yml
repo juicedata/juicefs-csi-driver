@@ -4,11 +4,6 @@ language: go
 go:
   - "1.15"
 
-branches:
-  only:
-    - /.*/
-
-
 script:
   - make
   - ./hack/verify-all
