@@ -78,8 +78,8 @@ push-branch:
 .PHONY: image-version
 image-version:
 	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
-	docker build -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
-		--build-arg=JFS_AUTO_UPGRADE=disabled .
+	docker buildx -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 .
 
 .PHONY: push-version
 push-version:
