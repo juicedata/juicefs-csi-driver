@@ -144,7 +144,8 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s", mountPath)}},
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
+							"umount %s && rmdir %s", mountPath, mountPath)}},
 					},
 				},
 			}},
