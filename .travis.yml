@@ -9,4 +9,9 @@ script:
   - ./hack/verify-all
   - make test
   - make test-sanity
-  - go test -covermode=count -coverprofile=profile.cov ./pkg/...
+  - go test -v -cover -covermode=count -coverprofile=coverage.txt ./pkg/...
+
+after_failure:
+  - sudo tail -n 100 /var/log/syslog
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
