@@ -53,6 +53,11 @@ push-nightly:
 	docker tag $(IMAGE):nightly $(REGISTRY)/$(IMAGE):nightly
 	docker push $(REGISTRY)/$(IMAGE):nightly
 
+.PHONY: image-nightly-buildx
+image-nightly-buildx:
+	# Build image with newest juicefs-csi-driver and juicefs
+	docker buildx build -t $(IMAGE):nightly --platform linux/amd64,linux/arm64 . --push
+
 .PHONY: image-latest
 image-latest:
 	# Build image with latest stable juicefs-csi-driver and juicefs
@@ -78,8 +83,8 @@ push-branch:
 .PHONY: image-version
 image-version:
 	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
-	docker buildx -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
-		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 .
+	docker buildx build -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 .PHONY: push-version
 push-version:
@@ -105,6 +110,11 @@ uninstall: deploy/k8s.yaml
 image-dev: juicefs-csi-driver
 	docker pull $(IMAGE):nightly
 	docker build -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
+
+.PHONY: image-dev-buildx
+image-dev-buildx: juicefs-csi-driver
+	docker pull $(IMAGE):nightly
+	docker buildx build -t $(IMAGE):$(DEV_TAG) --platform linux/amd64,linux/arm64 -f dev.Dockerfile bin
 
 .PHONY: push-dev
 push-dev:
