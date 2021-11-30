@@ -122,7 +122,7 @@ var (
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s", "")}},
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s && rmdir %s", "", "")}},
 					},
 				},
 			}},
