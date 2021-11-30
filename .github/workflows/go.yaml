@@ -32,12 +32,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Prepare microk8s environment
         run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
-      - name: for-test
-        run: |
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
-          docker buildx create --use --name mybuilder
-          make image-dev-buildx
       - name: Build image
         env:
           DEV_K8S: microk8s

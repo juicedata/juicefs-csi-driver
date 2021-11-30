@@ -111,11 +111,6 @@ image-dev: juicefs-csi-driver
 	docker pull $(IMAGE):nightly
 	docker build -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
 
-.PHONY: image-dev-buildx
-image-dev-buildx: juicefs-csi-driver
-	docker pull $(IMAGE):nightly
-	docker buildx build -t $(IMAGE):$(DEV_TAG) --platform linux/amd64,linux/arm64 -f dev.Dockerfile bin
-
 .PHONY: push-dev
 push-dev:
 ifeq ("$(DEV_K8S)", "microk8s")
