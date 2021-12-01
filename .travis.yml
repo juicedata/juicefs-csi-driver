@@ -9,7 +9,7 @@ script:
   - ./hack/verify-all
   - make test
   - make test-sanity
-  - go test -v -cover -covermode=atomic -coverprofile=coverage.txt ./pkg/...
+  - go test -v -cover -covermode=count -coverprofile=coverage.txt ./pkg/...
 
 after_failure:
   - sudo tail -n 100 /var/log/syslog
