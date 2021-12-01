@@ -170,6 +170,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	if err := mount.CleanupMountPoint(target, mount.New(""), false); err != nil {
 		klog.V(5).Infof("Clean mount point error: %v", err)
+		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
 	mnt := podmount.NewPodMount(nil, d.k8sClient)
