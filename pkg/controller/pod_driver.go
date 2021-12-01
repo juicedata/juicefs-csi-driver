@@ -201,22 +201,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		return reconcile.Result{Requeue: true}, err
 	}
 
-	// check if need to do recovery
-	klog.V(6).Infof("Annotations:%v", pod.Annotations)
-	if pod.Annotations == nil {
-		return reconcile.Result{}, nil
-	}
-	var targets = make([]string, 0)
-	for k, v := range pod.Annotations {
-		if k == util.GetReferenceKey(v) {
-			targets = append(targets, v)
-		}
-	}
-	if len(targets) == 0 {
-		// do not need recovery
-		return reconcile.Result{}, nil
-	}
-
 	// get mount point
 	sourcePath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
@@ -224,7 +208,33 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		return reconcile.Result{}, nil
 	}
 
-	// create the pod even if get err
+	// check if it needs to do recovery
+	klog.V(6).Infof("Annotations:%v", pod.Annotations)
+	if pod.Annotations == nil {
+		return reconcile.Result{}, nil
+	}
+	annotation := pod.Annotations
+	existTargets := make([]string, 0)
+	for k, v := range pod.Annotations {
+		if strings.HasPrefix(k, "juicefs-") {
+			// check if target exist
+			if exist, _ := mount.PathExists(v); exist {
+				existTargets = append(existTargets, v)
+				continue
+			}
+			klog.V(5).Infof("Target %s didn't exist.", v)
+			delete(annotation, k)
+		}
+	}
+	if len(existTargets) == 0 {
+		// do not need recovery, clean mount point
+		if err := mount.CleanupMountPoint(sourcePath, mount.New(""), false); err != nil {
+			klog.V(5).Infof("Clean mount point error: %v", err)
+		}
+		return reconcile.Result{}, nil
+	}
+
+	// create the pod even if getting err
 	defer func() {
 		// check pod delete
 		for i := 0; i < 30; i++ {
@@ -246,7 +256,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 				Name:        pod.Name,
 				Namespace:   pod.Namespace,
 				Labels:      pod.Labels,
-				Annotations: pod.Annotations,
+				Annotations: annotation,
 			},
 			Spec: pod.Spec,
 		}
@@ -258,10 +268,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}()
 
 	// umount mount point before recreate mount pod
-	klog.Infof("start umount :%s", sourcePath)
+	klog.Infof("start to umount: %s", sourcePath)
 	out, err := exec.Command("umount", sourcePath).CombinedOutput()
 	if err != nil {
-		if !strings.Contains(string(out), "not mounted") || !strings.Contains(string(out), "mountpoint not found") {
+		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
 			output, err1 := exec.Command("umount", "-l", sourcePath).CombinedOutput()
 			if err1 != nil {
