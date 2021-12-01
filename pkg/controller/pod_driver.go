@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -228,8 +228,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 	if len(existTargets) == 0 {
 		// do not need recovery, clean mount point
+		klog.V(5).Infof("Clean mount point : %s", sourcePath)
 		if err := mount.CleanupMountPoint(sourcePath, mount.New(""), false); err != nil {
-			klog.V(5).Infof("Clean mount point error: %v", err)
+			klog.V(5).Infof("Clean mount point %s error: %v", sourcePath, err)
 		}
 		return reconcile.Result{}, nil
 	}
