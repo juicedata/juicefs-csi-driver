@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 
@@ -169,48 +168,8 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	klog.V(5).Infof("NodeUnpublishVolume: volume_id is %s", volumeId)
 
-	exists, err := mount.PathExists(target)
-	notMnt, corruptedMnt := true, false
-	if exists && err == nil {
-		notMnt, err = mount.IsNotMountPoint(d.juicefs, target)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
-		}
-		if notMnt { // target exists but not a mountpoint
-			klog.V(5).Infof("NodeUnpublishVolume: target %s not mounted", target)
-		}
-	} else if err != nil {
-		if corruptedMnt = mount.IsCorruptedMnt(err); !corruptedMnt {
-			return nil, status.Errorf(codes.Internal, "Check target path %s failed: %q", target, err)
-		}
-		klog.V(5).Infof("NodeUnpublishVolume: target %s is a corrupted mountpoint", target)
-	}
-
-	if !notMnt || corruptedMnt {
-		klog.V(5).Infof("NodeUnpublishVolume: unmounting %s", target)
-		for {
-			//err = d.juicefs.Unmount(target)
-			out, err := exec.Command("umount", target).CombinedOutput()
-			if err == nil {
-				continue
-			}
-			if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
-				klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
-				output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
-				if err1 != nil {
-					return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
-				}
-			}
-			klog.V(5).Infof("umount:%s success", target)
-			break
-		}
-	}
-	// Related issue: https://github.com/kubernetes/kubernetes/issues/60987
-	if exists {
-		klog.V(5).Infof("NodeUnpublishVolume: remove target %s", target)
-		if err = os.Remove(target); err != nil {
-			klog.V(5).Infof("Remove target directory %s failed: %q", target, err)
-		}
+	if err := mount.CleanupMountPoint(target, mount.New(""), false); err != nil {
+		klog.V(5).Infof("Clean mount point error: %v", err)
 	}
 
 	mnt := podmount.NewPodMount(nil, d.k8sClient)
