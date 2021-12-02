@@ -30,7 +30,7 @@ import (
 )
 
 type PodReconciler struct {
-	k8sclient.K8sClient
+	*k8sclient.K8sClient
 }
 
 func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {

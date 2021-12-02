@@ -37,12 +37,12 @@ import (
 )
 
 type PodDriver struct {
-	Client   k8sclient.K8sClient
+	Client   *k8sclient.K8sClient
 	handlers map[podStatus]podHandler
 	mount.SafeFormatAndMount
 }
 
-func NewPodDriver(client k8sclient.K8sClient) *PodDriver {
+func NewPodDriver(client *k8sclient.K8sClient) *PodDriver {
 	mounter := &mount.SafeFormatAndMount{
 		Interface: mount.New(""),
 		Exec:      k8sexec.New(),
