@@ -46,7 +46,7 @@ var (
 type nodeService struct {
 	juicefs   juicefs.Interface
 	nodeID    string
-	k8sClient k8sclient.K8sClient
+	k8sClient *k8sclient.K8sClient
 }
 
 func newNodeService(nodeID string) (*nodeService, error) {

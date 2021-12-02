@@ -173,7 +173,7 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 			p := &PodMount{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient:          k8sclient.K8sClient{fakeClientSet},
+				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			key := util.GetReferenceKey(tt.args.target)
 			_, _ = p.K8sClient.CreatePod(tt.args.pod)
@@ -271,8 +271,8 @@ func Test_juicefs_JUmount(t *testing.T) {
 			p := &PodMount{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient: k8sclient.K8sClient{
-					fakeClientSet,
+				K8sClient: &k8sclient.K8sClient{
+					Interface: fakeClientSet,
 				},
 			}
 			_, _ = p.K8sClient.CreatePod(&tt.pod)
@@ -353,7 +353,7 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 			p := &PodMount{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient:          k8sclient.K8sClient{fakeClientSet},
+				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			_, _ = p.K8sClient.CreatePod(tt.pod)
 			if err := p.waitUntilMount(tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {

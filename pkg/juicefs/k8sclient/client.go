@@ -30,7 +30,7 @@ type K8sClient struct {
 	kubernetes.Interface
 }
 
-func NewClient() (kubernetes.Interface, error) {
+func NewClient() (*K8sClient, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func NewClient() (kubernetes.Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-	return client, nil
+	return &K8sClient{client}, nil
 }
 
 func (k *K8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {

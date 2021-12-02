@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
 	"os"
@@ -294,7 +295,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "error-nil pod",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: nil,
@@ -304,7 +305,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "ready",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: readyPod,
@@ -314,7 +315,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "error1",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: errorPod1,
@@ -324,7 +325,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "error2",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: errorPod2,
@@ -334,7 +335,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "error3",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: errorPod3,
@@ -344,7 +345,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "pending",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: pendingPod,
@@ -354,7 +355,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		{
 			name: "delete",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: deletedPod,
@@ -363,7 +364,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 		}, {
 			name: "running",
 			fields: fields{
-				Client: k8sclient.FakeClient,
+				Client: k8sclient.K8sClient{fake.NewSimpleClientset()},
 			},
 			args: args{
 				pod: runningPod,
@@ -400,7 +401,7 @@ func copyPod(oldPod *corev1.Pod) *corev1.Pod {
 func TestPodDriver_podReadyHandler(t *testing.T) {
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, volErr}},
@@ -416,7 +417,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready add don't need recovery ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, nil}},
@@ -427,7 +428,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready add target mntPath not exists ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, notExistsErr}},
@@ -438,7 +439,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready and mount err ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, volErr}},
@@ -454,12 +455,12 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podReadyHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod Annotations is nil", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podReadyHandler(context.Background(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "juicefs-test-err-pod",
@@ -470,12 +471,12 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("pod mount cmd <3", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podReadyHandler(context.Background(), errCmdPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("parse pod mount cmd mntPath err", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "juicefs-test-err-mount-cmd-pod",
@@ -495,7 +496,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("stat static-pv sourcePath err", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "juicefs-test-err-mount-cmd-pod",
@@ -521,7 +522,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("stat static-pv sourcePath normal", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "juicefs-test-err-mount-cmd-pod",
@@ -557,13 +558,12 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 func TestPodDriver_podDeletedHandler(t *testing.T) {
 	Convey("Test pod delete handler", t, func() {
 		Convey("pod delete success ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			var tmpCmd = &exec.Cmd{}
 			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
 				return tmpCmd
 			})
 			defer patch1.Reset()
-			k8sclient.FakeClient.Flush()
 			tmpPod := copyPod(readyPod)
 			_, err := d.Client.CreatePod(tmpPod)
 			if err != nil {
@@ -582,77 +582,71 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podDeletedHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod no finalizer", func() {
 			tmpPod := copyPod(readyPod)
 			tmpPod.Finalizers = nil
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("skip delete resource err pod", func() {
 			tmpPod := copyPod(resourceErrPod)
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("remove pod finalizer err ", func() {
-			k8sclient.FakeClient.Flush()
 			tmpPod := copyPod(readyPod)
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeError)
 		})
 		Convey("pod no Annotations", func() {
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = nil
-			_, err := k8sclient.FakeClient.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
 			_, err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("can not get mntTarget from pod Annotations", func() {
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = map[string]string{
 				"/var/lib/xxx": "/var/lib/xxx",
 			}
-			_, err := k8sclient.FakeClient.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
 			_, err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("get sourcePath from pod cmd failed", func() {
-			k8sclient.FakeClient.Flush()
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			tmpPod := copyPod(readyPod)
 			tmpPod.Spec.Containers = nil
-			_, err := k8sclient.FakeClient.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
 			_, err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("umount source err and need mount lazy ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			var tmpCmd = &exec.Cmd{}
 			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
 				return tmpCmd
 			})
 			defer patch1.Reset()
-			k8sclient.FakeClient.Flush()
 			tmpPod := copyPod(readyPod)
 			_, err := d.Client.CreatePod(tmpPod)
 			if err != nil {
@@ -660,7 +654,6 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			}
 			patch2 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput",
 				func(_ *exec.Cmd) ([]byte, error) {
-					k8sclient.FakeClient.Flush()
 					return []byte(""), mountErr
 				})
 			defer patch2.Reset()
@@ -673,7 +666,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 func TestPodDriver_podErrorHandler(t *testing.T) {
 	Convey("Test pod err handler", t, func() {
 		Convey("pod err add need delete ", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, notExistsErr
 			})
@@ -687,47 +680,43 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			_, err := d.podErrorHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError", func() {
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, notExistsErr
 			})
 			defer patch1.Reset()
 			errPod := copyPod(resourceErrPod)
-			k8sclient.FakeClient.PodMap[errPod.Name] = errPod
+			d.Client.CreatePod(errPod)
 			_, err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError and remove pod Finalizer err", func() {
-			k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			errPod := copyPod(resourceErrPod)
 			_, err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError but pod no resource", func() {
-			k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			errPod := copyPod(resourceErrPod)
 			errPod.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
 			_, err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("get sourcePath from pod cmd failed", func() {
-			k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			Pod := copyPod(readyPod)
 			Pod.Spec.Containers = nil
 			_, err := d.podErrorHandler(context.Background(), Pod)
 			So(err, ShouldBeError)
 		})
 		Convey("sourcePath not mount", func() {
-			k8sclient.FakeClient.Flush()
-			d := NewPodDriver(k8sclient.FakeClient)
+			d := NewPodDriver(k8sclient.K8sClient{fake.NewSimpleClientset()})
 			Pod := copyPod(readyPod)
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
@@ -735,7 +724,6 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			defer patch1.Reset()
 			patch2 := ApplyMethod(reflect.TypeOf(d.Interface), "IsLikelyNotMountPoint",
 				func(_ *mount.Mounter, file string) (bool, error) {
-					k8sclient.FakeClient.Flush()
 					return true, nil
 				},
 			)
