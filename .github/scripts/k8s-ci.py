@@ -239,10 +239,10 @@ class Deployment:
         DEPLOYMENTs.append(self)
 
     def update_replicas(self, replicas):
-        deployment = client.AppsV1Api().read_namespaced_deployment(name=self.name, namespace=self.namespace)
-        deployment.spec.replicas = replicas
         while True:
             try:
+                deployment = client.AppsV1Api().read_namespaced_deployment(name=self.name, namespace=self.namespace)
+                deployment.spec.replicas = replicas
                 client.AppsV1Api().patch_namespaced_deployment(name=self.name, namespace=self.namespace,
                                                                body=deployment)
             except (client.ApiException, ConflictError) as e:
