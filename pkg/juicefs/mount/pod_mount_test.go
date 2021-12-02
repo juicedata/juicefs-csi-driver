@@ -18,6 +18,7 @@ package mount
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"k8s.io/client-go/kubernetes/fake"
 	"reflect"
 	"testing"
 
@@ -29,13 +30,13 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 )
 
-var test1 = &corev1.Pod{
+var testA = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-a",
 	},
 }
 
-var test2 = &corev1.Pod{
+var testB = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-b",
 		Annotations: map[string]string{
@@ -43,7 +44,7 @@ var test2 = &corev1.Pod{
 	},
 }
 
-var test3 = &corev1.Pod{
+var testC = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-c",
 		Annotations: map[string]string{
@@ -51,7 +52,7 @@ var test3 = &corev1.Pod{
 	},
 }
 
-var test4 = &corev1.Pod{
+var testD = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-d",
 		Annotations: map[string]string{"a": "b",
@@ -59,7 +60,7 @@ var test4 = &corev1.Pod{
 	},
 }
 
-var test5 = &corev1.Pod{
+var testE = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-e",
 		Annotations: map[string]string{
@@ -69,13 +70,23 @@ var test5 = &corev1.Pod{
 	},
 }
 
-var test6 = &corev1.Pod{
+var testF = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-f",
 	},
+	Status: corev1.PodStatus{
+		Phase: corev1.PodRunning,
+		Conditions: []corev1.PodCondition{{
+			Type:   corev1.PodReady,
+			Status: corev1.ConditionTrue,
+		}, {
+			Type:   corev1.ContainersReady,
+			Status: corev1.ConditionTrue,
+		}},
+	},
 }
 
-var test7 = &corev1.Pod{
+var testG = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-g",
 		Annotations: map[string]string{
@@ -83,38 +94,50 @@ var test7 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
+	Status: corev1.PodStatus{
+		Phase: corev1.PodRunning,
+		Conditions: []corev1.PodCondition{{
+			Type:   corev1.PodReady,
+			Status: corev1.ConditionTrue,
+		}, {
+			Type:   corev1.ContainersReady,
+			Status: corev1.ConditionTrue,
+		}},
+	},
+}
+
+var testH = &corev1.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "juicefs-test-node-h",
+	},
+	Status: corev1.PodStatus{
+		Phase: corev1.PodRunning,
+		Conditions: []corev1.PodCondition{{
+			Type:   corev1.PodReady,
+			Status: corev1.ConditionTrue,
+		}, {
+			Type:   corev1.ContainersReady,
+			Status: corev1.ConditionTrue,
+		}},
+	},
 }
 
 func setup() {
-	k8sclient.FakeClient.Flush()
 	jfsConfig.NodeName = "test-node"
-	jfsConfig.Namespace = "kube-system"
-	_, _ = k8sclient.FakeClient.CreatePod(test1)
-	_, _ = k8sclient.FakeClient.CreatePod(test2)
-	_, _ = k8sclient.FakeClient.CreatePod(test3)
-	_, _ = k8sclient.FakeClient.CreatePod(test4)
-	_, _ = k8sclient.FakeClient.CreatePod(test5)
-	_, _ = k8sclient.FakeClient.CreatePod(test6)
-	_, _ = k8sclient.FakeClient.CreatePod(test7)
 }
 
-func teardown() {
-	k8sclient.FakeClient.Flush()
-	jfsConfig.NodeName = ""
-	jfsConfig.Namespace = ""
+func init() {
+	jfsConfig.NodeName = "test-node"
 }
 
 func Test_juicefs_addRefOfMount(t *testing.T) {
-	teardown()
-	setup()
+	fakeClientSet := fake.NewSimpleClientset()
 	type fields struct {
-		SafeFormatAndMount mount.SafeFormatAndMount
-		jfsSetting         *jfsConfig.JfsSetting
-		K8sClient          k8sclient.K8sClient
+		jfsSetting *jfsConfig.JfsSetting
 	}
 	type args struct {
-		target  string
-		podName string
+		target string
+		pod    *corev1.Pod
 	}
 	tests := []struct {
 		name    string
@@ -125,50 +148,47 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 		{
 			name: "test-nil",
 			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				jfsSetting:         &jfsConfig.JfsSetting{},
-				K8sClient:          k8sclient.FakeClient,
+				jfsSetting: &jfsConfig.JfsSetting{},
 			},
 			args: args{
-				target:  "/mnt/abc",
-				podName: test1.Name,
+				target: "/mnt/abc",
+				pod:    testA,
 			},
 			wantErr: false,
 		},
 		{
 			name: "test2",
 			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				jfsSetting:         &jfsConfig.JfsSetting{},
-				K8sClient:          k8sclient.FakeClient,
+				jfsSetting: &jfsConfig.JfsSetting{},
 			},
 			args: args{
-				target:  "/mnt/abc",
-				podName: test2.Name,
+				target: "/mnt/abc",
+				pod:    testB,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			p := &PodMount{
+				SafeFormatAndMount: mount.SafeFormatAndMount{},
+				jfsSetting:         tt.fields.jfsSetting,
+				K8sClient:          k8sclient.K8sClient{fakeClientSet},
+			}
 			key := util.GetReferenceKey(tt.args.target)
-			old, err := k8sclient.FakeClient.GetPod(tt.args.podName, jfsConfig.Namespace)
+			_, _ = p.K8sClient.CreatePod(tt.args.pod)
+			old, err := p.K8sClient.GetPod(tt.args.pod.Name, jfsConfig.Namespace)
 			if err != nil {
-				t.Errorf("Can't get pod: %v", tt.args.podName)
+				t.Errorf("Can't get pod: %v", tt.args.pod.Name)
 			}
 			if old.Annotations == nil {
 				old.Annotations = make(map[string]string)
 			}
 			old.Annotations[key] = tt.args.target
-			p := &PodMount{
-				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
-				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient:          tt.fields.K8sClient,
-			}
-			if err := p.AddRefOfMount(tt.args.target, tt.args.podName); (err != nil) != tt.wantErr {
+			if err := p.AddRefOfMount(tt.args.target, tt.args.pod.Name); (err != nil) != tt.wantErr {
 				t.Errorf("AddRefOfMount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			newPod, _ := k8sclient.FakeClient.GetPod(tt.args.podName, jfsConfig.Namespace)
+			newPod, _ := p.K8sClient.GetPod(tt.args.pod.Name, jfsConfig.Namespace)
 			if !reflect.DeepEqual(newPod.Annotations, old.Annotations) {
 				t.Errorf("addRefOfMount err, wanted: %v, got: %v", old.Annotations, newPod.Annotations)
 			}
@@ -177,12 +197,10 @@ func Test_juicefs_addRefOfMount(t *testing.T) {
 }
 
 func Test_juicefs_JUmount(t *testing.T) {
-	teardown()
-	setup()
+	fakeClientSet := fake.NewSimpleClientset()
+
 	type fields struct {
-		SafeFormatAndMount mount.SafeFormatAndMount
-		jfsSetting         *jfsConfig.JfsSetting
-		K8sClient          k8sclient.K8sClient
+		jfsSetting *jfsConfig.JfsSetting
 	}
 	type args struct {
 		volumeId string
@@ -192,48 +210,43 @@ func Test_juicefs_JUmount(t *testing.T) {
 		name            string
 		fields          fields
 		args            args
+		pod             corev1.Pod
 		wantErr         bool
 		wantPodDeleted  bool
 		wantAnnotations map[string]string
 	}{
 		{
-			name: "test-delete",
-			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          k8sclient.FakeClient,
-			},
+			name:   "test-delete",
+			fields: fields{},
 			args: args{
 				volumeId: "c",
 				target:   "/mnt/abc",
 			},
+			pod:             *testC,
 			wantErr:         false,
 			wantPodDeleted:  true,
 			wantAnnotations: nil,
 		},
 		{
-			name: "test-delete2",
-			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          k8sclient.FakeClient,
-			},
+			name:   "test-delete2",
+			fields: fields{},
 			args: args{
 				volumeId: "d",
 				target:   "/mnt/def",
 			},
+			pod:             *testD,
 			wantErr:         false,
 			wantPodDeleted:  true,
 			wantAnnotations: nil,
 		},
 		{
-			name: "test-true",
-			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          k8sclient.FakeClient,
-			},
+			name:   "test-true",
+			fields: fields{},
 			args: args{
 				volumeId: "e",
 				target:   "/mnt/def",
 			},
+			pod:            *testE,
 			wantErr:        false,
 			wantPodDeleted: false,
 			wantAnnotations: map[string]string{
@@ -241,15 +254,13 @@ func Test_juicefs_JUmount(t *testing.T) {
 			},
 		},
 		{
-			name: "test-delete3",
-			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          k8sclient.FakeClient,
-			},
+			name:   "test-delete3",
+			fields: fields{},
 			args: args{
 				volumeId: "f",
 				target:   "/mnt/def",
 			},
+			pod:             *testF,
 			wantErr:         false,
 			wantPodDeleted:  true,
 			wantAnnotations: nil,
@@ -258,14 +269,17 @@ func Test_juicefs_JUmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
-				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
+				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient:          tt.fields.K8sClient,
+				K8sClient: k8sclient.K8sClient{
+					fakeClientSet,
+				},
 			}
+			_, _ = p.K8sClient.CreatePod(&tt.pod)
 			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			got, _ := k8sclient.FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
+			got, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
 			}
@@ -277,10 +291,10 @@ func Test_juicefs_JUmount(t *testing.T) {
 }
 
 func Test_juicefs_waitUntilMount(t *testing.T) {
+	fakeClientSet := fake.NewSimpleClientset()
 	type fields struct {
 		SafeFormatAndMount mount.SafeFormatAndMount
 		jfsSetting         *jfsConfig.JfsSetting
-		K8sClient          k8sclient.K8sClient
 	}
 	type args struct {
 		volumeId   string
@@ -293,15 +307,14 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
+		pod      *corev1.Pod
 		wantErr  bool
 		wantAnno map[string]string
 	}{
 		{
 			name: "test-new",
 			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				jfsSetting:         &jfsConfig.JfsSetting{},
-				K8sClient:          k8sclient.FakeClient,
+				jfsSetting: &jfsConfig.JfsSetting{},
 			},
 			args: args{
 				volumeId:   "h",
@@ -310,15 +323,14 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 				cmd:        "/local/bin/juicefs.mount test",
 				jfsSetting: nil,
 			},
+			pod:      testH,
 			wantErr:  false,
 			wantAnno: map[string]string{util.GetReferenceKey("/mnt/hhh"): "/mnt/hhh"},
 		},
 		{
 			name: "test-exists",
 			fields: fields{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				jfsSetting:         &jfsConfig.JfsSetting{},
-				K8sClient:          k8sclient.FakeClient,
+				jfsSetting: &jfsConfig.JfsSetting{},
 			},
 			args: args{
 				volumeId:   "g",
@@ -327,6 +339,7 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 				cmd:        "/local/bin/juicefs.mount test",
 				jfsSetting: nil,
 			},
+			pod:     testG,
 			wantErr: false,
 			wantAnno: map[string]string{
 				util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
@@ -338,14 +351,15 @@ func Test_juicefs_waitUntilMount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
-				SafeFormatAndMount: tt.fields.SafeFormatAndMount,
+				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				jfsSetting:         tt.fields.jfsSetting,
-				K8sClient:          tt.fields.K8sClient,
+				K8sClient:          k8sclient.K8sClient{fakeClientSet},
 			}
+			_, _ = p.K8sClient.CreatePod(tt.pod)
 			if err := p.waitUntilMount(tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {
 				t.Errorf("waitUntilMount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			newPod, _ := k8sclient.FakeClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
+			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
 				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
 			}
