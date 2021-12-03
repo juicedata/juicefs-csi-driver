@@ -50,7 +50,7 @@ type Interface interface {
 
 type juicefs struct {
 	mount.SafeFormatAndMount
-	k8sclient.K8sClient
+	*k8sclient.K8sClient
 }
 
 var _ Interface = &juicefs{}
