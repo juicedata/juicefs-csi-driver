@@ -11,6 +11,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/smartystreets/goconvey v1.6.4
+	golang.org/x/tools v0.1.8 // indirect
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.26.0 // indirect
 	k8s.io/api v0.21.2

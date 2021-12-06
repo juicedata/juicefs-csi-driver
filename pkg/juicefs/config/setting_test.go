@@ -29,9 +29,10 @@ func TestParseSecret(t *testing.T) {
 	fmt.Println(string(ss))
 
 	type args struct {
-		secrets map[string]string
-		volCtx  map[string]string
-		usePod  bool
+		secrets     map[string]string
+		volCtx      map[string]string
+		usePod      bool
+		MountLabels string
 	}
 	tests := []struct {
 		name    string
@@ -40,7 +41,26 @@ func TestParseSecret(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test",
+			name: "test-nil",
+			args: args{
+				secrets:     nil,
+				volCtx:      nil,
+				usePod:      false,
+				MountLabels: "",
+			},
+			want:    &JfsSetting{},
+			wantErr: false,
+		},
+		{
+			name: "test-no-name",
+			args: args{
+				secrets: map[string]string{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "test-env",
 			args: args{
 				secrets: map[string]string{
 					"name": "test",
@@ -54,6 +74,18 @@ func TestParseSecret(t *testing.T) {
 				UsePod: true,
 			},
 			wantErr: false,
+		},
+		{
+			name: "test-env-error",
+			args: args{
+				secrets: map[string]string{
+					"name": "test",
+					"envs": "-",
+				},
+				usePod: true,
+			},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "test-storage-nil",
@@ -150,18 +182,14 @@ func TestParseSecret(t *testing.T) {
 			name: "test-cpu-request",
 			args: args{
 				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
+					"name": "test",
 				},
 				volCtx: map[string]string{
 					mountPodCpuRequestKey: "1",
 				},
-				usePod: true,
 			},
 			want: &JfsSetting{
 				Name:               "test",
-				Storage:            "s3",
-				UsePod:             true,
 				MountPodCpuRequest: "1",
 			},
 			wantErr: false,
@@ -170,39 +198,44 @@ func TestParseSecret(t *testing.T) {
 			name: "test-labels",
 			args: args{
 				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
+					"name": "test",
 				},
 				volCtx: map[string]string{
-					"juicefs/mount-labels": "a: b",
+					mountPodLabelKey: "a: b",
 				},
-				usePod: true,
 			},
 			want: &JfsSetting{
 				Name:           "test",
-				Storage:        "s3",
 				MountPodLabels: map[string]string{"a": "b"},
-				UsePod:         true,
 			},
 			wantErr: false,
+		},
+		{
+			name: "test-labels-error",
+			args: args{
+				secrets: map[string]string{
+					"name": "test",
+				},
+				volCtx: map[string]string{
+					mountPodLabelKey: "-",
+				},
+			},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "test-labels-json",
 			args: args{
 				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
+					"name": "test",
 				},
 				volCtx: map[string]string{
-					"juicefs/mount-labels": "{\"a\": \"b\"}",
+					mountPodLabelKey: "{\"a\": \"b\"}",
 				},
-				usePod: true,
 			},
 			want: &JfsSetting{
 				Name:           "test",
-				Storage:        "s3",
 				MountPodLabels: map[string]string{"a": "b"},
-				UsePod:         true,
 			},
 			wantErr: false,
 		},
@@ -210,21 +243,30 @@ func TestParseSecret(t *testing.T) {
 			name: "test-annotation",
 			args: args{
 				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
+					"name": "test",
 				},
 				volCtx: map[string]string{
-					"juicefs/mount-annotations": "a: b",
+					mountPodAnnotationKey: "a: b",
 				},
-				usePod: true,
 			},
 			want: &JfsSetting{
 				Name:                "test",
-				Storage:             "s3",
 				MountPodAnnotations: map[string]string{"a": "b"},
-				UsePod:              true,
 			},
 			wantErr: false,
+		},
+		{
+			name: "test-annotation-error",
+			args: args{
+				secrets: map[string]string{
+					"name": "test",
+				},
+				volCtx: map[string]string{
+					mountPodAnnotationKey: "-",
+				},
+			},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "test-serviceaccount",
@@ -234,7 +276,7 @@ func TestParseSecret(t *testing.T) {
 					"storage": "s3",
 				},
 				volCtx: map[string]string{
-					"juicefs/mount-service-account": "test",
+					mountPodServiceAccount: "test",
 				},
 				usePod: true,
 			},
@@ -246,9 +288,59 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test-config",
+			args: args{
+				secrets: map[string]string{
+					"configs": "a: b",
+					"name":    "test",
+				},
+			},
+			want: &JfsSetting{
+				Name:    "test",
+				Configs: map[string]string{"a": "b"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-config-error",
+			args: args{
+				secrets: map[string]string{
+					"configs": "-",
+					"name":    "test",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "test-mountLabel",
+			args: args{
+				secrets:     map[string]string{"name": "test"},
+				MountLabels: "a: b",
+			},
+			want: &JfsSetting{
+				Name:           "test",
+				MountPodLabels: map[string]string{"a": "b"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-mountLabel-error",
+			args: args{
+				secrets:     map[string]string{"name": "test"},
+				MountLabels: "-",
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			MountLabels = ""
+			if tt.args.MountLabels != "" {
+				MountLabels = tt.args.MountLabels
+			}
 			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.usePod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
@@ -297,6 +389,15 @@ func Test_parseYamlOrJson(t *testing.T) {
 				"c": "d",
 				"e": "f",
 			},
+		},
+		{
+			name: "test-wrong",
+			args: args{
+				source: ":",
+				dst:    nil,
+			},
+			wantErr: true,
+			wantDst: nil,
 		},
 	}
 	for _, tt := range tests {
