@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
@@ -90,8 +91,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	key := util.GetReferenceKey(target)
 	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
 
-loop:
-	err = func() error {
+	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		jfsConfig.JLock.Lock()
 		defer jfsConfig.JLock.Unlock()
 
@@ -108,12 +108,8 @@ loop:
 		klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
 		po.Annotations = annotation
 		return p.K8sClient.UpdatePod(po)
-	}()
-	if err != nil && k8serrors.IsConflict(err) {
-		// if can't update pod because of conflict, retry
-		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-		goto loop
-	} else if err != nil {
+	})
+	if err != nil {
 		return err
 	}
 
@@ -233,8 +229,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	// add volumeId ref in pod annotation
 	key := util.GetReferenceKey(target)
 
-loop:
-	err := func() error {
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		jfsConfig.JLock.Lock()
 		defer jfsConfig.JLock.Unlock()
 
@@ -258,12 +253,8 @@ loop:
 			return err
 		}
 		return nil
-	}()
-	if err != nil && k8serrors.IsConflict(err) {
-		// if can't update pod because of conflict, retry
-		klog.V(5).Infof("DeleteRefOfMountPod: Update pod conflict, retry.")
-		goto loop
-	} else if err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	return nil
