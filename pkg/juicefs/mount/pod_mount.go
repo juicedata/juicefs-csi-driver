@@ -50,6 +50,10 @@ func NewPodMount(setting *jfsConfig.JfsSetting, client *k8sclient.K8sClient) Int
 }
 
 func (p *PodMount) JMount(storage, volumeId, mountPath string, target string, options []string) error {
+	return p.waitUntilMount(volumeId, target, mountPath, p.getCommand(mountPath, options))
+}
+
+func (p *PodMount) getCommand(mountPath string, options []string) string {
 	cmd := ""
 	if p.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)
@@ -66,8 +70,7 @@ func (p *PodMount) JMount(storage, volumeId, mountPath string, target string, op
 		}
 		cmd = strings.Join(mountArgs, " ")
 	}
-
-	return p.waitUntilMount(volumeId, target, mountPath, cmd)
+	return cmd
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
@@ -248,11 +251,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		annotation[key] = target
 		exist.Annotations = annotation
 		klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", podName, target)
-		if err := p.K8sClient.UpdatePod(exist); err != nil && k8serrors.IsConflict(err) {
-			klog.V(5).Infof("addRefOfMount: Patch pod %s error: %v", podName, err)
-			return err
-		}
-		return nil
+		return p.K8sClient.UpdatePod(exist)
 	})
 	if err != nil {
 		return err

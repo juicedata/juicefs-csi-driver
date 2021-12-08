@@ -16,6 +16,4 @@
 
 set -euo pipefail
 
-IMPORT_PATH=github.com/juicedata/juicedata-jfs-csi-driver
-mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/kubernetes/pkg/util/mount Interface
-mockgen -package=mocks -destination=./pkg/cloud/mocks/mock_ec2metadata.go ${IMPORT_PATH}/pkg/cloud EC2Metadata
+./bin/mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
