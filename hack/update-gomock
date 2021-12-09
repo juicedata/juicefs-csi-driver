@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -euo pipefail
 
 ./bin/mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
