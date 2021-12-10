@@ -34,7 +34,12 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
+      mountOptions:
+        - enable-xattr
+        - max-uploads=50
+        - cache-size=2048
+        - cache-dir=/var/foo
+        - allow_other
 ```
 
 更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
@@ -116,7 +121,12 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
+mountOptions:
+  - enable-xattr
+  - max-uploads=50
+  - cache-size=2048
+  - cache-dir=/var/foo
+  - allow_other
 ```
 
 更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
