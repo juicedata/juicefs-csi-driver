@@ -26,6 +26,12 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
+  mountOptions:
+    - enable-xattr
+    - max-uploads=50
+    - cache-size=2048
+    - cache-dir=/var/foo
+    - allow_other
   csi:
     driver: csi.juicefs.com
     volumeHandle: test-bucket
@@ -33,13 +39,6 @@ spec:
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
-    volumeAttributes:
-      mountOptions:
-        - enable-xattr
-        - max-uploads=50
-        - cache-size=2048
-        - cache-dir=/var/foo
-        - allow_other
 ```
 
 更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
