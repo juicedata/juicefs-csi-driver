@@ -2,7 +2,8 @@
 
 This document shows how to apply mount options to JuiceFS.
 
-The CSI driver support the `juicefs mount` command line options and _fuse_ mount options (`-o` for `juicefs mount` command).
+The CSI driver support the `juicefs mount` command line options and _fuse_ mount options (`-o` for `juicefs mount`
+command).
 
 ```
 juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <META-URL> <MOUNTPOINT>
@@ -26,6 +27,12 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
+  mountOptions:  
+    - enable-xattr
+    - max-uploads=50
+    - cache-size=2048
+    - cache-dir=/var/foo
+    - allow_other
   csi:
     driver: csi.juicefs.com
     volumeHandle: test-bucket
@@ -33,11 +40,10 @@ spec:
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
-    volumeAttributes:
-      mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
 ```
 
-Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported options.
+Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported
+options.
 
 Apply PVC and sample pod as follows:
 
@@ -93,7 +99,8 @@ After the configuration is applied, verify that pod is running:
 kubectl get pods juicefs-app-mount-options
 ```
 
-Also you can verify that mount options are customized in the mounted JuiceFS file system, refer to [this document](../troubleshooting.md#get-mount-pod) to find mount pod:
+Also you can verify that mount options are customized in the mounted JuiceFS file system, refer
+to [this document](../troubleshooting.md#get-mount-pod) to find mount pod:
 
 ```sh
 kubectl get po juicefs-kube-node-3-test-bucket -oyaml |grep command -A 3
@@ -115,10 +122,16 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions: "enable-xattr,max-uploads=50,cache-size=2048,cache-dir=/var/foo,allow_other"
+mountOptions:
+  - enable-xattr
+  - max-uploads=50
+  - cache-size=2048
+  - cache-dir=/var/foo
+  - allow_other
 ```
 
-Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported options.
+Refer to [JuiceFS mount command](https://juicefs.com/docs/community/command_reference#juicefs-mount) for all supported
+options.
 
 Apply PVC and sample pod as follows:
 
@@ -167,7 +180,8 @@ After the configuration is applied, verify that pod is running:
 kubectl get pods juicefs-app-mount-options
 ```
 
-Also you can verify that mount options are customized in the mounted JuiceFS file system, refer to [this document](../troubleshooting.md#get-mount-pod) to find mount pod :
+Also you can verify that mount options are customized in the mounted JuiceFS file system, refer
+to [this document](../troubleshooting.md#get-mount-pod) to find mount pod :
 
 ```sh
 kubectl get po juicefs-kube-node-2-pvc-f052a1bd-65b3-471c-8a7a-4263f12b2131 -oyaml |grep command -A 3
