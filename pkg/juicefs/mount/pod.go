@@ -18,21 +18,46 @@ package mount
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type ConfigSecretVolume struct {
 	SecretName string
 	Key        string
 	ConfigPath string
+}
+
+type value struct {
+	Name               string
+	Labels             map[string]string
+	Annotations        map[string]string
+	Namespace          string
+	Image              string
+	Command            string
+	Resource           corev1.ResourceRequirements
+	Envs               []corev1.EnvVar
+	VolumeMounts       []corev1.VolumeMount
+	ReadinessCommand   string
+	PreStopCommand     string
+	Volumes            []corev1.Volume
+	HostNetwork        bool
+	HostAliases        []corev1.HostAlias
+	HostIPC            bool
+	HostPID            bool
+	DNSPolicy          corev1.DNSPolicy
+	DNSConfig          *corev1.PodDNSConfig
+	ImagePullSecrets   []corev1.LocalObjectReference
+	PreemptionPolicy   *corev1.PreemptionPolicy
+	PriorityClassName  string
+	Tolerations        []corev1.Toleration
+	ServiceAccountName string
 }
 
 func GeneratePodNameByVolumeId(volumeId string) string {
@@ -51,7 +76,6 @@ func hasRef(pod *corev1.Pod) bool {
 func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
 	configs, env, labels, annotations map[string]string, serviceAccount string) *corev1.Pod {
 	cmd = quoteForShell(cmd)
-	isPrivileged := true
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectoryOrCreate
 	statCmd := "stat -c %i " + mountPath
@@ -106,56 +130,31 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		})
 	}
 	klog.V(5).Infof("NewMountPod cmd :%+v\n", cmd)
-	var pod = &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: config.Namespace,
-			Labels: map[string]string{
-				config.PodTypeKey: config.PodTypeValue,
-			},
-			Annotations: make(map[string]string),
-		},
-		Spec: corev1.PodSpec{
-			ServiceAccountName: serviceAccount,
-			Containers: []corev1.Container{{
-				Name:    "jfs-mount",
-				Image:   config.MountImage,
-				Command: []string{"sh", "-c", cmd},
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &isPrivileged,
-				},
-				Resources: resourceRequirements,
-				Env: []corev1.EnvVar{{
-					Name:  "JFS_FOREGROUND",
-					Value: "1",
-				}},
-				Ports: []corev1.ContainerPort{{
-					Name:          "metrics",
-					ContainerPort: 9567,
-				}},
-				VolumeMounts: volumeMounts,
-				ReadinessProbe: &corev1.Probe{
-					Handler: corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-							"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", statCmd)},
-						}},
-					InitialDelaySeconds: 1,
-					PeriodSeconds:       1,
-				},
-				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-							"umount %s && rmdir %s", mountPath, mountPath)}},
-					},
-				},
-			}},
-			Volumes:  volumes,
-			NodeName: config.NodeName,
-		},
-	}
+	pod := generatePodTemplate()
+	pod.Name = podName
+	pod.Spec.ServiceAccountName = serviceAccount
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
+	pod.Spec.Volumes = volumes
+	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
+	pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
+				"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", statCmd)},
+			}},
+		InitialDelaySeconds: 1,
+		PeriodSeconds:       1,
+	}
+	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
+	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.Handler{
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
+				"umount %s && rmdir %s", mountPath, mountPath)}},
+		},
+	}
+
 	i := 1
 	for k, v := range configs {
 		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
@@ -269,4 +268,40 @@ func quoteForShell(cmd string) string {
 		cmd = strings.ReplaceAll(cmd, ")", "\\)")
 	}
 	return cmd
+}
+
+func generatePodTemplate() *corev1.Pod {
+	isPrivileged := true
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: config.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.PodTypeValue,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:  "jfs-mount",
+				Image: config.MountImage,
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &isPrivileged,
+				},
+				Env: []corev1.EnvVar{{
+					Name:  "JFS_FOREGROUND",
+					Value: "1",
+				}},
+			}},
+			NodeName:         config.NodeName,
+			HostNetwork:      config.CSINodePod.Spec.HostNetwork,
+			HostAliases:      config.CSINodePod.Spec.HostAliases,
+			HostPID:          config.CSINodePod.Spec.HostPID,
+			HostIPC:          config.CSINodePod.Spec.HostIPC,
+			DNSConfig:        config.CSINodePod.Spec.DNSConfig,
+			DNSPolicy:        config.CSINodePod.Spec.DNSPolicy,
+			ImagePullSecrets: config.CSINodePod.Spec.ImagePullSecrets,
+			PreemptionPolicy: config.CSINodePod.Spec.PreemptionPolicy,
+			Tolerations:      config.CSINodePod.Spec.Tolerations,
+		},
+	}
 }

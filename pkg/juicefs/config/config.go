@@ -16,7 +16,10 @@ limitations under the License.
 
 package config
 
-import "sync"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"sync"
+)
 
 var JLock = sync.RWMutex{}
 
@@ -27,6 +30,8 @@ var (
 	PodServiceAccountName = ""
 	MountImage            = ""
 	MountLabels           = ""
+
+	CSINodePod = corev1.Pod{}
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
