@@ -34,32 +34,6 @@ type ConfigSecretVolume struct {
 	ConfigPath string
 }
 
-type value struct {
-	Name               string
-	Labels             map[string]string
-	Annotations        map[string]string
-	Namespace          string
-	Image              string
-	Command            string
-	Resource           corev1.ResourceRequirements
-	Envs               []corev1.EnvVar
-	VolumeMounts       []corev1.VolumeMount
-	ReadinessCommand   string
-	PreStopCommand     string
-	Volumes            []corev1.Volume
-	HostNetwork        bool
-	HostAliases        []corev1.HostAlias
-	HostIPC            bool
-	HostPID            bool
-	DNSPolicy          corev1.DNSPolicy
-	DNSConfig          *corev1.PodDNSConfig
-	ImagePullSecrets   []corev1.LocalObjectReference
-	PreemptionPolicy   *corev1.PreemptionPolicy
-	PriorityClassName  string
-	Tolerations        []corev1.Toleration
-	ServiceAccountName string
-}
-
 func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
 }
@@ -138,6 +112,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].Resources = resourceRequirements
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{
