@@ -134,6 +134,10 @@ storageClasses:
     secretKey: ""
     # -- Bucket URL. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/how_to_setup_object_storage.md) to learn how to setup different object storage.
     bucket: ""
+    # -- Env for mount pod and format, such as `a: b`
+    envs: ""
+    # -- Config for mount pod. Read [this document](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/en/examples/config-and-env.md) for more usage.
+    configs: ""
 
 
   mountOptions:
