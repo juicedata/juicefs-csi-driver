@@ -16,7 +16,15 @@ limitations under the License.
 
 package util
 
-import "testing"
+import (
+	"errors"
+	"net/url"
+	"os"
+	"testing"
+
+	. "github.com/agiledragon/gomonkey"
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 func TestContainsString(t *testing.T) {
 	type args struct {
@@ -74,6 +82,24 @@ func TestParseEndpoint(t *testing.T) {
 			want1:   "/tmp/csi.sock",
 			wantErr: false,
 		},
+		{
+			name: "test-error",
+			args: args{
+				endpoint: "http://test",
+			},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "test-nil",
+			args: args{
+				endpoint: "",
+			},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -90,6 +116,31 @@ func TestParseEndpoint(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseEndpointError(t *testing.T) {
+	Convey("Test ParseEndpoint", t, func() {
+		Convey("parse error", func() {
+			patch1 := ApplyFunc(url.Parse, func(rawURL string) (*url.URL, error) {
+				return nil, errors.New("test")
+			})
+			defer patch1.Reset()
+			_, _, err := ParseEndpoint("unix://tmp/csi.sock")
+			So(err, ShouldNotBeNil)
+		})
+		Convey("not exist", func() {
+			patch1 := ApplyFunc(os.IsNotExist, func(err error) bool {
+				return false
+			})
+			defer patch1.Reset()
+			patch2 := ApplyFunc(os.Remove, func(addr string) error {
+				return errors.New("test")
+			})
+			defer patch2.Reset()
+			_, _, err := ParseEndpoint("unix://tmp/csi.sock")
+			So(err, ShouldNotBeNil)
+		})
+	})
 }
 
 func TestParseMntPath(t *testing.T) {
@@ -144,6 +195,32 @@ func TestParseMntPath(t *testing.T) {
 			}
 			if got1 != tt.want1 {
 				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestGetReferenceKey(t *testing.T) {
+	type args struct {
+		target string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test",
+			args: args{
+				target: "test",
+			},
+			want: "juicefs-9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetReferenceKey(tt.args.target); got != tt.want {
+				t.Errorf("GetReferenceKey() = %v, want %v", got, tt.want)
 			}
 		})
 	}

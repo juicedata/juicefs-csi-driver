@@ -26,6 +26,11 @@ IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoi
 JUICEFS_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[1-9][0-9]*(\.[0-9]+)?')
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[1-9][0-9]*(\.[0-9]+)?')
 
+GOPROXY=https://goproxy.io
+GOPATH=$(shell go env GOPATH)
+GOOS=$(shell go env GOOS)
+GOBIN=$(shell pwd)/bin
+
 .PHONY: juicefs-csi-driver
 juicefs-csi-driver:
 	mkdir -p bin
@@ -158,3 +163,9 @@ delete-dev: deploy-dev/k8s.yaml
 
 .PHONY: install-dev
 install-dev: verify test image-dev push-dev deploy-dev/k8s.yaml deploy-dev
+
+bin/mockgen: | bin
+	go install github.com/golang/mock/mockgen@v1.5.0
+
+mockgen: bin/mockgen
+	./hack/update-gomock

@@ -461,6 +461,34 @@ func TestIsPodResourceError(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "test-resource-error",
+			args: args{
+				pod: &corev1.Pod{
+					Status: corev1.PodStatus{
+						Phase:   corev1.PodFailed,
+						Reason:  "UnexpectedAdmissionError",
+						Message: "Fail to reclaim resources",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				pod: &corev1.Pod{
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{{
+							Type:   corev1.PodReady,
+							Status: corev1.ConditionTrue,
+						}},
+					},
+				},
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
