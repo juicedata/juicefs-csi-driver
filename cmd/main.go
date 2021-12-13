@@ -23,7 +23,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )

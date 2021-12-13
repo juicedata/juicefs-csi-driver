@@ -26,7 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
 
