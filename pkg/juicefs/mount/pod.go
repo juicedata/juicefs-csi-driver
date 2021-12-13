@@ -28,12 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type ConfigSecretVolume struct {
-	SecretName string
-	Key        string
-	ConfigPath string
-}
-
 func GeneratePodNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
 }
