@@ -26,6 +26,12 @@ data:
   {{- if .bucket }}
   bucket: {{ .bucket | b64enc | quote }}
   {{- end }}
+  {{- if .envs }}
+  envs: {{ .envs | b64enc | quote }}
+  {{- end }}
+  {{- if .configs }}
+  configs: {{ .configs | b64enc | quote }}
+  {{- end }}
   {{- end }}
 ---
 apiVersion: storage.k8s.io/v1
