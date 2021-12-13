@@ -26,7 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
 
@@ -58,7 +58,9 @@ func (p *PodMount) getCommand(mountPath string, options []string) string {
 	if p.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)
 		mountArgs := []string{jfsConfig.CeMountPath, p.jfsSetting.Source, mountPath}
-		options = append(options, "metrics=0.0.0.0:9567")
+		if !util.ContainsString(options, "metrics") {
+			options = append(options, "metrics=0.0.0.0:9567")
+		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {

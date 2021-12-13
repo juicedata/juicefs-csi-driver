@@ -80,10 +80,6 @@ var (
 				Name:    "jfs-mount",
 				Image:   config.MountImage,
 				Command: []string{"sh", "-c", defaultCmd},
-				Ports: []corev1.ContainerPort{{
-					Name:          "metrics",
-					ContainerPort: 9567,
-				}},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",

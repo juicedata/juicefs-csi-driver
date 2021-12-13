@@ -26,7 +26,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -87,7 +87,7 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// WARNING: debug only, secrets included
-	// klog.V(5).Infof("NodePublishVolume: called with args %+v", req)
+	klog.V(6).Infof("NodePublishVolume: called with args %+v", req)
 
 	volumeID := req.GetVolumeId()
 	klog.V(5).Infof("NodePublishVolume: volume_id is %s", volumeID)
