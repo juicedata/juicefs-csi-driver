@@ -30,7 +30,9 @@ import (
 )
 
 var (
-	podLimit = map[corev1.ResourceName]resource.Quantity{
+	defaultCmd       = "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet"
+	defaultMountPath = "/jfs/default-imagenet"
+	podLimit         = map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceCPU:    resource.MustParse("1"),
 		corev1.ResourceMemory: resource.MustParse("2G"),
 	}
@@ -72,20 +74,12 @@ var (
 							Type: &dir,
 						},
 					},
-				}, {
-					Name: "jfs-default-cache",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: "/var/jfsCache",
-							Type: &dir,
-						},
-					},
 				},
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
 				Image:   config.MountImage,
-				Command: []string{"sh", "-c", ""},
+				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
@@ -99,10 +93,6 @@ var (
 						Name:             "jfs-root-dir",
 						MountPath:        "/root/.juicefs",
 						MountPropagation: &mp,
-					}, {
-						Name:             "jfs-default-cache",
-						MountPath:        "/var/jfsCache",
-						MountPropagation: &mp,
 					},
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -111,14 +101,14 @@ var (
 				ReadinessProbe: &corev1.Probe{
 					Handler: corev1.Handler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-							"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", "stat -c %i ")},
+							"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", "stat -c %i /jfs/default-imagenet")},
 						}},
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s && rmdir %s", "", "")}},
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s && rmdir %s", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
 					},
 				},
 			}},
@@ -136,6 +126,25 @@ func deepcopyPodFromDefault(pod *corev1.Pod) {
 	resMap := runtime.DeepCopyJSON(defaultValueMap)
 	resValue, _ := json.Marshal(resMap)
 	json.Unmarshal(resValue, pod)
+}
+
+func putDefaultCacheDir(pod *corev1.Pod) {
+	volume := corev1.Volume{
+		Name: "jfs-default-cache",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/var/jfsCache",
+				Type: &dir,
+			},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:             "jfs-default-cache",
+		MountPath:        "/var/jfsCache",
+		MountPropagation: &mp,
+	}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMount)
 }
 
 func Test_parsePodResources(t *testing.T) {
@@ -174,6 +183,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	cmdWithoutCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet`
 	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o prefetch=1,cache-dir=/dev/shm/imagenet,cache-size=10240,open-cache=7200,metrics=0.0.0.0:9567`
 	cmdWithCacheDir2 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
+	cmdWithCacheDir3 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir`
 
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -213,6 +223,13 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	}
 
 	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir)
+	volumes = append(volumes, cacheVolumes...)
+	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	if len(volumes) != 3 || len(volumeMounts) != 3 {
+		t.Error("getCacheDirVolumes can't work properly")
+	}
+
+	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir3)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
@@ -322,15 +339,46 @@ func TestNewMountPod(t *testing.T) {
 	deepcopyPodFromDefault(&podLabelTest)
 	podLabelTest.Labels["a"] = "b"
 	podLabelTest.Labels["c"] = "d"
+	putDefaultCacheDir(&podLabelTest)
 
 	podAnnoTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podAnnoTest)
 	podAnnoTest.Annotations = make(map[string]string)
 	podAnnoTest.Annotations["a"] = "b"
+	putDefaultCacheDir(&podAnnoTest)
 
 	podSATest := corev1.Pod{}
 	deepcopyPodFromDefault(&podSATest)
 	podSATest.Spec.ServiceAccountName = "test"
+	putDefaultCacheDir(&podSATest)
+
+	podEnvTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podEnvTest)
+	podEnvTest.Spec.Containers[0].Env = append(podEnvTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "a",
+		Value: "b",
+	})
+	putDefaultCacheDir(&podEnvTest)
+
+	podConfigTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podConfigTest)
+	putDefaultCacheDir(&podConfigTest)
+	podConfigTest.Spec.Volumes = append(podConfigTest.Spec.Volumes, corev1.Volume{
+		Name:         "config-1",
+		VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "secret-test"}},
+	})
+	podConfigTest.Spec.Containers[0].VolumeMounts = append(podConfigTest.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      "config-1",
+		MountPath: "/test",
+	})
+
+	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
+	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmdWithCacheDir)
+	podCacheTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podCacheTest)
+	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
+	podCacheTest.Spec.Volumes = append(podCacheTest.Spec.Volumes, cacheVolumes...)
+	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 	type args struct {
 		podName              string
 		cmd                  string
@@ -348,61 +396,63 @@ func TestNewMountPod(t *testing.T) {
 		want corev1.Pod
 	}{
 		{
-			name: "test-default",
-			args: args{
-				podName:              "test",
-				cmd:                  "",
-				mountPath:            "",
-				resourceRequirements: corev1.ResourceRequirements{},
-				configs:              nil,
-				env:                  nil,
-				labels:               nil,
-				annotations:          nil,
-			},
-			want: podDefaultTest,
-		},
-		{
 			name: "test-labels",
 			args: args{
-				podName:              "test",
-				cmd:                  "",
-				mountPath:            "",
-				resourceRequirements: corev1.ResourceRequirements{},
-				configs:              nil,
-				env:                  nil,
-				labels:               map[string]string{"a": "b", "c": "d"},
-				annotations:          nil,
+				podName:   "test",
+				labels:    map[string]string{"a": "b", "c": "d"},
+				cmd:       defaultCmd,
+				mountPath: defaultMountPath,
 			},
 			want: podLabelTest,
 		},
 		{
 			name: "test-annotation",
 			args: args{
-				podName:              "test",
-				cmd:                  "",
-				mountPath:            "",
-				resourceRequirements: corev1.ResourceRequirements{},
-				configs:              nil,
-				env:                  nil,
-				labels:               nil,
-				annotations:          map[string]string{"a": "b"},
+				podName:     "test",
+				annotations: map[string]string{"a": "b"},
+				cmd:         defaultCmd,
+				mountPath:   defaultMountPath,
 			},
 			want: podAnnoTest,
 		},
 		{
 			name: "test-serviceaccount",
 			args: args{
-				podName:              "test",
-				cmd:                  "",
-				mountPath:            "",
-				resourceRequirements: corev1.ResourceRequirements{},
-				configs:              nil,
-				env:                  nil,
-				labels:               nil,
-				annotations:          nil,
-				serviceAccount:       "test",
+				podName:        "test",
+				serviceAccount: "test",
+				cmd:            defaultCmd,
+				mountPath:      defaultMountPath,
 			},
 			want: podSATest,
+		},
+		{
+			name: "test-cache-dir",
+			args: args{
+				podName:   "test",
+				mountPath: defaultMountPath,
+				cmd:       cmdWithCacheDir,
+			},
+			want: podCacheTest,
+		},
+		{
+			name: "test-config",
+			args: args{
+				podName:   "test",
+				cmd:       defaultCmd,
+				mountPath: defaultMountPath,
+				configs:   map[string]string{"secret-test": "/test"},
+			},
+			want: podConfigTest,
+		},
+		{
+			name: "test-env",
+			args: args{
+				podName:   "test",
+				cmd:       defaultCmd,
+				mountPath: defaultMountPath,
+				env:       map[string]string{"a": "b"},
+			},
+			want: podEnvTest,
 		},
 	}
 	for _, tt := range tests {

@@ -43,6 +43,10 @@ func NewClient() (*K8sClient, error) {
 }
 
 func (k *K8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+	if pod == nil {
+		klog.V(5).Info("Create pod: pod is nil")
+		return nil, nil
+	}
 	klog.V(5).Infof("Create pod %s", pod.Name)
 	mntPod, err := k.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
@@ -63,6 +67,10 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 }
 
 func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
+	if pod == nil {
+		klog.V(5).Info("Patch pod: pod is nil")
+		return nil
+	}
 	klog.V(5).Infof("Patch pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
 		pod.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
@@ -70,12 +78,20 @@ func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
 }
 
 func (k *K8sClient) UpdatePod(pod *corev1.Pod) error {
+	if pod == nil {
+		klog.V(5).Info("Update pod: pod is nil")
+		return nil
+	}
 	klog.V(5).Infof("Update pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
 	return err
 }
 
 func (k *K8sClient) DeletePod(pod *corev1.Pod) error {
+	if pod == nil {
+		klog.V(5).Info("Delete pod: pod is nil")
+		return nil
+	}
 	klog.V(5).Infof("Delete pod %v", pod.Name)
 	return k.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 }

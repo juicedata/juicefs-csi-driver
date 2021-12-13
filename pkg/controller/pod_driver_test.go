@@ -3,10 +3,13 @@ package controller
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"reflect"
+	"testing"
+	"time"
+
 	. "github.com/agiledragon/gomonkey"
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -14,11 +17,10 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
-	"os"
-	"os/exec"
-	"reflect"
-	"testing"
-	"time"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func init() {

@@ -118,6 +118,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if m := volCap.GetMount(); m != nil {
 		for _, f := range m.MountFlags {
+			// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
 			options[f] = ""
 		}
 	}
@@ -127,6 +128,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	secrets := req.Secrets
 	mountOptions := []string{}
+	// get mountOptions from PV.volumeAttributes or StorageClass.parameters
 	if opts, ok := volCtx["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}

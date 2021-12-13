@@ -138,6 +138,10 @@ storageClasses:
 
   mountOptions:
   # -- Mount Options. Read [this document](https://github.com/juicedata/juicefs/blob/main/docs/en/command_reference.md#juicefs-mount) to learn how to set different mount options.
+  # Example:
+  # - debug
+  # - cache-size=2048
+  # - cache-dir=/var/foo
 
   mountPod:
     # mount pod resource requests & limits
