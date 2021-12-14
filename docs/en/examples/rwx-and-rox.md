@@ -1,3 +1,7 @@
+---
+sidebar_label: Use ReadWriteMany and ReadOnlyMany
+---
+
 # How to use ReadWriteMany and ReadOnlyMany in JuiceFS
 
 JuiceFS supports ReadWriteMany and ReadOnlyMany access method.

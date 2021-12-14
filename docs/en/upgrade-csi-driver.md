@@ -33,7 +33,6 @@ If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgra
 
 ### Other
 
-For versions prior to v0.10.0, you can upgrade only the JuiceFS client without upgrading the CSI Driver. For details,
-refer to [this document](./docs/upgrade-juicefs.md).
+For versions prior to v0.10.0, you can upgrade only the JuiceFS client without upgrading the CSI Driver. For details, refer to [this document](upgrade-juicefs.md).
 
 Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.

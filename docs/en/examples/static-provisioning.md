@@ -1,4 +1,8 @@
-# Static Provisioning Of JuiceFS Using in Kubernetes 
+---
+sidebar_label: Static Provisioning
+---
+
+# Static Provisioning Of JuiceFS Using in Kubernetes
 
 This document shows how to make a static provisioned JuiceFS PersistentVolume (PV) mounted inside container.
 

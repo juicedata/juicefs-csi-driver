@@ -1,15 +1,16 @@
-# How to set config files and env in JuiceFS mount pod
+---
+sidebar_label: Set Configuration Files and Environment Variables in Mount Pod
+---
 
-This document shows how to mount config files or set envs in JuiceFS mount pod.
+# How to set configuration files and environment variables in JuiceFS mount pod
 
-## set config and env in secret
+This document shows how to set the configuration file and environment variables in JuiceFS mount pod, taking set the key file and related environment variables of the Google Cloud service account as an example.
 
-This example uses google cloud platform as object. Please follow Google Cloud document to know
-how [authentication](https://cloud.google.com/docs/authentication)
-and [authorization](https://cloud.google.com/iam/docs/overview) work. And you create gc credential config in a right way.
+## Set configuration files and environment variables in secret
 
-Put the result of base64 gc credential config in a Kubernetes secret, and the key is the config file you will put in
-mount pod:
+Please refer to Google Cloud documentation to learn how to perform [authentication](https://cloud.google.com/docs/authentication) and [authorization](https://cloud.google.com/iam/docs/overview).
+
+Put the manually generated [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account) after base64 encoding into the `data` field of the Kubernetes secret, the key is the name of the configuration file to put in the mount pod (such as `application_default_credentials.json`):
 
 ```yaml
 apiVersion: v1
@@ -22,7 +23,7 @@ metadata:
 type: Opaque
 ```
 
-Create secrets for CSI driver in Kubernetes. The key of `configs` is the secret name, value is the path of secret being mounted in pod.
+Create a secret for the CSI driver in Kubernetes. The key of `configs` is the secret name created above, and the value is the root path of the configuration file saved in the mount pod. The `envs` is the environment variable you want to set for mount pod.
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
@@ -36,9 +37,9 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
 ```
 
-## Apply 
+## Apply
 
-You can use [static provision](static-provisioning.md) or [dynamic provision](dynamic-provisioning.md) . We take dynamic provision as example:
+You can use [static provisioning](static-provisioning.md) or [dynamic provisioning](dynamic-provisioning.md). Here take dynamic provisioning as example:
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -99,7 +100,7 @@ After the objects are created, verify that pod is running:
 kubectl get pods juicefs-app
 ```
 
-Verify that env you set:
+Verify that the environment variables have been set correctly:
 
 ```sh
 $ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -oyaml |grep env -A 4
@@ -110,7 +111,7 @@ $ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-
       value: /root/.config/gcloud/application_default_credentials.json
 ```
 
-Also you can verify that gc credential config is in path you set:
+You can also verify that the configuration file is in the path you set:
 
 ```sh
 $ kubectl -n kube-system exec -it juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -- cat /root/.config/gcloud/application_default_credentials.json

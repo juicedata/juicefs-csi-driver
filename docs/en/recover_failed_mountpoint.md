@@ -1,4 +1,8 @@
-# Automatic mount point recovery
+---
+slug: recover-failed-mountpoint
+---
+
+# Automatic Mount Point Recovery
 
 JuiceFS CSI Driver started to support automatic mount point recovery since version v0.10.7.
 
