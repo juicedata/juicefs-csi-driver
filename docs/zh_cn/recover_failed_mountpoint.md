@@ -1,3 +1,7 @@
+---
+slug: recover-failed-mountpoint
+---
+
 # 挂载点自动恢复
 
 JuiceFS CSI Driver v0.10.7 开始支持挂载点自动恢复。
