@@ -6,19 +6,19 @@ sidebar_label: Install in arm64
 
 JuiceFS CSI Driver supports image of the arm64 environment in v0.11.1 and later version. There are two ways to install JuiceFS CSI Driver.
 
-### 1. Install via Helm
+## 1. Install via Helm
 
-#### Prerequisites
+### Prerequisites
 
 - Helm 3.1.0+
 
-#### Install Helm
+### Install Helm
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
 To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#install) and ensure that the `helm` binary is in the `PATH` of your shell.
 
-#### Using Helm To Deploy
+### Using Helm To Deploy
 
 1. Prepare a YAML file
 
@@ -121,7 +121,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
       juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
       ```
       
-### 2. Install via kubectl
+## 2. Install via kubectl
 
 Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
 
