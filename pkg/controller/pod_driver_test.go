@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"reflect"
@@ -559,6 +560,80 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 
 func TestPodDriver_podDeletedHandler(t *testing.T) {
 	Convey("Test pod delete handler", t, func() {
+		Convey("umount fail", func() {
+			var tmpCmd = &exec.Cmd{}
+			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+				return "/test", "test", nil
+			})
+			defer patch1.Reset()
+			patch2 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), errors.New("test")
+			})
+			defer patch2.Reset()
+			k := &k8sclient.K8sClient{}
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+				return nil, errors.New("test")
+			})
+			defer patch3.Reset()
+			patch4 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+				return nil
+			})
+			defer patch4.Reset()
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+				return nil, nil
+			})
+			defer patch5.Reset()
+			patch6 := ApplyFunc(apierrors.IsNotFound, func(err error) bool {
+				return true
+			})
+			defer patch6.Reset()
+			patch7 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch7.Reset()
+
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			tmpPod := copyPod(deletedPod)
+			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("new pod create", func() {
+			var tmpCmd = &exec.Cmd{}
+			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+				return "/test", "test", nil
+			})
+			defer patch1.Reset()
+			patch2 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch2.Reset()
+			k := &k8sclient.K8sClient{}
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+				return nil, errors.New("test")
+			})
+			defer patch3.Reset()
+			patch4 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+				return nil
+			})
+			defer patch4.Reset()
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+				return nil, nil
+			})
+			defer patch5.Reset()
+			patch6 := ApplyFunc(apierrors.IsNotFound, func(err error) bool {
+				return true
+			})
+			defer patch6.Reset()
+			patch7 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch7.Reset()
+
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			tmpPod := copyPod(deletedPod)
+			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			So(err, ShouldBeNil)
+		})
 		Convey("pod delete success ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
 			var tmpCmd = &exec.Cmd{}
@@ -667,6 +742,29 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 
 func TestPodDriver_podErrorHandler(t *testing.T) {
 	Convey("Test pod err handler", t, func() {
+		Convey("GetPod error", func() {
+			k := &k8sclient.K8sClient{}
+			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+				return &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{jfsConfig.Finalizer},
+					},
+				}, nil
+			})
+			defer patch1.Reset()
+			patch2 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+				return nil
+			})
+			defer patch2.Reset()
+			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+				return nil
+			})
+			defer patch3.Reset()
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			Pod := copyPod(resourceErrPod)
+			_, err := d.podErrorHandler(context.Background(), Pod)
+			So(err, ShouldBeNil)
+		})
 		Convey("pod err add need delete ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
