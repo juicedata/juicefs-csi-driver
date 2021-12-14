@@ -184,7 +184,6 @@ Before the example, you need to:
 **Notes**:
 
 * Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in PersistentVolume and PersistentVolumeClaim is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
-* kustomize 3.x is required to build some examples.
 
 ## CSI Specification Compatibility
 
@@ -196,6 +195,7 @@ Before the example, you need to:
 
 The following CSI interfaces are implemented:
 
+* Node Controller: CreateVolume, DeleteVolume
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
 

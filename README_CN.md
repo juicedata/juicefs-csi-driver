@@ -187,7 +187,6 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 **备注**:
 
 * 由于 JuiceFS 是一个弹性文件系统，它不需要强制分配容量。你在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量并不是实际存储容量。但是，由于存储容量是 Kubernetes 的必填字段，因此您可以使用任何有效值，例如 `10Pi` 表示容量。
-* 一些示例需要使用 kustomize 3.x。
 
 ## CSI 规格兼容性
 
@@ -199,6 +198,7 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/
 
 以下是已经实现的 CSI 接口：
 
+* Node Controller: CreateVolume, DeleteVolume
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
 

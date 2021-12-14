@@ -199,6 +199,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 以下是已经实现的 CSI 接口：
 
+* Node Controller: CreateVolume, DeleteVolume
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
 
