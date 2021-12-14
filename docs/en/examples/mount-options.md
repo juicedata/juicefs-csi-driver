@@ -1,3 +1,7 @@
+---
+sidebar_label: Config Mount Options
+---
+
 # How to use Mount Options in Kubernetes
 
 This document shows how to apply mount options to JuiceFS.
@@ -27,7 +31,7 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  mountOptions:  
+  mountOptions:
     - enable-xattr
     - max-uploads=50
     - cache-size=2048

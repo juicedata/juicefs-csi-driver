@@ -1,10 +1,14 @@
+---
+sidebar_label: 挂载子目录
+---
+
 # 如何在 Kubernetes 中使用 subpath
 
 本文档展示了如何在 Kubernets 中使用 subpath。
 
 ## 静态配置
 
-您可以在 PV 中使用 subpath： 
+您可以在 PV 中使用 subpath：
 
 ```yaml
 apiVersion: v1
@@ -93,7 +97,7 @@ kubectl get pods juicefs-app-subpath
 
 ## 动态配置
 
-您也可以在 StorageClass 中使用 subpath: 
+您也可以在 StorageClass 中使用 subpath:
 
 ```yaml
 apiVersion: storage.k8s.io/v1

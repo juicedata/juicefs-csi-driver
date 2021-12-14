@@ -1,3 +1,7 @@
+---
+sidebar_label: 设置挂载选项
+---
+
 # 如何在 Kubernetes 中使用 Mount Options
 
 本文档展示了如何将 mount options 应用到 JuiceFS。

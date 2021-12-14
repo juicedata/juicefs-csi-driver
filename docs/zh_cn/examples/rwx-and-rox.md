@@ -1,3 +1,7 @@
+---
+sidebar_label: 使用 ReadWriteMany 和 ReadOnlyMany
+---
+
 # 如何在 JuiceFS 中使用 ReadWriteMany 和 ReadOnlyMany
 
 JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。

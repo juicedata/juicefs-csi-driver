@@ -1,8 +1,8 @@
-# Access Ceph cluster with `librados`
+# Access Ceph Cluster with librados
 
 If you use [Ceph](https://ceph.io/) as the underlying storage for JucieFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
 
-Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["static-provisioning-config-and-env"](examples/static-provisioning.md) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
+Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["How to set config files and environment in mount pod"](examples/config-and-env.md) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
 
 Here we demonstrate how to access Ceph cluster with `librados` in Kubernetes.
 
@@ -31,7 +31,9 @@ $ ./juicefs format --storage=ceph \
     ceph-volume
 ```
 
-> **Note**: Here we assume the Redis URL is `redis://juicefs-redis.example.com/2`, replace it with your own. For more details about the `--access-key` and `--secret-key` of Ceph RADOS, refer [How to Setup Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage/).
+:::note
+Here we assume the Redis URL is `redis://juicefs-redis.example.com/2`, replace it with your own. For more details about the `--access-key` and `--secret-key` of Ceph RADOS, refer [How to Setup Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage#ceph-rados).
+:::
 
 View Ceph storage status.
 
@@ -58,7 +60,9 @@ data:
 EOF
 ```
 
-> **Note**: The `$` at the beginning of line is the shell prompt. `base64` command is required, if it isn't present, try to install `coreutils` package with your OS package manager such as `apt-get` or `yum`.
+:::note
+The `$` at the beginning of line is the shell prompt. `base64` command is required, if it isn't present, try to install `coreutils` package with your OS package manager such as `apt-get` or `yum`.
+:::
 
 Apply the generated `ceph-conf.yaml` to the Kubernetes cluster:
 
@@ -83,7 +87,7 @@ ceph.conf:                  257 bytes
 
 Create a Secret profile by referring to the following command.
 
-```sh
+```yaml
 $ cat > juicefs-secret.yaml <<EOF
 apiVersion: v1
 metadata:
@@ -137,22 +141,22 @@ As we want the `ceph-conf` secret we created before to be mounted under `/etc/ce
 
 ### Dynamic provisioning
 
-Please refer ["examples/dynamic-provisioning"](examples/dynamic-provisioning.md) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
+Please refer ["Dynamic Provisioning"](examples/dynamic-provisioning.md) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
 
 ### Static provisioning
 
-Please refer ["examples/static-provisioning"](examples/static-provisioning.md) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
+Please refer ["Static Provisioning"](examples/static-provisioning.md) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
 
-## Other ceph versions
+## Other Ceph versions
 
 JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph higher than 12, please refer to the following method to build the image.
 
-### How to build
+### How to build Docker image
 
-We use the official [ceph/ceph](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) :
+We use the official [ceph/ceph](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/):
 
 ```bash
-docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
+$ docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
 ```
 
-The `ceph/ceph:v14` image is the official ceph image for ceph nautilus. For other ceph release base images, see the [repository](https://hub.docker.com/r/ceph/ceph) .
+The `ceph/ceph:v14` image is the official Ceph image for Ceph Nautilus. For other Ceph release base images, see the [Ceph image repository](https://hub.docker.com/r/ceph/ceph) .

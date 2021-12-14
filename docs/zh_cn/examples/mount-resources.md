@@ -1,10 +1,14 @@
+---
+sidebar_label: 配置 Mount Pod 的资源限制
+---
+
 # 如何配置 Mount Pod 的资源限制
 
 本文档展示了如何给 JuiceFS mount pod 设置资源 limit 和 request。
 
 ## 静态配置
 
-您可以在 PV 中配置资源限制： 
+您可以在 PV 中配置资源限制：
 
 ```yaml
 apiVersion: v1

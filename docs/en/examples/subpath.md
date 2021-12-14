@@ -1,3 +1,7 @@
+---
+sidebar_label: Mount Subdirectory
+---
+
 # How to use subpath in Kubernetes
 
 This document shows how to use subpath in Kubernetes.

@@ -1,3 +1,7 @@
+---
+sidebar_label: Dynamic Provisioning
+---
+
 # Dynamic Provisioning Of JuiceFS Using in Kubernetes
 
 This document shows how to make a dynamic provisioned JuiceFS volume mounted inside container.
@@ -29,7 +33,7 @@ You should ensure:
 1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
 2. The Redis DB is clean and the password (if provided) is right
 
-## Apply 
+## Apply
 
 Create StorageClass, PersistentVolumeClaim (PVC) and sample pod
 

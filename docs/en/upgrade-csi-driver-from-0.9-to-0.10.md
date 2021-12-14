@@ -1,4 +1,8 @@
-# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.6
+---
+sidebar_label: Upgrade from v0.9.0 to v0.10.0+
+---
+
+# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0+
 
 In order to reduce the impact of upgrade operation on the application system, JuiceFS CSI Driver from v0.10.0 onwards separates JuiceFS Client and CSI Driver, so that users can upgrade JuiceFS Client or CSI Driver separately as needed. However, the upgrade from v0.9.0 to v0.10.0+ requires a service restart, which will make all PVs unavailable during the upgrade process. You can refer to the following two options for upgrading depending on the actual situation.
 

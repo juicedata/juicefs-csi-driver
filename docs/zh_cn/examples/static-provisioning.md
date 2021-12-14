@@ -1,3 +1,7 @@
+---
+sidebar_label: 静态配置
+---
+
 # 在 Kubernetes 中使用 JuiceFS 的静态配置方法
 
 本文档展示了如何在 pod 内安装静态配置的 JuiceFS PersistentVolume (PV)。

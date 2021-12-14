@@ -1,3 +1,7 @@
+---
+sidebar_label: Config Mount Pod Resources
+---
+
 # How to set resource limit and request in mount pod
 
 This document shows how to set resources limit and request to JuiceFS mount pod.

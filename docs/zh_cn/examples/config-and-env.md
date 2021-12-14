@@ -1,13 +1,16 @@
+---
+sidebar_label: 在 Mount Pod 中设置配置文件和环境变量
+---
+
 # 如何在 JuiceFS mount pod 中设置配置文件和环境变量
 
-本文档展示了如何在 JuiceFS mount pod 中设置配置文件和环境变量。
+本文档展示了如何在 JuiceFS mount pod 中设置配置文件和环境变量，以设置谷歌云服务帐号的密钥文件和相关环境变量为例。
 
-## 在 Secret 中设置 config 和环境变量
+## 在 Secret 中设置配置文件和环境变量
 
-本示例使用谷歌云平台作为对象。请按照谷歌云文档了解如何 [身份验证](https://cloud.google.com/docs/authentication)
-和 [授权](https://cloud.google.com/iam/docs/overview) 工作。并且以正确的方式创建 gc 凭证配置。
+请先参考谷歌云文档了解如何进行 [身份验证](https://cloud.google.com/docs/authentication) 和 [授权](https://cloud.google.com/iam/docs/overview) 工作。
 
-将 gc credential config base64 的结果放入 Kubernetes secret 中，key 就是你要放入 mount pod 的 config 文件名：
+将手动生成的[服务帐号密钥文件](https://cloud.google.com/docs/authentication/production#create_service_account)经过 base64 编码之后的结果放入 Kubernetes secret 的 `data` 字段中，key 就是你要放入 mount pod 的配置文件名（如 `application_default_credentials.json`）：
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -22,7 +25,7 @@ type: Opaque
 EOF
 ```
 
-在 Kubernetes 中为 CSI 驱动程序创建 Secret。 `configs` 的 key 是上面创建出来的 secret 名称，value 是上面 secret 挂载到 pod 中的路径。
+在 Kubernetes 中为 CSI 驱动程序创建 Secret。其中 `configs` 的 key 是上面创建出来的 secret 名称，value 是配置文件保存在 mount pod 中的根路径。`envs` 是希望为 mount pod 设置的环境变量。
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
@@ -38,7 +41,7 @@ kubectl -n default create secret generic juicefs-secret \
 
 ## 部署
 
-您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们以动态提供为例：
+您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md)。这里以动态配置为例：
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -99,10 +102,10 @@ EOF
 kubectl get pods juicefs-app
 ```
 
-验证设置的环境变量：
+验证环境变量已经正确设置：
 
 ```sh
-$ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -oyaml |grep env -A 4
+$ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -oyaml | grep env -A 4
     env:
     - name: JFS_FOREGROUND
       value: "1"
@@ -110,7 +113,7 @@ $ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-
       value: /root/.config/gcloud/application_default_credentials.json
 ```
 
-您还可以验证 gc credential 配置是否在您设置的路径中：
+您还可以验证配置文件是否在您设置的路径中：
 
 ```sh
 $ kubectl -n kube-system exec -it juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -- cat /root/.config/gcloud/application_default_credentials.json
