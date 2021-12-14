@@ -25,7 +25,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
 

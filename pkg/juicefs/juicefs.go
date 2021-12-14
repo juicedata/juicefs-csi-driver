@@ -33,7 +33,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 )
@@ -166,7 +166,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 			klog.V(5).Infof("JfsMount: storage or bucket is empty, format --no-update.")
 			noUpdate = true
 		}
-		stdoutStderr, err := j.ceFormat(secrets, noUpdate)
+		stdoutStderr, err := j.ceFormat(secrets, noUpdate, jfsSecret.Envs)
 		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
@@ -275,6 +275,7 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 	for key, val := range extraEnvs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
+	klog.V(5).Infof("AuthFs: envs %q", extraEnvs)
 	authCmd.SetEnv(envs)
 	return authCmd.CombinedOutput()
 }
@@ -369,7 +370,7 @@ func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
-func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) ([]byte, error) {
+func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, extraEnvs map[string]string) ([]byte, error) {
 	if secrets == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -417,5 +418,12 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) ([]byte, er
 	args = append(args, secrets["metaurl"], secrets["name"])
 	argsStripped = append(argsStripped, "[metaurl]", secrets["name"])
 	klog.V(5).Infof("ceFormat: cmd %q, args %#v", config.CeCliPath, argsStripped)
-	return j.Exec.Command(config.CeCliPath, args...).CombinedOutput()
+	formatCmd := j.Exec.Command(config.CeCliPath, args...)
+	envs := syscall.Environ()
+	for key, val := range extraEnvs {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
+	klog.V(5).Infof("ceFormat: envs %q", extraEnvs)
+	formatCmd.SetEnv(envs)
+	return formatCmd.CombinedOutput()
 }

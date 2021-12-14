@@ -7,7 +7,7 @@ import (
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
