@@ -197,6 +197,7 @@ Since JuiceFS is an elastic file system it doesn't really enforce any file syste
 
 The following CSI interfaces are implemented:
 
+* Node Controller: CreateVolume, DeleteVolume
 * Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
 * Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
 
