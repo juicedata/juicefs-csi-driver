@@ -15,4 +15,6 @@
 
 set -euo pipefail
 
-./bin/mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
+./bin/mockgen -package=mocks -destination=./pkg/juicefs/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
+./bin/mockgen -destination=./pkg/juicefs/mocks/mock_juicefs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Interface
+./bin/mockgen -destination=./pkg/juicefs/mocks/mock_jfs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Jfs

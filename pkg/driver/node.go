@@ -174,6 +174,18 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
 	for {
+		notMount, err := d.juicefs.IsLikelyNotMountPoint(target)
+		if err != nil {
+			klog.V(3).Infoln(err)
+			if corrupted := mount.IsCorruptedMnt(err); !corrupted {
+				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: stat targetPath %s error %v", target, err)
+			}
+		}
+		if notMount {
+			klog.V(3).Infof("umount:%s success", target)
+			break
+		}
+
 		command := exec.Command("umount", target)
 		out, err := command.CombinedOutput()
 		if err == nil {
@@ -187,8 +199,6 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 				return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
 			}
 		}
-		klog.V(5).Infof("umount:%s success", target)
-		break
 	}
 
 	// cleanup target path
