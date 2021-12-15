@@ -34,6 +34,10 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
+func (j *fakeJfsProvider) JfsCleanupMountPoint(mountPath string) error {
+	return nil
+}
+
 func (j *fakeJfsProvider) DelRefOfMountPod(volumeId, target string) error {
 	return nil
 }

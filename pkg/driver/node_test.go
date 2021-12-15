@@ -25,7 +25,6 @@ import (
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"k8s.io/utils/mount"
 	"os"
-	"os/exec"
 	"reflect"
 	"testing"
 
@@ -447,10 +446,6 @@ func TestNodeUnpublishVolume(t *testing.T) {
 	Convey("Test NodePublishVolume", t, func() {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
-			patch1 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
-				return nil
-			})
-			defer patch1.Reset()
 			podMount := &podmount.PodMount{}
 			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
@@ -461,7 +456,8 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
+			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
+			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(nil)
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -479,63 +475,19 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				t.Fatalf("Expect no error but got: %v", err)
 			}
 		})
-		Convey("IsLikelyNotMountPoint err", func() {
+		Convey("JfsUnmount err", func() {
 			targetPath := "/test/path"
-			patch1 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
-				return nil
-			})
-			defer patch1.Reset()
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
 			})
-			defer patch2.Reset()
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, errors.New("test"))
-
-			juicefsDriver := &nodeService{
-				juicefs:   mockJuicefs,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: targetPath,
-				VolumeId:   "vol-test",
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err == nil {
-				t.Fatal("Expect error but got nil")
-			}
-		})
-		Convey("CombinedOutput err", func() {
-			targetPath := "/test/path"
-			patch1 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
-				return nil
-			})
-			defer patch1.Reset()
-			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
-				return nil
-			})
-			defer patch2.Reset()
-
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch3.Reset()
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().IsLikelyNotMountPoint(targetPath).Return(false, nil)
+			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(errors.New("test"))
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -555,10 +507,6 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		})
 		Convey("CleanupMountPoint err", func() {
 			targetPath := "/test/path"
-			patch1 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
-				return errors.New("test")
-			})
-			defer patch1.Reset()
 			podMount := &podmount.PodMount{}
 			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
@@ -569,7 +517,8 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
+			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
+			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(errors.New("test"))
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -589,10 +538,6 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		})
 		Convey("JUmount err", func() {
 			targetPath := "/test/path"
-			patch1 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
-				return nil
-			})
-			defer patch1.Reset()
 			podMount := &podmount.PodMount{}
 			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return errors.New("test")
@@ -603,7 +548,8 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
+			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
+			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(nil)
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,

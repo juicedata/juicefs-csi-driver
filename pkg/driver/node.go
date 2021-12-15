@@ -20,19 +20,16 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
-	"k8s.io/utils/mount"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -173,36 +170,13 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
-	for {
-		notMount, err := d.juicefs.IsLikelyNotMountPoint(target)
-		if err != nil {
-			klog.V(3).Infoln(err)
-			if corrupted := mount.IsCorruptedMnt(err); !corrupted {
-				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: stat targetPath %s error %v", target, err)
-			}
-		}
-		if notMount {
-			klog.V(3).Infof("umount:%s success", target)
-			break
-		}
-
-		command := exec.Command("umount", target)
-		out, err := command.CombinedOutput()
-		if err == nil {
-			continue
-		}
-		klog.V(6).Infoln(string(out))
-		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
-			output, err1 := exec.Command("umount", "-l", target).CombinedOutput()
-			if err1 != nil {
-				return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v, output: %s", target, err1, string(output))
-			}
-		}
+	err := d.juicefs.JfsUnmount(target)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v", target, err)
 	}
 
 	// cleanup target path
-	if err := mount.CleanupMountPoint(target, mount.New(""), false); err != nil {
+	if err := d.juicefs.JfsCleanupMountPoint(target); err != nil {
 		klog.V(5).Infof("Clean mount point error: %v", err)
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}

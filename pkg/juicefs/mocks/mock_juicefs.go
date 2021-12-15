@@ -81,6 +81,20 @@ func (mr *MockInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLikelyNotMountPoint", reflect.TypeOf((*MockInterface)(nil).IsLikelyNotMountPoint), arg0)
 }
 
+// JfsCleanupMountPoint mocks base method.
+func (m *MockInterface) JfsCleanupMountPoint(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JfsCleanupMountPoint", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// JfsCleanupMountPoint indicates an expected call of JfsCleanupMountPoint.
+func (mr *MockInterfaceMockRecorder) JfsCleanupMountPoint(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCleanupMountPoint", reflect.TypeOf((*MockInterface)(nil).JfsCleanupMountPoint), arg0)
+}
+
 // JfsMount mocks base method.
 func (m *MockInterface) JfsMount(arg0, arg1 string, arg2, arg3 map[string]string, arg4 []string, arg5 bool) (juicefs.Jfs, error) {
 	m.ctrl.T.Helper()
