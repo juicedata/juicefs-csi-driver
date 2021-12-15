@@ -1,5 +1,5 @@
 ---
-sidebar_label: Build JuiceFS CSI Driver Image 
+sidebar_label: Build JuiceFS CSI Driver Image
 ---
 
 # How to build JuiceFS CSI Driver image by yourself
@@ -12,7 +12,7 @@ Clone the JuiceFS repository and modify the code as needed:
 git clone git@github.com:juicedata/juicefs.git
 ```
 
-Copy the [dev.juicefs.Dockerfile](https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/dev.juicefs.Dockerfile) file in the JuiceFS CSI Driver repository to the path you just cloned, and execute the following command to build the image:
+Copy the [`dev.juicefs.Dockerfile`](https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/dev.juicefs.Dockerfile) file in the JuiceFS CSI Driver repository to the path you just cloned, and execute the following command to build the image:
 
 ```bash
 docker build -f dev.juicefs.Dockerfile .
