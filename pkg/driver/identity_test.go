@@ -1,0 +1,159 @@
+package driver
+
+import (
+	"context"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"google.golang.org/grpc"
+	"reflect"
+	"testing"
+)
+
+func TestDriver_GetPluginInfo(t *testing.T) {
+	type fields struct {
+		controllerService controllerService
+		nodeService       nodeService
+		srv               *grpc.Server
+		endpoint          string
+	}
+	type args struct {
+		ctx context.Context
+		req *csi.GetPluginInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *csi.GetPluginInfoResponse
+		wantErr bool
+	}{
+		{
+			name:   "test",
+			fields: fields{},
+			args: args{
+				ctx: nil,
+				req: &csi.GetPluginInfoRequest{},
+			},
+			want: &csi.GetPluginInfoResponse{
+				Name:          DriverName,
+				VendorVersion: "",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Driver{
+				controllerService: tt.fields.controllerService,
+				nodeService:       tt.fields.nodeService,
+				srv:               tt.fields.srv,
+				endpoint:          tt.fields.endpoint,
+			}
+			got, err := d.GetPluginInfo(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPluginInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetPluginInfo() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetPluginCapabilities(t *testing.T) {
+	type fields struct {
+		juicefs juicefs.Interface
+		vols    map[string]int64
+	}
+	type args struct {
+		ctx context.Context
+		req *csi.GetPluginCapabilitiesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *csi.GetPluginCapabilitiesResponse
+		wantErr bool
+	}{
+		{
+			name:   "test",
+			fields: fields{},
+			args: args{
+				req: &csi.GetPluginCapabilitiesRequest{},
+			},
+			want: &csi.GetPluginCapabilitiesResponse{
+				Capabilities: []*csi.PluginCapability{{
+					Type: &csi.PluginCapability_Service_{
+						Service: &csi.PluginCapability_Service{
+							Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
+						},
+					},
+				}},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Driver{}
+			got, err := d.GetPluginCapabilities(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ControllerGetCapabilities() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ControllerGetCapabilities() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDriver_Probe(t *testing.T) {
+	type fields struct {
+		controllerService controllerService
+		nodeService       nodeService
+		srv               *grpc.Server
+		endpoint          string
+	}
+	type args struct {
+		ctx context.Context
+		req *csi.ProbeRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *csi.ProbeResponse
+		wantErr bool
+	}{
+		{
+			name:   "test",
+			fields: fields{},
+			args: args{
+				req: &csi.ProbeRequest{},
+			},
+			want:    &csi.ProbeResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Driver{
+				controllerService: tt.fields.controllerService,
+				nodeService:       tt.fields.nodeService,
+				srv:               tt.fields.srv,
+				endpoint:          tt.fields.endpoint,
+			}
+			got, err := d.Probe(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Probe() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Probe() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
