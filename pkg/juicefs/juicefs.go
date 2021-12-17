@@ -136,10 +136,6 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	return &juicefs{*mounter, k8sClient}, nil
 }
 
-func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
-	return mount.IsNotMountPoint(j, dir)
-}
-
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error) {
 	jfsSecret, err := config.ParseSetting(secrets, volCtx, usePod)

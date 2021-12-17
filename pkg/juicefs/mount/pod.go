@@ -103,7 +103,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	pod.Spec.ServiceAccountName = serviceAccount
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
-	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
+	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
 	pod.Spec.Containers[0].Resources = resourceRequirements

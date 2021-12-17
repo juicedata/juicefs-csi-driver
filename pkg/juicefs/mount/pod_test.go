@@ -112,7 +112,7 @@ var (
 					},
 				},
 			}},
-			RestartPolicy:     corev1.RestartPolicyNever,
+			RestartPolicy:     corev1.RestartPolicyAlways,
 			NodeName:          config.NodeName,
 			PriorityClassName: config.JFSMountPriorityName,
 		},

@@ -112,7 +112,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			for i := 0; i < 30; i++ {
 				oldPod, err := p.Client.GetPod(pod.Name, pod.Namespace)
 				if err == nil {
-					if pod.Finalizers != nil || len(oldPod.Finalizers) == 0 {
+					if controllerutil.ContainsFinalizer(oldPod, config.Finalizer) {
 						controllerutil.RemoveFinalizer(oldPod, config.Finalizer)
 						if err := p.Client.UpdatePod(oldPod); err != nil {
 							klog.Errorf("Update pod err:%v", err)
@@ -149,28 +149,6 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 		return reconcile.Result{}, nil
 	}
 
-	// check mount point is broken
-	needDeleted := false
-	sourcePath, _, err := util.GetMountPathOfPod(*pod)
-	if err != nil {
-		klog.Error(err)
-		return reconcile.Result{}, err
-	}
-	exists, err := mount.PathExists(sourcePath)
-	if err != nil || !exists {
-		klog.V(5).Infof("%s is a corrupted mountpoint", sourcePath)
-		needDeleted = true
-	} else if notMnt, err := p.IsLikelyNotMountPoint(sourcePath); err != nil || notMnt {
-		needDeleted = true
-	}
-
-	if needDeleted {
-		klog.V(5).Infof("Get pod %s in namespace %s is err status, deleting thd pod.", pod.Name, pod.Namespace)
-		if err := p.Client.DeletePod(pod); err != nil {
-			klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
-			return reconcile.Result{Requeue: true}, nil
-		}
-	}
 	return reconcile.Result{}, nil
 }
 

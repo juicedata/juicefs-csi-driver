@@ -1,3 +1,19 @@
+/*
+Copyright 2021 Juicedata Inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
@@ -742,6 +758,20 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 
 func TestPodDriver_podErrorHandler(t *testing.T) {
 	Convey("Test pod err handler", t, func() {
+		Convey("get sourcePath from pod cmd failed", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			Pod := copyPod(readyPod)
+			Pod.Spec.Containers = nil
+			_, err := d.podErrorHandler(context.Background(), Pod)
+			So(err, ShouldBeNil)
+		})
+		Convey("pod ResourceError but pod no resource", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			errPod := copyPod(resourceErrPod)
+			errPod.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
+			_, err := d.podErrorHandler(context.Background(), errPod)
+			So(err, ShouldBeNil)
+		})
 		Convey("GetPod error", func() {
 			k := &k8sclient.K8sClient{}
 			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
@@ -800,20 +830,6 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			errPod := copyPod(resourceErrPod)
 			_, err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
-		})
-		Convey("pod ResourceError but pod no resource", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
-			errPod := copyPod(resourceErrPod)
-			errPod.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
-			_, err := d.podErrorHandler(context.Background(), errPod)
-			So(err, ShouldBeNil)
-		})
-		Convey("get sourcePath from pod cmd failed", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
-			Pod := copyPod(readyPod)
-			Pod.Spec.Containers = nil
-			_, err := d.podErrorHandler(context.Background(), Pod)
-			So(err, ShouldBeError)
 		})
 		Convey("sourcePath not mount", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
