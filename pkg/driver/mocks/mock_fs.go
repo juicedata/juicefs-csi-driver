@@ -34,7 +34,7 @@ func (f FakeFileInfoIno1) Size() int64 {
 }
 
 func (f FakeFileInfoIno1) Mode() fs.FileMode {
-	return fs.ModeCharDevice
+	return fs.ModePerm
 }
 
 func (f FakeFileInfoIno1) ModTime() time.Time {

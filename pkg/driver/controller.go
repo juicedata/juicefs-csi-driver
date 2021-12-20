@@ -92,7 +92,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// 3. umount
-	if err = d.juicefs.JfsUnmount(jfs.GetBasePath()); err != nil {
+	if err = d.juicefs.Unmount(jfs.GetBasePath()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeId, err)
 	}
 
@@ -134,7 +134,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	delete(d.vols, volumeID)
 
-	if err = d.juicefs.JfsUnmount(jfs.GetBasePath()); err != nil {
+	if err = d.juicefs.Unmount(jfs.GetBasePath()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
