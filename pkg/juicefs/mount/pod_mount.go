@@ -17,7 +17,6 @@ limitations under the License.
 package mount
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -180,9 +179,23 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 	}
 
 	key := util.GetReferenceKey(target)
-	po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
-	if err != nil && k8serrors.IsNotFound(err) {
-		// need create
+	needCreate := false
+	for i := 0; i < 30; i++ {
+		// wait for old pod deleted
+		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
+			klog.Infof("pod still exists, wait to create")
+			time.Sleep(time.Millisecond * 500)
+		} else if err != nil {
+			if k8serrors.IsNotFound(err) {
+				needCreate = true
+				break
+			}
+			klog.Errorf("get pod err:%v", err)
+			return err
+		}
+	}
+
+	if needCreate {
 		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
 		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
 		if newPod.Annotations == nil {
@@ -190,29 +203,10 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 		}
 		newPod.Annotations[key] = target
 		if _, e := p.K8sClient.CreatePod(newPod); e != nil && k8serrors.IsAlreadyExists(e) {
-			// add ref of pod when pod exists
-			klog.V(5).Infof("waitUtilMount: Pod %s already exist.", podName)
-			exist, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
-			if err != nil {
-				return err
-			}
-			if exist.DeletionTimestamp != nil {
-				return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
-			}
-			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
-			if err = p.AddRefOfMount(target, podName); err != nil {
-				return err
-			}
-		} else if e != nil {
 			return e
 		}
-	} else if err != nil {
-		return err
-	} else if po.DeletionTimestamp != nil {
-		return fmt.Errorf(fmt.Sprintf("waitUtilMount: Pod %s has been deleted.", podName))
 	}
 
-	// create pod successfully
 	// Wait until the mount pod is ready
 	for i := 0; i < 30; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
@@ -221,9 +215,12 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 		}
 		if util.IsPodReady(pod) {
 			klog.V(5).Infof("waitUtilMount: Pod %v is successful", volumeId)
-			// add volumeId ref in configMap
-			klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
-			return p.AddRefOfMount(target, podName)
+			if !needCreate {
+				// add volumeId ref
+				klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
+				return p.AddRefOfMount(target, podName)
+			}
+			return nil
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
