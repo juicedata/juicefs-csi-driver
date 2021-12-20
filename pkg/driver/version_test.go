@@ -21,7 +21,7 @@ import (
 	"errors"
 	. "github.com/agiledragon/gomonkey"
 	. "github.com/smartystreets/goconvey/convey"
-	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -49,15 +49,9 @@ func TestGetVersionJSON(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	Convey("Test GetVersion", t, func() {
-		Convey("test normal", func() {
-			patch1 := ApplyFunc(runtime.Version, func() string {
-				return "test"
-			})
-			defer patch1.Reset()
-
-			got := GetVersion()
-			So(got.GoVersion, ShouldEqual, "test")
-		})
+	t.Run("test", func(t *testing.T) {
+		if got := GetVersion(); !strings.Contains(got.GoVersion, "go1.") {
+			t.Errorf("GetVersion() = %v, want %v", got, "go1.x")
+		}
 	})
 }
