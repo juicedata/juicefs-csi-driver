@@ -52,6 +52,8 @@ type Interface interface {
 type juicefs struct {
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
+	podMount     podmount.MntInterface
+	processMount podmount.MntInterface
 }
 
 var _ Interface = &juicefs{}
@@ -133,7 +135,9 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		return nil, err
 	}
 
-	return &juicefs{*mounter, k8sClient}, nil
+	podMnt := podmount.NewPodMount(k8sClient)
+	processMnt := podmount.NewProcessMount()
+	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
 // JfsMount auths and mounts JuiceFS
@@ -311,13 +315,13 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 // MountFs mounts JuiceFS with idempotency
 func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
 	var mountPath string
-	var mnt podmount.Interface
+	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
 		mountPath = filepath.Join(config.PodMountBase, volumeID)
-		mnt = podmount.NewPodMount(jfsSetting, j.K8sClient)
+		mnt = j.podMount
 	} else {
 		mountPath = filepath.Join(config.MountBase, volumeID)
-		mnt = podmount.NewProcessMount(jfsSetting)
+		mnt = j.processMount
 	}
 
 	exists, err := mount.PathExists(mountPath)
@@ -333,7 +337,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -348,7 +352,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}

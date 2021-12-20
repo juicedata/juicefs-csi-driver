@@ -23,9 +23,12 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/fs"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -599,19 +602,19 @@ func Test_juicefs_CleanupMountPoint(t *testing.T) {
 func Test_juicefs_AuthFs(t *testing.T) {
 	Convey("Test AuthFs", t, func() {
 		Convey("normal", func() {
-			os.Setenv("JFS_NO_UPDATE_CONFIG", "enable")
+			os.Setenv("JFS_NO_UPDATE_CONFIG", "enabled")
 			secrets := map[string]string{
 				"name":       "test",
 				"bucket":     "test",
-				"initconfig": "",
+				"initconfig": "abc",
 			}
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch1 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
-				return nil, nil
+			patch1 := ApplyFunc(os.WriteFile, func(filename string, data []byte, perm fs.FileMode) error {
+				return nil
 			})
 			defer patch1.Reset()
 
@@ -622,7 +625,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets, map[string]string{})
+			_, err := jfs.AuthFs(secrets, map[string]string{"a": "b"})
 			So(err, ShouldBeNil)
 		})
 		Convey("secret nil", func() {
@@ -648,11 +651,317 @@ func Test_juicefs_AuthFs(t *testing.T) {
 			_, err := jfs.AuthFs(secret, map[string]string{})
 			So(err, ShouldNotBeNil)
 		})
+		Convey("secret no bucket", func() {
+			os.Setenv("JFS_NO_UPDATE_CONFIG", "enabled")
+			secrets := map[string]string{
+				"name": "test",
+			}
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch3.Reset()
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.AuthFs(secrets, map[string]string{})
+			So(err, ShouldNotBeNil)
+		})
+		Convey("write file err", func() {
+			os.Setenv("JFS_NO_UPDATE_CONFIG", "enabled")
+			secrets := map[string]string{
+				"name":       "test",
+				"bucket":     "test",
+				"initconfig": "abc",
+			}
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch3.Reset()
+			patch1 := ApplyFunc(os.WriteFile, func(filename string, data []byte, perm fs.FileMode) error {
+				return errors.New("test")
+			})
+			defer patch1.Reset()
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.AuthFs(secrets, map[string]string{})
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
+func Test_juicefs_MountFs(t *testing.T) {
+	Convey("Test MountFs", t, func() {
+		Convey("normal", func() {
+			mountPath := "/var/lib/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldBeNil)
+		})
+		Convey("not MountPoint err", func() {
+			volumeId := "test-volume-id"
+			//mountPath := "/var/lib/jfs/test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, errors.New("test")
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, errors.New("test"))
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldNotBeNil)
+		})
+		Convey("add ref err", func() {
+			mountPath := "/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{
+				UsePod: true,
+			}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeId)).Return(errors.New("test"))
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+				podMount:  mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldNotBeNil)
+		})
+		Convey("IsLikelyNotMountPoint err", func() {
+			mountPath := "/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{
+				UsePod: true,
+			}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, errors.New("test"))
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+				podMount:  mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldNotBeNil)
+		})
+		Convey("jmount err", func() {
+			mountPath := "/var/lib/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient:    nil,
+				processMount: mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldNotBeNil)
+		})
+		Convey("jmount", func() {
+			mountPath := "/var/lib/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(nil)
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient:    nil,
+				processMount: mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldBeNil)
+		})
+		Convey("not exist jmount err", func() {
+			mountPath := "/var/lib/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return false, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient:    nil,
+				processMount: mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldNotBeNil)
+		})
+		Convey("not exist", func() {
+			mountPath := "/var/lib/jfs/test-volume-id"
+			volumeId := "test-volume-id"
+			target := "/test"
+			options := []string{}
+
+			jfsSetting := &config.JfsSetting{}
+			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+				return false, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(nil)
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mockMount,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient:    nil,
+				processMount: mockMnt,
+			}
+			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			So(e, ShouldBeNil)
+		})
 	})
 }
 
 func Test_juicefs_Upgrade(t *testing.T) {
 	Convey("Test Upgrade", t, func() {
+		Convey("not upgrade", func() {
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			jfs.Upgrade()
+		})
 		Convey("normal", func() {
 			os.Setenv("JFS_AUTO_UPGRADE", "enabled")
 			os.Setenv("JFS_AUTO_UPGRADE_TIMEOUT", "10")
@@ -671,6 +980,90 @@ func Test_juicefs_Upgrade(t *testing.T) {
 				K8sClient: nil,
 			}
 			jfs.Upgrade()
+		})
+	})
+}
+
+func Test_juicefs_ceFormat(t *testing.T) {
+	Convey("Test ceFormat", t, func() {
+		Convey("normal", func() {
+			secret := map[string]string{
+				"name":    "test",
+				"metaurl": "redis://127.0.0.1:6379/1",
+				"storage": "ceph",
+			}
+			extraEnvs := map[string]string{
+				"a": "b",
+			}
+
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch3.Reset()
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: nil,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.ceFormat(secret, true, extraEnvs)
+			So(err, ShouldBeNil)
+		})
+		Convey("no name", func() {
+			secret := map[string]string{
+				"metaurl": "redis://127.0.0.1:6379/1",
+			}
+
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch3.Reset()
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: nil,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			So(err, ShouldNotBeNil)
+		})
+		Convey("no metaurl", func() {
+			secret := map[string]string{
+				"name": "test",
+			}
+
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch3.Reset()
+
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: nil,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			So(err, ShouldNotBeNil)
+		})
+		Convey("nil secret", func() {
+			jfs := juicefs{
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: nil,
+					Exec:      k8sexec.New(),
+				},
+				K8sClient: nil,
+			}
+			_, err := jfs.ceFormat(nil, true, map[string]string{})
+			So(err, ShouldNotBeNil)
 		})
 	})
 }

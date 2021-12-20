@@ -37,35 +37,34 @@ import (
 
 type PodMount struct {
 	k8sMount.SafeFormatAndMount
-	jfsSetting *jfsConfig.JfsSetting
-	K8sClient  *k8sclient.K8sClient
+	K8sClient *k8sclient.K8sClient
 }
 
-func NewPodMount(setting *jfsConfig.JfsSetting, client *k8sclient.K8sClient) Interface {
+func NewPodMount(client *k8sclient.K8sClient) MntInterface {
 	mounter := &k8sMount.SafeFormatAndMount{
 		Interface: k8sMount.New(""),
 		Exec:      k8sexec.New(),
 	}
-	return &PodMount{*mounter, setting, client}
+	return &PodMount{*mounter, client}
 }
 
-func (p *PodMount) JMount(storage, volumeId, mountPath string, target string, options []string) error {
-	return p.waitUntilMount(volumeId, target, mountPath, p.getCommand(mountPath, options))
+func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+	return p.waitUntilMount(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options))
 }
 
-func (p *PodMount) getCommand(mountPath string, options []string) string {
+func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string, options []string) string {
 	cmd := ""
-	if p.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)
-		mountArgs := []string{jfsConfig.CeMountPath, p.jfsSetting.Source, mountPath}
+	if jfsSetting.IsCe {
+		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
+		mountArgs := []string{jfsConfig.CeMountPath, jfsSetting.Source, mountPath}
 		if !util.ContainsString(options, "metrics") {
 			options = append(options, "metrics=0.0.0.0:9567")
 		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", p.jfsSetting.Source, mountPath)
-		mountArgs := []string{jfsConfig.JfsMountPath, p.jfsSetting.Source, mountPath}
+		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, mountPath)
+		mountArgs := []string{jfsConfig.JfsMountPath, jfsSetting.Source, mountPath}
 		options = append(options, "foreground")
 		if len(options) > 0 {
 			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
@@ -153,7 +152,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
-func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error {
+func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
 	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
 	podResource := corev1.ResourceRequirements{}
@@ -162,18 +161,18 @@ func (p *PodMount) waitUntilMount(volumeId, target, mountPath, cmd string) error
 	labels := make(map[string]string)
 	anno := make(map[string]string)
 	var serviceAccount string
-	if p.jfsSetting != nil {
+	if jfsSetting != nil {
 		podResource = parsePodResources(
-			p.jfsSetting.MountPodCpuLimit,
-			p.jfsSetting.MountPodMemLimit,
-			p.jfsSetting.MountPodCpuRequest,
-			p.jfsSetting.MountPodMemRequest,
+			jfsSetting.MountPodCpuLimit,
+			jfsSetting.MountPodMemLimit,
+			jfsSetting.MountPodCpuRequest,
+			jfsSetting.MountPodMemRequest,
 		)
-		config = p.jfsSetting.Configs
-		env = p.jfsSetting.Envs
-		labels = p.jfsSetting.MountPodLabels
-		anno = p.jfsSetting.MountPodAnnotations
-		serviceAccount = p.jfsSetting.MountPodServiceAccount
+		config = jfsSetting.Configs
+		env = jfsSetting.Envs
+		labels = jfsSetting.MountPodLabels
+		anno = jfsSetting.MountPodAnnotations
+		serviceAccount = jfsSetting.MountPodServiceAccount
 		if serviceAccount == "" {
 			serviceAccount = jfsConfig.PodServiceAccountName
 		}

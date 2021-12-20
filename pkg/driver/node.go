@@ -181,7 +181,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
-	mnt := podmount.NewPodMount(nil, d.k8sClient)
+	mnt := podmount.NewPodMount(d.k8sClient)
 	if err := mnt.JUmount(volumeId, target); err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
