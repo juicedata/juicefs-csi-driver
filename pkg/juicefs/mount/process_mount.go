@@ -35,29 +35,28 @@ import (
 
 type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
-	jfsSetting *jfsConfig.JfsSetting
 }
 
-func NewProcessMount(setting *jfsConfig.JfsSetting) Interface {
+func NewProcessMount() MntInterface {
 	mounter := &k8sMount.SafeFormatAndMount{
 		Interface: k8sMount.New(""),
 		Exec:      k8sexec.New(),
 	}
-	return &ProcessMount{*mounter, setting}
+	return &ProcessMount{*mounter}
 }
 
-func (p *ProcessMount) JMount(storage, volumeId, mountPath string, target string, options []string) error {
-	if !strings.Contains(p.jfsSetting.Source, "://") {
-		klog.V(5).Infof("eeMount: mount %v at %v", p.jfsSetting.Source, mountPath)
-		err := p.Mount(p.jfsSetting.Source, mountPath, jfsConfig.FsType, options)
+func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+	if !strings.Contains(jfsSetting.Source, "://") {
+		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, mountPath)
+		err := p.Mount(jfsSetting.Source, mountPath, jfsConfig.FsType, options)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", p.jfsSetting.Source, mountPath, err)
+			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", p.jfsSetting.Source, mountPath)
-	mountArgs := []string{p.jfsSetting.Source, mountPath}
+	klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
+	mountArgs := []string{jfsSetting.Source, mountPath}
 
 	if len(options) > 0 {
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
@@ -83,7 +82,7 @@ func (p *ProcessMount) JMount(storage, volumeId, mountPath string, target string
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	if storage == "ceph" || storage == "gs" {
+	if jfsSetting.Storage == "ceph" || jfsSetting.Storage == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
@@ -107,7 +106,7 @@ func (p *ProcessMount) JMount(storage, volumeId, mountPath string, target string
 		}
 		time.Sleep(time.Second)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", p.jfsSetting.Source, mountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, mountPath)
 }
 
 func (p *ProcessMount) JUmount(volumeId, target string) error {

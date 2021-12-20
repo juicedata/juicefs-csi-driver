@@ -45,12 +45,15 @@ type Interface interface {
 	JfsUnmount(mountPath string) error
 	AuthFs(secrets map[string]string, extraEnvs map[string]string) ([]byte, error)
 	MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error)
+	JfsCleanupMountPoint(mountPath string) error
 	Version() ([]byte, error)
 }
 
 type juicefs struct {
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
+	podMount     podmount.MntInterface
+	processMount podmount.MntInterface
 }
 
 var _ Interface = &juicefs{}
@@ -132,11 +135,9 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		return nil, err
 	}
 
-	return &juicefs{*mounter, k8sClient}, nil
-}
-
-func (j *juicefs) IsNotMountPoint(dir string) (bool, error) {
-	return mount.IsNotMountPoint(j, dir)
+	podMnt := podmount.NewPodMount(k8sClient)
+	processMnt := podmount.NewProcessMount()
+	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
 // JfsMount auths and mounts JuiceFS
@@ -190,12 +191,38 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 	}, nil
 }
 
-func (j *juicefs) JfsUnmount(mountPath string) (err error) {
+func (j *juicefs) JfsUnmount(mountPath string) error {
 	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
-	if err = j.Unmount(mountPath); err != nil {
-		klog.V(5).Infof("JfsUnmount: error umount %s, %v", mountPath, err)
+	for {
+		notMount, err := j.IsLikelyNotMountPoint(mountPath)
+		if err != nil {
+			klog.V(5).Infoln(err)
+			if corrupted := mount.IsCorruptedMnt(err); !corrupted {
+				klog.V(5).Infof("NodeUnpublishVolume: stat targetPath %s error %v", mountPath, err)
+				return err
+			}
+		}
+		if notMount {
+			klog.V(5).Infof("umount:%s success", mountPath)
+			break
+		}
+
+		command := exec.Command("umount", mountPath)
+		out, err := command.CombinedOutput()
+		if err == nil {
+			continue
+		}
+		klog.V(6).Infoln(string(out))
+		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", mountPath, err)
+			output, err := exec.Command("umount", "-l", mountPath).CombinedOutput()
+			if err != nil {
+				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", mountPath, err, string(output))
+				return err
+			}
+		}
 	}
-	return
+	return nil
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
@@ -204,6 +231,11 @@ func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 		return j.Exec.Command(config.CeCliPath, "rmr", directory).CombinedOutput()
 	}
 	return j.Exec.Command("rm", "-rf", directory).CombinedOutput()
+}
+
+func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {
+	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
+	return mount.CleanupMountPoint(mountPath, mount.New(""), false)
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
@@ -283,13 +315,13 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 // MountFs mounts JuiceFS with idempotency
 func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
 	var mountPath string
-	var mnt podmount.Interface
+	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
 		mountPath = filepath.Join(config.PodMountBase, volumeID)
-		mnt = podmount.NewPodMount(jfsSetting, j.K8sClient)
+		mnt = j.podMount
 	} else {
 		mountPath = filepath.Join(config.MountBase, volumeID)
-		mnt = podmount.NewProcessMount(jfsSetting)
+		mnt = j.processMount
 	}
 
 	exists, err := mount.PathExists(mountPath)
@@ -305,7 +337,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if !exists {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -320,7 +352,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 
 	if notMnt {
 		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting.Storage, volumeID, mountPath, target, options)
+		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}

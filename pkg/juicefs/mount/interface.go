@@ -16,11 +16,14 @@ limitations under the License.
 
 package mount
 
-import k8sMount "k8s.io/utils/mount"
+import (
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	k8sMount "k8s.io/utils/mount"
+)
 
-type Interface interface {
+type MntInterface interface {
 	k8sMount.Interface
-	JMount(storage, volumeId, mountPath string, target string, options []string) error
+	JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error
 	JUmount(volumeId, target string) error
 	AddRefOfMount(target string, podName string) error
 }
