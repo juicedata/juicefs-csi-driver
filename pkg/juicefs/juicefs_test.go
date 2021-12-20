@@ -672,33 +672,6 @@ func Test_juicefs_AuthFs(t *testing.T) {
 			_, err := jfs.AuthFs(secrets, map[string]string{})
 			So(err, ShouldNotBeNil)
 		})
-		Convey("write file err", func() {
-			os.Setenv("JFS_NO_UPDATE_CONFIG", "enabled")
-			secrets := map[string]string{
-				"name":       "test",
-				"bucket":     "test",
-				"initconfig": "abc",
-			}
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), nil
-			})
-			defer patch3.Reset()
-			patch1 := ApplyFunc(os.WriteFile, func(filename string, data []byte, perm fs.FileMode) error {
-				return errors.New("test")
-			})
-			defer patch1.Reset()
-
-			jfs := juicefs{
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: nil,
-			}
-			_, err := jfs.AuthFs(secrets, map[string]string{})
-			So(err, ShouldNotBeNil)
-		})
 	})
 }
 
