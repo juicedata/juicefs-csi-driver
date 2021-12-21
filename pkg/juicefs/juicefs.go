@@ -123,7 +123,6 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 
 // NewJfsProvider creates a provider for JuiceFS file system
 func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
-	klog.Infof("!!!! jfsprovider")
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
