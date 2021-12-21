@@ -56,7 +56,11 @@ func TestNewProcessMount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewProcessMount(); !reflect.DeepEqual(got, tt.want) {
+			if got := NewProcessMount(
+				k8sMount.SafeFormatAndMount{
+					Interface: k8sMount.New(""),
+					Exec:      k8sexec.New(),
+				}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewProcessMount() = %v, want %v", got, tt.want)
 			}
 		})

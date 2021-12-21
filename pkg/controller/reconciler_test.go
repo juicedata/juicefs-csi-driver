@@ -25,6 +25,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"testing"
@@ -46,7 +48,10 @@ func TestReconcile(t *testing.T) {
 			kc := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			_, _ = kc.CreatePod(pod)
 
-			podReconciler := PodReconciler{kc}
+			podReconciler := PodReconciler{mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}, kc}
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -61,7 +66,10 @@ func TestReconcile(t *testing.T) {
 		Convey("pod not found", func() {
 			kc := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 
-			podReconciler := PodReconciler{kc}
+			podReconciler := PodReconciler{mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}, kc}
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -84,7 +92,10 @@ func TestReconcile(t *testing.T) {
 			kc := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			_, _ = kc.CreatePod(pod)
 
-			podReconciler := PodReconciler{kc}
+			podReconciler := PodReconciler{mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}, kc}
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -111,7 +122,10 @@ func TestReconcile(t *testing.T) {
 			kc := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			_, _ = kc.CreatePod(pod)
 
-			podReconciler := PodReconciler{kc}
+			podReconciler := PodReconciler{mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}, kc}
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{

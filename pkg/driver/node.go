@@ -19,6 +19,8 @@ package driver
 import (
 	"context"
 	"fmt"
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"os"
 	"reflect"
 	"strings"
@@ -29,7 +31,7 @@ import (
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 const (
@@ -41,13 +43,18 @@ var (
 )
 
 type nodeService struct {
+	mount.SafeFormatAndMount
 	juicefs   juicefs.Interface
 	nodeID    string
 	k8sClient *k8sclient.K8sClient
 }
 
 func newNodeService(nodeID string) (*nodeService, error) {
-	jfsProvider, err := juicefs.NewJfsProvider(nil)
+	mounter := &mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
+	}
+	jfsProvider, err := juicefs.NewJfsProvider(mounter)
 	if err != nil {
 		panic(err)
 	}
@@ -65,9 +72,10 @@ func newNodeService(nodeID string) (*nodeService, error) {
 	}
 
 	return &nodeService{
-		juicefs:   jfsProvider,
-		nodeID:    nodeID,
-		k8sClient: k8sClient,
+		SafeFormatAndMount: *mounter,
+		juicefs:            jfsProvider,
+		nodeID:             nodeID,
+		k8sClient:          k8sClient,
 	}, nil
 }
 
@@ -181,7 +189,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
-	mnt := podmount.NewPodMount(d.k8sClient)
+	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
 	if err := mnt.JUmount(volumeId, target); err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}

@@ -17,11 +17,13 @@ limitations under the License.
 package apps
 
 import (
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8scontroller "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -49,11 +51,15 @@ func NewManager() manager.Manager {
 		klog.V(5).Infof("Could not create k8s client %v", err)
 		os.Exit(0)
 	}
-
+	mounter := mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
+	}
 	ctl, err := k8scontroller.New("juicefs", mgr,
 		k8scontroller.Options{
 			Reconciler: controller.PodReconciler{
-				K8sClient: k8sclient,
+				K8sClient:          k8sclient,
+				SafeFormatAndMount: mounter,
 			},
 		},
 	)

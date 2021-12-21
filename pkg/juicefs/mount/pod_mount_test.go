@@ -324,7 +324,10 @@ func TestJUmountWithMock(t *testing.T) {
 			})
 			defer patch2.Reset()
 
-			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()})
+			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
 			err := p.JUmount("ttt", "/test")
 			So(err, ShouldNotBeNil)
 		})
@@ -576,7 +579,10 @@ func TestJMount(t *testing.T) {
 			defer patch2.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
-			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient})
+			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
 			err := p.JMount(&jfsConfig.JfsSetting{Storage: "ttt"}, "/test", "/jfs/test-volume", "", []string{})
 			So(err, ShouldNotBeNil)
 		})
@@ -610,7 +616,10 @@ func TestNewPodMount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewPodMount(tt.args.client); !reflect.DeepEqual(got, tt.want) {
+			if got := NewPodMount(tt.args.client, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPodMount() = %v, want %v", got, tt.want)
 			}
 		})

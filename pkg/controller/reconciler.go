@@ -19,10 +19,11 @@ package controller
 import (
 	"context"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"k8s.io/utils/mount"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -30,11 +31,12 @@ import (
 )
 
 type PodReconciler struct {
+	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
 }
 
 func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(5).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
+	klog.V(6).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
 
 	// fetch pod
 	requeue, pod, err := p.fetchPod(request.NamespacedName)
@@ -54,7 +56,7 @@ func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request)
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	podDriver := NewPodDriver(p.K8sClient)
+	podDriver := NewPodDriver(p.K8sClient, p.SafeFormatAndMount)
 	return podDriver.Run(ctx, pod)
 }
 

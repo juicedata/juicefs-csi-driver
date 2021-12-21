@@ -25,8 +25,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
-	k8sexec "k8s.io/utils/exec"
+	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
 	_ "github.com/golang/mock/mockgen/model"
@@ -37,12 +36,8 @@ type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
 }
 
-func NewProcessMount() MntInterface {
-	mounter := &k8sMount.SafeFormatAndMount{
-		Interface: k8sMount.New(""),
-		Exec:      k8sexec.New(),
-	}
-	return &ProcessMount{*mounter}
+func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
+	return &ProcessMount{mounter}
 }
 
 func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
