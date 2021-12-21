@@ -25,8 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
-	k8sexec "k8s.io/utils/exec"
+	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
@@ -39,12 +38,8 @@ type PodMount struct {
 	K8sClient *k8sclient.K8sClient
 }
 
-func NewPodMount(client *k8sclient.K8sClient) MntInterface {
-	mounter := &k8sMount.SafeFormatAndMount{
-		Interface: k8sMount.New(""),
-		Exec:      k8sexec.New(),
-	}
-	return &PodMount{*mounter, client}
+func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMount) MntInterface {
+	return &PodMount{mounter, client}
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
@@ -182,7 +177,7 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 	for i := 0; i < 30; i++ {
 		// wait for old pod deleted
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
-			klog.Infof("pod still exists, wait to create")
+			klog.Infof("waitUtilMount: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
@@ -203,7 +198,7 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 			newPod.Annotations = make(map[string]string)
 		}
 		newPod.Annotations[key] = target
-		if _, e := p.K8sClient.CreatePod(newPod); e != nil && k8serrors.IsAlreadyExists(e) {
+		if _, e := p.K8sClient.CreatePod(newPod); e != nil {
 			return e
 		}
 	}

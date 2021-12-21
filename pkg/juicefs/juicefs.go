@@ -33,7 +33,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 )
@@ -123,6 +123,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 
 // NewJfsProvider creates a provider for JuiceFS file system
 func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
+	klog.Infof("!!!! jfsprovider")
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -135,8 +136,8 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		return nil, err
 	}
 
-	podMnt := podmount.NewPodMount(k8sClient)
-	processMnt := podmount.NewProcessMount()
+	podMnt := podmount.NewPodMount(k8sClient, *mounter)
+	processMnt := podmount.NewProcessMount(*mounter)
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
@@ -235,7 +236,7 @@ func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 
 func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	return mount.CleanupMountPoint(mountPath, mount.New(""), false)
+	return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only

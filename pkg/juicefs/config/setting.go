@@ -18,7 +18,7 @@ package config
 
 import (
 	"encoding/json"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

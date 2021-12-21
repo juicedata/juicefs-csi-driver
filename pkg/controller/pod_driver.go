@@ -25,8 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
-	k8sexec "k8s.io/utils/exec"
+	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"os"
 	"os/exec"
@@ -42,15 +41,11 @@ type PodDriver struct {
 	mount.SafeFormatAndMount
 }
 
-func NewPodDriver(client *k8sclient.K8sClient) *PodDriver {
-	mounter := &mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      k8sexec.New(),
-	}
+func NewPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount) *PodDriver {
 	driver := &PodDriver{
 		Client:             client,
 		handlers:           map[podStatus]podHandler{},
-		SafeFormatAndMount: *mounter,
+		SafeFormatAndMount: mounter,
 	}
 	driver.handlers[podReady] = driver.podReadyHandler
 	driver.handlers[podError] = driver.podErrorHandler
@@ -207,7 +202,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	if len(existTargets) == 0 {
 		// do not need recovery, clean mount point
 		klog.V(5).Infof("Clean mount point : %s", sourcePath)
-		if err := mount.CleanupMountPoint(sourcePath, mount.New(""), false); err != nil {
+		if err := mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false); err != nil {
 			klog.V(5).Infof("Clean mount point %s error: %v", sourcePath, err)
 		}
 		return reconcile.Result{}, nil
