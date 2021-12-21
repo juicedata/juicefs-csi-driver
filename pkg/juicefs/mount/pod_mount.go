@@ -184,6 +184,7 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
 			klog.Infof("pod still exists, wait to create")
 			time.Sleep(time.Millisecond * 500)
+			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
 				needCreate = true
@@ -192,6 +193,7 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 			klog.Errorf("get pod err:%v", err)
 			return err
 		}
+		break
 	}
 
 	if needCreate {
