@@ -607,6 +607,8 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				"name":       "test",
 				"bucket":     "test",
 				"initconfig": "abc",
+				"access-key": "abc",
+				"secret-key": "abc",
 			}
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
