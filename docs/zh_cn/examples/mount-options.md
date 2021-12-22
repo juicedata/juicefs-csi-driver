@@ -45,7 +45,7 @@ spec:
       namespace: default
 ```
 
-更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
+更多配置选项参考 [JuiceFS mount 命令](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 
@@ -132,7 +132,7 @@ mountOptions:
   - allow_other
 ```
 
-更多配置选项参考 [JuiceFS mount command](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
+更多配置选项参考 [JuiceFS mount 命令](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 

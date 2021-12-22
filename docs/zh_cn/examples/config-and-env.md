@@ -25,7 +25,9 @@ type: Opaque
 EOF
 ```
 
-在 Kubernetes 中为 CSI 驱动程序创建 Secret。其中 `configs` 的 key 是上面创建出来的 secret 名称，value 是配置文件保存在 mount pod 中的根路径。`envs` 是希望为 mount pod 设置的环境变量。社区版和云服务版其他参数有所区别，分别如下：
+在 Kubernetes 中为 CSI 驱动程序创建 Secret。其中 `configs` 的 key 是上面创建出来的 secret 名称，value 是配置文件保存在 mount pod 中的根路径。`envs` 是希望为 mount pod 设置的环境变量。
+
+社区版和云服务版其他参数有所区别，分别如下：
 
 ### 社区版
 

@@ -2,15 +2,15 @@
 sidebar_label: 挂载子目录
 ---
 
-# 如何在 Kubernetes 中使用子目录
+# 如何在 Kubernetes 中挂载子目录
 
 本文档展示了如何在 Kubernetes 中使用子目录挂载。
 
-## 使用 subpath
+## 使用 `subPath`
 
 社区版和云服务版的使用方式一致。
 
-您可以在 PV 中使用 subpath：
+您可以在 PV 中使用 `subPath`：
 
 ```yaml
 apiVersion: v1
@@ -92,12 +92,12 @@ kubectl get pods juicefs-app-subpath
 确认数据被正确地写入 JuiceFS 文件系统中：
 
 ```sh
->> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
+kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
 
-## 使用 subdir
+## 使用 `subdir`
 
-如果您使用的是云服务版，且所用 token 只有子目录的权限，可以使用以下方式，只需要在 mountOptions 中指定 `subdir=xxx`：
+如果您使用的是云服务版，且所用 token 只有子目录的权限，可以使用以下方式，只需要在 `mountOptions` 中指定 `subdir=xxx`：
 
 ```yaml
 apiVersion: v1

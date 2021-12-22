@@ -24,9 +24,10 @@ type: Opaque
 ```
 
 Create a secret for the CSI driver in Kubernetes. The key of `configs` is the secret name created above, and the value is the root path of the configuration file saved in the mount pod. The `envs` is the environment variable you want to set for mount pod.
-The required fields for the community version and the cloud service version are different, as follows:
 
-### community version
+The required fields for the community edition and the cloud service edition are different, as follows:
+
+### Community edition
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
@@ -40,7 +41,7 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
 ```
 
-### Cloud service version
+### Cloud service edition
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \

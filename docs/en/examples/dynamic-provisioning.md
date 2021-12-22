@@ -8,9 +8,9 @@ This document shows how to make a dynamic provisioned JuiceFS volume mounted ins
 
 ## Prerequisite
 
-To create the CSI Driver Secret in Kubernetes, the required fields for the community version and the cloud service version are different, as follows:
+To create the CSI Driver `Secret` in Kubernetes, the required fields for the community edition and the cloud service edition are different, as follows:
 
-### community version
+### Community edition
 
 Take Amazon S3 as an example:
 
@@ -34,10 +34,10 @@ kubectl -n default create secret generic juicefs-secret \
 Replace fields enclosed by `<>` with your own environment variables. The fields enclosed `[]` is optional which related your deployment environment.
 
 You should ensure:
-1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
+1. The `access-key`, `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object storage bucket
 2. The Redis DB is clean and the password (if provided) is right
 
-### Cloud service version
+### Cloud service edition
 
 ```shell
 kubectl -n default create secret generic juicefs-secret \
@@ -47,13 +47,12 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=secretkey=${JUICEFS_SECRETKEY}
 ```
 
-其中：
-- `name`：JuiceFS file system name
-- `token`：JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
-- `accesskey`：Object storage Access key
-- `secretkey`：Object storage Secret key
+- `name`: JuiceFS file system name
+- `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
+- `accesskey`: Object storage access key
+- `secretkey`: Object storage secret key
 
-You should ensure accesskey and secretkey pair has `GET`, `PUT`, `DELETE` permission for the object bucket.
+You should ensure `accesskey` and `secretkey` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object storage bucket.
 
 ## Apply
 

@@ -2,15 +2,15 @@
 sidebar_label: Mount Subdirectory
 ---
 
-# How to use subdirectory in Kubernetes
+# How to mount subdirectory in Kubernetes
 
-This document shows how to mount with subdirectories in Kubernetes.
+This document shows how to mount with subdirectory in Kubernetes.
 
-## Using subpath
+## Using `subPath`
 
-The community version and the cloud service version are used in the same way.
+The community edition and the cloud service edition are used in the same way.
 
-You can use subpath in PV:
+You can use `subPath` in PV:
 
 ```yaml
 apiVersion: v1
@@ -92,13 +92,12 @@ kubectl get pods juicefs-app-subpath
 Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
->> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
+kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
 
-## Using subdir
+## Using `subdir`
 
-If you are using the cloud service version, and the token you use only has permissions for subdirectories, 
-you can use the following methods, only need to specify `subdir=xxx` in mountOptions:
+If you are using the cloud service edition, and the token you use only has permission for subdirectory, you can use the following methods, only need to specify `subdir=xxx` in `mountOptions`:
 
 ```yaml
 apiVersion: v1
