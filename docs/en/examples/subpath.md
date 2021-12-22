@@ -97,7 +97,7 @@ Also you can verify that data is written onto JuiceFS file system:
 
 ## Using subdir
 
-If you are using the cloud service version (the community version doesn't currently support it), and the token you use only has permissions for subdirectories, 
+If you are using the cloud service version, and the token you use only has permissions for subdirectories, 
 you can use the following methods, only need to specify `subdir=xxx` in mountOptions:
 
 ```yaml

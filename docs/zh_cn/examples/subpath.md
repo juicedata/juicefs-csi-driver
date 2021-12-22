@@ -97,7 +97,7 @@ kubectl get pods juicefs-app-subpath
 
 ## 使用 subdir
 
-如果您使用的是云服务版（社区版暂不支持），且所用 token 只有子目录的权限，可以使用以下方式，只需要在 mountOptions 中指定 `subdir=xxx`：
+如果您使用的是云服务版，且所用 token 只有子目录的权限，可以使用以下方式，只需要在 mountOptions 中指定 `subdir=xxx`：
 
 ```yaml
 apiVersion: v1
