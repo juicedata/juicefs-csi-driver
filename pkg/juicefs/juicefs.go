@@ -250,6 +250,22 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 
 	args := []string{"auth", secrets["name"]}
 	argsStripped := []string{"auth", secrets["name"]}
+
+	keysCompatible := map[string]string{
+		"access-key":  "accesskey",
+		"access-key2": "accesskey2",
+		"secret-key":  "secretkey",
+		"secret-key2": "secretkey2",
+	}
+	// compatible
+	for compatibleKey, realKey := range keysCompatible {
+		if value, ok := secrets[compatibleKey]; ok {
+			klog.Infof("transform key [%s] to [%s]", compatibleKey, realKey)
+			secrets[realKey] = value
+			delete(secrets, compatibleKey)
+		}
+	}
+
 	keys := []string{
 		"accesskey",
 		"accesskey2",
