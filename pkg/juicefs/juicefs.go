@@ -260,7 +260,9 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 	// compatible
 	for compatibleKey, realKey := range keysCompatible {
 		if value, ok := secrets[compatibleKey]; ok {
+			klog.Infof("transform key [%s] to [%s]", compatibleKey, realKey)
 			secrets[realKey] = value
+			delete(secrets, compatibleKey)
 		}
 	}
 
