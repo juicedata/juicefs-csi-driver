@@ -138,6 +138,8 @@ storageClasses:
     envs: ""
     # -- Config for mount pod. Read [this document](https://github.com/juicedata/juicefs-csi-driver/blob/master/docs/en/examples/config-and-env.md) for more usage.
     configs: ""
+    # -- Config for trash days
+    trashDays: ""
 
 
   mountOptions:
