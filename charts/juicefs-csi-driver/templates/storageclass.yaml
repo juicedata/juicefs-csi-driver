@@ -32,6 +32,9 @@ data:
   {{- if .configs }}
   configs: {{ .configs | b64enc | quote }}
   {{- end }}
+  { { - if .trashDays } }
+  trash-days: { { .trashDays | b64enc | quote } }
+  { { - end } }
   {{- end }}
 ---
 apiVersion: storage.k8s.io/v1
