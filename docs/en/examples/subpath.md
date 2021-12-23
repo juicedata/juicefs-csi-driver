@@ -2,13 +2,15 @@
 sidebar_label: Mount Subdirectory
 ---
 
-# How to use subpath in Kubernetes
+# How to mount subdirectory in Kubernetes
 
-This document shows how to use subpath in Kubernetes.
+This document shows how to mount with subdirectory in Kubernetes.
 
-## Static provisioning
+## Using `subPath`
 
-You can use subpath in PV:
+The community edition and the cloud service edition are used in the same way.
+
+You can use `subPath` in PV:
 
 ```yaml
 apiVersion: v1
@@ -81,8 +83,6 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### Check subpath are customized
-
 After the configuration is applied, verify that pod is running:
 
 ```sh
@@ -92,26 +92,36 @@ kubectl get pods juicefs-app-subpath
 Also you can verify that data is written onto JuiceFS file system:
 
 ```sh
->> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
+kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
 
-## Dynamic provisioning
+## Using `subdir`
 
-You can use subpath in StorageClass:
+If you are using the cloud service edition, and the token you use only has permission for subdirectory, you can use the following methods, only need to specify `subdir=xxx` in `mountOptions`:
 
 ```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
+apiVersion: v1
+kind: PersistentVolume
 metadata:
-  name: juicefs-sc
-  namespace: default
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  subPath: fluentd
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: test-bucket
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  mountOptions:
+    - subdir=/test
 ```
 
 Apply PVC and sample pod as follows:
@@ -125,10 +135,14 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
   resources:
     requests:
       storage: 10Pi
-  storageClassName: juicefs-sc
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
 ---
 apiVersion: v1
 kind: Pod
@@ -146,23 +160,12 @@ spec:
       name: app
       volumeMounts:
         - mountPath: /data
-          name: juicefs-pv
+          name: data
+      resources:
+        requests:
+          cpu: 10m
   volumes:
-    - name: juicefs-pv
+    - name: data
       persistentVolumeClaim:
         claimName: juicefs-pvc
-```
-
-### Check subpath are customized
-
-After the configuration is applied, verify that pod is running:
-
-```sh
-kubectl get pods juicefs-app-subpath
-```
-
-Also you can verify that data is written onto JuiceFS file system:
-
-```sh
->> kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```

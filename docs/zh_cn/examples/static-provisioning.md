@@ -8,9 +8,13 @@ sidebar_label: 静态配置
 
 ## 准备工作
 
-在 Kubernetes 中创建 CSI Driver 的 Secret (以 Amazon S3 为例)：
+在 Kubernetes 中创建 CSI Driver 的 `Secret`，社区版和云服务版所需字段有所区别，分别如下：
 
-```sh
+### 社区版
+
+以 Amazon S3 为例：
+
+```shell
 kubectl -n default create secret generic juicefs-secret \
     --from-literal=name=<NAME> \
     --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
@@ -20,18 +24,19 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=secret-key=<SECRET_KEY>
 ```
 
+其中：
 - `name`：JuiceFS 文件系统名称
 - `metaurl`：元数据服务的访问 URL (比如 Redis)。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/databases_for_metadata) 。
 - `storage`：对象存储类型，比如 `s3`，`gs`，`oss`。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
 - `bucket`：Bucket URL。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
-- `access-key`：Access key。
-- `secret-key`：Secret key。
+- `access-key`：对象存储的 access key。
+- `secret-key`：对象存储的 secret key。
 
 用您自己的环境变量替换由 `<>` 括起来的字段。 `[]` 中的字段是可选的，它与您的部署环境相关。
 
 您应该确保：
-1. `access-key` 和 `secret-key` 对需要有对象存储 bucket 的 `GET`、`PUT`、`DELETE` 权限。
-2. Redis DB 是干净的，并且 password(如果有的话) 是正确的
+1. `access-key` 和 `secret-key` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
+2. Redis DB 是干净的，并且 `password`（如果有的话）是正确的
 
 您可以执行 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 命令确保 secret 是正确的。
 
@@ -41,9 +46,27 @@ kubectl -n default create secret generic juicefs-secret \
     redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
 ```
 
+### 云服务版
+
+```shell
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=${JUICEFS_NAME} \
+    --from-literal=token=${JUICEFS_TOKEN} \
+    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
+    --from-literal=secretkey=${JUICEFS_SECRETKEY}
+```
+
+其中：
+- `name`：JuiceFS 文件系统名称
+- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
+- `accesskey`：对象存储的 access key。
+- `secretkey`：对象存储的 secret key。
+
+您应该确保 `accesskey` 和 `secretkey` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
+
 ## 部署
 
-创建  PersistentVolume (PV)、PersistentVolumeClaim (PVC) 和示例 pod
+创建 PersistentVolume (PV)、PersistentVolumeClaim (PVC) 和示例 pod
 
 ```sh
 kubectl apply -f - <<EOF

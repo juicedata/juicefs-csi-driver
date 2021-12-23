@@ -27,6 +27,10 @@ EOF
 
 在 Kubernetes 中为 CSI 驱动程序创建 Secret。其中 `configs` 的 key 是上面创建出来的 secret 名称，value 是配置文件保存在 mount pod 中的根路径。`envs` 是希望为 mount pod 设置的环境变量。
 
+社区版和云服务版其他参数有所区别，分别如下：
+
+### 社区版
+
 ```sh
 kubectl -n default create secret generic juicefs-secret \
     --from-literal=name=<NAME> \
@@ -35,6 +39,18 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY> \
+    --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
+    --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
+```
+
+### 云服务版
+
+```sh
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=${JUICEFS_NAME} \
+    --from-literal=token=${JUICEFS_TOKEN} \
+    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
+    --from-literal=secretkey=${JUICEFS_SECRETKEY} \
     --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
     --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
 ```

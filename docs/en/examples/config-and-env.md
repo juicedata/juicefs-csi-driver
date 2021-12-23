@@ -25,6 +25,10 @@ type: Opaque
 
 Create a secret for the CSI driver in Kubernetes. The key of `configs` is the secret name created above, and the value is the root path of the configuration file saved in the mount pod. The `envs` is the environment variable you want to set for mount pod.
 
+The required fields for the community edition and the cloud service edition are different, as follows:
+
+### Community edition
+
 ```sh
 kubectl -n default create secret generic juicefs-secret \
     --from-literal=name=<NAME> \
@@ -33,6 +37,18 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY> \
+    --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
+    --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
+```
+
+### Cloud service edition
+
+```sh
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=${JUICEFS_NAME} \
+    --from-literal=token=${JUICEFS_TOKEN} \
+    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
+    --from-literal=secretkey=${JUICEFS_SECRETKEY} \
     --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
     --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
 ```

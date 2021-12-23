@@ -8,7 +8,11 @@ This document shows how to make a static provisioned JuiceFS PersistentVolume (P
 
 ## Prerequisite
 
-Create secrets for CSI driver in Kubernetes (take Amazon S3 as an example):
+To create the CSI Driver `Secret` in Kubernetes, the required fields for the community edition and the cloud service edition are different, as follows:
+
+### Community edition
+
+Take Amazon S3 as an example:
 
 ```sh
 kubectl -n default create secret generic juicefs-secret \
@@ -30,7 +34,7 @@ kubectl -n default create secret generic juicefs-secret \
 Replace fields enclosed by `<>` with your own environment variables. The fields enclosed `[]` is optional which related your deployment environment.
 
 You should ensure:
-1. The `access-key`, `secret-key` pair has `GET`, `PUT`, `DELETE` permission for the object bucket
+1. The `access-key`, `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object bucket
 2. The Redis DB is clean and the password (if provided) is right
 
 You can execute the [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-mount) command to ensure the secret is OK.
@@ -40,6 +44,23 @@ You can execute the [`juicefs format`](https://juicefs.com/docs/community/comman
     --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
     redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
 ```
+
+### Cloud service edition
+
+```shell
+kubectl -n default create secret generic juicefs-secret \
+    --from-literal=name=${JUICEFS_NAME} \
+    --from-literal=token=${JUICEFS_TOKEN} \
+    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
+    --from-literal=secretkey=${JUICEFS_SECRETKEY}
+```
+
+- `name`: JuiceFS file system name
+- `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
+- `accesskey`: Object storage access key
+- `secretkey`: Object storage secret key
+
+You should ensure `accesskey` and `secretkey` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object bucket.
 
 ## Apply
 

@@ -10,17 +10,7 @@ JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。
 
 您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们采取静态配置为例：
 
-创建 Secret:
-
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
-```
+创建 Secret 的过程与 [静态配置](static-provisioning.md) 文档一致。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadWriteMany`：
 
@@ -94,17 +84,7 @@ EOF
 
 ## ReadOnlyMany
 
-创建 Secret:
-
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
-```
+创建 Secret 的过程与 [静态配置](static-provisioning.md) 文档一致。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadOnlyMany`：
 

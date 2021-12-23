@@ -11,17 +11,7 @@ JuiceFS supports ReadWriteMany and ReadOnlyMany access method.
 You can use [static provision](static-provisioning.md) or [dynamic provision](dynamic-provisioning.md) . We take static
 provision as example:
 
-Create Secret:
-
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
-```
+The process of creating a secret is the same as the [static provision](static-provisioning.md) document.
 
 Set `ReadWriteMany` in both PersistentVolume and PersistentVolumeClaim:
 
@@ -95,17 +85,7 @@ EOF
 
 ## ReadOnlyMany
 
-Create Secret:
-
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
-```
+The process of creating a secret is the same as the [static provision](static-provisioning.md) document.
 
 Set `ReadOnlyMany` in both PersistentVolume and PersistentVolumeClaim:
 
