@@ -11,3 +11,4 @@ secret*
 .cr-index
 /devops.sh
 /deploy/k8s_before_v1_18.yaml.orig
+.vscode

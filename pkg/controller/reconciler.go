@@ -18,12 +18,16 @@ package controller
 
 import (
 	"context"
+	"strconv"
+	"time"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/utils/mount"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -66,5 +70,63 @@ func (p *PodReconciler) fetchPod(name types.NamespacedName) (bool, *corev1.Pod, 
 		return true, nil, err
 	} else {
 		return false, reach, nil
+	}
+}
+
+func StartReconciler() error {
+	// gen kubelet client
+	port, err := strconv.Atoi(config.KubeletPort)
+	if err != nil {
+		return err
+	}
+	kc, err := newKubeletClient(config.HostIp, port)
+	if err != nil {
+		return err
+	}
+
+	// gen podDriver
+	k8sClient, err := k8sclient.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Could not create k8s client %v", err)
+		return err
+	}
+
+	mounter := mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
+	}
+
+	podDriver := NewPollingPodDriver(k8sClient, mounter)
+
+	go doReconcile(kc, podDriver)
+	return nil
+}
+
+func doReconcile(kc *kubeletClient, driver *PodDriver) {
+	for {
+		podList, err := kc.GetNodeRunningPods()
+		if err != nil {
+			klog.Errorf("doReconcile GetNodeRunningPods: %v", err)
+			goto finish
+		}
+		if err := driver.mit.parse(); err != nil {
+			klog.Errorf("doReconcile ParseMountInfo: %v", err)
+			goto finish
+		}
+		driver.mit.setPodsStatus(podList)
+
+		for _, pod := range podList.Items {
+			// check label
+			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
+				continue
+			}
+			if pod.Namespace != config.Namespace {
+				continue
+			}
+			driver.Run(context.Background(), &pod)
+		}
+
+	finish:
+		time.Sleep(5 * time.Second)
 	}
 }

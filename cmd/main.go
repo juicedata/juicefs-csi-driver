@@ -19,12 +19,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
+	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -44,6 +46,8 @@ func init() {
 	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
+	config.HostIp = os.Getenv("HOST_IP")
+	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
@@ -84,13 +88,21 @@ func main() {
 	}
 
 	if *enableManager {
-		manager := apps.NewManager()
-		go func() {
-			if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
-				klog.V(5).Infof("Could not start manager: %v", err)
+		if config.KubeletPort != "" && config.HostIp != "" {
+			if err := controller.StartReconciler(); err != nil {
+				klog.V(5).Infof("Could not StartReconciler: %v", err)
 				os.Exit(1)
 			}
-		}()
+			klog.V(5).Infof("Reconciler Stated")
+		} else {
+			manager := apps.NewManager()
+			go func() {
+				if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
+					klog.V(5).Infof("Could not start manager: %v", err)
+					os.Exit(1)
+				}
+			}()
+		}
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

@@ -17,8 +17,9 @@ limitations under the License.
 package config
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	"sync"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 var JLock = sync.RWMutex{}
@@ -30,6 +31,8 @@ var (
 	PodServiceAccountName = ""
 	MountImage            = ""
 	MountLabels           = ""
+	HostIp                = ""
+	KubeletPort           = ""
 
 	CSINodePod = corev1.Pod{}
 
