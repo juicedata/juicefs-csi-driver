@@ -19,13 +19,15 @@ package controller
 import (
 	"context"
 	"errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	k8sexec "k8s.io/utils/exec"
 	"os"
 	"os/exec"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sexec "k8s.io/utils/exec"
 
 	. "github.com/agiledragon/gomonkey"
 	. "github.com/smartystreets/goconvey/convey"
@@ -58,11 +60,13 @@ var (
 	}
 )
 
+var target = "/poddir/uid-1/volumes/kubernetes.io~csi/pvn/mount"
+
 var readyPod = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-ready",
 		Annotations: map[string]string{
-			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+			util.GetReferenceKey(target): target},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Spec: corev1.PodSpec{
@@ -418,6 +422,15 @@ func copyPod(oldPod *corev1.Pod) *corev1.Pod {
 	return &newPod
 }
 
+func genMountInfos() []mount.MountInfo {
+	var mis []mount.MountInfo
+	var mi mount.MountInfo
+	mi.Root = "/"
+	mi.MountPoint = target
+	mis = append(mis, mi)
+	return mis
+}
+
 func TestPodDriver_podReadyHandler(t *testing.T) {
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {
@@ -427,7 +440,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
-				{Values: Params{nil, volErr}},
+				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -436,6 +449,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					return nil
 				})
 			defer patch2.Reset()
+			patch3 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch3.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
@@ -450,6 +467,23 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
+			_, err := d.podReadyHandler(context.Background(), readyPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("mountinfo parse err", func() {
+			patch1 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), errors.New("mountinfo parse fail")
+			})
+			defer patch1.Reset()
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			outputs := []OutputCell{
+				{Values: Params{nil, nil}},
+			}
+			patch2 := ApplyFuncSeq(os.Stat, outputs)
+			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
@@ -474,7 +508,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
-				{Values: Params{nil, volErr}},
+				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -483,6 +517,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					return mountErr
 				})
 			defer patch2.Reset()
+			patch3 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch3.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
@@ -539,40 +577,68 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			_, err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})
-		Convey("stat static-pv sourcePath err", func() {
+		Convey("pod sourcePath err ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			pod := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "juicefs-test-err-mount-cmd-pod",
-					Annotations: map[string]string{
-						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
-					Finalizers: []string{jfsConfig.Finalizer},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:    "test",
-						Image:   "juicedata/juicefs-csi-driver",
-						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/static-pv-xxx"},
-					}},
-				},
-			}
 			outputs := []OutputCell{
-				{Values: Params{nil, notExistsErr}},
 				{Values: Params{nil, volErr}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
-			_, err := d.podReadyHandler(context.Background(), pod)
+			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
-		Convey("stat static-pv sourcePath normal", func() {
+		Convey("pod sourcePath subpath err ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
+			outputs := []OutputCell{
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
+				{Values: Params{nil, volErr}},
+			}
+			patch1 := ApplyFuncSeq(os.Stat, outputs)
+			defer patch1.Reset()
+			patch2 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				mis := genMountInfos()
+				mis[0].Root = "/dir"
+				return mis, nil
+			})
+			defer patch2.Reset()
+			_, err := d.podReadyHandler(context.Background(), readyPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("pod target status unexpected ", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			outputs := []OutputCell{
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, volErr}},
+			}
+			patch1 := ApplyFuncSeq(os.Stat, outputs)
+			defer patch1.Reset()
+			patch2 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch2.Reset()
+			_, err := d.podReadyHandler(context.Background(), readyPod)
+			So(err, ShouldBeNil)
+		})
+		Convey("pod target format invalid ", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			outputs := []OutputCell{
+				{Values: Params{nil, nil}},
+			}
+			patch1 := ApplyFuncSeq(os.Stat, outputs)
+			defer patch1.Reset()
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "juicefs-test-err-mount-cmd-pod",
@@ -588,17 +654,6 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					}},
 				},
 			}
-			outputs := []OutputCell{
-				{Values: Params{nil, volErr}},
-				{Values: Params{nil, nil}, Times: 2},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(d.Interface), "Mount",
-				func(_ *mount.Mounter, source string, target string, fstype string, options []string) error {
-					return nil
-				})
-			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})

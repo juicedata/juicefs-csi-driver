@@ -334,10 +334,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 }
 
 func (p *PodDriver) recoverTarget(volumeId, podName, sourcePath string, ti *targetItem, mi *mountItem) {
-	if ti.err != nil {
-		klog.Errorf("pod %s target %s check err:%v", podName, ti.target, ti.err)
-		return
-	}
 	switch ti.status {
 	case targetStatusNotExist:
 		klog.Errorf("pod %s target %s not exists, item count:%d", podName, ti.target, ti.count)
@@ -380,6 +376,7 @@ func (p *PodDriver) recoverTarget(volumeId, podName, sourcePath string, ti *targ
 			_, err := os.Stat(sourcePath)
 			if err != nil {
 				klog.Errorf("pod %s target %s, stat volPath:%s err:%v, don't do recovery", podName, ti.target, sourcePath, err)
+				break
 			}
 		}
 		klog.V(5).Infof("pod %s target %s recover volPath:%s", podName, ti.target, sourcePath)
