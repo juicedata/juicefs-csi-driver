@@ -127,6 +127,6 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 		}
 
 	finish:
-		time.Sleep(5 * time.Second)
+		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)
 	}
 }

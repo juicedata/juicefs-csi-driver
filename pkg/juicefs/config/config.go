@@ -47,6 +47,8 @@ var (
 	CeCliPath    = "/usr/local/bin/juicefs"
 	CeMountPath  = "/bin/mount.juicefs"
 	JfsMountPath = "/sbin/mount.juicefs"
+
+	ReconcilerInterval = 5
 )
 
 const (

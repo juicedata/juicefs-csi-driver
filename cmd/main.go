@@ -31,10 +31,11 @@ import (
 )
 
 var (
-	endpoint      = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-	version       = flag.Bool("version", false, "Print the version and exit.")
-	nodeID        = flag.String("nodeid", "", "Node ID")
-	enableManager = flag.Bool("enable-manager", false, "Enable manager or not.")
+	endpoint           = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
+	version            = flag.Bool("version", false, "Print the version and exit.")
+	nodeID             = flag.String("nodeid", "", "Node ID")
+	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
+	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 )
 
 func init() {
@@ -52,6 +53,12 @@ func init() {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
 	}
+
+	config.ReconcilerInterval = *reconcilerInterval
+	if config.ReconcilerInterval < 5 {
+		config.ReconcilerInterval = 5
+	}
+
 	k8sclient, err := k8s.NewClient()
 	if err != nil {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
