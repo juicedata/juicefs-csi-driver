@@ -18,7 +18,11 @@ package controller
 
 import (
 	"context"
-	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -27,24 +31,32 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
-	"os"
-	"os/exec"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strings"
-	"time"
 )
 
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
 	handlers map[podStatus]podHandler
+	polling  bool
+	mit      *mountInfoTable
 	mount.SafeFormatAndMount
 }
 
 func NewPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount) *PodDriver {
+	return newPodDriver(client, mounter, false)
+}
+
+func NewPollingPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount) *PodDriver {
+	return newPodDriver(client, mounter, true)
+}
+
+func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount, polling bool) *PodDriver {
 	driver := &PodDriver{
 		Client:             client,
 		handlers:           map[podStatus]podHandler{},
+		polling:            polling,
+		mit:                newMountInfoTable(),
 		SafeFormatAndMount: mounter,
 	}
 	driver.handlers[podReady] = driver.podReadyHandler
@@ -65,7 +77,19 @@ const (
 )
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (reconcile.Result, error) {
-	return p.handlers[p.getPodStatus(current)](ctx, current)
+	podStatus := p.getPodStatus(current)
+
+	if !p.polling || (podStatus != podError && podStatus != podDeleted) {
+		return p.handlers[podStatus](ctx, current)
+	}
+
+	// resourceVersion of kubelet may be different from apiserver
+	// so we need get latest pod resourceVersion from apiserver
+	pod, err := p.Client.GetPod(current.Name, current.Namespace)
+	if err != nil {
+		return reconcile.Result{}, nil
+	}
+	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
 func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
@@ -258,6 +282,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	return reconcile.Result{}, nil
 }
 
+func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
+	// requeue
+	return reconcile.Result{Requeue: true}, nil
+}
+
 func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
 	if pod == nil {
 		klog.Errorf("[podReadyHandler] get nil pod")
@@ -273,45 +302,97 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		return reconcile.Result{}, nil
 	}
 
-	// staticPv has no subPath, check sourcePath
-	sourcePath := fmt.Sprintf("%s/%s", mntPath, volumeId)
-	_, err = os.Stat(sourcePath)
+	_, err = os.Stat(mntPath)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			klog.Errorf("stat volPath:%s err:%v, don't do recovery", sourcePath, err)
-			return reconcile.Result{}, nil
-		}
-		sourcePath = mntPath
-		if _, err2 := os.Stat(sourcePath); err2 != nil {
-			klog.Errorf("stat volPath:%s err:%v, don't do recovery", sourcePath, err2)
+		klog.Errorf("stat mntPath:%s err:%v, don't do recovery", mntPath, err)
+		return reconcile.Result{}, nil
+	}
+
+	if !p.polling {
+		if err := p.mit.parse(); err != nil {
+			klog.Errorf("podReadyHandler ParseMountInfo: %v", err)
 			return reconcile.Result{}, nil
 		}
 	}
 
 	// recovery for each target
-	mountOption := []string{"bind"}
-	for k, v := range pod.Annotations {
-		if k == util.GetReferenceKey(v) {
-			cmd2 := fmt.Sprintf("start exec cmd: mount -o bind %s %s \n", sourcePath, v)
-			// check target should do recover
-			_, err := os.Stat(v)
-			if err == nil {
-				klog.V(5).Infof("target path %s is normal, don't need do recover", v)
-				continue
-			} else if os.IsNotExist(err) {
-				klog.V(5).Infof("target %s not exists,  don't do recover", v)
+	for k, target := range pod.Annotations {
+		if k == util.GetReferenceKey(target) {
+			mi := p.mit.resolveTarget(target)
+			if mi == nil {
+				klog.Errorf("pod %s target %s resolve fail", pod.Name, target)
 				continue
 			}
-			klog.V(5).Infof("Get pod %s in namespace %s is ready, %s", pod.Name, pod.Namespace, cmd2)
-			if err := p.Mount(sourcePath, v, "none", mountOption); err != nil {
-				klog.Errorf("exec cmd: mount -o bind %s %s err:%v", sourcePath, v, err)
+
+			p.recoverTarget(volumeId, pod.Name, mntPath, mi.baseTarget, mi)
+			for _, ti := range mi.subPathTarget {
+				p.recoverTarget(volumeId, pod.Name, mntPath, ti, mi)
 			}
 		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
-	// requeue
-	return reconcile.Result{Requeue: true}, nil
+func (p *PodDriver) recoverTarget(volumeId, podName, sourcePath string, ti *targetItem, mi *mountItem) {
+	switch ti.status {
+	case targetStatusNotExist:
+		klog.Errorf("pod %s target %s not exists, item count:%d", podName, ti.target, ti.count)
+		if ti.count > 0 {
+			// target exist in /proc/self/mountinfo file
+			// refer to this case: local target exist, but source which target binded has beed deleted
+			// if target is for pod subpath (volumeMount.subpath), this will cause user pod delete failed, so we help kubelet umount it
+			if mi.podDeleted {
+				p.umountTarget(ti.target, ti.count)
+			}
+		}
+
+	case targetStatusMounted:
+		// normal, most likely happen
+		if !p.polling {
+			klog.V(5).Infof("pod %s target %s is normal mounted", podName, ti.target)
+		}
+
+	case targetStatusNotMount:
+		if !p.polling {
+			klog.V(5).Infof("pod %s target %s is not mounted", podName, ti.target)
+		}
+
+	case targetStatusCorrupt:
+		if ti.inconsistent {
+			// source paths (found in /proc/self/mountinfo) which target binded is inconsistent
+			// some unexpected things happened
+			klog.Errorf("pod %s target %s, source inconsistent", podName, ti.target)
+			break
+		}
+		if mi.podDeleted {
+			klog.V(5).Infof("pod %s target %s, user pod has been deleted, don't do recovery", podName, ti.target)
+			break
+		}
+		// if not umountTarget, mountinfo file will increase unlimited
+		// if we umount all the target items, `mountPropagation` will lose efficacy
+		p.umountTarget(ti.target, ti.count-1)
+		if ti.subpath != "" {
+			sourcePath += "/" + ti.subpath
+			_, err := os.Stat(sourcePath)
+			if err != nil {
+				klog.Errorf("pod %s target %s, stat volPath:%s err:%v, don't do recovery", podName, ti.target, sourcePath, err)
+				break
+			}
+		}
+		klog.V(5).Infof("pod %s target %s recover volPath:%s", podName, ti.target, sourcePath)
+		mountOption := []string{"bind"}
+		if err := p.Mount(sourcePath, ti.target, "none", mountOption); err != nil {
+			klog.Errorf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+		}
+
+	case targetStatusUnexpect:
+		klog.Errorf("pod %s target %s reslove err:%v", podName, ti.target, ti.err)
+	}
+}
+
+func (p *PodDriver) umountTarget(target string, count int) {
+	for i := 0; i < count; i++ {
+		// ignore error
+		p.Unmount(target)
+	}
 }
