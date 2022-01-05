@@ -23,6 +23,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -364,6 +365,17 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 	notMnt, err := j.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
 		return mountPath, status.Errorf(codes.Internal, "Could not check %q IsLikelyNotMountPoint: %v", mountPath, err)
+	}
+
+	// check if mount pod is deleted
+	po, err := j.K8sClient.GetPod(podmount.GeneratePodNameByVolumeId(volumeID), config.Namespace)
+	if po != nil && po.DeletionTimestamp != nil {
+		notMnt = true
+	} else if err != nil && k8serrors.IsNotFound(err) {
+		notMnt = true
+	} else if err != nil {
+		return mountPath, status.Errorf(codes.Internal, "error get mount pod %s namespace %s: %v",
+			podmount.GeneratePodNameByVolumeId(volumeID), config.Namespace, err)
 	}
 
 	if notMnt {

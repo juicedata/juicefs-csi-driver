@@ -235,6 +235,9 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		if err != nil {
 			return err
 		}
+		if exist.DeletionTimestamp != nil {
+			return status.Errorf(codes.Internal, "addRefOfMount: Mount pod [%s] has been deleted.", podName)
+		}
 		annotation := exist.Annotations
 		if _, ok := annotation[key]; ok {
 			klog.V(5).Infof("addRefOfMount: Target ref [%s] in pod [%s] already exists.", target, podName)
