@@ -19,11 +19,7 @@ package juicefs
 import (
 	"context"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"io/ioutil"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +27,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -195,19 +196,6 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 func (j *juicefs) JfsUnmount(mountPath string) error {
 	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
 	for {
-		notMount, err := j.IsLikelyNotMountPoint(mountPath)
-		if err != nil {
-			klog.V(5).Infoln(err)
-			if corrupted := mount.IsCorruptedMnt(err); !corrupted {
-				klog.V(5).Infof("NodeUnpublishVolume: stat targetPath %s error %v", mountPath, err)
-				return err
-			}
-		}
-		if notMount {
-			klog.V(5).Infof("umount:%s success", mountPath)
-			break
-		}
-
 		command := exec.Command("umount", mountPath)
 		out, err := command.CombinedOutput()
 		if err == nil {
@@ -222,6 +210,7 @@ func (j *juicefs) JfsUnmount(mountPath string) error {
 				return err
 			}
 		}
+		break
 	}
 	return nil
 }
