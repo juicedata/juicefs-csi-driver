@@ -99,15 +99,21 @@ func TestMountInfo(t *testing.T) {
 
 			So(len(mi.subPathTarget), ShouldEqual, 2)
 
-			So(mi.subPathTarget[0].subpath, ShouldEqual, "sub/sub_0")
-			So(mi.subPathTarget[0].target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/0")
-			So(mi.subPathTarget[0].count, ShouldEqual, 1)
-			So(mi.subPathTarget[0].status, ShouldEqual, targetStatusMounted)
-
-			So(mi.subPathTarget[1].subpath, ShouldEqual, "sub/sub_1")
-			So(mi.subPathTarget[1].target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/1")
-			So(mi.subPathTarget[1].count, ShouldEqual, 2)
-			So(mi.subPathTarget[1].status, ShouldEqual, targetStatusMounted)
+			for _, m := range mi.subPathTarget {
+				if m.subpath == "sub/sub_0" {
+					So(m.subpath, ShouldEqual, "sub/sub_0")
+					So(m.target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/0")
+					So(m.count, ShouldEqual, 1)
+					So(m.status, ShouldEqual, targetStatusMounted)
+				} else if m.subpath == "sub/sub_1" {
+					So(m.subpath, ShouldEqual, "sub/sub_1")
+					So(m.target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/1")
+					So(m.count, ShouldEqual, 2)
+					So(m.status, ShouldEqual, targetStatusMounted)
+				} else {
+					t.Fatalf("error subPath: %v", m)
+				}
+			}
 		})
 		Convey("test invalid base target", func() {
 			mit := newMountInfoTable()
