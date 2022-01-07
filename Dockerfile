@@ -41,7 +41,9 @@ RUN apt-get update && apt-get install -y librados2 curl fuse && \
     rm -rf /var/cache/apt/* && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs && \
-    ln -s /usr/local/bin/python /usr/bin/python
+    ln -s /usr/local/bin/python /usr/bin/python && \
+    mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
+    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
 COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
