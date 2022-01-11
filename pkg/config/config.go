@@ -24,12 +24,12 @@ import (
 )
 
 type PodLock struct {
-	podLocks map[string]sync.RWMutex // One pod corresponds to one lock
+	podLocks map[string]*sync.RWMutex // One pod corresponds to one lock
 	lock     sync.RWMutex
 }
 
 func NewPodLock() *PodLock {
-	podLocks := make(map[string]sync.RWMutex)
+	podLocks := make(map[string]*sync.RWMutex)
 	return &PodLock{
 		podLocks: podLocks,
 		lock:     sync.RWMutex{},
@@ -79,7 +79,7 @@ const (
 
 var JLock *PodLock
 
-func (j *PodLock) GetPodLock(podName string) sync.RWMutex {
+func (j *PodLock) GetPodLock(podName string) *sync.RWMutex {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
@@ -88,7 +88,7 @@ func (j *PodLock) GetPodLock(podName string) sync.RWMutex {
 	key := h.Sum(nil)
 	_, ok := j.podLocks[string(key)]
 	if !ok {
-		j.podLocks[string(key)] = sync.RWMutex{}
+		j.podLocks[string(key)] = &sync.RWMutex{}
 	}
 	return j.podLocks[string(key)]
 }
