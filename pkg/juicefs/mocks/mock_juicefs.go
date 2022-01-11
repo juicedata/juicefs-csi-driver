@@ -8,8 +8,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	juicefs "github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	config "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	juicefs "github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	mount "k8s.io/utils/mount"
 )
 
