@@ -66,7 +66,7 @@ You should ensure `accesskey` and `secretkey` pair has `GetObject`, `PutObject`,
 
 Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and sample pod
 
-```sh
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1
