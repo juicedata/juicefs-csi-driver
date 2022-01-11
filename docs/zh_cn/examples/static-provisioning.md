@@ -68,7 +68,7 @@ kubectl -n default create secret generic juicefs-secret \
 
 创建 PersistentVolume (PV)、PersistentVolumeClaim (PVC) 和示例 pod
 
-```sh
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1

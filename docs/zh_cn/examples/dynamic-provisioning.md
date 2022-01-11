@@ -60,7 +60,7 @@ kubectl -n default create secret generic juicefs-secret \
 
 创建 StorageClass、PersistentVolumeClaim (PVC) 和示例 pod
 
-```sh
+```yaml
 kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

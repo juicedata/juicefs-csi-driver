@@ -58,7 +58,7 @@ You should ensure `accesskey` and `secretkey` pair has `GetObject`, `PutObject`,
 
 Create StorageClass, PersistentVolumeClaim (PVC) and sample pod
 
-```sh
+```yaml
 kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
