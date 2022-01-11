@@ -20,6 +20,7 @@ import (
 	"errors"
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 	k8sexec "k8s.io/utils/exec"
@@ -29,13 +30,11 @@ import (
 	"reflect"
 	"syscall"
 	"testing"
-
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 func TestNewProcessMount(t *testing.T) {
 	type args struct {
-		setting *jfsConfig.JfsSetting
+		setting *config.JfsSetting
 	}
 	tests := []struct {
 		name string
@@ -134,11 +133,11 @@ func TestProcessMount_JMount(t *testing.T) {
 					Interface: mockMounter,
 					Exec:      k8sexec.New(),
 				}
-				mockMounter.EXPECT().Mount(eeSource, targetPath, jfsConfig.FsType, nil).Return(nil)
+				mockMounter.EXPECT().Mount(eeSource, targetPath, config.FsType, nil).Return(nil)
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(&jfsConfig.JfsSetting{Source: eeSource}, volumeId, targetPath, "", nil); err != nil {
+				if err := p.JMount(&config.JfsSetting{Source: eeSource}, volumeId, targetPath, "", nil); err != nil {
 					t.Errorf("JMount() error = %v", err)
 				}
 			},
@@ -158,11 +157,11 @@ func TestProcessMount_JMount(t *testing.T) {
 					Interface: mockMounter,
 					Exec:      k8sexec.New(),
 				}
-				mockMounter.EXPECT().Mount(eeSource, targetPath, jfsConfig.FsType, nil).Return(errors.New("test"))
+				mockMounter.EXPECT().Mount(eeSource, targetPath, config.FsType, nil).Return(errors.New("test"))
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(&jfsConfig.JfsSetting{Source: eeSource}, volumeId, targetPath, "", nil); err == nil {
+				if err := p.JMount(&config.JfsSetting{Source: eeSource}, volumeId, targetPath, "", nil); err == nil {
 					t.Errorf("JMount() error = %v", err)
 				}
 			},
@@ -211,7 +210,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err != nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err != nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -246,7 +245,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -281,7 +280,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource, Storage: "ceph"}, volumeId, targetPath, "", options); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -293,7 +292,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -309,7 +308,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -330,7 +329,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})
@@ -352,7 +351,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
+						if err := p.JMount(&config.JfsSetting{Source: ceSource}, volumeId, targetPath, "", nil); err == nil {
 							t.Errorf("JMount() error = %v", err)
 						}
 					})

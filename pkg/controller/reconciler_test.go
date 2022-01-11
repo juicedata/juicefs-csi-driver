@@ -18,7 +18,7 @@ package controller
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"

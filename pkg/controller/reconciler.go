@@ -24,14 +24,13 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type PodReconciler struct {

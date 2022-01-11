@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"reflect"
@@ -26,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sexec "k8s.io/utils/exec"
 
 	. "github.com/agiledragon/gomonkey"
@@ -38,13 +38,14 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func init() {
 	klog.InitFlags(nil)
+	jfsConfig.JLock = jfsConfig.NewPodLock()
 }
 
 var (

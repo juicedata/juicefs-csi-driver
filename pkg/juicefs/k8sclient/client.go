@@ -18,12 +18,19 @@ package k8sclient
 
 import (
 	"context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	"time"
+)
+
+const (
+	timeout = 10 * time.Second
 )
 
 type K8sClient struct {
@@ -32,6 +39,10 @@ type K8sClient struct {
 
 func NewClient() (*K8sClient, error) {
 	config, err := rest.InClusterConfig()
+	if config == nil {
+		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
+	}
+	config.Timeout = timeout
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +58,7 @@ func (k *K8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
 		klog.V(5).Info("Create pod: pod is nil")
 		return nil, nil
 	}
-	klog.V(5).Infof("Create pod %s", pod.Name)
+	klog.V(6).Infof("Create pod %s", pod.Name)
 	mntPod, err := k.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
@@ -60,7 +71,7 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 	klog.V(6).Infof("Get pod %s", podName)
 	mntPod, err := k.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
-		klog.V(5).Infof("Can't get pod %s namespace %s: %v", podName, namespace, err)
+		klog.V(6).Infof("Can't get pod %s namespace %s: %v", podName, namespace, err)
 		return nil, err
 	}
 	return mntPod, nil
@@ -71,7 +82,7 @@ func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
 		klog.V(5).Info("Patch pod: pod is nil")
 		return nil
 	}
-	klog.V(5).Infof("Patch pod %v", pod.Name)
+	klog.V(6).Infof("Patch pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
 		pod.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
@@ -82,7 +93,7 @@ func (k *K8sClient) UpdatePod(pod *corev1.Pod) error {
 		klog.V(5).Info("Update pod: pod is nil")
 		return nil
 	}
-	klog.V(5).Infof("Update pod %v", pod.Name)
+	klog.V(6).Infof("Update pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
 	return err
 }
@@ -92,6 +103,6 @@ func (k *K8sClient) DeletePod(pod *corev1.Pod) error {
 		klog.V(5).Info("Delete pod: pod is nil")
 		return nil
 	}
-	klog.V(5).Infof("Delete pod %v", pod.Name)
+	klog.V(6).Infof("Delete pod %v", pod.Name)
 	return k.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 }

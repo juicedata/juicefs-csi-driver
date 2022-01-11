@@ -5,11 +5,11 @@
 package mocks
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	juicefs "github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	config "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	mount "k8s.io/utils/mount"
 )
 

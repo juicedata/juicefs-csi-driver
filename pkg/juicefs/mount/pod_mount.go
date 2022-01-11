@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -43,6 +43,11 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
+	lock := jfsConfig.JLock.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	return p.waitUntilMount(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options))
 }
 
@@ -69,6 +74,11 @@ func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
+	lock := jfsConfig.JLock.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	// check mount pod is need to delete
 	klog.V(5).Infof("DeleteRefOfMountPod: Check mount pod is need to delete or not.")
 
@@ -90,9 +100,6 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
 
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		po, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
 		if err != nil {
 			return err
@@ -112,9 +119,6 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	}
 
 	deleteMountPod := func(podName, namespace string) error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		po, err := p.K8sClient.GetPod(podName, namespace)
 		if err != nil {
 			return err
@@ -228,9 +232,6 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	key := util.GetReferenceKey(target)
 
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		exist, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
 			return err

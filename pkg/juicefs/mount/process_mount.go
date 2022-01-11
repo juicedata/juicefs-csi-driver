@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"os"
 	"os/exec"
 	"strings"
@@ -29,7 +30,6 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	_ "github.com/golang/mock/mockgen/model"
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 )
 
 type ProcessMount struct {
@@ -40,10 +40,10 @@ func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &ProcessMount{mounter}
 }
 
-func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+func (p *ProcessMount) JMount(jfsSetting *config.JfsSetting, volumeId, mountPath string, target string, options []string) error {
 	if !strings.Contains(jfsSetting.Source, "://") {
 		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, mountPath)
-		err := p.Mount(jfsSetting.Source, mountPath, jfsConfig.FsType, options)
+		err := p.Mount(jfsSetting.Source, mountPath, config.FsType, options)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 		}
@@ -80,7 +80,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountP
 	if jfsSetting.Storage == "ceph" || jfsSetting.Storage == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
-	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
+	mntCmd := exec.Command(config.CeMountPath, mountArgs...)
 	mntCmd.Env = envs
 	mntCmd.Stderr = os.Stderr
 	mntCmd.Stdout = os.Stdout

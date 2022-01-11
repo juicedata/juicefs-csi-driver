@@ -17,6 +17,7 @@ limitations under the License.
 package apps
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -33,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 )
 

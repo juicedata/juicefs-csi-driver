@@ -17,7 +17,7 @@ limitations under the License.
 package mount
 
 import (
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sMount "k8s.io/utils/mount"
 )
 

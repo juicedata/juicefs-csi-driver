@@ -20,8 +20,8 @@ import (
 	"errors"
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"
@@ -37,6 +37,10 @@ import (
 	"reflect"
 	"testing"
 )
+
+func init() {
+	config.JLock = config.NewPodLock()
+}
 
 func Test_jfs_CreateVol(t *testing.T) {
 	Convey("Test CreateVol", t, func() {
@@ -699,7 +703,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockMount := mocks.NewMockInterface(mockCtl)
-			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
+			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
 			mockMount.EXPECT().Mount(mountPath, mountPath, config.FsType, options).Return(nil)
 
 			k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
@@ -742,7 +746,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 					Exec:      k8sexec.New(),
 				},
 				K8sClient: k8sClient,
-				podMount: podmount.NewPodMount(k8sClient, mount.SafeFormatAndMount{
+				processMount: podmount.NewPodMount(k8sClient, mount.SafeFormatAndMount{
 					Interface: mockMount,
 					Exec:      k8sexec.New(),
 				}),
@@ -768,42 +772,9 @@ func Test_juicefs_MountFs(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockMount := mocks.NewMockInterface(mockCtl)
-			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
+			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
 			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
-
-			jfs := juicefs{
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mockMount,
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-				podMount:  mockMnt,
-			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
-			So(e, ShouldNotBeNil)
-		})
-		Convey("IsLikelyNotMountPoint err", func() {
-			mountPath := "/jfs/test-volume-id"
-			volumeId := "test-volume-id"
-			target := "/test"
-			options := []string{}
-
-			jfsSetting := &config.JfsSetting{
-				UsePod: true,
-			}
-			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-				return true, nil
-			})
-			defer patch1.Reset()
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockMount := mocks.NewMockInterface(mockCtl)
-			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, errors.New("test"))
-			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			//mockMnt.EXPECT().AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeId)).Return(nil)
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -832,7 +803,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockMount := mocks.NewMockInterface(mockCtl)
-			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
+			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
 			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
 
@@ -863,7 +834,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			defer mockCtl.Finish()
 
 			mockMount := mocks.NewMockInterface(mockCtl)
-			mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
+			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
 			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(nil)
 

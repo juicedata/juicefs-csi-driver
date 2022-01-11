@@ -18,12 +18,12 @@ package mount
 
 import (
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )

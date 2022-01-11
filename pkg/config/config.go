@@ -17,12 +17,24 @@ limitations under the License.
 package config
 
 import (
+	"crypto/sha256"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
-var JLock = sync.RWMutex{}
+type PodLock struct {
+	podLocks map[string]sync.RWMutex // One pod corresponds to one lock
+	lock     sync.RWMutex
+}
+
+func NewPodLock() *PodLock {
+	podLocks := make(map[string]sync.RWMutex)
+	return &PodLock{
+		podLocks: podLocks,
+		lock:     sync.RWMutex{},
+	}
+}
 
 var (
 	NodeName              = ""
@@ -64,3 +76,19 @@ const (
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
 )
+
+var JLock *PodLock
+
+func (j *PodLock) GetPodLock(podName string) sync.RWMutex {
+	j.lock.Lock()
+	defer j.lock.Unlock()
+
+	h := sha256.New()
+	h.Write([]byte(podName))
+	key := h.Sum(nil)
+	_, ok := j.podLocks[string(key)]
+	if !ok {
+		j.podLocks[string(key)] = sync.RWMutex{}
+	}
+	return j.podLocks[string(key)]
+}
