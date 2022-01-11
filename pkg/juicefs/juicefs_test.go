@@ -18,6 +18,12 @@ package juicefs
 
 import (
 	"errors"
+	"io/fs"
+	"os"
+	"os/exec"
+	"reflect"
+	"testing"
+
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -28,14 +34,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/fs"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
-	"os"
-	"os/exec"
-	"reflect"
-	"testing"
 )
 
 func init() {
@@ -457,15 +458,15 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 		Convey("normal", func() {
 			targetPath := "/target"
 
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockMounter := mocks.NewMockInterface(mockCtl)
 			mounter := &mount.SafeFormatAndMount{
-				Interface: mockMounter,
+				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			}
-			mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
+			var tmpCmd = &exec.Cmd{}
+			patch1 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("not mounted"), errors.New("not mounted")
+			})
+			defer patch1.Reset()
 
 			jfs := juicefs{
 				SafeFormatAndMount: *mounter,
@@ -474,44 +475,18 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 			err := jfs.JfsUnmount(targetPath)
 			So(err, ShouldBeNil)
 		})
-		Convey("broken", func() {
-			targetPath := "/target"
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockMounter := mocks.NewMockInterface(mockCtl)
-			mounter := &mount.SafeFormatAndMount{
-				Interface: mockMounter,
-				Exec:      k8sexec.New(),
-			}
-			mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, errors.New("test"))
-
-			jfs := juicefs{
-				SafeFormatAndMount: *mounter,
-				K8sClient:          nil,
-			}
-			err := jfs.JfsUnmount(targetPath)
-			So(err, ShouldNotBeNil)
-		})
 		Convey("unmount error", func() {
 			targetPath := "/target"
 
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockMounter := mocks.NewMockInterface(mockCtl)
 			mounter := &mount.SafeFormatAndMount{
-				Interface: mockMounter,
+				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			}
-			mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(false, nil)
-
 			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("not mounted")
+			patch1 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), errors.New("umount has some error")
 			})
-			defer patch3.Reset()
+			defer patch1.Reset()
 
 			jfs := juicefs{
 				SafeFormatAndMount: *mounter,
