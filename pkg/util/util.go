@@ -19,7 +19,7 @@ package util
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"net/url"
 	"os"
 	"path"

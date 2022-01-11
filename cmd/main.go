@@ -22,9 +22,9 @@ import (
 	"os"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"

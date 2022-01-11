@@ -9,7 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	juicefs "github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	config "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	config "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mount "k8s.io/utils/mount"
 )
 
