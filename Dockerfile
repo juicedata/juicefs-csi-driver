@@ -18,6 +18,8 @@ ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 ARG JUICEFS_CSI_REPO_REF=master
+ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /tini
+RUN chmod +x /tini
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
@@ -53,4 +55,4 @@ COPY THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 
-ENTRYPOINT ["/bin/juicefs-csi-driver"]
+ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
