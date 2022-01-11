@@ -28,7 +28,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

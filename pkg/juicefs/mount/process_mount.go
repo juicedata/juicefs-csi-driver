@@ -29,7 +29,7 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	_ "github.com/golang/mock/mockgen/model"
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type ProcessMount struct {

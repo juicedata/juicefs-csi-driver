@@ -26,7 +26,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var (

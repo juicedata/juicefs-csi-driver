@@ -26,8 +26,8 @@ import (
 
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"

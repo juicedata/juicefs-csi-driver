@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"testing"
 
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/config"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func TestNewProcessMount(t *testing.T) {
