@@ -19,6 +19,7 @@ package sanity
 import (
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"os"
+	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -45,7 +46,11 @@ func TestSanity(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	jfsDriver = driver.NewFakeDriver(endpoint, newFakeJfsProvider())
-	jfsConfig.JLock = jfsConfig.NewPodLock()
+	podLocks := make([]*sync.Mutex, 1024)
+	for i := range podLocks {
+		podLocks[i] = &sync.Mutex{}
+	}
+	jfsConfig.PodLocks = podLocks
 	go func() {
 		Expect(jfsDriver.Run()).NotTo(HaveOccurred())
 	}()

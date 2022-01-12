@@ -43,11 +43,6 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
-	podName := GeneratePodNameByVolumeId(volumeId)
-	lock := jfsConfig.JLock.GetPodLock(podName)
-	lock.Lock()
-	defer lock.Unlock()
-
 	return p.waitUntilMount(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options))
 }
 
@@ -75,7 +70,7 @@ func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string
 
 func (p *PodMount) JUmount(volumeId, target string) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
-	lock := jfsConfig.JLock.GetPodLock(podName)
+	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -152,6 +147,9 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 
 func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
 	podName := GeneratePodNameByVolumeId(volumeId)
+	lock := jfsConfig.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
 	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
 	podResource := corev1.ResourceRequirements{}
 	config := make(map[string]string)
@@ -178,37 +176,42 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 
 	key := util.GetReferenceKey(target)
 	needCreate := false
-	for i := 0; i < 30; i++ {
+	isDeletedErr := true
+	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
-			klog.Infof("waitUtilMount: wait for old mount pod deleted.")
+			klog.V(6).Infof("waitUtilMount: wait for old mount pod deleted.")
+			lock.Unlock()
 			time.Sleep(time.Millisecond * 500)
+			lock.Lock()
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
 				needCreate = true
+				isDeletedErr = false
+				klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
+				newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
+				if newPod.Annotations == nil {
+					newPod.Annotations = make(map[string]string)
+				}
+				newPod.Annotations[key] = target
+				if _, e := p.K8sClient.CreatePod(newPod); e != nil {
+					return e
+				}
 				break
 			}
 			klog.Errorf("get pod err:%v", err)
 			return err
 		}
+		isDeletedErr = false
 		break
 	}
-
-	if needCreate {
-		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
-		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
-		if newPod.Annotations == nil {
-			newPod.Annotations = make(map[string]string)
-		}
-		newPod.Annotations[key] = target
-		if _, e := p.K8sClient.CreatePod(newPod); e != nil {
-			return e
-		}
+	if isDeletedErr {
+		return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", volumeId, podName)
 	}
 
 	// Wait until the mount pod is ready
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
 			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
@@ -224,7 +227,7 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 15 seconds", volumeId)
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {

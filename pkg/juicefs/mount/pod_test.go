@@ -19,13 +19,14 @@ package mount
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	"testing"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var (

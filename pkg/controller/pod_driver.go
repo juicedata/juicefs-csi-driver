@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"os"
@@ -26,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -114,7 +114,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 	if pod == nil {
 		return reconcile.Result{}, nil
 	}
-	lock := config.JLock.GetPodLock(pod.Name)
+	lock := config.GetPodLock(pod.Name)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -133,24 +133,26 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 				klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
 				return reconcile.Result{Requeue: true}, nil
 			}
-			// wait pod delete
-			for i := 0; i < 30; i++ {
-				oldPod, err := p.Client.GetPod(pod.Name, pod.Namespace)
+			isDeleted := false
+			// wait pod delete for 1min
+			for i := 0; i < 120; i++ {
+				_, err := p.Client.GetPod(pod.Name, pod.Namespace)
 				if err == nil {
-					if controllerutil.ContainsFinalizer(oldPod, config.Finalizer) {
-						controllerutil.RemoveFinalizer(oldPod, config.Finalizer)
-						if err := p.Client.UpdatePod(oldPod); err != nil {
-							klog.Errorf("Update pod err:%v", err)
-						}
-					}
-					klog.V(5).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
-					time.Sleep(time.Second * 5)
+					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
+					lock.Unlock()
+					time.Sleep(time.Microsecond * 500)
+					lock.Lock()
 					continue
 				}
 				if apierrors.IsNotFound(err) {
+					isDeleted = true
 					break
 				}
 				klog.V(5).Infof("get mountPod err:%v", err)
+			}
+			if !isDeleted {
+				klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+				return reconcile.Result{Requeue: true}, nil
 			}
 			var newPod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -184,7 +186,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
 
-	lock := config.JLock.GetPodLock(pod.Name)
+	lock := config.GetPodLock(pod.Name)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -221,14 +223,14 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		return reconcile.Result{}, nil
 	}
 	annotation := pod.Annotations
-	existTargets := make([]string, 0)
+	existTargets := make(map[string]string)
 
 	e := doWithinTime(ctx, func() error {
 		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "juicefs-") {
 				// check if target exist
 				if exist, _ := mount.PathExists(v); exist {
-					existTargets = append(existTargets, v)
+					existTargets[k] = v
 					return nil
 				}
 				klog.V(5).Infof("Target %s didn't exist.", v)
@@ -258,39 +260,55 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	// create the pod even if getting err
 	defer func() {
 		// check pod delete
-		for i := 0; i < 30; i++ {
-			if _, err := p.Client.GetPod(pod.Name, pod.Namespace); err == nil {
-				klog.Infof("pod %s %s still exists, wait to create", pod.Name, pod.Namespace)
-				time.Sleep(time.Second * 5)
-			} else {
+		for i := 0; i < 120; i++ {
+			po, err := p.Client.GetPod(pod.Name, pod.Namespace)
+			if err == nil && po.DeletionTimestamp != nil {
+				klog.V(6).Infof("pod %s %s still exists, wait to create", pod.Name, pod.Namespace)
+				lock.Unlock()
+				time.Sleep(time.Millisecond * 500)
+				lock.Lock()
+				continue
+			}
+			if err != nil {
 				if apierrors.IsNotFound(err) {
-					break
+					// create pod
+					var newPod = &corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        pod.Name,
+							Namespace:   pod.Namespace,
+							Labels:      pod.Labels,
+							Annotations: annotation,
+						},
+						Spec: pod.Spec,
+					}
+					controllerutil.AddFinalizer(newPod, config.Finalizer)
+					klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
+					_, err := p.Client.CreatePod(newPod)
+					if err != nil {
+						klog.Errorf("Create pod:%s err:%v", pod.Name, err)
+					}
+					return
 				}
-				klog.Errorf("get pod err:%v", err) // create pod even if get err
-				break
+				klog.Errorf("Get pod err:%v", err)
+				return
 			}
 
+			// pod is created elsewhere
+			for k, v := range existTargets {
+				// add exist target in annotation
+				po.Annotations[k] = v
+			}
+			if err := p.Client.UpdatePod(po); err != nil {
+				klog.Errorf("Update pod %s %s error: %v", po.Name, po.Namespace, err)
+			}
+			return
 		}
-		// create pod
-		var newPod = &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        pod.Name,
-				Namespace:   pod.Namespace,
-				Labels:      pod.Labels,
-				Annotations: annotation,
-			},
-			Spec: pod.Spec,
-		}
-		controllerutil.AddFinalizer(newPod, config.Finalizer)
-		_, err := p.Client.CreatePod(newPod)
-		if err != nil {
-			klog.Errorf("create pod:%s err:%v", pod.Name, err)
-		}
+		klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
 	}()
 
 	e = doWithinTime(ctx, func() error {
 		// umount mount point before recreate mount pod
-		klog.Infof("start to umount: %s", sourcePath)
+		klog.Infof("Start to umount: %s", sourcePath)
 		out, e := exec.Command("umount", sourcePath).CombinedOutput()
 		if e != nil {
 			if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
@@ -325,7 +343,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		klog.Errorf("[podReadyHandler] get nil pod")
 		return reconcile.Result{}, nil
 	}
-	lock := config.JLock.GetPodLock(pod.Name)
+	lock := config.GetPodLock(pod.Name)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -443,7 +461,7 @@ func (p *PodDriver) umountTarget(target string, count int) {
 }
 
 func doWithinTime(ctx context.Context, f func() error) error {
-	doneCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	doneCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
 	doneCh := make(chan error)
@@ -457,4 +475,8 @@ func doWithinTime(ctx context.Context, f func() error) error {
 	case res := <-doneCh:
 		return res
 	}
+}
+
+func waitForNewPod() {
+
 }

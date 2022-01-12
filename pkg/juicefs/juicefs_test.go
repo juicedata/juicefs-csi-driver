@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sync"
 	"testing"
 
 	. "github.com/agiledragon/gomonkey"
@@ -40,7 +41,11 @@ import (
 )
 
 func init() {
-	config.JLock = config.NewPodLock()
+	podLocks := make([]*sync.Mutex, 1024)
+	for i := range podLocks {
+		podLocks[i] = &sync.Mutex{}
+	}
+	config.PodLocks = podLocks
 }
 
 func Test_jfs_CreateVol(t *testing.T) {

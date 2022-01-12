@@ -14,7 +14,7 @@ JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadWriteMany`：
 
-```shell
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1
@@ -88,7 +88,7 @@ EOF
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadOnlyMany`：
 
-```shell
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1

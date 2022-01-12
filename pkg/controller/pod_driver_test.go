@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -45,7 +46,11 @@ import (
 
 func init() {
 	klog.InitFlags(nil)
-	jfsConfig.JLock = jfsConfig.NewPodLock()
+	podLocks := make([]*sync.Mutex, 1024)
+	for i := range podLocks {
+		podLocks[i] = &sync.Mutex{}
+	}
+	jfsConfig.PodLocks = podLocks
 }
 
 var (

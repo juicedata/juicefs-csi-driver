@@ -15,7 +15,7 @@ The process of creating a secret is the same as the [static provision](static-pr
 
 Set `ReadWriteMany` in both PersistentVolume and PersistentVolumeClaim:
 
-```shell
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1
@@ -89,7 +89,7 @@ The process of creating a secret is the same as the [static provision](static-pr
 
 Set `ReadOnlyMany` in both PersistentVolume and PersistentVolumeClaim:
 
-```shell
+```yaml
 kubectl apply -f - <<EOF
 ---
 apiVersion: v1
