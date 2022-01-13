@@ -17,8 +17,7 @@ limitations under the License.
 package config
 
 import (
-	"crypto/md5"
-	"strconv"
+	"hash/fnv"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -65,10 +64,11 @@ const (
 	mountPodServiceAccount = "juicefs/mount-service-account"
 )
 
-var PodLocks []*sync.Mutex
+var PodLocks []sync.Mutex
 
 func GetPodLock(podName string) *sync.Mutex {
-	key := md5.Sum([]byte(podName))
-	index, _ := strconv.Atoi(string(key[:]))
-	return PodLocks[index%1024]
+	h := fnv.New32a()
+	h.Write([]byte(podName))
+	index := int(h.Sum32())
+	return &PodLocks[index%1024]
 }

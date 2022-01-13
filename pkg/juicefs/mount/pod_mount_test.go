@@ -130,11 +130,7 @@ var testH = &corev1.Pod{
 
 func init() {
 	jfsConfig.NodeName = "test-node"
-	podLocks := make([]*sync.Mutex, 1024)
-	for i := range podLocks {
-		podLocks[i] = &sync.Mutex{}
-	}
-	jfsConfig.PodLocks = podLocks
+	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 }
 
 func TestAddRefOfMount(t *testing.T) {

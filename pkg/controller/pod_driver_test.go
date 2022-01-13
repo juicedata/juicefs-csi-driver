@@ -46,11 +46,7 @@ import (
 
 func init() {
 	klog.InitFlags(nil)
-	podLocks := make([]*sync.Mutex, 1024)
-	for i := range podLocks {
-		podLocks[i] = &sync.Mutex{}
-	}
-	jfsConfig.PodLocks = podLocks
+	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 }
 
 var (

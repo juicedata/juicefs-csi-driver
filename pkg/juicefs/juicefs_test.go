@@ -41,11 +41,7 @@ import (
 )
 
 func init() {
-	podLocks := make([]*sync.Mutex, 1024)
-	for i := range podLocks {
-		podLocks[i] = &sync.Mutex{}
-	}
-	config.PodLocks = podLocks
+	config.PodLocks = make([]sync.Mutex, 1024)
 }
 
 func Test_jfs_CreateVol(t *testing.T) {

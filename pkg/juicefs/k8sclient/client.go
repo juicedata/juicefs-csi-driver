@@ -39,13 +39,13 @@ type K8sClient struct {
 
 func NewClient() (*K8sClient, error) {
 	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
 	if config == nil {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
 	config.Timeout = timeout
-	if err != nil {
-		return nil, err
-	}
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err

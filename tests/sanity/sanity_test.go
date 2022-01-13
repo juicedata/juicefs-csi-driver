@@ -46,11 +46,7 @@ func TestSanity(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	jfsDriver = driver.NewFakeDriver(endpoint, newFakeJfsProvider())
-	podLocks := make([]*sync.Mutex, 1024)
-	for i := range podLocks {
-		podLocks[i] = &sync.Mutex{}
-	}
-	jfsConfig.PodLocks = podLocks
+	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 	go func() {
 		Expect(jfsDriver.Run()).NotTo(HaveOccurred())
 	}()
