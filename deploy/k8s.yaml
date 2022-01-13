@@ -195,7 +195,7 @@ spec:
       - args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
-        - --nodeid=$(NODE_ID)
+        - --nodeid=$(NODE_NAME)
         - --v=5
         env:
         - name: CSI_ENDPOINT
@@ -329,7 +329,7 @@ spec:
       - args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
-        - --nodeid=$(NODE_ID)
+        - --nodeid=$(NODE_NAME)
         - --v=5
         - --enable-manager=true
         env:
