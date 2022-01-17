@@ -114,9 +114,6 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 	if pod == nil {
 		return reconcile.Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
-	lock.Lock()
-	defer lock.Unlock()
 
 	// check resource err
 	if util.IsPodResourceError(pod) {
@@ -130,7 +127,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			}
 			klog.V(5).Infof("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(pod); err != nil {
-				klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
+				klog.Errorf("delete po:%s err:%v", pod.Name, err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			isDeleted := false
@@ -139,19 +136,17 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 				_, err := p.Client.GetPod(pod.Name, pod.Namespace)
 				if err == nil {
 					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
-					lock.Unlock()
 					time.Sleep(time.Microsecond * 500)
-					lock.Lock()
 					continue
 				}
 				if apierrors.IsNotFound(err) {
 					isDeleted = true
 					break
 				}
-				klog.V(5).Infof("get mountPod err:%v", err)
+				klog.Errorf("get mountPod err:%v", err)
 			}
 			if !isDeleted {
-				klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+				klog.Errorf("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			var newPod = &corev1.Pod{
@@ -165,7 +160,6 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			util.DeleteResourceOfPod(newPod)
-			klog.V(5).Infof("Deploy again with no resource.")
 			_, err := p.Client.CreatePod(newPod)
 			if err != nil {
 				klog.Errorf("create pod:%s err:%v", pod.Name, err)
@@ -186,10 +180,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
 
-	lock := config.GetPodLock(pod.Name)
-	lock.Lock()
-	defer lock.Unlock()
-
 	// pod with no finalizer
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
 		// do nothing
@@ -203,7 +193,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 
 	// remove finalizer of pod
-	klog.V(5).Infof("Remove finalizer of pod %s namespace %s", pod.Name, pod.Namespace)
 	controllerutil.RemoveFinalizer(pod, config.Finalizer)
 	if err := p.Client.UpdatePod(pod); err != nil {
 		klog.Errorf("Update pod err:%v", err)
@@ -252,7 +241,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		})
 
 		if e != nil {
-			klog.V(5).Infof("Clean mount point %s error: %v", sourcePath, e)
+			klog.Errorf("Clean mount point %s error: %v", sourcePath, e)
 		}
 		return reconcile.Result{}, nil
 	}
@@ -264,9 +253,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 			po, err := p.Client.GetPod(pod.Name, pod.Namespace)
 			if err == nil && po.DeletionTimestamp != nil {
 				klog.V(6).Infof("pod %s %s still exists, wait to create", pod.Name, pod.Namespace)
-				lock.Unlock()
 				time.Sleep(time.Millisecond * 500)
-				lock.Lock()
 				continue
 			}
 			if err != nil {
@@ -343,9 +330,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		klog.Errorf("[podReadyHandler] get nil pod")
 		return reconcile.Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
-	lock.Lock()
-	defer lock.Unlock()
 
 	if pod.Annotations == nil {
 		return reconcile.Result{}, nil

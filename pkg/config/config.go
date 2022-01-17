@@ -64,7 +64,7 @@ const (
 	mountPodServiceAccount = "juicefs/mount-service-account"
 )
 
-var PodLocks []sync.Mutex
+var PodLocks [1024]sync.Mutex
 
 func GetPodLock(podName string) *sync.Mutex {
 	h := fnv.New32a()

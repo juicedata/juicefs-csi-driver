@@ -20,7 +20,6 @@ import (
 	"errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
-	"sync"
 	"testing"
 
 	. "github.com/agiledragon/gomonkey"
@@ -130,7 +129,6 @@ var testH = &corev1.Pod{
 
 func init() {
 	jfsConfig.NodeName = "test-node"
-	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 }
 
 func TestAddRefOfMount(t *testing.T) {

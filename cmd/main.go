@@ -27,7 +27,6 @@ import (
 	"k8s.io/klog"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sync"
 )
 
 var (
@@ -41,7 +40,6 @@ var (
 func init() {
 	klog.InitFlags(nil)
 	flag.Parse()
-	config.PodLocks = make([]sync.Mutex, 1024)
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.PodName = os.Getenv("POD_NAME")

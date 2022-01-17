@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -46,7 +45,6 @@ import (
 
 func init() {
 	klog.InitFlags(nil)
-	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 }
 
 var (

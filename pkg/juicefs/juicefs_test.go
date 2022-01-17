@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sync"
 	"testing"
 
 	. "github.com/agiledragon/gomonkey"
@@ -39,10 +38,6 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 )
-
-func init() {
-	config.PodLocks = make([]sync.Mutex, 1024)
-}
 
 func Test_jfs_CreateVol(t *testing.T) {
 	Convey("Test CreateVol", t, func() {

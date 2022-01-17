@@ -17,9 +17,7 @@ limitations under the License.
 package sanity
 
 import (
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"os"
-	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -46,7 +44,6 @@ func TestSanity(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	jfsDriver = driver.NewFakeDriver(endpoint, newFakeJfsProvider())
-	jfsConfig.PodLocks = make([]sync.Mutex, 1024)
 	go func() {
 		Expect(jfsDriver.Run()).NotTo(HaveOccurred())
 	}()
