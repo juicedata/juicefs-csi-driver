@@ -234,11 +234,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 
 	if len(existTargets) == 0 {
-		e := doWithinTime(ctx, func() error {
-			// do not need recovery, clean mount point
-			klog.V(5).Infof("Clean mount point : %s", sourcePath)
-			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
-		})
+		// do not need recovery, clean mount point
+		klog.V(5).Infof("Clean mount point : %s", sourcePath)
+		e := mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 
 		if e != nil {
 			klog.Errorf("Clean mount point %s error: %v", sourcePath, e)
@@ -293,26 +291,17 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
 	}()
 
-	e = doWithinTime(ctx, func() error {
-		// umount mount point before recreate mount pod
-		klog.Infof("Start to umount: %s", sourcePath)
-		out, e := exec.Command("umount", sourcePath).CombinedOutput()
-		if e != nil {
-			if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
-				klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-				output, err2 := exec.Command("umount", "-l", sourcePath).CombinedOutput()
-				if err2 != nil {
-					klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err2, string(output))
-				}
-				return err2
+	// umount mount point before recreate mount pod
+	klog.Infof("start to umount: %s", sourcePath)
+	out, err := exec.Command("umount", sourcePath).CombinedOutput()
+	if err != nil {
+		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
+			output, err1 := exec.Command("umount", "-l", sourcePath).CombinedOutput()
+			if err1 != nil {
+				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, string(output))
 			}
 		}
-		return e
-	})
-
-	if e != nil {
-		klog.Errorf("[podDeleteHandler] umount mountPath: %s err: %v", sourcePath, err)
-		return reconcile.Result{}, nil
 	}
 
 	// create
@@ -358,24 +347,21 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		}
 	}
 
-	_ = doWithinTime(ctx, func() error {
-		// recovery for each target
-		for k, target := range pod.Annotations {
-			if k == util.GetReferenceKey(target) {
-				mi := p.mit.resolveTarget(target)
-				if mi == nil {
-					klog.Errorf("pod %s target %s resolve fail", pod.Name, target)
-					continue
-				}
+	// recovery for each target
+	for k, target := range pod.Annotations {
+		if k == util.GetReferenceKey(target) {
+			mi := p.mit.resolveTarget(target)
+			if mi == nil {
+				klog.Errorf("pod %s target %s resolve fail", pod.Name, target)
+				continue
+			}
 
-				p.recoverTarget(volumeId, pod.Name, mntPath, mi.baseTarget, mi)
-				for _, ti := range mi.subPathTarget {
-					p.recoverTarget(volumeId, pod.Name, mntPath, ti, mi)
-				}
+			p.recoverTarget(volumeId, pod.Name, mntPath, mi.baseTarget, mi)
+			for _, ti := range mi.subPathTarget {
+				p.recoverTarget(volumeId, pod.Name, mntPath, ti, mi)
 			}
 		}
-		return nil
-	})
+	}
 
 	return reconcile.Result{}, nil
 }
