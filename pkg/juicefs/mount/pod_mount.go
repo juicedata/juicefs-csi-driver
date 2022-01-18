@@ -43,7 +43,10 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
-	return p.waitUntilMount(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options))
+	if err := p.createOrAddRef(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options)); err != nil {
+		return err
+	}
+	return p.waitUtilPodReady(volumeId)
 }
 
 func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string, options []string) string {
@@ -149,12 +152,13 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
-func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
+	klog.V(5).Infof("createOrAddRef: Mount pod cmd: %v", cmd)
 	podName := GeneratePodNameByVolumeId(volumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
-	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
+
 	podResource := corev1.ResourceRequirements{}
 	config := make(map[string]string)
 	env := make(map[string]string)
@@ -179,57 +183,52 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 	}
 
 	key := util.GetReferenceKey(target)
-	needCreate := false
-	isDeletedErr := true
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
-			klog.V(6).Infof("waitUtilMount: wait for old mount pod deleted.")
+			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
-				needCreate = true
-				isDeletedErr = false
-				klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
+				// pod not exist, create
+				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
 				newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
 				if newPod.Annotations == nil {
 					newPod.Annotations = make(map[string]string)
 				}
 				newPod.Annotations[key] = target
-				if _, err = p.K8sClient.CreatePod(newPod); err != nil {
-					klog.Errorf("Create pod %s err and retry: %v", podName, err)
-					return err
+				_, err = p.K8sClient.CreatePod(newPod)
+				if err != nil {
+					klog.Errorf("createOrAddRef: Create pod %s err and retry: %v", podName, err)
 				}
-				break
+				return nil
 			}
-			klog.Errorf("Get pod %s err and retry: %v", podName, err)
+			// unexpect error
+			klog.Errorf("createOrAddRef: Get pod %s err and retry: %v", podName, err)
 			return err
 		}
-		isDeletedErr = false
-		break
+		// pod exist, add refs
+		return p.AddRefOfMount(target, podName)
 	}
-	if isDeletedErr {
-		return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", volumeId, podName)
-	}
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", volumeId, podName)
+}
 
+func (p *PodMount) waitUtilPodReady(volumeId string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
 	// Wait until the mount pod is ready
 	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
-			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
+			return status.Errorf(codes.Internal, "waitUtilPodReady: Get pod %v failed: %v", volumeId, err)
 		}
 		if util.IsPodReady(pod) {
-			klog.V(5).Infof("waitUtilMount: Pod %v is successful", volumeId)
-			if !needCreate {
-				// add volumeId ref
-				return p.AddRefOfMount(target, podName)
-			}
+			klog.V(5).Infof("waitUtilPodReady: Pod %v is successful", volumeId)
 			return nil
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
+	return status.Errorf(codes.Internal, "waitUtilPodReady: Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
