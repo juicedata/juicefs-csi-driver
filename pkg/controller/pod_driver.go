@@ -453,41 +453,27 @@ func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out strin
 	doneCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	doneCh := make(chan error)  // done channel by cmd/func goroutine
-	doneCh2 := make(chan error) // done channel by daemon goroutine
-	if cmd != nil {
-		// cmd goroutine
-		go func() {
+	doneCh := make(chan error)
+	go func() {
+		if cmd != nil {
 			outByte, e := cmd.CombinedOutput()
 			out = string(outByte)
 			doneCh <- e
-		}()
-
-		// daemon goroutine with cmd
-		go func() {
-			select {
-			case <-doneCtx.Done():
-				cmd.Process.Kill()
-				return
-			case <-doneCh2:
-				return
-			}
-		}()
-	} else {
-		// func goroutine
-		go func() {
+		} else {
 			doneCh <- f()
-		}()
-	}
+		}
+	}()
 
 	select {
 	case <-doneCtx.Done():
 		err = status.Error(codes.Internal, "context timeout")
+		if cmd != nil {
+			go func() {
+				cmd.Process.Kill()
+			}()
+		}
 		return
 	case err = <-doneCh:
-		if cmd != nil {
-			doneCh2 <- err
-		}
 		return
 	}
 }
