@@ -483,9 +483,6 @@ func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out strin
 	select {
 	case <-doneCtx.Done():
 		err = status.Error(codes.Internal, "context timeout")
-		if cmd != nil {
-			doneCh2 <- err
-		}
 		return
 	case err = <-doneCh:
 		if cmd != nil {
