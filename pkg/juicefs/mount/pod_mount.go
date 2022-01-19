@@ -43,10 +43,22 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
 	if err := p.createOrAddRef(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options)); err != nil {
+		klog.Infof("JMount: createOrAddRef mount pod %s error, fall back", podName)
+		if e := p.JUmount(volumeId, target); e != nil {
+			klog.Infof("JMount: fall back error: %v", e)
+		}
 		return err
 	}
-	return p.waitUtilPodReady(volumeId)
+	if err := p.waitUtilPodReady(volumeId); err != nil {
+		klog.Infof("JMount: mount pod %s not ready in 30 second, fall back", podName)
+		if e := p.JUmount(volumeId, target); e != nil {
+			klog.Infof("JMount: fall back error: %v", e)
+		}
+		return err
+	}
+	return nil
 }
 
 func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string, options []string) string {
@@ -220,15 +232,15 @@ func (p *PodMount) waitUtilPodReady(volumeId string) error {
 	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
-			return status.Errorf(codes.Internal, "waitUtilPodReady: Get pod %v failed: %v", volumeId, err)
+			return status.Errorf(codes.Internal, "waitUtilPodReady: Get pod %v failed: %v", podName, err)
 		}
 		if util.IsPodReady(pod) {
-			klog.V(5).Infof("waitUtilPodReady: Pod %v is successful", volumeId)
+			klog.V(5).Infof("waitUtilPodReady: Pod %v is successful", podName)
 			return nil
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "waitUtilPodReady: Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
+	return status.Errorf(codes.Internal, "waitUtilPodReady: Mount pod %s failed: mount pod isn't ready in 30 seconds", podName)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
