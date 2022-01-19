@@ -507,7 +507,7 @@ func TestWaitUntilMount(t *testing.T) {
 				jfsSetting: nil,
 			},
 			pod:     nil,
-			wantErr: true,
+			wantErr: false,
 			wantAnno: map[string]string{
 				util.GetReferenceKey("/mnt/iii"): "/mnt/iii",
 			},
@@ -522,8 +522,8 @@ func TestWaitUntilMount(t *testing.T) {
 			if tt.pod != nil {
 				_, _ = p.K8sClient.CreatePod(tt.pod)
 			}
-			if err := p.waitUntilMount(tt.fields.jfsSetting, tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {
-				t.Errorf("waitUntilMount() error = %v, wantErr %v", err, tt.wantErr)
+			if err := p.createOrAddRef(tt.fields.jfsSetting, tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {
+				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
@@ -559,7 +559,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
-			err := p.waitUntilMount(&jfsConfig.JfsSetting{Storage: "ttt"}, "ttt", "/test", "/jfs/test-volume", "")
+			err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"}, "ttt", "/test", "/jfs/test-volume", "")
 			So(err, ShouldNotBeNil)
 		})
 	})

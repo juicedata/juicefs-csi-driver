@@ -19,14 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 

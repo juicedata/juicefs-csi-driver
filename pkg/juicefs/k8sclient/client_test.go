@@ -43,7 +43,7 @@ func TestNewClient(t *testing.T) {
 			})
 			defer patch2.Reset()
 			_, err := NewClient()
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("test config error", func() {
 			patch1 := ApplyFunc(rest.InClusterConfig, func() (*rest.Config, error) {

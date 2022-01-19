@@ -31,8 +31,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -330,59 +328,12 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 		mnt = j.processMount
 	}
 
-	exists, err := mount.PathExists(mountPath)
-	if err != nil && mount.IsCorruptedMnt(err) {
-		klog.V(5).Infof("MountFs: %s is a corrupted mountpoint, unmounting", mountPath)
-		if err = j.Unmount(mountPath); err != nil {
-			klog.V(5).Infof("Unmount corrupted mount point %s failed: %v", mountPath, err)
-			return mountPath, err
-		}
-	} else if err != nil {
-		return mountPath, status.Errorf(codes.Internal, "Could not check mount point %q exists: %v", mountPath, err)
-	}
-
-	if !exists {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
-		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
-		}
-		return mountPath, nil
-	}
-
-	// path exists
-	notMnt, err := j.IsLikelyNotMountPoint(mountPath)
+	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
+	err := mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
 	if err != nil {
-		return mountPath, status.Errorf(codes.Internal, "Could not check %q IsLikelyNotMountPoint: %v", mountPath, err)
+		return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
 	}
-
-	// check if mount pod is deleted
-	po, err := j.K8sClient.GetPod(podmount.GeneratePodNameByVolumeId(volumeID), config.Namespace)
-	if po != nil && po.DeletionTimestamp != nil {
-		notMnt = true
-	} else if err != nil && k8serrors.IsNotFound(err) {
-		notMnt = true
-	} else if err != nil {
-		return mountPath, status.Errorf(codes.Internal, "error get mount pod %s namespace %s: %v",
-			podmount.GeneratePodNameByVolumeId(volumeID), config.Namespace, err)
-	}
-
-	if notMnt {
-		klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-		err = mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
-		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
-		}
-		return mountPath, nil
-	}
-
-	klog.V(5).Infof("Mount: skip mounting for existing mount point %q", mountPath)
-
-	if jfsSetting.UsePod {
-		klog.V(5).Infof("Mount: add mount ref of volumeId %q", volumeID)
-		err = mnt.AddRefOfMount(target, podmount.GeneratePodNameByVolumeId(volumeID))
-	}
-	return mountPath, err
+	return mountPath, nil
 }
 
 // Upgrade upgrades binary file in `cliPath` to newest version

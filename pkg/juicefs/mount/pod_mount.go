@@ -43,7 +43,10 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
-	return p.waitUntilMount(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options))
+	if err := p.createOrAddRef(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options)); err != nil {
+		return err
+	}
+	return p.waitUtilPodReady(volumeId)
 }
 
 func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string, options []string) string {
@@ -69,65 +72,66 @@ func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
+	lock := jfsConfig.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	// check mount pod is need to delete
-	klog.V(5).Infof("DeleteRefOfMountPod: Check mount pod is need to delete or not.")
+	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
 
 	pod, err := p.K8sClient.GetPod(GeneratePodNameByVolumeId(volumeId), jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.V(5).Infof("DeleteRefOfMountPod: Get pod of volumeId %s err: %v", volumeId, err)
+		klog.Errorf("JUmount: Get pod of volumeId %s err: %v", volumeId, err)
 		return err
 	}
 
 	// if mount pod not exists.
 	if pod == nil {
-		klog.V(5).Infof("DeleteRefOfMountPod: Mount pod of volumeId %v not exists.", volumeId)
+		klog.V(5).Infof("JUmount: Mount pod of volumeId %v not exists.", volumeId)
 		return nil
 	}
 
-	klog.V(5).Infof("DeleteRefOfMountPod: Delete target ref [%s] in pod [%s].", target, pod.Name)
-
 	key := util.GetReferenceKey(target)
-	klog.V(5).Infof("DeleteRefOfMountPod: Target %v hash of target %v", target, key)
+	klog.V(6).Infof("JUmount: Target %v hash of target %v", target, key)
 
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		po, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
 		if err != nil {
 			return err
 		}
 		annotation := po.Annotations
 		if _, ok := annotation[key]; !ok {
-			klog.V(5).Infof("DeleteRefOfMountPod: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
+			klog.V(5).Infof("JUmount: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
 			return nil
 		}
 		delete(annotation, key)
-		klog.V(5).Infof("DeleteRefOfMountPod: Remove ref of volumeId %v, target %v", volumeId, target)
 		po.Annotations = annotation
 		return p.K8sClient.UpdatePod(po)
 	})
 	if err != nil {
+		klog.Errorf("JUmount: Remove ref of volumeId %s err: %v", volumeId, err)
 		return err
 	}
 
 	deleteMountPod := func(podName, namespace string) error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		po, err := p.K8sClient.GetPod(podName, namespace)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
 			return err
 		}
 
 		if hasRef(po) {
-			klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
+			klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 			return nil
 		}
 
-		klog.V(5).Infof("DeleteRefOfMountPod: Pod of volumeId %v has not refs, delete it.", volumeId)
+		klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 		if err := p.K8sClient.DeletePod(po); err != nil {
-			klog.V(5).Infof("DeleteRefOfMountPod: Delete pod of volumeId %s error: %v", volumeId, err)
+			klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
 		return nil
@@ -135,20 +139,26 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 
 	newPod, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
 		return err
 	}
 	if hasRef(newPod) {
-		klog.V(5).Infof("DeleteRefOfMountPod: pod still has juicefs- refs.")
 		return nil
 	}
-	klog.V(5).Infof("DeleteRefOfMountPod: pod has no juicefs- refs.")
 	// if pod annotations has no "juicefs-" prefix, delete pod
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
-func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
+	klog.V(5).Infof("createOrAddRef: Mount pod cmd: %v", cmd)
 	podName := GeneratePodNameByVolumeId(volumeId)
-	klog.V(5).Infof("waitUtilMount: Mount pod cmd: %v", cmd)
+	lock := jfsConfig.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+
 	podResource := corev1.ResourceRequirements{}
 	config := make(map[string]string)
 	env := make(map[string]string)
@@ -173,64 +183,60 @@ func (p *PodMount) waitUntilMount(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 	}
 
 	key := util.GetReferenceKey(target)
-	needCreate := false
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
-			klog.Infof("waitUtilMount: wait for old mount pod deleted.")
+			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
-				needCreate = true
-				break
+				// pod not exist, create
+				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
+				newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
+				if newPod.Annotations == nil {
+					newPod.Annotations = make(map[string]string)
+				}
+				newPod.Annotations[key] = target
+				_, err = p.K8sClient.CreatePod(newPod)
+				if err != nil {
+					klog.Errorf("createOrAddRef: Create pod %s err and retry: %v", podName, err)
+				}
+				return nil
 			}
-			klog.Errorf("get pod err:%v", err)
+			// unexpect error
+			klog.Errorf("createOrAddRef: Get pod %s err and retry: %v", podName, err)
 			return err
 		}
-		break
+		// pod exist, add refs
+		return p.AddRefOfMount(target, podName)
 	}
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", volumeId, podName)
+}
 
-	if needCreate {
-		klog.V(5).Infof("waitUtilMount: Need to create pod %s.", podName)
-		newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
-		if newPod.Annotations == nil {
-			newPod.Annotations = make(map[string]string)
-		}
-		newPod.Annotations[key] = target
-		if _, e := p.K8sClient.CreatePod(newPod); e != nil {
-			return e
-		}
-	}
-
+func (p *PodMount) waitUtilPodReady(volumeId string) error {
+	podName := GeneratePodNameByVolumeId(volumeId)
 	// Wait until the mount pod is ready
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
-			return status.Errorf(codes.Internal, "waitUtilMount: Get pod %v failed: %v", volumeId, err)
+			return status.Errorf(codes.Internal, "waitUtilPodReady: Get pod %v failed: %v", volumeId, err)
 		}
 		if util.IsPodReady(pod) {
-			klog.V(5).Infof("waitUtilMount: Pod %v is successful", volumeId)
-			if !needCreate {
-				// add volumeId ref
-				klog.V(5).Infof("waitUtilMount: add mount ref in pod of volumeId %q", volumeId)
-				return p.AddRefOfMount(target, podName)
-			}
+			klog.V(5).Infof("waitUtilPodReady: Pod %v is successful", volumeId)
 			return nil
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod isn't ready in 15 seconds", volumeId)
+	return status.Errorf(codes.Internal, "waitUtilPodReady: Mount %v failed: mount pod isn't ready in 30 seconds", volumeId)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
+	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", podName, target)
 	// add volumeId ref in pod annotation
 	key := util.GetReferenceKey(target)
 
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		jfsConfig.JLock.Lock()
-		defer jfsConfig.JLock.Unlock()
-
 		exist, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 		if err != nil {
 			return err
@@ -248,10 +254,10 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		}
 		annotation[key] = target
 		exist.Annotations = annotation
-		klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", podName, target)
 		return p.K8sClient.UpdatePod(exist)
 	})
 	if err != nil {
+		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
 		return err
 	}
 	return nil

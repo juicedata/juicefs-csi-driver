@@ -17,12 +17,11 @@ limitations under the License.
 package config
 
 import (
+	"hash/fnv"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 )
-
-var JLock = sync.RWMutex{}
 
 var (
 	NodeName              = ""
@@ -64,3 +63,12 @@ const (
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
 )
+
+var PodLocks [1024]sync.Mutex
+
+func GetPodLock(podName string) *sync.Mutex {
+	h := fnv.New32a()
+	h.Write([]byte(podName))
+	index := int(h.Sum32())
+	return &PodLocks[index%1024]
+}

@@ -18,6 +18,9 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"os"
 	"os/exec"
 	"strings"
@@ -112,6 +115,10 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 	if pod == nil {
 		return reconcile.Result{}, nil
 	}
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
 	// check resource err
 	if util.IsPodResourceError(pod) {
 		klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
@@ -124,27 +131,27 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			}
 			klog.V(5).Infof("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(pod); err != nil {
-				klog.V(5).Infof("delete po:%s err:%v", pod.Name, err)
+				klog.Errorf("delete po:%s err:%v", pod.Name, err)
 				return reconcile.Result{Requeue: true}, nil
 			}
-			// wait pod delete
-			for i := 0; i < 30; i++ {
-				oldPod, err := p.Client.GetPod(pod.Name, pod.Namespace)
+			isDeleted := false
+			// wait pod delete for 1min
+			for i := 0; i < 120; i++ {
+				_, err := p.Client.GetPod(pod.Name, pod.Namespace)
 				if err == nil {
-					if controllerutil.ContainsFinalizer(oldPod, config.Finalizer) {
-						controllerutil.RemoveFinalizer(oldPod, config.Finalizer)
-						if err := p.Client.UpdatePod(oldPod); err != nil {
-							klog.Errorf("Update pod err:%v", err)
-						}
-					}
-					klog.V(5).Infof("pod still exists wait.")
-					time.Sleep(time.Second * 5)
+					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
+					time.Sleep(time.Microsecond * 500)
 					continue
 				}
 				if apierrors.IsNotFound(err) {
+					isDeleted = true
 					break
 				}
-				klog.V(5).Infof("get mountPod err:%v", err)
+				klog.Errorf("get mountPod err:%v", err)
+			}
+			if !isDeleted {
+				klog.Errorf("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+				return reconcile.Result{Requeue: true}, nil
 			}
 			var newPod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -157,7 +164,6 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (recon
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			util.DeleteResourceOfPod(newPod)
-			klog.V(5).Infof("Deploy again with no resource.")
 			_, err := p.Client.CreatePod(newPod)
 			if err != nil {
 				klog.Errorf("create pod:%s err:%v", pod.Name, err)
@@ -191,7 +197,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 	}
 
 	// remove finalizer of pod
-	klog.V(5).Infof("Remove finalizer of pod %s namespace %s", pod.Name, pod.Namespace)
 	controllerutil.RemoveFinalizer(pod, config.Finalizer)
 	if err := p.Client.UpdatePod(pod); err != nil {
 		klog.Errorf("Update pod err:%v", err)
@@ -205,81 +210,122 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (rec
 		return reconcile.Result{}, nil
 	}
 
-	// check if it needs to do recovery
+	// check if it needs to create new one
 	klog.V(6).Infof("Annotations:%v", pod.Annotations)
 	if pod.Annotations == nil {
 		return reconcile.Result{}, nil
 	}
 	annotation := pod.Annotations
-	existTargets := make([]string, 0)
-	for k, v := range pod.Annotations {
-		if strings.HasPrefix(k, "juicefs-") {
-			// check if target exist
-			if exist, _ := mount.PathExists(v); exist {
-				existTargets = append(existTargets, v)
-				continue
+	existTargets := make(map[string]string)
+
+	_, e := doWithinTime(ctx, nil, func() error {
+		for k, v := range pod.Annotations {
+			if strings.HasPrefix(k, "juicefs-") {
+				// check if target exist
+				if exist, _ := mount.PathExists(v); exist {
+					existTargets[k] = v
+					return nil
+				}
+				klog.V(5).Infof("Target %s didn't exist.", v)
+				delete(annotation, k)
 			}
-			klog.V(5).Infof("Target %s didn't exist.", v)
-			delete(annotation, k)
 		}
+		return nil
+	})
+	if e != nil {
+		return reconcile.Result{}, nil
 	}
+
 	if len(existTargets) == 0 {
-		// do not need recovery, clean mount point
-		klog.V(5).Infof("Clean mount point : %s", sourcePath)
-		if err := mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false); err != nil {
-			klog.V(5).Infof("Clean mount point %s error: %v", sourcePath, err)
+		// do not need to create new one, clean mount point
+		_, err := doWithinTime(ctx, nil, func() error {
+			klog.V(5).Infof("Clean mount point : %s", sourcePath)
+			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
+		})
+		if err != nil {
+			klog.Errorf("Clean mount point %s error: %v", sourcePath, err)
 		}
 		return reconcile.Result{}, nil
 	}
 
-	// create the pod even if getting err
-	defer func() {
-		// check pod delete
-		for i := 0; i < 30; i++ {
-			if _, err := p.Client.GetPod(pod.Name, pod.Namespace); err == nil {
-				klog.Infof("pod still exists, wait to create")
-				time.Sleep(time.Second * 5)
-			} else {
-				if apierrors.IsNotFound(err) {
-					break
-				}
-				klog.Errorf("get pod err:%v", err) // create pod even if get err
-				break
-			}
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
 
-		}
-		// create pod
-		var newPod = &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        pod.Name,
-				Namespace:   pod.Namespace,
-				Labels:      pod.Labels,
-				Annotations: annotation,
-			},
-			Spec: pod.Spec,
-		}
-		controllerutil.AddFinalizer(newPod, config.Finalizer)
-		_, err := p.Client.CreatePod(newPod)
-		if err != nil {
-			klog.Errorf("create pod:%s err:%v", pod.Name, err)
-		}
-	}()
-
-	// umount mount point before recreate mount pod
-	klog.Infof("start to umount: %s", sourcePath)
-	out, err := exec.Command("umount", sourcePath).CombinedOutput()
-	if err != nil {
-		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			output, err1 := exec.Command("umount", "-l", sourcePath).CombinedOutput()
-			if err1 != nil {
-				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, string(output))
-			}
-		}
-	}
 	// create
 	klog.V(5).Infof("pod targetPath not empty, need create pod:%s", pod.Name)
-	return reconcile.Result{}, nil
+
+	// check pod delete
+	for i := 0; i < 120; i++ {
+		po, err := p.Client.GetPod(pod.Name, pod.Namespace)
+		if err == nil && po.DeletionTimestamp != nil {
+			klog.V(6).Infof("pod %s %s is being deleted, waiting", pod.Name, pod.Namespace)
+			time.Sleep(time.Millisecond * 500)
+			continue
+		}
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// umount mount point before recreate mount pod
+				_, err := doWithinTime(ctx, nil, func() error {
+					exist, _ := mount.PathExists(sourcePath)
+					if !exist {
+						return fmt.Errorf("%s not exist", sourcePath)
+					}
+					return nil
+				})
+				if err != nil {
+					klog.Infof("start to umount: %s", sourcePath)
+					cmd := exec.Command("umount", sourcePath)
+					out, err := doWithinTime(ctx, cmd, nil)
+					if err != nil {
+						if !strings.Contains(out, "not mounted") && !strings.Contains(out, "mountpoint not found") {
+							klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
+							cmd2 := exec.Command("umount", "-l", sourcePath)
+							output, err1 := doWithinTime(ctx, cmd2, nil)
+							if err1 != nil {
+								klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, output)
+							}
+						}
+					}
+				}
+				// create pod
+				var newPod = &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        pod.Name,
+						Namespace:   pod.Namespace,
+						Labels:      pod.Labels,
+						Annotations: annotation,
+					},
+					Spec: pod.Spec,
+				}
+				controllerutil.AddFinalizer(newPod, config.Finalizer)
+				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
+				_, err = p.Client.CreatePod(newPod)
+				if err != nil {
+					klog.Errorf("Create pod:%s err:%v", pod.Name, err)
+				}
+				return reconcile.Result{}, nil
+			}
+			klog.Errorf("Get pod err:%v", err)
+			return reconcile.Result{}, nil
+		}
+
+		// pod is created elsewhere
+		if po.Annotations == nil {
+			po.Annotations = make(map[string]string)
+		}
+		for k, v := range existTargets {
+			// add exist target in annotation
+			po.Annotations[k] = v
+		}
+		if err := p.Client.UpdatePod(po); err != nil {
+			klog.Errorf("Update pod %s %s error: %v", po.Name, po.Namespace, err)
+		}
+		return reconcile.Result{}, err
+	}
+
+	klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+	return reconcile.Result{}, fmt.Errorf("old pod %s %s can't be deleted within 1min", pod.Name, config.Namespace)
 }
 
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
@@ -292,6 +338,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		klog.Errorf("[podReadyHandler] get nil pod")
 		return reconcile.Result{}, nil
 	}
+
 	if pod.Annotations == nil {
 		return reconcile.Result{}, nil
 	}
@@ -302,9 +349,13 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 		return reconcile.Result{}, nil
 	}
 
-	_, err = os.Stat(mntPath)
-	if err != nil {
-		klog.Errorf("stat mntPath:%s err:%v, don't do recovery", mntPath, err)
+	_, e := doWithinTime(ctx, nil, func() error {
+		_, e := os.Stat(mntPath)
+		return e
+	})
+
+	if e != nil {
+		klog.Errorf("[podReadyHandler] stat mntPath:%s err:%v, don't do recovery", mntPath, err)
 		return reconcile.Result{}, nil
 	}
 
@@ -330,6 +381,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (recon
 			}
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -349,7 +401,7 @@ func (p *PodDriver) recoverTarget(volumeId, podName, sourcePath string, ti *targ
 	case targetStatusMounted:
 		// normal, most likely happen
 		if !p.polling {
-			klog.V(5).Infof("pod %s target %s is normal mounted", podName, ti.target)
+			klog.V(6).Infof("pod %s target %s is normal mounted", podName, ti.target)
 		}
 
 	case targetStatusNotMount:
@@ -365,7 +417,7 @@ func (p *PodDriver) recoverTarget(volumeId, podName, sourcePath string, ti *targ
 			break
 		}
 		if mi.podDeleted {
-			klog.V(5).Infof("pod %s target %s, user pod has been deleted, don't do recovery", podName, ti.target)
+			klog.V(6).Infof("pod %s target %s, user pod has been deleted, don't do recovery", podName, ti.target)
 			break
 		}
 		// if not umountTarget, mountinfo file will increase unlimited
@@ -394,5 +446,34 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	for i := 0; i < count; i++ {
 		// ignore error
 		p.Unmount(target)
+	}
+}
+
+func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out string, err error) {
+	doneCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	doneCh := make(chan error)
+	go func() {
+		if cmd != nil {
+			outByte, e := cmd.CombinedOutput()
+			out = string(outByte)
+			doneCh <- e
+		} else {
+			doneCh <- f()
+		}
+	}()
+
+	select {
+	case <-doneCtx.Done():
+		err = status.Error(codes.Internal, "context timeout")
+		if cmd != nil {
+			go func() {
+				cmd.Process.Kill()
+			}()
+		}
+		return
+	case err = <-doneCh:
+		return
 	}
 }
