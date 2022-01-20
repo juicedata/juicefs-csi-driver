@@ -17,12 +17,10 @@ limitations under the License.
 package mount
 
 import (
-	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
@@ -42,45 +40,23 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 	return &PodMount{mounter, client}
 }
 
-func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
-	podName := GeneratePodNameByVolumeId(volumeId)
-	if err := p.createOrAddRef(jfsSetting, volumeId, target, mountPath, p.getCommand(jfsSetting, mountPath, options)); err != nil {
+func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
+	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
+	if err := p.createOrAddRef(jfsSetting); err != nil {
 		klog.Infof("JMount: createOrAddRef mount pod %s error, fall back", podName)
-		if e := p.JUmount(volumeId, target); e != nil {
+		if e := p.JUmount(jfsSetting.VolumeId, jfsSetting.TargetPath); e != nil {
 			klog.Infof("JMount: fall back error: %v", e)
 		}
 		return err
 	}
-	if err := p.waitUtilPodReady(volumeId); err != nil {
+	if err := p.waitUtilPodReady(jfsSetting.VolumeId); err != nil {
 		klog.Infof("JMount: mount pod %s not ready in 30 second, fall back", podName)
-		if e := p.JUmount(volumeId, target); e != nil {
+		if e := p.JUmount(jfsSetting.VolumeId, jfsSetting.TargetPath); e != nil {
 			klog.Infof("JMount: fall back error: %v", e)
 		}
 		return err
 	}
 	return nil
-}
-
-func (p *PodMount) getCommand(jfsSetting *jfsConfig.JfsSetting, mountPath string, options []string) string {
-	cmd := ""
-	if jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
-		mountArgs := []string{jfsConfig.CeMountPath, jfsSetting.Source, mountPath}
-		if !util.ContainsString(options, "metrics") {
-			options = append(options, "metrics=0.0.0.0:9567")
-		}
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		cmd = strings.Join(mountArgs, " ")
-	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, mountPath)
-		mountArgs := []string{jfsConfig.JfsMountPath, jfsSetting.Source, mountPath}
-		options = append(options, "foreground")
-		if len(options) > 0 {
-			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		}
-		cmd = strings.Join(mountArgs, " ")
-	}
-	return cmd
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
@@ -164,37 +140,13 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
-func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, volumeId, target, mountPath, cmd string) error {
-	klog.V(5).Infof("createOrAddRef: Mount pod cmd: %v", cmd)
-	podName := GeneratePodNameByVolumeId(volumeId)
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
+	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
-	podResource := corev1.ResourceRequirements{}
-	config := make(map[string]string)
-	env := make(map[string]string)
-	labels := make(map[string]string)
-	anno := make(map[string]string)
-	var serviceAccount string
-	if jfsSetting != nil {
-		podResource = parsePodResources(
-			jfsSetting.MountPodCpuLimit,
-			jfsSetting.MountPodMemLimit,
-			jfsSetting.MountPodCpuRequest,
-			jfsSetting.MountPodMemRequest,
-		)
-		config = jfsSetting.Configs
-		env = jfsSetting.Envs
-		labels = jfsSetting.MountPodLabels
-		anno = jfsSetting.MountPodAnnotations
-		serviceAccount = jfsSetting.MountPodServiceAccount
-		if serviceAccount == "" {
-			serviceAccount = jfsConfig.PodServiceAccountName
-		}
-	}
-
-	key := util.GetReferenceKey(target)
+	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
 		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
@@ -205,11 +157,11 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 			if k8serrors.IsNotFound(err) {
 				// pod not exist, create
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
-				newPod := NewMountPod(podName, cmd, mountPath, podResource, config, env, labels, anno, serviceAccount)
+				newPod := NewMountPod(jfsSetting)
 				if newPod.Annotations == nil {
 					newPod.Annotations = make(map[string]string)
 				}
-				newPod.Annotations[key] = target
+				newPod.Annotations[key] = jfsSetting.TargetPath
 				_, err = p.K8sClient.CreatePod(newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err and retry: %v", podName, err)
@@ -221,9 +173,9 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, volumeId, ta
 			return err
 		}
 		// pod exist, add refs
-		return p.AddRefOfMount(target, podName)
+		return p.AddRefOfMount(jfsSetting.TargetPath, podName)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", volumeId, podName)
+	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
 }
 
 func (p *PodMount) waitUtilPodReady(volumeId string) error {

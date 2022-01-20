@@ -44,6 +44,11 @@ type JfsSetting struct {
 	MountPodLabels         map[string]string `json:"mount_pod_labels"`
 	MountPodAnnotations    map[string]string `json:"mount_pod_annotations"`
 	MountPodServiceAccount string            `json:"mount_pod_service_account"`
+
+	VolumeId   string
+	MountPath  string
+	TargetPath string
+	Options    []string
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {

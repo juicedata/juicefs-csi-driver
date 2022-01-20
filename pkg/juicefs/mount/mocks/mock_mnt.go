@@ -80,17 +80,17 @@ func (mr *MockMntInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) 
 }
 
 // JMount mocks base method.
-func (m *MockMntInterface) JMount(arg0 *config.JfsSetting, arg1, arg2, arg3 string, arg4 []string) error {
+func (m *MockMntInterface) JMount(arg0 *config.JfsSetting) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JMount", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "JMount", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JMount indicates an expected call of JMount.
-func (mr *MockMntInterfaceMockRecorder) JMount(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JMount(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0)
 }
 
 // JUmount mocks base method.

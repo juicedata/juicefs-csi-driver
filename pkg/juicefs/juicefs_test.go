@@ -732,7 +732,11 @@ func Test_juicefs_MountFs(t *testing.T) {
 			options := []string{}
 
 			jfsSetting := &config.JfsSetting{
-				UsePod: true,
+				UsePod:     true,
+				MountPath:  mountPath,
+				VolumeId:   volumeId,
+				TargetPath: target,
+				Options:    options,
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
@@ -745,7 +749,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -764,7 +768,12 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{}
+			jfsSetting := &config.JfsSetting{
+				MountPath:  mountPath,
+				VolumeId:   volumeId,
+				TargetPath: target,
+				Options:    options,
+			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
 			})
@@ -776,7 +785,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -795,7 +804,12 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{}
+			jfsSetting := &config.JfsSetting{
+				MountPath:  mountPath,
+				VolumeId:   volumeId,
+				TargetPath: target,
+				Options:    options,
+			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
 			})
@@ -807,7 +821,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(nil)
+			mockMnt.EXPECT().JMount(jfsSetting).Return(nil)
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -826,7 +840,12 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{}
+			jfsSetting := &config.JfsSetting{
+				MountPath:  mountPath,
+				VolumeId:   volumeId,
+				TargetPath: target,
+				Options:    options,
+			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, nil
 			})
@@ -837,7 +856,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 
 			mockMount := mocks.NewMockInterface(mockCtl)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -856,7 +875,12 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{}
+			jfsSetting := &config.JfsSetting{
+				MountPath:  mountPath,
+				VolumeId:   volumeId,
+				TargetPath: target,
+				Options:    options,
+			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, nil
 			})
@@ -867,7 +891,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 
 			mockMount := mocks.NewMockInterface(mockCtl)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(jfsSetting, volumeId, mountPath, target, options).Return(nil)
+			mockMnt.EXPECT().JMount(jfsSetting).Return(nil)
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{

@@ -18,6 +18,7 @@ package mount
 
 import (
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,12 +42,19 @@ func hasRef(pod *corev1.Pod) bool {
 	return false
 }
 
-func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.ResourceRequirements,
-	configs, env, labels, annotations map[string]string, serviceAccount string) *corev1.Pod {
-	cmd = quoteForShell(cmd)
+func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
+	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
+	resourceRequirements := parsePodResources(
+		jfsSetting.MountPodCpuLimit,
+		jfsSetting.MountPodMemLimit,
+		jfsSetting.MountPodCpuRequest,
+		jfsSetting.MountPodMemRequest,
+	)
+
+	cmd := quoteForShell(getCommand(jfsSetting))
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectoryOrCreate
-	statCmd := "stat -c %i " + mountPath
+	statCmd := "stat -c %i " + jfsSetting.MountPath
 
 	volumeMounts := []corev1.VolumeMount{{
 		Name:             "jfs-dir",
@@ -100,7 +108,7 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	klog.V(5).Infof("NewMountPod cmd :%+v\n", cmd)
 	pod := generatePodTemplate()
 	pod.Name = podName
-	pod.Spec.ServiceAccountName = serviceAccount
+	pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
@@ -120,12 +128,12 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"umount %s && rmdir %s", mountPath, mountPath)}},
+				"umount %s && rmdir %s", jfsSetting.MountPath, jfsSetting.MountPath)}},
 		},
 	}
 
 	i := 1
-	for k, v := range configs {
+	for k, v := range jfsSetting.Configs {
 		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts,
 			corev1.VolumeMount{
 				Name:      fmt.Sprintf("config-%v", i),
@@ -141,16 +149,16 @@ func NewMountPod(podName, cmd, mountPath string, resourceRequirements corev1.Res
 		})
 		i++
 	}
-	for k, v := range env {
+	for k, v := range jfsSetting.Envs {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name:  k,
 			Value: v,
 		})
 	}
-	for k, v := range labels {
+	for k, v := range jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
-	for k, v := range annotations {
+	for k, v := range jfsSetting.MountPodAnnotations {
 		pod.Annotations[k] = v
 	}
 
@@ -273,4 +281,27 @@ func generatePodTemplate() *corev1.Pod {
 			Tolerations:      config.CSINodePod.Spec.Tolerations,
 		},
 	}
+}
+
+func getCommand(jfsSetting *config.JfsSetting) string {
+	cmd := ""
+	options := jfsSetting.Options
+	if jfsSetting.IsCe {
+		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+		mountArgs := []string{config.CeMountPath, jfsSetting.Source, jfsSetting.MountPath}
+		if !util.ContainsString(options, "metrics") {
+			options = append(options, "metrics=0.0.0.0:9567")
+		}
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		cmd = strings.Join(mountArgs, " ")
+	} else {
+		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+		mountArgs := []string{config.JfsMountPath, jfsSetting.Source, jfsSetting.MountPath}
+		options = append(options, "foreground")
+		if len(options) > 0 {
+			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		}
+		cmd = strings.Join(mountArgs, " ")
+	}
+	return cmd
 }
