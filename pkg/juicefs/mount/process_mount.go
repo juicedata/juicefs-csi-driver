@@ -40,40 +40,40 @@ func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &ProcessMount{mounter}
 }
 
-func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountPath string, target string, options []string) error {
+func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	if !strings.Contains(jfsSetting.Source, "://") {
-		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, mountPath)
-		err := p.Mount(jfsSetting.Source, mountPath, jfsConfig.FsType, options)
+		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+		err := p.Mount(jfsSetting.Source, jfsSetting.MountPath, jfsConfig.FsType, jfsSetting.Options)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
+			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
 		}
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, mountPath)
-	mountArgs := []string{jfsSetting.Source, mountPath}
+	klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+	mountArgs := []string{jfsSetting.Source, jfsSetting.MountPath}
 
-	if len(options) > 0 {
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+	if len(jfsSetting.Options) > 0 {
+		mountArgs = append(mountArgs, "-o", strings.Join(jfsSetting.Options, ","))
 	}
 
-	if exist, err := k8sMount.PathExists(mountPath); err != nil {
-		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", mountPath, err)
+	if exist, err := k8sMount.PathExists(jfsSetting.MountPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !exist {
-		if err = os.MkdirAll(mountPath, os.FileMode(0755)); err != nil {
-			return status.Errorf(codes.Internal, "Could not create dir %q: %v", mountPath, err)
+		if err = os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755)); err != nil {
+			return status.Errorf(codes.Internal, "Could not create dir %q: %v", jfsSetting.MountPath, err)
 		}
 	}
 
-	if notMounted, err := p.IsLikelyNotMountPoint(mountPath); err != nil {
+	if notMounted, err := p.IsLikelyNotMountPoint(jfsSetting.MountPath); err != nil {
 		return err
 	} else if !notMounted {
-		err = p.Unmount(mountPath)
+		err = p.Unmount(jfsSetting.MountPath)
 		if err != nil {
 			klog.V(5).Infof("Unmount before mount failed: %v", err)
 			return err
 		}
-		klog.V(5).Infof("Unmount %v", mountPath)
+		klog.V(5).Infof("Unmount %v", jfsSetting.MountPath)
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
@@ -87,21 +87,21 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting, volumeId, mountP
 	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
-		finfo, err := os.Stat(mountPath)
+		finfo, err := os.Stat(jfsSetting.MountPath)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", mountPath, err)
+			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", jfsSetting.MountPath, err)
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
 				return nil
 			}
-			klog.V(5).Infof("Mount point %v is not ready", mountPath)
+			klog.V(5).Infof("Mount point %v is not ready", jfsSetting.MountPath)
 		} else {
 			klog.V(5).Info("Cannot reach here")
 		}
 		time.Sleep(time.Second)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, mountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 }
 
 func (p *ProcessMount) JUmount(volumeId, target string) error {

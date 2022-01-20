@@ -439,20 +439,12 @@ func TestJUmountWithMock(t *testing.T) {
 
 func TestWaitUntilMount(t *testing.T) {
 	fakeClientSet := fake.NewSimpleClientset()
-	type fields struct {
-		SafeFormatAndMount mount.SafeFormatAndMount
-		jfsSetting         *jfsConfig.JfsSetting
-	}
 	type args struct {
-		volumeId   string
-		target     string
-		mountPath  string
 		cmd        string
 		jfsSetting *jfsConfig.JfsSetting
 	}
 	tests := []struct {
 		name     string
-		fields   fields
 		args     args
 		pod      *corev1.Pod
 		wantErr  bool
@@ -460,15 +452,13 @@ func TestWaitUntilMount(t *testing.T) {
 	}{
 		{
 			name: "test-new",
-			fields: fields{
-				jfsSetting: &jfsConfig.JfsSetting{},
-			},
 			args: args{
-				volumeId:   "h",
-				target:     "/mnt/hhh",
-				mountPath:  "/mnt/hhh",
-				cmd:        "/local/bin/juicefs.mount test",
-				jfsSetting: nil,
+				cmd: "/local/bin/juicefs.mount test",
+				jfsSetting: &jfsConfig.JfsSetting{
+					VolumeId:   "h",
+					TargetPath: "/mnt/hhh",
+					MountPath:  "/mnt/hhh",
+				},
 			},
 			pod:      testH,
 			wantErr:  false,
@@ -476,15 +466,12 @@ func TestWaitUntilMount(t *testing.T) {
 		},
 		{
 			name: "test-exists",
-			fields: fields{
-				jfsSetting: &jfsConfig.JfsSetting{},
-			},
 			args: args{
-				volumeId:   "g",
-				target:     "/mnt/ggg",
-				mountPath:  "/mnt/ggg",
-				cmd:        "/local/bin/juicefs.mount test",
-				jfsSetting: nil,
+				jfsSetting: &jfsConfig.JfsSetting{
+					VolumeId:   "g",
+					TargetPath: "/mnt/ggg",
+					MountPath:  "/mnt/ggg",
+				},
 			},
 			pod:     testG,
 			wantErr: false,
@@ -496,15 +483,13 @@ func TestWaitUntilMount(t *testing.T) {
 		},
 		{
 			name: "test-not-found",
-			fields: fields{
-				jfsSetting: &jfsConfig.JfsSetting{},
-			},
 			args: args{
-				volumeId:   "i",
-				target:     "/mnt/iii",
-				mountPath:  "/mnt/iii",
-				cmd:        "/local/bin/juicefs.mount test",
-				jfsSetting: nil,
+				cmd: "/local/bin/juicefs.mount test",
+				jfsSetting: &jfsConfig.JfsSetting{
+					VolumeId:   "i",
+					TargetPath: "/mnt/iii",
+					MountPath:  "/mnt/iii",
+				},
 			},
 			pod:     nil,
 			wantErr: false,
@@ -522,10 +507,10 @@ func TestWaitUntilMount(t *testing.T) {
 			if tt.pod != nil {
 				_, _ = p.K8sClient.CreatePod(tt.pod)
 			}
-			if err := p.createOrAddRef(tt.fields.jfsSetting, tt.args.volumeId, tt.args.target, tt.args.mountPath, tt.args.cmd); (err != nil) != tt.wantErr {
+			if err := p.createOrAddRef(tt.args.jfsSetting); (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
+			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.jfsSetting.VolumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
 				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
 			}
@@ -559,7 +544,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
-			err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"}, "ttt", "/test", "/jfs/test-volume", "")
+			err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -583,7 +568,7 @@ func TestJMount(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.JMount(&jfsConfig.JfsSetting{Storage: "ttt"}, "/test", "/jfs/test-volume", "", []string{})
+			err := p.JMount(&jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -621,50 +606,6 @@ func TestNewPodMount(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPodMount() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPodMount_getCommand(t *testing.T) {
-	type args struct {
-		mountPath string
-		options   []string
-	}
-	tests := []struct {
-		name   string
-		isCe   bool
-		source string
-		args   args
-		want   string
-	}{
-		{
-			name:   "test-ce",
-			isCe:   true,
-			source: "redis://127.0.0.1:6379/0",
-			args: args{
-				mountPath: "/jfs/test-volume",
-				options:   []string{"debug"},
-			},
-			want: "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
-		},
-		{
-			name:   "test-ee",
-			isCe:   false,
-			source: "test",
-			args: args{
-				mountPath: "/jfs/test-volume",
-				options:   []string{"debug"},
-			},
-			want: "/sbin/mount.juicefs test /jfs/test-volume -o debug,foreground",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &PodMount{}
-			jfsSetting := &jfsConfig.JfsSetting{Name: tt.name, Source: tt.source, IsCe: tt.isCe}
-			if got := p.getCommand(jfsSetting, tt.args.mountPath, tt.args.options); got != tt.want {
-				t.Errorf("getCommand() = %v, want %v", got, tt.want)
 			}
 		})
 	}

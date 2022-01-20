@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	defaultCmd       = "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet"
+	defaultCmd       = "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o metrics=0.0.0.0:9567"
 	defaultMountPath = "/jfs/default-imagenet"
 	podLimit         = map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceCPU:    resource.MustParse("1"),
@@ -49,7 +49,7 @@ var (
 	dir            = corev1.HostPathDirectoryOrCreate
 	podDefaultTest = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
+			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
 			Labels: map[string]string{
 				config.PodTypeKey: config.PodTypeValue,
@@ -113,7 +113,7 @@ var (
 				},
 			}},
 			RestartPolicy:     corev1.RestartPolicyAlways,
-			NodeName:          config.NodeName,
+			NodeName:          "node",
 			PriorityClassName: config.JFSMountPriorityName,
 		},
 	}
@@ -333,7 +333,7 @@ func Test_quoteForShell(t *testing.T) {
 }
 
 func TestNewMountPod(t *testing.T) {
-	config.NodeName = ""
+	config.NodeName = "node"
 	config.Namespace = ""
 	podLabelTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podLabelTest)
@@ -380,15 +380,15 @@ func TestNewMountPod(t *testing.T) {
 	podCacheTest.Spec.Volumes = append(podCacheTest.Spec.Volumes, cacheVolumes...)
 	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 	type args struct {
-		podName              string
-		cmd                  string
-		mountPath            string
-		resourceRequirements corev1.ResourceRequirements
-		configs              map[string]string
-		env                  map[string]string
-		labels               map[string]string
-		annotations          map[string]string
-		serviceAccount       string
+		name           string
+		cmd            string
+		mountPath      string
+		configs        map[string]string
+		env            map[string]string
+		labels         map[string]string
+		annotations    map[string]string
+		serviceAccount string
+		options        []string
 	}
 	tests := []struct {
 		name string
@@ -398,7 +398,7 @@ func TestNewMountPod(t *testing.T) {
 		{
 			name: "test-labels",
 			args: args{
-				podName:   "test",
+				name:      "test",
 				labels:    map[string]string{"a": "b", "c": "d"},
 				cmd:       defaultCmd,
 				mountPath: defaultMountPath,
@@ -408,7 +408,7 @@ func TestNewMountPod(t *testing.T) {
 		{
 			name: "test-annotation",
 			args: args{
-				podName:     "test",
+				name:        "test",
 				annotations: map[string]string{"a": "b"},
 				cmd:         defaultCmd,
 				mountPath:   defaultMountPath,
@@ -418,7 +418,7 @@ func TestNewMountPod(t *testing.T) {
 		{
 			name: "test-serviceaccount",
 			args: args{
-				podName:        "test",
+				name:           "test",
 				serviceAccount: "test",
 				cmd:            defaultCmd,
 				mountPath:      defaultMountPath,
@@ -428,16 +428,17 @@ func TestNewMountPod(t *testing.T) {
 		{
 			name: "test-cache-dir",
 			args: args{
-				podName:   "test",
+				name:      "test",
 				mountPath: defaultMountPath,
 				cmd:       cmdWithCacheDir,
+				options:   []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240"},
 			},
 			want: podCacheTest,
 		},
 		{
 			name: "test-config",
 			args: args{
-				podName:   "test",
+				name:      "test",
 				cmd:       defaultCmd,
 				mountPath: defaultMountPath,
 				configs:   map[string]string{"secret-test": "/test"},
@@ -447,7 +448,7 @@ func TestNewMountPod(t *testing.T) {
 		{
 			name: "test-env",
 			args: args{
-				podName:   "test",
+				name:      "test",
 				cmd:       defaultCmd,
 				mountPath: defaultMountPath,
 				env:       map[string]string{"a": "b"},
@@ -457,12 +458,73 @@ func TestNewMountPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewMountPod(tt.args.podName, tt.args.cmd, tt.args.mountPath, tt.args.resourceRequirements,
-				tt.args.configs, tt.args.env, tt.args.labels, tt.args.annotations, tt.args.serviceAccount)
+			jfsSetting := &config.JfsSetting{
+				IsCe:                   true,
+				Name:                   tt.args.name,
+				Source:                 "redis://127.0.0.1:6379/0",
+				Configs:                tt.args.configs,
+				Envs:                   tt.args.env,
+				MountPodLabels:         tt.args.labels,
+				MountPodAnnotations:    tt.args.annotations,
+				MountPodServiceAccount: tt.args.serviceAccount,
+				MountPath:              tt.args.mountPath,
+				VolumeId:               tt.args.name,
+				Options:                tt.args.options,
+			}
+			got := NewMountPod(jfsSetting)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {
 				t.Errorf("NewMountPod() = %v \n want %v", string(gotStr), string(wantStr))
+			}
+		})
+	}
+}
+
+func TestPodMount_getCommand(t *testing.T) {
+	type args struct {
+		mountPath string
+		options   []string
+	}
+	tests := []struct {
+		name   string
+		isCe   bool
+		source string
+		args   args
+		want   string
+	}{
+		{
+			name:   "test-ce",
+			isCe:   true,
+			source: "redis://127.0.0.1:6379/0",
+			args: args{
+				mountPath: "/jfs/test-volume",
+				options:   []string{"debug"},
+			},
+			want: "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
+		},
+		{
+			name:   "test-ee",
+			isCe:   false,
+			source: "test",
+			args: args{
+				mountPath: "/jfs/test-volume",
+				options:   []string{"debug"},
+			},
+			want: "/sbin/mount.juicefs test /jfs/test-volume -o debug,foreground",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jfsSetting := &config.JfsSetting{
+				Name:      tt.name,
+				Source:    tt.source,
+				IsCe:      tt.isCe,
+				MountPath: tt.args.mountPath,
+				Options:   tt.args.options,
+			}
+			if got := getCommand(jfsSetting); got != tt.want {
+				t.Errorf("getCommand() = %v, want %v", got, tt.want)
 			}
 		})
 	}

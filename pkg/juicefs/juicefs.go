@@ -170,7 +170,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 		stdoutStderr, err := j.ceFormat(secrets, noUpdate, jfsSecret.Envs)
 		klog.V(5).Infof("JfsMount: format output is '%s'\n", stdoutStderr)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Could not format juicefs: %v", err)
+			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
 		// Default use redis:// scheme
 		if !strings.Contains(source, "://") {
@@ -318,22 +318,24 @@ func (j *juicefs) AuthFs(secrets map[string]string, extraEnvs map[string]string)
 
 // MountFs mounts JuiceFS with idempotency
 func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
-	var mountPath string
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
-		mountPath = filepath.Join(config.PodMountBase, volumeID)
+		jfsSetting.MountPath = filepath.Join(config.PodMountBase, volumeID)
 		mnt = j.podMount
 	} else {
-		mountPath = filepath.Join(config.MountBase, volumeID)
+		jfsSetting.MountPath = filepath.Join(config.MountBase, volumeID)
 		mnt = j.processMount
 	}
+	jfsSetting.VolumeId = volumeID
+	jfsSetting.TargetPath = target
+	jfsSetting.Options = options
 
-	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, mountPath, options)
-	err := mnt.JMount(jfsSetting, volumeID, mountPath, target, options)
+	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, jfsSetting.MountPath, options)
+	err := mnt.JMount(jfsSetting)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, mountPath, err)
+		return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
 	}
-	return mountPath, nil
+	return jfsSetting.MountPath, nil
 }
 
 // Upgrade upgrades binary file in `cliPath` to newest version
