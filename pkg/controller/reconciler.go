@@ -25,51 +25,13 @@ import (
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type PodReconciler struct {
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
-}
-
-func (p PodReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive event. name: %s, namespace: %s", request.Name, request.Namespace)
-
-	// fetch pod
-	requeue, pod, err := p.fetchPod(request.NamespacedName)
-	if err != nil || requeue {
-		return ctrl.Result{}, err
-	}
-
-	// check label
-	if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
-		klog.V(6).Infof("Pod %s is not JuiceFS mount pod. ignore.", pod.Name)
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	// check nodeName
-	if pod.Spec.NodeName != config.NodeName {
-		klog.V(6).Infof("Pod %s is not this node: %s. ignore.", pod.Name, config.NodeName)
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	podDriver := NewPodDriver(p.K8sClient, p.SafeFormatAndMount)
-	return podDriver.Run(ctx, pod)
-}
-
-func (p *PodReconciler) fetchPod(name types.NamespacedName) (bool, *corev1.Pod, error) {
-	if reach, err := p.GetPod(name.Name, name.Namespace); err != nil {
-		klog.V(6).Infof("Get pod namespace %s name %s failed: %v", name.Namespace, name.Name, err)
-		return true, nil, err
-	} else {
-		return false, reach, nil
-	}
 }
 
 func StartReconciler() error {
@@ -95,7 +57,7 @@ func StartReconciler() error {
 		Exec:      k8sexec.New(),
 	}
 
-	podDriver := NewPollingPodDriver(k8sClient, mounter)
+	podDriver := NewPodDriver(k8sClient, mounter)
 
 	go doReconcile(kc, podDriver)
 	return nil

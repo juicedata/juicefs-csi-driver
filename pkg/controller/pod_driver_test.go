@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
@@ -453,7 +454,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return genMountInfos(), nil
 			})
 			defer patch3.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready add don't need recovery ", func() {
@@ -467,7 +468,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("mountinfo parse err", func() {
@@ -479,12 +480,11 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			outputs := []OutputCell{
-				{Values: Params{nil, nil}},
-			}
-			patch2 := ApplyFuncSeq(os.Stat, outputs)
+			patch2 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+				return mocks.FakeFileInfoIno1{}, nil
+			})
 			defer patch2.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready add target mntPath not exists ", func() {
@@ -498,7 +498,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ready and mount err ", func() {
@@ -521,7 +521,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return genMountInfos(), nil
 			})
 			defer patch3.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
@@ -529,7 +529,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podReadyHandler(context.Background(), nil)
+			err := d.podReadyHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod Annotations is nil", func() {
@@ -537,7 +537,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podReadyHandler(context.Background(), &corev1.Pod{
+			err := d.podReadyHandler(context.Background(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "juicefs-test-err-pod",
 					Annotations: nil,
@@ -551,7 +551,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podReadyHandler(context.Background(), errCmdPod)
+			err := d.podReadyHandler(context.Background(), errCmdPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("parse pod mount cmd mntPath err", func() {
@@ -574,7 +574,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					}},
 				},
 			}
-			_, err := d.podReadyHandler(context.Background(), pod)
+			err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod sourcePath err ", func() {
@@ -587,7 +587,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod sourcePath subpath err ", func() {
@@ -608,7 +608,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return mis, nil
 			})
 			defer patch2.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod target status unexpected ", func() {
@@ -626,7 +626,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return genMountInfos(), nil
 			})
 			defer patch2.Reset()
-			_, err := d.podReadyHandler(context.Background(), readyPod)
+			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod target format invalid ", func() {
@@ -654,7 +654,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					}},
 				},
 			}
-			_, err := d.podReadyHandler(context.Background(), pod)
+			err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})
 	})
@@ -699,7 +699,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			tmpPod := copyPod(deletedPod)
-			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("new pod create", func() {
@@ -739,7 +739,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			tmpPod := copyPod(deletedPod)
-			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod delete success ", func() {
@@ -766,7 +766,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 					return []byte(""), nil
 				})
 			defer patch2.Reset()
-			_, err = d.podDeletedHandler(context.Background(), tmpPod)
+			err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
@@ -774,7 +774,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podDeletedHandler(context.Background(), nil)
+			err := d.podDeletedHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod no finalizer", func() {
@@ -784,7 +784,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("skip delete resource err pod", func() {
@@ -793,7 +793,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("remove pod finalizer err ", func() {
@@ -802,7 +802,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podDeletedHandler(context.Background(), tmpPod)
+			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeError)
 		})
 		Convey("pod no Annotations", func() {
@@ -816,7 +816,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = d.podDeletedHandler(context.Background(), tmpPod)
+			err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("can not get mntTarget from pod Annotations", func() {
@@ -832,7 +832,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = d.podDeletedHandler(context.Background(), tmpPod)
+			err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("get sourcePath from pod cmd failed", func() {
@@ -846,7 +846,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = d.podDeletedHandler(context.Background(), tmpPod)
+			err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("umount source err and need mount lazy ", func() {
@@ -869,7 +869,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 					return []byte(""), mountErr
 				})
 			defer patch2.Reset()
-			_, err = d.podDeletedHandler(context.Background(), tmpPod)
+			err = d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 	})
@@ -884,7 +884,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			})
 			Pod := copyPod(readyPod)
 			Pod.Spec.Containers = nil
-			_, err := d.podErrorHandler(context.Background(), Pod)
+			err := d.podErrorHandler(context.Background(), Pod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError but pod no resource", func() {
@@ -894,7 +894,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			})
 			errPod := copyPod(resourceErrPod)
 			errPod.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
-			_, err := d.podErrorHandler(context.Background(), errPod)
+			err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("GetPod error", func() {
@@ -920,7 +920,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			Pod := copyPod(resourceErrPod)
-			_, err := d.podErrorHandler(context.Background(), Pod)
+			err := d.podErrorHandler(context.Background(), Pod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod err add need delete ", func() {
@@ -937,7 +937,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = d.podErrorHandler(context.Background(), errorPod1)
+			err = d.podErrorHandler(context.Background(), errorPod1)
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
@@ -945,7 +945,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			_, err := d.podErrorHandler(context.Background(), nil)
+			err := d.podErrorHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError", func() {
@@ -959,7 +959,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			defer patch1.Reset()
 			errPod := copyPod(resourceErrPod)
 			d.Client.CreatePod(errPod)
-			_, err := d.podErrorHandler(context.Background(), errPod)
+			err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod ResourceError and remove pod Finalizer err", func() {
@@ -968,7 +968,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			errPod := copyPod(resourceErrPod)
-			_, err := d.podErrorHandler(context.Background(), errPod)
+			err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("sourcePath not mount", func() {
@@ -987,7 +987,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				},
 			)
 			defer patch2.Reset()
-			_, err := d.podErrorHandler(context.Background(), Pod)
+			err := d.podErrorHandler(context.Background(), Pod)
 			So(err, ShouldBeNil)
 		})
 	})
