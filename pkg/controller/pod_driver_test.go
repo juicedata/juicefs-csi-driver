@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
@@ -480,9 +479,11 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			patch2 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
-				return mocks.FakeFileInfoIno1{}, nil
-			})
+			outputs := []OutputCell{
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, nil}},
+			}
+			patch2 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch2.Reset()
 			err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
@@ -597,8 +598,9 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			})
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
-				{Values: Params{nil, volErr}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
