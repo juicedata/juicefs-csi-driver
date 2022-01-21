@@ -347,6 +347,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: KUBELET_PORT
+          value: "10250"
         - name: JUICEFS_MOUNT_PATH
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH

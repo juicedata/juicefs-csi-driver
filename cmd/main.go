@@ -19,14 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -93,22 +91,12 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
-	if *enableManager {
-		if config.KubeletPort != "" && config.HostIp != "" {
-			if err := controller.StartReconciler(); err != nil {
-				klog.V(5).Infof("Could not StartReconciler: %v", err)
-				os.Exit(1)
-			}
-			klog.V(5).Infof("Reconciler Stated")
-		} else {
-			manager := apps.NewManager()
-			go func() {
-				if err := manager.Start(ctrl.SetupSignalHandler()); err != nil {
-					klog.V(5).Infof("Could not start manager: %v", err)
-					os.Exit(1)
-				}
-			}()
+	if *enableManager && config.KubeletPort != "" && config.HostIp != "" {
+		if err := controller.StartReconciler(); err != nil {
+			klog.V(5).Infof("Could not StartReconciler: %v", err)
+			os.Exit(1)
 		}
+		klog.V(5).Infof("Reconciler Stated")
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

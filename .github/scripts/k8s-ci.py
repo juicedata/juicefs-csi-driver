@@ -513,10 +513,10 @@ def clean_juicefs_volume(mount_path):
 
 
 def die(e):
-    # csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
-    # po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    # print("Get csi node log:")
-    # print(po.get_log("juicefs-plugin"))
+    csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
+    po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    print("Get csi node log:")
+    print(po.get_log("juicefs-plugin"))
     print("Get csi controller log:")
     controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     print(controller_po.get_log("juicefs-plugin"))

@@ -41,22 +41,10 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
 	if err := p.createOrAddRef(jfsSetting); err != nil {
-		klog.Infof("JMount: createOrAddRef mount pod %s error, fall back", podName)
-		if e := p.JUmount(jfsSetting.VolumeId, jfsSetting.TargetPath); e != nil {
-			klog.Infof("JMount: fall back error: %v", e)
-		}
 		return err
 	}
-	if err := p.waitUtilPodReady(jfsSetting.VolumeId); err != nil {
-		klog.Infof("JMount: mount pod %s not ready in 30 second, fall back", podName)
-		if e := p.JUmount(jfsSetting.VolumeId, jfsSetting.TargetPath); e != nil {
-			klog.Infof("JMount: fall back error: %v", e)
-		}
-		return err
-	}
-	return nil
+	return p.waitUtilPodReady(jfsSetting.VolumeId)
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
