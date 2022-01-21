@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"time"
 
@@ -73,10 +74,9 @@ const (
 )
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
-	podStatus := p.getPodStatus(current)
-
-	if podStatus != podError && podStatus != podDeleted {
-		return p.handlers[podStatus](ctx, current)
+	// check refs in mount pod annotation first, delete ref that target pod is not found
+	if err := p.preCheck(current); err != nil {
+		return err
 	}
 
 	// resourceVersion of kubelet may be different from apiserver
@@ -102,6 +102,51 @@ func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 		return podReady
 	}
 	return podPending
+}
+
+func (p *PodDriver) preCheck(pod *corev1.Pod) error {
+	// check refs in mount pod, the corresponding pod exists or not
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
+	annotation := pod.Annotations
+	existTargets := make(map[string]string)
+	for k, target := range pod.Annotations {
+		if strings.HasPrefix(k, "juicefs-") {
+			targetPodUID := getPodUid(target)
+			targetPodName, ok := p.mit.allPods[targetPodUID]
+			if !ok {
+				// target pod is deleted already
+				delete(annotation, k)
+				continue
+			}
+			got, err := p.Client.GetPod(targetPodName.name, targetPodName.namespace)
+			if (err == nil && string(got.UID) == targetPodUID && got.DeletionTimestamp == nil) ||
+				(err != nil && !apierrors.IsNotFound(err)) {
+				// if unexpected error, keep it in refs
+				// if target pod (same uid) is not deleted, keep it
+				existTargets[k] = targetPodUID
+				continue
+			}
+			delete(annotation, k)
+		}
+	}
+	if !reflect.DeepEqual(pod.Annotations, annotation) {
+		pod.Annotations = annotation
+		if err := p.Client.UpdatePod(pod); err != nil {
+			klog.Errorf("Update pod %s error: %v", pod.Name, err)
+			return err
+		}
+	}
+	if len(existTargets) == 0 {
+		// if there are no refs, delete it
+		if err := p.Client.DeletePod(pod); err != nil {
+			klog.Errorf("Delete pod %s error: %v", pod.Name, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error {
