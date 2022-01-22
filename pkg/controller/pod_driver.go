@@ -84,6 +84,11 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	if err := p.preCheck(pod); err != nil {
 		return err
 	}
+	// get latest pod resourceVersion from apiserver after update refs
+	pod, err = p.Client.GetPod(current.Name, current.Namespace)
+	if err != nil {
+		return nil
+	}
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
