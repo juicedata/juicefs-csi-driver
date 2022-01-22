@@ -82,7 +82,7 @@ func (fs *jfs) GetBasePath() string {
 func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
 
-	klog.V(5).Infof("CreateVol: checking %q exists in %v", volPath, fs)
+	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	exists, err := mount.PathExists(volPath)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
@@ -93,13 +93,13 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 		if err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
 		}
-	}
-	if fi, err := os.Stat(volPath); err != nil {
-		return "", status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
-	} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-		err = os.Chmod(volPath, os.FileMode(0777))
-		if err != nil {
-			return "", status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
+		if fi, err := os.Stat(volPath); err != nil {
+			return "", status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
+		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
+			err = os.Chmod(volPath, os.FileMode(0777))
+			if err != nil {
+				return "", status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
+			}
 		}
 	}
 
