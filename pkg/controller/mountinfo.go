@@ -41,6 +41,14 @@ func (mit *mountInfoTable) parse() (err error) {
 	return
 }
 
+func (mit *mountInfoTable) setPodStatus(pod *corev1.Pod) {
+	if pod.DeletionTimestamp != nil {
+		mit.deletedPods[string(pod.UID)] = true
+	} else {
+		mit.deletedPods[string(pod.UID)] = false
+	}
+}
+
 func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
 	mit.deletedPods = make(map[string]bool)
 	if podList == nil {

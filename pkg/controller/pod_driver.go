@@ -100,6 +100,8 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	if err != nil {
 		return err
 	}
+	// set mount pod status in mit again, maybe deleted
+	p.mit.setPodStatus(pod)
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
