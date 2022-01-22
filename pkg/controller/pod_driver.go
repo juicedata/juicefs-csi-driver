@@ -19,17 +19,19 @@ package controller
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -73,21 +75,29 @@ const (
 )
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
+	// check refs in mount pod annotation first, delete ref that target pod is not found
+	err := p.checkAnnotations(current)
+	if errors.IsConflict(err) {
+		current, err = p.Client.GetPod(current.Name, current.Namespace)
+		if err != nil {
+			return err // temporary
+		}
+		err = p.checkAnnotations(current)
+	}
+	if err != nil {
+		klog.Errorf("check pod %s annotations: %v", current, err)
+	}
+
+	podStatus := p.getPodStatus(current)
+	if podStatus != podError && podStatus != podDeleted {
+		return p.handlers[podStatus](ctx, current)
+	}
+
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
 	pod, err := p.Client.GetPod(current.Name, current.Namespace)
 	if err != nil {
-		return nil
-	}
-
-	// check refs in mount pod annotation first, delete ref that target pod is not found
-	if err := p.preCheck(pod); err != nil {
 		return err
-	}
-	// get latest pod resourceVersion from apiserver after update refs
-	pod, err = p.Client.GetPod(current.Name, current.Namespace)
-	if err != nil {
-		return nil
 	}
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
@@ -108,36 +118,32 @@ func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 	return podPending
 }
 
-func (p *PodDriver) preCheck(pod *corev1.Pod) error {
+func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 	// check refs in mount pod, the corresponding pod exists or not
 	lock := config.GetPodLock(pod.Name)
 	lock.Lock()
 	defer lock.Unlock()
 
 	annotation := make(map[string]string)
-	existTargets := make(map[string]string)
+	var existTargets int
 	for k, target := range pod.Annotations {
 		if strings.HasPrefix(k, "juicefs-") {
-			targetPodUID := getPodUid(target)
-			targetPodName, ok := p.mit.allPods[targetPodUID]
-			if !ok {
-				// target pod is deleted already
-				continue
-			}
-			got, err := p.Client.GetPod(targetPodName.name, targetPodName.namespace)
-			if err != nil && apierrors.IsNotFound(err) {
-				// target pod is deleted
-				continue
-			}
-			if err == nil {
-				if string(got.UID) != targetPodUID ||
-					(string(got.UID) == targetPodUID && got.DeletionTimestamp != nil) {
-					// target pod is not same uid or
-					// target pod is same uid, but deleted
+			// check if target exist
+			// FIXME: will target be leaked?
+			if exist, _ := mount.PathExists(target); !exist {
+				targetPodUID := getPodUid(target)
+				targetPodName, ok := p.mit.allPods[targetPodUID]
+				if !ok {
+					// target pod is deleted already
+					continue
+				}
+				exists, deleted := p.mit.getPodStatus(targetPodName.name, targetPodName.namespace)
+				if deleted || !exists {
+					// target pod is deleted
 					continue
 				}
 			}
-			existTargets[k] = target
+			existTargets++
 		}
 		annotation[k] = target
 	}
@@ -149,7 +155,7 @@ func (p *PodDriver) preCheck(pod *corev1.Pod) error {
 			return err
 		}
 	}
-	if len(existTargets) == 0 {
+	if existTargets == 0 {
 		// if there are no refs, delete it
 		if err := p.Client.DeletePod(pod); err != nil {
 			klog.Errorf("Delete pod %s error: %v", pod.Name, err)
@@ -228,7 +234,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		klog.Errorf("get nil pod")
 		return nil
 	}
-	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
+	klog.V(5).Infof("Pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
 
 	// pod with no finalizer
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
@@ -267,6 +273,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	_, e := doWithinTime(ctx, nil, func() error {
 		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "juicefs-") {
+				// FIXME: check the target pod?
 				// check if target exist
 				if exist, _ := mount.PathExists(v); exist {
 					existTargets[k] = v

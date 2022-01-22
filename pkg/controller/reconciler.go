@@ -76,15 +76,19 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 		}
 		driver.mit.setPodsStatus(podList)
 
-		for _, pod := range podList.Items {
+		for i := range podList.Items {
+			pod := &podList.Items[i]
+			if pod.Namespace != config.Namespace {
+				continue
+			}
 			// check label
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			if pod.Namespace != config.Namespace {
-				continue
+			err := driver.Run(context.Background(), pod)
+			if err != nil {
+				klog.Errorf("Check pod %s: %s", pod.Name, err)
 			}
-			driver.Run(context.Background(), &pod)
 		}
 
 	finish:

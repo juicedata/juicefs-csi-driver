@@ -49,11 +49,11 @@ func (mit *mountInfoTable) parse() (err error) {
 }
 
 func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
+	mit.deletedPods = make(map[string]podName)
+	mit.allPods = make(map[string]podName)
 	if podList == nil {
 		return
 	}
-	mit.deletedPods = make(map[string]podName)
-	mit.allPods = make(map[string]podName)
 	for _, pod := range podList.Items {
 		if pod.DeletionTimestamp != nil {
 			mit.deletedPods[string(pod.UID)] = podName{
@@ -66,6 +66,17 @@ func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
 			namespace: pod.Namespace,
 		}
 	}
+}
+
+func (mit *mountInfoTable) getPodStatus(name, namespace string) (exists, deleted bool) {
+	for uid, pod := range mit.allPods {
+		if pod.namespace == namespace && pod.name == name {
+			exists = true
+			_, deleted = mit.deletedPods[uid]
+			return
+		}
+	}
+	return false, false
 }
 
 const (
