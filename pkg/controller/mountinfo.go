@@ -27,19 +27,12 @@ import (
 type mountInfoTable struct {
 	mis []k8sMount.MountInfo
 	// key is pod UID
-	deletedPods map[string]podName
-	allPods     map[string]podName
-}
-
-type podName struct {
-	name      string
-	namespace string
+	deletedPods map[string]bool
 }
 
 func newMountInfoTable() *mountInfoTable {
 	return &mountInfoTable{
-		deletedPods: make(map[string]podName),
-		allPods:     make(map[string]podName),
+		deletedPods: make(map[string]bool),
 	}
 }
 
@@ -49,34 +42,17 @@ func (mit *mountInfoTable) parse() (err error) {
 }
 
 func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
-	mit.deletedPods = make(map[string]podName)
-	mit.allPods = make(map[string]podName)
+	mit.deletedPods = make(map[string]bool)
 	if podList == nil {
 		return
 	}
 	for _, pod := range podList.Items {
+		deleted := false
 		if pod.DeletionTimestamp != nil {
-			mit.deletedPods[string(pod.UID)] = podName{
-				name:      pod.Name,
-				namespace: pod.Namespace,
-			}
+			deleted = true
 		}
-		mit.allPods[string(pod.UID)] = podName{
-			name:      pod.Name,
-			namespace: pod.Namespace,
-		}
+		mit.deletedPods[string(pod.UID)] = deleted
 	}
-}
-
-func (mit *mountInfoTable) getPodStatus(name, namespace string) (exists, deleted bool) {
-	for uid, pod := range mit.allPods {
-		if pod.namespace == namespace && pod.name == name {
-			exists = true
-			_, deleted = mit.deletedPods[uid]
-			return
-		}
-	}
-	return false, false
 }
 
 const (
@@ -103,8 +79,7 @@ func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
 	}
 
 	mi := &mountItem{}
-	_, mi.podExist = mit.allPods[podUID]
-	_, mi.podDeleted = mit.deletedPods[podUID]
+	mi.podDeleted, mi.podExist = mit.deletedPods[podUID]
 
 	iterms := mit.resolveTargetItem(target, false)
 	// must be 1 or 0

@@ -85,7 +85,8 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 		err = p.checkAnnotations(current)
 	}
 	if err != nil {
-		klog.Errorf("check pod %s annotations: %v", current, err)
+		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
+		return err
 	}
 
 	podStatus := p.getPodStatus(current)
@@ -128,20 +129,10 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 	var existTargets int
 	for k, target := range pod.Annotations {
 		if strings.HasPrefix(k, "juicefs-") {
-			// check if target exist
-			// FIXME: will target be leaked?
-			if exist, _ := mount.PathExists(target); !exist {
-				targetPodUID := getPodUid(target)
-				targetPodName, ok := p.mit.allPods[targetPodUID]
-				if !ok {
-					// target pod is deleted already
-					continue
-				}
-				exists, deleted := p.mit.getPodStatus(targetPodName.name, targetPodName.namespace)
-				if deleted || !exists {
-					// target pod is deleted
-					continue
-				}
+			deleted, exists := p.mit.deletedPods[getPodUid(target)]
+			if deleted || !exists {
+				// target pod is deleted
+				continue
 			}
 			existTargets++
 		}
@@ -155,8 +146,9 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 			return err
 		}
 	}
-	if existTargets == 0 {
+	if existTargets == 0 && pod.DeletionTimestamp == nil {
 		// if there are no refs, delete it
+		klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
 		if err := p.Client.DeletePod(pod); err != nil {
 			klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 			return err
@@ -270,23 +262,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
 
-	_, e := doWithinTime(ctx, nil, func() error {
-		for k, v := range pod.Annotations {
-			if strings.HasPrefix(k, "juicefs-") {
-				// FIXME: check the target pod?
-				// check if target exist
-				if exist, _ := mount.PathExists(v); exist {
-					existTargets[k] = v
-					return nil
-				}
-				klog.V(5).Infof("Target %s didn't exist.", v)
-				delete(annotation, k)
-			}
+	for k, v := range pod.Annotations {
+		// annotation is checked in beginning, don't double-check here
+		if strings.HasPrefix(k, "juicefs-") {
+			existTargets[k] = v
 		}
-		return nil
-	})
-	if e != nil {
-		return nil
 	}
 
 	if len(existTargets) == 0 {
