@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc/status"
 	"os"
 	"os/exec"
-	"reflect"
 	"strings"
 	"time"
 
@@ -74,16 +73,16 @@ const (
 )
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
-	// check refs in mount pod annotation first, delete ref that target pod is not found
-	if err := p.preCheck(current); err != nil {
-		return err
-	}
-
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
 	pod, err := p.Client.GetPod(current.Name, current.Namespace)
 	if err != nil {
 		return nil
+	}
+
+	// check refs in mount pod annotation first, delete ref that target pod is not found
+	if err := p.preCheck(pod); err != nil {
+		return err
 	}
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
@@ -110,7 +109,7 @@ func (p *PodDriver) preCheck(pod *corev1.Pod) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	annotation := pod.Annotations
+	annotation := make(map[string]string)
 	existTargets := make(map[string]string)
 	for k, target := range pod.Annotations {
 		if strings.HasPrefix(k, "juicefs-") {
@@ -118,21 +117,27 @@ func (p *PodDriver) preCheck(pod *corev1.Pod) error {
 			targetPodName, ok := p.mit.allPods[targetPodUID]
 			if !ok {
 				// target pod is deleted already
-				delete(annotation, k)
 				continue
 			}
 			got, err := p.Client.GetPod(targetPodName.name, targetPodName.namespace)
-			if (err == nil && string(got.UID) == targetPodUID && got.DeletionTimestamp == nil) ||
-				(err != nil && !apierrors.IsNotFound(err)) {
-				// if unexpected error, keep it in refs
-				// if target pod (same uid) is not deleted, keep it
-				existTargets[k] = targetPodUID
+			if err != nil && apierrors.IsNotFound(err) {
+				// target pod is deleted
 				continue
 			}
-			delete(annotation, k)
+			if err == nil {
+				if string(got.UID) != targetPodUID ||
+					(string(got.UID) == targetPodUID && got.DeletionTimestamp != nil) {
+					// target pod is not same uid or
+					// target pod is same uid, but deleted
+					continue
+				}
+			}
+			existTargets[k] = target
 		}
+		annotation[k] = target
 	}
-	if !reflect.DeepEqual(pod.Annotations, annotation) {
+
+	if len(pod.Annotations) != len(annotation) {
 		pod.Annotations = annotation
 		if err := p.Client.UpdatePod(pod); err != nil {
 			klog.Errorf("Update pod %s error: %v", pod.Name, err)
