@@ -31,7 +31,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -77,7 +76,7 @@ const (
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(current)
-	if errors.IsConflict(err) {
+	if apierrors.IsConflict(err) {
 		current, err = p.Client.GetPod(current.Name, current.Namespace)
 		if err != nil {
 			return err // temporary
@@ -130,7 +129,7 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 	annotation := make(map[string]string)
 	var existTargets int
 	for k, target := range pod.Annotations {
-		if strings.HasPrefix(k, "juicefs-") {
+		if k == util.GetReferenceKey(target) {
 			deleted, exists := p.mit.deletedPods[getPodUid(target)]
 			if deleted || !exists {
 				// target pod is deleted
@@ -266,7 +265,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
-		if strings.HasPrefix(k, "juicefs-") {
+		if k == util.GetReferenceKey(v) {
 			existTargets[k] = v
 		}
 	}
