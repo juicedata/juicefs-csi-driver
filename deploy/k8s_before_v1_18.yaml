@@ -32,6 +32,7 @@ rules:
   - ""
   resources:
   - pods
+  - secrets
   verbs:
   - get
   - list
@@ -117,6 +118,10 @@ rules:
   verbs:
   - get
   - list
+  - create
+  - update
+  - patch
+  - delete
 - apiGroups:
   - ""
   resources:

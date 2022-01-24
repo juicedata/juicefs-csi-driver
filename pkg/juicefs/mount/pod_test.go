@@ -84,6 +84,13 @@ var (
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
 				}},
+				EnvFrom: []corev1.EnvFromSource{{
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "juicefs-node-test",
+						},
+					},
+				}},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:             "jfs-dir",
@@ -354,10 +361,6 @@ func TestNewMountPod(t *testing.T) {
 
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
-	podEnvTest.Spec.Containers[0].Env = append(podEnvTest.Spec.Containers[0].Env, corev1.EnvVar{
-		Name:  "a",
-		Value: "b",
-	})
 	putDefaultCacheDir(&podEnvTest)
 
 	podConfigTest := corev1.Pod{}

@@ -106,3 +106,42 @@ func (k *K8sClient) DeletePod(pod *corev1.Pod) error {
 	klog.V(6).Infof("Delete pod %v", pod.Name)
 	return k.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 }
+
+func (k *K8sClient) GetSecret(secretName, namespace string) (*corev1.Secret, error) {
+	klog.V(6).Infof("Get secret %s", secretName)
+	secret, err := k.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get secret %s namespace %s: %v", secretName, namespace, err)
+		return nil, err
+	}
+	return secret, nil
+}
+
+func (k *K8sClient) CreateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
+	if secret == nil {
+		klog.V(5).Info("Create secret: secret is nil")
+		return nil, nil
+	}
+	klog.V(6).Infof("Create secret %s", secret.Name)
+	secret, err := k.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	if err != nil {
+		klog.V(5).Infof("Can't create secret %s: %v", secret.Name, err)
+		return nil, err
+	}
+	return secret, nil
+}
+
+func (k *K8sClient) UpdateSecret(secret *corev1.Secret) error {
+	if secret == nil {
+		klog.V(5).Info("Update secret: secret is nil")
+		return nil
+	}
+	klog.V(6).Infof("Update secret %v", secret.Name)
+	_, err := k.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+	return err
+}
+
+func (k *K8sClient) DeleteSecret(secretName string, namespace string) error {
+	klog.V(6).Infof("Delete secret %s", secretName)
+	return k.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+}

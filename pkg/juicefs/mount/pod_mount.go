@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -48,7 +49,7 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
-	podName := GeneratePodNameByVolumeId(volumeId)
+	podName := GenerateNameByVolumeId(volumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -56,7 +57,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	// check mount pod is need to delete
 	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
 
-	pod, err := p.K8sClient.GetPod(GeneratePodNameByVolumeId(volumeId), jfsConfig.Namespace)
+	pod, err := p.K8sClient.GetPod(GenerateNameByVolumeId(volumeId), jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("JUmount: Get pod of volumeId %s err: %v", volumeId, err)
 		return err
@@ -110,6 +111,18 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 			klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
+		secretName := GenerateNameByVolumeId(volumeId)
+		if _, err = p.K8sClient.GetSecret(secretName, jfsConfig.Namespace); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		err = p.K8sClient.DeleteSecret(secretName, jfsConfig.Namespace)
+		if err != nil {
+			klog.V(5).Infof("JUmount: Delete secret of volumeId %s error: %v", volumeId, err)
+			return err
+		}
 		return nil
 	}
 
@@ -129,10 +142,15 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
+	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
+
+	secret := NewSecret(jfsSetting)
+	if err := p.createOrUpdateSecret(&secret); err != nil {
+		return err
+	}
 
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
@@ -152,12 +170,12 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				_, err = p.K8sClient.CreatePod(newPod)
 				if err != nil {
-					klog.Errorf("createOrAddRef: Create pod %s err and retry: %v", podName, err)
+					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
-				return nil
+				return err
 			}
 			// unexpect error
-			klog.Errorf("createOrAddRef: Get pod %s err and retry: %v", podName, err)
+			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
 			return err
 		}
 		// pod exist, add refs
@@ -167,7 +185,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) waitUtilPodReady(volumeId string) error {
-	podName := GeneratePodNameByVolumeId(volumeId)
+	podName := GenerateNameByVolumeId(volumeId)
 	// Wait until the mount pod is ready
 	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
@@ -210,6 +228,31 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
+		return err
+	}
+	return nil
+}
+
+func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
+	klog.V(5).Infof("createOrUpdateSecret: %s, %s", secret.Name, secret.Namespace)
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		oldSecret, err := p.K8sClient.GetSecret(secret.Name, jfsConfig.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// secret not exist, create
+				klog.V(5).Infof("createOrUpdateSecret: Create secret %s", secret.Name)
+				_, err := p.K8sClient.CreateSecret(secret)
+				return err
+			}
+			// unexpected err
+			return err
+		}
+
+		oldSecret.StringData = secret.StringData
+		return p.K8sClient.UpdateSecret(oldSecret)
+	})
+	if err != nil {
+		klog.Errorf("createOrUpdateSecret: secret %s: %v", secret.Name, err)
 		return err
 	}
 	return nil

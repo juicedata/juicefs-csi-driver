@@ -269,8 +269,8 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string, extraEnvs map[string]string) ([]byte, error) {
-				return []byte(""), nil
+			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string) (string, error) {
+				return "", nil
 			})
 			defer patch3.Reset()
 			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
@@ -417,25 +417,8 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			volumeId := "test-volume-id"
 			targetPath := "/target"
 			secret := map[string]string{
-				"name":    "test",
 				"metaurl": "redis://127.0.0.1:6379/1",
 			}
-
-			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
-			defer patch2.Reset()
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
-				return "", nil
-			})
-			defer patch4.Reset()
-
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
 					Interface: nil,
@@ -603,7 +586,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets, map[string]string{"a": "b"})
+			_, err := jfs.AuthFs(secrets)
 			So(err, ShouldBeNil)
 		})
 		Convey("secret nil", func() {
@@ -614,7 +597,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(nil, map[string]string{})
+			_, err := jfs.AuthFs(nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no name", func() {
@@ -626,7 +609,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secret, map[string]string{})
+			_, err := jfs.AuthFs(secret)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no bucket", func() {
@@ -647,7 +630,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets, map[string]string{})
+			_, err := jfs.AuthFs(secrets)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -949,9 +932,6 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				"metaurl": "redis://127.0.0.1:6379/1",
 				"storage": "ceph",
 			}
-			extraEnvs := map[string]string{
-				"a": "b",
-			}
 
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
@@ -966,7 +946,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, extraEnvs)
+			_, err := jfs.ceFormat(secret, true)
 			So(err, ShouldBeNil)
 		})
 		Convey("no name", func() {
@@ -987,7 +967,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			_, err := jfs.ceFormat(secret, true)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("no metaurl", func() {
@@ -1008,7 +988,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			_, err := jfs.ceFormat(secret, true)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("nil secret", func() {
@@ -1019,7 +999,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(nil, true, map[string]string{})
+			_, err := jfs.ceFormat(nil, true)
 			So(err, ShouldNotBeNil)
 		})
 	})

@@ -34,8 +34,16 @@ type JfsSetting struct {
 	Source  string `json:"source"`
 	Storage string `json:"storage"`
 
+	// put in secret
+	SecretKey     string            `json:"secret-key"`
+	SecretKey2    string            `json:"secret-key2"`
+	Token         string            `json:"token"`
+	Passphrase    string            `json:"passphrase"`
+	Envs          map[string]string `json:"envs"`
+	EncryptRsaKey string            `json:"encrypt_rsa_key"`
+	InitConfig    string            `json:"init_config"`
+
 	Configs map[string]string `json:"configs"`
-	Envs    map[string]string `json:"envs"`
 
 	MountPodCpuLimit       string            `json:"mount_pod_cpu_limit"`
 	MountPodMemLimit       string            `json:"mount_pod_mem_limit"`
@@ -49,6 +57,7 @@ type JfsSetting struct {
 	MountPath  string
 	TargetPath string
 	Options    []string
+	FormatCmd  string
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
@@ -61,11 +70,32 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	}
 	jfsSetting.Name = secrets["name"]
 	jfsSetting.Storage = secrets["storage"]
+	jfsSetting.Envs = make(map[string]string)
+	jfsSetting.Configs = make(map[string]string)
 
 	m, ok := secrets["metaurl"]
 	jfsSetting.MetaUrl = m
 	jfsSetting.IsCe = ok
 	jfsSetting.UsePod = usePod
+
+	if secrets["secret-key"] != "" {
+		jfsSetting.SecretKey = secrets["secret-key"]
+	}
+	if secrets["secret-key2"] != "" {
+		jfsSetting.SecretKey2 = secrets["secret-key2"]
+	}
+	if secrets["token"] != "" {
+		jfsSetting.Token = secrets["token"]
+	}
+	if secrets["passphrase"] != "" {
+		jfsSetting.Passphrase = secrets["passphrase"]
+	}
+	if secrets["encrypt_rsa_key"] != "" {
+		jfsSetting.EncryptRsaKey = secrets["encrypt_rsa_key"]
+	}
+	if secrets["initconfig"] != "" {
+		jfsSetting.InitConfig = secrets["initconfig"]
+	}
 
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]

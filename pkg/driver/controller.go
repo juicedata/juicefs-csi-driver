@@ -2,6 +2,10 @@ package driver
 
 import (
 	"context"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -31,11 +35,17 @@ var (
 )
 
 type controllerService struct {
-	juicefs juicefs.Interface
-	vols    map[string]int64
+	mount.SafeFormatAndMount
+	juicefs   juicefs.Interface
+	vols      map[string]int64
+	k8sClient *k8sclient.K8sClient
 }
 
-func newControllerService() controllerService {
+func newControllerService() (*controllerService, error) {
+	mounter := &mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
+	}
 	jfs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
@@ -47,10 +57,18 @@ func newControllerService() controllerService {
 	}
 	klog.V(4).Infof("Controller: %s", stdoutStderr)
 
-	return controllerService{
-		juicefs: jfs,
-		vols:    make(map[string]int64),
+	k8sClient, err := k8sclient.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
 	}
+
+	return &controllerService{
+		SafeFormatAndMount: *mounter,
+		juicefs:            jfs,
+		vols:               make(map[string]int64),
+		k8sClient:          k8sClient,
+	}, nil
 }
 
 // CreateVolume create directory in an existing JuiceFS filesystem
@@ -79,7 +97,8 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// create volume
 	// 1. mount juicefs
-	jfs, err := d.juicefs.JfsMount(volumeId, "", secrets, nil, []string{}, false)
+	target := volumeId + "controller"
+	jfs, err := d.juicefs.JfsMount(volumeId, target, secrets, nil, []string{}, true)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -92,8 +111,9 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// 3. umount
-	if err = d.juicefs.Unmount(jfs.GetBasePath()); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeId, err)
+	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
+	if err := mnt.JUmount(volumeId, target); err != nil {
+		return &csi.CreateVolumeResponse{}, err
 	}
 
 	// set volume context
@@ -122,7 +142,8 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	jfs, err := d.juicefs.JfsMount(volumeID, "", secrets, nil, []string{}, false)
+	target := volumeID + "controller"
+	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, nil, []string{}, true)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -134,8 +155,10 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	delete(d.vols, volumeID)
 
-	if err = d.juicefs.Unmount(jfs.GetBasePath()); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
+	// 3. umount
+	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
+	if err := mnt.JUmount(volumeID, target); err != nil {
+		return &csi.DeleteVolumeResponse{}, err
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }

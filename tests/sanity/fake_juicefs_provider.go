@@ -63,8 +63,8 @@ func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) AuthFs(secrets map[string]string, extraEnvs map[string]string) ([]byte, error) {
-	return []byte{}, nil
+func (j *fakeJfsProvider) AuthFs(secrets map[string]string) (string, error) {
+	return "", nil
 }
 
 func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
