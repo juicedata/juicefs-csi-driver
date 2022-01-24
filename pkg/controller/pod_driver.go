@@ -265,7 +265,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
-		if strings.HasPrefix(k, "juicefs-") {
+		if k == util.GetReferenceKey(v) {
 			existTargets[k] = v
 		}
 	}
