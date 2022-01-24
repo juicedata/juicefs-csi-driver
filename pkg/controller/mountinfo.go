@@ -41,11 +41,19 @@ func (mit *mountInfoTable) parse() (err error) {
 	return
 }
 
+func (mit *mountInfoTable) setPodStatus(pod *corev1.Pod) {
+	if pod.DeletionTimestamp != nil {
+		mit.deletedPods[string(pod.UID)] = true
+	} else {
+		mit.deletedPods[string(pod.UID)] = false
+	}
+}
+
 func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
+	mit.deletedPods = make(map[string]bool)
 	if podList == nil {
 		return
 	}
-	mit.deletedPods = make(map[string]bool)
 	for _, pod := range podList.Items {
 		deleted := false
 		if pod.DeletionTimestamp != nil {
@@ -68,23 +76,18 @@ func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
 	if len(pair) != 2 {
 		return nil
 	}
+	podDir := strings.TrimSuffix(pair[0], "/")
+	podUID := getPodUid(target)
+	if podUID == "" {
+		return nil
+	}
+	pvName := getPVName(target)
+	if pvName == "" {
+		return nil
+	}
 
 	mi := &mountItem{}
-
-	podDir := strings.TrimSuffix(pair[0], "/")
-	index := strings.LastIndex(podDir, "/")
-	if index <= 0 {
-		return nil
-	}
-	podUID := podDir[index+1:]
 	mi.podDeleted, mi.podExist = mit.deletedPods[podUID]
-
-	pvName := strings.TrimPrefix(pair[1], "/")
-	index = strings.Index(pvName, "/")
-	if index <= 0 {
-		return nil
-	}
-	pvName = pvName[:index]
 
 	iterms := mit.resolveTargetItem(target, false)
 	// must be 1 or 0
@@ -199,4 +202,32 @@ type mountItem struct {
 	podDeleted    bool
 	baseTarget    *targetItem
 	subPathTarget []*targetItem
+}
+
+func getPodUid(target string) string {
+	pair := strings.Split(target, containerCsiDirectory)
+	if len(pair) != 2 {
+		return ""
+	}
+
+	podDir := strings.TrimSuffix(pair[0], "/")
+	index := strings.LastIndex(podDir, "/")
+	if index <= 0 {
+		return ""
+	}
+	return podDir[index+1:]
+}
+
+func getPVName(target string) string {
+	pair := strings.Split(target, containerCsiDirectory)
+	if len(pair) != 2 {
+		return ""
+	}
+
+	pvName := strings.TrimPrefix(pair[1], "/")
+	index := strings.Index(pvName, "/")
+	if index <= 0 {
+		return ""
+	}
+	return pvName[:index]
 }

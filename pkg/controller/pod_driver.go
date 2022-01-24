@@ -19,17 +19,19 @@ package controller
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -73,8 +75,21 @@ const (
 )
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
-	podStatus := p.getPodStatus(current)
+	// check refs in mount pod annotation first, delete ref that target pod is not found
+	err := p.checkAnnotations(current)
+	if errors.IsConflict(err) {
+		current, err = p.Client.GetPod(current.Name, current.Namespace)
+		if err != nil {
+			return err // temporary
+		}
+		err = p.checkAnnotations(current)
+	}
+	if err != nil {
+		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
+		return err
+	}
 
+	podStatus := p.getPodStatus(current)
 	if podStatus != podError && podStatus != podDeleted {
 		return p.handlers[podStatus](ctx, current)
 	}
@@ -83,8 +98,10 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// so we need get latest pod resourceVersion from apiserver
 	pod, err := p.Client.GetPod(current.Name, current.Namespace)
 	if err != nil {
-		return nil
+		return err
 	}
+	// set mount pod status in mit again, maybe deleted
+	p.mit.setPodStatus(pod)
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
@@ -102,6 +119,44 @@ func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 		return podReady
 	}
 	return podPending
+}
+
+func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
+	// check refs in mount pod, the corresponding pod exists or not
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
+	annotation := make(map[string]string)
+	var existTargets int
+	for k, target := range pod.Annotations {
+		if strings.HasPrefix(k, "juicefs-") {
+			deleted, exists := p.mit.deletedPods[getPodUid(target)]
+			if deleted || !exists {
+				// target pod is deleted
+				continue
+			}
+			existTargets++
+		}
+		annotation[k] = target
+	}
+
+	if len(pod.Annotations) != len(annotation) {
+		pod.Annotations = annotation
+		if err := p.Client.UpdatePod(pod); err != nil {
+			klog.Errorf("Update pod %s error: %v", pod.Name, err)
+			return err
+		}
+	}
+	if existTargets == 0 && pod.DeletionTimestamp == nil {
+		// if there are no refs, delete it
+		klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
+		if err := p.Client.DeletePod(pod); err != nil {
+			klog.Errorf("Delete pod %s error: %v", pod.Name, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error {
@@ -173,7 +228,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		klog.Errorf("get nil pod")
 		return nil
 	}
-	klog.V(5).Infof("Get pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
+	klog.V(5).Infof("Pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
 
 	// pod with no finalizer
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
@@ -209,22 +264,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
 
-	_, e := doWithinTime(ctx, nil, func() error {
-		for k, v := range pod.Annotations {
-			if strings.HasPrefix(k, "juicefs-") {
-				// check if target exist
-				if exist, _ := mount.PathExists(v); exist {
-					existTargets[k] = v
-					return nil
-				}
-				klog.V(5).Infof("Target %s didn't exist.", v)
-				delete(annotation, k)
-			}
+	for k, v := range pod.Annotations {
+		// annotation is checked in beginning, don't double-check here
+		if strings.HasPrefix(k, "juicefs-") {
+			existTargets[k] = v
 		}
-		return nil
-	})
-	if e != nil {
-		return nil
 	}
 
 	if len(existTargets) == 0 {
