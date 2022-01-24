@@ -76,9 +76,7 @@ const (
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(current)
-	conflict := false
 	if apierrors.IsConflict(err) {
-		conflict = true
 		current, err = p.Client.GetPod(current.Name, current.Namespace)
 		if err != nil {
 			return err // temporary
@@ -97,15 +95,13 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
-	if !conflict {
-		current, err = p.Client.GetPod(current.Name, current.Namespace)
-		if err != nil {
-			return err
-		}
+	pod, err := p.Client.GetPod(current.Name, current.Namespace)
+	if err != nil {
+		return err
 	}
 	// set mount pod status in mit again, maybe deleted
-	p.mit.setPodStatus(current)
-	return p.handlers[p.getPodStatus(current)](ctx, current)
+	p.mit.setPodStatus(pod)
+	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
 func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
