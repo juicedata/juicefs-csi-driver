@@ -27,8 +27,9 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	return &Driver{
 		endpoint: endpoint,
 		controllerService: controllerService{
-			juicefs: fakeProvider,
-			vols:    make(map[string]int64),
+			juicefs:   fakeProvider,
+			vols:      make(map[string]int64),
+			k8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 		},
 		nodeService: nodeService{
 			juicefs:   fakeProvider,
