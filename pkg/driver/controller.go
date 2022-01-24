@@ -39,6 +39,7 @@ type controllerService struct {
 	juicefs   juicefs.Interface
 	vols      map[string]int64
 	k8sClient *k8sclient.K8sClient
+	mnt       podmount.MntInterface
 }
 
 func newControllerService() (*controllerService, error) {
@@ -63,11 +64,13 @@ func newControllerService() (*controllerService, error) {
 		return nil, err
 	}
 
+	mnt := podmount.NewPodMount(k8sClient, *mounter)
 	return &controllerService{
 		SafeFormatAndMount: *mounter,
 		juicefs:            jfs,
 		vols:               make(map[string]int64),
 		k8sClient:          k8sClient,
+		mnt:                mnt,
 	}, nil
 }
 
@@ -111,9 +114,8 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// 3. umount
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeId, target); err != nil {
-		return &csi.CreateVolumeResponse{}, err
+	if err := d.mnt.JUmount(volumeId, target); err != nil {
+		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
 	}
 
 	// set volume context
@@ -156,9 +158,8 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	delete(d.vols, volumeID)
 
 	// 3. umount
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeID, target); err != nil {
-		return &csi.DeleteVolumeResponse{}, err
+	if err := d.mnt.JUmount(volumeID, target); err != nil {
+		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
