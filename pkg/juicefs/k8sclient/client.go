@@ -17,9 +17,11 @@ limitations under the License.
 package k8sclient
 
 import (
+	"bytes"
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,6 +77,28 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) GetPodLog(podName, namespace, containerName string) (string, error) {
+	klog.V(6).Infof("Get pod %s log", podName)
+	tailLines := int64(5)
+	req := k.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+		Container: containerName,
+		TailLines: &tailLines,
+	})
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+	return str, nil
 }
 
 func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {

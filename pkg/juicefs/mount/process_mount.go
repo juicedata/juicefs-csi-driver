@@ -104,7 +104,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 }
 
-func (p *ProcessMount) JUmount(volumeId, target string) error {
+func (p *ProcessMount) JUmount(volumeId, target string, simple bool) error {
 	return p.Unmount(target)
 }
 

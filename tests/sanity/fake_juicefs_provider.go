@@ -17,7 +17,6 @@ limitations under the License.
 package sanity
 
 import (
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -34,15 +33,7 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) JfsCleanupMountPoint(mountPath string) error {
-	return nil
-}
-
-func (j *fakeJfsProvider) DelRefOfMountPod(volumeId, target string) error {
-	return nil
-}
-
-func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[string]string, options []string, usePod bool) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsSimpleMount(volumeID string, secrets map[string]string) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 
@@ -59,16 +50,29 @@ func (j *fakeJfsProvider) JfsMount(volumeID, target string, secrets, volCtx map[
 	return &fs, nil
 }
 
-func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
+func (j *fakeJfsProvider) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
+	jfsName := "fake"
+	fs, ok := j.fs[jfsName]
+
+	if ok {
+		return &fs, nil
+	}
+
+	fs = fakeJfs{
+		basePath: "/jfs/fake",
+		volumes:  map[string]string{},
+	}
+
+	j.fs[jfsName] = fs
+	return &fs, nil
+}
+
+func (j *fakeJfsProvider) JfsCleanupMountPoint(mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) AuthFs(secrets map[string]string) (string, error) {
-	return "", nil
-}
-
-func (j *fakeJfsProvider) MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
-	return "/jfs/fake", nil
+func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
+	return nil
 }
 
 func (j *fakeJfsProvider) Version() ([]byte, error) {

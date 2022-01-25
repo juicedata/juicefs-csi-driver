@@ -45,11 +45,11 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrAddRef(jfsSetting); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(jfsSetting.VolumeId)
+	return p.waitUtilPodReady(GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple))
 }
 
-func (p *PodMount) JUmount(volumeId, target string) error {
-	podName := GenerateNameByVolumeId(volumeId)
+func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
+	podName := GenerateNameByVolumeId(volumeId, simple)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -57,15 +57,15 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	// check mount pod is need to delete
 	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
 
-	pod, err := p.K8sClient.GetPod(GenerateNameByVolumeId(volumeId), jfsConfig.Namespace)
+	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.Errorf("JUmount: Get pod of volumeId %s err: %v", volumeId, err)
+		klog.Errorf("JUmount: Get pod %s err: %v", podName, err)
 		return err
 	}
 
 	// if mount pod not exists.
 	if pod == nil {
-		klog.V(5).Infof("JUmount: Mount pod of volumeId %v not exists.", volumeId)
+		klog.V(5).Infof("JUmount: Mount pod %v not exists.", podName)
 		return nil
 	}
 
@@ -83,6 +83,9 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 			return nil
 		}
 		delete(annotation, key)
+		if _, ok := po.Annotations[jfsConfig.PodSimpleAnnotationKey]; ok {
+			delete(annotation, jfsConfig.PodSimpleAnnotationKey)
+		}
 		po.Annotations = annotation
 		return p.K8sClient.UpdatePod(po)
 	})
@@ -111,7 +114,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 			klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
 			return err
 		}
-		secretName := GenerateNameByVolumeId(volumeId)
+		secretName := GenerateNameByVolumeId(volumeId, simple)
 		if _, err = p.K8sClient.GetSecret(secretName, jfsConfig.Namespace); err != nil {
 			if k8serrors.IsNotFound(err) {
 				return nil
@@ -142,7 +145,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
+	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -184,8 +187,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
 }
 
-func (p *PodMount) waitUtilPodReady(volumeId string) error {
-	podName := GenerateNameByVolumeId(volumeId)
+func (p *PodMount) waitUtilPodReady(podName string) error {
 	// Wait until the mount pod is ready
 	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
@@ -198,7 +200,11 @@ func (p *PodMount) waitUtilPodReady(volumeId string) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "waitUtilPodReady: Mount pod %s failed: mount pod isn't ready in 30 seconds", podName)
+	log, err := p.getErrContainerLog(podName)
+	if err != nil {
+		klog.Errorf("waitUtilPodReady: get pod %s log error %v", podName, err)
+	}
+	return status.Errorf(codes.Internal, "waitUtilPodReady: mount pod %s isn't ready in 30 seconds: %v", podName, log)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
@@ -256,4 +262,24 @@ func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
 		return err
 	}
 	return nil
+}
+
+func (p *PodMount) getErrContainerLog(podName string) (log string, err error) {
+	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+	if err != nil {
+		return
+	}
+	for _, cn := range pod.Status.InitContainerStatuses {
+		if !cn.Ready {
+			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			return
+		}
+	}
+	for _, cn := range pod.Status.ContainerStatuses {
+		if !cn.Ready {
+			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			return
+		}
+	}
+	return
 }

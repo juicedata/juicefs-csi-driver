@@ -282,7 +282,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("ce normal", func() {
@@ -316,7 +316,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("parse err", func() {
@@ -329,7 +329,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("ee no token", func() {
@@ -353,7 +353,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("mountFs err", func() {
@@ -377,7 +377,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("ce no bucket", func() {
@@ -410,7 +410,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("ce format error", func() {
@@ -426,7 +426,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 	})

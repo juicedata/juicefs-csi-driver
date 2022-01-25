@@ -107,7 +107,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
+			if err := p.JUmount(tt.args.volumeId, tt.args.target, false); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

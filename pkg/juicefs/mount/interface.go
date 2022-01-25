@@ -24,6 +24,6 @@ import (
 type MntInterface interface {
 	k8sMount.Interface
 	JMount(jfsSetting *jfsConfig.JfsSetting) error
-	JUmount(volumeId, target string) error
+	JUmount(volumeId, target string, simple bool) error
 	AddRefOfMount(target string, podName string) error
 }

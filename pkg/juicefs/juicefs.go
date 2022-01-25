@@ -39,10 +39,9 @@ import (
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error)
+	JfsSimpleMount(volumeID string, secrets map[string]string) (Jfs, error)
+	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsUnmount(mountPath string) error
-	AuthFs(secrets map[string]string) (string, error)
-	MountFs(volumeID string, target string, options []string, jfsSetting *config.JfsSetting) (string, error)
 	JfsCleanupMountPoint(mountPath string) error
 	Version() ([]byte, error)
 }
@@ -138,9 +137,17 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
+func (j *juicefs) JfsSimpleMount(volumeID string, secrets map[string]string) (Jfs, error) {
+	return j.jfsMount(volumeID, "", secrets, map[string]string{}, []string{}, true, true)
+}
+
+func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
+	return j.jfsMount(volumeID, target, secrets, volCtx, options, true, false)
+}
+
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (Jfs, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod)
+func (j *juicefs) jfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod, simple bool) (Jfs, error) {
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod, simple)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
@@ -181,7 +188,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 	}
 	mountPath, err = j.MountFs(volumeID, target, options, jfsSetting)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 
 	return &jfs{
@@ -267,7 +274,9 @@ func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
 		"secretkey2",
 		"passphrase"}
 	isOptional := map[string]bool{
+		"accesskey":  true,
 		"accesskey2": true,
+		"secretkey":  true,
 		"secretkey2": true,
 		"bucket":     true,
 		"bucket2":    true,
@@ -281,7 +290,7 @@ func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
 	}
 	for _, k := range keysStripped {
 		if !isOptional[k] || secrets[k] != "" {
-			args = append(args, fmt.Sprintf("--%s=$(%s)", k, k))
+			args = append(args, fmt.Sprintf("--%s=${%s}", k, k))
 		}
 	}
 	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
@@ -314,7 +323,7 @@ func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting 
 	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, jfsSetting.MountPath, options)
 	err := mnt.JMount(jfsSetting)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
+		return "", err
 	}
 	return jfsSetting.MountPath, nil
 }
@@ -381,7 +390,7 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) (string, er
 		"inodes",
 		"shards",
 	}
-	keysStripped := []string{"secret-key"}
+	keysStripped := map[string]string{"secret-key": "secretkey"}
 	isOptional := map[string]bool{
 		"block-size": true,
 		"compress":   true,
@@ -395,12 +404,12 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) (string, er
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
-	for _, k := range keysStripped {
+	for k, v := range keysStripped {
 		if !isOptional[k] || secrets[k] != "" {
-			args = append(args, fmt.Sprintf("--%s=$(%s)", k, k))
+			args = append(args, fmt.Sprintf("--%s=${%s}", k, v))
 		}
 	}
-	args = append(args, "$(metaurl)", secrets["name"])
+	args = append(args, "${metaurl}", secrets["name"])
 	cmd := strings.Join(args, " ")
 	klog.V(5).Infof("ceFormat: cmd %s", cmd)
 	return cmd, nil

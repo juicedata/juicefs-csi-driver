@@ -128,6 +128,7 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 
 	annotation := make(map[string]string)
 	var existTargets int
+	var isSimple bool
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			deleted, exists := p.mit.deletedPods[getPodUid(target)]
@@ -136,6 +137,9 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 				continue
 			}
 			existTargets++
+		}
+		if k == config.PodSimpleAnnotationKey {
+			isSimple = true
 		}
 		annotation[k] = target
 	}
@@ -147,7 +151,8 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 			return err
 		}
 	}
-	if existTargets == 0 && pod.DeletionTimestamp == nil {
+	if existTargets == 0 && pod.DeletionTimestamp == nil && !isSimple {
+		// if pod is created by csi controller, ignore it
 		// if there are no refs, delete it
 		klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
 		if err := p.Client.DeletePod(pod); err != nil {
@@ -156,7 +161,7 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		}
 		secretName := pod.Name
 		if _, err := p.Client.GetSecret(secretName, config.Namespace); err != nil {
-			if errors.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return err

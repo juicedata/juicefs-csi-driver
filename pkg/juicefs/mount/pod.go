@@ -30,7 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GenerateNameByVolumeId(volumeId string) string {
+func GenerateNameByVolumeId(volumeId string, simple bool) string {
+	if simple {
+		return fmt.Sprintf("juicefs-%s-%s-simple", config.NodeName, volumeId)
+	}
 	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
 }
 
@@ -44,8 +47,8 @@ func hasRef(pod *corev1.Pod) bool {
 }
 
 func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
-	secretName := GenerateNameByVolumeId(jfsSetting.VolumeId)
+	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
+	secretName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
 	resourceRequirements := parsePodResources(
 		jfsSetting.MountPodCpuLimit,
 		jfsSetting.MountPodMemLimit,
@@ -85,6 +88,9 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod := generatePodTemplate()
 	pod.Name = podName
 	pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
+	if jfsSetting.Simple {
+		pod.Annotations[config.PodSimpleAnnotationKey] = ""
+	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
@@ -282,7 +288,7 @@ func getCommand(jfsSetting *config.JfsSetting) string {
 		mountArgs := []string{config.JfsMountPath, jfsSetting.Source, jfsSetting.MountPath}
 		options = append(options, "foreground")
 		if jfsSetting.EncryptRsaKey != "" {
-			mountArgs = append(mountArgs, "rsa-key=/root/.rsa/rsa-key.pem")
+			mountArgs = append(mountArgs, "--rsa-key=/root/.rsa/rsa-key.pem")
 		}
 		if len(options) > 0 {
 			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
@@ -294,7 +300,7 @@ func getCommand(jfsSetting *config.JfsSetting) string {
 
 func getVolumes(setting *config.JfsSetting) []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
-	secretName := GenerateNameByVolumeId(setting.VolumeId)
+	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
 
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
@@ -374,7 +380,7 @@ func getVolumeMounts(setting *config.JfsSetting) []corev1.VolumeMount {
 }
 
 func getInitContainer(setting *config.JfsSetting) corev1.Container {
-	secretName := GenerateNameByVolumeId(setting.VolumeId)
+	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
 	formatCmd := setting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",
@@ -410,16 +416,16 @@ func getInitContainer(setting *config.JfsSetting) corev1.Container {
 }
 
 func NewSecret(setting *config.JfsSetting) corev1.Secret {
-	name := GenerateNameByVolumeId(setting.VolumeId)
+	name := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
 	data := make(map[string]string)
 	if setting.MetaUrl != "" {
 		data["metaurl"] = setting.MetaUrl
 	}
 	if setting.SecretKey != "" {
-		data["secret-key"] = setting.SecretKey
+		data["secretkey"] = setting.SecretKey
 	}
 	if setting.SecretKey2 != "" {
-		data["secret-key2"] = setting.SecretKey2
+		data["secretkey2"] = setting.SecretKey2
 	}
 	if setting.Token != "" {
 		data["token"] = setting.Token

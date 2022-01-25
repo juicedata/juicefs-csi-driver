@@ -72,7 +72,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
 						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}, true).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -118,7 +118,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
 						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions, true).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -163,7 +163,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
 						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions, true).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -212,7 +212,7 @@ func TestNodePublishVolume(t *testing.T) {
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}, true).Return(mockJfs, errors.New("test"))
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, errors.New("test"))
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -253,7 +253,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, errors.New("test"))
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}, true).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -295,7 +295,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
 						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(errors.New("test"))
-						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}, true).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -447,7 +447,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 				return nil
 			})
 			defer patch2.Reset()
@@ -478,7 +478,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("JfsUnmount err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 				return nil
 			})
 			defer patch.Reset()
@@ -508,7 +508,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("CleanupMountPoint err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 				return nil
 			})
 			defer patch2.Reset()
@@ -539,7 +539,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("JUmount err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()

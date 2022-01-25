@@ -145,7 +145,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions, true)
+	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -190,7 +190,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeId, target); err != nil {
+	if err := mnt.JUmount(volumeId, target, false); err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 

@@ -127,7 +127,7 @@ func TestCreateVolume(t *testing.T) {
 					Parameters:         volCtx,
 				}
 				podMount := &podmount.PodMount{}
-				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 					return nil
 				})
 				defer patch2.Reset()
@@ -141,7 +141,7 @@ func TestCreateVolume(t *testing.T) {
 				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", nil)
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -282,7 +282,12 @@ func TestCreateVolume(t *testing.T) {
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(nil, errors.New("test"))
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(nil, errors.New("test"))
+				podMount := &podmount.PodMount{}
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+					return nil
+				})
+				defer patch2.Reset()
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -325,7 +330,7 @@ func TestCreateVolume(t *testing.T) {
 				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", errors.New("test"))
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -360,7 +365,7 @@ func TestCreateVolume(t *testing.T) {
 				}
 
 				podMount := &podmount.PodMount{}
-				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 					return errors.New("test")
 				})
 				defer patch2.Reset()
@@ -373,7 +378,7 @@ func TestCreateVolume(t *testing.T) {
 				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", nil)
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -416,7 +421,7 @@ func TestDeleteVolume(t *testing.T) {
 				}
 
 				podMount := &podmount.PodMount{}
-				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 					return nil
 				})
 				defer patch2.Reset()
@@ -429,7 +434,7 @@ func TestDeleteVolume(t *testing.T) {
 				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(nil)
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -490,13 +495,18 @@ func TestDeleteVolume(t *testing.T) {
 					Secrets:  secret,
 				}
 
+				podMount := &podmount.PodMount{}
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+					return nil
+				})
+				defer patch2.Reset()
 				ctx := context.Background()
 
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(nil, errors.New("test"))
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(nil, errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -535,7 +545,7 @@ func TestDeleteVolume(t *testing.T) {
 				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(errors.New("test"))
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -565,7 +575,7 @@ func TestDeleteVolume(t *testing.T) {
 					Secrets:  secret,
 				}
 				podMount := &podmount.PodMount{}
-				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
+				patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
 					return errors.New("test")
 				})
 				defer patch2.Reset()
@@ -579,7 +589,7 @@ func TestDeleteVolume(t *testing.T) {
 				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(nil)
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, volumeId+"controller", secret, nil, []string{}, true).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().JfsSimpleMount(volumeId, secret).Return(mockJfs, nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,

@@ -77,6 +77,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// klog.V(5).Infof("CreateVolume: called with args: %#v", req)
 	klog.V(6).Infof("CreateVolume: parameters %v", req.Parameters)
 
+	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
 	}
@@ -97,9 +98,11 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// create volume
 	// 1. mount juicefs
-	target := volumeId + "controller"
-	jfs, err := d.juicefs.JfsMount(volumeId, target, secrets, nil, []string{}, true)
+	jfs, err := d.juicefs.JfsSimpleMount(volumeId, secrets)
 	if err != nil {
+		if err := mnt.JUmount(volumeId, "", true); err != nil {
+			return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
+		}
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
@@ -111,8 +114,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// 3. umount
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeId, target); err != nil {
+	if err := mnt.JUmount(volumeId, "", true); err != nil {
 		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
 	}
 
@@ -134,7 +136,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(4).Infof("DeleteVolume: called with args: %#v", req)
 	volumeID := req.GetVolumeId()
-
+	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
@@ -142,9 +144,11 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	target := volumeID + "controller"
-	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, nil, []string{}, true)
+	jfs, err := d.juicefs.JfsSimpleMount(volumeID, secrets)
 	if err != nil {
+		if err := mnt.JUmount(volumeID, "", true); err != nil {
+			return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
+		}
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
@@ -156,8 +160,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	delete(d.vols, volumeID)
 
 	// 3. umount
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeID, target); err != nil {
+	if err := mnt.JUmount(volumeID, "", true); err != nil {
 		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
