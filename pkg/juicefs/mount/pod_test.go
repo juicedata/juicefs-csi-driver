@@ -19,14 +19,16 @@ package mount
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
-	"testing"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -266,7 +268,7 @@ func TestHasRef(t *testing.T) {
 				pod: &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "test",
-						Annotations: map[string]string{"a": "b", "juicefs-aa": "bb"},
+						Annotations: map[string]string{"a": "b", util.GetReferenceKey("aa"): "aa"},
 					},
 				},
 			},
