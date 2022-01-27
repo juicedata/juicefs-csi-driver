@@ -4,8 +4,8 @@ import pathlib
 import random
 import string
 import subprocess
-import time
 
+import time
 from kubernetes import client, watch, config
 from kubernetes.dynamic.exceptions import ConflictError
 
@@ -551,7 +551,7 @@ def test_deployment_using_storage_rw():
     print("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
-        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
+        die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
     print("Check mount point..")
@@ -618,20 +618,6 @@ def test_deployment_use_pv_rw():
     check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
     if not result:
-        print("Get pvc: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "-n", "default", "get", "pvc", pvc.name, "-oyaml"], check=True)
-        print("Get pv: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "get", "pv", pv.name, "-oyaml"], check=True)
-        print("Get deployment: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "-n", "default", "get", "deployment", deployment.name, "-oyaml"],
-                       check=True)
-        try:
-            mount_pod_name = get_mount_pod_name(volume_id)
-            print("Get mount pod log:")
-            mount_pod = Pod(name=mount_pod_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-            print(mount_pod.get_log("jfs-mount"))
-        except client.ApiException as e:
-            print("Get log error: {}".format(e))
         die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     print("Test pass.")

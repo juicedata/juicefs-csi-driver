@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function main() {
-  sudo microk8s.kubectl apply -f ${GITHUB_WORKSPACE}/deploy/k8s.yaml
+  sudo cat ${GITHUB_WORKSPACE}/deploy/k8s.yaml | sed 's@--v=5@--v=6@g' | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
