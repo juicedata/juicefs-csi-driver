@@ -71,7 +71,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 3. Deploy
 
    ```sh
-   helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
+   helm repo add juicefs-csi-driver https://juicedata.github.io/charts/
    helm repo update
    helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
