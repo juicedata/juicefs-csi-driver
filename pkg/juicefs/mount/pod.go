@@ -442,6 +442,7 @@ func NewSecret(setting *config.JfsSetting) corev1.Secret {
 	for k, v := range setting.Envs {
 		data[k] = v
 	}
+	klog.V(6).Infof("secret data: %v", data)
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

@@ -356,6 +356,32 @@ func TestParseSecret(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "test-parse-secret",
+			args: args{
+				secrets: map[string]string{
+					"name":            "abc",
+					"token":           "abc",
+					"secret-key":      "abc",
+					"secret-key2":     "abc",
+					"passphrase":      "abc",
+					"encrypt_rsa_key": "abc",
+					"initconfig":      "abc",
+				},
+			},
+			want: &JfsSetting{
+				Name:          "abc",
+				SecretKey:     "abc",
+				SecretKey2:    "abc",
+				Token:         "abc",
+				Passphrase:    "abc",
+				EncryptRsaKey: "abc",
+				InitConfig:    "abc",
+				Envs:          map[string]string{},
+				Configs:       map[string]string{},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
