@@ -388,11 +388,15 @@ func getVolumeMounts(setting *config.JfsSetting) []corev1.VolumeMount {
 }
 
 func getInitContainer(setting *config.JfsSetting) corev1.Container {
+	isPrivileged := true
 	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
 	formatCmd := setting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",
 		Image: config.MountImage,
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &isPrivileged,
+		},
 	}
 	if setting.InitConfig != "" {
 		container.VolumeMounts = append(container.VolumeMounts,
