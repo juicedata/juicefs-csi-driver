@@ -210,6 +210,8 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 			annotation = make(map[string]string)
 		}
 		annotation[key] = target
+		// delete deleteDelayAt when there ars refs
+		delete(annotation, jfsConfig.DeleteDelayAtKey)
 		exist.Annotations = annotation
 		return p.K8sClient.UpdatePod(exist)
 	})

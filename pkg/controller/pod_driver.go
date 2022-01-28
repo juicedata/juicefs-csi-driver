@@ -140,6 +140,9 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		annotation[k] = target
 	}
 
+	if existTargets != 0 {
+		delete(annotation, config.DeleteDelayAtKey)
+	}
 	if len(pod.Annotations) != len(annotation) {
 		pod.Annotations = annotation
 		if err := p.Client.UpdatePod(pod); err != nil {
