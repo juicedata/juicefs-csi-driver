@@ -74,7 +74,7 @@ kubeletDir: <kubelet-dir>
 依次执行以下三条命令，通过 helm 部署 JuiceFS CSI Driver。
 
 ```sh
-$ helm repo add juicefs-csi-driver https://juicedata.github.io/juicefs-csi-driver/
+$ helm repo add juicefs-csi-driver https://juicedata.github.io/charts/
 $ helm repo update
 $ helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
