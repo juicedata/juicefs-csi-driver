@@ -20,7 +20,9 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"reflect"
 	"testing"
+	"time"
 
 	. "github.com/agiledragon/gomonkey"
 	. "github.com/smartystreets/goconvey/convey"
@@ -228,6 +230,81 @@ func TestGetReferenceKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetReferenceKey(tt.args.target); got != tt.want {
 				t.Errorf("GetReferenceKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTimeAfterDelay(t *testing.T) {
+	now := time.Now()
+	type args struct {
+		delayStr string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				delayStr: "1h",
+			},
+			want:    now.Add(1 * time.Hour).Format("2006-01-02 15:04:05"),
+			wantErr: false,
+		},
+		{
+			name: "test-err",
+			args: args{
+				delayStr: "1hour",
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTimeAfterDelay(tt.args.delayStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTimeAfterDelay() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetTimeAfterDelay() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTime(t *testing.T) {
+	type args struct {
+		str string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    time.Time
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				str: "2006-01-02 15:04:05",
+			},
+			want:    time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTime(tt.args.str)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTime() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetTime() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

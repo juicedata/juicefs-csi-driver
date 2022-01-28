@@ -144,6 +144,9 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		annotation[k] = target
 	}
 
+	if existTargets != 0 {
+		delete(annotation, config.DeleteDelayAtKey)
+	}
 	if len(pod.Annotations) != len(annotation) {
 		pod.Annotations = annotation
 		if err := p.Client.UpdatePod(pod); err != nil {
@@ -153,11 +156,13 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil && !isSimple {
 		// if pod is created by csi controller, ignore it
-		// if there are no refs, delete it
-		klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
-		if err := p.Client.DeletePod(pod); err != nil {
-			klog.Errorf("Delete pod %s error: %v", pod.Name, err)
-			return err
+		if !util.ShouldDelay(pod, p.Client) {
+			// if there are no refs or after delay time, delete it
+			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
+			if err := p.Client.DeletePod(pod); err != nil {
+				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
+				return err
+			}
 		}
 		secretName := pod.Name
 		if _, err := p.Client.GetSecret(secretName, config.Namespace); err != nil {

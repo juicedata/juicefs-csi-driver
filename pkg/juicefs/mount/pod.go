@@ -18,12 +18,11 @@ package mount
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
@@ -155,6 +154,9 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	}
 	for k, v := range jfsSetting.MountPodAnnotations {
 		pod.Annotations[k] = v
+	}
+	if jfsSetting.DeletedDelay != "" {
+		pod.Annotations[config.DeleteDelayTimeKey] = jfsSetting.DeletedDelay
 	}
 
 	return pod

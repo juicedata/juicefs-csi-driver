@@ -57,6 +57,7 @@ const (
 
 	PodSimpleAnnotationKey = "juicefs-csi-simple"
 
+	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
 	mountPodMemLimitKey    = "juicefs/mount-memory-limit"
 	mountPodCpuRequestKey  = "juicefs/mount-cpu-request"
@@ -64,6 +65,11 @@ const (
 	mountPodLabelKey       = "juicefs/mount-labels"
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
+	deleteDelay            = "juicefs/mount-delete-delay"
+
+	// DeleteDelayTimeKey mount pod annotation
+	DeleteDelayTimeKey = "juicefs-delete-delay"
+	DeleteDelayAtKey   = "juicefs-delete-at"
 )
 
 var PodLocks [1024]sync.Mutex
