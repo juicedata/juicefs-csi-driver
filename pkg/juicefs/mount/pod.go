@@ -64,6 +64,12 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	volumes := getVolumes(jfsSetting)
 	volumeMounts := getVolumeMounts(jfsSetting)
 
+	var initContainer corev1.Container
+	if jfsSetting.FormatCmd != "" {
+		initContainer = getInitContainer(jfsSetting)
+		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
+	}
+
 	// add cache-dir host path volume
 	if strings.Contains(cmd, "cache-dir") {
 		cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmd)
@@ -96,7 +102,7 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
 	pod.Spec.Volumes = volumes
 	if jfsSetting.FormatCmd != "" {
-		pod.Spec.InitContainers = []corev1.Container{getInitContainer(jfsSetting)}
+		pod.Spec.InitContainers = []corev1.Container{initContainer}
 	}
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
 	pod.Spec.Containers[0].Resources = resourceRequirements

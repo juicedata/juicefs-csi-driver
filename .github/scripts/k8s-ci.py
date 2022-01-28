@@ -276,7 +276,7 @@ class Pod:
     def watch_for_success(self):
         v1 = client.CoreV1Api()
         w = watch.Watch()
-        for event in w.stream(v1.list_pod_for_all_namespaces, timeout_seconds=5 * 60):
+        for event in w.stream(v1.list_pod_for_all_namespaces, timeout_seconds=10 * 60):
             resource = event['object']
             if resource.metadata.namespace != "default":
                 continue
