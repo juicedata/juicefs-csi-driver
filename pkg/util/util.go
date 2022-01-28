@@ -20,11 +20,15 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func ParseEndpoint(endpoint string) (string, string, error) {
@@ -76,4 +80,46 @@ func ParseMntPath(cmd string) (string, string, error) {
 		return "", "", fmt.Errorf("err mntPath:%s", args[2])
 	}
 	return args[2], argSlice[2], nil
+}
+
+// GetTimeAfterDelay get time which after delay
+func GetTimeAfterDelay(delayStr string) (string, error) {
+	delay, err := time.ParseDuration(delayStr)
+	if err != nil {
+		return "", err
+	}
+	delayAt := time.Now().Add(delay)
+	return delayAt.Format("2006-01-02 15:04:05"), nil
+}
+
+func GetTime(str string) (time.Time, error) {
+	return time.Parse("2006-01-02 15:04:05", str)
+}
+
+func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool) {
+	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
+	if !delayExist {
+		// not set delete delay
+		return false
+	}
+	delayAtStr, delayAtExist := pod.Annotations[config.DeleteDelayAtKey]
+	if !delayAtExist {
+		// need to add delayAt annotation
+		d, err := GetTimeAfterDelay(delayStr)
+		if err != nil {
+			klog.Errorf("delayDelete: can't parse delay time %s: %v", d, err)
+			return false
+		}
+		pod.Annotations[config.DeleteDelayAtKey] = d
+		if err := Client.UpdatePod(pod); err != nil {
+			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
+		}
+		return true
+	}
+	delayAt, err := GetTime(delayAtStr)
+	if err != nil {
+		klog.Errorf("delayDelete: can't parse delayAt %s: %v", delayAtStr, err)
+		return false
+	}
+	return time.Now().After(delayAt)
 }

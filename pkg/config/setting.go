@@ -18,11 +18,12 @@ package config
 
 import (
 	"encoding/json"
-	"k8s.io/klog"
-
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/klog"
+	"time"
 )
 
 type JfsSetting struct {
@@ -44,6 +45,7 @@ type JfsSetting struct {
 	MountPodLabels         map[string]string `json:"mount_pod_labels"`
 	MountPodAnnotations    map[string]string `json:"mount_pod_annotations"`
 	MountPodServiceAccount string            `json:"mount_pod_service_account"`
+	DeletedDelay           string            `json:"deleted_delay"`
 
 	VolumeId   string
 	MountPath  string
@@ -102,6 +104,13 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
 		jfsSetting.MountPodMemRequest = volCtx[mountPodMemRequestKey]
 		jfsSetting.MountPodServiceAccount = volCtx[mountPodServiceAccount]
+		delay := volCtx[deleteDelay]
+		if delay != "" {
+			if _, err := time.ParseDuration(delay); err != nil {
+				return nil, fmt.Errorf("can't parse delay time %s", delay)
+			}
+			jfsSetting.DeletedDelay = delay
+		}
 
 		labelString := volCtx[mountPodLabelKey]
 		annotationSting := volCtx[mountPodAnnotationKey]

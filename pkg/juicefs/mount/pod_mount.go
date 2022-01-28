@@ -91,26 +91,31 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	}
 
 	deleteMountPod := func(podName, namespace string) error {
-		po, err := p.K8sClient.GetPod(podName, namespace)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
+		return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			po, err := p.K8sClient.GetPod(podName, namespace)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil
+				}
+				klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
+				return err
+			}
+
+			if hasRef(po) {
+				klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 				return nil
 			}
-			klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
-			return err
-		}
 
-		if hasRef(po) {
-			klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
+			if !util.ShouldDelay(po, p.K8sClient) {
+				// do not set delay delete, delete it now
+				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
+				if err := p.K8sClient.DeletePod(po); err != nil {
+					klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
+					return err
+				}
+			}
 			return nil
-		}
-
-		klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
-		if err := p.K8sClient.DeletePod(po); err != nil {
-			klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
-			return err
-		}
-		return nil
+		})
 	}
 
 	newPod, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
@@ -124,7 +129,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	if hasRef(newPod) {
 		return nil
 	}
-	// if pod annotations has no "juicefs-" prefix, delete pod
+	// if pod annotations has no "juicefs-" prefix or no delete delay, delete pod
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
@@ -205,6 +210,8 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 			annotation = make(map[string]string)
 		}
 		annotation[key] = target
+		// delete deleteDelayAt when there ars refs
+		delete(annotation, jfsConfig.DeleteDelayAtKey)
 		exist.Annotations = annotation
 		return p.K8sClient.UpdatePod(exist)
 	})
