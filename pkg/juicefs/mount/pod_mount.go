@@ -18,6 +18,7 @@ package mount
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"time"
 
@@ -46,11 +47,11 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrAddRef(jfsSetting); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(resources.GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple))
+	return p.waitUtilPodReady(resources.GenerateNameByVolumeId(jfsSetting.VolumeId))
 }
 
-func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
-	podName := resources.GenerateNameByVolumeId(volumeId, simple)
+func (p *PodMount) JUmount(volumeId, target string) error {
+	podName := resources.GenerateNameByVolumeId(volumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -84,9 +85,6 @@ func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
 			return nil
 		}
 		delete(annotation, key)
-		if _, ok := po.Annotations[jfsConfig.PodSimpleAnnotationKey]; ok {
-			delete(annotation, jfsConfig.PodSimpleAnnotationKey)
-		}
 		po.Annotations = annotation
 		return p.K8sClient.UpdatePod(po)
 	})
@@ -139,30 +137,65 @@ func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
 }
 
 func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
-	//TODO implement me
-	panic("implement me")
+	var exist *batchv1.Job
+	job := resources.NewJobForCreateVolume(jfsSetting)
+	exist, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	if err != nil && k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("JCreateVolume: create job %s", job.Name)
+		exist, err = p.K8sClient.CreateJob(job)
+		if err != nil {
+			klog.Errorf("JCreateVolume: create job %s err: %v", job.Name, err)
+			return err
+		}
+	}
+	if err != nil {
+		klog.Errorf("JCreateVolume: get job %s err: %s", job.Name, err)
+		return err
+	}
+	secret := resources.NewSecret(jfsSetting, job.Name)
+	resources.SetJobAsOwner(&secret, *exist)
+	if err := p.createOrUpdateSecret(&secret); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
-	//TODO implement me
-	panic("implement me")
+	var exist *batchv1.Job
+	job := resources.NewJobForCreateVolume(jfsSetting)
+	exist, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	if err != nil && k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("JDeleteVolume: create job %s", job.Name)
+		exist, err = p.K8sClient.CreateJob(job)
+		if err != nil {
+			klog.Errorf("JDeleteVolume: create job %s err: %v", job.Name, err)
+			return err
+		}
+	}
+	if err != nil {
+		klog.Errorf("JDeleteVolume: get job %s err: %s", job.Name, err)
+		return err
+	}
+	secret := resources.NewSecret(jfsSetting, job.Name)
+	resources.SetJobAsOwner(&secret, *exist)
+	if err := p.createOrUpdateSecret(&secret); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := resources.GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
+	podName := resources.GenerateNameByVolumeId(jfsSetting.VolumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
-	secret := resources.NewSecret(jfsSetting)
-	if err := p.createOrUpdateSecret(&secret); err != nil {
-		return err
-	}
-
+	secret := resources.NewSecret(jfsSetting, podName)
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
-		if oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace); err == nil && oldPod.DeletionTimestamp != nil {
+		oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+		if err == nil && oldPod.DeletionTimestamp != nil {
 			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
 			continue
@@ -175,9 +208,13 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 					newPod.Annotations = make(map[string]string)
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				_, err = p.K8sClient.CreatePod(newPod)
+				po, err := p.K8sClient.CreatePod(newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
+				}
+				resources.SetPodAsOwner(&secret, *po)
+				if err := p.createOrUpdateSecret(&secret); err != nil {
+					return err
 				}
 				return err
 			}
@@ -186,6 +223,10 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 			return err
 		}
 		// pod exist, add refs
+		resources.SetPodAsOwner(&secret, *oldPod)
+		if err := p.createOrUpdateSecret(&secret); err != nil {
+			return err
+		}
 		return p.AddRefOfMount(jfsSetting.TargetPath, podName)
 	}
 	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)

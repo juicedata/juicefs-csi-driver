@@ -19,7 +19,6 @@ package resources
 import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
@@ -29,15 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GenerateNameByVolumeId(volumeId string, simple bool) string {
-	if simple {
-		return fmt.Sprintf("juicefs-%s-%s-simple", config.NodeName, volumeId)
-	}
+func GenerateNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
 }
 
 func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
+	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
 	resourceRequirements := parsePodResources(
 		jfsSetting.MountPodCpuLimit,
 		jfsSetting.MountPodMemLimit,
@@ -81,12 +77,6 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 		},
 	}
 
-	for k, v := range jfsSetting.Envs {
-		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-			Name:  k,
-			Value: v,
-		})
-	}
 	for k, v := range jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
@@ -228,7 +218,7 @@ func getCommand(jfsSetting *config.JfsSetting) string {
 
 func getInitContainer(setting *config.JfsSetting) corev1.Container {
 	isPrivileged := true
-	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
+	secretName := GenerateNameByVolumeId(setting.VolumeId)
 	formatCmd := setting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",
@@ -264,42 +254,4 @@ func getInitContainer(setting *config.JfsSetting) corev1.Container {
 		}},
 	})
 	return container
-}
-
-func NewSecret(setting *config.JfsSetting) corev1.Secret {
-	name := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
-	data := make(map[string]string)
-	if setting.MetaUrl != "" {
-		data["metaurl"] = setting.MetaUrl
-	}
-	if setting.SecretKey != "" {
-		data["secretkey"] = setting.SecretKey
-	}
-	if setting.SecretKey2 != "" {
-		data["secretkey2"] = setting.SecretKey2
-	}
-	if setting.Token != "" {
-		data["token"] = setting.Token
-	}
-	if setting.Passphrase != "" {
-		data["passphrase"] = setting.Passphrase
-	}
-	if setting.EncryptRsaKey != "" {
-		data["encrypt_rsa_key"] = setting.EncryptRsaKey
-	}
-	if setting.InitConfig != "" {
-		data["init_config"] = setting.InitConfig
-	}
-	for k, v := range setting.Envs {
-		data[k] = v
-	}
-	klog.V(6).Infof("secret data: %v", data)
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: config.Namespace,
-		},
-		StringData: data,
-	}
-	return secret
 }

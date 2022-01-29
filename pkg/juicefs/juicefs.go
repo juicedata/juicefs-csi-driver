@@ -39,8 +39,9 @@ import (
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsSimpleMount(volumeID string, secrets map[string]string) (Jfs, error)
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
+	JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error
+	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
 	JfsUnmount(mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
 	Version() ([]byte, error)
@@ -137,23 +138,54 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
-func (j *juicefs) JfsSimpleMount(volumeID string, secrets map[string]string) (Jfs, error) {
-	return j.jfsMount(volumeID, "", secrets, map[string]string{}, []string{}, true, true)
+func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	if err != nil {
+		return err
+	}
+	jfsSetting.SubPath = subPath
+	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+	return j.podMount.JCreateVolume(jfsSetting)
+}
+
+func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	if err != nil {
+		return err
+	}
+	jfsSetting.SubPath = subPath
+	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+	return j.podMount.JDeleteVolume(jfsSetting)
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	return j.jfsMount(volumeID, target, secrets, volCtx, options, true, false)
+	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options, true)
+	if err != nil {
+		return nil, err
+	}
+	mountPath, err := j.MountFs(jfsSetting)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+
+	return &jfs{
+		Provider:  j,
+		Name:      secrets["name"],
+		MountPath: mountPath,
+		Options:   options,
+	}, nil
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) jfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod, simple bool) (Jfs, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod, simple)
+func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (*config.JfsSetting, error) {
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
+	jfsSetting.VolumeId = volumeID
+	jfsSetting.TargetPath = target
 	source, isCe := secrets["metaurl"]
-	var mountPath string
 	if !isCe {
 		j.Upgrade()
 		if secrets["token"] == "" {
@@ -186,17 +218,7 @@ func (j *juicefs) jfsMount(volumeID string, target string, secrets, volCtx map[s
 		jfsSetting.Source = source
 		jfsSetting.FormatCmd = formatCmd
 	}
-	mountPath, err = j.MountFs(volumeID, target, options, jfsSetting)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "%v", err)
-	}
-
-	return &jfs{
-		Provider:  j,
-		Name:      secrets["name"],
-		MountPath: mountPath,
-		Options:   options,
-	}, nil
+	return jfsSetting, nil
 }
 
 func (j *juicefs) JfsUnmount(mountPath string) error {
@@ -307,20 +329,17 @@ func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
-		jfsSetting.MountPath = filepath.Join(config.PodMountBase, volumeID)
+		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
 		mnt = j.podMount
 	} else {
-		jfsSetting.MountPath = filepath.Join(config.MountBase, volumeID)
+		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.VolumeId)
 		mnt = j.processMount
 	}
-	jfsSetting.VolumeId = volumeID
-	jfsSetting.TargetPath = target
-	jfsSetting.Options = options
 
-	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, jfsSetting.MountPath, options)
+	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Options)
 	err := mnt.JMount(jfsSetting)
 	if err != nil {
 		return "", err

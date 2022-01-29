@@ -56,8 +56,6 @@ const (
 	PodTypeValue = "juicefs-mount"
 	Finalizer    = "juicefs.com/finalizer"
 
-	PodSimpleAnnotationKey = "juicefs-csi-simple"
-
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
 	mountPodMemLimitKey    = "juicefs/mount-memory-limit"

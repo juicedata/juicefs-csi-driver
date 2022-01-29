@@ -1,3 +1,19 @@
+/*
+Copyright 2022 Juicedata Inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package resources
 
 import (
@@ -18,6 +34,7 @@ func HasRef(pod *corev1.Pod) bool {
 
 func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod := config.GeneratePodTemplate()
+	secret := GenerateNameByVolumeId(jfsSetting.VolumeId)
 
 	volumes := getVolumes(*jfsSetting)
 	volumeMounts := getVolumeMounts(*jfsSetting)
@@ -40,6 +57,13 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
+		SecretRef: &corev1.SecretEnvSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secret,
+			},
+		},
+	}}
 	if jfsSetting.FormatCmd != "" {
 		initContainer := getInitContainer(jfsSetting)
 		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
@@ -50,7 +74,7 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 
 func getVolumes(setting config.JfsSetting) []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
-	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
+	secretName := GenerateNameByVolumeId(setting.VolumeId)
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
 		VolumeSource: corev1.VolumeSource{

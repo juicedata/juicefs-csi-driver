@@ -33,21 +33,12 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) JfsSimpleMount(volumeID string, secrets map[string]string) (juicefs.Jfs, error) {
-	jfsName := "fake"
-	fs, ok := j.fs[jfsName]
+func (j *fakeJfsProvider) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
+	return nil
+}
 
-	if ok {
-		return &fs, nil
-	}
-
-	fs = fakeJfs{
-		basePath: "/jfs/fake",
-		volumes:  map[string]string{},
-	}
-
-	j.fs[jfsName] = fs
-	return &fs, nil
+func (j *fakeJfsProvider) JfsDeleteVol(volumeID string, target string, secrets map[string]string) error {
+	return nil
 }
 
 func (j *fakeJfsProvider) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {

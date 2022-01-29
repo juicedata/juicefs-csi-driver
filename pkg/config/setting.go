@@ -29,7 +29,6 @@ import (
 type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
-	Simple bool
 
 	Name    string `json:"name"`
 	MetaUrl string `json:"metaurl"`
@@ -56,14 +55,16 @@ type JfsSetting struct {
 	MountPodServiceAccount string            `json:"mount_pod_service_account"`
 	DeletedDelay           string            `json:"deleted_delay"`
 
+	// mount
 	VolumeId   string
 	MountPath  string
-	TargetPath string
-	Options    []string
-	FormatCmd  string
+	TargetPath string   // which bind to container path
+	Options    []string // mount options
+	FormatCmd  string   // format or auth
+	SubPath    string   // subPath which is to be created or deleted
 }
 
-func ParseSetting(secrets, volCtx map[string]string, usePod, simple bool) (*JfsSetting, error) {
+func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{}
 	if secrets == nil {
 		return &jfsSetting, nil
@@ -89,7 +90,6 @@ func ParseSetting(secrets, volCtx map[string]string, usePod, simple bool) (*JfsS
 	jfsSetting.MetaUrl = m
 	jfsSetting.IsCe = ok
 	jfsSetting.UsePod = usePod
-	jfsSetting.Simple = simple
 
 	if secrets["secretkey"] != "" {
 		jfsSetting.SecretKey = secrets["secretkey"]

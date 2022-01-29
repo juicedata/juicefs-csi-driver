@@ -2,8 +2,6 @@ package driver
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"reflect"
@@ -36,12 +34,11 @@ var (
 
 type controllerService struct {
 	mount.SafeFormatAndMount
-	juicefs   juicefs.Interface
-	vols      map[string]int64
-	k8sClient *k8sclient.K8sClient
+	juicefs juicefs.Interface
+	vols    map[string]int64
 }
 
-func newControllerService() (*controllerService, error) {
+func newControllerService() controllerService {
 	mounter := &mount.SafeFormatAndMount{
 		Interface: mount.New(""),
 		Exec:      k8sexec.New(),
@@ -57,18 +54,11 @@ func newControllerService() (*controllerService, error) {
 	}
 	klog.V(4).Infof("Controller: %s", stdoutStderr)
 
-	k8sClient, err := k8sclient.NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		return nil, err
-	}
-
-	return &controllerService{
+	return controllerService{
 		SafeFormatAndMount: *mounter,
 		juicefs:            jfs,
 		vols:               make(map[string]int64),
-		k8sClient:          k8sClient,
-	}, nil
+	}
 }
 
 // CreateVolume create directory in an existing JuiceFS filesystem
@@ -77,7 +67,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// klog.V(5).Infof("CreateVolume: called with args: %#v", req)
 	klog.V(6).Infof("CreateVolume: parameters %v", req.Parameters)
 
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
 	}
@@ -97,25 +86,9 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	d.vols[req.Name] = requiredCap
 
 	// create volume
-	// 1. mount juicefs
-	jfs, err := d.juicefs.JfsSimpleMount(volumeId, secrets)
+	err := d.juicefs.JfsCreateVol(volumeId, subPath, secrets)
 	if err != nil {
-		if err := mnt.JUmount(volumeId, "", true); err != nil {
-			return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
-		}
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-	}
-
-	// 2. create subPath volume
-	klog.V(5).Infof("CreateVolume: Creating volume %q", volumeId)
-	_, err = jfs.CreateVol(volumeId, subPath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeId, err)
-	}
-
-	// 3. umount
-	if err := mnt.JUmount(volumeId, "", true); err != nil {
-		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
 	}
 
 	// set volume context
@@ -136,7 +109,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(4).Infof("DeleteVolume: called with args: %#v", req)
 	volumeID := req.GetVolumeId()
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}
@@ -144,25 +116,13 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
-	jfs, err := d.juicefs.JfsSimpleMount(volumeID, secrets)
+	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
+	err := d.juicefs.JfsDeleteVol(volumeID, volumeID, secrets)
 	if err != nil {
-		if err := mnt.JUmount(volumeID, "", true); err != nil {
-			return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
-		}
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
-	err = jfs.DeleteVol(volumeID, secrets)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not delete volume: %q", volumeID)
-	}
 	delete(d.vols, volumeID)
-
-	// 3. umount
-	if err := mnt.JUmount(volumeID, "", true); err != nil {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal, "JUmount err:%v", err)
-	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
 

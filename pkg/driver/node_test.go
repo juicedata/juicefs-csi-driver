@@ -447,7 +447,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
 			})
 			defer patch2.Reset()
@@ -478,7 +478,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("JfsUnmount err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
 			})
 			defer patch.Reset()
@@ -508,7 +508,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("CleanupMountPoint err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return nil
 			})
 			defer patch2.Reset()
@@ -539,7 +539,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		Convey("JUmount err", func() {
 			targetPath := "/test/path"
 			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string, simple bool) error {
+			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()
