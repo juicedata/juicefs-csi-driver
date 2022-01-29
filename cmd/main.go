@@ -67,7 +67,7 @@ func init() {
 		os.Exit(0)
 	}
 	config.PodServiceAccountName = pod.Spec.ServiceAccountName
-	config.CSINodePod = *pod
+	config.CSIPod = *pod
 	for i := range pod.Spec.Containers {
 		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
 			config.MountImage = pod.Spec.Containers[i].Image
