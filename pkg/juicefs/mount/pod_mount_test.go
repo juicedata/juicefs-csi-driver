@@ -18,6 +18,7 @@ package mount
 
 import (
 	"errors"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"testing"
@@ -207,7 +208,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 			p := &PodMount{
 				K8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			}
-			err := p.AddRefOfMount("test-target", GeneratePodNameByVolumeId("test-pod"))
+			err := p.AddRefOfMount("test-target", resources.GeneratePodNameByVolumeId("test-pod"))
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -300,7 +301,7 @@ func TestJUmount(t *testing.T) {
 			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			got, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
+			got, _ := p.K8sClient.GetPod(resources.GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
 			}
@@ -332,7 +333,7 @@ func TestJUmountWithMock(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod hasRef", func() {
-			patch1 := ApplyFunc(hasRef, func(pod *corev1.Pod) bool {
+			patch1 := ApplyFunc(resources.HasRef, func(pod *corev1.Pod) bool {
 				return true
 			})
 			defer patch1.Reset()
@@ -346,10 +347,10 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      GeneratePodNameByVolumeId("ttt"),
+					Name:      resources.GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
-						GeneratePodNameByVolumeId("ttt"): "/test",
+						resources.GeneratePodNameByVolumeId("ttt"): "/test",
 					},
 				},
 			})
@@ -371,7 +372,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      GeneratePodNameByVolumeId("ttt"),
+					Name:      resources.GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						util.GetReferenceKey("ttt"): "/test",
@@ -401,7 +402,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      GeneratePodNameByVolumeId("aaa"),
+					Name:      resources.GeneratePodNameByVolumeId("aaa"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						util.GetReferenceKey("/test"): "/test",
@@ -427,7 +428,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      GeneratePodNameByVolumeId("ttt"),
+					Name:      resources.GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 				},
 			})
@@ -510,7 +511,7 @@ func TestWaitUntilMount(t *testing.T) {
 			if err := p.createOrAddRef(tt.args.jfsSetting); (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.jfsSetting.VolumeId), jfsConfig.Namespace)
+			newPod, _ := p.K8sClient.GetPod(resources.GeneratePodNameByVolumeId(tt.args.jfsSetting.VolumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
 				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
 			}
