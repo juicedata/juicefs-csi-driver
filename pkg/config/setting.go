@@ -46,6 +46,7 @@ type JfsSetting struct {
 	InitConfig    string            `json:"initconfig,omitempty"`
 	Configs       map[string]string `json:"configs_map,omitempty"`
 
+	// put in volCtx
 	MountPodCpuLimit       string            `json:"mount_pod_cpu_limit"`
 	MountPodMemLimit       string            `json:"mount_pod_mem_limit"`
 	MountPodCpuRequest     string            `json:"mount_pod_cpu_request"`

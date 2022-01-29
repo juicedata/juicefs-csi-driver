@@ -36,6 +36,16 @@ type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
 }
 
+func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &ProcessMount{mounter}
 }

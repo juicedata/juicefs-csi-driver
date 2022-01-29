@@ -47,7 +47,6 @@ func hasRef(pod *corev1.Pod) bool {
 
 func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
-	secretName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
 	resourceRequirements := parsePodResources(
 		jfsSetting.MountPodCpuLimit,
 		jfsSetting.MountPodMemLimit,
@@ -56,54 +55,23 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	)
 
 	cmd := quoteForShell(getCommand(jfsSetting))
-	mp := corev1.MountPropagationBidirectional
-	dir := corev1.HostPathDirectoryOrCreate
 	statCmd := "stat -c %i " + jfsSetting.MountPath
 
-	volumes := getVolumes(jfsSetting)
-	volumeMounts := getVolumeMounts(jfsSetting)
-
-	var initContainer corev1.Container
-	if jfsSetting.FormatCmd != "" {
-		initContainer = getInitContainer(jfsSetting)
-		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
-	}
-
+	pod := generateJuicePod(jfsSetting)
 	// add cache-dir host path volume
-	if strings.Contains(cmd, "cache-dir") {
-		cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmd)
-		volumes = append(volumes, cacheVolumes...)
-		volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	} else {
-		volumes = append(volumes, corev1.Volume{
-			Name: "jfs-default-cache",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/jfsCache",
-					Type: &dir,
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:             "jfs-default-cache",
-			MountPath:        "/var/jfsCache",
-			MountPropagation: &mp,
-		})
-	}
-	pod := generatePodTemplate()
+	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmd)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
+
 	pod.Name = podName
 	pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
-	if jfsSetting.Simple {
-		pod.Annotations[config.PodSimpleAnnotationKey] = ""
-	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
-	pod.Spec.Volumes = volumes
-	if jfsSetting.FormatCmd != "" {
-		pod.Spec.InitContainers = []corev1.Container{initContainer}
-	}
-	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
+		Name:  "JFS_FOREGROUND",
+		Value: "1",
+	}}
 	pod.Spec.Containers[0].Resources = resourceRequirements
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
@@ -122,33 +90,6 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 		},
 	}
 
-	i := 1
-	for k, v := range jfsSetting.Configs {
-		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf("config-%v", i),
-			MountPath: v,
-		})
-		if len(pod.Spec.InitContainers) != 0 {
-			pod.Spec.InitContainers[0].VolumeMounts = append(pod.Spec.InitContainers[0].VolumeMounts, corev1.VolumeMount{
-				Name:      fmt.Sprintf("config-%v", i),
-				MountPath: v,
-			})
-		}
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: fmt.Sprintf("config-%v", i),
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: k,
-				},
-			},
-		})
-		i++
-	}
-	pod.Spec.Containers[0].EnvFrom = append(pod.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{
-		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
-			Name: secretName,
-		}},
-	})
 	for k, v := range jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
@@ -195,6 +136,23 @@ func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	mountPropagation := corev1.MountPropagationBidirectional
 
+	if !strings.Contains(cmd, "cache-dir") {
+		cacheVolumes = append(cacheVolumes, corev1.Volume{
+			Name: "jfs-default-cache",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/jfsCache",
+					Type: &hostPathType,
+				},
+			},
+		})
+		cacheVolumeMounts = append(cacheVolumeMounts, corev1.VolumeMount{
+			Name:             "jfs-default-cache",
+			MountPath:        "/var/jfsCache",
+			MountPropagation: &mountPropagation,
+		})
+		return cacheVolumes, cacheVolumeMounts
+	}
 	for _, optSubStr := range strings.Split(cmdSplits[1], ",") {
 		optValStr := strings.TrimSpace(optSubStr)
 		if !strings.HasPrefix(optValStr, "cache-dir") {
@@ -244,6 +202,45 @@ func quoteForShell(cmd string) string {
 	return cmd
 }
 
+func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
+	pod := generatePodTemplate()
+	secretName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
+
+	volumes := getVolumes(jfsSetting)
+	volumeMounts := getVolumeMounts(jfsSetting)
+	i := 1
+	for k, v := range jfsSetting.Configs {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      fmt.Sprintf("config-%v", i),
+			MountPath: v,
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: fmt.Sprintf("config-%v", i),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: k,
+				},
+			},
+		})
+		i++
+	}
+	var initContainer corev1.Container
+	if jfsSetting.FormatCmd != "" {
+		initContainer = getInitContainer(jfsSetting)
+		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
+		pod.Spec.InitContainers = []corev1.Container{initContainer}
+	}
+
+	pod.Spec.Volumes = volumes
+	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].EnvFrom = append(pod.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{
+		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
+			Name: secretName,
+		}},
+	})
+	return pod
+}
+
 func generatePodTemplate() *corev1.Pod {
 	isPrivileged := true
 	return &corev1.Pod{
@@ -261,21 +258,17 @@ func generatePodTemplate() *corev1.Pod {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
-				Env: []corev1.EnvVar{{
-					Name:  "JFS_FOREGROUND",
-					Value: "1",
-				}},
 			}},
 			NodeName:         config.NodeName,
-			HostNetwork:      config.CSINodePod.Spec.HostNetwork,
-			HostAliases:      config.CSINodePod.Spec.HostAliases,
-			HostPID:          config.CSINodePod.Spec.HostPID,
-			HostIPC:          config.CSINodePod.Spec.HostIPC,
-			DNSConfig:        config.CSINodePod.Spec.DNSConfig,
-			DNSPolicy:        config.CSINodePod.Spec.DNSPolicy,
-			ImagePullSecrets: config.CSINodePod.Spec.ImagePullSecrets,
-			PreemptionPolicy: config.CSINodePod.Spec.PreemptionPolicy,
-			Tolerations:      config.CSINodePod.Spec.Tolerations,
+			HostNetwork:      config.CSIPod.Spec.HostNetwork,
+			HostAliases:      config.CSIPod.Spec.HostAliases,
+			HostPID:          config.CSIPod.Spec.HostPID,
+			HostIPC:          config.CSIPod.Spec.HostIPC,
+			DNSConfig:        config.CSIPod.Spec.DNSConfig,
+			DNSPolicy:        config.CSIPod.Spec.DNSPolicy,
+			ImagePullSecrets: config.CSIPod.Spec.ImagePullSecrets,
+			PreemptionPolicy: config.CSIPod.Spec.PreemptionPolicy,
+			Tolerations:      config.CSIPod.Spec.Tolerations,
 		},
 	}
 }

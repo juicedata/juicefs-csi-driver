@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -168,4 +169,43 @@ func (k *K8sClient) UpdateSecret(secret *corev1.Secret) error {
 func (k *K8sClient) DeleteSecret(secretName string, namespace string) error {
 	klog.V(6).Infof("Delete secret %s", secretName)
 	return k.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+}
+
+func (k *K8sClient) GetJob(jobName, namespace string) (*batchv1.Job, error) {
+	klog.V(6).Infof("Get job %s", jobName)
+	job, err := k.BatchV1().Jobs(namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get job %s namespace %s: %v", jobName, namespace, err)
+		return nil, err
+	}
+	return job, nil
+}
+
+func (k *K8sClient) CreateJob(job *batchv1.Job) (*batchv1.Job, error) {
+	if job == nil {
+		klog.V(5).Info("Create job: job is nil")
+		return nil, nil
+	}
+	klog.V(6).Infof("Create job %s", job.Name)
+	created, err := k.BatchV1().Jobs(job.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	if err != nil {
+		klog.V(5).Infof("Can't create job %s: %v", job.Name, err)
+		return nil, err
+	}
+	return created, nil
+}
+
+func (k *K8sClient) UpdateJob(job *batchv1.Job) error {
+	if job == nil {
+		klog.V(5).Info("Update job: job is nil")
+		return nil
+	}
+	klog.V(6).Infof("Update job %v", job.Name)
+	_, err := k.BatchV1().Jobs(job.Namespace).Update(context.TODO(), job, metav1.UpdateOptions{})
+	return err
+}
+
+func (k *K8sClient) DeleteJob(jobName string, namespace string) error {
+	klog.V(6).Infof("Delete job %s", jobName)
+	return k.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
 }

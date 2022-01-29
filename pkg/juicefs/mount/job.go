@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Juicedata Inc
+Copyright 2022 Juicedata Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,15 +17,10 @@ limitations under the License.
 package mount
 
 import (
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8sMount "k8s.io/utils/mount"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	batchv1 "k8s.io/api/batch/v1"
 )
 
-type MntInterface interface {
-	k8sMount.Interface
-	JMount(jfsSetting *jfsConfig.JfsSetting) error
-	JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error
-	JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error
-	JUmount(volumeId, target string, simple bool) error
-	AddRefOfMount(target string, podName string) error
+func NewJob(jfsSetting *config.JfsSetting) *batchv1.Job {
+	return nil
 }

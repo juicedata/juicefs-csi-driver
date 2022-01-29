@@ -137,6 +137,16 @@ func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
 	return deleteMountPod(pod.Name, pod.Namespace)
 }
 
+func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
 	lock := jfsConfig.GetPodLock(podName)

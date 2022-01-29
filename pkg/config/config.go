@@ -33,7 +33,7 @@ var (
 	HostIp                = ""
 	KubeletPort           = ""
 
-	CSINodePod = corev1.Pod{}
+	CSIPod = corev1.Pod{}
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
