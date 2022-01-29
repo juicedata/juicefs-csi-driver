@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mount
+package resources
 
 import (
 	"fmt"
@@ -34,15 +34,6 @@ func GenerateNameByVolumeId(volumeId string, simple bool) string {
 		return fmt.Sprintf("juicefs-%s-%s-simple", config.NodeName, volumeId)
 	}
 	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
-}
-
-func hasRef(pod *corev1.Pod) bool {
-	for k, target := range pod.Annotations {
-		if k == util.GetReferenceKey(target) {
-			return true
-		}
-	}
-	return false
 }
 
 func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
@@ -90,6 +81,12 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 		},
 	}
 
+	for k, v := range jfsSetting.Envs {
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  k,
+			Value: v,
+		})
+	}
 	for k, v := range jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
@@ -153,6 +150,7 @@ func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
 		})
 		return cacheVolumes, cacheVolumeMounts
 	}
+
 	for _, optSubStr := range strings.Split(cmdSplits[1], ",") {
 		optValStr := strings.TrimSpace(optSubStr)
 		if !strings.HasPrefix(optValStr, "cache-dir") {
@@ -202,77 +200,6 @@ func quoteForShell(cmd string) string {
 	return cmd
 }
 
-func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
-	pod := generatePodTemplate()
-	secretName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
-
-	volumes := getVolumes(jfsSetting)
-	volumeMounts := getVolumeMounts(jfsSetting)
-	i := 1
-	for k, v := range jfsSetting.Configs {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf("config-%v", i),
-			MountPath: v,
-		})
-		volumes = append(volumes, corev1.Volume{
-			Name: fmt.Sprintf("config-%v", i),
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: k,
-				},
-			},
-		})
-		i++
-	}
-	var initContainer corev1.Container
-	if jfsSetting.FormatCmd != "" {
-		initContainer = getInitContainer(jfsSetting)
-		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
-		pod.Spec.InitContainers = []corev1.Container{initContainer}
-	}
-
-	pod.Spec.Volumes = volumes
-	pod.Spec.Containers[0].VolumeMounts = volumeMounts
-	pod.Spec.Containers[0].EnvFrom = append(pod.Spec.Containers[0].EnvFrom, corev1.EnvFromSource{
-		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
-			Name: secretName,
-		}},
-	})
-	return pod
-}
-
-func generatePodTemplate() *corev1.Pod {
-	isPrivileged := true
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: config.Namespace,
-			Labels: map[string]string{
-				config.PodTypeKey: config.PodTypeValue,
-			},
-			Annotations: make(map[string]string),
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:  "jfs-mount",
-				Image: config.MountImage,
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &isPrivileged,
-				},
-			}},
-			NodeName:         config.NodeName,
-			HostNetwork:      config.CSIPod.Spec.HostNetwork,
-			HostAliases:      config.CSIPod.Spec.HostAliases,
-			HostPID:          config.CSIPod.Spec.HostPID,
-			HostIPC:          config.CSIPod.Spec.HostIPC,
-			DNSConfig:        config.CSIPod.Spec.DNSConfig,
-			DNSPolicy:        config.CSIPod.Spec.DNSPolicy,
-			ImagePullSecrets: config.CSIPod.Spec.ImagePullSecrets,
-			PreemptionPolicy: config.CSIPod.Spec.PreemptionPolicy,
-			Tolerations:      config.CSIPod.Spec.Tolerations,
-		},
-	}
-}
-
 func getCommand(jfsSetting *config.JfsSetting) string {
 	cmd := ""
 	options := jfsSetting.Options
@@ -297,87 +224,6 @@ func getCommand(jfsSetting *config.JfsSetting) string {
 		cmd = strings.Join(mountArgs, " ")
 	}
 	return cmd
-}
-
-func getVolumes(setting *config.JfsSetting) []corev1.Volume {
-	dir := corev1.HostPathDirectoryOrCreate
-	secretName := GenerateNameByVolumeId(setting.VolumeId, setting.Simple)
-
-	volumes := []corev1.Volume{{
-		Name: "jfs-dir",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.MountPointPath,
-				Type: &dir,
-			},
-		}}, {
-		Name: "jfs-root-dir",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.JFSConfigPath,
-				Type: &dir,
-			},
-		},
-	}}
-	if setting.EncryptRsaKey != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "rsa-key",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-					Items: []corev1.KeyToPath{{
-						Key:  "encrypt_rsa_key",
-						Path: "rsa-key.pem",
-					}},
-				},
-			},
-		})
-	}
-	if setting.InitConfig != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "init_config",
-			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
-				SecretName: secretName,
-				Items: []corev1.KeyToPath{{
-					Key:  "init_config",
-					Path: setting.Name + ".conf",
-				}},
-			}},
-		})
-	}
-	return volumes
-}
-
-func getVolumeMounts(setting *config.JfsSetting) []corev1.VolumeMount {
-	mp := corev1.MountPropagationBidirectional
-	volumeMounts := []corev1.VolumeMount{{
-		Name:             "jfs-dir",
-		MountPath:        config.PodMountBase,
-		MountPropagation: &mp,
-	}, {
-		Name:             "jfs-root-dir",
-		MountPath:        "/root/.juicefs",
-		MountPropagation: &mp,
-	}}
-	if setting.EncryptRsaKey != "" {
-		if !setting.IsCe {
-			volumeMounts = append(volumeMounts,
-				corev1.VolumeMount{
-					Name:      "rsa-key",
-					MountPath: "/root/.rsa",
-				},
-			)
-		}
-	}
-	if setting.InitConfig != "" {
-		volumeMounts = append(volumeMounts,
-			corev1.VolumeMount{
-				Name:      "init_config",
-				MountPath: "/root/.juicefs",
-			},
-		)
-	}
-	return volumeMounts
 }
 
 func getInitContainer(setting *config.JfsSetting) corev1.Container {

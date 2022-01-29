@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
 	corev1 "k8s.io/api/core/v1"
 	"time"
 
@@ -45,11 +46,11 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrAddRef(jfsSetting); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple))
+	return p.waitUtilPodReady(resources.GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple))
 }
 
 func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
-	podName := GenerateNameByVolumeId(volumeId, simple)
+	podName := resources.GenerateNameByVolumeId(volumeId, simple)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -105,7 +106,7 @@ func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
 				return err
 			}
 
-			if hasRef(po) {
+			if resources.HasRef(po) {
 				klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 				return nil
 			}
@@ -130,7 +131,7 @@ func (p *PodMount) JUmount(volumeId, target string, simple bool) error {
 		klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
 		return err
 	}
-	if hasRef(newPod) {
+	if resources.HasRef(newPod) {
 		return nil
 	}
 	// if pod annotations has no "juicefs-" prefix or no delete delay, delete pod
@@ -148,12 +149,12 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
+	podName := resources.GenerateNameByVolumeId(jfsSetting.VolumeId, jfsSetting.Simple)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
-	secret := NewSecret(jfsSetting)
+	secret := resources.NewSecret(jfsSetting)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
 	}
@@ -169,7 +170,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 			if k8serrors.IsNotFound(err) {
 				// pod not exist, create
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
-				newPod := NewMountPod(jfsSetting)
+				newPod := resources.NewMountPod(jfsSetting)
 				if newPod.Annotations == nil {
 					newPod.Annotations = make(map[string]string)
 				}

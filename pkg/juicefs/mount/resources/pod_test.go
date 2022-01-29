@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mount
+package resources
 
 import (
 	"encoding/json"
@@ -301,7 +301,7 @@ func TestHasRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := hasRef(tt.args.pod); got != tt.want {
+			if got := HasRef(tt.args.pod); got != tt.want {
 				t.Errorf("HasRef() = %v, want %v", got, tt.want)
 			}
 		})
@@ -367,7 +367,6 @@ func TestNewMountPod(t *testing.T) {
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
-	putDefaultCacheDir(&podConfigTest)
 	podConfigTest.Spec.Volumes = append(podConfigTest.Spec.Volumes, corev1.Volume{
 		Name:         "config-1",
 		VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "secret-test"}},
@@ -376,6 +375,7 @@ func TestNewMountPod(t *testing.T) {
 		Name:      "config-1",
 		MountPath: "/test",
 	})
+	putDefaultCacheDir(&podConfigTest)
 
 	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmdWithCacheDir)
