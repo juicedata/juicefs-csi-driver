@@ -47,6 +47,7 @@ func newJob(jfsSetting *config.JfsSetting) *batchv1.Job {
 				"umount %s && rmdir %s", jfsSetting.MountPath, jfsSetting.MountPath)}},
 		},
 	}
+	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,

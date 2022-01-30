@@ -162,7 +162,7 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 
 func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
-	job := resources.NewJobForCreateVolume(jfsSetting)
+	job := resources.NewJobForDeleteVolume(jfsSetting)
 	exist, err := p.K8sClient.GetJob(job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("JDeleteVolume: create job %s", job.Name)

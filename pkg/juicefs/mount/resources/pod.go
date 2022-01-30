@@ -69,7 +69,6 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 		InitialDelaySeconds: 1,
 		PeriodSeconds:       1,
 	}
-	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
