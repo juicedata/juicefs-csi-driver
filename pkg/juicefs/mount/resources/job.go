@@ -37,8 +37,12 @@ func NewJobForDeleteVolume(jfsSetting *config.JfsSetting) *batchv1.Job {
 	return job
 }
 
+func GenJobNameByVolumeId(volumeId string) string {
+	return fmt.Sprintf("juicefs-%s", volumeId)
+}
+
 func newJob(jfsSetting *config.JfsSetting) *batchv1.Job {
-	jobName := "job-" + GenerateNameByVolumeId(jfsSetting.VolumeId)
+	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-job"
 	podTemplate := generateJuicePod(jfsSetting)
 	ttlSecond := int32(1)
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
