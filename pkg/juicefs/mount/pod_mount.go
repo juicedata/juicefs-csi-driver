@@ -143,6 +143,7 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("JCreateVolume: create job %s", job.Name)
 		exist, err = p.K8sClient.CreateJob(job)
+		klog.V(5).Infof("job created: name %s, uid %s ", exist.Name, exist.UID)
 		if err != nil {
 			klog.Errorf("JCreateVolume: create job %s err: %v", job.Name, err)
 			return err
@@ -152,7 +153,8 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.Errorf("JCreateVolume: get job %s err: %s", job.Name, err)
 		return err
 	}
-	secret := resources.NewSecret(jfsSetting, job.Name+"-secret")
+	secret := resources.NewSecret(jfsSetting)
+	klog.V(5).Infof("job: name %s, uid %s ", exist.Name, exist.UID)
 	resources.SetJobAsOwner(&secret, *exist)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
@@ -176,7 +178,7 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.Errorf("JDeleteVolume: get job %s err: %s", job.Name, err)
 		return err
 	}
-	secret := resources.NewSecret(jfsSetting, job.Name+"-secret")
+	secret := resources.NewSecret(jfsSetting)
 	resources.SetJobAsOwner(&secret, *exist)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
@@ -186,11 +188,13 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 	podName := resources.GenerateNameByVolumeId(jfsSetting.VolumeId)
+	secretName := podName + "-secret"
+	jfsSetting.SecretName = secretName
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
-	secret := resources.NewSecret(jfsSetting, podName+"-secret")
+	secret := resources.NewSecret(jfsSetting)
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted

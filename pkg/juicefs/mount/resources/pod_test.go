@@ -475,6 +475,7 @@ func TestNewMountPod(t *testing.T) {
 				MountPath:              tt.args.mountPath,
 				VolumeId:               tt.args.name,
 				Options:                tt.args.options,
+				SecretName:             GenerateNameByVolumeId(tt.args.name),
 			}
 			got := NewMountPod(jfsSetting)
 			gotStr, _ := json.Marshal(got)

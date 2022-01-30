@@ -43,12 +43,13 @@ func GenJobNameByVolumeId(volumeId string) string {
 
 func newJob(jfsSetting *config.JfsSetting) *batchv1.Job {
 	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-job"
+	secretName := jobName + "-secret"
+	jfsSetting.SecretName = secretName
 	podTemplate := generateJuicePod(jfsSetting)
 	ttlSecond := int32(1)
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"umount %s && rmdir %s", jfsSetting.MountPath, jfsSetting.MountPath)}},
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs && rmdir /mnt/jfs"}},
 		},
 	}
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
@@ -90,13 +91,13 @@ func getDeleteVolumeCmd(jfsSetting config.JfsSetting) string {
 func getJobCommand(jfsSetting config.JfsSetting) string {
 	var cmd string
 	if jfsSetting.IsCe {
-		args := []string{config.CeMountPath, jfsSetting.Source, jfsSetting.MountPath, "-d"}
+		args := []string{config.CeMountPath, jfsSetting.Source, "/mnt/jfs", "-d"}
 		if len(jfsSetting.Options) != 0 {
 			args = append(args, "-o", strings.Join(jfsSetting.Options, ","))
 		}
 		cmd = strings.Join(args, " ")
 	} else {
-		args := []string{config.JfsMountPath, jfsSetting.Source, jfsSetting.MountPath, "-d"}
+		args := []string{config.JfsMountPath, jfsSetting.Source, "/mnt/jfs", "-d"}
 		if jfsSetting.EncryptRsaKey != "" {
 			args = append(args, "--rsa-key=/root/.rsa/rsa-key.pem")
 		}

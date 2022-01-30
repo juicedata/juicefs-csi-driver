@@ -217,7 +217,7 @@ func getCommand(jfsSetting *config.JfsSetting) string {
 
 func getInitContainer(setting *config.JfsSetting) corev1.Container {
 	isPrivileged := true
-	secretName := GenerateNameByVolumeId(setting.VolumeId)
+	secretName := setting.SecretName
 	formatCmd := setting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",

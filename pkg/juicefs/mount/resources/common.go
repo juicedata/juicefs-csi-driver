@@ -34,7 +34,6 @@ func HasRef(pod *corev1.Pod) bool {
 
 func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod := config.GeneratePodTemplate()
-	secret := GenerateNameByVolumeId(jfsSetting.VolumeId)
 
 	volumes := getVolumes(*jfsSetting)
 	volumeMounts := getVolumeMounts(*jfsSetting)
@@ -60,7 +59,7 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
 		SecretRef: &corev1.SecretEnvSource{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: secret,
+				Name: jfsSetting.SecretName,
 			},
 		},
 	}}
@@ -74,7 +73,7 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 
 func getVolumes(setting config.JfsSetting) []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
-	secretName := GenerateNameByVolumeId(setting.VolumeId)
+	secretName := setting.SecretName
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
 		VolumeSource: corev1.VolumeSource{

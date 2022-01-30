@@ -24,7 +24,7 @@ import (
 	"k8s.io/klog"
 )
 
-func NewSecret(setting *config.JfsSetting, name string) corev1.Secret {
+func NewSecret(setting *config.JfsSetting) corev1.Secret {
 	data := make(map[string]string)
 	if setting.MetaUrl != "" {
 		data["metaurl"] = setting.MetaUrl
@@ -54,7 +54,7 @@ func NewSecret(setting *config.JfsSetting, name string) corev1.Secret {
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: config.Namespace,
-			Name:      name,
+			Name:      setting.SecretName,
 		},
 		StringData: data,
 	}
@@ -64,8 +64,8 @@ func NewSecret(setting *config.JfsSetting, name string) corev1.Secret {
 func SetPodAsOwner(secret *corev1.Secret, owner corev1.Pod) {
 	controller := true
 	secret.SetOwnerReferences([]metav1.OwnerReference{{
-		APIVersion: owner.APIVersion,
-		Kind:       owner.Kind,
+		APIVersion: "v1",
+		Kind:       "Pod",
 		Name:       owner.Name,
 		UID:        owner.UID,
 		Controller: &controller,
@@ -75,8 +75,8 @@ func SetPodAsOwner(secret *corev1.Secret, owner corev1.Pod) {
 func SetJobAsOwner(secret *corev1.Secret, owner batchv1.Job) {
 	controller := true
 	secret.SetOwnerReferences([]metav1.OwnerReference{{
-		APIVersion: owner.APIVersion,
-		Kind:       owner.Kind,
+		APIVersion: "batch/v1",
+		Kind:       "Job",
 		Name:       owner.Name,
 		UID:        owner.UID,
 		Controller: &controller,
