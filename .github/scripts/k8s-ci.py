@@ -852,7 +852,7 @@ def test_dynamic_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, volume_id)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, volume_id)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -918,7 +918,7 @@ def test_static_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, pv.name)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, pv.name)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
