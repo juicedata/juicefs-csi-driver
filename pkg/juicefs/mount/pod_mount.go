@@ -152,7 +152,7 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.Errorf("JCreateVolume: get job %s err: %s", job.Name, err)
 		return err
 	}
-	secret := resources.NewSecret(jfsSetting, job.Name)
+	secret := resources.NewSecret(jfsSetting, job.Name+"-secret")
 	resources.SetJobAsOwner(&secret, *exist)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
@@ -176,7 +176,7 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.Errorf("JDeleteVolume: get job %s err: %s", job.Name, err)
 		return err
 	}
-	secret := resources.NewSecret(jfsSetting, job.Name)
+	secret := resources.NewSecret(jfsSetting, job.Name+"-secret")
 	resources.SetJobAsOwner(&secret, *exist)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
@@ -190,7 +190,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 	lock.Lock()
 	defer lock.Unlock()
 
-	secret := resources.NewSecret(jfsSetting, podName)
+	secret := resources.NewSecret(jfsSetting, podName+"-secret")
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted

@@ -24,7 +24,7 @@ import (
 	"k8s.io/klog"
 )
 
-func NewSecret(setting *config.JfsSetting, generateName string) corev1.Secret {
+func NewSecret(setting *config.JfsSetting, name string) corev1.Secret {
 	data := make(map[string]string)
 	if setting.MetaUrl != "" {
 		data["metaurl"] = setting.MetaUrl
@@ -53,8 +53,8 @@ func NewSecret(setting *config.JfsSetting, generateName string) corev1.Secret {
 	klog.V(6).Infof("secret data: %v", data)
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:    config.Namespace,
-			GenerateName: generateName,
+			Namespace: config.Namespace,
+			Name:      name,
 		},
 		StringData: data,
 	}
