@@ -20,6 +20,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -143,7 +144,6 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("JCreateVolume: create job %s", job.Name)
 		exist, err = p.K8sClient.CreateJob(job)
-		klog.V(5).Infof("job created: name %s, uid %s ", exist.Name, exist.UID)
 		if err != nil {
 			klog.Errorf("JCreateVolume: create job %s err: %v", job.Name, err)
 			return err
@@ -154,12 +154,11 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		return err
 	}
 	secret := resources.NewSecret(jfsSetting)
-	klog.V(5).Infof("job: name %s, uid %s ", exist.Name, exist.UID)
 	resources.SetJobAsOwner(&secret, *exist)
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
 	}
-	return nil
+	return p.waitUtilJobCompleted(job.Name)
 }
 
 func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
@@ -183,7 +182,7 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
 	}
-	return nil
+	return p.waitUtilJobCompleted(job.Name)
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
@@ -256,6 +255,38 @@ func (p *PodMount) waitUtilPodReady(podName string) error {
 	return status.Errorf(codes.Internal, "waitUtilPodReady: mount pod %s isn't ready in 30 seconds: %v", podName, log)
 }
 
+func (p *PodMount) waitUtilJobCompleted(jobName string) error {
+	// Wait until the job is completed
+	for i := 0; i < 60; i++ {
+		job, err := p.K8sClient.GetJob(jobName, jfsConfig.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
+				return nil
+			}
+			return status.Errorf(codes.Internal, "waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
+		}
+		if util.IsJobCompleted(job) {
+			klog.V(5).Infof("waitUtilJobCompleted: Job %s is completed", jobName)
+			return nil
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"job-name": jobName,
+		},
+	})
+	if err != nil || len(pods) != 1 {
+		klog.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
+	}
+	log, err := p.getNotCompleteCnLog(pods[0].Name)
+	if err != nil {
+		klog.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
+	}
+	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 30 seconds: %v", jobName, log)
+}
+
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", podName, target)
 	// add volumeId ref in pod annotation
@@ -297,7 +328,6 @@ func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				// secret not exist, create
-				klog.V(5).Infof("createOrUpdateSecret: Create secret %s", secret.Name)
 				_, err := p.K8sClient.CreateSecret(secret)
 				return err
 			}
@@ -328,6 +358,26 @@ func (p *PodMount) getErrContainerLog(podName string) (log string, err error) {
 	}
 	for _, cn := range pod.Status.ContainerStatuses {
 		if !cn.Ready {
+			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			return
+		}
+	}
+	return
+}
+
+func (p *PodMount) getNotCompleteCnLog(podName string) (log string, err error) {
+	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+	if err != nil {
+		return
+	}
+	for _, cn := range pod.Status.InitContainerStatuses {
+		if cn.State.Terminated == nil || cn.State.Terminated.Reason != "Completed" {
+			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			return
+		}
+	}
+	for _, cn := range pod.Status.ContainerStatuses {
+		if cn.State.Terminated == nil || cn.State.Terminated.Reason != "Completed" {
 			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
 			return
 		}

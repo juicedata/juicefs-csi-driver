@@ -25,6 +25,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -78,6 +79,22 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) ListPod(namespace string, labelSelector metav1.LabelSelector) ([]corev1.Pod, error) {
+	klog.V(6).Infof("List pod by labelSelector %v", labelSelector)
+	labelMap, err := metav1.LabelSelectorAsMap(&labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	podList, err := k.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labelMap).String(),
+	})
+	if err != nil {
+		klog.V(6).Infof("Can't list pod in namespace %s by labelSelector %v: %v", namespace, labelSelector, err)
+		return nil, err
+	}
+	return podList.Items, nil
 }
 
 func (k *K8sClient) GetPodLog(podName, namespace, containerName string) (string, error) {

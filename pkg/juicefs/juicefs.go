@@ -187,7 +187,6 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	jfsSetting.TargetPath = target
 	source, isCe := secrets["metaurl"]
 	if !isCe {
-		j.Upgrade()
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {

@@ -26,13 +26,15 @@ import (
 )
 
 func NewJobForCreateVolume(jfsSetting *config.JfsSetting) *batchv1.Job {
-	job := newJob(jfsSetting)
+	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-createvol"
+	job := newJob(jfsSetting, jobName)
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", getCreateVolumeCmd(*jfsSetting)}
 	return job
 }
 
 func NewJobForDeleteVolume(jfsSetting *config.JfsSetting) *batchv1.Job {
-	job := newJob(jfsSetting)
+	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-delvol"
+	job := newJob(jfsSetting, jobName)
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", getDeleteVolumeCmd(*jfsSetting)}
 	return job
 }
@@ -41,8 +43,7 @@ func GenJobNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s", volumeId)
 }
 
-func newJob(jfsSetting *config.JfsSetting) *batchv1.Job {
-	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-job"
+func newJob(jfsSetting *config.JfsSetting, jobName string) *batchv1.Job {
 	secretName := jobName + "-secret"
 	jfsSetting.SecretName = secretName
 	podTemplate := generateJuicePod(jfsSetting)
@@ -97,7 +98,7 @@ func getJobCommand(jfsSetting config.JfsSetting) string {
 		}
 		cmd = strings.Join(args, " ")
 	} else {
-		args := []string{config.JfsMountPath, jfsSetting.Source, "/mnt/jfs", "-d"}
+		args := []string{config.CliPath, "mount", jfsSetting.Source, "/mnt/jfs", "-b"}
 		if jfsSetting.EncryptRsaKey != "" {
 			args = append(args, "--rsa-key=/root/.rsa/rsa-key.pem")
 		}

@@ -9,7 +9,7 @@ import time
 from kubernetes import client, watch, config
 from kubernetes.dynamic.exceptions import ConflictError
 
-KUBE_SYSTEM = "kube-system"
+KUBE_SYSTEM = "default"
 META_URL = os.getenv("JUICEFS_META_URL") or ""
 ACCESS_KEY = os.getenv("JUICEFS_ACCESS_KEY") or ""
 SECRET_KEY = os.getenv("JUICEFS_SECRET_KEY") or ""
@@ -528,6 +528,8 @@ def die(e):
     subprocess.run(["sudo", "microk8s.kubectl", "get", "pv"], check=True)
     print("Get sc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "sc"], check=True)
+    print("Get job: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "job", "--all-namespaces"], check=True)
     raise Exception(e)
 
 
@@ -852,7 +854,8 @@ def test_dynamic_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, volume_id)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+        app_pod_id, volume_id)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -918,7 +921,8 @@ def test_static_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, pv.name)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+        app_pod_id, pv.name)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:

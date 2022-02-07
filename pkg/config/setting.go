@@ -121,7 +121,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 
 	labels := make(map[string]string)
 	if MountLabels != "" {
-		klog.V(5).Infof("Get MountLabels from csi env: %v", MountLabels)
+		klog.V(6).Infof("Get MountLabels from csi env: %v", MountLabels)
 		if err := parseYamlOrJson(MountLabels, &labels); err != nil {
 			return nil, err
 		}
