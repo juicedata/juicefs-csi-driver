@@ -51,7 +51,9 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
 	pod.Name = podName
-	pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
+	if jfsSetting.MountPodServiceAccount != "" {
+		pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
+	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways

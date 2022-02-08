@@ -25,14 +25,13 @@ import (
 )
 
 var (
-	NodeName              = ""
-	Namespace             = ""
-	PodName               = ""
-	PodServiceAccountName = ""
-	MountImage            = ""
-	MountLabels           = ""
-	HostIp                = ""
-	KubeletPort           = ""
+	NodeName    = ""
+	Namespace   = ""
+	PodName     = ""
+	MountImage  = ""
+	MountLabels = ""
+	HostIp      = ""
+	KubeletPort = ""
 
 	CSIPod = corev1.Pod{}
 
@@ -99,16 +98,17 @@ func GeneratePodTemplate() *corev1.Pod {
 				},
 				Env: []corev1.EnvVar{},
 			}},
-			NodeName:         NodeName,
-			HostNetwork:      CSIPod.Spec.HostNetwork,
-			HostAliases:      CSIPod.Spec.HostAliases,
-			HostPID:          CSIPod.Spec.HostPID,
-			HostIPC:          CSIPod.Spec.HostIPC,
-			DNSConfig:        CSIPod.Spec.DNSConfig,
-			DNSPolicy:        CSIPod.Spec.DNSPolicy,
-			ImagePullSecrets: CSIPod.Spec.ImagePullSecrets,
-			PreemptionPolicy: CSIPod.Spec.PreemptionPolicy,
-			Tolerations:      CSIPod.Spec.Tolerations,
+			NodeName:           NodeName,
+			HostNetwork:        CSIPod.Spec.HostNetwork,
+			HostAliases:        CSIPod.Spec.HostAliases,
+			HostPID:            CSIPod.Spec.HostPID,
+			HostIPC:            CSIPod.Spec.HostIPC,
+			DNSConfig:          CSIPod.Spec.DNSConfig,
+			DNSPolicy:          CSIPod.Spec.DNSPolicy,
+			ServiceAccountName: CSIPod.Spec.ServiceAccountName,
+			ImagePullSecrets:   CSIPod.Spec.ImagePullSecrets,
+			PreemptionPolicy:   CSIPod.Spec.PreemptionPolicy,
+			Tolerations:        CSIPod.Spec.Tolerations,
 		},
 	}
 }
