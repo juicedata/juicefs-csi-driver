@@ -66,7 +66,6 @@ func init() {
 		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
 		os.Exit(0)
 	}
-	config.PodServiceAccountName = pod.Spec.ServiceAccountName
 	config.CSIPod = *pod
 	for i := range pod.Spec.Containers {
 		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
