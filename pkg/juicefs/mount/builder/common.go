@@ -14,31 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package builder
 
 import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func HasRef(pod *corev1.Pod) bool {
-	for k, target := range pod.Annotations {
-		if k == util.GetReferenceKey(target) {
-			return true
-		}
-	}
-	return false
+type Builder struct {
+	jfsSetting *config.JfsSetting
 }
 
-func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
+func NewBuilder(setting *config.JfsSetting) *Builder {
+	return &Builder{setting}
+}
+
+func (r *Builder) generateJuicePod() *corev1.Pod {
 	pod := config.GeneratePodTemplate()
 
-	volumes := getVolumes(*jfsSetting)
-	volumeMounts := getVolumeMounts(*jfsSetting)
+	volumes := r.getVolumes()
+	volumeMounts := r.getVolumeMounts()
 	i := 1
-	for k, v := range jfsSetting.Configs {
+	for k, v := range r.jfsSetting.Configs {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("config-%v", i),
 			MountPath: v,
@@ -59,21 +57,21 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
 		SecretRef: &corev1.SecretEnvSource{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: jfsSetting.SecretName,
+				Name: r.jfsSetting.SecretName,
 			},
 		},
 	}}
-	if jfsSetting.FormatCmd != "" {
-		initContainer := getInitContainer(jfsSetting)
+	if r.jfsSetting.FormatCmd != "" {
+		initContainer := r.getInitContainer()
 		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
 		pod.Spec.InitContainers = []corev1.Container{initContainer}
 	}
 	return pod
 }
 
-func getVolumes(setting config.JfsSetting) []corev1.Volume {
+func (r *Builder) getVolumes() []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
-	secretName := setting.SecretName
+	secretName := r.jfsSetting.SecretName
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
 		VolumeSource: corev1.VolumeSource{
@@ -90,7 +88,7 @@ func getVolumes(setting config.JfsSetting) []corev1.Volume {
 			},
 		},
 	}}
-	if setting.EncryptRsaKey != "" {
+	if r.jfsSetting.EncryptRsaKey != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "rsa-key",
 			VolumeSource: corev1.VolumeSource{
@@ -104,14 +102,14 @@ func getVolumes(setting config.JfsSetting) []corev1.Volume {
 			},
 		})
 	}
-	if setting.InitConfig != "" {
+	if r.jfsSetting.InitConfig != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "init_config",
 			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
 				SecretName: secretName,
 				Items: []corev1.KeyToPath{{
 					Key:  "init_config",
-					Path: setting.Name + ".conf",
+					Path: r.jfsSetting.Name + ".conf",
 				}},
 			}},
 		})
@@ -119,7 +117,7 @@ func getVolumes(setting config.JfsSetting) []corev1.Volume {
 	return volumes
 }
 
-func getVolumeMounts(setting config.JfsSetting) []corev1.VolumeMount {
+func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	mp := corev1.MountPropagationBidirectional
 	volumeMounts := []corev1.VolumeMount{{
 		Name:             "jfs-dir",
@@ -130,8 +128,8 @@ func getVolumeMounts(setting config.JfsSetting) []corev1.VolumeMount {
 		MountPath:        "/root/.juicefs",
 		MountPropagation: &mp,
 	}}
-	if setting.EncryptRsaKey != "" {
-		if !setting.IsCe {
+	if r.jfsSetting.EncryptRsaKey != "" {
+		if !r.jfsSetting.IsCe {
 			volumeMounts = append(volumeMounts,
 				corev1.VolumeMount{
 					Name:      "rsa-key",
@@ -140,7 +138,7 @@ func getVolumeMounts(setting config.JfsSetting) []corev1.VolumeMount {
 			)
 		}
 	}
-	if setting.InitConfig != "" {
+	if r.jfsSetting.InitConfig != "" {
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
 				Name:      "init_config",

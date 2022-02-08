@@ -14,47 +14,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package builder
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 )
 
-func NewSecret(setting *config.JfsSetting) corev1.Secret {
+func (r *Builder) NewSecret() corev1.Secret {
 	data := make(map[string]string)
-	if setting.MetaUrl != "" {
-		data["metaurl"] = setting.MetaUrl
+	if r.jfsSetting.MetaUrl != "" {
+		data["metaurl"] = r.jfsSetting.MetaUrl
 	}
-	if setting.SecretKey != "" {
-		data["secretkey"] = setting.SecretKey
+	if r.jfsSetting.SecretKey != "" {
+		data["secretkey"] = r.jfsSetting.SecretKey
 	}
-	if setting.SecretKey2 != "" {
-		data["secretkey2"] = setting.SecretKey2
+	if r.jfsSetting.SecretKey2 != "" {
+		data["secretkey2"] = r.jfsSetting.SecretKey2
 	}
-	if setting.Token != "" {
-		data["token"] = setting.Token
+	if r.jfsSetting.Token != "" {
+		data["token"] = r.jfsSetting.Token
 	}
-	if setting.Passphrase != "" {
-		data["passphrase"] = setting.Passphrase
+	if r.jfsSetting.Passphrase != "" {
+		data["passphrase"] = r.jfsSetting.Passphrase
 	}
-	if setting.EncryptRsaKey != "" {
-		data["encrypt_rsa_key"] = setting.EncryptRsaKey
+	if r.jfsSetting.EncryptRsaKey != "" {
+		data["encrypt_rsa_key"] = r.jfsSetting.EncryptRsaKey
 	}
-	if setting.InitConfig != "" {
-		data["init_config"] = setting.InitConfig
+	if r.jfsSetting.InitConfig != "" {
+		data["init_config"] = r.jfsSetting.InitConfig
 	}
-	for k, v := range setting.Envs {
+	for k, v := range r.jfsSetting.Envs {
 		data[k] = v
 	}
-	klog.V(6).Infof("secret data: %v", data)
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: config.Namespace,
-			Name:      setting.SecretName,
+			Name:      r.jfsSetting.SecretName,
 		},
 		StringData: data,
 	}

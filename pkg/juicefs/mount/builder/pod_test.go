@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package builder
 
 import (
 	"encoding/json"
@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -181,7 +180,13 @@ func Test_parsePodResources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parsePodResources(tt.args.MountPodCpuLimit, tt.args.MountPodMemLimit, tt.args.MountPodCpuRequest, tt.args.MountPodMemRequest); !reflect.DeepEqual(got, tt.want) {
+			builder := &Builder{jfsSetting: &config.JfsSetting{
+				MountPodCpuLimit:   tt.args.MountPodCpuLimit,
+				MountPodMemLimit:   tt.args.MountPodMemLimit,
+				MountPodMemRequest: tt.args.MountPodMemRequest,
+				MountPodCpuRequest: tt.args.MountPodCpuRequest,
+			}}
+			if got := builder.parsePodResources(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parsePodResources() = %v, want %v", got, tt.want)
 			}
 		})
@@ -193,6 +198,8 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o prefetch=1,cache-dir=/dev/shm/imagenet,cache-size=10240,open-cache=7200,metrics=0.0.0.0:9567`
 	cmdWithCacheDir2 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cmdWithCacheDir3 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir`
+
+	r := Builder{nil}
 
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -224,87 +231,32 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		},
 	}}
 
-	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmdWithoutCacheDir)
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmdWithoutCacheDir)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 2 || len(volumeMounts) != 2 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir)
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir3)
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir3)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	cacheVolumes, cacheVolumeMounts = getCacheDirVolumes(cmdWithCacheDir2)
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir2)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 5 || len(volumeMounts) != 5 {
 		t.Error("getCacheDirVolumes can't work properly")
-	}
-}
-
-func TestHasRef(t *testing.T) {
-	type args struct {
-		pod *corev1.Pod
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "test-true",
-			args: args{
-				pod: &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test",
-						Annotations: map[string]string{"a": "b", util.GetReferenceKey("aa"): "aa"},
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "test-false",
-			args: args{
-				pod: &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test",
-						Annotations: map[string]string{"a": "b"},
-					},
-				},
-			},
-			want: false,
-		},
-		{
-			name: "test-null",
-			args: args{
-				pod: &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test",
-						Annotations: nil,
-					},
-				},
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := HasRef(tt.args.pod); got != tt.want {
-				t.Errorf("HasRef() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 
@@ -377,8 +329,9 @@ func TestNewMountPod(t *testing.T) {
 	})
 	putDefaultCacheDir(&podConfigTest)
 
+	r := Builder{}
 	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
-	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmdWithCacheDir)
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmdWithCacheDir)
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
@@ -463,6 +416,7 @@ func TestNewMountPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
 			jfsSetting := &config.JfsSetting{
 				IsCe:                   true,
 				Name:                   tt.args.name,
@@ -475,9 +429,10 @@ func TestNewMountPod(t *testing.T) {
 				MountPath:              tt.args.mountPath,
 				VolumeId:               tt.args.name,
 				Options:                tt.args.options,
-				SecretName:             GenerateNameByVolumeId(tt.args.name),
+				SecretName:             podName,
 			}
-			got := NewMountPod(jfsSetting)
+			r := Builder{jfsSetting}
+			got := r.NewMountPod(podName)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {
@@ -529,7 +484,8 @@ func TestPodMount_getCommand(t *testing.T) {
 				MountPath: tt.args.mountPath,
 				Options:   tt.args.options,
 			}
-			if got := getCommand(jfsSetting); got != tt.want {
+			r := Builder{jfsSetting}
+			if got := r.getCommand(); got != tt.want {
 				t.Errorf("getCommand() = %v, want %v", got, tt.want)
 			}
 		})

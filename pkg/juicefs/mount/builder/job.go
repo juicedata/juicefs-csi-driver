@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package builder
 
 import (
 	"fmt"
@@ -25,17 +25,17 @@ import (
 	"strings"
 )
 
-func NewJobForCreateVolume(jfsSetting *config.JfsSetting) *batchv1.Job {
-	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-createvol"
-	job := newJob(jfsSetting, jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", getCreateVolumeCmd(*jfsSetting)}
+func (r *Builder) NewJobForCreateVolume() *batchv1.Job {
+	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-createvol"
+	job := r.newJob(jobName)
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCreateVolumeCmd()}
 	return job
 }
 
-func NewJobForDeleteVolume(jfsSetting *config.JfsSetting) *batchv1.Job {
-	jobName := GenJobNameByVolumeId(jfsSetting.VolumeId) + "-delvol"
-	job := newJob(jfsSetting, jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", getDeleteVolumeCmd(*jfsSetting)}
+func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
+	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-delvol"
+	job := r.newJob(jobName)
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getDeleteVolumeCmd()}
 	return job
 }
 
@@ -43,10 +43,10 @@ func GenJobNameByVolumeId(volumeId string) string {
 	return fmt.Sprintf("juicefs-%s", volumeId)
 }
 
-func newJob(jfsSetting *config.JfsSetting, jobName string) *batchv1.Job {
+func (r *Builder) newJob(jobName string) *batchv1.Job {
 	secretName := jobName + "-secret"
-	jfsSetting.SecretName = secretName
-	podTemplate := generateJuicePod(jfsSetting)
+	r.jfsSetting.SecretName = secretName
+	podTemplate := r.generateJuicePod()
 	ttlSecond := int32(1)
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
@@ -73,37 +73,37 @@ func newJob(jfsSetting *config.JfsSetting, jobName string) *batchv1.Job {
 	return &job
 }
 
-func getCreateVolumeCmd(jfsSetting config.JfsSetting) string {
-	cmd := getJobCommand(jfsSetting)
-	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, jfsSetting.SubPath, jfsSetting.SubPath)
+func (r *Builder) getCreateVolumeCmd() string {
+	cmd := r.getJobCommand()
+	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
 }
 
-func getDeleteVolumeCmd(jfsSetting config.JfsSetting) string {
-	cmd := getJobCommand(jfsSetting)
+func (r *Builder) getDeleteVolumeCmd() string {
+	cmd := r.getJobCommand()
 	var jfsPath string
-	if jfsSetting.IsCe {
+	if r.jfsSetting.IsCe {
 		jfsPath = config.CeCliPath
 	} else {
 		jfsPath = config.CliPath
 	}
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, jfsSetting.SubPath, jfsPath, jfsSetting.SubPath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
 }
 
-func getJobCommand(jfsSetting config.JfsSetting) string {
+func (r *Builder) getJobCommand() string {
 	var cmd string
-	if jfsSetting.IsCe {
-		args := []string{config.CeMountPath, jfsSetting.Source, "/mnt/jfs", "-d"}
-		if len(jfsSetting.Options) != 0 {
-			args = append(args, "-o", strings.Join(jfsSetting.Options, ","))
+	if r.jfsSetting.IsCe {
+		args := []string{config.CeMountPath, r.jfsSetting.Source, "/mnt/jfs", "-d"}
+		if len(r.jfsSetting.Options) != 0 {
+			args = append(args, "-o", strings.Join(r.jfsSetting.Options, ","))
 		}
 		cmd = strings.Join(args, " ")
 	} else {
-		args := []string{config.CliPath, "mount", jfsSetting.Source, "/mnt/jfs", "-b"}
-		if jfsSetting.EncryptRsaKey != "" {
+		args := []string{config.CliPath, "mount", r.jfsSetting.Source, "/mnt/jfs", "-b"}
+		if r.jfsSetting.EncryptRsaKey != "" {
 			args = append(args, "--rsa-key=/root/.rsa/rsa-key.pem")
 		}
-		if len(jfsSetting.Options) > 0 {
-			args = append(args, "-o", strings.Join(jfsSetting.Options, ","))
+		if len(r.jfsSetting.Options) > 0 {
+			args = append(args, "-o", strings.Join(r.jfsSetting.Options, ","))
 		}
 		cmd = strings.Join(args, " ")
 	}
