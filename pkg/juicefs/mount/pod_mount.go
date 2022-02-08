@@ -110,7 +110,12 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 				return nil
 			}
 
-			if !util.ShouldDelay(po, p.K8sClient) {
+			var shouldDelay bool
+			shouldDelay, err = util.ShouldDelay(po, p.K8sClient)
+			if err != nil {
+				return err
+			}
+			if !shouldDelay {
 				// do not set delay delete, delete it now
 				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 				if err := p.K8sClient.DeletePod(po); err != nil {

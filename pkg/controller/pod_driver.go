@@ -151,7 +151,12 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
-		if !util.ShouldDelay(pod, p.Client) {
+		var shouldDelay bool
+		shouldDelay, err := util.ShouldDelay(pod, p.Client)
+		if err != nil {
+			return err
+		}
+		if !shouldDelay {
 			// if there are no refs or after delay time, delete it
 			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
 			if err := p.Client.DeletePod(pod); err != nil {
