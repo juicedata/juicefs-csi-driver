@@ -96,11 +96,11 @@ func GetTime(str string) (time.Time, error) {
 	return time.Parse("2006-01-02 15:04:05", str)
 }
 
-func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool) {
+func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
 	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
 	if !delayExist {
 		// not set delete delay
-		return false
+		return false, nil
 	}
 	delayAtStr, delayAtExist := pod.Annotations[config.DeleteDelayAtKey]
 	if !delayAtExist {
@@ -108,18 +108,19 @@ func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool) {
 		d, err := GetTimeAfterDelay(delayStr)
 		if err != nil {
 			klog.Errorf("delayDelete: can't parse delay time %s: %v", d, err)
-			return false
+			return false, nil
 		}
 		pod.Annotations[config.DeleteDelayAtKey] = d
 		if err := Client.UpdatePod(pod); err != nil {
 			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
+			return true, err
 		}
-		return true
+		return true, nil
 	}
 	delayAt, err := GetTime(delayAtStr)
 	if err != nil {
 		klog.Errorf("delayDelete: can't parse delayAt %s: %v", delayAtStr, err)
-		return false
+		return false, nil
 	}
-	return time.Now().After(delayAt)
+	return time.Now().Before(delayAt), nil
 }
