@@ -19,11 +19,13 @@ package juicefs
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -145,7 +147,32 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
-	return j.podMount.JCreateVolume(jfsSetting)
+	if config.InJob {
+		return j.podMount.JCreateVolume(jfsSetting)
+	}
+	// 1. mount juicefs
+	err = j.processMount.JMount(jfsSetting)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
+
+	// 2. create subPath volume
+	jfs := &jfs{
+		Provider:  j,
+		Name:      secrets["name"],
+		MountPath: jfsSetting.MountPath,
+		Options:   jfsSetting.Options,
+	}
+	_, err = jfs.CreateVol(volumeID, subPath)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeID, err)
+	}
+
+	// 3. umount
+	if err = j.Unmount(jfs.GetBasePath()); err != nil {
+		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
+	}
+	return nil
 }
 
 func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -155,7 +182,32 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
-	return j.podMount.JDeleteVolume(jfsSetting)
+	if config.InJob {
+		return j.podMount.JCreateVolume(jfsSetting)
+	}
+	// 1. mount juicefs
+	err = j.processMount.JMount(jfsSetting)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
+
+	// 2. create subPath volume
+	jfs := &jfs{
+		Provider:  j,
+		Name:      secrets["name"],
+		MountPath: jfsSetting.MountPath,
+		Options:   jfsSetting.Options,
+	}
+	err = jfs.DeleteVol(volumeID, secrets)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeID, err)
+	}
+
+	// 3. umount
+	if err = j.Unmount(jfs.GetBasePath()); err != nil {
+		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
+	}
+	return nil
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
@@ -190,11 +242,13 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
-			authCmd, err := j.AuthFs(secrets)
+			res, err := j.AuthFs(secrets, jfsSetting)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
 			}
-			jfsSetting.FormatCmd = authCmd
+			if config.FormatInPod {
+				jfsSetting.FormatCmd = res
+			}
 		}
 		jfsSetting.Source = secrets["name"]
 	} else {
@@ -203,10 +257,10 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			klog.V(5).Infof("JfsMount: storage or bucket is empty, format --no-update.")
 			noUpdate = true
 		}
-		if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
+		if config.FormatInPod && (secrets["storage"] == "ceph" || secrets["storage"] == "gs") {
 			jfsSetting.Envs["JFS_NO_CHECK_OBJECT_STORAGE"] = "1"
 		}
-		formatCmd, err := j.ceFormat(secrets, noUpdate)
+		res, err := j.ceFormat(secrets, noUpdate, jfsSetting)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
@@ -215,7 +269,9 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			source = "redis://" + source
 		}
 		jfsSetting.Source = source
-		jfsSetting.FormatCmd = formatCmd
+		if config.FormatInPod {
+			jfsSetting.FormatCmd = res
+		}
 	}
 	return jfsSetting, nil
 }
@@ -256,7 +312,7 @@ func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
+func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -265,7 +321,8 @@ func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
 		return "", status.Errorf(codes.InvalidArgument, "Empty name")
 	}
 
-	args := []string{config.CliPath, "auth", secrets["name"]}
+	args := []string{"auth", secrets["name"]}
+	cmdArgs := []string{config.CliPath, "auth", secrets["name"]}
 
 	keysCompatible := map[string]string{
 		"access-key":  "accesskey",
@@ -306,25 +363,52 @@ func (j *juicefs) AuthFs(secrets map[string]string) (string, error) {
 	}
 	for _, k := range keys {
 		if !isOptional[k] || secrets[k] != "" {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
 	for _, k := range keysStripped {
 		if !isOptional[k] || secrets[k] != "" {
-			args = append(args, fmt.Sprintf("--%s=${%s}", k, k))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, k))
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
 	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
+		cmdArgs = append(cmdArgs, "--no-update")
 		args = append(args, "--no-update")
 		if secrets["bucket"] == "" {
 			return "", status.Errorf(codes.InvalidArgument,
 				"bucket argument is required when --no-update option is provided")
 		}
+		if !config.FormatInPod && secrets["initconfig"] != "" {
+			conf := secrets["name"] + ".conf"
+			confPath := filepath.Join("/root/.juicefs", conf)
+			if _, err := os.Stat(confPath); os.IsNotExist(err) {
+				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
+				if err != nil {
+					return "", status.Errorf(codes.Internal,
+						"Create config file %q failed: %v", confPath, err)
+				}
+				klog.V(5).Infof("Create config file: %q success", confPath)
+			}
+		}
+	}
+	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
+
+	if config.FormatInPod {
+		cmd := strings.Join(cmdArgs, " ")
+		return cmd, nil
 	}
 
-	cmd := strings.Join(args, " ")
-	klog.V(5).Infof("AuthFs: cmd %s", cmd)
-	return cmd, nil
+	authCmd := j.Exec.Command(config.CliPath, args...)
+	envs := syscall.Environ()
+	for key, val := range setting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
+	authCmd.SetEnv(envs)
+	res, err := authCmd.CombinedOutput()
+	klog.Infof("Auth output is %s", res)
+	return string(res), err
 }
 
 // MountFs mounts JuiceFS with idempotency
@@ -380,7 +464,7 @@ func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
-func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) (string, error) {
+func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *config.JfsSetting) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -393,8 +477,10 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) (string, er
 		return "", status.Errorf(codes.InvalidArgument, "Empty metaurl")
 	}
 
-	args := []string{config.CeCliPath, "format"}
+	args := []string{"format"}
+	cmdArgs := []string{config.CeCliPath, "format"}
 	if noUpdate {
+		cmdArgs = append(cmdArgs, "--no-update")
 		args = append(args, "--no-update")
 	}
 	keys := []string{
@@ -419,16 +505,36 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool) (string, er
 	}
 	for _, k := range keys {
 		if !isOptional[k] || secrets[k] != "" {
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
 	for k, v := range keysStripped {
 		if !isOptional[k] || secrets[k] != "" {
-			args = append(args, fmt.Sprintf("--%s=${%s}", k, v))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, v))
+			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
-	args = append(args, "${metaurl}", secrets["name"])
-	cmd := strings.Join(args, " ")
-	klog.V(5).Infof("ceFormat: cmd %s", cmd)
-	return cmd, nil
+	cmdArgs = append(cmdArgs, "${metaurl}", secrets["name"])
+	args = append(args, secrets["metaurl"], secrets["name"])
+
+	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
+
+	if config.FormatInPod {
+		cmd := strings.Join(cmdArgs, " ")
+		return cmd, nil
+	}
+
+	formatCmd := j.Exec.Command(config.CeCliPath, args...)
+	envs := syscall.Environ()
+	for key, val := range setting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
+	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
+		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
+	}
+	formatCmd.SetEnv(envs)
+	res, err := formatCmd.CombinedOutput()
+	klog.Infof("Format output is %s", res)
+	return string(res), err
 }

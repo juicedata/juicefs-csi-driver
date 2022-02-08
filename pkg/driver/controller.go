@@ -65,7 +65,6 @@ func newControllerService() controllerService {
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	// DEBUG only, secrets exposed in args
 	// klog.V(5).Infof("CreateVolume: called with args: %#v", req)
-	klog.V(6).Infof("CreateVolume: parameters %v", req.Parameters)
 
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
@@ -107,7 +106,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // DeleteVolume moves directory for the volume to trash (TODO)
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	klog.V(4).Infof("DeleteVolume: called with args: %#v", req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")

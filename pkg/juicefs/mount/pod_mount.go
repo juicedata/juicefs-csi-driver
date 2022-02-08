@@ -165,7 +165,14 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
 	}
-	return p.waitUtilJobCompleted(job.Name)
+	err = p.waitUtilJobCompleted(job.Name)
+	if err != nil {
+		// fall back if err
+		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+			klog.Errorf("JCreateVolume: delete job %s error: %v", job.Name, e)
+		}
+	}
+	return err
 }
 
 func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
@@ -190,7 +197,14 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrUpdateSecret(&secret); err != nil {
 		return err
 	}
-	return p.waitUtilJobCompleted(job.Name)
+	err = p.waitUtilJobCompleted(job.Name)
+	if err != nil {
+		// fall back if err
+		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+			klog.Errorf("JDeleteVolume: delete job %s error: %v", job.Name, e)
+		}
+	}
+	return err
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {

@@ -269,7 +269,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string) (string, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string, setting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch3.Reset()
@@ -586,7 +586,9 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets)
+			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldBeNil)
 		})
 		Convey("secret nil", func() {
@@ -597,7 +599,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(nil)
+			_, err := jfs.AuthFs(nil, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no name", func() {
@@ -609,7 +611,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secret)
+			_, err := jfs.AuthFs(secret, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no bucket", func() {
@@ -630,7 +632,9 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets)
+			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -942,7 +946,9 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldBeNil)
 		})
 		Convey("no name", func() {
@@ -963,7 +969,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true)
+			_, err := jfs.ceFormat(secret, true, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("no metaurl", func() {
@@ -984,7 +990,9 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("nil secret", func() {
@@ -995,7 +1003,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(nil, true)
+			_, err := jfs.ceFormat(nil, true, nil)
 			So(err, ShouldNotBeNil)
 		})
 	})

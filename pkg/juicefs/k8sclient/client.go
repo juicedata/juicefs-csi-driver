@@ -99,7 +99,7 @@ func (k *K8sClient) ListPod(namespace string, labelSelector metav1.LabelSelector
 
 func (k *K8sClient) GetPodLog(podName, namespace, containerName string) (string, error) {
 	klog.V(6).Infof("Get pod %s log", podName)
-	tailLines := int64(5)
+	tailLines := int64(20)
 	req := k.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
 		TailLines: &tailLines,
