@@ -14,45 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resources
+package builder
 
 import (
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func GeneratePodNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeId)
-}
+func (r *Builder) NewMountPod(podName string) *corev1.Pod {
+	resourceRequirements := r.parsePodResources()
 
-func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
-	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
-	resourceRequirements := parsePodResources(
-		jfsSetting.MountPodCpuLimit,
-		jfsSetting.MountPodMemLimit,
-		jfsSetting.MountPodCpuRequest,
-		jfsSetting.MountPodMemRequest,
-	)
+	cmd := quoteForShell(r.getCommand())
+	statCmd := "stat -c %i " + r.jfsSetting.MountPath
 
-	cmd := quoteForShell(getCommand(jfsSetting))
-	statCmd := "stat -c %i " + jfsSetting.MountPath
-
-	pod := generateJuicePod(jfsSetting)
+	pod := r.generateJuicePod()
 	// add cache-dir host path volume
-	cacheVolumes, cacheVolumeMounts := getCacheDirVolumes(cmd)
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmd)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
 	pod.Name = podName
-	if jfsSetting.MountPodServiceAccount != "" {
-		pod.Spec.ServiceAccountName = jfsSetting.MountPodServiceAccount
+	if r.jfsSetting.MountPodServiceAccount != "" {
+		pod.Spec.ServiceAccountName = r.jfsSetting.MountPodServiceAccount
 	}
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
@@ -75,43 +66,43 @@ func NewMountPod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"umount %s && rmdir %s", jfsSetting.MountPath, jfsSetting.MountPath)}},
+				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
 
-	for k, v := range jfsSetting.Envs {
+	for k, v := range r.jfsSetting.Envs {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name:  k,
 			Value: v,
 		})
 	}
-	for k, v := range jfsSetting.MountPodLabels {
+	for k, v := range r.jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
-	for k, v := range jfsSetting.MountPodAnnotations {
+	for k, v := range r.jfsSetting.MountPodAnnotations {
 		pod.Annotations[k] = v
 	}
-	if jfsSetting.DeletedDelay != "" {
-		pod.Annotations[config.DeleteDelayTimeKey] = jfsSetting.DeletedDelay
+	if r.jfsSetting.DeletedDelay != "" {
+		pod.Annotations[config.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
 	}
 
 	return pod
 }
 
-func parsePodResources(mountPodCpuLimit, mountPodMemLimit, mountPodCpuRequest, mountPodMemRequest string) corev1.ResourceRequirements {
+func (r *Builder) parsePodResources() corev1.ResourceRequirements {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	if mountPodCpuLimit != "" {
-		podLimit[corev1.ResourceCPU] = resource.MustParse(mountPodCpuLimit)
+	if r.jfsSetting.MountPodCpuLimit != "" {
+		podLimit[corev1.ResourceCPU] = resource.MustParse(r.jfsSetting.MountPodCpuLimit)
 	}
-	if mountPodMemLimit != "" {
-		podLimit[corev1.ResourceMemory] = resource.MustParse(mountPodMemLimit)
+	if r.jfsSetting.MountPodMemLimit != "" {
+		podLimit[corev1.ResourceMemory] = resource.MustParse(r.jfsSetting.MountPodMemLimit)
 	}
-	if mountPodCpuRequest != "" {
-		podRequest[corev1.ResourceCPU] = resource.MustParse(mountPodCpuRequest)
+	if r.jfsSetting.MountPodCpuRequest != "" {
+		podRequest[corev1.ResourceCPU] = resource.MustParse(r.jfsSetting.MountPodCpuRequest)
 	}
-	if mountPodMemRequest != "" {
-		podRequest[corev1.ResourceMemory] = resource.MustParse(mountPodMemRequest)
+	if r.jfsSetting.MountPodMemRequest != "" {
+		podRequest[corev1.ResourceMemory] = resource.MustParse(r.jfsSetting.MountPodMemRequest)
 	}
 	return corev1.ResourceRequirements{
 		Limits:   podLimit,
@@ -119,7 +110,7 @@ func parsePodResources(mountPodCpuLimit, mountPodMemLimit, mountPodCpuRequest, m
 	}
 }
 
-func getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
 	var cacheVolumes []corev1.Volume
 	var cacheVolumeMounts []corev1.VolumeMount
 
@@ -198,20 +189,20 @@ func quoteForShell(cmd string) string {
 	return cmd
 }
 
-func getCommand(jfsSetting *config.JfsSetting) string {
+func (r *Builder) getCommand() string {
 	cmd := ""
-	options := jfsSetting.Options
-	if jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, jfsSetting.Source, jfsSetting.MountPath}
+	options := r.jfsSetting.Options
+	if r.jfsSetting.IsCe {
+		klog.V(5).Infof("ceMount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
+		mountArgs := []string{config.CeMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
 		if !util.ContainsString(options, "metrics") {
 			options = append(options, "metrics=0.0.0.0:9567")
 		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
-		mountArgs := []string{config.JfsMountPath, jfsSetting.Source, jfsSetting.MountPath}
+		klog.V(5).Infof("Mount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
+		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
 		options = append(options, "foreground")
 		if len(options) > 0 {
 			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))

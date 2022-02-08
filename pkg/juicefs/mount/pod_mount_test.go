@@ -18,7 +18,6 @@ package mount
 
 import (
 	"errors"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 	"testing"
@@ -208,7 +207,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 			p := &PodMount{
 				K8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			}
-			err := p.AddRefOfMount("test-target", resources.GeneratePodNameByVolumeId("test-pod"))
+			err := p.AddRefOfMount("test-target", GeneratePodNameByVolumeId("test-pod"))
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -301,7 +300,7 @@ func TestJUmount(t *testing.T) {
 			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			got, _ := p.K8sClient.GetPod(resources.GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
+			got, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.volumeId), jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
 			}
@@ -333,7 +332,7 @@ func TestJUmountWithMock(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod hasRef", func() {
-			patch1 := ApplyFunc(resources.HasRef, func(pod *corev1.Pod) bool {
+			patch1 := ApplyFunc(HasRef, func(pod *corev1.Pod) bool {
 				return true
 			})
 			defer patch1.Reset()
@@ -347,10 +346,10 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resources.GeneratePodNameByVolumeId("ttt"),
+					Name:      GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
-						resources.GeneratePodNameByVolumeId("ttt"): "/test",
+						GeneratePodNameByVolumeId("ttt"): "/test",
 					},
 				},
 			})
@@ -372,7 +371,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resources.GeneratePodNameByVolumeId("ttt"),
+					Name:      GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						util.GetReferenceKey("ttt"): "/test",
@@ -402,7 +401,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resources.GeneratePodNameByVolumeId("aaa"),
+					Name:      GeneratePodNameByVolumeId("aaa"),
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						util.GetReferenceKey("/test"): "/test",
@@ -428,7 +427,7 @@ func TestJUmountWithMock(t *testing.T) {
 			}
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resources.GeneratePodNameByVolumeId("ttt"),
+					Name:      GeneratePodNameByVolumeId("ttt"),
 					Namespace: jfsConfig.Namespace,
 				},
 			})
@@ -511,7 +510,7 @@ func TestWaitUntilMount(t *testing.T) {
 			if err := p.createOrAddRef(tt.args.jfsSetting); (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			newPod, _ := p.K8sClient.GetPod(resources.GeneratePodNameByVolumeId(tt.args.jfsSetting.VolumeId), jfsConfig.Namespace)
+			newPod, _ := p.K8sClient.GetPod(GeneratePodNameByVolumeId(tt.args.jfsSetting.VolumeId), jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
 				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
 			}
@@ -607,6 +606,61 @@ func TestNewPodMount(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPodMount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasRef(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: map[string]string{"a": "b", util.GetReferenceKey("aa"): "aa"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: map[string]string{"a": "b"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "test-null",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test",
+						Annotations: nil,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasRef(tt.args.pod); got != tt.want {
+				t.Errorf("HasRef() = %v, want %v", got, tt.want)
 			}
 		})
 	}

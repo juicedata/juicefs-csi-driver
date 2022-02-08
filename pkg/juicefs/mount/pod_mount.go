@@ -17,11 +17,12 @@ limitations under the License.
 package mount
 
 import (
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/resources"
+	"fmt"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
@@ -29,6 +30,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
@@ -49,7 +51,7 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) JUmount(volumeId, target string) error {
-	podName := resources.GeneratePodNameByVolumeId(volumeId)
+	podName := GeneratePodNameByVolumeId(volumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -57,7 +59,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 	// check mount pod is need to delete
 	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
 
-	pod, err := p.K8sClient.GetPod(resources.GeneratePodNameByVolumeId(volumeId), jfsConfig.Namespace)
+	pod, err := p.K8sClient.GetPod(GeneratePodNameByVolumeId(volumeId), jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("JUmount: Get pod of volumeId %s err: %v", volumeId, err)
 		return err
@@ -102,7 +104,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 				return err
 			}
 
-			if resources.HasRef(po) {
+			if HasRef(po) {
 				klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 				return nil
 			}
@@ -132,7 +134,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 		klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
 		return err
 	}
-	if resources.HasRef(newPod) {
+	if HasRef(newPod) {
 		return nil
 	}
 	// if pod annotations has no "juicefs-" prefix or no delete delay, delete pod
@@ -140,7 +142,8 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 }
 
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := resources.GeneratePodNameByVolumeId(jfsSetting.VolumeId)
+	r := builder.NewBuilder(jfsSetting)
+	podName := GeneratePodNameByVolumeId(jfsSetting.VolumeId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -156,7 +159,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 			if k8serrors.IsNotFound(err) {
 				// pod not exist, create
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
-				newPod := resources.NewMountPod(jfsSetting)
+				newPod := r.NewMountPod(podName)
 				if newPod.Annotations == nil {
 					newPod.Annotations = make(map[string]string)
 				}
@@ -178,7 +181,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) waitUtilPodReady(volumeId string) error {
-	podName := resources.GeneratePodNameByVolumeId(volumeId)
+	podName := GeneratePodNameByVolumeId(volumeId)
 	// Wait until the mount pod is ready
 	for i := 0; i < 60; i++ {
 		pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
@@ -226,4 +229,17 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		return err
 	}
 	return nil
+}
+
+func HasRef(pod *corev1.Pod) bool {
+	for k, target := range pod.Annotations {
+		if k == util.GetReferenceKey(target) {
+			return true
+		}
+	}
+	return false
+}
+
+func GeneratePodNameByVolumeId(volumeId string) string {
+	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, volumeId)
 }

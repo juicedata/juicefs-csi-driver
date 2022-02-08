@@ -1,28 +1,42 @@
-package resources
+/*
+ Copyright 2022 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+package builder
 
 import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func HasRef(pod *corev1.Pod) bool {
-	for k, target := range pod.Annotations {
-		if k == util.GetReferenceKey(target) {
-			return true
-		}
-	}
-	return false
+type Builder struct {
+	jfsSetting *config.JfsSetting
 }
 
-func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
+func NewBuilder(setting *config.JfsSetting) *Builder {
+	return &Builder{setting}
+}
+
+func (r *Builder) generateJuicePod() *corev1.Pod {
 	pod := config.GeneratePodTemplate()
 
-	volumes := getVolumes()
-	volumeMounts := getVolumeMounts()
+	volumes := r.getVolumes()
+	volumeMounts := r.getVolumeMounts()
 	i := 1
-	for k, v := range jfsSetting.Configs {
+	for k, v := range r.jfsSetting.Configs {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("config-%v", i),
 			MountPath: v,
@@ -43,7 +57,7 @@ func generateJuicePod(jfsSetting *config.JfsSetting) *corev1.Pod {
 	return pod
 }
 
-func getVolumes() []corev1.Volume {
+func (r *Builder) getVolumes() []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
 	return []corev1.Volume{{
 		Name: "jfs-dir",
@@ -63,7 +77,7 @@ func getVolumes() []corev1.Volume {
 	}}
 }
 
-func getVolumeMounts() []corev1.VolumeMount {
+func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	mp := corev1.MountPropagationBidirectional
 	return []corev1.VolumeMount{{
 		Name:             "jfs-dir",
