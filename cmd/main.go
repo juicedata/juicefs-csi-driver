@@ -34,7 +34,7 @@ var (
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
-	controllerInJob    = flag.Bool("ctrl-in-job", false, "Use job in controller")
+	controllerInJob    = flag.Bool("controller-in-job", false, "Use job in controller")
 )
 
 func init() {
