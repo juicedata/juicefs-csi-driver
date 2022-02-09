@@ -13,7 +13,7 @@ This document shows how to set the delay deletion duration for mount pods.
 
 ## Static provisioning
 
-You can configure the length of time of delay deletion in PV:
+You can configure the length of time of delay deletion in PV. Set `juicefs/mount-delete-delay` in `volumeAttributes`, the value is the duration to be set. As follows:
 
 ```yaml
 apiVersion: v1
@@ -94,7 +94,7 @@ spec:
 
 ## Dynamic provisioning
 
-You can configure the length of time of delay deletion in StorageClass:
+You can configure the length of time of delay deletion in StorageClass. Set `juicefs/mount-delete-delay` in `parameters`, the value is the duration to be set. As follows:
 
 ```yaml
 apiVersion: storage.k8s.io/v1
