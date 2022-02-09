@@ -237,6 +237,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	}
 	jfsSetting.VolumeId = volumeID
 	jfsSetting.TargetPath = target
+	jfsSetting.Options = options
 	source, isCe := secrets["metaurl"]
 	if !isCe {
 		if secrets["token"] == "" {

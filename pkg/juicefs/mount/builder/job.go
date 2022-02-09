@@ -19,9 +19,11 @@ package builder
 import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"strings"
 )
 
@@ -93,7 +95,7 @@ func (r *Builder) getJobCommand() string {
 	var cmd string
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		args := []string{config.CeMountPath, r.jfsSetting.Source, "/mnt/jfs"}
+		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
 		if len(options) != 0 {
 			args = append(args, "-o", strings.Join(options, ","))
 		}
@@ -107,5 +109,6 @@ func (r *Builder) getJobCommand() string {
 		args = append(args, "-o", strings.Join(options, ","))
 		cmd = strings.Join(args, " ")
 	}
-	return cmd
+	klog.Infof("job cmd: %s", cmd)
+	return util.QuoteForShell(cmd)
 }

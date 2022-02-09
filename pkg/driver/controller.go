@@ -2,10 +2,9 @@ package driver
 
 import (
 	"context"
-	"reflect"
-
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"reflect"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

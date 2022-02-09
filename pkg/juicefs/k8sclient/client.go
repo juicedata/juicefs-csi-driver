@@ -224,5 +224,8 @@ func (k *K8sClient) UpdateJob(job *batchv1.Job) error {
 
 func (k *K8sClient) DeleteJob(jobName string, namespace string) error {
 	klog.V(6).Infof("Delete job %s", jobName)
-	return k.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
+	policy := metav1.DeletePropagationBackground
+	return k.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{
+		PropagationPolicy: &policy,
+	})
 }

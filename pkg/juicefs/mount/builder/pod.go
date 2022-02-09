@@ -30,7 +30,7 @@ import (
 func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	resourceRequirements := r.parsePodResources()
 
-	cmd := quoteForShell(r.getCommand())
+	cmd := r.getCommand()
 	statCmd := "stat -c %i " + r.jfsSetting.MountPath
 
 	pod := r.generateJuicePod()
@@ -170,22 +170,12 @@ func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.Volu
 	return cacheVolumes, cacheVolumeMounts
 }
 
-func quoteForShell(cmd string) string {
-	if strings.Contains(cmd, "(") {
-		cmd = strings.ReplaceAll(cmd, "(", "\\(")
-	}
-	if strings.Contains(cmd, ")") {
-		cmd = strings.ReplaceAll(cmd, ")", "\\)")
-	}
-	return cmd
-}
-
 func (r *Builder) getCommand() string {
 	cmd := ""
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
+		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
 		if !util.ContainsString(options, "metrics") {
 			options = append(options, "metrics=0.0.0.0:9567")
 		}
@@ -201,7 +191,7 @@ func (r *Builder) getCommand() string {
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	}
-	return cmd
+	return util.QuoteForShell(cmd)
 }
 
 func (r *Builder) getInitContainer() corev1.Container {

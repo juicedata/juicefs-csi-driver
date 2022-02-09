@@ -124,3 +124,26 @@ func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err 
 	}
 	return time.Now().Before(delayAt), nil
 }
+
+func QuoteForShell(cmd string) string {
+	if strings.Contains(cmd, "(") {
+		cmd = strings.ReplaceAll(cmd, "(", "\\(")
+	}
+	if strings.Contains(cmd, ")") {
+		cmd = strings.ReplaceAll(cmd, ")", "\\)")
+	}
+	return cmd
+}
+
+func StripPasswd(uri string) string {
+	p := strings.Index(uri, "@")
+	if p < 0 {
+		return uri
+	}
+	sp := strings.Index(uri, "://")
+	cp := strings.Index(uri[sp+3:], ":")
+	if cp < 0 || sp+3+cp > p {
+		return uri
+	}
+	return uri[:sp+3+cp] + ":****" + uri[p:]
+}
