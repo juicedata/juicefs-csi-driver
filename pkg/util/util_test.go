@@ -310,6 +310,39 @@ func TestGetTime(t *testing.T) {
 	}
 }
 
+func Test_quoteForShell(t *testing.T) {
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test-(",
+			args: args{
+				cmd: "mysql://user@(127.0.0.1:3306)/juicefs",
+			},
+			want: "mysql://user@\\(127.0.0.1:3306\\)/juicefs",
+		},
+		{
+			name: "test-none",
+			args: args{
+				cmd: "redis://127.0.0.1:6379/0",
+			},
+			want: "redis://127.0.0.1:6379/0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := QuoteForShell(tt.args.cmd); got != tt.want {
+				t.Errorf("transformCmd() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestStripPasswd(t *testing.T) {
 	type args struct {
 		uri string

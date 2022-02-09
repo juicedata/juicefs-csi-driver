@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	defaultCmd       = "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o metrics=0.0.0.0:9567"
+	defaultCmd       = "/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
 	defaultMountPath = "/jfs/default-imagenet"
 	podLimit         = map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceCPU:    resource.MustParse("1"),
@@ -260,39 +260,6 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	}
 }
 
-func Test_quoteForShell(t *testing.T) {
-	type args struct {
-		cmd string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "test-(",
-			args: args{
-				cmd: "mysql://user@(127.0.0.1:3306)/juicefs",
-			},
-			want: "mysql://user@\\(127.0.0.1:3306\\)/juicefs",
-		},
-		{
-			name: "test-none",
-			args: args{
-				cmd: "redis://127.0.0.1:6379/0",
-			},
-			want: "redis://127.0.0.1:6379/0",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := quoteForShell(tt.args.cmd); got != tt.want {
-				t.Errorf("transformCmd() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNewMountPod(t *testing.T) {
 	config.NodeName = "node"
 	config.Namespace = ""
@@ -330,7 +297,7 @@ func TestNewMountPod(t *testing.T) {
 	putDefaultCacheDir(&podConfigTest)
 
 	r := Builder{}
-	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
+	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmdWithCacheDir)
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
@@ -462,7 +429,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				mountPath: "/jfs/test-volume",
 				options:   []string{"debug"},
 			},
-			want: "/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
+			want: "/bin/mount.juicefs ${metaurl} /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
 		},
 		{
 			name:   "test-ee",
