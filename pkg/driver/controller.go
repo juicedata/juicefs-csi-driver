@@ -2,8 +2,6 @@ package driver
 
 import (
 	"context"
-	k8sexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -33,16 +31,11 @@ var (
 )
 
 type controllerService struct {
-	mount.SafeFormatAndMount
 	juicefs juicefs.Interface
 	vols    map[string]int64
 }
 
 func newControllerService() controllerService {
-	mounter := &mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      k8sexec.New(),
-	}
 	jfs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
@@ -55,9 +48,8 @@ func newControllerService() controllerService {
 	klog.V(4).Infof("Controller: %s", stdoutStderr)
 
 	return controllerService{
-		SafeFormatAndMount: *mounter,
-		juicefs:            jfs,
-		vols:               make(map[string]int64),
+		juicefs: jfs,
+		vols:    make(map[string]int64),
 	}
 }
 

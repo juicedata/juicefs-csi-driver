@@ -91,20 +91,20 @@ func (r *Builder) getDeleteVolumeCmd() string {
 
 func (r *Builder) getJobCommand() string {
 	var cmd string
+	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		args := []string{config.CeMountPath, r.jfsSetting.Source, "/mnt/jfs", "-d"}
-		if len(r.jfsSetting.Options) != 0 {
-			args = append(args, "-o", strings.Join(r.jfsSetting.Options, ","))
+		args := []string{config.CeMountPath, r.jfsSetting.Source, "/mnt/jfs"}
+		if len(options) != 0 {
+			args = append(args, "-o", strings.Join(options, ","))
 		}
 		cmd = strings.Join(args, " ")
 	} else {
-		args := []string{config.CliPath, "mount", r.jfsSetting.Source, "/mnt/jfs", "-b"}
+		args := []string{config.JfsMountPath, r.jfsSetting.Source, "/mnt/jfs"}
 		if r.jfsSetting.EncryptRsaKey != "" {
-			args = append(args, "--rsa-key=/root/.rsa/rsa-key.pem")
+			options = append(options, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
-		if len(r.jfsSetting.Options) > 0 {
-			args = append(args, "-o", strings.Join(r.jfsSetting.Options, ","))
-		}
+		options = append(options, "background")
+		args = append(args, "-o", strings.Join(options, ","))
 		cmd = strings.Join(args, " ")
 	}
 	return cmd

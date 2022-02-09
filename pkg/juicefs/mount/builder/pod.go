@@ -196,11 +196,9 @@ func (r *Builder) getCommand() string {
 		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
 		options = append(options, "foreground")
 		if r.jfsSetting.EncryptRsaKey != "" {
-			mountArgs = append(mountArgs, "--rsa-key=/root/.rsa/rsa-key.pem")
+			options = append(options, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
-		if len(options) > 0 {
-			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		}
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	}
 	return cmd

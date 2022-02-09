@@ -66,7 +66,9 @@ type JfsSetting struct {
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
-	jfsSetting := JfsSetting{}
+	jfsSetting := JfsSetting{
+		Options: []string{},
+	}
 	if secrets == nil {
 		return &jfsSetting, nil
 	}
