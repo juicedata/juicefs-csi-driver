@@ -33,7 +33,6 @@ var (
 	HostIp      = ""
 	KubeletPort = ""
 	FormatInPod = false
-	InJob       = false
 
 	CSIPod = corev1.Pod{}
 

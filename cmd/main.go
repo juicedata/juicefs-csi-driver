@@ -34,7 +34,6 @@ var (
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
-	controllerInJob    = flag.Bool("controller-in-job", false, "Use job in controller")
 )
 
 func init() {
@@ -49,7 +48,6 @@ func init() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	config.FormatInPod = *formatInPod
-	config.InJob = *controllerInJob
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)

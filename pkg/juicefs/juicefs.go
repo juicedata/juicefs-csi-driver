@@ -147,7 +147,7 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
-	if config.InJob {
+	if config.FormatInPod {
 		return j.podMount.JCreateVolume(jfsSetting)
 	}
 	// 1. mount juicefs
@@ -182,7 +182,7 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
-	if config.InJob {
+	if config.FormatInPod {
 		return j.podMount.JCreateVolume(jfsSetting)
 	}
 	// 1. mount juicefs
