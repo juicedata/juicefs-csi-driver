@@ -200,7 +200,7 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	}
 	err = jfs.DeleteVol(volumeID, secrets)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeID, err)
+		return status.Errorf(codes.Internal, "Could not delete volume: %q, err: %v", volumeID, err)
 	}
 
 	// 3. umount
