@@ -214,13 +214,13 @@ func (r *Builder) getInitContainer() corev1.Container {
 		)
 	}
 	if r.jfsSetting.EncryptRsaKey != "" {
-		container.VolumeMounts = append(container.VolumeMounts,
-			corev1.VolumeMount{
-				Name:      "rsa-key",
-				MountPath: "/root/.rsa",
-			},
-		)
 		if r.jfsSetting.IsCe {
+			container.VolumeMounts = append(container.VolumeMounts,
+				corev1.VolumeMount{
+					Name:      "rsa-key",
+					MountPath: "/root/.rsa",
+				},
+			)
 			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
 		}
 	}
