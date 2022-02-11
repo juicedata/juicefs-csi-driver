@@ -79,6 +79,34 @@ func (mr *MockMntInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLikelyNotMountPoint", reflect.TypeOf((*MockMntInterface)(nil).IsLikelyNotMountPoint), arg0)
 }
 
+// JCreateVolume mocks base method.
+func (m *MockMntInterface) JCreateVolume(arg0 *config.JfsSetting) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JCreateVolume", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// JCreateVolume indicates an expected call of JCreateVolume.
+func (mr *MockMntInterfaceMockRecorder) JCreateVolume(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JCreateVolume", reflect.TypeOf((*MockMntInterface)(nil).JCreateVolume), arg0)
+}
+
+// JDeleteVolume mocks base method.
+func (m *MockMntInterface) JDeleteVolume(arg0 *config.JfsSetting) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JDeleteVolume", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// JDeleteVolume indicates an expected call of JDeleteVolume.
+func (mr *MockMntInterfaceMockRecorder) JDeleteVolume(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JDeleteVolume", reflect.TypeOf((*MockMntInterface)(nil).JDeleteVolume), arg0)
+}
+
 // JMount mocks base method.
 func (m *MockMntInterface) JMount(arg0 *config.JfsSetting) error {
 	m.ctrl.T.Helper()

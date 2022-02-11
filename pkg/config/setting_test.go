@@ -18,20 +18,18 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestParseSecret(t *testing.T) {
 	s := map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"}
-	ss, _ := json.Marshal(s)
-	fmt.Println(string(ss))
 
 	type args struct {
 		secrets     map[string]string
 		volCtx      map[string]string
 		usePod      bool
+		Simple      bool
 		MountLabels string
 	}
 	tests := []struct {
@@ -48,7 +46,9 @@ func TestParseSecret(t *testing.T) {
 				usePod:      false,
 				MountLabels: "",
 			},
-			want:    &JfsSetting{},
+			want: &JfsSetting{
+				Options: []string{},
+			},
 			wantErr: false,
 		},
 		{
@@ -69,9 +69,11 @@ func TestParseSecret(t *testing.T) {
 				usePod: true,
 			},
 			want: &JfsSetting{
-				Name:   "test",
-				Envs:   s,
-				UsePod: true,
+				Name:    "test",
+				Envs:    s,
+				Configs: map[string]string{},
+				UsePod:  true,
+				Options: []string{},
 			},
 			wantErr: false,
 		},
@@ -98,6 +100,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:    "test",
 				Storage: "",
+				Configs: map[string]string{},
+				Envs:    map[string]string{},
+				Options: []string{},
 				UsePod:  true,
 			},
 			wantErr: false,
@@ -114,7 +119,10 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:    "test",
 				Storage: "ceph",
+				Configs: map[string]string{},
+				Envs:    map[string]string{},
 				UsePod:  true,
+				Options: []string{},
 			},
 			wantErr: false,
 		},
@@ -134,6 +142,9 @@ func TestParseSecret(t *testing.T) {
 				Name:             "test",
 				Storage:          "s3",
 				UsePod:           true,
+				Configs:          map[string]string{},
+				Envs:             map[string]string{},
+				Options:          []string{},
 				MountPodCpuLimit: "1",
 			},
 			wantErr: false,
@@ -154,7 +165,10 @@ func TestParseSecret(t *testing.T) {
 				Name:             "test",
 				Storage:          "s3",
 				UsePod:           true,
+				Configs:          map[string]string{},
+				Envs:             map[string]string{},
 				MountPodMemLimit: "1G",
+				Options:          []string{},
 			},
 			wantErr: false,
 		},
@@ -175,6 +189,9 @@ func TestParseSecret(t *testing.T) {
 				Storage:            "s3",
 				UsePod:             true,
 				MountPodMemRequest: "1G",
+				Configs:            map[string]string{},
+				Envs:               map[string]string{},
+				Options:            []string{},
 			},
 			wantErr: false,
 		},
@@ -191,6 +208,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:               "test",
 				MountPodCpuRequest: "1",
+				Configs:            map[string]string{},
+				Envs:               map[string]string{},
+				Options:            []string{},
 			},
 			wantErr: false,
 		},
@@ -207,6 +227,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:           "test",
 				MountPodLabels: map[string]string{"a": "b"},
+				Configs:        map[string]string{},
+				Envs:           map[string]string{},
+				Options:        []string{},
 			},
 			wantErr: false,
 		},
@@ -236,6 +259,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:           "test",
 				MountPodLabels: map[string]string{"a": "b"},
+				Configs:        map[string]string{},
+				Envs:           map[string]string{},
+				Options:        []string{},
 			},
 			wantErr: false,
 		},
@@ -252,6 +278,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:                "test",
 				MountPodAnnotations: map[string]string{"a": "b"},
+				Configs:             map[string]string{},
+				Envs:                map[string]string{},
+				Options:             []string{},
 			},
 			wantErr: false,
 		},
@@ -285,6 +314,9 @@ func TestParseSecret(t *testing.T) {
 				Name:                   "test",
 				Storage:                "s3",
 				MountPodServiceAccount: "test",
+				Configs:                map[string]string{},
+				Envs:                   map[string]string{},
+				Options:                []string{},
 			},
 			wantErr: false,
 		},
@@ -299,6 +331,8 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:    "test",
 				Configs: map[string]string{"a": "b"},
+				Envs:    map[string]string{},
+				Options: []string{},
 			},
 			wantErr: false,
 		},
@@ -322,6 +356,9 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				Name:           "test",
 				MountPodLabels: map[string]string{"a": "b"},
+				Configs:        map[string]string{},
+				Envs:           map[string]string{},
+				Options:        []string{},
 			},
 			wantErr: false,
 		},
@@ -333,6 +370,33 @@ func TestParseSecret(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
+		},
+		{
+			name: "test-parse-secret",
+			args: args{
+				secrets: map[string]string{
+					"name":            "abc",
+					"token":           "abc",
+					"secret-key":      "abc",
+					"secret-key2":     "abc",
+					"passphrase":      "abc",
+					"encrypt_rsa_key": "abc",
+					"initconfig":      "abc",
+				},
+			},
+			want: &JfsSetting{
+				Name:          "abc",
+				SecretKey:     "abc",
+				SecretKey2:    "abc",
+				Token:         "abc",
+				Passphrase:    "abc",
+				EncryptRsaKey: "abc",
+				InitConfig:    "abc",
+				Envs:          map[string]string{},
+				Configs:       map[string]string{},
+				Options:       []string{},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -347,7 +411,7 @@ func TestParseSecret(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseSecret() got = %v, want %v", got, tt.want)
+				t.Errorf("ParseSecret() got = %v\n, want %v", got, tt.want)
 			}
 		})
 	}

@@ -18,21 +18,19 @@ package builder
 
 import (
 	"fmt"
-	"strings"
-
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"strings"
 )
 
 func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	resourceRequirements := r.parsePodResources()
 
-	cmd := quoteForShell(r.getCommand())
+	cmd := r.getCommand()
 	statCmd := "stat -c %i " + r.jfsSetting.MountPath
 
 	pod := r.generateJuicePod()
@@ -62,7 +60,6 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 		InitialDelaySeconds: 1,
 		PeriodSeconds:       1,
 	}
-	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
@@ -70,12 +67,6 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 		},
 	}
 
-	for k, v := range r.jfsSetting.Envs {
-		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-			Name:  k,
-			Value: v,
-		})
-	}
 	for k, v := range r.jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
 	}
@@ -179,22 +170,12 @@ func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.Volu
 	return cacheVolumes, cacheVolumeMounts
 }
 
-func quoteForShell(cmd string) string {
-	if strings.Contains(cmd, "(") {
-		cmd = strings.ReplaceAll(cmd, "(", "\\(")
-	}
-	if strings.Contains(cmd, ")") {
-		cmd = strings.ReplaceAll(cmd, ")", "\\)")
-	}
-	return cmd
-}
-
 func (r *Builder) getCommand() string {
 	cmd := ""
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
+		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
 		if !util.ContainsString(options, "metrics") {
 			options = append(options, "metrics=0.0.0.0:9567")
 		}
@@ -204,10 +185,51 @@ func (r *Builder) getCommand() string {
 		klog.V(5).Infof("Mount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
 		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
 		options = append(options, "foreground")
-		if len(options) > 0 {
-			mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		if r.jfsSetting.EncryptRsaKey != "" {
+			options = append(options, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	}
-	return cmd
+	return util.QuoteForShell(cmd)
+}
+
+func (r *Builder) getInitContainer() corev1.Container {
+	isPrivileged := true
+	secretName := r.jfsSetting.SecretName
+	formatCmd := r.jfsSetting.FormatCmd
+	container := corev1.Container{
+		Name:  "jfs-format",
+		Image: config.MountImage,
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &isPrivileged,
+		},
+	}
+	if r.jfsSetting.InitConfig != "" {
+		container.VolumeMounts = append(container.VolumeMounts,
+			corev1.VolumeMount{
+				Name:      "init_config",
+				MountPath: "/root/.juicefs",
+			},
+		)
+	}
+	if r.jfsSetting.EncryptRsaKey != "" {
+		if r.jfsSetting.IsCe {
+			container.VolumeMounts = append(container.VolumeMounts,
+				corev1.VolumeMount{
+					Name:      "rsa-key",
+					MountPath: "/root/.rsa",
+				},
+			)
+			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
+		}
+	}
+
+	container.Command = []string{"sh", "-c", formatCmd}
+	container.EnvFrom = append(container.EnvFrom, corev1.EnvFromSource{
+		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
+			Name: secretName,
+		}},
+	})
+	return container
 }

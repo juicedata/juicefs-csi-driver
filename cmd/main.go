@@ -33,6 +33,7 @@ var (
 	nodeID             = flag.String("nodeid", "", "Node ID")
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
+	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
 )
 
 func init() {
@@ -46,6 +47,7 @@ func init() {
 	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
+	config.FormatInPod = *formatInPod
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)

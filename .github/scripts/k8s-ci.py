@@ -4,12 +4,12 @@ import pathlib
 import random
 import string
 import subprocess
-import time
 
+import time
 from kubernetes import client, watch, config
 from kubernetes.dynamic.exceptions import ConflictError
 
-KUBE_SYSTEM = "kube-system"
+KUBE_SYSTEM = "default"
 META_URL = os.getenv("JUICEFS_META_URL") or ""
 ACCESS_KEY = os.getenv("JUICEFS_ACCESS_KEY") or ""
 SECRET_KEY = os.getenv("JUICEFS_SECRET_KEY") or ""
@@ -276,7 +276,7 @@ class Pod:
     def watch_for_success(self):
         v1 = client.CoreV1Api()
         w = watch.Watch()
-        for event in w.stream(v1.list_pod_for_all_namespaces, timeout_seconds=5 * 60):
+        for event in w.stream(v1.list_pod_for_all_namespaces, timeout_seconds=10 * 60):
             resource = event['object']
             if resource.metadata.namespace != "default":
                 continue
@@ -528,6 +528,8 @@ def die(e):
     subprocess.run(["sudo", "microk8s.kubectl", "get", "pv"], check=True)
     print("Get sc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "sc"], check=True)
+    print("Get job: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "job", "--all-namespaces"], check=True)
     raise Exception(e)
 
 
@@ -551,7 +553,7 @@ def test_deployment_using_storage_rw():
     print("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
-        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
+        die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
     print("Check mount point..")
@@ -618,20 +620,6 @@ def test_deployment_use_pv_rw():
     check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
     if not result:
-        print("Get pvc: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "-n", "default", "get", "pvc", pvc.name, "-oyaml"], check=True)
-        print("Get pv: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "get", "pv", pv.name, "-oyaml"], check=True)
-        print("Get deployment: ")
-        subprocess.run(["sudo", "microk8s.kubectl", "-n", "default", "get", "deployment", deployment.name, "-oyaml"],
-                       check=True)
-        try:
-            mount_pod_name = get_mount_pod_name(volume_id)
-            print("Get mount pod log:")
-            mount_pod = Pod(name=mount_pod_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-            print(mount_pod.get_log("jfs-mount"))
-        except client.ApiException as e:
-            print("Get log error: {}".format(e))
         die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     print("Test pass.")
@@ -866,7 +854,8 @@ def test_dynamic_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, volume_id)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+        app_pod_id, volume_id)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -932,7 +921,8 @@ def test_static_delete_pod():
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     print("Check mount point is ok..")
-    source_path = "/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(app_pod_id, pv.name)
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+        app_pod_id, pv.name)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:

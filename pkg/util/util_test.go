@@ -218,6 +218,13 @@ func TestGetReferenceKey(t *testing.T) {
 			},
 			want: "juicefs-9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c1",
 		},
+		{
+			name: "test-nil",
+			args: args{
+				target: "",
+			},
+			want: "juicefs-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -298,6 +305,79 @@ func TestGetTime(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetTime() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_quoteForShell(t *testing.T) {
+	type args struct {
+		cmd string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test-(",
+			args: args{
+				cmd: "mysql://user@(127.0.0.1:3306)/juicefs",
+			},
+			want: "mysql://user@\\(127.0.0.1:3306\\)/juicefs",
+		},
+		{
+			name: "test-none",
+			args: args{
+				cmd: "redis://127.0.0.1:6379/0",
+			},
+			want: "redis://127.0.0.1:6379/0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := QuoteForShell(tt.args.cmd); got != tt.want {
+				t.Errorf("transformCmd() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStripPasswd(t *testing.T) {
+	type args struct {
+		uri string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test1",
+			args: args{
+				uri: "redis://:abc@127.0.0.1:6379/0",
+			},
+			want: "redis://:****@127.0.0.1:6379/0",
+		},
+		{
+			name: "test2",
+			args: args{
+				uri: "redis://127.0.0.1:6379/0",
+			},
+			want: "redis://127.0.0.1:6379/0",
+		},
+		{
+			name: "test3",
+			args: args{
+				uri: "redis://abc:abc@127.0.0.1:6379/0",
+			},
+			want: "redis://abc:****@127.0.0.1:6379/0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripPasswd(tt.args.uri); got != tt.want {
+				t.Errorf("StripPasswd() = %v, want %v", got, tt.want)
 			}
 		})
 	}

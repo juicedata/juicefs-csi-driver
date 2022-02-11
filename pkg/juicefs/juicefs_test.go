@@ -269,11 +269,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string, extraEnvs map[string]string) ([]byte, error) {
-				return []byte(""), nil
+			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string, setting *config.JfsSetting) (string, error) {
+				return "", nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -282,7 +282,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("ce normal", func() {
@@ -304,7 +304,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -316,7 +316,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("parse err", func() {
@@ -329,7 +329,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("ee no token", func() {
@@ -344,7 +344,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return
 			})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -353,7 +353,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("mountFs err", func() {
@@ -368,7 +368,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return
 			})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
@@ -377,7 +377,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("ce no bucket", func() {
@@ -398,7 +398,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -410,32 +410,15 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
 		})
 		Convey("ce format error", func() {
 			volumeId := "test-volume-id"
 			targetPath := "/target"
 			secret := map[string]string{
-				"name":    "test",
 				"metaurl": "redis://127.0.0.1:6379/1",
 			}
-
-			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
-			defer patch2.Reset()
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, volumeID, target string, options []string, jfsSetting *config.JfsSetting) (string, error) {
-				return "", nil
-			})
-			defer patch4.Reset()
-
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
 					Interface: nil,
@@ -443,7 +426,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{}, true)
+			_, err := jfs.JfsMount(volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -603,7 +586,9 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets, map[string]string{"a": "b"})
+			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldBeNil)
 		})
 		Convey("secret nil", func() {
@@ -614,7 +599,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(nil, map[string]string{})
+			_, err := jfs.AuthFs(nil, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no name", func() {
@@ -626,7 +611,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secret, map[string]string{})
+			_, err := jfs.AuthFs(secret, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no bucket", func() {
@@ -647,7 +632,9 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(secrets, map[string]string{})
+			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -658,12 +645,13 @@ func Test_juicefs_MountFs(t *testing.T) {
 		Convey("normal", func() {
 			mountPath := "/var/lib/jfs/test-volume-id"
 			volumeId := "test-volume-id"
-			target := "/test"
 			options := []string{}
 
 			jfsSetting := &config.JfsSetting{
-				Source: mountPath,
-				UsePod: false,
+				Source:   mountPath,
+				UsePod:   false,
+				VolumeId: volumeId,
+				Options:  options,
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
@@ -689,15 +677,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 					Exec:      k8sexec.New(),
 				}),
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldBeNil)
 		})
 		Convey("not MountPoint err", func() {
-			volumeId := "test-volume-id"
-			//mountPath := "/var/lib/jfs/test-volume-id"
-			target := "/test"
-			options := []string{}
-
 			jfsSetting := &config.JfsSetting{}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, errors.New("test")
@@ -722,7 +705,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 					Exec:      k8sexec.New(),
 				}),
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("add ref err", func() {
@@ -759,7 +742,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				podMount:  mockMnt,
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("jmount err", func() {
@@ -795,7 +778,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("jmount", func() {
@@ -831,7 +814,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldBeNil)
 		})
 		Convey("not exist jmount err", func() {
@@ -866,7 +849,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("not exist", func() {
@@ -901,7 +884,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(volumeId, target, options, jfsSetting)
+			_, e := jfs.MountFs(jfsSetting)
 			So(e, ShouldBeNil)
 		})
 	})
@@ -949,9 +932,6 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				"metaurl": "redis://127.0.0.1:6379/1",
 				"storage": "ceph",
 			}
-			extraEnvs := map[string]string{
-				"a": "b",
-			}
 
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
@@ -966,7 +946,9 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, extraEnvs)
+			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldBeNil)
 		})
 		Convey("no name", func() {
@@ -987,7 +969,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			_, err := jfs.ceFormat(secret, true, nil)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("no metaurl", func() {
@@ -1008,7 +990,9 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(secret, true, map[string]string{})
+			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			So(err, ShouldBeNil)
+			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("nil secret", func() {
@@ -1019,7 +1003,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.ceFormat(nil, true, map[string]string{})
+			_, err := jfs.ceFormat(nil, true, nil)
 			So(err, ShouldNotBeNil)
 		})
 	})

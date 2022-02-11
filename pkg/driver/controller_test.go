@@ -23,6 +23,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/codes"
@@ -33,17 +34,21 @@ import (
 )
 
 func TestNewControllerService(t *testing.T) {
-	Convey("Test newNodeService", t, func() {
+	Convey("Test newControllerService", t, func() {
 		Convey("normal", func() {
+			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
+				return nil, nil
+			})
+			defer patch1.Reset()
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
 			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-			patch1 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
+			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
 				return mockJuicefs, nil
 			})
-			defer patch1.Reset()
+			defer patch2.Reset()
 
 			controllerSvc := newControllerService()
 
@@ -108,7 +113,6 @@ func TestCreateVolume(t *testing.T) {
 			name: "success normal",
 			testFunc: func(t *testing.T) {
 				volumeId := "vol-test"
-				targetPath := "/test/path"
 				secret := map[string]string{"a": "b"}
 				volCtx := map[string]string{"c": "d"}
 				req := &csi.CreateVolumeRequest{
@@ -120,17 +124,10 @@ func TestCreateVolume(t *testing.T) {
 				}
 
 				ctx := context.Background()
-
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
-
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", nil)
-				mockJfs.EXPECT().GetBasePath().Return(targetPath)
-
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-				mockJuicefs.EXPECT().Unmount(targetPath).Return(nil)
+				mockJuicefs.EXPECT().JfsCreateVol(volumeId, volumeId, secret).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -252,46 +249,6 @@ func TestCreateVolume(t *testing.T) {
 			},
 		},
 		{
-			name: "JfsMount error",
-			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
-				secret := map[string]string{"a": "b"}
-				volCtx := map[string]string{"c": "d"}
-				req := &csi.CreateVolumeRequest{
-					Name:               volumeId,
-					CapacityRange:      stdCapRange,
-					VolumeCapabilities: stdVolCap,
-					Secrets:            secret,
-					Parameters:         volCtx,
-				}
-
-				ctx := context.Background()
-
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(nil, errors.New("test"))
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    make(map[string]int64),
-				}
-
-				_, err := juicefsDriver.CreateVolume(ctx, req)
-				if err == nil {
-					t.Fatalf("error is nil")
-				}
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.Internal {
-					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-				}
-			},
-		},
-		{
 			name: "CreateVol error",
 			testFunc: func(t *testing.T) {
 				volumeId := "vol-test"
@@ -310,57 +267,8 @@ func TestCreateVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", errors.New("test"))
-
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    make(map[string]int64),
-				}
-
-				_, err := juicefsDriver.CreateVolume(ctx, req)
-				if err == nil {
-					t.Fatalf("error is nil")
-				}
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.Internal {
-					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-				}
-			},
-		},
-		{
-			name: "Umount error",
-			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
-				targetPath := "/test/path"
-				secret := map[string]string{"a": "b"}
-				volCtx := map[string]string{"c": "d"}
-				req := &csi.CreateVolumeRequest{
-					Name:               volumeId,
-					CapacityRange:      stdCapRange,
-					VolumeCapabilities: stdVolCap,
-					Secrets:            secret,
-					Parameters:         volCtx,
-				}
-
-				ctx := context.Background()
-
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().CreateVol(volumeId, volumeId).Return("", nil)
-				mockJfs.EXPECT().GetBasePath().Return(targetPath)
-
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-				mockJuicefs.EXPECT().Unmount(targetPath).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsCreateVol(volumeId, volumeId, secret).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -396,7 +304,6 @@ func TestDeleteVolume(t *testing.T) {
 			name: "success normal",
 			testFunc: func(t *testing.T) {
 				volumeId := "vol-test"
-				targetPath := "/test/path"
 				secret := map[string]string{"a": "b"}
 				req := &csi.DeleteVolumeRequest{
 					VolumeId: "vol-test",
@@ -404,17 +311,10 @@ func TestDeleteVolume(t *testing.T) {
 				}
 
 				ctx := context.Background()
-
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
-
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(nil)
-				mockJfs.EXPECT().GetBasePath().Return(targetPath)
-
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-				mockJuicefs.EXPECT().Unmount(targetPath).Return(nil)
+				mockJuicefs.EXPECT().JfsDeleteVol(volumeId, volumeId, secret).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -466,42 +366,6 @@ func TestDeleteVolume(t *testing.T) {
 			},
 		},
 		{
-			name: "JfsMount error",
-			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
-				secret := map[string]string{"a": "b"}
-				req := &csi.DeleteVolumeRequest{
-					VolumeId: volumeId,
-					Secrets:  secret,
-				}
-
-				ctx := context.Background()
-
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(nil, errors.New("test"))
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    map[string]int64{volumeId: int64(1)},
-				}
-
-				_, err := juicefsDriver.DeleteVolume(ctx, req)
-				if err == nil {
-					t.Fatalf("error is nil")
-				}
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.Internal {
-					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-				}
-			},
-		},
-		{
 			name: "DeleteVol error",
 			testFunc: func(t *testing.T) {
 				volumeId := "vol-test"
@@ -512,57 +376,11 @@ func TestDeleteVolume(t *testing.T) {
 				}
 
 				ctx := context.Background()
-
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(errors.New("test"))
-
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    map[string]int64{volumeId: int64(1)},
-				}
-
-				_, err := juicefsDriver.DeleteVolume(ctx, req)
-				if err == nil {
-					t.Fatalf("error is nil")
-				}
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.Internal {
-					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-				}
-			},
-		},
-		{
-			name: "Unmount error",
-			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
-				targetPath := "/test"
-				secret := map[string]string{"a": "b"}
-				req := &csi.DeleteVolumeRequest{
-					VolumeId: volumeId,
-					Secrets:  secret,
-				}
-
-				ctx := context.Background()
-
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-
-				mockJfs := mocks.NewMockJfs(mockCtl)
-				mockJfs.EXPECT().DeleteVol(volumeId, secret).Return(nil)
-				mockJfs.EXPECT().GetBasePath().Return(targetPath)
-
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsMount(volumeId, "", secret, nil, []string{}, false).Return(mockJfs, nil)
-				mockJuicefs.EXPECT().Unmount(targetPath).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsDeleteVol(volumeId, volumeId, secret).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,

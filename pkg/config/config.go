@@ -32,6 +32,7 @@ var (
 	MountLabels = ""
 	HostIp      = ""
 	KubeletPort = ""
+	FormatInPod = false
 
 	CSIPod = corev1.Pod{}
 

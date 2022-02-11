@@ -35,9 +35,17 @@ type JfsSetting struct {
 	Source  string `json:"source"`
 	Storage string `json:"storage"`
 
-	Configs map[string]string `json:"configs"`
-	Envs    map[string]string `json:"envs"`
+	// put in secret
+	SecretKey     string            `json:"secret-key,omitempty"`
+	SecretKey2    string            `json:"secret-key2,omitempty"`
+	Token         string            `json:"token,omitempty"`
+	Passphrase    string            `json:"passphrase,omitempty"`
+	Envs          map[string]string `json:"envs_map,omitempty"`
+	EncryptRsaKey string            `json:"encrypt_rsa_key,omitempty"`
+	InitConfig    string            `json:"initconfig,omitempty"`
+	Configs       map[string]string `json:"configs_map,omitempty"`
 
+	// put in volCtx
 	MountPodCpuLimit       string            `json:"mount_pod_cpu_limit"`
 	MountPodMemLimit       string            `json:"mount_pod_mem_limit"`
 	MountPodCpuRequest     string            `json:"mount_pod_cpu_request"`
@@ -47,32 +55,56 @@ type JfsSetting struct {
 	MountPodServiceAccount string            `json:"mount_pod_service_account"`
 	DeletedDelay           string            `json:"deleted_delay"`
 
+	// mount
 	VolumeId   string
 	MountPath  string
-	TargetPath string
-	Options    []string
+	TargetPath string   // which bind to container path
+	Options    []string // mount options
+	FormatCmd  string   // format or auth
+	SubPath    string   // subPath which is to be created or deleted
+	SecretName string   // secret name which is set env in pod
 }
 
 func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
-	jfsSetting := JfsSetting{}
+	jfsSetting := JfsSetting{
+		Options: []string{},
+	}
 	if secrets == nil {
 		return &jfsSetting, nil
 	}
+
+	secretStr, err := json.Marshal(secrets)
+	if err != nil {
+		return nil, err
+	}
+	if err := parseYamlOrJson(string(secretStr), &jfsSetting); err != nil {
+		return nil, err
+	}
+
 	if secrets["name"] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Empty name")
 	}
 	jfsSetting.Name = secrets["name"]
 	jfsSetting.Storage = secrets["storage"]
+	jfsSetting.Envs = make(map[string]string)
+	jfsSetting.Configs = make(map[string]string)
 
 	m, ok := secrets["metaurl"]
 	jfsSetting.MetaUrl = m
 	jfsSetting.IsCe = ok
 	jfsSetting.UsePod = usePod
 
+	if secrets["secretkey"] != "" {
+		jfsSetting.SecretKey = secrets["secretkey"]
+	}
+	if secrets["secretkey2"] != "" {
+		jfsSetting.SecretKey2 = secrets["secretkey2"]
+	}
+
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
 		configs := make(map[string]string)
-		klog.V(5).Infof("Get configs in secret: %v", configStr)
+		klog.V(6).Infof("Get configs in secret: %v", configStr)
 		if err := parseYamlOrJson(configStr, &configs); err != nil {
 			return nil, err
 		}
@@ -82,7 +114,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	if secrets["envs"] != "" {
 		envStr := secrets["envs"]
 		env := make(map[string]string)
-		klog.V(5).Infof("Get envs in secret: %v", envStr)
+		klog.V(6).Infof("Get envs in secret: %v", envStr)
 		if err := parseYamlOrJson(envStr, &env); err != nil {
 			return nil, err
 		}
@@ -91,7 +123,7 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 
 	labels := make(map[string]string)
 	if MountLabels != "" {
-		klog.V(5).Infof("Get MountLabels from csi env: %v", MountLabels)
+		klog.V(6).Infof("Get MountLabels from csi env: %v", MountLabels)
 		if err := parseYamlOrJson(MountLabels, &labels); err != nil {
 			return nil, err
 		}
