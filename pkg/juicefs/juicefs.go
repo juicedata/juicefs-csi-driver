@@ -286,7 +286,8 @@ func (j *juicefs) JfsUnmount(mountPath string) error {
 			continue
 		}
 		klog.V(6).Infoln(string(out))
-		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") {
+		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") &&
+			!strings.Contains(string(out), "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", mountPath, err)
 			output, err := exec.Command("umount", "-l", mountPath).CombinedOutput()
 			if err != nil {

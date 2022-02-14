@@ -322,7 +322,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					cmd := exec.Command("umount", sourcePath)
 					out, err := doWithinTime(ctx, cmd, nil)
 					if err != nil {
-						if !strings.Contains(out, "not mounted") && !strings.Contains(out, "mountpoint not found") {
+						if !strings.Contains(out, "not mounted") && !strings.Contains(out, "mountpoint not found") &&
+							!strings.Contains(out, "no mount point specified") {
 							klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
 							cmd2 := exec.Command("umount", "-l", sourcePath)
 							output, err1 := doWithinTime(ctx, cmd2, nil)
