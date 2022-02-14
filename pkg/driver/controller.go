@@ -117,7 +117,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 // ControllerGetCapabilities gets capabilities
 func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	klog.V(4).Infof("ControllerGetCapabilities: called with args %#v", req)
+	klog.V(6).Infof("ControllerGetCapabilities: called with args %#v", req)
 	var caps []*csi.ControllerServiceCapability
 	for _, cap := range controllerCaps {
 		c := &csi.ControllerServiceCapability{
@@ -134,19 +134,19 @@ func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *
 
 // GetCapacity unimplemented
 func (d *controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	klog.V(4).Infof("GetCapacity: called with args %#v", req)
+	klog.V(6).Infof("GetCapacity: called with args %#v", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ListVolumes unimplemented
 func (d *controllerService) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	klog.V(4).Infof("ListVolumes: called with args %#v", req)
+	klog.V(6).Infof("ListVolumes: called with args %#v", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ValidateVolumeCapabilities validates volume capabilities
 func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	klog.V(4).Infof("ValidateVolumeCapabilities: called with args %#v", req)
+	klog.V(6).Infof("ValidateVolumeCapabilities: called with args %#v", req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
