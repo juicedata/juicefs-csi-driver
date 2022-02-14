@@ -183,7 +183,7 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
 	if config.FormatInPod {
-		return j.podMount.JCreateVolume(jfsSetting)
+		return j.podMount.JDeleteVolume(jfsSetting)
 	}
 	// 1. mount juicefs
 	err = j.processMount.JMount(jfsSetting)
@@ -278,6 +278,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 }
 
 func (j *juicefs) JfsUnmount(mountPath string) error {
+	// umount util mountPath is not mounted
 	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
 	for {
 		command := exec.Command("umount", mountPath)
@@ -286,7 +287,8 @@ func (j *juicefs) JfsUnmount(mountPath string) error {
 			continue
 		}
 		klog.V(6).Infoln(string(out))
-		if !strings.Contains(string(out), "not mounted") && !strings.Contains(string(out), "mountpoint not found") &&
+		if !strings.Contains(string(out), "not mounted") &&
+			!strings.Contains(string(out), "mountpoint not found") &&
 			!strings.Contains(string(out), "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", mountPath, err)
 			output, err := exec.Command("umount", "-l", mountPath).CombinedOutput()
