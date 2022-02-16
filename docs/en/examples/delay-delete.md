@@ -1,5 +1,5 @@
 ---
-sidebar_label: Delay deletion of mount pod
+sidebar_label: Delay Deletion of Mount Pod
 ---
 
 # How to delay delete mount pod
@@ -42,7 +42,7 @@ spec:
 
 Where, the unit can be: "ns" (nanoseconds), "us" (microseconds), "ms" (milliseconds), "s" (seconds), "m" (minutes), "h" (hours).
 
-When the last application pod is deleted, the mount pod is marked with the `juicefs-delete-at` annotation to record the moment when it should be deleted. 
+When the last application pod is deleted, the mount pod is marked with the `juicefs-delete-at` annotation to record the moment when it should be deleted.
 When the deletion time is reached, the mount pod will be deleted. When a new application Pod uses the same JuiceFS Volume,
 the annotation `juicefs-delete-at` will be deleted.
 
