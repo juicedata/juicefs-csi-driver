@@ -19,12 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
-	"os"
 )
 
 var (
@@ -47,6 +48,10 @@ func init() {
 	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
+	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	if jfsMountPriorityName != "" {
+		config.JFSMountPriorityName = jfsMountPriorityName
+	}
 	config.FormatInPod = *formatInPod
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
