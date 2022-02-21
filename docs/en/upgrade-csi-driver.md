@@ -3,13 +3,19 @@
 ## CSI Driver version >= v0.10
 
 Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt
-existing PVs. If CSI Driver version >= v0.10.0, do operations below:
+existing PVs.
 
-* If you're using `nightly` tag, simple run `kubectl rollout restart -f k8s.yaml` and make sure `juicefs-csi-controller`
-  and `juicefs-csi-node` pods are restarted.
-* If you have pinned to a specific version, modify your `k8s.yaml` to a newer version, then
-  run `kubectl apply -f k8s.yaml`.
-* Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+### v0.13.0
+
+Compared with v0.12.0, v0.13.0 updated the ClusterRole of CSI node & controller, and cannot directly update the image.
+
+1. modify your `k8s.yaml` to [v0.13.0](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), then run `kubectl apply -f k8s.yaml`.
+2. Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+
+   ```bash
+   helm repo update
+   helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+   ```
 
 ## CSI Driver version < v0.10
 

@@ -2,11 +2,19 @@
 
 ## CSI Driver v0.10 及以上版本
 
-JuiceFS CSI Driver 从 v0.10.0 开始将 JuiceFS 客户端与 CSI Driver 进行了分离，升级 CSI Driver 将不会影响已存在的 PV。如果你使用的是 CSI Driver v0.10.0 及以上的版本，执行以下命令进行升级：
+JuiceFS CSI Driver 从 v0.10.0 开始将 JuiceFS 客户端与 CSI Driver 进行了分离，升级 CSI Driver 将不会影响已存在的 PV。
 
-* 如果您使用的是 `nightly` 标签，只需运行 `kubectl rollout restart -f k8s.yaml` 并确保重启 `juicefs-csi-controller` 和 `juicefs-csi-node` pod。
-* 如果您已固定到特定版本，请将您的 `k8s.yaml` 修改为要更新的版本，然后运行 `kubectl apply -f k8s.yaml`。
-* 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级。
+### v0.13.0
+
+v0.13.0 相比于 v0.12.0 更新了 CSI node & controller 的 ClusterRole，不可以直接更新 image。 
+
+1. 请将您的 `k8s.yaml` 修改为要 [v0.13.0 版本](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml) ，然后运行 `kubectl apply -f k8s.yaml`。
+2. 如果你的 JuiceFS CSI Driver 是使用 Helm 安装的，也可以通过 Helm 对其进行升级：
+
+   ```bash
+   helm repo update
+   helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+   ```
 
 ## CSI Driver v0.10 以下版本
 
