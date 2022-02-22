@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-./bin/mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
-./bin/mockgen -destination=./pkg/juicefs/mocks/mock_juicefs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Interface
-./bin/mockgen -destination=./pkg/juicefs/mocks/mock_jfs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Jfs
-./bin/mockgen -destination=./pkg/juicefs/mount/mocks/mock_mnt.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount MntInterface
+${GOPATH}/bin/mockgen -package=mocks -destination=./pkg/driver/mocks/mock_mount.go k8s.io/utils/mount Interface
+${GOPATH}/bin/mockgen -destination=./pkg/juicefs/mocks/mock_juicefs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Interface
+${GOPATH}/bin/mockgen -destination=./pkg/juicefs/mocks/mock_jfs.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs Jfs
+${GOPATH}/bin/mockgen -destination=./pkg/juicefs/mount/mocks/mock_mnt.go -package=mocks github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount MntInterface
