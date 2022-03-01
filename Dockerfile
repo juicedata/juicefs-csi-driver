@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
 FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -37,7 +38,7 @@ ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /tini
+ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
 RUN chmod +x /tini
 
 RUN apt-get update && apt-get install -y librados2 curl fuse && \
