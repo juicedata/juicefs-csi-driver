@@ -51,7 +51,7 @@ test-sanity:
 .PHONY: image-nightly
 image-nightly:
 	# Build image with newest juicefs-csi-driver and juicefs
-	docker build -t $(IMAGE):nightly .
+	docker build --build-arg TARGETARCH=amd64 -t $(IMAGE):nightly .
 
 .PHONY: push
 push-nightly:
@@ -69,6 +69,7 @@ image-latest:
 	docker build --build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_LATEST_VERSION) \
 		--build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg JFS_AUTO_UPGRADE=disabled \
+		--build-arg TARGETARCH=amd64 \
 		-t $(IMAGE):latest -f Dockerfile .
 
 .PHONY: push-latest
@@ -78,7 +79,7 @@ push-latest:
 
 .PHONY: image-branch
 image-branch:
-	docker build -t $(IMAGE):$(GIT_BRANCH) -f Dockerfile .
+	docker build --build-arg TARGETARCH=amd64 -t $(IMAGE):$(GIT_BRANCH) -f Dockerfile .
 
 .PHONY: push-branch
 push-branch:
@@ -114,7 +115,7 @@ uninstall: deploy/k8s.yaml
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
 	docker pull $(IMAGE):nightly
-	docker build -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
+	docker build --build-arg TARGETARCH=amd64 -t $(IMAGE):$(DEV_TAG) -f dev.Dockerfile bin
 
 .PHONY: push-dev
 push-dev:
