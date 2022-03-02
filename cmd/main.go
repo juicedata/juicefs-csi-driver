@@ -77,6 +77,7 @@ func init() {
 	for i := range pod.Spec.Containers {
 		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
 			config.MountImage = pod.Spec.Containers[i].Image
+			config.ContainerResource = pod.Spec.Containers[i].Resources
 			return
 		}
 	}
