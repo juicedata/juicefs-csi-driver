@@ -141,7 +141,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 }
 
 func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options, true)
+	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -229,8 +229,8 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod)
+func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, config.InKube)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err

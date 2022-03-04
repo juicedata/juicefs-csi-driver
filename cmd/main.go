@@ -35,11 +35,21 @@ var (
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
+	inKube             = flag.Bool("in-kube", true, "CSI Driver run in kubernetes or not. default true.")
 )
 
 func init() {
 	klog.InitFlags(nil)
 	flag.Parse()
+	config.InKube = *inKube
+	if !*inKube {
+		// if not run in k8s, dose not need pod info
+		config.EnableManager = false
+		config.FormatInPod = false
+		return
+	}
+	config.EnableManager = *enableManager
+	config.FormatInPod = *formatInPod
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.PodName = os.Getenv("POD_NAME")
@@ -52,7 +62,6 @@ func init() {
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
 	}
-	config.FormatInPod = *formatInPod
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
@@ -97,7 +106,7 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
-	if *enableManager && config.KubeletPort != "" && config.HostIp != "" {
+	if config.EnableManager && config.KubeletPort != "" && config.HostIp != "" {
 		if err := controller.StartReconciler(); err != nil {
 			klog.V(5).Infof("Could not StartReconciler: %v", err)
 			os.Exit(1)
