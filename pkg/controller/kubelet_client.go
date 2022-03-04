@@ -21,16 +21,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	"k8s.io/klog"
 )
 
 const (
-	timeout = 10 * time.Second
+	defaultKubeletTimeout   = 10
+	serviceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
 type kubeletClient struct {
@@ -39,49 +44,115 @@ type kubeletClient struct {
 	client *http.Client
 }
 
-func makeRoundTripper() (http.RoundTripper, error) {
-	const (
-		tokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-		rootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-	)
-	token, err := ioutil.ReadFile(tokenFile)
+// KubeletClientConfig defines config parameters for the kubelet client
+type KubeletClientConfig struct {
+	// Address specifies the kubelet address
+	Address string
+
+	// Port specifies the default port - used if no information about Kubelet port can be found in Node.NodeStatus.DaemonEndpoints.
+	Port int
+
+	// TLSClientConfig contains settings to enable transport layer security
+	restclient.TLSClientConfig
+
+	// Server requires Bearer authentication
+	BearerToken string
+
+	// HTTPTimeout is used by the client to timeout http requests to Kubelet.
+	HTTPTimeout time.Duration
+}
+
+// makeTransport creates a RoundTripper for HTTP Transport.
+func makeTransport(config *KubeletClientConfig, insecureSkipTLSVerify bool) (http.RoundTripper, error) {
+	// do the insecureSkipTLSVerify on the pre-transport *before* we go get a potentially cached connection.
+	// transportConfig always produces a new struct pointer.
+	preTLSConfig := config.transportConfig()
+	if insecureSkipTLSVerify && preTLSConfig != nil {
+		preTLSConfig.TLS.Insecure = true
+		preTLSConfig.TLS.CAData = nil
+		preTLSConfig.TLS.CAFile = ""
+	}
+
+	tlsConfig, err := transport.TLSConfigFor(preTLSConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	rt := http.DefaultTransport
+	if tlsConfig != nil {
+		// If SSH Tunnel is turned on
+		rt = utilnet.SetOldTransportDefaults(&http.Transport{
+			TLSClientConfig: tlsConfig,
+		})
+	}
+
+	return transport.HTTPWrappersForConfig(config.transportConfig(), rt)
+}
+
+// transportConfig converts a client config to an appropriate transport config.
+func (c *KubeletClientConfig) transportConfig() *transport.Config {
 	cfg := &transport.Config{
 		TLS: transport.TLSConfig{
-			Insecure: true,
+			CAFile:   c.CAFile,
+			CAData:   c.CAData,
+			CertFile: c.CertFile,
+			CertData: c.CertData,
+			KeyFile:  c.KeyFile,
+			KeyData:  c.KeyData,
 		},
-		BearerToken: string(token),
+		BearerToken: c.BearerToken,
 	}
-
-	tlsConfig, err := transport.TLSConfigFor(cfg)
-	if err != nil {
-		return nil, err
+	if !cfg.HasCA() {
+		cfg.TLS.Insecure = true
 	}
-	rt := utilnet.SetOldTransportDefaults(&http.Transport{
-		TLSClientConfig: tlsConfig,
-	})
-
-	// cfg.TLS.Insecure = false
-	// cfg.TLS.CAFile = rootCAFile
-	return transport.HTTPWrappersForConfig(cfg, rt)
+	return cfg
 }
 
 func newKubeletClient(host string, port int) (*kubeletClient, error) {
-	rr, err := makeRoundTripper()
+	var token string
+	var err error
+	kubeletClientCert := os.Getenv("KUBELET_CLIENT_CERT")
+	kubeletClientKey := os.Getenv("KUBELET_CLIENT_KEY")
+	if kubeletClientCert == "" && kubeletClientKey == "" {
+		// get CSI sa token
+		tokenByte, err := ioutil.ReadFile(serviceAccountTokenFile)
+		if err != nil {
+			return nil, fmt.Errorf("in cluster mode, find token failed: %v", err)
+		}
+		token = string(tokenByte)
+	}
+
+	kubeletTimeout := defaultKubeletTimeout
+	if os.Getenv("KUBELET_TIMEOUT") != "" {
+		if kubeletTimeout, err = strconv.Atoi(os.Getenv("KUBELET_TIMEOUT")); err != nil {
+			return nil, fmt.Errorf("got error when parsing kubelet timeout: %v", err)
+		}
+	}
+	config := &KubeletClientConfig{
+		Address: host,
+		Port:    port,
+		TLSClientConfig: rest.TLSClientConfig{
+			ServerName: "kubelet",
+			Insecure:   true,
+			CertFile:   kubeletClientCert,
+			KeyFile:    kubeletClientKey,
+		},
+		BearerToken: token,
+		HTTPTimeout: time.Duration(kubeletTimeout) * time.Second,
+	}
+
+	trans, err := makeTransport(config, config.Insecure)
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{
-		Transport: rr,
-		Timeout:   timeout,
-	}
+
 	return &kubeletClient{
-		host:   host,
-		port:   port,
-		client: client,
+		host: config.Address,
+		port: config.Port,
+		client: &http.Client{
+			Transport: trans,
+			Timeout:   config.HTTPTimeout,
+		},
 	}, nil
 }
 
