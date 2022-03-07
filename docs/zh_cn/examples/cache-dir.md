@@ -9,7 +9,7 @@ sidebar_label: 设置缓存路径
 
 ## 静态配置
 
-您可以在 PV 的 `spec.mountOptions` 中设置缓存路径：
+默认情况下，缓存路径为 `/var/jfsCache`，CSI 会将该路径挂载到 mount pod 中。您也可以在 PV 的 `spec.mountOptions` 中设置缓存路径：
 
 ```yaml
 apiVersion: v1
@@ -54,7 +54,7 @@ kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep moun
 
 ## 动态配置
 
-您也可以在 StorageClass 的 `mountOptions` 中配置缓存路径： 
+默认情况下，缓存路径为 `/var/jfsCache`，CSI 会将该路径挂载到 mount pod 中。您也可以在 StorageClass 的 `mountOptions` 中配置缓存路径： 
 
 ```yaml
 apiVersion: storage.k8s.io/v1

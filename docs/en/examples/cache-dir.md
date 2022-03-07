@@ -9,7 +9,7 @@ the cache directory on the corresponding node will be mounted to the mount pod. 
 
 ## Static provisioning
 
-You can set cache directory in `spec.mountOptions` of PV (Persistent Volume):
+By default, the cache path is `/var/jfsCache`, which CSI will mount into the mount pod. You can set cache directory in `spec.mountOptions` of PV (Persistent Volume):
 
 ```yaml
 apiVersion: v1
@@ -55,7 +55,7 @@ kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep moun
 
 ## Dynamic provisioning
 
-You can set cache directory in `mountOptions` of StorageClass:
+By default, the cache path is `/var/jfsCache`, which CSI will mount into the mount pod. You can set cache directory in `mountOptions` of StorageClass:
 
 ```yaml
 apiVersion: storage.k8s.io/v1
