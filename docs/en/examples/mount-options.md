@@ -104,10 +104,10 @@ kubectl get pods juicefs-app-mount-options
 ```
 
 Also you can verify that mount options are customized in the mounted JuiceFS file system, refer
-to [this document](../troubleshooting.md#get-mount-pod) to find mount pod:
+to [this document](../troubleshooting.md#get-mount-pod) to find mount pod and run this command as follows::
 
 ```sh
-kubectl get po juicefs-kube-node-3-test-bucket -oyaml |grep command -A 3
+kubectl get po juicefs-kube-node-3-test-bucket -oyaml | grep mount.juicefs
 ```
 
 ## Dynamic provisioning
@@ -188,5 +188,5 @@ Also you can verify that mount options are customized in the mounted JuiceFS fil
 to [this document](../troubleshooting.md#get-mount-pod) to find mount pod :
 
 ```sh
-kubectl get po juicefs-kube-node-2-pvc-f052a1bd-65b3-471c-8a7a-4263f12b2131 -oyaml |grep command -A 3
+kubectl get po juicefs-kube-node-2-pvc-f052a1bd-65b3-471c-8a7a-4263f12b2131 -oyaml grep mount.juicefs
 ```
