@@ -83,6 +83,12 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 func (r *Builder) parsePodResources() corev1.ResourceRequirements {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
+	if config.ContainerResource.Limits != nil {
+		podLimit = config.ContainerResource.Limits
+	}
+	if config.ContainerResource.Requests != nil {
+		podRequest = config.ContainerResource.Requests
+	}
 	if r.jfsSetting.MountPodCpuLimit != "" {
 		podLimit[corev1.ResourceCPU] = resource.MustParse(r.jfsSetting.MountPodCpuLimit)
 	}

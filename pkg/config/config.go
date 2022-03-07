@@ -34,7 +34,8 @@ var (
 	KubeletPort = ""
 	FormatInPod = false
 
-	CSIPod = corev1.Pod{}
+	CSIPod            = corev1.Pod{}
+	ContainerResource = corev1.ResourceRequirements{}
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
