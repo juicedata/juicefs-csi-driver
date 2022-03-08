@@ -66,7 +66,7 @@ func newNodeService(nodeID string) (*nodeService, error) {
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
 	var k8sClient *k8sclient.K8sClient
-	if config.InKube {
+	if !config.ByProcess {
 		k8sClient, err = k8sclient.NewClient()
 		if err != nil {
 			klog.V(5).Infof("Can't get k8s client: %v", err)

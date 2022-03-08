@@ -35,15 +35,15 @@ var (
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
-	inKube             = flag.Bool("in-kube", false, "CSI Driver run in kubernetes or not. default false.")
+	process            = flag.Bool("by-process", false, "CSI Driver run juicefs in process or not. default false.")
 )
 
 func init() {
 	klog.InitFlags(nil)
 	flag.Parse()
-	config.InKube = *inKube
-	if !*inKube {
-		// if not run in k8s, dose not need pod info
+	config.ByProcess = *process
+	if *process {
+		// if run in process, does not need pod info
 		config.EnableManager = false
 		config.FormatInPod = false
 		return

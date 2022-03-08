@@ -132,7 +132,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	processMnt := podmount.NewProcessMount(*mounter)
 	var podMnt podmount.MntInterface
 	var k8sClient *k8sclient.K8sClient
-	if config.InKube {
+	if !config.ByProcess {
 		k8sClient, err := k8sclient.NewClient()
 		if err != nil {
 			klog.V(5).Infof("Can't get k8s client: %v", err)
@@ -234,7 +234,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, config.InKube)
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
@@ -282,7 +282,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 }
 
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
-	if !config.InKube {
+	if config.ByProcess {
 		return j.processMount.JUmount(volumeId, mountPath)
 	}
 	// targetPath may be mount bind many times when mount point recovered.
