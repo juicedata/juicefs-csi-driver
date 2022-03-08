@@ -35,7 +35,7 @@ var (
 	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
-	inKube             = flag.Bool("in-kube", true, "CSI Driver run in kubernetes or not. default true.")
+	inKube             = flag.Bool("in-kube", false, "CSI Driver run in kubernetes or not. default false.")
 )
 
 func init() {

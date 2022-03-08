@@ -123,17 +123,17 @@ func (mr *MockInterfaceMockRecorder) JfsMount(arg0, arg1, arg2, arg3, arg4 inter
 }
 
 // JfsUnmount mocks base method.
-func (m *MockInterface) JfsUnmount(arg0 string) error {
+func (m *MockInterface) JfsUnmount(arg0, arg1 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsUnmount", arg0)
+	ret := m.ctrl.Call(m, "JfsUnmount", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JfsUnmount indicates an expected call of JfsUnmount.
-func (mr *MockInterfaceMockRecorder) JfsUnmount(arg0 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsUnmount(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsUnmount", reflect.TypeOf((*MockInterface)(nil).JfsUnmount), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsUnmount", reflect.TypeOf((*MockInterface)(nil).JfsUnmount), arg0, arg1)
 }
 
 // List mocks base method.

@@ -156,7 +156,7 @@ func (p *ProcessMount) JUmount(volumeId, target string) error {
 			klog.V(5).Infof("ProcessUmount: error unmounting mount ref %s, %v", refs[0], err)
 		}
 	}
-	return p.Unmount(target)
+	return nil
 }
 
 func (p *ProcessMount) AddRefOfMount(target string, podName string) error {

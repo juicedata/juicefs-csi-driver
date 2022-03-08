@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"k8s.io/utils/mount"
 	"os"
 	"reflect"
@@ -443,21 +442,16 @@ func TestNodePublishVolume(t *testing.T) {
 }
 
 func TestNodeUnpublishVolume(t *testing.T) {
-	Convey("Test NodePublishVolume", t, func() {
+	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
-			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
-				return nil
-			})
-			defer patch2.Reset()
+			volumeId := "vol-test"
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
-			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(nil)
+			mockJuicefs.EXPECT().JfsUnmount(volumeId, targetPath).Return(nil)
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -467,7 +461,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 
 			req := &csi.NodeUnpublishVolumeRequest{
 				TargetPath: targetPath,
-				VolumeId:   "vol-test",
+				VolumeId:   volumeId,
 			}
 
 			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
@@ -477,17 +471,13 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		})
 		Convey("JfsUnmount err", func() {
 			targetPath := "/test/path"
-			podMount := &podmount.PodMount{}
-			patch := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
-				return nil
-			})
-			defer patch.Reset()
+			volumeId := "vol-test"
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(errors.New("test"))
+			mockJuicefs.EXPECT().JfsUnmount(volumeId, targetPath).Return(errors.New("test"))
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -497,69 +487,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 
 			req := &csi.NodeUnpublishVolumeRequest{
 				TargetPath: targetPath,
-				VolumeId:   "vol-test",
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err == nil {
-				t.Fatal("Expect error but got nil")
-			}
-		})
-		Convey("CleanupMountPoint err", func() {
-			targetPath := "/test/path"
-			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
-				return nil
-			})
-			defer patch2.Reset()
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
-			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(errors.New("test"))
-
-			juicefsDriver := &nodeService{
-				juicefs:   mockJuicefs,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: targetPath,
-				VolumeId:   "vol-test",
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err == nil {
-				t.Fatal("Expect error but got nil")
-			}
-		})
-		Convey("JUmount err", func() {
-			targetPath := "/test/path"
-			podMount := &podmount.PodMount{}
-			patch2 := ApplyMethod(reflect.TypeOf(podMount), "JUmount", func(_ *podmount.PodMount, volumeId, target string) error {
-				return errors.New("test")
-			})
-			defer patch2.Reset()
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(targetPath).Return(nil)
-			mockJuicefs.EXPECT().JfsCleanupMountPoint(targetPath).Return(nil)
-
-			juicefsDriver := &nodeService{
-				juicefs:   mockJuicefs,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: targetPath,
-				VolumeId:   "vol-test",
+				VolumeId:   volumeId,
 			}
 
 			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)

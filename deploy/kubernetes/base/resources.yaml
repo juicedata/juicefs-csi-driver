@@ -204,6 +204,7 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=5
+            - --in-kube=true
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -328,6 +329,7 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --v=5
             - --enable-manager=true
+            - --in-kube=true
           env:
             - name: CSI_ENDPOINT
               value: unix:/csi/csi.sock
