@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"os"
 	"os/exec"
 	"strings"
@@ -115,6 +116,46 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *ProcessMount) JUmount(volumeId, target string) error {
+	var refs []string
+
+	var corruptedMnt bool
+	exists, err := k8sMount.PathExists(target)
+	if err == nil {
+		if !exists {
+			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
+			return nil
+		}
+		var notMnt bool
+		notMnt, err = k8sMount.IsNotMountPoint(p, target)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
+		}
+		if notMnt { // target exists but not a mountpoint
+			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
+			return nil
+		}
+	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
+		return status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
+	}
+
+	refs, err = util.GetMountDeviceRefs(target, corruptedMnt)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
+	}
+
+	klog.V(5).Infof("ProcessUmount: unmounting target %s", target)
+	if err := p.Unmount(target); err != nil {
+		return status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
+	}
+
+	// we can only unmount this when only one is left
+	// since the PVC might be used by more than one container
+	if err == nil && len(refs) == 1 {
+		klog.V(5).Infof("ProcessUmount: unmounting ref %s for target %s", refs[0], target)
+		if err := p.Unmount(refs[0]); err != nil {
+			klog.V(5).Infof("ProcessUmount: error unmounting mount ref %s, %v", refs[0], err)
+		}
+	}
 	return p.Unmount(target)
 }
 
