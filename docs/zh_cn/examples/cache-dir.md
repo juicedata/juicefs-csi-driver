@@ -4,12 +4,12 @@ sidebar_label: 设置缓存路径
 
 # 如何在 Kubernetes 中设置缓存路径
 
-本文档展示了如何在 Kubernetes 中设置 JuiceFS 的缓存路径。CSI 在部署 mount pod (JuiceFS 客户端) 时，
-会将对应节点上的对应路径挂载到 mount pod 中，如果需要将节点上的磁盘路径设置为客户端的缓存路径，可遵循本文档。
+本文档展示了如何在 Kubernetes 中设置 JuiceFS 的缓存路径。CSI 驱动在部署 mount pod 时，
+会将 Kubernetes 节点上的对应路径挂载到 mount pod 中，如果需要将节点上的磁盘路径设置为客户端的缓存路径，可遵循本文档。
 
 ## 静态配置
 
-默认情况下，缓存路径为 `/var/jfsCache`，CSI 会将该路径挂载到 mount pod 中。您也可以在 PV 的 `spec.mountOptions` 中设置缓存路径：
+默认情况下，缓存路径为 `/var/jfsCache`，CSI 驱动会将该路径挂载到 mount pod 中。您也可以在 PV 的 `spec.mountOptions` 中设置缓存路径：
 
 ```yaml
 apiVersion: v1
@@ -54,7 +54,7 @@ kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep moun
 
 ## 动态配置
 
-默认情况下，缓存路径为 `/var/jfsCache`，CSI 会将该路径挂载到 mount pod 中。您也可以在 StorageClass 的 `mountOptions` 中配置缓存路径： 
+默认情况下，缓存路径为 `/var/jfsCache`，CSI 驱动会将该路径挂载到 mount pod 中。您也可以在 StorageClass 的 `mountOptions` 中配置缓存路径：
 
 ```yaml
 apiVersion: storage.k8s.io/v1
