@@ -62,7 +62,7 @@ func (j *fakeJfsProvider) JfsCleanupMountPoint(mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsUnmount(mountPath string) error {
+func (j *fakeJfsProvider) JfsUnmount(volumeId, mountPath string) error {
 	return nil
 }
 

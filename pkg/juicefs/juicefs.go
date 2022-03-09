@@ -44,7 +44,7 @@ type Interface interface {
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
-	JfsUnmount(mountPath string) error
+	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
 	Version() ([]byte, error)
 }
@@ -129,19 +129,23 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 			Exec:      k8sexec.New(),
 		}
 	}
-	k8sClient, err := k8sclient.NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		return nil, err
+	processMnt := podmount.NewProcessMount(*mounter)
+	var podMnt podmount.MntInterface
+	var k8sClient *k8sclient.K8sClient
+	if !config.ByProcess {
+		k8sClient, err := k8sclient.NewClient()
+		if err != nil {
+			klog.V(5).Infof("Can't get k8s client: %v", err)
+			return nil, err
+		}
+		podMnt = podmount.NewPodMount(k8sClient, *mounter)
 	}
 
-	podMnt := podmount.NewPodMount(k8sClient, *mounter)
-	processMnt := podmount.NewProcessMount(*mounter)
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
@@ -176,7 +180,7 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 }
 
 func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{}, true)
+	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
@@ -211,7 +215,7 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options, true)
+	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -229,8 +233,8 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string, usePod bool) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, usePod)
+func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
@@ -277,8 +281,12 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	return jfsSetting, nil
 }
 
-func (j *juicefs) JfsUnmount(mountPath string) error {
-	// umount util mountPath is not mounted
+func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
+	if config.ByProcess {
+		return j.processMount.JUmount(volumeId, mountPath)
+	}
+	// targetPath may be mount bind many times when mount point recovered.
+	// umount until it's not mounted.
 	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
 	for {
 		command := exec.Command("umount", mountPath)
@@ -299,7 +307,14 @@ func (j *juicefs) JfsUnmount(mountPath string) error {
 		}
 		break
 	}
-	return nil
+
+	// cleanup target path
+	if err := j.JfsCleanupMountPoint(mountPath); err != nil {
+		klog.V(5).Infof("Clean mount point error: %v", err)
+		return err
+	}
+
+	return j.podMount.JUmount(volumeId, mountPath)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {

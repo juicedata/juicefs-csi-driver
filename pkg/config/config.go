@@ -25,6 +25,10 @@ import (
 )
 
 var (
+	ByProcess     = false // csi driver runs juicefs in process or not
+	EnableManager = false // enable manager or not (only in k8s)
+	FormatInPod   = false // put format/auth in pod (only in k8s)
+
 	NodeName    = ""
 	Namespace   = ""
 	PodName     = ""
@@ -32,7 +36,6 @@ var (
 	MountLabels = ""
 	HostIp      = ""
 	KubeletPort = ""
-	FormatInPod = false
 
 	CSIPod            = corev1.Pod{}
 	ContainerResource = corev1.ResourceRequirements{}

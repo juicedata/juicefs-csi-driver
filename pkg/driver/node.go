@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -28,7 +29,6 @@ import (
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -65,10 +65,13 @@ func newNodeService(nodeID string) (*nodeService, error) {
 	}
 	klog.V(4).Infof("Node: %s", stdoutStderr)
 
-	k8sClient, err := k8sclient.NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		return nil, err
+	var k8sClient *k8sclient.K8sClient
+	if !config.ByProcess {
+		k8sClient, err = k8sclient.NewClient()
+		if err != nil {
+			klog.V(5).Infof("Can't get k8s client: %v", err)
+			return nil, err
+		}
 	}
 
 	return &nodeService{
@@ -176,22 +179,9 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	klog.V(5).Infof("NodeUnpublishVolume: volume_id is %s", volumeId)
 
-	// targetPath may be mount bind many times when mount point recovered.
-	// umount until it's not mounted.
-	err := d.juicefs.JfsUnmount(target)
+	err := d.juicefs.JfsUnmount(volumeId, target)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v", target, err)
-	}
-
-	// cleanup target path
-	if err := d.juicefs.JfsCleanupMountPoint(target); err != nil {
-		klog.V(5).Infof("Clean mount point error: %v", err)
-		return &csi.NodeUnpublishVolumeResponse{}, err
-	}
-
-	mnt := podmount.NewPodMount(d.k8sClient, d.SafeFormatAndMount)
-	if err := mnt.JUmount(volumeId, target); err != nil {
-		return &csi.NodeUnpublishVolumeResponse{}, err
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil

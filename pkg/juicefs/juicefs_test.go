@@ -447,11 +447,17 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 			})
 			defer patch1.Reset()
 
+			k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			jfs := juicefs{
 				SafeFormatAndMount: *mounter,
-				K8sClient:          nil,
+				processMount:       podmount.NewProcessMount(*mounter),
+				K8sClient:          k8sClient,
+				podMount: podmount.NewPodMount(k8sClient, mount.SafeFormatAndMount{
+					Interface: *mounter,
+					Exec:      k8sexec.New(),
+				}),
 			}
-			err := jfs.JfsUnmount(targetPath)
+			err := jfs.JfsUnmount("test", targetPath)
 			So(err, ShouldBeNil)
 		})
 		Convey("unmount error", func() {
@@ -470,8 +476,9 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 			jfs := juicefs{
 				SafeFormatAndMount: *mounter,
 				K8sClient:          nil,
+				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			err := jfs.JfsUnmount(targetPath)
+			err := jfs.JfsUnmount("test", targetPath)
 			So(err, ShouldNotBeNil)
 		})
 	})

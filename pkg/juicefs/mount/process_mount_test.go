@@ -21,6 +21,7 @@ import (
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	. "github.com/smartystreets/goconvey/convey"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
@@ -69,49 +70,81 @@ func TestNewProcessMount(t *testing.T) {
 
 func TestProcessMount_JUmount(t *testing.T) {
 	targetPath := "/test"
-	type args struct {
-		volumeId string
-		target   string
-	}
-	tests := []struct {
-		name       string
-		expectMock func(mockMounter mocks.MockInterface)
-		args       args
-		wantErr    bool
-	}{
-		{
-			name: "",
-			expectMock: func(mockMounter mocks.MockInterface) {
-				mockMounter.EXPECT().Unmount(targetPath).Return(nil)
-			},
-			args: args{
-				volumeId: "ttt",
-				target:   targetPath,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	volumeId := "test"
+	Convey("Test JUmount", t, func() {
+		Convey("test", func() {
+			patch1 := ApplyFunc(k8sMount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+			patch2 := ApplyFunc(util.GetMountDeviceRefs, func(pathname string, corrupted bool) ([]string, error) {
+				return []string{}, nil
+			})
+			defer patch2.Reset()
+			patch3 := ApplyFunc(k8sMount.IsNotMountPoint, func(mounter k8sMount.Interface, file string) (bool, error) {
+				return false, nil
+			})
+			defer patch3.Reset()
+
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
 			mockMounter := mocks.NewMockInterface(mockCtl)
-			if tt.expectMock != nil {
-				tt.expectMock(*mockMounter)
-			}
 			mounter := &k8sMount.SafeFormatAndMount{
 				Interface: mockMounter,
 				Exec:      k8sexec.New(),
 			}
+			mockMounter.EXPECT().Unmount(targetPath).Return(nil)
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
-				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
+			if err := p.JUmount(volumeId, targetPath); err != nil {
+				t.Errorf("JUmount() error = %v", err)
 			}
 		})
-	}
+		Convey("pathExist error", func() {
+			patch1 := ApplyFunc(k8sMount.PathExists, func(path string) (bool, error) {
+				return true, errors.New("test")
+			})
+			defer patch1.Reset()
+			p := &ProcessMount{
+				SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
+			}
+			if err := p.JUmount(volumeId, targetPath); err == nil {
+				t.Errorf("JUmount() error = %v", err)
+			}
+		})
+		Convey("Umount error", func() {
+			patch1 := ApplyFunc(k8sMount.PathExists, func(path string) (bool, error) {
+				return true, nil
+			})
+			defer patch1.Reset()
+			patch2 := ApplyFunc(util.GetMountDeviceRefs, func(pathname string, corrupted bool) ([]string, error) {
+				return []string{}, nil
+			})
+			defer patch2.Reset()
+			patch3 := ApplyFunc(k8sMount.IsNotMountPoint, func(mounter k8sMount.Interface, file string) (bool, error) {
+				return false, nil
+			})
+			defer patch3.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			mockMounter := mocks.NewMockInterface(mockCtl)
+			mounter := &k8sMount.SafeFormatAndMount{
+				Interface: mockMounter,
+				Exec:      k8sexec.New(),
+			}
+			mockMounter.EXPECT().Unmount(targetPath).Return(errors.New("test"))
+			p := &ProcessMount{
+				SafeFormatAndMount: *mounter,
+			}
+			if err := p.JUmount(volumeId, targetPath); err == nil {
+				t.Errorf("JUmount() error = %v", err)
+			}
+		})
+	})
 }
 
 func TestProcessMount_JMount(t *testing.T) {
