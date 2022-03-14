@@ -1,5 +1,5 @@
 ---
-sidebar_label: CSI in Nomad
+sidebar_label: Use in Nomad
 ---
 
 # How to Use JuiceFS CSI Driver in Nomad
@@ -49,7 +49,7 @@ job "jfs-controller" {
       csi_plugin {
         id        = "juicefs0"
         type      = "controller"
-        mount_dir = "/csi"  
+        mount_dir = "/csi"
       }
       resources {
         cpu    = 100
@@ -60,7 +60,7 @@ job "jfs-controller" {
 }
 ```
 
-Run CSI Controller job：
+Run CSI Controller job:
 
 ```shell
 $ nomad job run csi-controller.nomad
@@ -101,7 +101,7 @@ In the above output, if the `Allocation` status is `running`, it means CSI Contr
 
 ### Install CSI Node
 
-Save the following configuration as a file `csi-node.nomad`.
+Save the following configuration as a file `csi-node.nomad`:
 
 ```
 job "jfs-node" {
@@ -181,7 +181,7 @@ In the above output, if the `Allocation` status is `running`, it means CSI Node 
 
 #### Community edition
 
-Save the following configuration as a file `volume.hcl`.
+Save the following configuration as a file `volume.hcl`:
 
 ```
 type = "csi"
@@ -220,7 +220,7 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 #### Cloud service edition
 
-Save the following configuration as a file `volume.hcl`.
+Save the following configuration as a file `volume.hcl`:
 
 ```
 type = "csi"

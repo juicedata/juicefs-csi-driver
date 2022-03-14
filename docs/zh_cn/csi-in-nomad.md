@@ -4,14 +4,13 @@ sidebar_label: 在 Nomad 中使用
 
 # 如何在 Nomad 中使用 JuiceFS CSI Driver
 
-
 ## 安装 JuiceFS CSI Driver
 
 ### 前置条件
 
 1. Nomad 版本在 v0.12.0 及以上。
 2. 开启 privileged Docker jobs。如果您的 Nomad 客户端配置尚未指定 Docker 插件配置，将以下最小配置文件添加到您的 Nomad 客户端配置并重新启动 Nomad：
-    
+
     ```
     plugin "docker" {
         config {
@@ -50,7 +49,7 @@ job "jfs-controller" {
       csi_plugin {
         id        = "juicefs0"
         type      = "controller"
-        mount_dir = "/csi"  
+        mount_dir = "/csi"
       }
       resources {
         cpu    = 100
@@ -182,7 +181,7 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 
 #### 社区版
 
-将以下配置文件保存为文件 `volume.hcl`。
+将以下配置文件保存为文件 `volume.hcl`：
 
 ```
 type = "csi"
@@ -207,9 +206,9 @@ secrets {
 
 其中：
 - `name`：JuiceFS 文件系统名称
-- `metaurl`：元数据服务的访问 URL (比如 Redis)。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/databases_for_metadata) 。
-- `storage`：对象存储类型，比如 `s3`，`gs`，`oss`。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
-- `bucket`：Bucket URL。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
+- `metaurl`：元数据引擎的访问 URL（比如 Redis）。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/databases_for_metadata)。
+- `storage`：对象存储类型，比如 `s3`、`gs`、`oss`。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage)。
+- `bucket`：Bucket URL。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage)。
 - `access-key`：对象存储的 access key。
 - `secret-key`：对象存储的 secret key。
 
@@ -220,9 +219,9 @@ $ nomad volume create volume.hcl
 Created external volume juicefs-volume with ID juicefs-volume
 ```
 
-#### 商业版
+#### 云服务版
 
-将以下配置文件保存为文件 `volume.hcl`。
+将以下配置文件保存为文件 `volume.hcl`：
 
 ```
 type = "csi"
@@ -254,7 +253,7 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 ### 在应用中使用
 
-volume 创建好之后，就可以在应用中使用，具体可以参考[官方文档](https://www.nomadproject.io/docs/job-specification/volume) 。如：
+Volume 创建好之后，就可以在应用中使用，具体可以参考[官方文档](https://www.nomadproject.io/docs/job-specification/volume) 。如：
 
 ```
 job "demo" {
@@ -321,7 +320,7 @@ $ nomad job run job.nomad
     node        1        1       1        0          2022-03-14T17:22:08+08:00
 ```
 
-job 运行成功后，可以检查 JuiceFS 是否挂载成功：
+Job 运行成功后，可以检查 JuiceFS 是否挂载成功：
 
 ```shell
 $ nomad alloc exec -i -t 1ccca0b4 bash
