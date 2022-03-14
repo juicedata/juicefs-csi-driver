@@ -154,29 +154,7 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 	if config.FormatInPod {
 		return j.podMount.JCreateVolume(jfsSetting)
 	}
-	// 1. mount juicefs
-	err = j.processMount.JMount(jfsSetting)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-	}
-
-	// 2. create subPath volume
-	jfs := &jfs{
-		Provider:  j,
-		Name:      secrets["name"],
-		MountPath: jfsSetting.MountPath,
-		Options:   jfsSetting.Options,
-	}
-	_, err = jfs.CreateVol(volumeID, subPath)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeID, err)
-	}
-
-	// 3. umount
-	if err = j.Unmount(jfs.GetBasePath()); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
-	}
-	return nil
+	return j.processMount.JCreateVolume(jfsSetting)
 }
 
 func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -186,32 +164,15 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+
+	mnt := j.processMount
 	if config.FormatInPod {
-		return j.podMount.JDeleteVolume(jfsSetting)
+		mnt = j.podMount
 	}
-	// 1. mount juicefs
-	err = j.processMount.JMount(jfsSetting)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	if err := mnt.JDeleteVolume(jfsSetting); err != nil {
+		return err
 	}
-
-	// 2. create subPath volume
-	jfs := &jfs{
-		Provider:  j,
-		Name:      secrets["name"],
-		MountPath: jfsSetting.MountPath,
-		Options:   jfsSetting.Options,
-	}
-	err = jfs.DeleteVol(volumeID, secrets)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not delete volume: %q, err: %v", volumeID, err)
-	}
-
-	// 3. umount
-	if err = j.Unmount(jfs.GetBasePath()); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
-	}
-	return nil
+	return j.JfsCleanupMountPoint(jfsSetting.MountPath)
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
