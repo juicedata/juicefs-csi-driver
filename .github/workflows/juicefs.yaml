@@ -1,6 +1,10 @@
 name: Build juicefs image
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - docker_build
 
 jobs:
   publish-image:
