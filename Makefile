@@ -68,8 +68,8 @@ image-nightly-buildx:
 juicefs-image-nightly-buildx:
 	# Build image with newest juicefs
 	#docker buildx build -f juicefs.Dockerfile -t $(JUICEFS_IMAGE):nightly --platform linux/amd64,linux/arm64 . --push
-	docker build -f juicefs.Dockerfile --build-arg TARGETARCH=amd64 -t $(REGISTRY)/$(JUICEFS_IMAGE):nightly .
-	docker push $(REGISTRY)/$(JUICEFS_IMAGE):nightly
+	docker build -f juicefs.Dockerfile --build-arg TARGETARCH=amd64 -t $(JUICEFS_IMAGE):nightly .
+	docker push $(JUICEFS_IMAGE):nightly
 
 .PHONY: image-latest
 image-latest:
