@@ -3,7 +3,7 @@ name: Build juicefs image
 on: workflow_dispatch
 
 jobs:
-  publish-nightly:
+  publish-image:
     needs: test
     runs-on: ubuntu-latest
     steps:
