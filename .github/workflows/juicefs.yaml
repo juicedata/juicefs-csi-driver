@@ -8,9 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Login Docker Hub
-      run: docker login --username juicefs --password ${PASSWORD}
-      env:
-        PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+      run: docker login --username juicefs --password ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
     - name: Buildx and Push docker image nightly
       run: |
 #        export DOCKER_CLI_EXPERIMENTAL=enabled
