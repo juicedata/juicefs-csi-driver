@@ -1,0 +1,20 @@
+name: Github Actions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-nightly:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Login Docker Hub
+      run: docker login --username juicefs --password ${PASSWORD}
+      env:
+        PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+    - name: Buildx and Push docker image nightly
+      run: |
+#        export DOCKER_CLI_EXPERIMENTAL=enabled
+#        docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
+#        docker buildx create --use --name mybuilder
+        make juicefs-image-nightly-buildx

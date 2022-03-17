@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 IMAGE=juicedata/juicefs-csi-driver
+JUICEFS_IMAGE=juicedata/juicefs
 REGISTRY=docker.io
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
@@ -63,6 +64,13 @@ image-nightly-buildx:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker buildx build -t $(IMAGE):nightly --platform linux/amd64,linux/arm64 . --push
 
+.PHONY: juicefs-image-nightly-buildx
+juicefs-image-nightly-buildx:
+	# Build image with newest juicefs
+	#docker buildx build -f juicefs.Dockerfile -t $(JUICEFS_IMAGE):nightly --platform linux/amd64,linux/arm64 . --push
+	docker build -f juicefs.Dockerfile --build-arg TARGETARCH=amd64 -t $(JUICEFS_IMAGE):nightly .
+	docker push $(JUICEFS_IMAGE):nightly
+
 .PHONY: image-latest
 image-latest:
 	# Build image with latest stable juicefs-csi-driver and juicefs
@@ -90,6 +98,12 @@ push-branch:
 image-version:
 	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
 	docker buildx build -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
+
+.PHONY: juicefs-image-version
+juicefs-image-version:
+	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
+	docker buildx build -f juicefs.Dockerfile -t $(JUICEFS_IMAGE):$(JUICEFS_LATEST_VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 .PHONY: push-version
