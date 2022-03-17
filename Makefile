@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 IMAGE=juicedata/juicefs-csi-driver
-JUICEFS_IMAGE=juicedata/juicefs
+JUICEFS_IMAGE=juicedata/juicefs-fuse
 REGISTRY=docker.io
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
