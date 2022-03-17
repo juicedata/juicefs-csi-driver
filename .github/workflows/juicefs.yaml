@@ -1,4 +1,4 @@
-name: Github Actions
+name: Build juicefs image
 
 on:
   workflow_dispatch:
