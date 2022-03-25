@@ -20,6 +20,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -37,18 +38,72 @@ type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
 }
 
+func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
+	return &ProcessMount{mounter}
+}
+
 func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
-	//TODO implement me
-	panic("implement me")
+	// 1. mount juicefs
+	err := p.JMount(jfsSetting)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
+
+	// 2. create subPath volume
+	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.SubPath)
+
+	klog.V(6).Infof("JCreateVolume: checking %q exists in %v", volPath, jfsSetting.MountPath)
+	exists, err := k8sMount.PathExists(volPath)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+	}
+	if !exists {
+		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
+		err := os.MkdirAll(volPath, os.FileMode(0777))
+		if err != nil {
+			return status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
+		}
+		if fi, err := os.Stat(volPath); err != nil {
+			return status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
+		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
+			err = os.Chmod(volPath, os.FileMode(0777))
+			if err != nil {
+				return status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
+			}
+		}
+	}
+
+	// 3. umount
+	if err = p.Unmount(jfsSetting.MountPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not unmount %q: %v", jfsSetting.MountPath, err)
+	}
+	return nil
 }
 
 func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
-	//TODO implement me
-	panic("implement me")
-}
+	// 1. mount juicefs
+	err := p.JMount(jfsSetting)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	}
 
-func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
-	return &ProcessMount{mounter}
+	// 2. delete subPath volume
+	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.VolumeId)
+	if existed, err := k8sMount.PathExists(volPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+	} else if existed {
+		stdoutStderr, err := p.RmrDir(volPath, jfsSetting.IsCe)
+		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
+		}
+	}
+
+	// 3. umount
+	if err = p.Unmount(jfsSetting.MountPath); err != nil {
+		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", jfsSetting.SubPath, err)
+	}
+	return nil
 }
 
 func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
@@ -115,6 +170,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 }
 
+//JUmount umount targetPath
 func (p *ProcessMount) JUmount(volumeId, target string) error {
 	var refs []string
 
@@ -161,4 +217,12 @@ func (p *ProcessMount) JUmount(volumeId, target string) error {
 
 func (p *ProcessMount) AddRefOfMount(target string, podName string) error {
 	panic("implement me")
+}
+
+func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) {
+	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
+	if isCeMount {
+		return p.Exec.Command(jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
+	}
+	return p.Exec.Command(jfsConfig.CliPath, "rmr", directory).CombinedOutput()
 }
