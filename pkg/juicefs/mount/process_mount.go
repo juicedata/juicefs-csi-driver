@@ -224,5 +224,5 @@ func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) 
 	if isCeMount {
 		return p.Exec.Command(jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
 	}
-	return p.Exec.Command("rm", "-rf", directory).CombinedOutput()
+	return p.Exec.Command(jfsConfig.CliPath, "rmr", directory).CombinedOutput()
 }
