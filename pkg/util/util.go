@@ -18,6 +18,7 @@ package util
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
@@ -271,7 +272,7 @@ func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err 
 			return false, nil
 		}
 		pod.Annotations[config.DeleteDelayAtKey] = d
-		if err := Client.UpdatePod(pod); err != nil {
+		if err := PatchPodAnnotation(Client, pod, pod.Annotations); err != nil {
 			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
 			return true, err
 		}
@@ -306,4 +307,22 @@ func StripPasswd(uri string) string {
 		return uri
 	}
 	return uri[:sp+3+cp] + ":****" + uri[p:]
+}
+
+func PatchPodAnnotation(client *k8s.K8sClient, pod *corev1.Pod, annotation map[string]string) error {
+	payload := []k8s.PatchMapValue{{
+		Op:    "replace",
+		Path:  "/metadata/annotations",
+		Value: annotation,
+	}}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	if err := client.PatchPod(pod, payloadBytes); err != nil {
+		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		return err
+	}
+	return nil
 }

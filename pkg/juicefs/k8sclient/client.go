@@ -37,6 +37,18 @@ const (
 	timeout = 10 * time.Second
 )
 
+type PatchListValue struct {
+	Op    string   `json:"op"`
+	Path  string   `json:"path"`
+	Value []string `json:"value"`
+}
+
+type PatchMapValue struct {
+	Op    string            `json:"op"`
+	Path  string            `json:"path"`
+	Value map[string]string `json:"value"`
+}
+
 type K8sClient struct {
 	kubernetes.Interface
 }
@@ -126,7 +138,7 @@ func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
 	}
 	klog.V(6).Infof("Patch pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
-		pod.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
+		pod.Name, types.JSONPatchType, data, metav1.PatchOptions{})
 	return err
 }
 
