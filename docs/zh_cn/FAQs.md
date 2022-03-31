@@ -59,10 +59,10 @@ spec:
     ...
 ```
 
-## 元数据服务使用阿里云 Redis 服务，CSI node pod 中报错信息 "format: ERR illegal address: xxxx"
+## 元数据引擎使用阿里云的 Redis 服务，CSI node pod 中报错信息 "format: ERR illegal address: xxxx"
 
 请检查阿里云 Redis 服务的白名单中，是否添加 Kubernetes 集群的节点 IP。
 
 ## CSI node pod 中报错信息 "format: NOAUTH Authentication requested."
 
-元数据服务需要配置密码，格式请参考[文档](https://juicefs.com/docs/zh/community/redis_best_practices/#%E6%95%B0%E6%8D%AE%E5%8F%AF%E7%94%A8%E6%80%A7)
+当使用 Redis 作为元数据引擎时，元数据引擎 URL 中需要包含密码，具体格式请参考[文档](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。

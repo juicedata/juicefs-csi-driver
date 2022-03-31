@@ -58,10 +58,10 @@ spec:
     volumeHandle: juicefs-volume-abc
     ...
 ```
-## Using Alibaba Cloud Redis service as metadata, pod created error with CSI node error message "format: ERR illegal address: xxxx"
+## Using Alibaba Cloud Redis service as metadata engine, pod created error with CSI node error message "format: ERR illegal address: xxxx"
 
 Please check whether the node IP of the Kubernetes cluster is added to the whitelist of the Alibaba Cloud Redis service.
 
 ## CSI node pod error message "format: NOAUTH Authentication requested."
 
-The metadata service needs to configure a password. Please refer to this [doc](https://juicefs.com/docs/community/redis_best_practices/#high-availability) for the format.
+When using Redis as the metadata engine, the metadata engine URL needs to contain a password. For the specific format, please refer to [document](https://juicefs.com/docs/community/databases_for_metadata#redis).
