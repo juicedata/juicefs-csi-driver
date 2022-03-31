@@ -168,7 +168,7 @@ func TestK8sClient_GetPod(t *testing.T) {
 func TestK8sClient_PatchPod(t *testing.T) {
 	type args struct {
 		pod  *corev1.Pod
-		data map[string]interface{}
+		data PatchMapValue
 	}
 	tests := []struct {
 		name    string
@@ -181,7 +181,7 @@ func TestK8sClient_PatchPod(t *testing.T) {
 			name: "test-nil",
 			pod:  nil,
 			args: args{
-				data: map[string]interface{}{},
+				data: PatchMapValue{},
 			},
 			want:    nil,
 			wantErr: false,
@@ -191,8 +191,10 @@ func TestK8sClient_PatchPod(t *testing.T) {
 			pod:  &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"}},
 			args: args{
 				pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"}},
-				data: map[string]interface{}{
-					"metadata": map[string]map[string]string{"labels": {"test2": "test2"}},
+				data: PatchMapValue{
+					Op:    "replace",
+					Path:  "/metadata/labels",
+					Value: map[string]string{"test2": "test2"},
 				},
 			},
 			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
@@ -213,7 +215,7 @@ func TestK8sClient_PatchPod(t *testing.T) {
 			if tt.pod != nil {
 				_, _ = k.CreatePod(tt.pod)
 			}
-			data, err := json.Marshal(tt.args.data)
+			data, err := json.Marshal([]PatchMapValue{tt.args.data})
 			if err != nil {
 				t.Errorf("Parse json error: %v", err)
 				return

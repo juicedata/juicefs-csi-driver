@@ -679,7 +679,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -719,7 +719,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -909,8 +909,8 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				}, nil
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(k), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
-				return nil
+			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+				return errors.New("test")
 			})
 			defer patch2.Reset()
 			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {

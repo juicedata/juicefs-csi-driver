@@ -87,8 +87,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 			return nil
 		}
 		delete(annotation, key)
-		po.Annotations = annotation
-		return p.K8sClient.UpdatePod(po)
+		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
 	})
 	if err != nil {
 		klog.Errorf("JUmount: Remove ref of volumeId %s err: %v", volumeId, err)
@@ -340,8 +339,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, jfsConfig.DeleteDelayAtKey)
-		exist.Annotations = annotation
-		return p.K8sClient.UpdatePod(exist)
+		return util.PatchPodAnnotation(p.K8sClient, exist, annotation)
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
