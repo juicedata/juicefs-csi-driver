@@ -58,3 +58,11 @@ spec:
     volumeHandle: juicefs-volume-abc
     ...
 ```
+
+## 元数据服务使用阿里云 Redis 服务，CSI node pod 中报错信息 "format: ERR illegal address: xxxx"
+
+请检查阿里云 Redis 服务的白名单中，是否添加 Kubernetes 集群的节点 IP。
+
+## CSI node pod 中报错信息 "format: NOAUTH Authentication requested."
+
+元数据服务需要配置密码，格式请参考[文档](https://juicefs.com/docs/zh/community/redis_best_practices/#%E6%95%B0%E6%8D%AE%E5%8F%AF%E7%94%A8%E6%80%A7)
