@@ -383,7 +383,7 @@ func TestJUmountWithMock(t *testing.T) {
 		})
 		Convey("pod update error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "UpdatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
 				return errors.New("test")
 			})
 			defer patch1.Reset()
