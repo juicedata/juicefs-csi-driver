@@ -123,6 +123,14 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 					klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
 					return err
 				}
+
+				// delete related secret
+				secretName := po.Name + "-secret"
+				klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
+				if err := p.K8sClient.DeleteSecret(secretName, po.Namespace); err != nil {
+					// do not return err if delete secret failed
+					klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
+				}
 			}
 			return nil
 		})
@@ -234,11 +242,10 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 					newPod.Annotations = make(map[string]string)
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				po, err := p.K8sClient.CreatePod(newPod)
+				_, err := p.K8sClient.CreatePod(newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
-				builder.SetPodAsOwner(&secret, *po)
 				if err := p.createOrUpdateSecret(&secret); err != nil {
 					return err
 				}
@@ -249,7 +256,6 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 			return err
 		}
 		// pod exist, add refs
-		builder.SetPodAsOwner(&secret, *oldPod)
 		if err := p.createOrUpdateSecret(&secret); err != nil {
 			return err
 		}

@@ -163,6 +163,12 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 				return err
 			}
+			// delete related secret
+			secretName := pod.Name + "-secret"
+			klog.V(5).Infof("delete related secret of pod: %s", secretName)
+			if err := p.Client.DeleteSecret(secretName, pod.Namespace); err != nil {
+				klog.V(5).Infof("Delete secret %s error: %v", secretName, err)
+			}
 		}
 	}
 	return nil
