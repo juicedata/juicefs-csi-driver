@@ -17,7 +17,6 @@ limitations under the License.
 package builder
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -150,8 +149,10 @@ func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.Volu
 		}
 		cacheDirs := strings.Split(strings.TrimSpace(optValPair[1]), ":")
 
+		idx := 0
 		for _, cacheDir := range cacheDirs {
-			name := genCacheDirMountName(cacheDir)
+			idx++
+			name := fmt.Sprintf("cachedir-%d", idx)
 
 			hostPath := corev1.HostPathVolumeSource{
 				Path: cacheDir,
@@ -239,15 +240,4 @@ func (r *Builder) getInitContainer() corev1.Container {
 		}},
 	})
 	return container
-}
-
-func genCacheDirMountName(cacheDir string) string {
-	dirTrimPrefix := strings.TrimPrefix(cacheDir, "/")
-	name := strings.ReplaceAll(dirTrimPrefix, "/", "-")
-	if len(name) < 64 {
-		return name
-	}
-	h := sha256.New()
-	h.Write([]byte(name))
-	return fmt.Sprintf("cache-%x", h.Sum(nil))[:63]
 }
