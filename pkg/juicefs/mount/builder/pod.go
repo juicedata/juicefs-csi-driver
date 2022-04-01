@@ -149,9 +149,7 @@ func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.Volu
 		}
 		cacheDirs := strings.Split(strings.TrimSpace(optValPair[1]), ":")
 
-		idx := 0
-		for _, cacheDir := range cacheDirs {
-			idx++
+		for idx, cacheDir := range cacheDirs {
 			name := fmt.Sprintf("cachedir-%d", idx)
 
 			hostPath := corev1.HostPathVolumeSource{
