@@ -1,10 +1,24 @@
 # Troubleshooting
 
-When your pod is not `Running` status (e.g. `ContainerCreating`), there may have some issues. You need check JuiceFS CSI driver logs to get more information, please follow steps blow.
+When the application pod fails to start normally or has an exception, it is usually necessary to check the logs of the JuiceFS CSI Driver to troubleshoot the problem. Different versions of CSI Driver view logs in different ways, which are described below.
 
-## JuiceFS CSI Driver v0.10+
 
-### Get mount pod
+## Check JuiceFS CSI Driver version
+
+First, you need to check the version of the JuiceFS CSI Driver installed in the current Kubernetes cluster, which can be obtained with the following command:
+
+```sh
+kubectl -n kube-system get pod -l app=juicefs-csi-controller -o yaml | grep 'image: '
+```
+
+The above command will output something like `image: juicedata/juicefs-csi-driver:v0.13.2`, the last `v0.13.2` is the version of JuiceFS CSI Driver.
+
+
+## View JuiceFS CSI Driver logs
+
+### v0.10+
+
+#### Find mount pod
 
 1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
 
@@ -55,7 +69,7 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
    From above output, the name of JuiceFS mount pod is `juicefs-172.16.2.87-juicefs-volume-abc`.
 
-### Get logs of mount pod
+#### Get logs of mount pod
 
 1. Get JuiceFS mount pod logs. For example:
 
@@ -65,7 +79,7 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
 2. Find any log contains `WARNING`, `ERROR` or `FATAL`.
 
-## Before JuiceFS CSI Driver v0.10
+### Before v0.10
 
 1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
 
@@ -94,7 +108,8 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
 4. Find any log contains `WARNING`, `ERROR` or `FATAL`.
 
-## Diagnosis Script
+
+## Diagnosis script
 
 You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh) to collect logs and related information.
 
