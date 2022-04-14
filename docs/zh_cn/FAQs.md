@@ -66,3 +66,7 @@ spec:
 ## CSI node pod 中报错信息 "format: NOAUTH Authentication requested."
 
 当使用 Redis 作为元数据引擎时，元数据引擎 URL 中需要包含密码，具体格式请参考[文档](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。
+
+## 如何查看当前已安装的 JuiceFS CSI 驱动版本？
+
+请参考[「故障排查」](troubleshooting.md#查看-juicefs-csi-驱动的版本)文档了解详细步骤。

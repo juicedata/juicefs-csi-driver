@@ -65,3 +65,7 @@ Please check whether the node IP of the Kubernetes cluster is added to the white
 ## CSI node pod error message "format: NOAUTH Authentication requested."
 
 When using Redis as the metadata engine, the metadata engine URL needs to contain a password. For the specific format, please refer to [document](https://juicefs.com/docs/community/databases_for_metadata#redis).
+
+## How to check the currently installed JuiceFS CSI Driver version?
+
+Please refer to the ["Troubleshooting"](troubleshooting.md#check-juicefs-csi-driver-version) document for detailed steps.
