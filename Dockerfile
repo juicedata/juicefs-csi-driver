@@ -41,7 +41,7 @@ ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
 RUN chmod +x /tini
 
-RUN apt-get update && apt-get install -y librados2 curl fuse && \
+RUN apt-get update && apt-get install -y librados2 curl fuse procps && \
     rm -rf /var/cache/apt/* && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs && \
