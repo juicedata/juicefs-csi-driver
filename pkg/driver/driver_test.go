@@ -24,7 +24,9 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	. "github.com/smartystreets/goconvey/convey"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/mount"
+	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 	"testing"
 )
 
@@ -33,11 +35,13 @@ func TestNewDriver(t *testing.T) {
 		Convey("normal", func() {
 			endpoint := "127.0.0.1"
 			nodeId := "test-node"
+			fakeClientSet := fake.NewSimpleClientset()
+			fakeClient := &k8s.K8sClient{Interface: fakeClientSet}
 			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
+				return fakeClient, nil
 			})
 			defer patch1.Reset()
-			patch3 := ApplyFunc(newNodeService, func(nodeID string) (*nodeService, error) {
+			patch3 := ApplyFunc(newNodeService, func(nodeID string, k8sClient *k8s.K8sClient) (*nodeService, error) {
 				return &nodeService{}, nil
 			})
 			defer patch3.Reset()
@@ -50,6 +54,10 @@ func TestNewDriver(t *testing.T) {
 				return mockJuicefs, nil
 			})
 			defer patch2.Reset()
+			patch4 := ApplyFunc(NewProvisionerService, func(k8sClient *k8s.K8sClient) (*provisioncontroller.ProvisionController, error) {
+				return nil, nil
+			})
+			defer patch4.Reset()
 
 			driver, err := NewDriver(endpoint, nodeId)
 			So(err, ShouldBeNil)
@@ -60,11 +68,13 @@ func TestNewDriver(t *testing.T) {
 		Convey("err", func() {
 			endpoint := "127.0.0.1"
 			nodeId := "test-node"
+			fakeClientSet := fake.NewSimpleClientset()
+			fakeClient := &k8s.K8sClient{Interface: fakeClientSet}
 			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
+				return fakeClient, nil
 			})
 			defer patch1.Reset()
-			patch3 := ApplyFunc(newNodeService, func(nodeID string) (*nodeService, error) {
+			patch3 := ApplyFunc(newNodeService, func(nodeID string, k8sClient *k8s.K8sClient) (*nodeService, error) {
 				return &nodeService{}, errors.New("test")
 			})
 			defer patch3.Reset()

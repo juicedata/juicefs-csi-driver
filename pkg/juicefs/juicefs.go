@@ -131,15 +131,12 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 	}
 	processMnt := podmount.NewProcessMount(*mounter)
 	var podMnt podmount.MntInterface
-	var k8sClient *k8sclient.K8sClient
-	if !config.ByProcess {
-		k8sClient, err := k8sclient.NewClient()
-		if err != nil {
-			klog.V(5).Infof("Can't get k8s client: %v", err)
-			return nil, err
-		}
-		podMnt = podmount.NewPodMount(k8sClient, *mounter)
+	k8sClient, err := k8sclient.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
 	}
+	podMnt = podmount.NewPodMount(k8sClient, *mounter)
 
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }

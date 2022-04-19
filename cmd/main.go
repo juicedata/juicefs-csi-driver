@@ -19,13 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
+	"os"
 )
 
 var (
@@ -36,12 +35,14 @@ var (
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
 	process            = flag.Bool("by-process", false, "CSI Driver run juicefs in process or not. default false.")
+	provisioner        = flag.Bool("provisioner", false, "Enable provisioner in controller. default false.")
 )
 
 func init() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	config.ByProcess = *process
+	config.Provisioner = *provisioner
 	if *process {
 		// if run in process, does not need pod info
 		config.EnableManager = false
@@ -109,7 +110,7 @@ func main() {
 
 	if config.EnableManager && config.KubeletPort != "" && config.HostIp != "" {
 		if err := controller.StartReconciler(); err != nil {
-			klog.V(5).Infof("Could not StartReconciler: %v", err)
+			klog.V(5).Infof("Could not Start Reconciler: %v", err)
 			os.Exit(1)
 		}
 		klog.V(5).Infof("Reconciler Stated")

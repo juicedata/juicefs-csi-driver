@@ -608,10 +608,6 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 func Test_newNodeService(t *testing.T) {
 	Convey("Test newNodeService", t, func() {
 		Convey("normal", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
-			})
-			defer patch1.Reset()
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
@@ -622,26 +618,8 @@ func Test_newNodeService(t *testing.T) {
 				return mockJuicefs, nil
 			})
 			defer patch2.Reset()
-			_, err := newNodeService("test")
+			_, err := newNodeService("test", nil)
 			So(err, ShouldBeNil)
-		})
-		Convey("NewClient err", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, errors.New("test")
-			})
-			defer patch1.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
-			})
-			defer patch2.Reset()
-			_, err := newNodeService("test")
-			So(err, ShouldNotBeNil)
 		})
 	})
 }
