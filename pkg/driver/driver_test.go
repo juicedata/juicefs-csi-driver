@@ -26,7 +26,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/mount"
-	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 	"testing"
 )
 
@@ -54,8 +53,8 @@ func TestNewDriver(t *testing.T) {
 				return mockJuicefs, nil
 			})
 			defer patch2.Reset()
-			patch4 := ApplyFunc(NewProvisionerService, func(k8sClient *k8s.K8sClient) (*provisioncontroller.ProvisionController, error) {
-				return nil, nil
+			patch4 := ApplyFunc(newProvisionerService, func(k8sClient *k8s.K8sClient) (provisionerService, error) {
+				return provisionerService{}, nil
 			})
 			defer patch4.Reset()
 

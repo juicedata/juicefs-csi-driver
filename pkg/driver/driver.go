@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 	"net"
-	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 )
 
 const (
@@ -21,7 +20,7 @@ const (
 type Driver struct {
 	controllerService
 	nodeService
-	provisionService *provisioncontroller.ProvisionController
+	provisionerService
 
 	srv      *grpc.Server
 	endpoint string
@@ -44,16 +43,16 @@ func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 		return nil, err
 	}
 
-	ps, err := NewProvisionerService(k8sClient)
+	ps, err := newProvisionerService(k8sClient)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Driver{
-		controllerService: cs,
-		nodeService:       *ns,
-		provisionService:  ps,
-		endpoint:          endpoint,
+		controllerService:  cs,
+		nodeService:        *ns,
+		provisionerService: ps,
+		endpoint:           endpoint,
 	}, nil
 }
 
@@ -62,7 +61,7 @@ func (d *Driver) Run() error {
 	if config.Provisioner {
 		go func() {
 			// Never stops.
-			d.provisionService.Run(context.Background())
+			d.provisionerService.Run(context.Background())
 		}()
 	}
 	scheme, addr, err := util.ParseEndpoint(d.endpoint)

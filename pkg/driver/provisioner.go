@@ -38,12 +38,12 @@ var (
 	publishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
 )
 
-type provisioner struct {
+type provisionerService struct {
 	juicefs juicefs.Interface
 	*k8s.K8sClient
 }
 
-func NewProvisionerService(k8sClient *k8s.K8sClient) (*provisioncontroller.ProvisionController, error) {
+func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
 	jfs, err := juicefs.NewJfsProvider(nil)
 	if err != nil {
 		panic(err)
@@ -54,17 +54,20 @@ func NewProvisionerService(k8sClient *k8s.K8sClient) (*provisioncontroller.Provi
 		panic(err)
 	}
 	klog.V(4).Infof("Provisioner: %s", stdoutStderr)
-
-	serverVersion, err := k8sClient.Discovery().ServerVersion()
-	if err != nil {
-		klog.Fatalf("Error getting server version: %v", err)
-	}
-	juicefsPrivisioner := &provisioner{
+	juicefsPrivisioner := provisionerService{
 		juicefs:   jfs,
 		K8sClient: k8sClient,
 	}
 	if err != nil {
 		klog.Fatalf("Error new provisioner: %v", err)
+	}
+	return juicefsPrivisioner, nil
+}
+
+func (j *provisionerService) Run(ctx context.Context) {
+	serverVersion, err := j.K8sClient.Discovery().ServerVersion()
+	if err != nil {
+		klog.Fatalf("Error getting server version: %v", err)
 	}
 	leaderElection := true
 	leaderElectionEnv := os.Getenv("ENABLE_LEADER_ELECTION")
@@ -74,16 +77,16 @@ func NewProvisionerService(k8sClient *k8s.K8sClient) (*provisioncontroller.Provi
 			klog.Fatalf("Unable to parse ENABLE_LEADER_ELECTION env var: %v", err)
 		}
 	}
-	pc := provisioncontroller.NewProvisionController(k8sClient,
+	pc := provisioncontroller.NewProvisionController(j.K8sClient,
 		DriverName,
-		juicefsPrivisioner,
+		j,
 		serverVersion.GitVersion,
 		provisioncontroller.LeaderElection(leaderElection),
 	)
-	return pc, nil
+	pc.Run(ctx)
 }
 
-func (j provisioner) Provision(ctx context.Context, options provisioncontroller.ProvisionOptions) (*corev1.PersistentVolume, provisioncontroller.ProvisioningState, error) {
+func (j *provisionerService) Provision(ctx context.Context, options provisioncontroller.ProvisionOptions) (*corev1.PersistentVolume, provisioncontroller.ProvisioningState, error) {
 	klog.V(6).Infof("Provisioner Provision: options %v", options)
 	if options.PVC.Spec.Selector != nil {
 		return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
@@ -148,7 +151,7 @@ func (j provisioner) Provision(ctx context.Context, options provisioncontroller.
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 
-func (j provisioner) Delete(ctx context.Context, volume *corev1.PersistentVolume) error {
+func (j *provisionerService) Delete(ctx context.Context, volume *corev1.PersistentVolume) error {
 	klog.V(6).Infof("Provisioner Delete: Volume %v", volume)
 	// If it exists and has a `delete` value, delete the directory.
 	// If it exists and has a `retain` value, safe the directory.
