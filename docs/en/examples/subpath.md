@@ -12,7 +12,7 @@ The community edition and the cloud service edition are used in the same way.
 
 You can use `subPath` in PV:
 
-```yaml
+```yaml {21-22}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -99,7 +99,7 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 
 If you are using the cloud service edition, and the token you use only has permission for subdirectory, you can use the following methods, only need to specify `subdir=xxx` in `mountOptions`:
 
-```yaml
+```yaml {21-22}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -173,7 +173,7 @@ spec:
 
 ## Using `pathPattern`
 
-`pathPattern` allows you to customize the format of subdirectories of different PVs in the StorageClass, you can specify a template for creating directory paths from PVC metadata such as tags, comments, names, or namespaces. It is turned off by default and needs to be turned on manually, as follows:
+`pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. It is turned off by default and needs to be turned on manually, as follows:
 
 ```bash
 kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value":["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
@@ -182,13 +182,13 @@ kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op"
 Make sure pods of JuiceFS CSI Controller are restarted:
 
 ```bash
-$ kubectl -n kube-system get po | grep juicefs-csi-controller
+$ kubectl -n kube-system get po -l app=juicefs-csi-controller
 juicefs-csi-controller-0                2/2     Running   0                24m
 ```
 
-You can use `pathPattern` in StorageClass like this:
+You can use `pathPattern` in `StorageClass` like this:
 
-```yaml
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -203,7 +203,8 @@ parameters:
   pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
 
-The usage is `${.PVC.<metadata>}` . For examples:
-1. If the folder name is `<pvc-namespace>-<pvc-name>`, the pathPattern is `${.PVC.namespace}-${.PVC.name}`;
-2. If the folder name is the value of the label `a` of PVC, the pathPattern is `${.PVC.labels.a}`.
-3. If the folder named PVC is the value of annotation `a`, the pathPattern is `${.PVC.annotations.a}`.
+The usage is `${.PVC.<metadata>}`. For examples:
+
+1. If the folder name is `<pvc-namespace>-<pvc-name>`, the `pathPattern` is `${.PVC.namespace}-${.PVC.name}`.
+2. If the folder name is the value of the label `a` of PVC, the `pathPattern` is `${.PVC.labels.a}`.
+3. If the folder name is the value of the annotation `a` of PVC, the `pathPattern` is `${.PVC.annotations.a}`.
