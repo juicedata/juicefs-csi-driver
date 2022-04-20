@@ -61,10 +61,7 @@ func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 // Run runs the server
 func (d *Driver) Run() error {
 	if config.Provisioner {
-		go func() {
-			// Never stops.
-			d.provisionerService.Run(context.Background())
-		}()
+		go d.provisionerService.Run(context.Background())
 	}
 	scheme, addr, err := util.ParseEndpoint(d.endpoint)
 	if err != nil {
