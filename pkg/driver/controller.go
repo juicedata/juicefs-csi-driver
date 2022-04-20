@@ -4,6 +4,7 @@ import (
 	"context"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"reflect"
 
 	"google.golang.org/grpc/codes"
@@ -34,22 +35,23 @@ type controllerService struct {
 	vols    map[string]int64
 }
 
-func newControllerService() controllerService {
-	jfs, err := juicefs.NewJfsProvider(nil)
+func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
+	jfs, err := juicefs.NewJfsProvider(nil, k8sClient)
 	if err != nil {
-		panic(err)
+		klog.Errorf("Error new juicefs provider: %v", err)
+		return controllerService{}, err
 	}
 
 	stdoutStderr, err := jfs.Version()
 	if err != nil {
-		panic(err)
+		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
+		return controllerService{}, err
 	}
-	klog.V(4).Infof("Controller: %s", stdoutStderr)
 
 	return controllerService{
 		juicefs: jfs,
 		vols:    make(map[string]int64),
-	}
+	}, nil
 }
 
 // CreateVolume create directory in an existing JuiceFS filesystem

@@ -19,7 +19,6 @@ package driver
 import (
 	"context"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -49,29 +48,21 @@ type nodeService struct {
 	k8sClient *k8sclient.K8sClient
 }
 
-func newNodeService(nodeID string) (*nodeService, error) {
+func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient) (*nodeService, error) {
 	mounter := &mount.SafeFormatAndMount{
 		Interface: mount.New(""),
 		Exec:      k8sexec.New(),
 	}
-	jfsProvider, err := juicefs.NewJfsProvider(mounter)
+	jfsProvider, err := juicefs.NewJfsProvider(mounter, k8sClient)
 	if err != nil {
-		panic(err)
+		klog.Errorf("Error new juicefs provider: %v", err)
+		return nil, err
 	}
 
 	stdoutStderr, err := jfsProvider.Version()
 	if err != nil {
-		panic(err)
-	}
-	klog.V(4).Infof("Node: %s", stdoutStderr)
-
-	var k8sClient *k8sclient.K8sClient
-	if !config.ByProcess {
-		k8sClient, err = k8sclient.NewClient()
-		if err != nil {
-			klog.V(5).Infof("Can't get k8s client: %v", err)
-			return nil, err
-		}
+		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
+		return nil, err
 	}
 
 	return &nodeService{

@@ -22,8 +22,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
-	"k8s.io/utils/mount"
 	"os"
+	"os/exec"
 	"reflect"
 	"testing"
 
@@ -608,40 +608,17 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 func Test_newNodeService(t *testing.T) {
 	Convey("Test newNodeService", t, func() {
 		Convey("normal", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
+			var tmpCmd = &exec.Cmd{}
+			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
 			})
 			defer patch1.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
 			})
-			defer patch2.Reset()
-			_, err := newNodeService("test")
+			defer patch3.Reset()
+			_, err := newNodeService("test", nil)
 			So(err, ShouldBeNil)
-		})
-		Convey("NewClient err", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, errors.New("test")
-			})
-			defer patch1.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
-			})
-			defer patch2.Reset()
-			_, err := newNodeService("test")
-			So(err, ShouldNotBeNil)
 		})
 	})
 }
