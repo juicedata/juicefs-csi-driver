@@ -44,24 +44,21 @@ type provisionerService struct {
 }
 
 func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
-	jfs, err := juicefs.NewJfsProvider(nil)
+	jfs, err := juicefs.NewJfsProvider(nil, k8sClient)
 	if err != nil {
-		panic(err)
+		klog.Errorf("Error new jfs provider: %v", err)
+		return provisionerService{}, err
 	}
 
 	stdoutStderr, err := jfs.Version()
 	if err != nil {
-		panic(err)
+		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
+		return provisionerService{}, err
 	}
-	klog.V(4).Infof("Provisioner: %s", stdoutStderr)
-	juicefsPrivisioner := provisionerService{
+	return provisionerService{
 		juicefs:   jfs,
 		K8sClient: k8sClient,
-	}
-	if err != nil {
-		klog.Fatalf("Error new provisioner: %v", err)
-	}
-	return juicefsPrivisioner, nil
+	}, nil
 }
 
 func (j *provisionerService) Run(ctx context.Context) {
@@ -102,13 +99,13 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 	secretName, secretNamespace := sc.Parameters[provisionerSecretName], sc.Parameters[provisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(secretName, secretNamespace)
-	secretData := make(map[string]string)
-	for k, v := range secret.Data {
-		secretData[k] = string(v)
-	}
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
+	}
+	secretData := make(map[string]string)
+	for k, v := range secret.Data {
+		secretData[k] = string(v)
 	}
 	if err := j.juicefs.JfsCreateVol(options.PVName, subPath, secretData); err != nil {
 		klog.Errorf("[PVCReconciler]: create vol error %v", err)

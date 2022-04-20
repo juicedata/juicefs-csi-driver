@@ -20,12 +20,11 @@ import (
 	"errors"
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/mount"
+	"os/exec"
+	"reflect"
 	"testing"
 )
 
@@ -44,19 +43,20 @@ func TestNewDriver(t *testing.T) {
 				return &nodeService{}, nil
 			})
 			defer patch3.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
 
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
-			})
-			defer patch2.Reset()
 			patch4 := ApplyFunc(newProvisionerService, func(k8sClient *k8s.K8sClient) (provisionerService, error) {
 				return provisionerService{}, nil
 			})
 			defer patch4.Reset()
+			var tmpCmd = &exec.Cmd{}
+			patch2 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
+			})
+			defer patch2.Reset()
+			patch5 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch5.Reset()
 
 			driver, err := NewDriver(endpoint, nodeId)
 			So(err, ShouldBeNil)
@@ -80,12 +80,15 @@ func TestNewDriver(t *testing.T) {
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
+			var tmpCmd = &exec.Cmd{}
+			patch2 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
 			})
 			defer patch2.Reset()
+			patch4 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch4.Reset()
 
 			_, err := NewDriver(endpoint, nodeId)
 			So(err, ShouldNotBeNil)

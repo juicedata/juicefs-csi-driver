@@ -30,11 +30,13 @@ type Driver struct {
 func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 	klog.Infof("Driver: %v version %v commit %v date %v", DriverName, driverVersion, gitCommit, buildDate)
 
-	cs := newControllerService()
-
 	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
+	}
+	cs, err := newControllerService(k8sClient)
+	if err != nil {
 		return nil, err
 	}
 

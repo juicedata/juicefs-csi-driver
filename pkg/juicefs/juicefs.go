@@ -122,7 +122,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
-func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
+func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) (Interface, error) {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -130,13 +130,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		}
 	}
 	processMnt := podmount.NewProcessMount(*mounter)
-	var podMnt podmount.MntInterface
-	k8sClient, err := k8sclient.NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		return nil, err
-	}
-	podMnt = podmount.NewPodMount(k8sClient, *mounter)
+	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
