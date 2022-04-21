@@ -400,6 +400,13 @@ spec:
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
         image: juicedata/juicefs-csi-driver:v0.13.2
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - rm -rf /registration/csi.juicefs.com-reg.sock
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -436,6 +443,8 @@ spec:
         - mountPath: /root/.juicefs
           mountPropagation: Bidirectional
           name: jfs-root-dir
+        - mountPath: /registration
+          name: registration-dir
       - args:
         - --csi-address=$(ADDRESS)
         - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
