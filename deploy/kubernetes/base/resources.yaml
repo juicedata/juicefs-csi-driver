@@ -370,6 +370,15 @@ spec:
             - mountPath: /root/.juicefs
               mountPropagation: Bidirectional
               name: jfs-root-dir
+            - name: registration-dir
+              mountPath: /registration
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - rm -rf /registration/csi.juicefs.com-reg.sock /csi/csi.sock
           ports:
             - name: healthz
               containerPort: 9909
