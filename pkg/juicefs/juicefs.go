@@ -364,6 +364,13 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 			}
 		}
 	}
+	if setting.FormatOptions != "" {
+		formatOptions := strings.Split(setting.FormatOptions, ",")
+		for _, o := range formatOptions {
+			args = append(args, fmt.Sprintf("--%s", o))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
+		}
+	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	if config.FormatInPod {
@@ -489,6 +496,13 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	cmdArgs = append(cmdArgs, "${metaurl}", secrets["name"])
 	args = append(args, secrets["metaurl"], secrets["name"])
 
+	if setting.FormatOptions != "" {
+		formatOptions := strings.Split(setting.FormatOptions, ",")
+		for _, o := range formatOptions {
+			args = append(args, fmt.Sprintf("--%s", o))
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
+		}
+	}
 	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
 
 	if config.FormatInPod {
