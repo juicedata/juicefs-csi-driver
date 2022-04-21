@@ -30,10 +30,11 @@ type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
 
-	Name    string `json:"name"`
-	MetaUrl string `json:"metaurl"`
-	Source  string `json:"source"`
-	Storage string `json:"storage"`
+	Name          string `json:"name"`
+	MetaUrl       string `json:"metaurl"`
+	Source        string `json:"source"`
+	Storage       string `json:"storage"`
+	FormatOptions string `json:"format-options"`
 
 	// put in secret
 	SecretKey     string            `json:"secret-key,omitempty"`
