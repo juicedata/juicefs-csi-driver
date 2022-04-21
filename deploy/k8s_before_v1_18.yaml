@@ -406,7 +406,7 @@ spec:
               command:
               - /bin/sh
               - -c
-              - rm -rf /registration/csi.juicefs.com-reg.sock /csi/csi.sock
+              - rm /registration/csi.juicefs.com-reg.sock /csi/csi.sock
         livenessProbe:
           failureThreshold: 5
           httpGet:
