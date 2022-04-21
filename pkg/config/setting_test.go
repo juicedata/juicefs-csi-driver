@@ -382,7 +382,7 @@ func TestParseSecret(t *testing.T) {
 					"passphrase":      "abc",
 					"encrypt_rsa_key": "abc",
 					"initconfig":      "abc",
-					"format-option":   "xxx",
+					"format-options":  "xxx",
 				},
 			},
 			want: &JfsSetting{
@@ -396,7 +396,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:          map[string]string{},
 				Configs:       map[string]string{},
 				Options:       []string{},
-				FormatOption:  "xxx",
+				FormatOptions: "xxx",
 			},
 			wantErr: false,
 		},
