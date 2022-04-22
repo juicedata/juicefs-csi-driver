@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -230,7 +231,28 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			jfsSetting.FormatCmd = res
 		}
 	}
+
+	volumeName, err := j.getVolumeName(volumeID)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)
+		return nil, err
+	}
+	jfsSetting.VolumeName = volumeName
 	return jfsSetting, nil
+}
+
+func (j juicefs) getVolumeName(volumeId string) (string, error) {
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return "", err
+		}
+		if err == nil && pv.Spec.StorageClassName != "" {
+			// if pv belongs to sc, volumeName is volumeId
+			return pv.Spec.StorageClassName, nil
+		}
+	}
+	return volumeId, nil
 }
 
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
@@ -266,7 +288,12 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return err
 	}
 
-	return j.podMount.JUmount(volumeId, mountPath)
+	volumeName, err := j.getVolumeName(volumeId)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
+		return err
+	}
+	return j.podMount.JUmount(volumeName, mountPath)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
@@ -396,10 +423,10 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
-		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeName)
 		mnt = j.podMount
 	} else {
-		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.VolumeName)
 		mnt = j.processMount
 	}
 

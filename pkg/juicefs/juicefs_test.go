@@ -641,10 +641,11 @@ func Test_juicefs_MountFs(t *testing.T) {
 			options := []string{}
 
 			jfsSetting := &config.JfsSetting{
-				Source:   mountPath,
-				UsePod:   false,
-				VolumeId: volumeId,
-				Options:  options,
+				Source:     mountPath,
+				UsePod:     false,
+				VolumeId:   volumeId,
+				VolumeName: volumeId,
+				Options:    options,
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil

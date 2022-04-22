@@ -58,6 +58,7 @@ type JfsSetting struct {
 
 	// mount
 	VolumeId   string
+	VolumeName string // volumeId in static provision & scName in dynamic provision
 	MountPath  string
 	TargetPath string   // which bind to container path
 	Options    []string // mount options

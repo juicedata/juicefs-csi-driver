@@ -46,14 +46,15 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	if err := p.createOrAddRef(jfsSetting); err != nil {
+	podName := GenNameByVolName(jfsSetting.VolumeName)
+	if err := p.createOrAddRef(jfsSetting, podName); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(GenerateNameByVolumeId(jfsSetting.VolumeId))
+	return p.waitUtilPodReady(podName)
 }
 
-func (p *PodMount) JUmount(volumeId, target string) error {
-	podName := GenerateNameByVolumeId(volumeId)
+func (p *PodMount) JUmount(volumeName, target string) error {
+	podName := GenNameByVolName(volumeName)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -90,7 +91,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
 	})
 	if err != nil {
-		klog.Errorf("JUmount: Remove ref of volumeId %s err: %v", volumeId, err)
+		klog.Errorf("JUmount: Remove ref of volumeName %s err: %v", volumeName, err)
 		return err
 	}
 
@@ -119,7 +120,7 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 				// do not set delay delete, delete it now
 				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 				if err := p.K8sClient.DeletePod(po); err != nil {
-					klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
+					klog.V(5).Infof("JUmount: Delete pod of volumeName %s error: %v", volumeName, err)
 					return err
 				}
 
@@ -214,8 +215,7 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return err
 }
 
-func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	secretName := podName + "-secret"
 	jfsSetting.SecretName = secretName
 	r := builder.NewBuilder(jfsSetting)
@@ -421,6 +421,6 @@ func HasRef(pod *corev1.Pod) bool {
 	return false
 }
 
-func GenerateNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, volumeId)
+func GenNameByVolName(volumeName string) string {
+	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, volumeName)
 }
