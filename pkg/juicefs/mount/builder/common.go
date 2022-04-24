@@ -71,6 +71,7 @@ func (r *Builder) generateJuicePod() *corev1.Pod {
 
 func (r *Builder) getVolumes() []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
+	file := corev1.HostPathFileOrCreate
 	secretName := r.jfsSetting.SecretName
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
@@ -85,6 +86,13 @@ func (r *Builder) getVolumes() []corev1.Volume {
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: config.JFSConfigPath,
 				Type: &dir,
+			},
+		}}, {
+		Name: "updatedb",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/etc/updatedb.conf",
+				Type: &file,
 			},
 		},
 	}}
@@ -126,6 +134,10 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	}, {
 		Name:             "jfs-root-dir",
 		MountPath:        "/root/.juicefs",
+		MountPropagation: &mp,
+	}, {
+		Name:             "updatedb",
+		MountPath:        "/etc/updatedb.conf",
 		MountPropagation: &mp,
 	}}
 	if r.jfsSetting.EncryptRsaKey != "" {

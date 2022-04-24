@@ -48,6 +48,7 @@ var (
 	isPrivileged   = true
 	mp             = corev1.MountPropagationBidirectional
 	dir            = corev1.HostPathDirectoryOrCreate
+	file           = corev1.HostPathFileOrCreate
 	podDefaultTest = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
@@ -75,6 +76,14 @@ var (
 							Type: &dir,
 						},
 					},
+				}, {
+					Name: "updatedb",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/etc/updatedb.conf",
+							Type: &file,
+						},
+					},
 				},
 			},
 			Containers: []corev1.Container{{
@@ -100,6 +109,11 @@ var (
 					}, {
 						Name:             "jfs-root-dir",
 						MountPath:        "/root/.juicefs",
+						MountPropagation: &mp,
+					}, {
+
+						Name:             "updatedb",
+						MountPath:        "/etc/updatedb.conf",
 						MountPropagation: &mp,
 					},
 				},
