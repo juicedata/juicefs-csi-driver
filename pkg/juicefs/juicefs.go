@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -230,12 +231,45 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			jfsSetting.FormatCmd = res
 		}
 	}
+
+	uniqueId, err := j.getUniqueId(volumeID)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)
+		return nil, err
+	}
+	jfsSetting.UniqueId = uniqueId
 	return jfsSetting, nil
 }
 
+// getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
+// When STORAGE_CLASS_SHARE_MOUNT env is set:
+//		in dynamic provision, UniqueId set as SC name
+//		in static provision, UniqueId set as volumeId
+// When STORAGE_CLASS_SHARE_MOUNT env not set:
+// 		UniqueId set as volumeId
+func (j juicefs) getUniqueId(volumeId string) (string, error) {
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
+		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return "", err
+		}
+		// In dynamic provision, PV.spec.StorageClassName is which SC(StorageClass) it belongs to.
+		if err == nil && pv.Spec.StorageClassName != "" {
+			return pv.Spec.StorageClassName, nil
+		}
+	}
+	return volumeId, nil
+}
+
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
+	UniqueId, err := j.getUniqueId(volumeId)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
+		return err
+	}
 	if config.ByProcess {
-		return j.processMount.JUmount(volumeId, mountPath)
+		return j.processMount.JUmount(UniqueId, mountPath)
 	}
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
@@ -266,7 +300,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return err
 	}
 
-	return j.podMount.JUmount(volumeId, mountPath)
+	return j.podMount.JUmount(UniqueId, mountPath)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
@@ -396,10 +430,10 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
-		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.UniqueId)
 		mnt = j.podMount
 	} else {
-		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.UniqueId)
 		mnt = j.processMount
 	}
 

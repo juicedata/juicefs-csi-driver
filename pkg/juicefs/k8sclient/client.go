@@ -241,3 +241,13 @@ func (k *K8sClient) DeleteJob(jobName string, namespace string) error {
 		PropagationPolicy: &policy,
 	})
 }
+
+func (k *K8sClient) GetPersistentVolume(pvName string) (*corev1.PersistentVolume, error) {
+	klog.V(6).Infof("Get pv %s", pvName)
+	mntPod, err := k.CoreV1().PersistentVolumes().Get(context.TODO(), pvName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get pv %s : %v", pvName, err)
+		return nil, err
+	}
+	return mntPod, nil
+}

@@ -644,6 +644,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				Source:   mountPath,
 				UsePod:   false,
 				VolumeId: volumeId,
+				UniqueId: volumeId,
 				Options:  options,
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
