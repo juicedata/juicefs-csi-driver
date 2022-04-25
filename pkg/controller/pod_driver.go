@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -144,8 +145,7 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		delete(annotation, config.DeleteDelayAtKey)
 	}
 	if len(pod.Annotations) != len(annotation) {
-		pod.Annotations = annotation
-		if err := p.Client.UpdatePod(pod); err != nil {
+		if err := util.PatchPodAnnotation(p.Client, pod, annotation); err != nil {
 			klog.Errorf("Update pod %s error: %v", pod.Name, err)
 			return err
 		}
@@ -162,6 +162,12 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 			if err := p.Client.DeletePod(pod); err != nil {
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 				return err
+			}
+			// delete related secret
+			secretName := pod.Name + "-secret"
+			klog.V(6).Infof("delete related secret of pod: %s", secretName)
+			if err := p.Client.DeleteSecret(secretName, pod.Namespace); err != nil {
+				klog.V(5).Infof("Delete secret %s error: %v", secretName, err)
 			}
 		}
 	}
@@ -181,11 +187,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 		klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
 		if util.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
-			controllerutil.RemoveFinalizer(pod, config.Finalizer)
-			if err := p.Client.UpdatePod(pod); err != nil {
-				klog.Errorf("Update pod err:%v", err)
-				return nil
-			}
+			_ = p.removeFinalizer(pod)
 			klog.V(5).Infof("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(pod); err != nil {
 				klog.Errorf("delete po:%s err:%v", pod.Name, err)
@@ -252,9 +254,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	}
 
 	// remove finalizer of pod
-	controllerutil.RemoveFinalizer(pod, config.Finalizer)
-	if err := p.Client.UpdatePod(pod); err != nil {
-		klog.Errorf("Update pod err:%v", err)
+	if err := p.removeFinalizer(pod); err != nil {
+		klog.Errorf("remove pod finalizer err:%v", err)
 		return err
 	}
 
@@ -281,8 +282,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	}
 
 	if len(existTargets) == 0 {
-		// do not need to create new one, clean mount point
-		_, err := doWithinTime(ctx, nil, func() error {
+		// do not need to create new one, umount
+		umountPath(ctx, sourcePath)
+		// clean mount point
+		_, err = doWithinTime(ctx, nil, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
@@ -319,20 +322,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				})
 				if err != nil {
 					klog.Infof("start to umount: %s", sourcePath)
-					cmd := exec.Command("umount", sourcePath)
-					out, err := doWithinTime(ctx, cmd, nil)
-					if err != nil {
-						if !strings.Contains(out, "not mounted") &&
-							!strings.Contains(out, "mountpoint not found") &&
-							!strings.Contains(out, "no mount point specified") {
-							klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-							cmd2 := exec.Command("umount", "-l", sourcePath)
-							output, err1 := doWithinTime(ctx, cmd2, nil)
-							if err1 != nil {
-								klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, output)
-							}
-						}
-					}
+					umountPath(ctx, sourcePath)
 				}
 				// create pod
 				var newPod = &corev1.Pod{
@@ -364,7 +354,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			// add exist target in annotation
 			po.Annotations[k] = v
 		}
-		if err := p.Client.UpdatePod(po); err != nil {
+		if err := util.PatchPodAnnotation(p.Client, pod, annotation); err != nil {
 			klog.Errorf("Update pod %s %s error: %v", po.Name, po.Namespace, err)
 		}
 		return err
@@ -401,7 +391,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 	})
 
 	if e != nil {
-		klog.Errorf("[podReadyHandler] stat mntPath:%s err:%v, don't do recovery", mntPath, err)
+		klog.Errorf("[podReadyHandler] stat mntPath:%s err:%v, don't do recovery", mntPath, e)
 		return nil
 	}
 
@@ -484,6 +474,23 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	}
 }
 
+func umountPath(ctx context.Context, sourcePath string) {
+	cmd := exec.Command("umount", sourcePath)
+	out, err := doWithinTime(ctx, cmd, nil)
+	if err != nil {
+		if !strings.Contains(out, "not mounted") &&
+			!strings.Contains(out, "mountpoint not found") &&
+			!strings.Contains(out, "no mount point specified") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
+			cmd2 := exec.Command("umount", "-l", sourcePath)
+			output, err1 := doWithinTime(ctx, cmd2, nil)
+			if err1 != nil {
+				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, output)
+			}
+		}
+	}
+}
+
 func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out string, err error) {
 	doneCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -511,4 +518,29 @@ func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out strin
 	case err = <-doneCh:
 		return
 	}
+}
+
+func (p *PodDriver) removeFinalizer(pod *corev1.Pod) error {
+	f := pod.GetFinalizers()
+	for i := 0; i < len(f); i++ {
+		if f[i] == config.Finalizer {
+			f = append(f[:i], f[i+1:]...)
+			i--
+		}
+	}
+	payload := []k8sclient.PatchListValue{{
+		Op:    "replace",
+		Path:  "/metadata/finalizers",
+		Value: f,
+	}}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	if err := p.Client.PatchPod(pod, payloadBytes); err != nil {
+		klog.Errorf("Patch pod err:%v", err)
+		return err
+	}
+	return nil
 }

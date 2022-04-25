@@ -160,6 +160,17 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -253,7 +264,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.13.0
+        image: juicedata/juicefs-csi-driver:v0.13.2
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -388,7 +399,14 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.13.0
+        image: juicedata/juicefs-csi-driver:v0.13.2
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - rm /registration/csi.juicefs.com-reg.sock /csi/csi.sock
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -425,6 +443,8 @@ spec:
         - mountPath: /root/.juicefs
           mountPropagation: Bidirectional
           name: jfs-root-dir
+        - mountPath: /registration
+          name: registration-dir
       - args:
         - --csi-address=$(ADDRESS)
         - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)

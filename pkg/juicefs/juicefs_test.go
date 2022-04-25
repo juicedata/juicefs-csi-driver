@@ -234,22 +234,8 @@ func Test_jfs_GetBasePath(t *testing.T) {
 func TestNewJfsProvider(t *testing.T) {
 	Convey("Test NewJfsProvider", t, func() {
 		Convey("normal", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
-			})
-			defer patch1.Reset()
-
-			_, err := NewJfsProvider(nil)
+			_, err := NewJfsProvider(nil, nil)
 			So(err, ShouldBeNil)
-		})
-		Convey("err", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, errors.New("test")
-			})
-			defer patch1.Reset()
-
-			_, err := NewJfsProvider(nil)
-			So(err, ShouldNotBeNil)
 		})
 	})
 }
@@ -658,6 +644,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				Source:   mountPath,
 				UsePod:   false,
 				VolumeId: volumeId,
+				UniqueId: volumeId,
 				Options:  options,
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {

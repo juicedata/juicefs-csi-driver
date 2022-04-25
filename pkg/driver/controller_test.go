@@ -28,7 +28,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/utils/mount"
+	"k8s.io/client-go/kubernetes/fake"
+	"os/exec"
 	"reflect"
 	"testing"
 )
@@ -36,57 +37,32 @@ import (
 func TestNewControllerService(t *testing.T) {
 	Convey("Test newControllerService", t, func() {
 		Convey("normal", func() {
-			patch1 := ApplyFunc(k8s.NewClient, func() (*k8s.K8sClient, error) {
-				return nil, nil
+			var tmpCmd = &exec.Cmd{}
+			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
 			})
 			defer patch1.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), nil)
-			patch2 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
 			})
-			defer patch2.Reset()
+			defer patch3.Reset()
 
-			controllerSvc := newControllerService()
-
-			if controllerSvc.juicefs != mockJuicefs {
-				t.Fatalf("expected juicefs attribute to be equal to instantiated juicefs")
-			}
-		})
-		Convey("new error", func() {
-			patch1 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return nil, errors.New("test")
-			})
-			defer patch1.Reset()
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("The code did not panic")
-				}
-			}()
-
-			_ = newControllerService()
+			_, err := newControllerService(&k8s.K8sClient{Interface: &fake.Clientset{}})
+			So(err, ShouldBeNil)
 		})
 		Convey("version error", func() {
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().Version().Return([]byte(""), errors.New("test"))
-			patch1 := ApplyFunc(juicefs.NewJfsProvider, func(mounter *mount.SafeFormatAndMount) (juicefs.Interface, error) {
-				return mockJuicefs, nil
+			var tmpCmd = &exec.Cmd{}
+			patch2 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
 			})
-			defer patch1.Reset()
+			defer patch2.Reset()
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), errors.New("test")
+			})
+			defer patch3.Reset()
 
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("The code did not panic")
-				}
-			}()
-
-			_ = newControllerService()
+			_, err := newControllerService(&k8s.K8sClient{Interface: &fake.Clientset{}})
+			So(err, ShouldNotBeNil)
 		})
 	})
 }

@@ -37,6 +37,18 @@ const (
 	timeout = 10 * time.Second
 )
 
+type PatchListValue struct {
+	Op    string   `json:"op"`
+	Path  string   `json:"path"`
+	Value []string `json:"value"`
+}
+
+type PatchMapValue struct {
+	Op    string            `json:"op"`
+	Path  string            `json:"path"`
+	Value map[string]string `json:"value"`
+}
+
 type K8sClient struct {
 	kubernetes.Interface
 }
@@ -126,7 +138,7 @@ func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
 	}
 	klog.V(6).Infof("Patch pod %v", pod.Name)
 	_, err := k.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
-		pod.Name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
+		pod.Name, types.JSONPatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -228,4 +240,14 @@ func (k *K8sClient) DeleteJob(jobName string, namespace string) error {
 	return k.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
+}
+
+func (k *K8sClient) GetPersistentVolume(pvName string) (*corev1.PersistentVolume, error) {
+	klog.V(6).Infof("Get pv %s", pvName)
+	mntPod, err := k.CoreV1().PersistentVolumes().Get(context.TODO(), pvName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get pv %s : %v", pvName, err)
+		return nil, err
+	}
+	return mntPod, nil
 }

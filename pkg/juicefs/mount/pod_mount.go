@@ -46,14 +46,15 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	if err := p.createOrAddRef(jfsSetting); err != nil {
+	podName := GenNameByUniqueId(jfsSetting.UniqueId)
+	if err := p.createOrAddRef(jfsSetting, podName); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(GenerateNameByVolumeId(jfsSetting.VolumeId))
+	return p.waitUtilPodReady(podName)
 }
 
-func (p *PodMount) JUmount(volumeId, target string) error {
-	podName := GenerateNameByVolumeId(volumeId)
+func (p *PodMount) JUmount(uniqueId, target string) error {
+	podName := GenNameByUniqueId(uniqueId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -87,11 +88,10 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 			return nil
 		}
 		delete(annotation, key)
-		po.Annotations = annotation
-		return p.K8sClient.UpdatePod(po)
+		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
 	})
 	if err != nil {
-		klog.Errorf("JUmount: Remove ref of volumeId %s err: %v", volumeId, err)
+		klog.Errorf("JUmount: Remove ref of uniqueId %s err: %v", uniqueId, err)
 		return err
 	}
 
@@ -120,8 +120,16 @@ func (p *PodMount) JUmount(volumeId, target string) error {
 				// do not set delay delete, delete it now
 				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 				if err := p.K8sClient.DeletePod(po); err != nil {
-					klog.V(5).Infof("JUmount: Delete pod of volumeId %s error: %v", volumeId, err)
+					klog.V(5).Infof("JUmount: Delete pod of uniqueId %s error: %v", uniqueId, err)
 					return err
+				}
+
+				// delete related secret
+				secretName := po.Name + "-secret"
+				klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
+				if err := p.K8sClient.DeleteSecret(secretName, po.Namespace); err != nil {
+					// do not return err if delete secret failed
+					klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
 				}
 			}
 			return nil
@@ -207,8 +215,7 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return err
 }
 
-func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenerateNameByVolumeId(jfsSetting.VolumeId)
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	secretName := podName + "-secret"
 	jfsSetting.SecretName = secretName
 	r := builder.NewBuilder(jfsSetting)
@@ -234,11 +241,10 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 					newPod.Annotations = make(map[string]string)
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				po, err := p.K8sClient.CreatePod(newPod)
+				_, err := p.K8sClient.CreatePod(newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
-				builder.SetPodAsOwner(&secret, *po)
 				if err := p.createOrUpdateSecret(&secret); err != nil {
 					return err
 				}
@@ -249,7 +255,6 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) error {
 			return err
 		}
 		// pod exist, add refs
-		builder.SetPodAsOwner(&secret, *oldPod)
 		if err := p.createOrUpdateSecret(&secret); err != nil {
 			return err
 		}
@@ -334,8 +339,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, jfsConfig.DeleteDelayAtKey)
-		exist.Annotations = annotation
-		return p.K8sClient.UpdatePod(exist)
+		return util.PatchPodAnnotation(p.K8sClient, exist, annotation)
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
@@ -417,6 +421,6 @@ func HasRef(pod *corev1.Pod) bool {
 	return false
 }
 
-func GenerateNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, volumeId)
+func GenNameByUniqueId(uniqueId string) string {
+	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
 }

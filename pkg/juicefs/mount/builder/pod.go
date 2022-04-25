@@ -18,13 +18,14 @@ package builder
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 func (r *Builder) NewMountPod(podName string) *corev1.Pod {
@@ -148,9 +149,8 @@ func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.Volu
 		}
 		cacheDirs := strings.Split(strings.TrimSpace(optValPair[1]), ":")
 
-		for _, cacheDir := range cacheDirs {
-			dirTrimPrefix := strings.TrimPrefix(cacheDir, "/")
-			name := strings.ReplaceAll(dirTrimPrefix, "/", "-")
+		for idx, cacheDir := range cacheDirs {
+			name := fmt.Sprintf("cachedir-%d", idx)
 
 			hostPath := corev1.HostPathVolumeSource{
 				Path: cacheDir,

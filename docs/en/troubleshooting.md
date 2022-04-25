@@ -1,14 +1,28 @@
 # Troubleshooting
 
-When your pod is not `Running` status (e.g. `ContainerCreating`), there may have some issues. You need check JuiceFS CSI driver logs to get more information, please follow steps blow.
+When the application pod fails to start normally or has an exception, it is usually necessary to check the logs of the JuiceFS CSI Driver to troubleshoot the problem. Different versions of CSI Driver view logs in different ways, which are described below.
 
-## JuiceFS CSI Driver v0.10+
 
-### Get mount pod
+## Check JuiceFS CSI Driver version
+
+First, you need to check the version of the JuiceFS CSI Driver installed in the current Kubernetes cluster, which can be obtained with the following command:
+
+```sh
+kubectl -n kube-system get pod -l app=juicefs-csi-controller -o yaml | grep 'image: '
+```
+
+The above command will output something like `image: juicedata/juicefs-csi-driver:v0.13.2`, the last `v0.13.2` is the version of JuiceFS CSI Driver.
+
+
+## View JuiceFS CSI Driver logs
+
+### v0.10+
+
+#### Find mount pod
 
 1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
 
-   ```sh
+   ```sh {3}
    $ kubectl get pod juicefs-app -o wide
    NAME          READY   STATUS              RESTARTS   AGE   IP       NODE          NOMINATED NODE   READINESS GATES
    juicefs-app   0/1     ContainerCreating   0          9s    <none>   172.16.2.87   <none>           <none>
@@ -20,7 +34,7 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
    For example, the PersistentVolumeClaim (PVC) used by your pod is named `juicefs-pvc`:
 
-   ```sh
+   ```sh {3}
    $ kubectl get pvc juicefs-pvc
    NAME          STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
    juicefs-pvc   Bound    juicefs-pv   10Pi       RWX                           42d
@@ -28,7 +42,7 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
    From above output, the name of PV is `juicefs-pv`, then get the YAML of this PV:
 
-   ```yaml
+   ```yaml {12}
    $ kubectl get pv -o yaml juicefs-pv
    apiVersion: v1
    kind: PersistentVolume
@@ -48,28 +62,28 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
 3. Find JuiceFS mount pod by node name and volume ID. For example:
 
-   ```sh
+   ```sh {2}
    $ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o wide | grep 172.16.2.87 | grep juicefs-volume-abc
    juicefs-172.16.2.87-juicefs-volume-abc   1/1     Running   0          20h    172.16.2.100   172.16.2.87   <none>           <none>
    ```
 
    From above output, the name of JuiceFS mount pod is `juicefs-172.16.2.87-juicefs-volume-abc`.
 
-### Get logs of mount pod
+#### Get logs of mount pod
 
 1. Get JuiceFS mount pod logs. For example:
 
    ```sh
-   $ kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
+   kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
    ```
 
 2. Find any log contains `WARNING`, `ERROR` or `FATAL`.
 
-## Before JuiceFS CSI Driver v0.10
+### Before v0.10
 
 1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
 
-   ```sh
+   ```sh {3}
    $ kubectl get pod juicefs-app -o wide
    NAME          READY   STATUS              RESTARTS   AGE   IP       NODE          NOMINATED NODE   READINESS GATES
    juicefs-app   0/1     ContainerCreating   0          9s    <none>   172.16.2.87   <none>           <none>
@@ -79,9 +93,9 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 
 2. Find the JuiceFS CSI driver pod in the same node. For example:
 
-   ```sh
+   ```sh {2}
    $ kubectl describe node 172.16.2.87 | grep juicefs-csi-node
-     kube-system                 juicefs-csi-node-hzczw                  1 (0%)        2 (1%)      1Gi (0%)         5Gi (0%)       61m
+   kube-system                 juicefs-csi-node-hzczw                  1 (0%)        2 (1%)      1Gi (0%)         5Gi (0%)       61m
    ```
 
    From above output, the JuiceFS CSI driver pod name is `juicefs-csi-node-hzczw`.
@@ -89,16 +103,17 @@ When your pod is not `Running` status (e.g. `ContainerCreating`), there may have
 3. Get JuiceFS CSI driver logs. For example:
 
    ```sh
-   $ kubectl -n kube-system logs juicefs-csi-node-hzczw -c juicefs-plugin
+   kubectl -n kube-system logs juicefs-csi-node-hzczw -c juicefs-plugin
    ```
 
 4. Find any log contains `WARNING`, `ERROR` or `FATAL`.
 
-## Diagnosis Script
+
+## Diagnosis script
 
 You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh) to collect logs and related information.
 
-1. Download the diagnosis script to the node which can exec kubectl.
+1. Download the diagnosis script to the node which can exec `kubectl`.
 
    ```shell
    wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
@@ -126,6 +141,7 @@ You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi
            Set the name of node.
        -n, --namespace name
            Set the namespace of juicefs csi driver.
+
    $ ./diagnose.sh -n kube-system -no kube-node-2 collect
    Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
    ...

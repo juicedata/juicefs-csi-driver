@@ -2,12 +2,13 @@ package driver
 
 import (
 	"context"
-	"net"
-
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
+	"net"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 type Driver struct {
 	controllerService
 	nodeService
+	provisionerService
 
 	srv      *grpc.Server
 	endpoint string
@@ -28,22 +30,39 @@ type Driver struct {
 func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 	klog.Infof("Driver: %v version %v commit %v date %v", DriverName, driverVersion, gitCommit, buildDate)
 
-	cs := newControllerService()
+	k8sClient, err := k8sclient.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		return nil, err
+	}
+	cs, err := newControllerService(k8sClient)
+	if err != nil {
+		return nil, err
+	}
 
-	ns, err := newNodeService(nodeID)
+	ns, err := newNodeService(nodeID, k8sClient)
+	if err != nil {
+		return nil, err
+	}
+
+	ps, err := newProvisionerService(k8sClient)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Driver{
-		endpoint:          endpoint,
-		controllerService: cs,
-		nodeService:       *ns,
+		controllerService:  cs,
+		nodeService:        *ns,
+		provisionerService: ps,
+		endpoint:           endpoint,
 	}, nil
 }
 
 // Run runs the server
 func (d *Driver) Run() error {
+	if config.Provisioner {
+		go d.provisionerService.Run(context.Background())
+	}
 	scheme, addr, err := util.ParseEndpoint(d.endpoint)
 	if err != nil {
 		return err

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -122,7 +123,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
-func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
+func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) (Interface, error) {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -130,16 +131,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount) (Interface, error) {
 		}
 	}
 	processMnt := podmount.NewProcessMount(*mounter)
-	var podMnt podmount.MntInterface
-	var k8sClient *k8sclient.K8sClient
-	if !config.ByProcess {
-		k8sClient, err := k8sclient.NewClient()
-		if err != nil {
-			klog.V(5).Infof("Can't get k8s client: %v", err)
-			return nil, err
-		}
-		podMnt = podmount.NewPodMount(k8sClient, *mounter)
-	}
+	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
 	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
 }
@@ -154,29 +146,7 @@ func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[stri
 	if config.FormatInPod {
 		return j.podMount.JCreateVolume(jfsSetting)
 	}
-	// 1. mount juicefs
-	err = j.processMount.JMount(jfsSetting)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
-	}
-
-	// 2. create subPath volume
-	jfs := &jfs{
-		Provider:  j,
-		Name:      secrets["name"],
-		MountPath: jfsSetting.MountPath,
-		Options:   jfsSetting.Options,
-	}
-	_, err = jfs.CreateVol(volumeID, subPath)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not create volume: %q, err: %v", volumeID, err)
-	}
-
-	// 3. umount
-	if err = j.Unmount(jfs.GetBasePath()); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
-	}
-	return nil
+	return j.processMount.JCreateVolume(jfsSetting)
 }
 
 func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -186,32 +156,15 @@ func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[stri
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+
+	mnt := j.processMount
 	if config.FormatInPod {
-		return j.podMount.JDeleteVolume(jfsSetting)
+		mnt = j.podMount
 	}
-	// 1. mount juicefs
-	err = j.processMount.JMount(jfsSetting)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+	if err := mnt.JDeleteVolume(jfsSetting); err != nil {
+		return err
 	}
-
-	// 2. create subPath volume
-	jfs := &jfs{
-		Provider:  j,
-		Name:      secrets["name"],
-		MountPath: jfsSetting.MountPath,
-		Options:   jfsSetting.Options,
-	}
-	err = jfs.DeleteVol(volumeID, secrets)
-	if err != nil {
-		return status.Errorf(codes.Internal, "Could not delete volume: %q, err: %v", volumeID, err)
-	}
-
-	// 3. umount
-	if err = j.Unmount(jfs.GetBasePath()); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", volumeID, err)
-	}
-	return nil
+	return j.JfsCleanupMountPoint(jfsSetting.MountPath)
 }
 
 func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
@@ -278,12 +231,45 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			jfsSetting.FormatCmd = res
 		}
 	}
+
+	uniqueId, err := j.getUniqueId(volumeID)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)
+		return nil, err
+	}
+	jfsSetting.UniqueId = uniqueId
 	return jfsSetting, nil
 }
 
+// getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
+// When STORAGE_CLASS_SHARE_MOUNT env is set:
+//		in dynamic provision, UniqueId set as SC name
+//		in static provision, UniqueId set as volumeId
+// When STORAGE_CLASS_SHARE_MOUNT env not set:
+// 		UniqueId set as volumeId
+func (j juicefs) getUniqueId(volumeId string) (string, error) {
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
+		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return "", err
+		}
+		// In dynamic provision, PV.spec.StorageClassName is which SC(StorageClass) it belongs to.
+		if err == nil && pv.Spec.StorageClassName != "" {
+			return pv.Spec.StorageClassName, nil
+		}
+	}
+	return volumeId, nil
+}
+
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
+	UniqueId, err := j.getUniqueId(volumeId)
+	if err != nil {
+		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
+		return err
+	}
 	if config.ByProcess {
-		return j.processMount.JUmount(volumeId, mountPath)
+		return j.processMount.JUmount(UniqueId, mountPath)
 	}
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
@@ -314,7 +300,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return err
 	}
 
-	return j.podMount.JUmount(volumeId, mountPath)
+	return j.podMount.JUmount(UniqueId, mountPath)
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
@@ -412,6 +398,16 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 			}
 		}
 	}
+	if setting.FormatOptions != "" {
+		formatOptions := strings.Split(setting.FormatOptions, ",")
+		for _, option := range formatOptions {
+			o := strings.TrimSpace(option)
+			if o != "" {
+				args = append(args, fmt.Sprintf("--%s", o))
+				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
+			}
+		}
+	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	if config.FormatInPod {
@@ -434,10 +430,10 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
-		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.UniqueId)
 		mnt = j.podMount
 	} else {
-		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.VolumeId)
+		jfsSetting.MountPath = filepath.Join(config.MountBase, jfsSetting.UniqueId)
 		mnt = j.processMount
 	}
 
@@ -537,6 +533,16 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	cmdArgs = append(cmdArgs, "${metaurl}", secrets["name"])
 	args = append(args, secrets["metaurl"], secrets["name"])
 
+	if setting.FormatOptions != "" {
+		formatOptions := strings.Split(setting.FormatOptions, ",")
+		for _, option := range formatOptions {
+			o := strings.TrimSpace(option)
+			if o != "" {
+				args = append(args, fmt.Sprintf("--%s", o))
+				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
+			}
+		}
+	}
 	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
 
 	if config.FormatInPod {
