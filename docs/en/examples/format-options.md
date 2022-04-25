@@ -1,14 +1,14 @@
 ---
-sidebar_label: Config File System Initialization Options
+sidebar_label: Config File System Settings
 ---
 
-# How to config file system initialization options in Kubernetes
+# How to config file system settings in Kubernetes
 
 :::note
 This feature requires JuiceFS CSI Driver version 0.13.3 and above.
 :::
 
-JuiceFS CSI Driver support setting [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-format) (Community Edition) or [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) (Cloud Service Edition) to initialize the file system. This document shows how to apply file system initialization options to JuiceFS in Kubernetes. The command line options are different for the community edition and cloud service edition, but are used in the same way in the CSI Driver.
+JuiceFS CSI Driver support setting [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-format) (Community Edition) or [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) (Cloud Service Edition) command line options to initialize the file system or modify file system settings. This document shows how to apply file system settings to JuiceFS in Kubernetes. The command line options are different for the community edition and cloud service edition, but are used in the same way in the CSI Driver.
 
 When creating a `Secret` (either ["Static Provisioning"](static-provisioning.md) or ["Dynamic Provisioning"](dynamic-provisioning.md)), add the `format-options` option, and fill in the configuration items that need to be set with the `,` connection, as follows (take the community edition command line options as an example):
 
