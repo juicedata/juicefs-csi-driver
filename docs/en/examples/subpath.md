@@ -173,6 +173,10 @@ spec:
 
 ## Using `pathPattern`
 
+:::note
+This feature requires JuiceFS CSI Driver version 0.13.3 and above.
+:::
+
 `pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. It is turned off by default and needs to be turned on manually, as follows:
 
 ```bash

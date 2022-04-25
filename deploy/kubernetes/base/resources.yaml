@@ -208,7 +208,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.13.2
+          image: juicedata/juicefs-csi-driver:v0.13.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -331,7 +331,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.13.2
+          image: juicedata/juicefs-csi-driver:v0.13.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
