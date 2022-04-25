@@ -46,7 +46,7 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenNameByVolName(jfsSetting.UniqueId)
+	podName := GenNameByUniqueId(jfsSetting.UniqueId)
 	if err := p.createOrAddRef(jfsSetting, podName); err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 func (p *PodMount) JUmount(uniqueId, target string) error {
-	podName := GenNameByVolName(uniqueId)
+	podName := GenNameByUniqueId(uniqueId)
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
@@ -91,7 +91,7 @@ func (p *PodMount) JUmount(uniqueId, target string) error {
 		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
 	})
 	if err != nil {
-		klog.Errorf("JUmount: Remove ref of volumeName %s err: %v", uniqueId, err)
+		klog.Errorf("JUmount: Remove ref of uniqueId %s err: %v", uniqueId, err)
 		return err
 	}
 
@@ -120,7 +120,7 @@ func (p *PodMount) JUmount(uniqueId, target string) error {
 				// do not set delay delete, delete it now
 				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 				if err := p.K8sClient.DeletePod(po); err != nil {
-					klog.V(5).Infof("JUmount: Delete pod of volumeName %s error: %v", uniqueId, err)
+					klog.V(5).Infof("JUmount: Delete pod of uniqueId %s error: %v", uniqueId, err)
 					return err
 				}
 
@@ -421,6 +421,6 @@ func HasRef(pod *corev1.Pod) bool {
 	return false
 }
 
-func GenNameByVolName(uniqueId string) string {
+func GenNameByUniqueId(uniqueId string) string {
 	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
 }

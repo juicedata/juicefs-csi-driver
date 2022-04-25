@@ -171,7 +171,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 }
 
 //JUmount umount targetPath
-func (p *ProcessMount) JUmount(volumeId, target string) error {
+func (p *ProcessMount) JUmount(uniqueId, target string) error {
 	var refs []string
 
 	var corruptedMnt bool

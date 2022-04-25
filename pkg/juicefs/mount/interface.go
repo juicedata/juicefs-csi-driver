@@ -26,6 +26,6 @@ type MntInterface interface {
 	JMount(jfsSetting *jfsConfig.JfsSetting) error
 	JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error
 	JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error
-	JUmount(volumeId, target string) error
+	JUmount(uniqueId, target string) error
 	AddRefOfMount(target string, podName string) error
 }

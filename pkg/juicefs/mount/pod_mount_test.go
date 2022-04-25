@@ -300,7 +300,7 @@ func TestJUmount(t *testing.T) {
 			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			podName := GenNameByVolName(tt.args.volumeId)
+			podName := GenNameByUniqueId(tt.args.volumeId)
 			got, _ := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
@@ -345,7 +345,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByVolName("ttt")
+			podName := GenNameByUniqueId("ttt")
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -371,7 +371,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByVolName("ttt")
+			podName := GenNameByUniqueId("ttt")
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -402,7 +402,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByVolName("aaa")
+			podName := GenNameByUniqueId("aaa")
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -429,7 +429,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByVolName("ttt")
+			podName := GenNameByUniqueId("ttt")
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -512,7 +512,7 @@ func TestWaitUntilMount(t *testing.T) {
 			if tt.pod != nil {
 				_, _ = p.K8sClient.CreatePod(tt.pod)
 			}
-			podName := GenNameByVolName(tt.args.jfsSetting.VolumeId)
+			podName := GenNameByUniqueId(tt.args.jfsSetting.VolumeId)
 			if err := p.createOrAddRef(tt.args.jfsSetting, podName); (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -550,7 +550,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
-			podName := GenNameByVolName("ttt")
+			podName := GenNameByUniqueId("ttt")
 			err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"}, podName)
 			So(err, ShouldNotBeNil)
 		})
