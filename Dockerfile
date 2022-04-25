@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.16-buster as builder
+FROM golang:1.17-buster as builder
 
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
