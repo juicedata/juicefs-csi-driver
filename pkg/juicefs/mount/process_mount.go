@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"os"
 	"os/exec"
@@ -145,6 +146,9 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
 	if jfsSetting.Storage == "ceph" || jfsSetting.Storage == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
+	}
+	for key, val := range jfsSetting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
 	mntCmd.Env = envs
