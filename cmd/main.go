@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/cmd/apps"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
@@ -114,6 +115,10 @@ func main() {
 			os.Exit(1)
 		}
 		klog.V(5).Infof("Reconciler Stated")
+	}
+
+	if err := apps.PVManage(); err != nil {
+		klog.Fatalln(err)
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

@@ -41,6 +41,8 @@ type PodMount struct {
 	K8sClient *k8sclient.K8sClient
 }
 
+var _ MntInterface = &PodMount{}
+
 func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &PodMount{mounter, client}
 }
@@ -344,6 +346,36 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
 		return err
+	}
+	return nil
+}
+
+func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
+	jfsSetting := &jfsConfig.JfsSetting{
+		VolumeId:  volumeId,
+		CacheDirs: cacheDirs,
+	}
+	r := builder.NewBuilder(jfsSetting)
+	job := r.NewJobForCleanCache(id)
+	_, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	if err != nil && k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("CleanCache: create job %s", job.Name)
+		_, err = p.K8sClient.CreateJob(job)
+		if err != nil {
+			klog.Errorf("CleanCache: create job %s err: %v", job.Name, err)
+			return err
+		}
+	}
+	if err != nil {
+		klog.Errorf("CleanCache: get job %s err: %s", job.Name, err)
+		return err
+	}
+	err = p.waitUtilJobCompleted(job.Name)
+	if err != nil {
+		// fall back if err
+		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+			klog.Errorf("CleanCache: delete job %s error: %v", job.Name, e)
+		}
 	}
 	return nil
 }

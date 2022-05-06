@@ -28,6 +28,7 @@ func TestParseSecret(t *testing.T) {
 	type args struct {
 		secrets     map[string]string
 		volCtx      map[string]string
+		options     []string
 		usePod      bool
 		Simple      bool
 		MountLabels string
@@ -39,104 +40,75 @@ func TestParseSecret(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test-nil",
-			args: args{
-				secrets:     nil,
-				volCtx:      nil,
-				usePod:      false,
-				MountLabels: "",
-			},
-			want: &JfsSetting{
-				Options: []string{},
-			},
+			name:    "test-nil",
+			args:    args{},
+			want:    &JfsSetting{Options: []string{}},
 			wantErr: false,
 		},
 		{
-			name: "test-no-name",
-			args: args{
-				secrets: map[string]string{},
-			},
+			name:    "test-no-name",
+			args:    args{secrets: map[string]string{}},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "test-env",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-					"envs": "GOOGLE_APPLICATION_CREDENTIALS: \"/root/.config/gcloud/application_default_credentials.json\"",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "envs": "GOOGLE_APPLICATION_CREDENTIALS: \"/root/.config/gcloud/application_default_credentials.json\""},
+				usePod:  true,
 			},
 			want: &JfsSetting{
-				Name:    "test",
-				Envs:    s,
-				Configs: map[string]string{},
-				UsePod:  true,
-				Options: []string{},
+				Name:      "test",
+				Envs:      s,
+				Configs:   map[string]string{},
+				UsePod:    true,
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-env-error",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-					"envs": "-",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "envs": "-"},
+				usePod:  true,
 			},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "test-storage-nil",
-			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				usePod: true,
-			},
+			args: args{secrets: map[string]string{"name": "test"}, usePod: true},
 			want: &JfsSetting{
-				Name:    "test",
-				Storage: "",
-				Configs: map[string]string{},
-				Envs:    map[string]string{},
-				Options: []string{},
-				UsePod:  true,
+				Name:      "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				UsePod:    true,
+				CacheDirs: []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-storage",
-			args: args{
-				secrets: map[string]string{
-					"name":    "test",
-					"storage": "ceph",
-				},
-				usePod: true,
-			},
+			args: args{secrets: map[string]string{"name": "test", "storage": "ceph"}, usePod: true},
 			want: &JfsSetting{
-				Name:    "test",
-				Storage: "ceph",
-				Configs: map[string]string{},
-				Envs:    map[string]string{},
-				UsePod:  true,
-				Options: []string{},
+				Name:      "test",
+				Storage:   "ceph",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				UsePod:    true,
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-cpu-limit",
 			args: args{
-				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
-				},
-				volCtx: map[string]string{
-					mountPodCpuLimitKey: "1",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "storage": "s3"},
+				volCtx:  map[string]string{mountPodCpuLimitKey: "1"},
+				usePod:  true,
 			},
 			want: &JfsSetting{
 				Name:             "test",
@@ -146,20 +118,16 @@ func TestParseSecret(t *testing.T) {
 				Envs:             map[string]string{},
 				Options:          []string{},
 				MountPodCpuLimit: "1",
+				CacheDirs:        []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-mem-limit",
 			args: args{
-				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
-				},
-				volCtx: map[string]string{
-					mountPodMemLimitKey: "1G",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "storage": "s3"},
+				volCtx:  map[string]string{mountPodMemLimitKey: "1G"},
+				usePod:  true,
 			},
 			want: &JfsSetting{
 				Name:             "test",
@@ -169,20 +137,16 @@ func TestParseSecret(t *testing.T) {
 				Envs:             map[string]string{},
 				MountPodMemLimit: "1G",
 				Options:          []string{},
+				CacheDirs:        []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-mem-request",
 			args: args{
-				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
-				},
-				volCtx: map[string]string{
-					mountPodMemRequestKey: "1G",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "storage": "s3"},
+				volCtx:  map[string]string{mountPodMemRequestKey: "1G"},
+				usePod:  true,
 			},
 			want: &JfsSetting{
 				Name:               "test",
@@ -192,18 +156,15 @@ func TestParseSecret(t *testing.T) {
 				Configs:            map[string]string{},
 				Envs:               map[string]string{},
 				Options:            []string{},
+				CacheDirs:          []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-cpu-request",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodCpuRequestKey: "1",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodCpuRequestKey: "1"},
 			},
 			want: &JfsSetting{
 				Name:               "test",
@@ -211,18 +172,15 @@ func TestParseSecret(t *testing.T) {
 				Configs:            map[string]string{},
 				Envs:               map[string]string{},
 				Options:            []string{},
+				CacheDirs:          []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-labels",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodLabelKey: "a: b",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodLabelKey: "a: b"},
 			},
 			want: &JfsSetting{
 				Name:           "test",
@@ -230,31 +188,23 @@ func TestParseSecret(t *testing.T) {
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
 				Options:        []string{},
+				CacheDirs:      []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-labels-error",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodLabelKey: "-",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodLabelKey: "-"},
 			},
-			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "test-labels-json",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodLabelKey: "{\"a\": \"b\"}",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodLabelKey: "{\"a\": \"b\"}"},
 			},
 			want: &JfsSetting{
 				Name:           "test",
@@ -262,18 +212,15 @@ func TestParseSecret(t *testing.T) {
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
 				Options:        []string{},
+				CacheDirs:      []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-annotation",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodAnnotationKey: "a: b",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodAnnotationKey: "a: b"},
 			},
 			want: &JfsSetting{
 				Name:                "test",
@@ -281,18 +228,15 @@ func TestParseSecret(t *testing.T) {
 				Configs:             map[string]string{},
 				Envs:                map[string]string{},
 				Options:             []string{},
+				CacheDirs:           []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-annotation-error",
 			args: args{
-				secrets: map[string]string{
-					"name": "test",
-				},
-				volCtx: map[string]string{
-					mountPodAnnotationKey: "-",
-				},
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodAnnotationKey: "-"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -300,14 +244,9 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-serviceaccount",
 			args: args{
-				secrets: map[string]string{
-					"name":    "test",
-					"storage": "s3",
-				},
-				volCtx: map[string]string{
-					mountPodServiceAccount: "test",
-				},
-				usePod: true,
+				secrets: map[string]string{"name": "test", "storage": "s3"},
+				volCtx:  map[string]string{mountPodServiceAccount: "test"},
+				usePod:  true,
 			},
 			want: &JfsSetting{
 				UsePod:                 true,
@@ -317,33 +256,25 @@ func TestParseSecret(t *testing.T) {
 				Configs:                map[string]string{},
 				Envs:                   map[string]string{},
 				Options:                []string{},
+				CacheDirs:              []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
 			name: "test-config",
-			args: args{
-				secrets: map[string]string{
-					"configs": "a: b",
-					"name":    "test",
-				},
-			},
+			args: args{secrets: map[string]string{"configs": "a: b", "name": "test"}},
 			want: &JfsSetting{
-				Name:    "test",
-				Configs: map[string]string{"a": "b"},
-				Envs:    map[string]string{},
-				Options: []string{},
+				Name:      "test",
+				Configs:   map[string]string{"a": "b"},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
 		{
-			name: "test-config-error",
-			args: args{
-				secrets: map[string]string{
-					"configs": "-",
-					"name":    "test",
-				},
-			},
+			name:    "test-config-error",
+			args:    args{secrets: map[string]string{"configs": "-", "name": "test"}},
 			want:    nil,
 			wantErr: true,
 		},
@@ -359,6 +290,7 @@ func TestParseSecret(t *testing.T) {
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
 				Options:        []string{},
+				CacheDirs:      []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
@@ -397,6 +329,7 @@ func TestParseSecret(t *testing.T) {
 				Configs:       map[string]string{},
 				Options:       []string{},
 				FormatOptions: "xxx",
+				CacheDirs:     []string{"/var/jfsCache"},
 			},
 			wantErr: false,
 		},
@@ -407,7 +340,7 @@ func TestParseSecret(t *testing.T) {
 			if tt.args.MountLabels != "" {
 				MountLabels = tt.args.MountLabels
 			}
-			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.usePod)
+			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.usePod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return

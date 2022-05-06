@@ -19,6 +19,7 @@ package juicefs
 import (
 	"context"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
@@ -47,6 +48,7 @@ type Interface interface {
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
 	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
+	JfsCleanupCache(secrets, volCtx map[string]string, options []string, force bool) error
 	Version() ([]byte, error)
 }
 
@@ -185,16 +187,38 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 	}, nil
 }
 
+// JfsCleanupCache cleanup cache in node
+func (j *juicefs) JfsCleanupCache(secrets, volCtx map[string]string, options []string, force bool) error {
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
+	if err != nil {
+		klog.Errorf("Parse config error: %v", err)
+		return err
+	}
+	// execute only when force or cleanCache true in volCtx
+	if !force && !jfsSetting.CleanCache {
+		return nil
+	}
+	// no cache dir, no need to clean
+	if len(jfsSetting.CacheDirs) == 0 {
+		return nil
+	}
+	if jfsSetting.UsePod {
+		return j.podMount.CleanCache(jfsSetting.UUID, jfsSetting.VolumeId, jfsSetting.CacheDirs)
+	}
+	return j.processMount.CleanCache(jfsSetting.UUID, jfsSetting.VolumeId, jfsSetting.CacheDirs)
+}
+
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, !config.ByProcess)
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
 	jfsSetting.VolumeId = volumeID
+	if jfsSetting.IsCe {
+	}
 	jfsSetting.TargetPath = target
-	jfsSetting.Options = options
 	source, isCe := secrets["metaurl"]
 	if !isCe {
 		if secrets["token"] == "" {
@@ -209,6 +233,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 			}
 		}
 		jfsSetting.Source = secrets["name"]
+		jfsSetting.UUID = secrets["name"]
 	} else {
 		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {
@@ -229,6 +254,10 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		jfsSetting.Source = source
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
+		}
+		jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Name)
+		if err != nil {
+			return nil, err
 		}
 	}
 

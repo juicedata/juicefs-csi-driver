@@ -18,6 +18,7 @@ package juicefs
 
 import (
 	"errors"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -54,6 +55,10 @@ func Test_jfs_CreateVol(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, nil
 			})
 			defer patch3.Reset()
+			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+				return "test", nil
+			})
+			defer patch5.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -149,6 +154,10 @@ func Test_jfs_DeleteVol(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch2.Reset()
+			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+				return "test", nil
+			})
+			defer patch5.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -294,6 +303,10 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
+			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+				return "test", nil
+			})
+			defer patch5.Reset()
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -358,6 +371,10 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
+			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+				return "test", nil
+			})
+			defer patch5.Reset()
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
@@ -388,6 +405,10 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
+			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+				return "test", nil
+			})
+			defer patch5.Reset()
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -579,7 +600,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldBeNil)
@@ -625,7 +646,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, true)
+			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(secrets, setting)
 			So(err, ShouldNotBeNil)
@@ -940,7 +961,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldBeNil)
@@ -984,7 +1005,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(secret, true, setting)
 			So(err, ShouldNotBeNil)

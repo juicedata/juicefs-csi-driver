@@ -56,6 +56,10 @@ var (
 			Labels: map[string]string{
 				config.PodTypeKey: config.PodTypeValue,
 			},
+			Annotations: map[string]string{
+				config.JuiceFSUUID: "",
+				config.UniqueId:    "",
+			},
 			Finalizers: []string{config.Finalizer},
 		},
 		Spec: corev1.PodSpec{
@@ -208,10 +212,10 @@ func Test_parsePodResources(t *testing.T) {
 }
 
 func Test_getCacheDirVolumes(t *testing.T) {
-	cmdWithoutCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet`
-	cmdWithCacheDir := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o prefetch=1,cache-dir=/dev/shm/imagenet,cache-size=10240,open-cache=7200,metrics=0.0.0.0:9567`
-	cmdWithCacheDir2 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
-	cmdWithCacheDir3 := `/bin/mount.juicefs redis://127.0.0.1:6379/0 /jfs/default-imagenet -o cache-dir`
+	optionWithoutCacheDir := []string{}
+	optionWithCacheDir := []string{"cache-dir=/dev/shm/imagenet"}
+	optionWithCacheDir2 := []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1"}
+	optionWithCacheDir3 := []string{"cache-dir"}
 
 	r := Builder{nil}
 
@@ -229,47 +233,50 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	volumes := []corev1.Volume{{
 		Name: "jfs-dir",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.MountPointPath,
-				Type: &dir,
-			},
-		},
-	}, {
+		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
+			Path: config.MountPointPath,
+			Type: &dir,
+		}}}, {
 		Name: "jfs-root-dir",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.JFSConfigPath,
-				Type: &dir,
-			},
-		},
+		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
+			Path: config.JFSConfigPath,
+			Type: &dir,
+		}},
 	}}
 
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmdWithoutCacheDir)
-	volumes = append(volumes, cacheVolumes...)
-	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 2 || len(volumeMounts) != 2 {
-		t.Error("getCacheDirVolumes can't work properly")
-	}
-
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir)
+	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true)
+	r.jfsSetting = s
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir3)
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true)
+	r.jfsSetting = s
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 3 || len(volumeMounts) != 3 {
+	if len(volumes) != 4 || len(volumeMounts) != 4 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(cmdWithCacheDir2)
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true)
+	r.jfsSetting = s
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 5 || len(volumeMounts) != 5 {
+	if len(volumes) != 6 || len(volumeMounts) != 6 {
+		t.Error("getCacheDirVolumes can't work properly")
+	}
+
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true)
+	r.jfsSetting = s
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
+	volumes = append(volumes, cacheVolumes...)
+	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
+	if len(volumes) != 7 || len(volumeMounts) != 7 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 }
@@ -281,22 +288,17 @@ func TestNewMountPod(t *testing.T) {
 	deepcopyPodFromDefault(&podLabelTest)
 	podLabelTest.Labels["a"] = "b"
 	podLabelTest.Labels["c"] = "d"
-	putDefaultCacheDir(&podLabelTest)
 
 	podAnnoTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podAnnoTest)
-	podAnnoTest.Annotations = make(map[string]string)
 	podAnnoTest.Annotations["a"] = "b"
-	putDefaultCacheDir(&podAnnoTest)
 
 	podSATest := corev1.Pod{}
 	deepcopyPodFromDefault(&podSATest)
 	podSATest.Spec.ServiceAccountName = "test"
-	putDefaultCacheDir(&podSATest)
 
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
-	putDefaultCacheDir(&podEnvTest)
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
@@ -308,11 +310,11 @@ func TestNewMountPod(t *testing.T) {
 		Name:      "config-1",
 		MountPath: "/test",
 	})
-	putDefaultCacheDir(&podConfigTest)
 
-	r := Builder{}
+	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true)
+	r := Builder{s}
 	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmdWithCacheDir)
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
@@ -328,6 +330,7 @@ func TestNewMountPod(t *testing.T) {
 		annotations    map[string]string
 		serviceAccount string
 		options        []string
+		cacheDirs      []string
 	}
 	tests := []struct {
 		name string
@@ -371,6 +374,7 @@ func TestNewMountPod(t *testing.T) {
 				mountPath: defaultMountPath,
 				cmd:       cmdWithCacheDir,
 				options:   []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240"},
+				cacheDirs: []string{"/dev/shm/imagenet-0", "/dev/shm/imagenet-1"},
 			},
 			want: podCacheTest,
 		},
@@ -410,6 +414,7 @@ func TestNewMountPod(t *testing.T) {
 				MountPath:              tt.args.mountPath,
 				VolumeId:               tt.args.name,
 				Options:                tt.args.options,
+				CacheDirs:              tt.args.cacheDirs,
 				SecretName:             podName,
 			}
 			r := Builder{jfsSetting}

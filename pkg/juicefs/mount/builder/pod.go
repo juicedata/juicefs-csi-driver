@@ -36,7 +36,7 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 
 	pod := r.generateJuicePod()
 	// add cache-dir host path volume
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(cmd)
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
@@ -77,7 +77,11 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	if r.jfsSetting.DeletedDelay != "" {
 		pod.Annotations[config.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
 	}
-
+	pod.Annotations[config.JuiceFSUUID] = r.jfsSetting.UUID
+	pod.Annotations[config.UniqueId] = r.jfsSetting.UniqueId
+	if r.jfsSetting.CleanCache {
+		pod.Annotations[config.CleanCache] = "true"
+	}
 	return pod
 }
 
@@ -108,69 +112,34 @@ func (r *Builder) parsePodResources() corev1.ResourceRequirements {
 	}
 }
 
-func (r *Builder) getCacheDirVolumes(cmd string) ([]corev1.Volume, []corev1.VolumeMount) {
-	var cacheVolumes []corev1.Volume
-	var cacheVolumeMounts []corev1.VolumeMount
-
-	cmdSplits := strings.Split(cmd, " -o ")
-	if len(cmdSplits) != 2 {
-		return cacheVolumes, cacheVolumeMounts
-	}
+func (r *Builder) getCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	cacheVolumes := []corev1.Volume{}
+	cacheVolumeMounts := []corev1.VolumeMount{}
 
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	mountPropagation := corev1.MountPropagationBidirectional
 
-	if !strings.Contains(cmd, "cache-dir") {
-		cacheVolumes = append(cacheVolumes, corev1.Volume{
-			Name: "jfs-default-cache",
+	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		name := fmt.Sprintf("cachedir-%d", idx)
+
+		hostPath := corev1.HostPathVolumeSource{
+			Path: cacheDir,
+			Type: &hostPathType,
+		}
+		hostPathVolume := corev1.Volume{
+			Name: name,
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/jfsCache",
-					Type: &hostPathType,
-				},
+				HostPath: &hostPath,
 			},
-		})
-		cacheVolumeMounts = append(cacheVolumeMounts, corev1.VolumeMount{
-			Name:             "jfs-default-cache",
-			MountPath:        "/var/jfsCache",
+		}
+		cacheVolumes = append(cacheVolumes, hostPathVolume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:             name,
+			MountPath:        cacheDir,
 			MountPropagation: &mountPropagation,
-		})
-		return cacheVolumes, cacheVolumeMounts
-	}
-
-	for _, optSubStr := range strings.Split(cmdSplits[1], ",") {
-		optValStr := strings.TrimSpace(optSubStr)
-		if !strings.HasPrefix(optValStr, "cache-dir") {
-			continue
 		}
-		optValPair := strings.Split(optValStr, "=")
-		if len(optValPair) != 2 {
-			continue
-		}
-		cacheDirs := strings.Split(strings.TrimSpace(optValPair[1]), ":")
-
-		for idx, cacheDir := range cacheDirs {
-			name := fmt.Sprintf("cachedir-%d", idx)
-
-			hostPath := corev1.HostPathVolumeSource{
-				Path: cacheDir,
-				Type: &hostPathType,
-			}
-			hostPathVolume := corev1.Volume{
-				Name: name,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &hostPath,
-				},
-			}
-			cacheVolumes = append(cacheVolumes, hostPathVolume)
-
-			volumeMount := corev1.VolumeMount{
-				Name:             name,
-				MountPath:        cacheDir,
-				MountPropagation: &mountPropagation,
-			}
-			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
-		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
 	}
 
 	return cacheVolumes, cacheVolumeMounts

@@ -28,4 +28,5 @@ type MntInterface interface {
 	JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error
 	JUmount(uniqueId, target string) error
 	AddRefOfMount(target string, podName string) error
+	CleanCache(id string, volumeId string, cacheDirs []string) error
 }
