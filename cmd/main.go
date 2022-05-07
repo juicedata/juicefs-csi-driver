@@ -114,11 +114,10 @@ func main() {
 			klog.V(5).Infof("Could not Start Reconciler: %v", err)
 			os.Exit(1)
 		}
+		if err := apps.PVManage(); err != nil {
+			klog.Fatalln(err)
+		}
 		klog.V(5).Infof("Reconciler Stated")
-	}
-
-	if err := apps.PVManage(); err != nil {
-		klog.Fatalln(err)
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

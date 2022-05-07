@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -50,7 +51,9 @@ func (r *Builder) NewJobForCleanCache(id string) *batchv1.Job {
 }
 
 func GenJobNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s", volumeId)
+	h := sha256.New()
+	h.Write([]byte(volumeId))
+	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:16]
 }
 
 func (r *Builder) newJob(jobName string) *batchv1.Job {
@@ -128,7 +131,7 @@ func (r *Builder) getCleanCacheCmd(id string) string {
 	for _, cacheDir := range r.jfsSetting.CacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw")
-		cleanCmds = append(cleanCmds, fmt.Sprintf("if [ -d %s ]; then rm -rf %s", rawPath, rawPath))
+		cleanCmds = append(cleanCmds, fmt.Sprintf("if [ -d %s ]; then rm -rf %s; fi;", rawPath, rawPath))
 	}
 	return strings.Join(cleanCmds, "&&")
 }

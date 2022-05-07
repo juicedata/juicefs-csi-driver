@@ -178,6 +178,6 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 			}},
 		},
 	}
-	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.getCacheDirVolumes()
+	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationNone)
 	return pod
 }

@@ -553,6 +553,7 @@ func (p PodDriver) CleanUpCache(pod *corev1.Pod) error {
 	}
 	uuid := pod.Annotations[config.JuiceFSUUID]
 	uniqueId := pod.Annotations[config.UniqueId]
+	klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
 	podMnt := podmount.NewPodMount(p.Client, p.SafeFormatAndMount)
 	cacheDirs := []string{}
 	for _, dir := range pod.Spec.Volumes {

@@ -36,7 +36,7 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 
 	pod := r.generateJuicePod()
 	// add cache-dir host path volume
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
@@ -112,12 +112,11 @@ func (r *Builder) parsePodResources() corev1.ResourceRequirements {
 	}
 }
 
-func (r *Builder) getCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMode) ([]corev1.Volume, []corev1.VolumeMount) {
 	cacheVolumes := []corev1.Volume{}
 	cacheVolumeMounts := []corev1.VolumeMount{}
 
 	hostPathType := corev1.HostPathDirectoryOrCreate
-	mountPropagation := corev1.MountPropagationBidirectional
 
 	for idx, cacheDir := range r.jfsSetting.CacheDirs {
 		name := fmt.Sprintf("cachedir-%d", idx)

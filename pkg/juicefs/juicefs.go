@@ -48,7 +48,7 @@ type Interface interface {
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
 	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
-	JfsCleanupCache(secrets, volCtx map[string]string, options []string, force bool) error
+	JfsCleanupCache(volumeId string, secrets map[string]string, options []string) error
 	Version() ([]byte, error)
 }
 
@@ -125,7 +125,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
-func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) (Interface, error) {
+func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) Interface {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -135,7 +135,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	processMnt := podmount.NewProcessMount(*mounter)
 	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
-	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
+	return &juicefs{*mounter, k8sClient, podMnt, processMnt}
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -188,24 +188,27 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 }
 
 // JfsCleanupCache cleanup cache in node
-func (j *juicefs) JfsCleanupCache(secrets, volCtx map[string]string, options []string, force bool) error {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
+func (j *juicefs) JfsCleanupCache(volumeId string, secrets map[string]string, options []string) error {
+	jfsSetting, err := config.ParseSetting(secrets, map[string]string{}, options, !config.ByProcess)
 	if err != nil {
 		klog.Errorf("Parse config error: %v", err)
 		return err
-	}
-	// execute only when force or cleanCache true in volCtx
-	if !force && !jfsSetting.CleanCache {
-		return nil
 	}
 	// no cache dir, no need to clean
 	if len(jfsSetting.CacheDirs) == 0 {
 		return nil
 	}
-	if jfsSetting.UsePod {
-		return j.podMount.CleanCache(jfsSetting.UUID, jfsSetting.VolumeId, jfsSetting.CacheDirs)
+	jfsSetting.UUID = jfsSetting.Name
+	if jfsSetting.IsCe {
+		if jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Source); err != nil {
+			klog.Errorf("Get juicefs uuid error: %v", err)
+			return err
+		}
 	}
-	return j.processMount.CleanCache(jfsSetting.UUID, jfsSetting.VolumeId, jfsSetting.CacheDirs)
+	if jfsSetting.UsePod {
+		return j.podMount.CleanCache(jfsSetting.UUID, volumeId, jfsSetting.CacheDirs)
+	}
+	return j.processMount.CleanCache(jfsSetting.UUID, volumeId, jfsSetting.CacheDirs)
 }
 
 // JfsMount auths and mounts JuiceFS
@@ -219,8 +222,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	if jfsSetting.IsCe {
 	}
 	jfsSetting.TargetPath = target
-	source, isCe := secrets["metaurl"]
-	if !isCe {
+	if !jfsSetting.IsCe {
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
@@ -232,7 +234,6 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 				jfsSetting.FormatCmd = res
 			}
 		}
-		jfsSetting.Source = secrets["name"]
 		jfsSetting.UUID = secrets["name"]
 	} else {
 		noUpdate := false
@@ -247,15 +248,10 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
-		// Default use redis:// scheme
-		if !strings.Contains(source, "://") {
-			source = "redis://" + source
-		}
-		jfsSetting.Source = source
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
 		}
-		jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Name)
+		jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Source)
 		if err != nil {
 			return nil, err
 		}

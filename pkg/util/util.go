@@ -336,7 +336,7 @@ func PatchPodAnnotation(client *k8s.K8sClient, pod *corev1.Pod, annotation map[s
 	return nil
 }
 
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandStringRunes(n int) string {
 	b := make([]rune, n)
@@ -348,7 +348,7 @@ func RandStringRunes(n int) string {
 
 // GetVolumeUUID get UUID from result of `juicefs status <volumeName>`
 func GetVolumeUUID(name string) (string, error) {
-	stdout, err := exec.Command(config.CeCliPath, "status", name).Output()
+	stdout, err := exec.Command(config.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
 		klog.Errorf("juicefs status: output is '%s'", stdout)
 		return "", err

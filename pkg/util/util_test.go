@@ -388,7 +388,7 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 	Convey("Test juicefs status", t, func() {
 		Convey("normal", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "Output", func(_ *exec.Cmd) ([]byte, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
 				return []byte(`
 2022/05/05 07:16:30.498501 juicefs[284385] <INFO>: Meta address: redis://127.0.0.1/1
 2022/05/05 07:16:30.500868 juicefs[284385] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly.

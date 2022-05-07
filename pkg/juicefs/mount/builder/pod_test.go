@@ -246,7 +246,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
@@ -255,7 +255,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 4 || len(volumeMounts) != 4 {
@@ -264,7 +264,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 6 || len(volumeMounts) != 6 {
@@ -273,7 +273,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 7 || len(volumeMounts) != 7 {
@@ -314,7 +314,7 @@ func TestNewMountPod(t *testing.T) {
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true)
 	r := Builder{s}
 	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes()
+	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}

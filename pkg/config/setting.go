@@ -120,10 +120,19 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		}
 	}
 
-	m, ok := secrets["metaurl"]
-	jfsSetting.MetaUrl = m
-	jfsSetting.IsCe = ok
 	jfsSetting.UsePod = usePod
+	source, ok := secrets["metaurl"]
+	if ok {
+		jfsSetting.MetaUrl = source
+		jfsSetting.IsCe = ok
+		// Default use redis:// scheme
+		if !strings.Contains(source, "://") {
+			source = "redis://" + source
+		}
+		jfsSetting.Source = source
+	} else {
+		jfsSetting.Source = jfsSetting.Name
+	}
 
 	if secrets["secretkey"] != "" {
 		jfsSetting.SecretKey = secrets["secretkey"]

@@ -18,6 +18,7 @@ package apps
 
 import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -38,7 +39,12 @@ func PVManage() error {
 		return err
 	}
 	// 2. init Reconciler（Controller）
-	if err := controller.SetupWithPVManager(mgr); err != nil {
+	k8sClient, err := k8s.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Could not create kube client %v", err)
+		os.Exit(0)
+	}
+	if err := controller.NewPVReconciler(k8sClient).SetupWithPVManager(mgr); err != nil {
 		klog.Error("Init PV Reconciler error: %v", err)
 		return err
 	}

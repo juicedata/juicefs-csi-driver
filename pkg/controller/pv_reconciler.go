@@ -23,6 +23,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -40,18 +41,61 @@ type PVReconciler struct {
 	juicefs juicefs.Interface
 }
 
-func (p PVReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(5).Infof("Receive PersistentVolume deleted. %v", request)
-	pv, err := p.Client.GetPersistentVolume(request.Name)
-	if err != nil {
-		klog.Errorf("Fetch PV %s error: %v", request.Name, err)
-		return reconcile.Result{}, err
+func NewPVReconciler(k8sClient *k8sclient.K8sClient) *PVReconciler {
+	mounter := mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
 	}
-	secretName, secretNamespace := pv.Spec.CSI.VolumeAttributes[driver.PublishSecretName], pv.Spec.CSI.VolumeAttributes[driver.PublishSecretNamespace]
+	jfs := juicefs.NewJfsProvider(&mounter, k8sClient)
+	return &PVReconciler{
+		SafeFormatAndMount: mounter,
+		Client:             k8sClient,
+		juicefs:            jfs,
+	}
+}
+
+func (p PVReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	return reconcile.Result{}, nil
+}
+
+func (p PVReconciler) SetupWithPVManager(mgr ctrl.Manager) error {
+	c, err := controller.New("persistentvolume", mgr, controller.Options{
+		Reconciler: p,
+	})
+	if err != nil {
+		return err
+	}
+	return c.Watch(
+		&source.Kind{Type: &corev1.PersistentVolume{}},
+		&handler.EnqueueRequestForObject{}, predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) (onCreate bool) {
+				// ignore create event
+				return false
+			},
+			UpdateFunc: func(e event.UpdateEvent) (needUpdate bool) {
+				// ignore create event
+				return false
+			},
+			DeleteFunc: p.DeleteFunc,
+		},
+	)
+}
+
+func (p PVReconciler) DeleteFunc(e event.DeleteEvent) bool {
+	pv := e.Object.(*corev1.PersistentVolume)
+	klog.V(5).Infof("Receive PersistentVolume deleted. %v", pv.Name)
+	if pv.Spec.CSI != nil && pv.Spec.CSI.Driver != driver.DriverName {
+		return false
+	}
+	if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
+		return false
+	}
+
+	secretName, secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Name, pv.Spec.CSI.NodePublishSecretRef.Namespace
 	secret, err := p.Client.GetSecret(secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVReconciler]: Get Secret error: %v", err)
-		return reconcile.Result{}, nil
+		return false
 	}
 	secretData := make(map[string]string)
 	for k, v := range secret.Data {
@@ -69,36 +113,9 @@ func (p PVReconciler) Reconcile(ctx context.Context, request reconcile.Request) 
 		mountOptions = append(mountOptions, pv.Spec.MountOptions...)
 	}
 
-	if err := p.juicefs.JfsCleanupCache(secretData, volCtx, mountOptions, true); err != nil {
+	if err := p.juicefs.JfsCleanupCache(pv.Spec.CSI.VolumeHandle, secretData, mountOptions); err != nil {
 		klog.Errorf("[PVReconciler] clean up juicefs cache error: %s", err)
-		return reconcile.Result{}, err
+		return false
 	}
-	return reconcile.Result{}, nil
-}
-
-func SetupWithPVManager(mgr ctrl.Manager) error {
-	c, _ := controller.New("persistentvolume", mgr, controller.Options{})
-	return c.Watch(
-		&source.Kind{Type: &corev1.PersistentVolume{}},
-		&handler.EnqueueRequestForObject{}, predicate.Funcs{
-			CreateFunc: func(e event.CreateEvent) (onCreate bool) {
-				// ignore create event
-				return false
-			},
-			UpdateFunc: func(e event.UpdateEvent) (needUpdate bool) {
-				// ignore create event
-				return false
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				pv := e.Object.(*corev1.PersistentVolume)
-				if pv.Spec.CSI != nil && pv.Spec.CSI.Driver != driver.DriverName {
-					return false
-				}
-				if pv.Spec.PersistentVolumeReclaimPolicy != corev1.PersistentVolumeReclaimDelete {
-					return false
-				}
-				return true
-			},
-		},
-	)
+	return false
 }

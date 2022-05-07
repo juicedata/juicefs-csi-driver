@@ -62,6 +62,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:      s,
 				Configs:   map[string]string{},
 				UsePod:    true,
+				Source:    "test",
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 			},
@@ -81,6 +82,7 @@ func TestParseSecret(t *testing.T) {
 			args: args{secrets: map[string]string{"name": "test"}, usePod: true},
 			want: &JfsSetting{
 				Name:      "test",
+				Source:    "test",
 				Configs:   map[string]string{},
 				Envs:      map[string]string{},
 				Options:   []string{},
@@ -94,6 +96,7 @@ func TestParseSecret(t *testing.T) {
 			args: args{secrets: map[string]string{"name": "test", "storage": "ceph"}, usePod: true},
 			want: &JfsSetting{
 				Name:      "test",
+				Source:    "test",
 				Storage:   "ceph",
 				Configs:   map[string]string{},
 				Envs:      map[string]string{},
@@ -112,6 +115,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:             "test",
+				Source:           "test",
 				Storage:          "s3",
 				UsePod:           true,
 				Configs:          map[string]string{},
@@ -131,6 +135,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:             "test",
+				Source:           "test",
 				Storage:          "s3",
 				UsePod:           true,
 				Configs:          map[string]string{},
@@ -150,6 +155,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:               "test",
+				Source:             "test",
 				Storage:            "s3",
 				UsePod:             true,
 				MountPodMemRequest: "1G",
@@ -168,6 +174,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:               "test",
+				Source:             "test",
 				MountPodCpuRequest: "1",
 				Configs:            map[string]string{},
 				Envs:               map[string]string{},
@@ -184,6 +191,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:           "test",
+				Source:         "test",
 				MountPodLabels: map[string]string{"a": "b"},
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
@@ -208,6 +216,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:           "test",
+				Source:         "test",
 				MountPodLabels: map[string]string{"a": "b"},
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
@@ -224,6 +233,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:                "test",
+				Source:              "test",
 				MountPodAnnotations: map[string]string{"a": "b"},
 				Configs:             map[string]string{},
 				Envs:                map[string]string{},
@@ -251,6 +261,7 @@ func TestParseSecret(t *testing.T) {
 			want: &JfsSetting{
 				UsePod:                 true,
 				Name:                   "test",
+				Source:                 "test",
 				Storage:                "s3",
 				MountPodServiceAccount: "test",
 				Configs:                map[string]string{},
@@ -265,6 +276,7 @@ func TestParseSecret(t *testing.T) {
 			args: args{secrets: map[string]string{"configs": "a: b", "name": "test"}},
 			want: &JfsSetting{
 				Name:      "test",
+				Source:    "test",
 				Configs:   map[string]string{"a": "b"},
 				Envs:      map[string]string{},
 				Options:   []string{},
@@ -286,6 +298,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:           "test",
+				Source:         "test",
 				MountPodLabels: map[string]string{"a": "b"},
 				Configs:        map[string]string{},
 				Envs:           map[string]string{},
@@ -319,6 +332,7 @@ func TestParseSecret(t *testing.T) {
 			},
 			want: &JfsSetting{
 				Name:          "abc",
+				Source:        "abc",
 				SecretKey:     "abc",
 				SecretKey2:    "abc",
 				Token:         "abc",

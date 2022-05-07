@@ -240,15 +240,6 @@ func Test_jfs_GetBasePath(t *testing.T) {
 	}
 }
 
-func TestNewJfsProvider(t *testing.T) {
-	Convey("Test NewJfsProvider", t, func() {
-		Convey("normal", func() {
-			_, err := NewJfsProvider(nil, nil)
-			So(err, ShouldBeNil)
-		})
-	})
-}
-
 func Test_juicefs_JfsMount(t *testing.T) {
 	Convey("Test JfsMount", t, func() {
 		Convey("ee normal", func() {
