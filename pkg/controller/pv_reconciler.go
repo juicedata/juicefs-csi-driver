@@ -83,7 +83,7 @@ func (p PVReconciler) SetupWithPVManager(mgr ctrl.Manager) error {
 
 func (p PVReconciler) DeleteFunc(e event.DeleteEvent) bool {
 	pv := e.Object.(*corev1.PersistentVolume)
-	klog.V(5).Infof("Receive PersistentVolume deleted. %v", pv.Name)
+	klog.V(6).Infof("Receive PersistentVolume deleted. %v", pv.Name)
 	if pv.Spec.CSI != nil && pv.Spec.CSI.Driver != driver.DriverName {
 		return false
 	}
@@ -102,7 +102,6 @@ func (p PVReconciler) DeleteFunc(e event.DeleteEvent) bool {
 		secretData[k] = string(v)
 	}
 	volCtx := pv.Spec.CSI.VolumeAttributes
-	klog.V(5).Infof("[PVReconciler]: volume context: %v", volCtx)
 
 	mountOptions := []string{}
 	// get mountOptions from PV.volumeAttributes or StorageClass.parameters
@@ -113,6 +112,7 @@ func (p PVReconciler) DeleteFunc(e event.DeleteEvent) bool {
 		mountOptions = append(mountOptions, pv.Spec.MountOptions...)
 	}
 
+	klog.V(5).Infof("[PVReconciler]: clean cache of volume %s", pv.Name)
 	if err := p.juicefs.JfsCleanupCache(pv.Spec.CSI.VolumeHandle, secretData, mountOptions); err != nil {
 		klog.Errorf("[PVReconciler] clean up juicefs cache error: %s", err)
 		return false

@@ -197,6 +197,7 @@ func (j *juicefs) JfsCleanupCache(volumeId string, secrets map[string]string, op
 	}
 	// no cache dir, no need to clean
 	if len(jfsSetting.CacheDirs) == 0 {
+		klog.Infof("[JfsCleanupCache] No cache in volume %s, no need to clean.", volumeId)
 		return nil
 	}
 	jfsSetting.UUID = jfsSetting.Name
