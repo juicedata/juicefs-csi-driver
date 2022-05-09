@@ -22,18 +22,14 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	utilio "k8s.io/kubernetes/pkg/util/io"
 	"math/rand"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -344,22 +340,4 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
-}
-
-// GetVolumeUUID get UUID from result of `juicefs status <volumeName>`
-func GetVolumeUUID(name string) (string, error) {
-	stdout, err := exec.Command(config.CeCliPath, "status", name).CombinedOutput()
-	if err != nil {
-		klog.Errorf("juicefs status: output is '%s'", stdout)
-		return "", err
-	}
-
-	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
-	idStr := matchExp.FindString(string(stdout))
-	idStrs := strings.Split(idStr, "\"")
-	if len(idStrs) < 4 {
-		return "", status.Errorf(codes.Internal, "get uuid of %s error", name)
-	}
-
-	return idStrs[3], nil
 }

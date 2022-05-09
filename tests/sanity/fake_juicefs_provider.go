@@ -33,6 +33,14 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
+func (j *fakeJfsProvider) JfsCleanupCache(volumeId string, secrets map[string]string, options []string) error {
+	return nil
+}
+
+func (j *fakeJfsProvider) GetJfsVolUUID(name string) (string, error) {
+	return "", nil
+}
+
 func (j *fakeJfsProvider) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
 	return nil
 }

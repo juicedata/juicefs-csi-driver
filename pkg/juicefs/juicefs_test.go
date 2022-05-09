@@ -18,7 +18,6 @@ package juicefs
 
 import (
 	"errors"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -55,10 +54,6 @@ func Test_jfs_CreateVol(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, nil
 			})
 			defer patch3.Reset()
-			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
-				return "test", nil
-			})
-			defer patch5.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -154,10 +149,6 @@ func Test_jfs_DeleteVol(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch2.Reset()
-			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
-				return "test", nil
-			})
-			defer patch5.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -294,7 +285,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -362,7 +353,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -396,7 +387,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyFunc(util.GetVolumeUUID, func(name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -1010,6 +1001,72 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				K8sClient: nil,
 			}
 			_, err := jfs.ceFormat(nil, true, nil)
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
+func Test_juicefs_getVolumeUUID(t *testing.T) {
+	Convey("Test juicefs status", t, func() {
+		Convey("normal", func() {
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(`
+2022/05/05 07:16:30.498501 juicefs[284385] <INFO>: Meta address: redis://127.0.0.1/1
+2022/05/05 07:16:30.500868 juicefs[284385] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly.
+2022/05/05 07:16:30.501443 juicefs[284385] <INFO>: Ping redis: 536.562µs
+{
+  "Setting": {
+    "Name": "minio",
+    "UUID": "e267db92-051d-4214-b1aa-e97bf61bff1a",
+    "Storage": "minio",
+    "Bucket": "http://10.98.166.242:9000/minio/test2",
+    "AccessKey": "minioadmin",
+    "SecretKey": "removed",
+    "BlockSize": 4096,
+    "Compression": "none",
+    "Shards": 0,
+    "Partitions": 0,
+    "Capacity": 0,
+    "Inodes": 0,
+    "TrashDays": 2
+  },
+  "Sessions": []
+}
+`), nil
+			})
+			defer patch3.Reset()
+
+			mounter := &mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}
+			jfs := juicefs{
+				SafeFormatAndMount: *mounter,
+				K8sClient:          nil,
+				processMount:       podmount.NewProcessMount(*mounter),
+			}
+			id, err := jfs.GetJfsVolUUID("test")
+			So(err, ShouldBeNil)
+			So(id, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
+		})
+		Convey("status error", func() {
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "Output", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), errors.New("test")
+			})
+			defer patch3.Reset()
+
+			mounter := &mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			}
+			jfs := juicefs{
+				SafeFormatAndMount: *mounter,
+				K8sClient:          nil,
+				processMount:       podmount.NewProcessMount(*mounter),
+			}
+			_, err := jfs.GetJfsVolUUID("test")
 			So(err, ShouldNotBeNil)
 		})
 	})

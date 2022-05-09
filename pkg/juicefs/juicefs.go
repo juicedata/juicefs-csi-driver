@@ -19,12 +19,12 @@ package juicefs
 import (
 	"context"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,6 +49,7 @@ type Interface interface {
 	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
 	JfsCleanupCache(volumeId string, secrets map[string]string, options []string) error
+	GetJfsVolUUID(name string) (string, error)
 	Version() ([]byte, error)
 }
 
@@ -200,7 +201,7 @@ func (j *juicefs) JfsCleanupCache(volumeId string, secrets map[string]string, op
 	}
 	jfsSetting.UUID = jfsSetting.Name
 	if jfsSetting.IsCe {
-		if jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Source); err != nil {
+		if jfsSetting.UUID, err = j.GetJfsVolUUID(jfsSetting.Source); err != nil {
 			klog.Errorf("Get juicefs uuid error: %v", err)
 			return err
 		}
@@ -251,7 +252,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
 		}
-		jfsSetting.UUID, err = util.GetVolumeUUID(jfsSetting.Source)
+		jfsSetting.UUID, err = j.GetJfsVolUUID(jfsSetting.Source)
 		if err != nil {
 			return nil, err
 		}
@@ -285,6 +286,24 @@ func (j juicefs) getUniqueId(volumeId string) (string, error) {
 		}
 	}
 	return volumeId, nil
+}
+
+// GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
+	stdout, err := j.Exec.Command(config.CeCliPath, "status", name).CombinedOutput()
+	if err != nil {
+		klog.Errorf("juicefs status: output is '%s'", stdout)
+		return "", err
+	}
+
+	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
+	idStr := matchExp.FindString(string(stdout))
+	idStrs := strings.Split(idStr, "\"")
+	if len(idStrs) < 4 {
+		return "", status.Errorf(codes.Internal, "get uuid of %s error", name)
+	}
+
+	return idStrs[3], nil
 }
 
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
