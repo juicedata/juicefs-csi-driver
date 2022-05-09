@@ -452,8 +452,8 @@ def check_mount_pod_refs(pod_name, replicas):
         else:
             return False
     num = 0
-    for k in annotations.keys():
-        if k.startswith("juicefs-"):
+    for k, v in annotations.items():
+        if k.startswith("juicefs-") and "/var/lib/kubelet/pods" in v:
             num += 1
     return num == replicas
 
