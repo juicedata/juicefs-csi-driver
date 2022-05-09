@@ -35,7 +35,7 @@ func PVManage() error {
 		Port:   9443,
 	})
 	if err != nil {
-		klog.Error("New PV Manager error: %v", err)
+		klog.Errorf("New PV Manager error: %v", err)
 		return err
 	}
 	// 2. init Reconciler（Controller）
@@ -45,14 +45,14 @@ func PVManage() error {
 		os.Exit(0)
 	}
 	if err := controller.NewPVReconciler(k8sClient).SetupWithPVManager(mgr); err != nil {
-		klog.Error("Init PV Reconciler error: %v", err)
+		klog.Errorf("Init PV Reconciler error: %v", err)
 		return err
 	}
 
 	// 3. start Manager
 	go func() {
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			klog.Error("Start PV Manager error: %v", err)
+			klog.Errorf("Start PV Manager error: %v", err)
 			os.Exit(0)
 		}
 	}()
