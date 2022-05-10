@@ -357,9 +357,9 @@ class Pod:
         client.CoreV1Api().delete_namespaced_pod(name=self.name, namespace=self.namespace)
 
     def create(self):
-        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"
+        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
         if self.out_put != "":
-            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 5; done".format(self.out_put)
+            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
         container = client.V1Container(
             name="app",
             image="centos",
@@ -442,8 +442,7 @@ def check_mount_point(mount_path, check_path):
 def check_host_dir(check_path):
     file_exist = True
     for i in range(0, 60):
-        f = pathlib.Path(check_path)
-        if f.exists() is False:
+        if os.path.exists(check_path) is False:
             file_exist = False
             break
         time.sleep(5)
@@ -990,7 +989,13 @@ def test_static_cache_clean_upon_umount():
         uuid = annotations["juicefs-uuid"]
     print("Get volume uuid {}".format(uuid))
 
+    # check cache dir not empty
     time.sleep(5)
+    print("Watch cache dir clear..")
+    exist = check_host_dir(f"/var/jfsCache/{uuid}/raw")
+    if not exist:
+        print(os.listdir("/var/jfsCache"))
+        die("Cache empty")
     print("App pod delete..")
     pod.delete()
     print("Wait for a sec..")
