@@ -150,12 +150,13 @@ class PVC:
 
 
 class PV:
-    def __init__(self, *, name, access_mode, volume_handle, secret_name):
+    def __init__(self, *, name, access_mode, volume_handle, secret_name, parameters=None):
         self.name = RESOURCE_PREFIX + name
         self.access_mode = access_mode
         self.volume_handle = volume_handle
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
+        self.parameters = parameters
 
     def create(self):
         spec = client.V1PersistentVolumeSpec(
@@ -171,6 +172,7 @@ class PV:
                     name=self.secret_name,
                     namespace=self.secret_namespace
                 ),
+                volume_attributes=self.parameters,
             )
         )
         pv = client.V1PersistentVolume(
@@ -1000,6 +1002,64 @@ def test_static_cache_clean():
             print("PVC is deleted.")
             break
         time.sleep(5)
+
+    # check cache dir is deleted
+    print("Watch cache dir clear..")
+    exist = check_host_dir(f"/var/jfsCache/{uuid}/raw")
+    if exist:
+        die("Cache not clear")
+
+    print("Test pass.")
+
+
+def test_static_cache_clean_upon_umount():
+    print("[test case] Pod with static storage and clean cache upon umount begin..")
+    # deploy pv
+    pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
+            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"})
+    print("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-static-cache-umount", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
+    print("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    pod = Pod(name="app-static-cache-umount", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
+              out_put=out_put)
+    pod.create()
+    print("Watch for pod {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
+
+    # check mount point
+    print("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    print("Get volume_id {}".format(volume_id))
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/" + out_put
+    result = check_mount_point(mount_path, check_path)
+    if not result:
+        die("mount Point of /jfs/out.txt are not ready within 5 min.")
+
+    # get volume uuid
+    uuid = SECRET_NAME
+    if IS_CE:
+        mount_pod_name = get_mount_pod_name(volume_id)
+        mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
+        annotations = mount_pod.metadata.annotations
+        if annotations is None or annotations.get("juicefs-uuid") is None:
+            die("Can't get uuid of volume")
+        uuid = annotations["juicefs-uuid"]
+    print("Get volume uuid {}".format(uuid))
+
+    time.sleep(5)
+    print("App pod delete..")
+    pod.delete()
+    print("Wait for a sec..")
 
     # check cache dir is deleted
     print("Watch cache dir clear..")
