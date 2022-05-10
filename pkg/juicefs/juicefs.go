@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -47,6 +48,7 @@ type Interface interface {
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
 	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
+	GetJfsVolUUID(name string) (string, error)
 	Version() ([]byte, error)
 }
 
@@ -123,7 +125,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
-func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) (Interface, error) {
+func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) Interface {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -133,7 +135,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	processMnt := podmount.NewProcessMount(*mounter)
 	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
-	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
+	return &juicefs{*mounter, k8sClient, podMnt, processMnt}
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -187,16 +189,14 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, !config.ByProcess)
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
 	jfsSetting.VolumeId = volumeID
 	jfsSetting.TargetPath = target
-	jfsSetting.Options = options
-	source, isCe := secrets["metaurl"]
-	if !isCe {
+	if !jfsSetting.IsCe {
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
@@ -208,7 +208,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 				jfsSetting.FormatCmd = res
 			}
 		}
-		jfsSetting.Source = secrets["name"]
+		jfsSetting.UUID = secrets["name"]
 	} else {
 		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {
@@ -222,13 +222,12 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
-		// Default use redis:// scheme
-		if !strings.Contains(source, "://") {
-			source = "redis://" + source
-		}
-		jfsSetting.Source = source
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
+		}
+		jfsSetting.UUID, err = j.GetJfsVolUUID(jfsSetting.Source)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -260,6 +259,24 @@ func (j juicefs) getUniqueId(volumeId string) (string, error) {
 		}
 	}
 	return volumeId, nil
+}
+
+// GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
+	stdout, err := j.Exec.Command(config.CeCliPath, "status", name).CombinedOutput()
+	if err != nil {
+		klog.Errorf("juicefs status: output is '%s'", stdout)
+		return "", err
+	}
+
+	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
+	idStr := matchExp.FindString(string(stdout))
+	idStrs := strings.Split(idStr, "\"")
+	if len(idStrs) < 4 {
+		return "", status.Errorf(codes.Internal, "get uuid of %s error", name)
+	}
+
+	return idStrs[3], nil
 }
 
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {

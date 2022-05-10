@@ -35,6 +35,21 @@ func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
 	return m.recorder
 }
 
+// GetJfsVolUUID mocks base method.
+func (m *MockInterface) GetJfsVolUUID(arg0 string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetJfsVolUUID indicates an expected call of GetJfsVolUUID.
+func (mr *MockInterfaceMockRecorder) GetJfsVolUUID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJfsVolUUID", reflect.TypeOf((*MockInterface)(nil).GetJfsVolUUID), arg0)
+}
+
 // GetMountRefs mocks base method.
 func (m *MockInterface) GetMountRefs(arg0 string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -63,6 +78,20 @@ func (m *MockInterface) IsLikelyNotMountPoint(arg0 string) (bool, error) {
 func (mr *MockInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsLikelyNotMountPoint", reflect.TypeOf((*MockInterface)(nil).IsLikelyNotMountPoint), arg0)
+}
+
+// JfsCleanupCache mocks base method.
+func (m *MockInterface) JfsCleanupCache(arg0 string, arg1 map[string]string, arg2 []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JfsCleanupCache", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// JfsCleanupCache indicates an expected call of JfsCleanupCache.
+func (mr *MockInterfaceMockRecorder) JfsCleanupCache(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCleanupCache", reflect.TypeOf((*MockInterface)(nil).JfsCleanupCache), arg0, arg1, arg2)
 }
 
 // JfsCleanupMountPoint mocks base method.

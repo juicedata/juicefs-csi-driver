@@ -49,6 +49,20 @@ func (mr *MockMntInterfaceMockRecorder) AddRefOfMount(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRefOfMount", reflect.TypeOf((*MockMntInterface)(nil).AddRefOfMount), arg0, arg1)
 }
 
+// CleanCache mocks base method.
+func (m *MockMntInterface) CleanCache(arg0, arg1 string, arg2 []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanCache", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CleanCache indicates an expected call of CleanCache.
+func (mr *MockMntInterfaceMockRecorder) CleanCache(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanCache", reflect.TypeOf((*MockMntInterface)(nil).CleanCache), arg0, arg1, arg2)
+}
+
 // GetMountRefs mocks base method.
 func (m *MockMntInterface) GetMountRefs(arg0 string) ([]string, error) {
 	m.ctrl.T.Helper()

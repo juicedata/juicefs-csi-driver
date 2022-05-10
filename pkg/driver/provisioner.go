@@ -32,10 +32,10 @@ import (
 )
 
 var (
-	provisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
-	provisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
-	publishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
-	publishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
+	ProvisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
+	ProvisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
+	PublishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
+	PublishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
 )
 
 type provisionerService struct {
@@ -44,12 +44,7 @@ type provisionerService struct {
 }
 
 func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
-	jfs, err := juicefs.NewJfsProvider(nil, k8sClient)
-	if err != nil {
-		klog.Errorf("Error new jfs provider: %v", err)
-		return provisionerService{}, err
-	}
-
+	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 	stdoutStderr, err := jfs.Version()
 	if err != nil {
 		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
@@ -97,7 +92,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	if options.StorageClass.Parameters["pathPattern"] != "" {
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
-	secretName, secretNamespace := sc.Parameters[provisionerSecretName], sc.Parameters[provisionerSecretNamespace]
+	secretName, secretNamespace := sc.Parameters[ProvisionerSecretName], sc.Parameters[ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
@@ -133,8 +128,8 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 					FSType:           "juicefs",
 					VolumeAttributes: volCtx,
 					NodePublishSecretRef: &corev1.SecretReference{
-						Name:      sc.Parameters[publishSecretName],
-						Namespace: sc.Parameters[publishSecretNamespace],
+						Name:      sc.Parameters[PublishSecretName],
+						Namespace: sc.Parameters[PublishSecretNamespace],
 					},
 				},
 			},
@@ -158,7 +153,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		return nil
 	}
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
-	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[provisionerSecretName], volume.Spec.CSI.VolumeAttributes[provisionerSecretNamespace]
+	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[ProvisionerSecretName], volume.Spec.CSI.VolumeAttributes[ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)

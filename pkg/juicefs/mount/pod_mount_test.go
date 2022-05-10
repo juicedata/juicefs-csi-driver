@@ -500,6 +500,8 @@ func TestWaitUntilMount(t *testing.T) {
 			wantErr: false,
 			wantAnno: map[string]string{
 				util.GetReferenceKey("/mnt/iii"): "/mnt/iii",
+				jfsConfig.UniqueId:               "",
+				jfsConfig.JuiceFSUUID:            "",
 			},
 		},
 	}

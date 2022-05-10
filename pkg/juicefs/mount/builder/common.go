@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Builder struct {
@@ -159,4 +160,24 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 		)
 	}
 	return volumeMounts
+}
+
+func (r *Builder) generateCleanCachePod() *corev1.Pod {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: config.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.PodTypeValue,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:  "jfs-cache-clean",
+				Image: config.MountImage,
+			}},
+		},
+	}
+	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationNone)
+	return pod
 }

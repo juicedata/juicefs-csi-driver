@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"os"
 	"os/exec"
 	"strings"
@@ -292,7 +293,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			klog.Errorf("Clean mount point %s error: %v", sourcePath, err)
 		}
-		return nil
+		// cleanup cache if set
+		return p.CleanUpCache(pod)
 	}
 
 	lock := config.GetPodLock(pod.Name)
@@ -543,4 +545,25 @@ func (p *PodDriver) removeFinalizer(pod *corev1.Pod) error {
 		return err
 	}
 	return nil
+}
+
+func (p PodDriver) CleanUpCache(pod *corev1.Pod) error {
+	if pod.Annotations[config.CleanCache] != "true" {
+		return nil
+	}
+	uuid := pod.Annotations[config.JuiceFSUUID]
+	uniqueId := pod.Annotations[config.UniqueId]
+	if uuid == "" && uniqueId == "" {
+		// no necessary info, return
+		return nil
+	}
+	klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
+	podMnt := podmount.NewPodMount(p.Client, p.SafeFormatAndMount)
+	cacheDirs := []string{}
+	for _, dir := range pod.Spec.Volumes {
+		if strings.HasPrefix(dir.Name, "cachedir-") && dir.HostPath != nil {
+			cacheDirs = append(cacheDirs, dir.HostPath.Path)
+		}
+	}
+	return podMnt.CleanCache(uuid, uniqueId, cacheDirs)
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -24,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"path/filepath"
 	"strings"
 )
 
@@ -41,8 +43,17 @@ func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	return job
 }
 
+func (r *Builder) NewJobForCleanCache(id string) *batchv1.Job {
+	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-cleancache-" + util.RandStringRunes(6)
+	job := r.newCleanJob(jobName)
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCleanCacheCmd(id)}
+	return job
+}
+
 func GenJobNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s", volumeId)
+	h := sha256.New()
+	h.Write([]byte(volumeId))
+	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:16]
 }
 
 func (r *Builder) newJob(jobName string) *batchv1.Job {
@@ -56,6 +67,30 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 		},
 	}
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	job := batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: config.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      jobName,
+					Namespace: config.Namespace,
+				},
+				Spec: podTemplate.Spec,
+			},
+			TTLSecondsAfterFinished: &ttlSecond,
+		},
+	}
+	return &job
+}
+
+func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
+	podTemplate := r.generateCleanCachePod()
+	ttlSecond := int32(1)
+	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	podTemplate.Spec.NodeName = config.NodeName
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -89,6 +124,16 @@ func (r *Builder) getDeleteVolumeCmd() string {
 		jfsPath = config.CliPath
 	}
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
+}
+
+func (r *Builder) getCleanCacheCmd(id string) string {
+	var cleanCmds []string
+	for _, cacheDir := range r.jfsSetting.CacheDirs {
+		// clean up raw dir under cache dir
+		rawPath := filepath.Join(cacheDir, id, "raw")
+		cleanCmds = append(cleanCmds, fmt.Sprintf("if [ -d %s ]; then rm -rf %s; fi;", rawPath, rawPath))
+	}
+	return strings.Join(cleanCmds, "&&")
 }
 
 func (r *Builder) getJobCommand() string {

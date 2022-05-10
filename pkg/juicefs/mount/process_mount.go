@@ -38,6 +38,8 @@ type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
 }
 
+var _ MntInterface = &ProcessMount{}
+
 func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &ProcessMount{mounter}
 }
@@ -217,6 +219,23 @@ func (p *ProcessMount) JUmount(uniqueId, target string) error {
 
 func (p *ProcessMount) AddRefOfMount(target string, podName string) error {
 	panic("implement me")
+}
+
+func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
+	for _, cacheDir := range cacheDirs {
+		// clean up raw dir under cache dir
+		rawPath := filepath.Join(cacheDir, id, "raw")
+		if existed, err := k8sMount.PathExists(rawPath); err != nil {
+			return status.Errorf(codes.Internal, "Could not check raw path %q exists: %v", rawPath, err)
+		} else if existed {
+			stdoutStderr, err := p.Exec.Command("rm", "-rf", rawPath).CombinedOutput()
+			if err != nil {
+				klog.V(5).Infof("CleanCache: rmr output is '%s'", stdoutStderr)
+				return status.Errorf(codes.Internal, "Could not cleanup cache raw path %q: %v", rawPath, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) {
