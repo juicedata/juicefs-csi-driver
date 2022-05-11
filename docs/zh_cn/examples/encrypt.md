@@ -4,7 +4,9 @@ sidebar_label: 数据加密
 
 # 如何在 Kubernetes 中设置数据加密
 
-> 支持的版本：>=v0.13.0
+:::note 注意
+此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动
+:::
 
 JuiceFS 支持数据加密功能，本文档展示如何在 Kubernetes 中使用 JuiceFS 的数据加密功能。
 
@@ -55,7 +57,7 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>} 
+    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>}
 ```
 
 其中，`PASSPHRASE` 为在 JuiceFS 官方控制台开启存储加密功能时使用的密码。

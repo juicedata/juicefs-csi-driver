@@ -12,9 +12,9 @@ JuiceFS CSI Driver 在 v0.11.1 及之后版本才支持 ARM64 环境的容器镜
 请使用 v0.7.1 及之后版本的 Helm chart 进行安装
 :::
 
-在 ARM64 环境中安装最主要的区别是[「第 1 步准备配置文件」](introduction.md#安装-juicefs-csi-driver)，需要在 YAML 文件中新增 `sidecars` 配置，具体内容如下：
+在 ARM64 环境中安装最主要的区别是[「第 1 步准备配置文件」](introduction.md#安装-juicefs-csi-驱动)，需要在 YAML 文件中新增 `sidecars` 配置，具体内容如下：
 
-```yaml
+```yaml {1-10}
 sidecars:
   livenessProbeImage:
     repository: k8s.gcr.io/sig-storage/livenessprobe

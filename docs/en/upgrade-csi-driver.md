@@ -1,21 +1,27 @@
 # Upgrade JuiceFS CSI Driver
 
+Please check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) page of the JuiceFS CSI Driver for information on all released versions.
+
 ## CSI Driver version >= v0.10
 
-Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt
-existing PVs.
+Juicefs CSI Driver separated JuiceFS client from CSI Driver since v0.10.0, CSI Driver upgrade will not interrupt existing PVs.
 
-### v0.13.0
+### Upgrade via Helm
 
-Compared with v0.12.0, v0.13.0 updated the ClusterRole of CSI node & controller, and cannot directly update the image.
+Please run the following commands in sequence to upgrade the JuiceFS CSI Driver:
 
-1. modify your `k8s.yaml` to [v0.13.0](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), then run `kubectl apply -f k8s.yaml`.
-2. Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+```bash
+helm repo update
+helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
 
-   ```bash
-   helm repo update
-   helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
-   ```
+### Upgrade via kubectl
+
+Please modify the image label of the JuiceFS CSI Driver in [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml) to the version that needs to be upgraded (such as `v0.14.0`), then run the following command:
+
+```sh
+kubectl apply -f ./k8s.yaml
+```
 
 ## CSI Driver version < v0.10
 
@@ -40,5 +46,3 @@ If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgra
 ### Other
 
 For versions prior to v0.10.0, you can upgrade only the JuiceFS client without upgrading the CSI Driver. For details, refer to [this document](upgrade-juicefs.md).
-
-Visit [Docker Hub](https://hub.docker.com/r/juicedata/juicefs-csi-driver) for more versions.

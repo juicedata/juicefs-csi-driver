@@ -4,7 +4,9 @@ sidebar_label: Delay Deletion of Mount Pod
 
 # How to delay delete mount pod
 
-> Supported Versions: >=v0.13.0
+:::note
+This feature requires JuiceFS CSI Driver version 0.13.0 and above.
+:::
 
 JuiceFS CSI driver deletes mount pod immediately when no application pod is using it.
 But at some point you may want the mount pod to be deleted lazily.
