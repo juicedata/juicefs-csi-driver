@@ -150,10 +150,13 @@ class PVC:
         return False
 
     def get_volume_id(self):
-        p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
-        pv_name = p.spec.volume_name
-        pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
-        return pv.spec.csi.volume_handle
+        try:
+            p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+            pv_name = p.spec.volume_name
+            pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
+            return pv.spec.csi.volume_handle
+        except Exception as e:
+            die(e)
 
 
 class PV:
