@@ -291,7 +291,8 @@ class Pod:
             resource = event['object']
             if resource.metadata.namespace != "default":
                 continue
-            if self.name == "" and resource.metadata.labels.get("deployment") != self.deployment:
+            if self.name == "" and resource.metadata.labels is not None and \
+                    resource.metadata.labels.get("deployment") != self.deployment:
                 continue
             if self.name != "" and resource.metadata.name != self.name:
                 continue
