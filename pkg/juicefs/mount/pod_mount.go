@@ -354,9 +354,11 @@ func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) er
 	jfsSetting := &jfsConfig.JfsSetting{
 		VolumeId:  volumeId,
 		CacheDirs: cacheDirs,
+		UUID:      id,
 	}
 	r := builder.NewBuilder(jfsSetting)
-	job := r.NewJobForCleanCache(id)
+	job := r.NewJobForCleanCache()
+	klog.V(6).Infof("Clean cache job: %v", job)
 	_, err := p.K8sClient.GetJob(job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("CleanCache: create job %s", job.Name)

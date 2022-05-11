@@ -214,6 +214,37 @@ subjects:
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
+apiVersion: v1
+data:
+  cache-clean.sh: |
+    #!/usr/bin/env bash
+    set -xe
+
+    function main() {
+        CacheDirs="$1"
+        cacheDirs=(${CacheDirs//:/ })
+
+        for((i=0;i<${#cacheDirs[@]};i++)) do
+          local cache="${cacheDirs[i]}"
+          if [ -d $cache ]
+          then
+          echo -e "Cleanup cache $cache"
+          rm -rf $cache
+          fi
+        done
+
+        echo -e "Clean cache successfully."
+    }
+    main "$@"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-clean-cache-script
+  namespace: kube-system
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

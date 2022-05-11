@@ -21,6 +21,7 @@ RESOURCE_PREFIX = "ce-" if IS_CE else "ee-"
 
 SECRET_NAME = os.getenv("JUICEFS_NAME") or "ce-juicefs-secret"
 STORAGECLASS_NAME = "ce-juicefs-sc" if IS_CE else "ee-juicefs-sc"
+
 SECRETs = []
 STORAGECLASSs = []
 DEPLOYMENTs = []
@@ -74,10 +75,12 @@ class Secret:
 
 
 class StorageClass:
-    def __init__(self, *, name, secret_name):
+    def __init__(self, *, name, secret_name, parameters=None, options=None):
         self.name = name
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
+        self.parameters = parameters
+        self.mount_options = options
 
     def create(self):
         sc = client.V1StorageClass(
@@ -87,6 +90,7 @@ class StorageClass:
             provisioner="csi.juicefs.com",
             reclaim_policy="Delete",
             volume_binding_mode="Immediate",
+            mount_options=self.mount_options,
             parameters={
                 "csi.storage.k8s.io/node-publish-secret-name": self.secret_name,
                 "csi.storage.k8s.io/node-publish-secret-namespace": self.secret_namespace,
@@ -94,6 +98,9 @@ class StorageClass:
                 "csi.storage.k8s.io/provisioner-secret-namespace": self.secret_namespace,
             }
         )
+        if self.parameters:
+            for k, v in self.parameters.items():
+                sc.parameters[k] = v
         client.StorageV1Api().create_storage_class(body=sc)
         STORAGECLASSs.append(self)
 
@@ -150,13 +157,14 @@ class PVC:
 
 
 class PV:
-    def __init__(self, *, name, access_mode, volume_handle, secret_name, parameters=None):
+    def __init__(self, *, name, access_mode, volume_handle, secret_name, parameters=None, options=None):
         self.name = RESOURCE_PREFIX + name
         self.access_mode = access_mode
         self.volume_handle = volume_handle
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
+        self.mount_options = options
 
     def create(self):
         spec = client.V1PersistentVolumeSpec(
@@ -164,6 +172,7 @@ class PV:
             capacity={"storage": "10Pi"},
             volume_mode="Filesystem",
             persistent_volume_reclaim_policy="Delete",
+            mount_options=self.mount_options,
             csi=client.V1CSIPersistentVolumeSource(
                 driver="csi.juicefs.com",
                 fs_type="juicefs",
@@ -355,6 +364,7 @@ class Pod:
 
     def delete(self):
         client.CoreV1Api().delete_namespaced_pod(name=self.name, namespace=self.namespace)
+        PODS.remove(self)
 
     def create(self):
         cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
@@ -363,8 +373,7 @@ class Pod:
         container = client.V1Container(
             name="app",
             image="centos",
-            command=["/bin/sh"],
-            args=["-c", cmd],
+            command=["sh", "-c", cmd],
             volume_mounts=[client.V1VolumeMount(
                 name="juicefs-pv",
                 mount_path="/data",
@@ -439,10 +448,21 @@ def check_mount_point(mount_path, check_path):
     return False
 
 
+def check_host_dir_exist(check_path):
+    file_exist = False
+    for i in range(0, 60):
+        if os.path.exists(check_path):
+            file_exist = True
+            break
+        time.sleep(5)
+
+    return file_exist
+
+
 def check_host_dir(check_path):
     file_exist = True
     for i in range(0, 60):
-        if os.path.exists(check_path) is False:
+        if not os.path.exists(check_path):
             file_exist = False
             break
         time.sleep(5)
@@ -530,11 +550,11 @@ def die(e):
     po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     print("Get csi node log:")
     print(po.get_log("juicefs-plugin"))
-    print("Get csi controller log:")
-    controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    print(controller_po.get_log("juicefs-plugin"))
-    print("Get event: ")
-    subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
+    # print("Get csi controller log:")
+    # controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    # print(controller_po.get_log("juicefs-plugin"))
+    # print("Get event: ")
+    # subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
     print("Get pvc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "pvc", "--all-namespaces"], check=True)
     print("Get pv: ")
@@ -947,9 +967,10 @@ def test_static_delete_pod():
 
 def test_static_cache_clean_upon_umount():
     print("[test case] Pod with static storage and clean cache upon umount begin..")
+    cache_dir = "/mnt/static/cache"
     # deploy pv
     pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
-            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"})
+            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
     print("Deploy pv {}".format(pv.name))
     pv.create()
 
@@ -991,19 +1012,97 @@ def test_static_cache_clean_upon_umount():
 
     # check cache dir not empty
     time.sleep(5)
-    print("Watch cache dir clear..")
-    exist = check_host_dir(f"/var/jfsCache/{uuid}/raw")
+    print("Check cache dir..")
+    subprocess.run(["sudo", "chmod", "777", f"{cache_dir}/{uuid}"])
+    exist = check_host_dir_exist(f"{cache_dir}/{uuid}/raw")
     if not exist:
-        print(os.listdir("/var/jfsCache"))
+        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
         die("Cache empty")
     print("App pod delete..")
     pod.delete()
     print("Wait for a sec..")
 
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods {} are not delete within 5 min.".format(pod.name))
     # check cache dir is deleted
     print("Watch cache dir clear..")
-    exist = check_host_dir(f"/var/jfsCache/{uuid}/raw")
+    exist = check_host_dir(f"{cache_dir}/{uuid}/raw")
     if exist:
+        print(f"ls {cache_dir}/{uuid}")
+        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
+        die("Cache not clear")
+
+    print("Test pass.")
+
+
+def test_dynamic_cache_clean_upon_umount():
+    print("[test case] Pod with dynamic storage and clean cache upon umount begin..")
+    cache_dir = "/mnt/dynamic/cache"
+    sc_name = RESOURCE_PREFIX + "-sc-cache"
+    # deploy sc
+    sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
+                      parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
+    print("Deploy storageClass {}".format(sc.name))
+    sc.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-dynamic-cache-umount", access_mode="ReadWriteMany", storage_name=sc.name, pv="")
+    print("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    pod = Pod(name="app-dynamic-cache-umount", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
+              out_put=out_put)
+    pod.create()
+    print("Watch for pod {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods {} are not ready within 5 min.".format(pod.name))
+
+    # check mount point
+    print("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    print("Get volume_id {}".format(volume_id))
+    mount_path = "/mnt/jfs"
+    check_path = mount_path + "/" + volume_id + "/" + out_put
+    result = check_mount_point(mount_path, check_path)
+    if not result:
+        die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    # get volume uuid
+    uuid = SECRET_NAME
+    if IS_CE:
+        mount_pod_name = get_mount_pod_name(volume_id)
+        mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
+        annotations = mount_pod.metadata.annotations
+        if annotations is None or annotations.get("juicefs-uuid") is None:
+            die("Can't get uuid of volume")
+        uuid = annotations["juicefs-uuid"]
+    print("Get volume uuid {}".format(uuid))
+
+    # check cache dir not empty
+    time.sleep(5)
+    print("Check cache dir..")
+    subprocess.run(["sudo", "chmod", "777", f"{cache_dir}/{uuid}"])
+    exist = check_host_dir_exist(f"{cache_dir}/{uuid}/raw")
+    if not exist:
+        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
+        die("Cache empty")
+    print("App pod delete..")
+    pod.delete()
+    print("Wait for a sec..")
+
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods {} are not delete within 5 min.".format(pod.name))
+    # check cache dir is deleted
+    print("Watch cache dir clear..")
+    exist = check_host_dir(f"{cache_dir}/{uuid}/raw")
+    if exist:
+        print(f"ls {cache_dir}/{uuid}")
+        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
         die("Cache not clear")
 
     print("Test pass.")
@@ -1025,16 +1124,17 @@ if __name__ == "__main__":
         clean_juicefs_volume("/mnt/jfs")
         try:
             deploy_secret_and_sc()
-            # test_deployment_using_storage_rw()
-            # test_deployment_using_storage_ro()
-            # test_deployment_use_pv_rw()
-            # test_deployment_use_pv_ro()
-            # test_delete_one()
-            # test_delete_all()
-            # test_delete_pvc()
-            # test_dynamic_delete_pod()
-            # test_static_delete_pod()
+            test_deployment_using_storage_rw()
+            test_deployment_using_storage_ro()
+            test_deployment_use_pv_rw()
+            test_deployment_use_pv_ro()
+            test_delete_one()
+            test_delete_all()
+            test_delete_pvc()
+            test_dynamic_delete_pod()
+            test_static_delete_pod()
             test_static_cache_clean_upon_umount()
+            test_dynamic_cache_clean_upon_umount()
         finally:
             tear_down()
     else:

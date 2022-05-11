@@ -179,5 +179,21 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 		},
 	}
 	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationNone)
+	cmMode := int32(0755)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+		Name: "clean-cache-script",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "juicefs-clean-cache-script",
+				},
+				DefaultMode: &cmMode,
+			},
+		},
+	})
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+		Name:      "clean-cache-script",
+		MountPath: "/root/script",
+	})
 	return pod
 }

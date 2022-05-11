@@ -43,10 +43,10 @@ func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	return job
 }
 
-func (r *Builder) NewJobForCleanCache(id string) *batchv1.Job {
+func (r *Builder) NewJobForCleanCache() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-cleancache-" + util.RandStringRunes(6)
 	job := r.newCleanJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCleanCacheCmd(id)}
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCleanCacheCmd()}
 	return job
 }
 
@@ -126,14 +126,13 @@ func (r *Builder) getDeleteVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
 }
 
-func (r *Builder) getCleanCacheCmd(id string) string {
-	var cleanCmds []string
+func (r *Builder) getCleanCacheCmd() string {
+	cacheDirs := make([]string, 0)
 	for _, cacheDir := range r.jfsSetting.CacheDirs {
 		// clean up raw dir under cache dir
-		rawPath := filepath.Join(cacheDir, id, "raw")
-		cleanCmds = append(cleanCmds, fmt.Sprintf("if [ -d %s ]; then rm -rf %s; fi;", rawPath, rawPath))
+		cacheDirs = append(cacheDirs, filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"))
 	}
-	return strings.Join(cleanCmds, "&&")
+	return fmt.Sprintf("/root/script/cache-clean.sh %s", strings.Join(cacheDirs, ":"))
 }
 
 func (r *Builder) getJobCommand() string {
