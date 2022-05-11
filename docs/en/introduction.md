@@ -24,15 +24,15 @@ There are two ways to install JuiceFS CSI Driver.
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
-To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#install) and ensure that the `helm` binary is in the `PATH` of your shell.
+To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` of your shell.
 
 #### Using Helm To Deploy
 
 1. Prepare a YAML file
 
-   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to [JuiceFS Quick Start Guide](https://juicefs.com/docs/community/quick_start_guide) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank.
+   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to ["JuiceFS Quick Start Guide"](https://juicefs.com/docs/community/quick_start_guide) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank.
 
-   ```yaml
+   ```yaml title="values.yaml"
    storageClasses:
    - name: juicefs-sc
      enabled: true
@@ -59,7 +59,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
    Execute the following command.
 
    ```shell
-   $ ps -ef | grep kubelet | grep root-dir
+   ps -ef | grep kubelet | grep root-dir
    ```
 
    If the result is not empty, it means that the root directory (`--root-dir`) of kubelet is not the default value (`/var/lib/kubelet`) and you need to set `kubeletDir` to the current root directly of kubelet in the configuration file `values.yaml` prepared in the first step.
@@ -112,7 +112,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
      storage:     2 bytes
      ```
 
-   - **Check storage class**: `kubectl get sc juicefs-sc` will show the storage class like this:
+   - **Check StorageClass**: `kubectl get sc juicefs-sc` will show the StorageClass like this:
 
      ```
      NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
@@ -123,12 +123,12 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
 
-1. Check the root directory path of `kubelet`.
+1. Check the root directory path of kubelet
 
    Execute the following command on any non-Master node in the Kubernetes cluster.
 
    ```shell
-   $ ps -ef | grep kubelet | grep root-dir
+   ps -ef | grep kubelet | grep root-dir
    ```
 
 2. Deploy
@@ -173,62 +173,23 @@ Before the example, you need to:
 * Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
 * Install JuiceFS CSI driver following the [Installation](#installation) steps.
 
-### Example links
+### Table of contents
 
-* [Static provisioning](examples/static-provisioning.md)
-* [Dynamic provisioning](examples/dynamic-provisioning.md)
+* [Static Provisioning](examples/static-provisioning.md)
+* [Dynamic Provisioning](examples/dynamic-provisioning.md)
+* [Config File System Settings](examples/format-options.md)
 * [Config Mount Options](examples/mount-options.md)
 * [Mount Subdirectory](examples/subpath.md)
+* [Data Encryption](examples/encrypt.md)
 * [Use ReadWriteMany and ReadOnlyMany](examples/rwx-and-rox.md)
 * [Config Mount Pod Resources](examples/mount-resources.md)
 * [Set Configuration Files and Environment Variables in Mount Pod](examples/config-and-env.md)
+* [Delay Deletion of Mount Pod](examples/delay-delete.md)
 
 :::info
 Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 :::
 
-## CSI Specification Compatibility
+## Known issues
 
-| JuiceFS CSI Driver \ CSI Version | v0.3 | v1.0 |
-| -------------------------------- | ---- | ---- |
-| master branch                    | no   | yes  |
-
-### Interfaces
-
-The following CSI interfaces are implemented:
-
-* Node Controller: CreateVolume, DeleteVolume
-* Node Service: NodePublishVolume, NodeUnpublishVolume, NodeGetCapabilities, NodeGetInfo, NodeGetId
-* Identity Service: GetPluginInfo, GetPluginCapabilities, Probe
-
-## Kubernetes
-
-The following sections are Kubernetes specific.
-
-### Kubernetes Version Compatibility
-
-JuiceFS CSI Driver is compatible with Kubernetes **v1.14+**
-
-Container Images
-
-| JuiceFS CSI Driver Version | Image                                           |
-| -------------------------- | -----------------------------------             |
-| master branch              | `juicedata/juicefs-csi-driver:<latest-release>` |
-
-### Features
-
-* **Static provisioning**: JuiceFS file system needs to be created manually first, then it could be mounted inside container as a PersistentVolume (PV) using the driver.
-* **Mount options**: CSI volume attributes can be specified in the PersistentVolume (PV) to define how the volume should be mounted.
-* **Read write many**: Support `ReadWriteMany` access mode
-* **Sub path**: provision PersistentVolume with subpath in JuiceFS file system
-* **Mount resources**: CSI volume attributes can be specified in the PersistentVolume (PV) to define CPU/memory limits/requests of mount pod.
-* **Config files & env in mount pod**: Support set config files and envs in mount pod.
-* **Dynamic provisioning**: allows storage volumes to be created on-demand
-
-### Known issues
-
-- The mount option `--cache-dir` in JuiceFS CSI driver (>=v0.10.0) does not support wildcards currently.
-
-## Further Readings
-
-- [Access Ceph cluster with librados](ceph.md)
+- JuiceFS CSI Driver v0.10.0 and above does not support wildcards in `--cache-dir` mount option

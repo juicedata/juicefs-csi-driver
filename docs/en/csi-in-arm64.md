@@ -14,7 +14,7 @@ Please use Helm chart v0.7.1 and later to install
 
 The main difference between the installation in the ARM64 environment is ["Step 1 Prepare a YAML file"](introduction.md#using-helm-to-deploy), you need to add the `sidecars` configuration in the YAML file, the details are as follows:
 
-```yaml
+```yaml {1-10}
 sidecars:
   livenessProbeImage:
     repository: k8s.gcr.io/sig-storage/livenessprobe

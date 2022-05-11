@@ -1,10 +1,12 @@
 ---
-sidebar_label: Data Encrypt
+sidebar_label: Data Encryption
 ---
 
 # How to Set Up Data Encryption in Kubernetes
 
-> Supported Versions: >=v0.13.0
+:::note
+This feature requires JuiceFS CSI Driver version 0.13.0 and above.
+:::
 
 JuiceFS supports data encryption, this document shows how to use data encryption of JuiceFS in Kubernetes.
 
@@ -55,7 +57,7 @@ kubectl -n default create secret generic juicefs-secret \
     --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --from-literal=access-key=<ACCESS_KEY> \
     --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>} 
+    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>}
 ```
 
 Among them, `PASSPHRASE` is the password used to enable storage encryption in the JuiceFS official console.

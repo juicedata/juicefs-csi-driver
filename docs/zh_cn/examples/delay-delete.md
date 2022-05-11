@@ -4,7 +4,9 @@ sidebar_label: 延迟删除 Mount Pod
 
 # 如何延迟删除 Mount Pod
 
-> 支持的版本：>=v0.13.0
+:::note 注意
+此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动
+:::
 
 JuiceFS CSI 驱动在没有应用 pod 使用 mount pod 的时候，会立即删除 mount pod。但在某些时候，您可能希望 mount pod 被延迟删除，如果短时间内还有新应用 Pod 使用相同的 JuiceFS
 volume，mount pod 不会被摧毁重建，造成不必要的资源浪费。
