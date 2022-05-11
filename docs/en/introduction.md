@@ -112,7 +112,7 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
      storage:     2 bytes
      ```
 
-   - **Check storage class**: `kubectl get sc juicefs-sc` will show the storage class like this:
+   - **Check StorageClass**: `kubectl get sc juicefs-sc` will show the StorageClass like this:
 
      ```
      NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE

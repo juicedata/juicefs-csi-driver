@@ -114,7 +114,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
      storage:     2 bytes
      ```
 
-   - **检查存储类（Storage Class）**：通过命令 `kubectl get sc juicefs-sc` 会看到类似下面的存储类信息。
+   - **检查存储类（StorageClass）**：通过命令 `kubectl get sc juicefs-sc` 会看到类似下面的存储类信息。
 
      ```
      NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
