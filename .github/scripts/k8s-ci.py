@@ -603,6 +603,17 @@ def test_deployment_using_storage_rw():
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
     print("Test pass.")
+
+    # delete test resources
+    print("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     return
 
 
@@ -623,6 +634,16 @@ def test_deployment_using_storage_ro():
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
+    # delete test resources
+    print("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
     return
 
@@ -660,6 +681,16 @@ def test_deployment_use_pv_rw():
     if not result:
         die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
+    # delete test resources
+    print("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
     return
 
@@ -687,6 +718,16 @@ def test_deployment_use_pv_ro():
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
+    # delete test resources
+    print("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
     return
 
@@ -732,6 +773,16 @@ def test_delete_one():
     if not result:
         raise Exception("Mount pod {} does not have {} juicefs- refs.".format(mount_pod_name, 1))
 
+    # delete test resources
+    print("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
     return
 
@@ -779,6 +830,9 @@ def test_delete_all():
     if not result:
         die("Mount pod {} does not been deleted within 5 min.".format(mount_pod_name))
 
+    # delete test resources
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
     return
 
@@ -900,6 +954,15 @@ def test_dynamic_delete_pod():
         print(e)
         raise e
 
+    # delete test resources
+    print("Remove pod {}".format(pod.name))
+    pod.delete()
+    print("Watch for pods for delete.".format(pod.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods are not delete within 5 min.".format(pod.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
 
 
@@ -967,6 +1030,15 @@ def test_static_delete_pod():
         print(e)
         raise e
 
+    # delete test resources
+    print("Remove pod {}".format(pod.name))
+    pod.delete()
+    print("Watch for pods for delete.".format(pod.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods are not delete within 5 min.".format(pod.name))
+    print("Remove pvc {}".format(pvc.name))
+    pvc.delete()
     print("Test pass.")
 
 
