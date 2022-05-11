@@ -364,7 +364,8 @@ class Pod:
 
     def delete(self):
         client.CoreV1Api().delete_namespaced_pod(name=self.name, namespace=self.namespace)
-        PODS.remove(self)
+        if self in PODS:
+            PODS.remove(self)
 
     def create(self):
         cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
