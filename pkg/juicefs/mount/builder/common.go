@@ -21,6 +21,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"path/filepath"
 )
 
 type Builder struct {
@@ -178,7 +179,7 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 			}},
 		},
 	}
-	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationNone)
+	pod.Spec.Volumes, pod.Spec.Containers[0].VolumeMounts = r.genCacheVolumeInOne()
 	cmMode := int32(0755)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
 		Name: "clean-cache-script",
@@ -196,4 +197,35 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 		MountPath: "/root/script",
 	})
 	return pod
+}
+
+func (r *Builder) genCacheVolumeInOne() ([]corev1.Volume, []corev1.VolumeMount) {
+	volumeMountPrefix := "/var/jfsCache"
+	cacheVolumes := []corev1.Volume{}
+	cacheVolumeMounts := []corev1.VolumeMount{}
+
+	hostPathType := corev1.HostPathDirectory
+
+	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		name := fmt.Sprintf("cachedir-%d", idx)
+
+		hostPathVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"),
+					Type: &hostPathType,
+				},
+			},
+		}
+		cacheVolumes = append(cacheVolumes, hostPathVolume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			MountPath: filepath.Join(volumeMountPrefix, cacheDir),
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	return cacheVolumes, cacheVolumeMounts
 }

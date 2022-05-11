@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	"path/filepath"
 	"strings"
 )
 
@@ -127,12 +126,7 @@ func (r *Builder) getDeleteVolumeCmd() string {
 }
 
 func (r *Builder) getCleanCacheCmd() string {
-	cacheDirs := make([]string, 0)
-	for _, cacheDir := range r.jfsSetting.CacheDirs {
-		// clean up raw dir under cache dir
-		cacheDirs = append(cacheDirs, filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"))
-	}
-	return fmt.Sprintf("/root/script/cache-clean.sh %s", strings.Join(cacheDirs, ":"))
+	return "/root/script/cache-clean.sh /var/jfsCache/*"
 }
 
 func (r *Builder) getJobCommand() string {
