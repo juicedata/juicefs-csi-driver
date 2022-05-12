@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 import pathlib
 import random
@@ -18,6 +19,10 @@ BUCKET = os.getenv("JUICEFS_BUCKET") or ""
 TOKEN = os.getenv("JUICEFS_TOKEN") or ""
 IS_CE = os.getenv("IS_CE") == "True"
 RESOURCE_PREFIX = "ce-" if IS_CE else "ee-"
+FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=FORMAT)
+LOG = logging.getLogger('main')
+LOG.setLevel(logging.INFO)
 
 SECRET_NAME = os.getenv("JUICEFS_NAME") or "ce-juicefs-secret"
 STORAGECLASS_NAME = "ce-juicefs-sc" if IS_CE else "ee-juicefs-sc"
@@ -261,7 +266,7 @@ class Deployment:
                                                                body=deployment)
             except (client.ApiException, ConflictError) as e:
                 if e.reason == "Conflict":
-                    print(e)
+                    LOG.error(e)
                     continue
             break
 
@@ -299,7 +304,7 @@ class Pod:
                 continue
             if self.name != "" and resource.metadata.name != self.name:
                 continue
-            print("Event: %s %s" % (event['type'], event['object'].metadata.name))
+            LOG.info("Event: %s %s" % (event['type'], event['object'].metadata.name))
             if self.__is_pod_ready(resource):
                 if self.name == "":
                     self.pods.append(resource)
@@ -313,13 +318,13 @@ class Pod:
     @staticmethod
     def __is_pod_ready(resource):
         if resource.status.phase.lower() != "running":
-            print("Pod {} status phase: {}".format(resource.metadata.name, resource.status.phase))
+            LOG.info("Pod {} status phase: {}".format(resource.metadata.name, resource.status.phase))
             return False
         conditions = resource.status.conditions
         for c in conditions:
             if c.status != "True":
                 return False
-        print("Pod {} status is ready.".format(resource.metadata.name))
+        LOG.info("Pod {} status is ready.".format(resource.metadata.name))
         return True
 
     def watch_for_delete(self, num):
@@ -334,7 +339,7 @@ class Pod:
                 continue
             if self.name != "" and resource.metadata.name != self.name:
                 continue
-            print("Event: %s %s" % (event['type'], event['object'].metadata.name))
+            LOG.info("Event: %s %s" % (event['type'], event['object'].metadata.name))
             if message_type == "DELETED":
                 if self.name == "":
                     self.pods.append(resource)
@@ -406,7 +411,7 @@ class Pod:
 
 
 def mount_on_host(mount_path):
-    print(f"Mount {mount_path}")
+    LOG.info(f"Mount {mount_path}")
     try:
         if IS_CE:
             subprocess.check_call(
@@ -418,9 +423,9 @@ def mount_on_host(mount_path):
                 ["sudo", "/usr/bin/juicefs", "auth", f"--token={TOKEN}", f"--accesskey={ACCESS_KEY}",
                  f"--secretkey={SECRET_KEY}", f"--bucket={BUCKET}", SECRET_NAME])
             subprocess.check_call(["sudo", "/usr/bin/juicefs", "mount", "-d", SECRET_NAME, mount_path])
-        print("Mount success.")
+        LOG.info("Mount success.")
     except Exception as e:
-        print("Error in juicefs mount: {}".format(e))
+        LOG.info("Error in juicefs mount: {}".format(e))
         raise e
 
 
@@ -428,51 +433,56 @@ def check_mount_point(mount_path, check_path):
     mount_on_host(mount_path)
     for i in range(0, 60):
         try:
-            print("Open file {}".format(check_path))
+            LOG.info("Open file {}".format(check_path))
             f = open(check_path)
             content = f.read(1)
             if content is not None and content != "":
                 f.close()
-                print(f"Umount {mount_path}.")
+                LOG.info(f"Umount {mount_path}.")
                 subprocess.run(["sudo", "umount", mount_path])
                 return True
             time.sleep(5)
             f.close()
         except FileNotFoundError:
-            print(os.listdir(mount_path))
-            print("Can't find file: {}".format(check_path))
+            LOG.info(os.listdir(mount_path))
+            LOG.info("Can't find file: {}".format(check_path))
             time.sleep(5)
             continue
         except Exception as e:
-            print(e)
+            LOG.info(e)
             log = open("/var/log/juicefs.log", "rt")
-            print(log.read())
+            LOG.info(log.read())
             raise e
-    print(f"Umount {mount_path}.")
+    LOG.info(f"Umount {mount_path}.")
     subprocess.run(["sudo", "umount", mount_path])
     return False
 
 
-def check_host_dir_exist(check_path):
-    file_exist = False
+def wait_dir_empty(check_path):
+    LOG.info(f"check path {check_path} empty")
     for i in range(0, 60):
-        if os.path.exists(check_path):
-            file_exist = True
-            break
+        output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if output.stderr.decode("utf-8") != "":
+            LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            return True
+        if output.stdout.decode("utf-8") == "":
+            return True
         time.sleep(5)
 
-    return file_exist
+    return False
 
 
-def check_host_dir(check_path):
-    file_exist = True
+def wait_dir_not_empty(check_path):
+    LOG.info(f"check path {check_path} not empty")
     for i in range(0, 60):
-        if not os.path.exists(check_path):
-            file_exist = False
-            break
+        output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if output.stderr.decode("utf-8") != "":
+            LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            continue
+        if output.stdout.decode("utf-8") != "":
+            return True
         time.sleep(5)
-
-    return file_exist
+    return False
 
 
 def get_mount_pod_name(volume_id):
@@ -497,51 +507,51 @@ def check_mount_pod_refs(pod_name, replicas):
 
 
 def deploy_secret_and_sc():
-    print("Deploy secret & storageClass..")
+    LOG.info("Deploy secret & storageClass..")
     secret = Secret(secret_name=SECRET_NAME)
     secret.create()
-    print("Deploy secret {}".format(secret.secret_name))
+    LOG.info("Deploy secret {}".format(secret.secret_name))
     sc = StorageClass(name=STORAGECLASS_NAME, secret_name=secret.secret_name)
     sc.create()
-    print("Deploy storageClass {}".format(sc.name))
+    LOG.info("Deploy storageClass {}".format(sc.name))
 
 
 def tear_down():
-    print("Tear down all resources begin..")
+    LOG.info("Tear down all resources begin..")
     try:
         for po in PODS:
-            print("Delete pod {}".format(po.name))
+            LOG.info("Delete pod {}".format(po.name))
             po.delete()
-            print("Watch for pods {} for delete.".format(po.name))
+            LOG.info("Watch for pods {} for delete.".format(po.name))
             result = po.watch_for_delete(1)
             if not result:
                 raise Exception("Pods {} are not delete within 5 min.".format(po.name))
         for deploy in DEPLOYMENTs:
-            print("Delete deployment {}".format(deploy.name))
+            LOG.info("Delete deployment {}".format(deploy.name))
             deploy = deploy.refresh()
             deploy.delete()
             pod = Pod(name="", deployment_name=deploy.name, replicas=deploy.replicas)
-            print("Watch for pods of deployment {} for delete.".format(deploy.name))
+            LOG.info("Watch for pods of deployment {} for delete.".format(deploy.name))
             result = pod.watch_for_delete(deploy.replicas)
             if not result:
                 raise Exception("Pods of deployment {} are not delete within 5 min.".format(deploy.name))
         for pvc in PVCs:
-            print("Delete pvc {}".format(pvc.name))
+            LOG.info("Delete pvc {}".format(pvc.name))
             pvc.delete()
         for sc in STORAGECLASSs:
-            print("Delete storageclass {}".format(sc.name))
+            LOG.info("Delete storageclass {}".format(sc.name))
             sc.delete()
         for pv in PVs:
-            print("Delete pv {}".format(pv.name))
+            LOG.info("Delete pv {}".format(pv.name))
             pv.delete()
         for secret in SECRETs:
-            print("Delete secret {}".format(secret.secret_name))
+            LOG.info("Delete secret {}".format(secret.secret_name))
             secret.delete()
-        print("Delete all volumes in file system.")
+        LOG.info("Delete all volumes in file system.")
         clean_juicefs_volume("/mnt/jfs")
     except Exception as e:
-        print("Error in tear down: {}".format(e))
-    print("Tear down success.")
+        LOG.info("Error in tear down: {}".format(e))
+    LOG.info("Tear down success.")
 
 
 def clean_juicefs_volume(mount_path):
@@ -553,20 +563,20 @@ def clean_juicefs_volume(mount_path):
 def die(e):
     csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
     po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    print("Get csi node log:")
-    print(po.get_log("juicefs-plugin"))
-    print("Get csi controller log:")
+    LOG.info("Get csi node log:")
+    LOG.info(po.get_log("juicefs-plugin"))
+    LOG.info("Get csi controller log:")
     controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    print(controller_po.get_log("juicefs-plugin"))
-    print("Get event: ")
+    LOG.info(controller_po.get_log("juicefs-plugin"))
+    LOG.info("Get event: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
-    print("Get pvc: ")
+    LOG.info("Get pvc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "pvc", "--all-namespaces"], check=True)
-    print("Get pv: ")
+    LOG.info("Get pv: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "pv"], check=True)
-    print("Get sc: ")
+    LOG.info("Get sc: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "sc"], check=True)
-    print("Get job: ")
+    LOG.info("Get job: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "job", "--all-namespaces"], check=True)
     raise Exception(e)
 
@@ -577,104 +587,104 @@ def gen_random_string(slen=10):
 
 ###### test case in ci ######
 def test_deployment_using_storage_rw():
-    print("[test case] Deployment using storageClass with rwm begin..")
+    LOG.info("[test case] Deployment using storageClass with rwm begin..")
     # deploy pvc
     pvc = PVC(name="pvc-dynamic-rw", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     deployment = Deployment(name="app-dynamic-rw", pvc=pvc.name, replicas=1)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + volume_id + "/out.txt"
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    print("Test pass.")
+    LOG.info("Test pass.")
 
     # delete test resources
-    print("Remove deployment {}".format(deployment.name))
+    LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
 
 
 def test_deployment_using_storage_ro():
-    print("[test case] Deployment using storageClass with rom begin..")
+    LOG.info("[test case] Deployment using storageClass with rom begin..")
     # deploy pvc
     pvc = PVC(name="pvc-dynamic-ro", access_mode="ReadOnlyMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     deployment = Deployment(name="app-dynamic-ro", pvc=pvc.name, replicas=1)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # delete test resources
-    print("Remove deployment {}".format(deployment.name))
+    LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
     return
 
 
 def test_deployment_use_pv_rw():
-    print("[test case] Deployment using pv with rwm begin..")
+    LOG.info("[test case] Deployment using pv with rwm begin..")
     # deploy pv
     pv = PV(name="pv-rw", access_mode="ReadWriteMany", volume_handle="pv-rw", secret_name=SECRET_NAME)
-    print("Deploy pv {}".format(pv.name))
+    LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
     # deploy pvc
     pvc = PVC(name="pvc-static-rw", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
     deployment = Deployment(name="app-static-rw", pvc=pvc.name, replicas=1, out_put=out_put)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pv.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
@@ -682,206 +692,206 @@ def test_deployment_use_pv_rw():
         die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     # delete test resources
-    print("Remove deployment {}".format(deployment.name))
+    LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
     return
 
 
 def test_deployment_use_pv_ro():
-    print("[test case] Deployment using pv with rwo begin..")
+    LOG.info("[test case] Deployment using pv with rwo begin..")
     # deploy pv
     pv = PV(name="pv-ro", access_mode="ReadOnlyMany", volume_handle="pv-ro", secret_name=SECRET_NAME)
-    print("Deploy pv {}".format(pv.name))
+    LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
     # deploy pvc
     pvc = PVC(name="pvc-static-ro", access_mode="ReadOnlyMany", storage_name="", pv=pv.name)
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
     deployment = Deployment(name="app-static-ro", pvc=pvc.name, replicas=1, out_put=out_put)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # delete test resources
-    print("Remove deployment {}".format(deployment.name))
+    LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
     return
 
 
 def test_delete_one():
-    print("[test case] Deployment with 3 replicas begin..")
+    LOG.info("[test case] Deployment with 3 replicas begin..")
     # deploy pvc
     pvc = PVC(name="pvc-replicas", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     deployment = Deployment(name="app-replicas", pvc=pvc.name, replicas=3)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
     mount_pod_name = get_mount_pod_name(volume_id)
-    print("Check mount pod {} refs.".format(mount_pod_name))
+    LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
         die("Mount pod {} does not have {} juicefs- refs.".format(mount_pod_name, 3))
 
     # update replicas = 1
-    print("Set deployment {} replicas to 1".format(deployment.name))
+    LOG.info("Set deployment {} replicas to 1".format(deployment.name))
     deployment.update_replicas(1)
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(2)
     if not result:
         die("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
     # check mount pod refs
     result = check_mount_pod_refs(mount_pod_name, 1)
-    print("Check mount pod {} refs.".format(mount_pod_name))
+    LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     if not result:
         raise Exception("Mount pod {} does not have {} juicefs- refs.".format(mount_pod_name, 1))
 
     # delete test resources
-    print("Remove deployment {}".format(deployment.name))
+    LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(1)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
     return
 
 
 def test_delete_all():
-    print("[test case] Deployment and delete it begin..")
+    LOG.info("[test case] Deployment and delete it begin..")
     # deploy pvc
     pvc = PVC(name="pvc-delete-deploy", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     deployment = Deployment(name="app-delete-deploy", pvc=pvc.name, replicas=3)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
     mount_pod_name = get_mount_pod_name(volume_id)
-    print("Check mount pod {} refs.".format(mount_pod_name))
+    LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
         die("Mount pod {} does not have {} juicefs- refs.".format(mount_pod_name, 3))
 
     # delete deploy
-    print("Delete deployment {}".format(deployment.name))
+    LOG.info("Delete deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(3)
     if not result:
         die("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
 
     # check mount pod is delete or not
-    print("Check mount pod {} is deleted or not.".format(mount_pod_name))
+    LOG.info("Check mount pod {} is deleted or not.".format(mount_pod_name))
     pod = Pod(name=mount_pod_name, deployment_name="", replicas=1)
     result = pod.is_deleted()
     if not result:
         die("Mount pod {} does not been deleted within 5 min.".format(mount_pod_name))
 
     # delete test resources
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
     return
 
 
 def test_delete_pvc():
-    print("[test case] Deployment and delete pvc begin..")
+    LOG.info("[test case] Deployment and delete pvc begin..")
     # deploy pvc
     pvc = PVC(name="pvc-delete", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     deployment = Deployment(name="app-delete-pvc", pvc=pvc.name, replicas=1)
-    print("Deploy deployment {}".format(deployment.name))
+    LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of {} for success.".format(deployment.name))
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + volume_id + "/out.txt"
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
-    print("Development delete..")
+    LOG.info("Development delete..")
     deployment.delete()
-    print("Watch deployment deleteed..")
+    LOG.info("Watch deployment deleteed..")
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    print("Watch for pods of deployment {} for delete.".format(deployment.name))
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
     result = pod.watch_for_delete(1)
     if not result:
         die("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
 
-    print("PVC delete..")
+    LOG.info("PVC delete..")
     pvc.delete()
     for i in range(0, 60):
         if pvc.check_is_deleted():
-            print("PVC is deleted.")
+            LOG.info("PVC is deleted.")
             break
         time.sleep(5)
 
-    print("Check dir is deleted or not..")
+    LOG.info("Check dir is deleted or not..")
     mount_on_host("/mnt/jfs")
     file_exist = True
     for i in range(0, 60):
@@ -892,46 +902,46 @@ def test_delete_pvc():
         time.sleep(5)
     if file_exist:
         die("SubPath of volume_id {} still exists.".format(volume_id))
-    print("Umount /mnt/jfs.")
+    LOG.info("Umount /mnt/jfs.")
     subprocess.run(["sudo", "umount", "/mnt/jfs"])
 
-    print("Test pass.")
+    LOG.info("Test pass.")
 
 
 def test_dynamic_delete_pod():
-    print("[test case] Deployment with dynamic storage and delete pod begin..")
+    LOG.info("[test case] Deployment with dynamic storage and delete pod begin..")
     # deploy pvc
     pvc = PVC(name="pvc-dynamic-available", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
     pod = Pod(name="app-dynamic-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
     pod.create()
-    print("Watch for pod {} for success.".format(pod.name))
+    LOG.info("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
     app_pod_id = pod.get_id()
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + volume_id + "/out.txt"
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
-    print("Mount pod delete..")
+    LOG.info("Mount pod delete..")
     mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
-    print("Wait for a sec..")
+    LOG.info("Wait for a sec..")
     time.sleep(5)
 
     # watch mount pod recovery
-    print("Watch mount pod recovery..")
+    LOG.info("Watch mount pod recovery..")
     is_ready = False
     for i in range(0, 60):
         try:
@@ -940,43 +950,43 @@ def test_dynamic_delete_pod():
                 break
             time.sleep(5)
         except Exception as e:
-            print(e)
+            LOG.info(e)
             raise e
     if not is_ready:
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
-    print("Check mount point is ok..")
+    LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, volume_id)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        print(e)
+        LOG.info(e)
         raise e
 
     # delete test resources
-    print("Remove pod {}".format(pod.name))
+    LOG.info("Remove pod {}".format(pod.name))
     pod.delete()
-    print("Watch for pods for delete.".format(pod.name))
+    LOG.info("Watch for pods for delete.".format(pod.name))
     result = pod.watch_for_delete(1)
     if not result:
         raise Exception("Pods are not delete within 5 min.".format(pod.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
 
 
 def test_static_delete_pod():
-    print("[test case] Pod with static storage and delete mount pod begin..")
+    LOG.info("[test case] Pod with static storage and delete mount pod begin..")
     # deploy pv
     pv = PV(name="pv-static-available", access_mode="ReadWriteMany", volume_handle="pv-static-available",
             secret_name=SECRET_NAME)
-    print("Deploy pv {}".format(pv.name))
+    LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
     # deploy pvc
     pvc = PVC(name="pvc-static-available", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
@@ -984,30 +994,30 @@ def test_static_delete_pod():
     pod = Pod(name="app-static-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
               out_put=out_put)
     pod.create()
-    print("Watch for pod {} for success.".format(pod.name))
+    LOG.info("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
     app_pod_id = pod.get_id()
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
     if not result:
         die("mount Point of /jfs/out.txt are not ready within 5 min.")
 
-    print("Mount pod delete..")
+    LOG.info("Mount pod delete..")
     mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
-    print("Wait for a sec..")
+    LOG.info("Wait for a sec..")
     time.sleep(5)
 
     # watch mount pod recovery
-    print("Watch mount pod recovery..")
+    LOG.info("Watch mount pod recovery..")
     is_ready = False
     for i in range(0, 60):
         try:
@@ -1016,44 +1026,45 @@ def test_static_delete_pod():
                 break
             time.sleep(5)
         except Exception as e:
-            print(e)
+            LOG.info(e)
             raise e
     if not is_ready:
         die("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
-    print("Check mount point is ok..")
+    LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, pv.name)
     try:
         subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        print(e)
+        LOG.info(e)
         raise e
 
     # delete test resources
-    print("Remove pod {}".format(pod.name))
+    LOG.info("Remove pod {}".format(pod.name))
     pod.delete()
-    print("Watch for pods for delete.".format(pod.name))
+    LOG.info("Watch for pods for delete.".format(pod.name))
     result = pod.watch_for_delete(1)
     if not result:
         raise Exception("Pods are not delete within 5 min.".format(pod.name))
-    print("Remove pvc {}".format(pvc.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
-    print("Test pass.")
+    LOG.info("Test pass.")
 
 
 def test_static_cache_clean_upon_umount():
-    print("[test case] Pod with static storage and clean cache upon umount begin..")
-    cache_dir = "/mnt/static/cache"
+    LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
+    cache_dir = "/mnt/static/cache1:/mnt/static/cache2"
+    cache_dirs = ["/mnt/static/cache1", "/mnt/static/cache2"]
     # deploy pv
     pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
             secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
-    print("Deploy pv {}".format(pv.name))
+    LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
     # deploy pvc
     pvc = PVC(name="pvc-static-cache-umount", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
@@ -1061,15 +1072,15 @@ def test_static_cache_clean_upon_umount():
     pod = Pod(name="app-static-cache-umount", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
               out_put=out_put)
     pod.create()
-    print("Watch for pod {} for success.".format(pod.name))
+    LOG.info("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods of deployment {} are not ready within 5 min.".format(pod.name))
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + out_put
     result = check_mount_point(mount_path, check_path)
@@ -1085,47 +1096,46 @@ def test_static_cache_clean_upon_umount():
         if annotations is None or annotations.get("juicefs-uuid") is None:
             die("Can't get uuid of volume")
         uuid = annotations["juicefs-uuid"]
-    print("Get volume uuid {}".format(uuid))
+    LOG.info("Get volume uuid {}".format(uuid))
 
     # check cache dir not empty
     time.sleep(5)
-    print("Check cache dir..")
-    subprocess.run(["sudo", "chmod", "777", f"{cache_dir}/{uuid}"])
-    exist = check_host_dir_exist(f"{cache_dir}/{uuid}/raw")
-    if not exist:
-        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
-        die("Cache empty")
-    print("App pod delete..")
+    LOG.info("Check cache dir..")
+    for cache in cache_dirs:
+        not_empty = wait_dir_not_empty(f"{cache}/{uuid}/raw/chunks")
+        if not not_empty:
+            die("Cache empty")
+    LOG.info("App pod delete..")
     pod.delete()
-    print("Wait for a sec..")
+    LOG.info("Wait for a sec..")
 
     result = pod.watch_for_delete(1)
     if not result:
         raise Exception("Pods {} are not delete within 5 min.".format(pod.name))
     # check cache dir is deleted
-    print("Watch cache dir clear..")
-    exist = check_host_dir(f"{cache_dir}/{uuid}/raw")
-    if exist:
-        print(f"ls {cache_dir}/{uuid}")
-        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
-        die("Cache not clear")
+    LOG.info("Watch cache dir clear..")
+    for cache in cache_dirs:
+        empty = wait_dir_empty(f"{cache}/{uuid}/raw/chunks")
+        if not empty:
+            die("Cache not clear")
 
-    print("Test pass.")
+    LOG.info("Test pass.")
 
 
 def test_dynamic_cache_clean_upon_umount():
-    print("[test case] Pod with dynamic storage and clean cache upon umount begin..")
-    cache_dir = "/mnt/dynamic/cache"
+    LOG.info("[test case] Pod with dynamic storage and clean cache upon umount begin..")
+    cache_dir = "/mnt/dynamic/cache1:/mnt/dynamic/cache2"
+    cache_dirs = ["/mnt/dynamic/cache1", "/mnt/dynamic/cache2"]
     sc_name = RESOURCE_PREFIX + "-sc-cache"
     # deploy sc
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
                       parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
-    print("Deploy storageClass {}".format(sc.name))
+    LOG.info("Deploy storageClass {}".format(sc.name))
     sc.create()
 
     # deploy pvc
     pvc = PVC(name="pvc-dynamic-cache-umount", access_mode="ReadWriteMany", storage_name=sc.name, pv="")
-    print("Deploy pvc {}".format(pvc.name))
+    LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
@@ -1133,15 +1143,15 @@ def test_dynamic_cache_clean_upon_umount():
     pod = Pod(name="app-dynamic-cache-umount", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
               out_put=out_put)
     pod.create()
-    print("Watch for pod {} for success.".format(pod.name))
+    LOG.info("Watch for pod {} for success.".format(pod.name))
     result = pod.watch_for_success()
     if not result:
         die("Pods {} are not ready within 5 min.".format(pod.name))
 
     # check mount point
-    print("Check mount point..")
+    LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    print("Get volume_id {}".format(volume_id))
+    LOG.info("Get volume_id {}".format(volume_id))
     mount_path = "/mnt/jfs"
     check_path = mount_path + "/" + volume_id + "/" + out_put
     result = check_mount_point(mount_path, check_path)
@@ -1157,32 +1167,31 @@ def test_dynamic_cache_clean_upon_umount():
         if annotations is None or annotations.get("juicefs-uuid") is None:
             die("Can't get uuid of volume")
         uuid = annotations["juicefs-uuid"]
-    print("Get volume uuid {}".format(uuid))
+    LOG.info("Get volume uuid {}".format(uuid))
 
     # check cache dir not empty
     time.sleep(5)
-    print("Check cache dir..")
-    subprocess.run(["sudo", "chmod", "777", f"{cache_dir}/{uuid}"])
-    exist = check_host_dir_exist(f"{cache_dir}/{uuid}/raw")
-    if not exist:
-        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
-        die("Cache empty")
-    print("App pod delete..")
+    LOG.info("Check cache dir..")
+    for cache in cache_dirs:
+        exist = wait_dir_not_empty(f"{cache}/{uuid}/raw/chunks")
+        if not exist:
+            subprocess.run(["sudo", "ls", f"{cache}/{uuid}/raw/chunks"])
+            die("Cache empty")
+    LOG.info("App pod delete..")
     pod.delete()
-    print("Wait for a sec..")
+    LOG.info("Wait for a sec..")
 
     result = pod.watch_for_delete(1)
     if not result:
         raise Exception("Pods {} are not delete within 5 min.".format(pod.name))
     # check cache dir is deleted
-    print("Watch cache dir clear..")
-    exist = check_host_dir(f"{cache_dir}/{uuid}/raw")
-    if exist:
-        print(f"ls {cache_dir}/{uuid}")
-        subprocess.run(["sudo", "ls", f"{cache_dir}/{uuid}"])
-        die("Cache not clear")
+    LOG.info("Watch cache dir clear..")
+    for cache in cache_dirs:
+        exist = wait_dir_empty(f"{cache}/{uuid}/raw/chunks")
+        if not exist:
+            die("Cache not clear")
 
-    print("Test pass.")
+    LOG.info("Test pass.")
 
 
 def check_do_test():
@@ -1197,7 +1206,7 @@ if __name__ == "__main__":
     if check_do_test():
         config.load_kube_config()
         # clear juicefs volume first.
-        print("clean juicefs volume first.")
+        LOG.info("clean juicefs volume first.")
         clean_juicefs_volume("/mnt/jfs")
         try:
             deploy_secret_and_sc()
@@ -1215,4 +1224,4 @@ if __name__ == "__main__":
         finally:
             tear_down()
     else:
-        print("skip test.")
+        LOG.info("skip test.")

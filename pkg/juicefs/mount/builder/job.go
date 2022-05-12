@@ -45,7 +45,6 @@ func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 func (r *Builder) NewJobForCleanCache() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-cleancache-" + util.RandStringRunes(6)
 	job := r.newCleanJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCleanCacheCmd()}
 	return job
 }
 
@@ -87,8 +86,8 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 
 func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
 	podTemplate := r.generateCleanCachePod()
-	ttlSecond := int32(1)
-	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	ttlSecond := int32(5)
+	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyNever
 	podTemplate.Spec.NodeName = config.NodeName
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

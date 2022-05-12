@@ -452,29 +452,3 @@ spec:
             path: /var/lib/juicefs/config
             type: DirectoryOrCreate
           name: jfs-root-dir
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: juicefs-clean-cache-script
-data:
-  cache-clean.sh: |
-    #!/usr/bin/env bash
-    set -xe
-
-    function main() {
-        CacheDirs="$1"
-        cacheDirs=(${CacheDirs//:/ })
-
-        for((i=0;i<${#cacheDirs[@]};i++)) do
-          local cache="${cacheDirs[i]}"
-          if [ -d $cache ]
-          then
-          echo -e "Cleanup cache $cache"
-          rm -rf $cache
-          fi
-        done
-
-        echo -e "Clean cache successfully."
-    }
-    main "$@"

@@ -287,7 +287,7 @@ func (p *PodMount) waitUtilPodReady(podName string) error {
 
 func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 	// Wait until the job is completed
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 120; i++ {
 		job, err := p.K8sClient.GetJob(jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -308,13 +308,13 @@ func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 		},
 	})
 	if err != nil || len(pods) != 1 {
-		klog.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
+		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
 	log, err := p.getNotCompleteCnLog(pods[0].Name)
 	if err != nil {
-		klog.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
+		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 30 seconds: %v", jobName, log)
+	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 1 min: %v", jobName, log)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
@@ -374,6 +374,7 @@ func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) er
 	}
 	err = p.waitUtilJobCompleted(job.Name)
 	if err != nil {
+		klog.Errorf("CleanCache: wait for job completed err and fall back to delete job\n %v", err)
 		// fall back if err
 		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
 			klog.Errorf("CleanCache: delete job %s error: %v", job.Name, e)
