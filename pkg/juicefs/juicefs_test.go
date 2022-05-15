@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sync"
 	"testing"
 
 	. "github.com/agiledragon/gomonkey"
@@ -462,10 +463,15 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 			})
 			defer patch1.Reset()
 
+			k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			jfs := juicefs{
+				Mutex:              sync.Mutex{},
 				SafeFormatAndMount: *mounter,
-				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
+				podMount: podmount.NewPodMount(k8sClient, mount.SafeFormatAndMount{
+					Interface: *mounter,
+					Exec:      k8sexec.New(),
+				}),
 			}
 			err := jfs.JfsUnmount("test", targetPath)
 			So(err, ShouldNotBeNil)

@@ -172,6 +172,42 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 }
 
+func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
+	var refs []string
+
+	var corruptedMnt bool
+	exists, err := k8sMount.PathExists(target)
+	if err == nil {
+		if !exists {
+			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
+			return 0, nil
+		}
+		var notMnt bool
+		notMnt, err = k8sMount.IsNotMountPoint(p, target)
+		if err != nil {
+			return 0, status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
+		}
+		if notMnt { // target exists but not a mountpoint
+			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
+			return 0, nil
+		}
+	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
+		return 0, status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
+	}
+
+	refs, err = util.GetMountDeviceRefs(target, corruptedMnt)
+	if err != nil {
+		return 0, status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
+	}
+	return len(refs), err
+}
+
+func (p *ProcessMount) UmountTarget(uniqueId, target string) error {
+	// process mnt need target to get ref
+	// so, umount target in JUmount
+	return nil
+}
+
 //JUmount umount targetPath
 func (p *ProcessMount) JUmount(uniqueId, target string) error {
 	var refs []string
@@ -210,11 +246,11 @@ func (p *ProcessMount) JUmount(uniqueId, target string) error {
 	// since the PVC might be used by more than one container
 	if err == nil && len(refs) == 1 {
 		klog.V(5).Infof("ProcessUmount: unmounting ref %s for target %s", refs[0], target)
-		if err := p.Unmount(refs[0]); err != nil {
+		if err = p.Unmount(refs[0]); err != nil {
 			klog.V(5).Infof("ProcessUmount: error unmounting mount ref %s, %v", refs[0], err)
 		}
 	}
-	return nil
+	return err
 }
 
 func (p *ProcessMount) AddRefOfMount(target string, podName string) error {
@@ -224,13 +260,12 @@ func (p *ProcessMount) AddRefOfMount(target string, podName string) error {
 func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
-		rawPath := filepath.Join(cacheDir, id, "raw")
+		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
 		if existed, err := k8sMount.PathExists(rawPath); err != nil {
 			return status.Errorf(codes.Internal, "Could not check raw path %q exists: %v", rawPath, err)
 		} else if existed {
-			stdoutStderr, err := p.Exec.Command("rm", "-rf", rawPath).CombinedOutput()
+			err := os.RemoveAll(rawPath)
 			if err != nil {
-				klog.V(5).Infof("CleanCache: rmr output is '%s'", stdoutStderr)
 				return status.Errorf(codes.Internal, "Could not cleanup cache raw path %q: %v", rawPath, err)
 			}
 		}

@@ -1102,7 +1102,7 @@ def test_static_cache_clean_upon_umount():
     time.sleep(5)
     LOG.info("Check cache dir..")
     for cache in cache_dirs:
-        not_empty = wait_dir_not_empty(f"{cache}/{uuid}/raw/chunks")
+        not_empty = wait_dir_not_empty(f"{cache}/{uuid}/raw")
         if not not_empty:
             die("Cache empty")
     LOG.info("App pod delete..")
@@ -1115,7 +1115,7 @@ def test_static_cache_clean_upon_umount():
     # check cache dir is deleted
     LOG.info("Watch cache dir clear..")
     for cache in cache_dirs:
-        empty = wait_dir_empty(f"{cache}/{uuid}/raw/chunks")
+        empty = wait_dir_empty(f"{cache}/{uuid}/raw")
         if not empty:
             die("Cache not clear")
 
@@ -1173,9 +1173,9 @@ def test_dynamic_cache_clean_upon_umount():
     time.sleep(5)
     LOG.info("Check cache dir..")
     for cache in cache_dirs:
-        exist = wait_dir_not_empty(f"{cache}/{uuid}/raw/chunks")
+        exist = wait_dir_not_empty(f"{cache}/{uuid}/raw")
         if not exist:
-            subprocess.run(["sudo", "ls", f"{cache}/{uuid}/raw/chunks"])
+            subprocess.run(["sudo", "ls", f"{cache}/{uuid}/raw"])
             die("Cache empty")
     LOG.info("App pod delete..")
     pod.delete()
@@ -1187,7 +1187,7 @@ def test_dynamic_cache_clean_upon_umount():
     # check cache dir is deleted
     LOG.info("Watch cache dir clear..")
     for cache in cache_dirs:
-        exist = wait_dir_empty(f"{cache}/{uuid}/raw/chunks")
+        exist = wait_dir_empty(f"{cache}/{uuid}/raw")
         if not exist:
             die("Cache not clear")
 

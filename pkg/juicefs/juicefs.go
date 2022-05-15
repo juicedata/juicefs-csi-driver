@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -53,10 +54,14 @@ type Interface interface {
 }
 
 type juicefs struct {
+	sync.Mutex
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
+
 	podMount     podmount.MntInterface
 	processMount podmount.MntInterface
+	UUIDMaps     map[string]string
+	CacheDirMaps map[string][]string
 }
 
 var _ Interface = &juicefs{}
@@ -135,7 +140,17 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	processMnt := podmount.NewProcessMount(*mounter)
 	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
-	return &juicefs{*mounter, k8sClient, podMnt, processMnt}
+	uuidMaps := make(map[string]string)
+	cacheDirMaps := make(map[string][]string)
+	return &juicefs{
+		Mutex:              sync.Mutex{},
+		SafeFormatAndMount: *mounter,
+		K8sClient:          k8sClient,
+		podMount:           podMnt,
+		processMount:       processMnt,
+		UUIDMaps:           uuidMaps,
+		CacheDirMaps:       cacheDirMaps,
+	}
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -225,10 +240,6 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
 		}
-		jfsSetting.UUID, err = j.GetJfsVolUUID(jfsSetting.Source)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	uniqueId, err := j.getUniqueId(volumeID)
@@ -237,6 +248,19 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		return nil, err
 	}
 	jfsSetting.UniqueId = uniqueId
+	if jfsSetting.CleanCache {
+		uuid, err := j.GetJfsVolUUID(jfsSetting.Source)
+		if err != nil {
+			return nil, err
+		}
+		jfsSetting.UUID = uuid
+		if config.ByProcess {
+			j.Lock()
+			j.UUIDMaps[uniqueId] = uuid
+			j.CacheDirMaps[uniqueId] = jfsSetting.CacheDirs
+			j.Unlock()
+		}
+	}
 	return jfsSetting, nil
 }
 
@@ -280,44 +304,56 @@ func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
 }
 
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
-	UniqueId, err := j.getUniqueId(volumeId)
+	uniqueId, err := j.getUniqueId(volumeId)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
 		return err
 	}
 	if config.ByProcess {
-		return j.processMount.JUmount(UniqueId, mountPath)
-	}
-	// targetPath may be mount bind many times when mount point recovered.
-	// umount until it's not mounted.
-	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
-	for {
-		command := exec.Command("umount", mountPath)
-		out, err := command.CombinedOutput()
-		if err == nil {
-			continue
+		ref, err := j.processMount.GetMountRef(uniqueId, mountPath)
+		if err != nil {
+			klog.Errorf("Get mount ref error: %v", err)
 		}
-		klog.V(6).Infoln(string(out))
-		if !strings.Contains(string(out), "not mounted") &&
-			!strings.Contains(string(out), "mountpoint not found") &&
-			!strings.Contains(string(out), "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", mountPath, err)
-			output, err := exec.Command("umount", "-l", mountPath).CombinedOutput()
+		if ref == 1 {
+			err = j.processMount.JUmount(uniqueId, mountPath)
 			if err != nil {
-				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", mountPath, err, string(output))
+				klog.Errorf("Get mount ref error: %v", err)
+			}
+
+			j.Lock()
+			uuid := j.UUIDMaps[uniqueId]
+			cacheDirs := j.CacheDirMaps[uniqueId]
+			if uuid == "" && len(cacheDirs) == 0 {
+
+			}
+			delete(j.UUIDMaps, uniqueId)
+			delete(j.CacheDirMaps, uniqueId)
+			j.Unlock()
+
+			if err = j.processMount.CleanCache(uuid, uniqueId, cacheDirs); err != nil {
 				return err
 			}
 		}
-		break
-	}
-
-	// cleanup target path
-	if err := j.JfsCleanupMountPoint(mountPath); err != nil {
-		klog.V(5).Infof("Clean mount point error: %v", err)
 		return err
 	}
 
-	return j.podMount.JUmount(UniqueId, mountPath)
+	mnt := j.podMount
+	podName := podmount.GenNameByUniqueId(uniqueId)
+	lock := config.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+	err = mnt.UmountTarget(uniqueId, mountPath)
+	if err != nil {
+		return err
+	}
+	refs, err := mnt.GetMountRef(uniqueId, mountPath)
+	if err != nil {
+		return err
+	}
+	if refs == 0 {
+		return j.podMount.JUmount(uniqueId, mountPath)
+	}
+	return nil
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {

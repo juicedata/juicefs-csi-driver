@@ -556,6 +556,7 @@ func (p PodDriver) CleanUpCache(pod *corev1.Pod) {
 	uniqueId := pod.Annotations[config.UniqueId]
 	if uuid == "" && uniqueId == "" {
 		// no necessary info, return
+		klog.Errorf("[CleanUpCache] Can't get uuid and uniqueId from pod %s annotation. skip cache clean.", pod.Name)
 		return
 	}
 
