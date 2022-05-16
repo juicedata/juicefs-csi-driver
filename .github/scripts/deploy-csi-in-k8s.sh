@@ -32,4 +32,4 @@ function main() {
   done
 }
 
-main
+main $1
