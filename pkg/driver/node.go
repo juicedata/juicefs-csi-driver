@@ -167,7 +167,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	err := d.juicefs.JfsUnmount(volumeId, target)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not lazy unmount %q: %v", target, err)
+		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil

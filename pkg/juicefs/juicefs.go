@@ -316,25 +316,29 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
+		err = j.processMount.JUmount(uniqueId, mountPath)
+		if err != nil {
+			klog.Errorf("Get mount ref error: %v", err)
+		}
 		if ref == 1 {
-			err = j.processMount.JUmount(uniqueId, mountPath)
-			if err != nil {
-				klog.Errorf("Get mount ref error: %v", err)
-			}
+			go func() {
+				j.Lock()
+				defer j.Unlock()
+				uuid := j.UUIDMaps[uniqueId]
+				cacheDirs := j.CacheDirMaps[uniqueId]
+				if uuid == "" && len(cacheDirs) == 0 {
+					klog.Infof("Can't get uuid and cacheDirs of %s. skip cache clean.", uniqueId)
+					return
+				}
+				delete(j.UUIDMaps, uniqueId)
+				delete(j.CacheDirMaps, uniqueId)
 
-			j.Lock()
-			uuid := j.UUIDMaps[uniqueId]
-			cacheDirs := j.CacheDirMaps[uniqueId]
-			if uuid == "" && len(cacheDirs) == 0 {
-
-			}
-			delete(j.UUIDMaps, uniqueId)
-			delete(j.CacheDirMaps, uniqueId)
-			j.Unlock()
-
-			if err = j.processMount.CleanCache(uuid, uniqueId, cacheDirs); err != nil {
-				return err
-			}
+				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
+				if err = j.processMount.CleanCache(uuid, uniqueId, cacheDirs); err != nil {
+					klog.Errorf("Clean cache err: %v", err)
+					return
+				}
+			}()
 		}
 		return err
 	}
@@ -344,15 +348,18 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	lock := config.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
-	err = mnt.UmountTarget(uniqueId, mountPath)
-	if err != nil {
+
+	// umount target path
+	if err = mnt.UmountTarget(uniqueId, mountPath); err != nil {
 		return err
 	}
+	// get refs of mount pod
 	refs, err := mnt.GetMountRef(uniqueId, mountPath)
 	if err != nil {
 		return err
 	}
 	if refs == 0 {
+		// if refs is none, umount
 		return j.podMount.JUmount(uniqueId, mountPath)
 	}
 	return nil
