@@ -49,6 +49,35 @@ func (mr *MockMntInterfaceMockRecorder) AddRefOfMount(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRefOfMount", reflect.TypeOf((*MockMntInterface)(nil).AddRefOfMount), arg0, arg1)
 }
 
+// CleanCache mocks base method.
+func (m *MockMntInterface) CleanCache(arg0, arg1 string, arg2 []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanCache", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CleanCache indicates an expected call of CleanCache.
+func (mr *MockMntInterfaceMockRecorder) CleanCache(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanCache", reflect.TypeOf((*MockMntInterface)(nil).CleanCache), arg0, arg1, arg2)
+}
+
+// GetMountRef mocks base method.
+func (m *MockMntInterface) GetMountRef(arg0, arg1 string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMountRef", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMountRef indicates an expected call of GetMountRef.
+func (mr *MockMntInterfaceMockRecorder) GetMountRef(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountRef", reflect.TypeOf((*MockMntInterface)(nil).GetMountRef), arg0, arg1)
+}
+
 // GetMountRefs mocks base method.
 func (m *MockMntInterface) GetMountRefs(arg0 string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -176,6 +205,20 @@ func (m *MockMntInterface) MountSensitive(arg0, arg1, arg2 string, arg3, arg4 []
 func (mr *MockMntInterfaceMockRecorder) MountSensitive(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MountSensitive", reflect.TypeOf((*MockMntInterface)(nil).MountSensitive), arg0, arg1, arg2, arg3, arg4)
+}
+
+// UmountTarget mocks base method.
+func (m *MockMntInterface) UmountTarget(arg0, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UmountTarget", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UmountTarget indicates an expected call of UmountTarget.
+func (mr *MockMntInterfaceMockRecorder) UmountTarget(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UmountTarget", reflect.TypeOf((*MockMntInterface)(nil).UmountTarget), arg0, arg1)
 }
 
 // Unmount mocks base method.

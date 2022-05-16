@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+	"math/rand"
 	"net/url"
 	"os"
 	"path"
@@ -40,6 +41,10 @@ const (
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 type mountInfo struct {
 	// Unique ID for the mount (maybe reused after umount).
@@ -348,4 +353,14 @@ func PatchPodAnnotation(client *k8s.K8sClient, pod *corev1.Pod, annotation map[s
 		return err
 	}
 	return nil
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }

@@ -60,6 +60,9 @@ const (
 	PodTypeKey   = "app.kubernetes.io/name"
 	PodTypeValue = "juicefs-mount"
 	Finalizer    = "juicefs.com/finalizer"
+	JuiceFSUUID  = "juicefs-uuid"
+	UniqueId     = "juicefs-uniqueid"
+	CleanCache   = "juicefs-clean-cache"
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
@@ -70,6 +73,7 @@ const (
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
 	deleteDelay            = "juicefs/mount-delete-delay"
+	cleanCache             = "juicefs/clean-cache"
 
 	// DeleteDelayTimeKey mount pod annotation
 	DeleteDelayTimeKey = "juicefs-delete-delay"

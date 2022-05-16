@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"path/filepath"
 )
 
 type Builder struct {
@@ -159,4 +161,51 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 		)
 	}
 	return volumeMounts
+}
+
+func (r *Builder) generateCleanCachePod() *corev1.Pod {
+	volumeMountPrefix := "/var/jfsCache"
+	cacheVolumes := []corev1.Volume{}
+	cacheVolumeMounts := []corev1.VolumeMount{}
+
+	hostPathType := corev1.HostPathDirectory
+
+	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		name := fmt.Sprintf("cachedir-%d", idx)
+
+		hostPathVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
+				Path: filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"),
+				Type: &hostPathType,
+			}},
+		}
+		cacheVolumes = append(cacheVolumes, hostPathVolume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			MountPath: filepath.Join(volumeMountPrefix, name),
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: config.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.PodTypeValue,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:         "jfs-cache-clean",
+				Image:        config.MountImage,
+				Command:      []string{"sh", "-c", "rm -rf /var/jfsCache/*/chunks"},
+				VolumeMounts: cacheVolumeMounts,
+			}},
+			Volumes: cacheVolumes,
+		},
+	}
+	return pod
 }
