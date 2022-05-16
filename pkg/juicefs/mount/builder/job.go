@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -41,8 +42,16 @@ func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	return job
 }
 
+func (r *Builder) NewJobForCleanCache() *batchv1.Job {
+	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-cleancache-" + util.RandStringRunes(6)
+	job := r.newCleanJob(jobName)
+	return job
+}
+
 func GenJobNameByVolumeId(volumeId string) string {
-	return fmt.Sprintf("juicefs-%s", volumeId)
+	h := sha256.New()
+	h.Write([]byte(volumeId))
+	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:16]
 }
 
 func (r *Builder) newJob(jobName string) *batchv1.Job {
@@ -56,6 +65,30 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 		},
 	}
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	job := batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: config.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      jobName,
+					Namespace: config.Namespace,
+				},
+				Spec: podTemplate.Spec,
+			},
+			TTLSecondsAfterFinished: &ttlSecond,
+		},
+	}
+	return &job
+}
+
+func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
+	podTemplate := r.generateCleanCachePod()
+	ttlSecond := int32(5)
+	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyNever
+	podTemplate.Spec.NodeName = config.NodeName
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,

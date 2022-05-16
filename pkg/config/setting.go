@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
+	"strings"
 	"time"
 )
 
@@ -30,11 +31,13 @@ type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
 
+	UUID          string
 	Name          string `json:"name"`
 	MetaUrl       string `json:"metaurl"`
 	Source        string `json:"source"`
 	Storage       string `json:"storage"`
 	FormatOptions string `json:"format-options"`
+	CacheDirs     []string
 
 	// put in secret
 	SecretKey     string            `json:"secret-key,omitempty"`
@@ -55,6 +58,7 @@ type JfsSetting struct {
 	MountPodAnnotations    map[string]string `json:"mount_pod_annotations"`
 	MountPodServiceAccount string            `json:"mount_pod_service_account"`
 	DeletedDelay           string            `json:"deleted_delay"`
+	CleanCache             bool              `json:"clean_cache"`
 
 	// mount
 	VolumeId   string   // volumeHandle of PV
@@ -67,9 +71,12 @@ type JfsSetting struct {
 	SecretName string   // secret name which is set env in pod
 }
 
-func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, error) {
+func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bool) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{
 		Options: []string{},
+	}
+	if options != nil {
+		jfsSetting.Options = options
 	}
 	if secrets == nil {
 		return &jfsSetting, nil
@@ -90,11 +97,40 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 	jfsSetting.Storage = secrets["storage"]
 	jfsSetting.Envs = make(map[string]string)
 	jfsSetting.Configs = make(map[string]string)
+	jfsSetting.CacheDirs = []string{}
+	var cacheDirs []string
+	for _, o := range options {
+		if strings.HasPrefix(o, "cache-dir") {
+			optValPair := strings.Split(o, "=")
+			if len(optValPair) != 2 {
+				continue
+			}
+			cacheDirs = strings.Split(strings.TrimSpace(optValPair[1]), ":")
+			break
+		}
+	}
+	if cacheDirs == nil {
+		// set default cache dir
+		cacheDirs = []string{"/var/jfsCache"}
+	}
+	for _, cacheDir := range cacheDirs {
+		if cacheDir != "memory" {
+			// filter out "memory"
+			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, cacheDir)
+		}
+	}
 
-	m, ok := secrets["metaurl"]
-	jfsSetting.MetaUrl = m
-	jfsSetting.IsCe = ok
 	jfsSetting.UsePod = usePod
+	jfsSetting.Source = jfsSetting.Name
+	if source, ok := secrets["metaurl"]; ok {
+		jfsSetting.MetaUrl = source
+		jfsSetting.IsCe = ok
+		// Default use redis:// scheme
+		if !strings.Contains(source, "://") {
+			source = "redis://" + source
+		}
+		jfsSetting.Source = source
+	}
 
 	if secrets["secretkey"] != "" {
 		jfsSetting.SecretKey = secrets["secretkey"]
@@ -138,6 +174,9 @@ func ParseSetting(secrets, volCtx map[string]string, usePod bool) (*JfsSetting, 
 		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
 		jfsSetting.MountPodMemRequest = volCtx[mountPodMemRequestKey]
 		jfsSetting.MountPodServiceAccount = volCtx[mountPodServiceAccount]
+		if volCtx[cleanCache] == "true" {
+			jfsSetting.CleanCache = true
+		}
 		delay := volCtx[deleteDelay]
 		if delay != "" {
 			if _, err := time.ParseDuration(delay); err != nil {

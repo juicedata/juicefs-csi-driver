@@ -18,6 +18,8 @@ package mount
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -41,6 +43,8 @@ type PodMount struct {
 	K8sClient *k8sclient.K8sClient
 }
 
+var _ MntInterface = &PodMount{}
+
 func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &PodMount{mounter, client}
 }
@@ -53,11 +57,49 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return p.waitUtilPodReady(podName)
 }
 
-func (p *PodMount) JUmount(uniqueId, target string) error {
+func (p *PodMount) GetMountRef(uniqueId, target string) (int, error) {
 	podName := GenNameByUniqueId(uniqueId)
-	lock := jfsConfig.GetPodLock(podName)
-	lock.Lock()
-	defer lock.Unlock()
+	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return 0, nil
+		}
+		klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
+		return 0, err
+	}
+	return GetRef(pod), nil
+}
+
+func (p *PodMount) UmountTarget(uniqueId, target string) error {
+	podName := GenNameByUniqueId(uniqueId)
+	// targetPath may be mount bind many times when mount point recovered.
+	// umount until it's not mounted.
+	klog.V(5).Infof("JfsUnmount: umount %s", target)
+	for {
+		command := exec.Command("umount", target)
+		out, err := command.CombinedOutput()
+		if err == nil {
+			continue
+		}
+		klog.V(6).Infoln(string(out))
+		if !strings.Contains(string(out), "not mounted") &&
+			!strings.Contains(string(out), "mountpoint not found") &&
+			!strings.Contains(string(out), "no mount point specified") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
+			output, err := exec.Command("umount", "-l", target).CombinedOutput()
+			if err != nil {
+				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", target, err, string(output))
+				return err
+			}
+		}
+		break
+	}
+
+	// cleanup target path
+	if err := k8sMount.CleanupMountPoint(target, p.SafeFormatAndMount.Interface, false); err != nil {
+		klog.V(5).Infof("Clean mount point error: %v", err)
+		return err
+	}
 
 	// check mount pod is need to delete
 	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
@@ -94,61 +136,52 @@ func (p *PodMount) JUmount(uniqueId, target string) error {
 		klog.Errorf("JUmount: Remove ref of uniqueId %s err: %v", uniqueId, err)
 		return err
 	}
+	return nil
+}
 
-	deleteMountPod := func(podName, namespace string) error {
-		return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-			po, err := p.K8sClient.GetPod(podName, namespace)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					return nil
-				}
-				klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
-				return err
-			}
+func (p *PodMount) JUmount(uniqueId, target string) error {
+	podName := GenNameByUniqueId(uniqueId)
 
-			if HasRef(po) {
-				klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
 				return nil
 			}
+			klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
+			return err
+		}
 
-			var shouldDelay bool
-			shouldDelay, err = util.ShouldDelay(po, p.K8sClient)
-			if err != nil {
-				return err
-			}
-			if !shouldDelay {
-				// do not set delay delete, delete it now
-				klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
-				if err := p.K8sClient.DeletePod(po); err != nil {
-					klog.V(5).Infof("JUmount: Delete pod of uniqueId %s error: %v", uniqueId, err)
-					return err
-				}
-
-				// delete related secret
-				secretName := po.Name + "-secret"
-				klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
-				if err := p.K8sClient.DeleteSecret(secretName, po.Namespace); err != nil {
-					// do not return err if delete secret failed
-					klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
-				}
-			}
-			return nil
-		})
-	}
-
-	newPod, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
+		if GetRef(po) != 0 {
+			klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 			return nil
 		}
-		klog.Errorf("JUmount: Get mount pod %s err %v", podName, err)
-		return err
-	}
-	if HasRef(newPod) {
+
+		var shouldDelay bool
+		shouldDelay, err = util.ShouldDelay(po, p.K8sClient)
+		if err != nil {
+			return err
+		}
+		if !shouldDelay {
+			// do not set delay delete, delete it now
+			klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
+			if err := p.K8sClient.DeletePod(po); err != nil {
+				klog.V(5).Infof("JUmount: Delete pod of uniqueId %s error: %v", uniqueId, err)
+				return err
+			}
+
+			// delete related secret
+			secretName := po.Name + "-secret"
+			klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
+			if err := p.K8sClient.DeleteSecret(secretName, po.Namespace); err != nil {
+				// do not return err if delete secret failed
+				klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
+			}
+		}
 		return nil
-	}
-	// if pod annotations has no "juicefs-" prefix or no delete delay, delete pod
-	return deleteMountPod(pod.Name, pod.Namespace)
+	})
+
+	return err
 }
 
 func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
@@ -285,7 +318,7 @@ func (p *PodMount) waitUtilPodReady(podName string) error {
 
 func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 	// Wait until the job is completed
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 120; i++ {
 		job, err := p.K8sClient.GetJob(jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -306,13 +339,13 @@ func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 		},
 	})
 	if err != nil || len(pods) != 1 {
-		klog.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
+		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
 	log, err := p.getNotCompleteCnLog(pods[0].Name)
 	if err != nil {
-		klog.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
+		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 30 seconds: %v", jobName, log)
+	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 1 min: %v", jobName, log)
 }
 
 func (p *PodMount) AddRefOfMount(target string, podName string) error {
@@ -344,6 +377,35 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
 		return err
+	}
+	return nil
+}
+
+func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
+	jfsSetting := &jfsConfig.JfsSetting{
+		VolumeId:  volumeId,
+		CacheDirs: cacheDirs,
+		UUID:      id,
+	}
+	r := builder.NewBuilder(jfsSetting)
+	job := r.NewJobForCleanCache()
+	klog.V(6).Infof("Clean cache job: %v", job)
+	_, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	if err != nil && k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("CleanCache: create job %s", job.Name)
+		_, err = p.K8sClient.CreateJob(job)
+	}
+	if err != nil {
+		klog.Errorf("CleanCache: get or create job %s err: %s", job.Name, err)
+		return err
+	}
+	err = p.waitUtilJobCompleted(job.Name)
+	if err != nil {
+		klog.Errorf("CleanCache: wait for job completed err and fall back to delete job\n %v", err)
+		// fall back if err
+		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+			klog.Errorf("CleanCache: delete job %s error: %v", job.Name, e)
+		}
 	}
 	return nil
 }
@@ -412,13 +474,14 @@ func (p *PodMount) getNotCompleteCnLog(podName string) (log string, err error) {
 	return
 }
 
-func HasRef(pod *corev1.Pod) bool {
+func GetRef(pod *corev1.Pod) int {
+	res := 0
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			return true
+			res++
 		}
 	}
-	return false
+	return res
 }
 
 func GenNameByUniqueId(uniqueId string) string {

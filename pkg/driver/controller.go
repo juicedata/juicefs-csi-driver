@@ -36,11 +36,7 @@ type controllerService struct {
 }
 
 func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
-	jfs, err := juicefs.NewJfsProvider(nil, k8sClient)
-	if err != nil {
-		klog.Errorf("Error new juicefs provider: %v", err)
-		return controllerService{}, err
-	}
+	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 
 	stdoutStderr, err := jfs.Version()
 	if err != nil {

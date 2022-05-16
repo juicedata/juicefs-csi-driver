@@ -19,6 +19,7 @@ package mount
 import (
 	"errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"os/exec"
 	"reflect"
 	"testing"
 
@@ -221,23 +222,21 @@ func TestJUmount(t *testing.T) {
 		target   string
 	}
 	var tests = []struct {
-		name            string
-		args            args
-		pod             *corev1.Pod
-		wantErr         bool
-		wantPodDeleted  bool
-		wantAnnotations map[string]string
+		name           string
+		args           args
+		pod            *corev1.Pod
+		wantErr        bool
+		wantPodDeleted bool
 	}{
 		{
 			name: "test-delete",
 			args: args{
-				volumeId: "c",
+				volumeId: "a",
 				target:   "/mnt/abc",
 			},
-			pod:             testC,
-			wantErr:         false,
-			wantPodDeleted:  true,
-			wantAnnotations: nil,
+			pod:            testC,
+			wantErr:        false,
+			wantPodDeleted: true,
 		},
 		{
 			name: "test-delete2",
@@ -245,10 +244,9 @@ func TestJUmount(t *testing.T) {
 				volumeId: "d",
 				target:   "/mnt/def",
 			},
-			pod:             testD,
-			wantErr:         false,
-			wantPodDeleted:  true,
-			wantAnnotations: nil,
+			pod:            testD,
+			wantErr:        false,
+			wantPodDeleted: false,
 		},
 		{
 			name: "test-true",
@@ -259,9 +257,6 @@ func TestJUmount(t *testing.T) {
 			pod:            testE,
 			wantErr:        false,
 			wantPodDeleted: false,
-			wantAnnotations: map[string]string{
-				util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
-			},
 		},
 		{
 			name: "test-delete3",
@@ -269,10 +264,9 @@ func TestJUmount(t *testing.T) {
 				volumeId: "f",
 				target:   "/mnt/def",
 			},
-			pod:             testF,
-			wantErr:         false,
-			wantPodDeleted:  true,
-			wantAnnotations: nil,
+			pod:            testF,
+			wantErr:        false,
+			wantPodDeleted: true,
 		},
 		{
 			name: "test-nil",
@@ -280,10 +274,9 @@ func TestJUmount(t *testing.T) {
 				volumeId: "x",
 				target:   "/mnt/def",
 			},
-			pod:             nil,
-			wantErr:         false,
-			wantPodDeleted:  true,
-			wantAnnotations: nil,
+			pod:            nil,
+			wantErr:        false,
+			wantPodDeleted: true,
 		},
 	}
 	for _, tt := range tests {
@@ -304,9 +297,6 @@ func TestJUmount(t *testing.T) {
 			got, _ := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
 				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
-			}
-			if !tt.wantPodDeleted && !reflect.DeepEqual(got.Annotations, tt.wantAnnotations) {
-				t.Errorf("DelRefOfMountPod() got: %v, wanted: %v", got.Annotations, tt.wantAnnotations)
 			}
 		})
 	}
@@ -333,8 +323,8 @@ func TestJUmountWithMock(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod hasRef", func() {
-			patch1 := ApplyFunc(HasRef, func(pod *corev1.Pod) bool {
-				return true
+			patch1 := ApplyFunc(GetRef, func(pod *corev1.Pod) int {
+				return 1
 			})
 			defer patch1.Reset()
 
@@ -384,37 +374,6 @@ func TestJUmountWithMock(t *testing.T) {
 			err := p.JUmount("ttt", "/test")
 			So(err, ShouldBeNil)
 		})
-		Convey("pod update error", func() {
-			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
-				return errors.New("test")
-			})
-			defer patch1.Reset()
-			patch2 := ApplyFunc(k8serrors.IsConflict, func(err error) bool {
-				return false
-			})
-			defer patch2.Reset()
-
-			fakeClient := fake.NewSimpleClientset()
-			p := &PodMount{
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient: &k8sclient.K8sClient{
-					Interface: fakeClient,
-				},
-			}
-			podName := GenNameByUniqueId("aaa")
-			p.K8sClient.CreatePod(&corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: jfsConfig.Namespace,
-					Annotations: map[string]string{
-						util.GetReferenceKey("/test"): "/test",
-					},
-				},
-			})
-			err := p.JUmount("aaa", "/test")
-			So(err, ShouldNotBeNil)
-		})
 		Convey("pod delete error", func() {
 			client := &k8sclient.K8sClient{}
 			patch1 := ApplyMethod(reflect.TypeOf(client), "DeletePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
@@ -437,6 +396,105 @@ func TestJUmountWithMock(t *testing.T) {
 				},
 			})
 			err := p.JUmount("ttt", "/test")
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
+func TestUmountTarget(t *testing.T) {
+	Convey("Test JUmount", t, func() {
+		Convey("pod notfound", func() {
+			patch1 := ApplyFunc(k8serrors.IsNotFound, func(err error) bool {
+				return false
+			})
+			defer patch1.Reset()
+			client := &k8sclient.K8sClient{}
+			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+				return nil, errors.New("test")
+			})
+			defer patch2.Reset()
+			tmpCmd := &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("not mounted"), errors.New("not mounted")
+			})
+			defer patch3.Reset()
+			patch4 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
+				return nil
+			})
+			defer patch4.Reset()
+
+			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			err := p.UmountTarget("ttt", "/test")
+			So(err, ShouldNotBeNil)
+		})
+		Convey("pod conflict", func() {
+			patch1 := ApplyFunc(k8serrors.IsConflict, func(err error) bool {
+				return true
+			})
+			defer patch1.Reset()
+			tmpCmd := &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("not mounted"), errors.New("not mounted")
+			})
+			defer patch3.Reset()
+
+			fakeClient := fake.NewSimpleClientset()
+			p := &PodMount{
+				SafeFormatAndMount: mount.SafeFormatAndMount{},
+				K8sClient: &k8sclient.K8sClient{
+					Interface: fakeClient,
+				},
+			}
+			podName := GenNameByUniqueId("ttt")
+			p.K8sClient.CreatePod(&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      podName,
+					Namespace: jfsConfig.Namespace,
+					Annotations: map[string]string{
+						util.GetReferenceKey("ttt"): "/test",
+					},
+				},
+			})
+			err := p.UmountTarget("ttt", "/test")
+			So(err, ShouldBeNil)
+		})
+		Convey("pod update error", func() {
+			client := &k8sclient.K8sClient{}
+			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+				return errors.New("test")
+			})
+			defer patch1.Reset()
+			patch2 := ApplyFunc(k8serrors.IsConflict, func(err error) bool {
+				return false
+			})
+			defer patch2.Reset()
+			tmpCmd := &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("not mounted"), errors.New("not mounted")
+			})
+			defer patch3.Reset()
+
+			fakeClient := fake.NewSimpleClientset()
+			p := &PodMount{
+				SafeFormatAndMount: mount.SafeFormatAndMount{},
+				K8sClient: &k8sclient.K8sClient{
+					Interface: fakeClient,
+				},
+			}
+			podName := GenNameByUniqueId("aaa")
+			p.K8sClient.CreatePod(&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      podName,
+					Namespace: jfsConfig.Namespace,
+					Annotations: map[string]string{
+						util.GetReferenceKey("/test"): "/test",
+					},
+				},
+			})
+			err := p.UmountTarget("aaa", "/test")
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -500,6 +558,8 @@ func TestWaitUntilMount(t *testing.T) {
 			wantErr: false,
 			wantAnno: map[string]string{
 				util.GetReferenceKey("/mnt/iii"): "/mnt/iii",
+				jfsConfig.UniqueId:               "",
+				jfsConfig.JuiceFSUUID:            "",
 			},
 		},
 	}
@@ -618,14 +678,14 @@ func TestNewPodMount(t *testing.T) {
 	}
 }
 
-func TestHasRef(t *testing.T) {
+func TestGetRef(t *testing.T) {
 	type args struct {
 		pod *corev1.Pod
 	}
 	tests := []struct {
 		name string
 		args args
-		want bool
+		want int
 	}{
 		{
 			name: "test-true",
@@ -637,7 +697,7 @@ func TestHasRef(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			want: 1,
 		},
 		{
 			name: "test-false",
@@ -649,7 +709,7 @@ func TestHasRef(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: 0,
 		},
 		{
 			name: "test-null",
@@ -661,12 +721,12 @@ func TestHasRef(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: 0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasRef(tt.args.pod); got != tt.want {
+			if got := GetRef(tt.args.pod); got != tt.want {
 				t.Errorf("HasRef() = %v, want %v", got, tt.want)
 			}
 		})

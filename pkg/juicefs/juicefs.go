@@ -24,8 +24,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -47,14 +49,19 @@ type Interface interface {
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
 	JfsUnmount(volumeID, mountPath string) error
 	JfsCleanupMountPoint(mountPath string) error
+	GetJfsVolUUID(name string) (string, error)
 	Version() ([]byte, error)
 }
 
 type juicefs struct {
+	sync.Mutex
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
+
 	podMount     podmount.MntInterface
 	processMount podmount.MntInterface
+	UUIDMaps     map[string]string
+	CacheDirMaps map[string][]string
 }
 
 var _ Interface = &juicefs{}
@@ -123,7 +130,7 @@ func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
-func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) (Interface, error) {
+func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) Interface {
 	if mounter == nil {
 		mounter = &mount.SafeFormatAndMount{
 			Interface: mount.New(""),
@@ -133,7 +140,17 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	processMnt := podmount.NewProcessMount(*mounter)
 	podMnt := podmount.NewPodMount(k8sClient, *mounter)
 
-	return &juicefs{*mounter, k8sClient, podMnt, processMnt}, nil
+	uuidMaps := make(map[string]string)
+	cacheDirMaps := make(map[string][]string)
+	return &juicefs{
+		Mutex:              sync.Mutex{},
+		SafeFormatAndMount: *mounter,
+		K8sClient:          k8sClient,
+		podMount:           podMnt,
+		processMount:       processMnt,
+		UUIDMaps:           uuidMaps,
+		CacheDirMaps:       cacheDirMaps,
+	}
 }
 
 func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
@@ -187,16 +204,14 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 
 // JfsMount auths and mounts JuiceFS
 func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, !config.ByProcess)
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
 	jfsSetting.VolumeId = volumeID
 	jfsSetting.TargetPath = target
-	jfsSetting.Options = options
-	source, isCe := secrets["metaurl"]
-	if !isCe {
+	if !jfsSetting.IsCe {
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
@@ -208,7 +223,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 				jfsSetting.FormatCmd = res
 			}
 		}
-		jfsSetting.Source = secrets["name"]
+		jfsSetting.UUID = secrets["name"]
 	} else {
 		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {
@@ -222,11 +237,6 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "%v", err)
 		}
-		// Default use redis:// scheme
-		if !strings.Contains(source, "://") {
-			source = "redis://" + source
-		}
-		jfsSetting.Source = source
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
 		}
@@ -238,6 +248,21 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		return nil, err
 	}
 	jfsSetting.UniqueId = uniqueId
+	if jfsSetting.CleanCache {
+		uuid := jfsSetting.Name
+		if jfsSetting.IsCe {
+			if uuid, err = j.GetJfsVolUUID(jfsSetting.Source); err != nil {
+				return nil, err
+			}
+		}
+		jfsSetting.UUID = uuid
+		if config.ByProcess {
+			j.Lock()
+			j.UUIDMaps[uniqueId] = uuid
+			j.CacheDirMaps[uniqueId] = jfsSetting.CacheDirs
+			j.Unlock()
+		}
+	}
 	return jfsSetting, nil
 }
 
@@ -247,7 +272,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 //		in static provision, UniqueId set as volumeId
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 // 		UniqueId set as volumeId
-func (j juicefs) getUniqueId(volumeId string) (string, error) {
+func (j *juicefs) getUniqueId(volumeId string) (string, error) {
 	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
 		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
@@ -262,45 +287,79 @@ func (j juicefs) getUniqueId(volumeId string) (string, error) {
 	return volumeId, nil
 }
 
+// GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
+	stdout, err := j.Exec.Command(config.CeCliPath, "status", name).CombinedOutput()
+	if err != nil {
+		klog.Errorf("juicefs status: output is '%s'", stdout)
+		return "", err
+	}
+
+	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
+	idStr := matchExp.FindString(string(stdout))
+	idStrs := strings.Split(idStr, "\"")
+	if len(idStrs) < 4 {
+		return "", status.Errorf(codes.Internal, "get uuid of %s error", name)
+	}
+
+	return idStrs[3], nil
+}
+
 func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
-	UniqueId, err := j.getUniqueId(volumeId)
+	uniqueId, err := j.getUniqueId(volumeId)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
 		return err
 	}
 	if config.ByProcess {
-		return j.processMount.JUmount(UniqueId, mountPath)
-	}
-	// targetPath may be mount bind many times when mount point recovered.
-	// umount until it's not mounted.
-	klog.V(5).Infof("JfsUnmount: umount %s", mountPath)
-	for {
-		command := exec.Command("umount", mountPath)
-		out, err := command.CombinedOutput()
-		if err == nil {
-			continue
+		ref, err := j.processMount.GetMountRef(uniqueId, mountPath)
+		if err != nil {
+			klog.Errorf("Get mount ref error: %v", err)
 		}
-		klog.V(6).Infoln(string(out))
-		if !strings.Contains(string(out), "not mounted") &&
-			!strings.Contains(string(out), "mountpoint not found") &&
-			!strings.Contains(string(out), "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", mountPath, err)
-			output, err := exec.Command("umount", "-l", mountPath).CombinedOutput()
-			if err != nil {
-				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", mountPath, err, string(output))
-				return err
-			}
+		err = j.processMount.JUmount(uniqueId, mountPath)
+		if err != nil {
+			klog.Errorf("Get mount ref error: %v", err)
 		}
-		break
-	}
+		if ref == 1 {
+			func() {
+				j.Lock()
+				defer j.Unlock()
+				uuid := j.UUIDMaps[uniqueId]
+				cacheDirs := j.CacheDirMaps[uniqueId]
+				if uuid == "" && len(cacheDirs) == 0 {
+					klog.Infof("Can't get uuid and cacheDirs of %s. skip cache clean.", uniqueId)
+					return
+				}
+				delete(j.UUIDMaps, uniqueId)
+				delete(j.CacheDirMaps, uniqueId)
 
-	// cleanup target path
-	if err := j.JfsCleanupMountPoint(mountPath); err != nil {
-		klog.V(5).Infof("Clean mount point error: %v", err)
+				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
+				go j.processMount.CleanCache(uuid, uniqueId, cacheDirs)
+			}()
+		}
 		return err
 	}
 
-	return j.podMount.JUmount(UniqueId, mountPath)
+	mnt := j.podMount
+	podName := podmount.GenNameByUniqueId(uniqueId)
+	lock := config.GetPodLock(podName)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// umount target path
+	if err = mnt.UmountTarget(uniqueId, mountPath); err != nil {
+		return err
+	}
+	// get refs of mount pod
+	refs, err := mnt.GetMountRef(uniqueId, mountPath)
+	if err != nil {
+		return err
+	}
+	if refs == 0 {
+		// if refs is none, umount
+		return j.podMount.JUmount(uniqueId, mountPath)
+	}
+	return nil
 }
 
 func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
