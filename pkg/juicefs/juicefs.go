@@ -249,9 +249,11 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	}
 	jfsSetting.UniqueId = uniqueId
 	if jfsSetting.CleanCache {
-		uuid, err := j.GetJfsVolUUID(jfsSetting.Source)
-		if err != nil {
-			return nil, err
+		uuid := jfsSetting.Name
+		if jfsSetting.IsCe {
+			if uuid, err = j.GetJfsVolUUID(jfsSetting.Source); err != nil {
+				return nil, err
+			}
 		}
 		jfsSetting.UUID = uuid
 		if config.ByProcess {
