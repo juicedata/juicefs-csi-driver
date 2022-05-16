@@ -1,7 +1,8 @@
 #!/bin/bash
 
 function main() {
-  deployMode = "$1"
+  deployMode = $1
+  echo "deployMode: " $deployMode
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/$deployMode | sed -i \
    -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
                    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' | sudo microk8s.kubectl apply -f -
