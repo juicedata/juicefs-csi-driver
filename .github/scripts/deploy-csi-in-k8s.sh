@@ -1,7 +1,10 @@
 #!/bin/bash
 
 function main() {
-  sudo cat ${GITHUB_WORKSPACE}/deploy/k8s.yaml | sed -e 's@--v=5@--v=6@g' -e 's@kube-system@default@g' | sed -e '/limits:/d' -e '/cpu:/d' -e '/memory:/d' -e '/requests:/d' | sudo microk8s.kubectl apply -f -
+  deployMode = "$1"
+  sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/$deployMode | sed -i \
+   -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
+                   -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do

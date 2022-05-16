@@ -44,9 +44,8 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           dev_tag=dev-$(git describe --always)
           echo "Dev tag is: " $dev_tag
-          sed -i -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:$dev_tag@g" \
-                 -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
-          .github/scripts/deploy-csi-in-k8s.sh
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh pod
       - name: Set ce secret env
         run: |
           echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
@@ -60,19 +59,19 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 k8s-ci.py
-      - name: Set ee secret env
-        env:
-          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
-        run: |
-          echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
-          echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
-          echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
-          echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
-          echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
-          echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
-          echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
-          echo "IS_CE=False" >> $GITHUB_ENV
-      - name: Run ee test
-        run: |
-          cd ${GITHUB_WORKSPACE}/.github/scripts/
-          python3 k8s-ci.py
+#      - name: Set ee secret env
+#        env:
+#          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+#        run: |
+#          echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
+#          echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
+#          echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
+#          echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
+#          echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
+#          echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
+#          echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
+#          echo "IS_CE=False" >> $GITHUB_ENV
+#      - name: Run ee test
+#        run: |
+#          cd ${GITHUB_WORKSPACE}/.github/scripts/
+#          python3 k8s-ci.py
