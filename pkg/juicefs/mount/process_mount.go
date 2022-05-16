@@ -262,11 +262,13 @@ func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
 		if existed, err := k8sMount.PathExists(rawPath); err != nil {
-			return status.Errorf(codes.Internal, "Could not check raw path %q exists: %v", rawPath, err)
+			klog.Errorf("Could not check raw path %q exists: %v", rawPath, err)
+			return err
 		} else if existed {
-			err := os.RemoveAll(rawPath)
+			err = os.RemoveAll(rawPath)
 			if err != nil {
-				return status.Errorf(codes.Internal, "Could not cleanup cache raw path %q: %v", rawPath, err)
+				klog.Errorf("Could not cleanup cache raw path %q: %v", rawPath, err)
+				return err
 			}
 		}
 	}

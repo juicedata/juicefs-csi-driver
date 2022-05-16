@@ -321,7 +321,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
 		if ref == 1 {
-			go func() {
+			func() {
 				j.Lock()
 				defer j.Unlock()
 				uuid := j.UUIDMaps[uniqueId]
@@ -334,10 +334,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 				delete(j.CacheDirMaps, uniqueId)
 
 				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
-				if err = j.processMount.CleanCache(uuid, uniqueId, cacheDirs); err != nil {
-					klog.Errorf("Clean cache err: %v", err)
-					return
-				}
+				go j.processMount.CleanCache(uuid, uniqueId, cacheDirs)
 			}()
 		}
 		return err
