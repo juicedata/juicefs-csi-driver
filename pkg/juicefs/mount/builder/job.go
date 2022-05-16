@@ -124,10 +124,6 @@ func (r *Builder) getDeleteVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
 }
 
-func (r *Builder) getCleanCacheCmd() string {
-	return "/root/script/cache-clean.sh /var/jfsCache/*"
-}
-
 func (r *Builder) getJobCommand() string {
 	var cmd string
 	options := r.jfsSetting.Options
