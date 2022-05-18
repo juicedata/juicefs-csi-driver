@@ -20,6 +20,7 @@ import (
 	"errors"
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
@@ -92,6 +93,26 @@ func TestNewDriver(t *testing.T) {
 
 			_, err := NewDriver(endpoint, nodeId)
 			So(err, ShouldNotBeNil)
+		})
+		Convey("by process", func() {
+			config.ByProcess = true
+			endpoint := "127.0.0.1"
+			nodeId := "test-node"
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			var tmpCmd = &exec.Cmd{}
+			patch2 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+				return tmpCmd
+			})
+			defer patch2.Reset()
+			patch4 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte(""), nil
+			})
+			defer patch4.Reset()
+
+			_, err := NewDriver(endpoint, nodeId)
+			So(err, ShouldBeNil)
 		})
 	})
 }
