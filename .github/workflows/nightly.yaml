@@ -40,11 +40,10 @@ jobs:
         docker image save -o juicefs-csi-driver-nightly.tar juicedata/juicefs-csi-driver:nightly
         sudo microk8s.ctr image import juicefs-csi-driver-nightly.tar
         rm -f juicefs-csi-driver-nightly.tar
-    - name: Deploy JuiceFS CSI
+    - name: Deploy JuiceFS CSI for pod mode
       run: |
-        sed -i -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:nightly@g" \
-               -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' ${GITHUB_WORKSPACE}/deploy/k8s.yaml
-        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh
+        export dev_tag=nightly
+        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh pod
     - name: Set ce secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
@@ -54,7 +53,7 @@ jobs:
         echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
         echo "IS_CE=True" >> $GITHUB_ENV
-    - name: Run ce test
+    - name: Run ce test for pod mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 k8s-ci.py
@@ -70,10 +69,43 @@ jobs:
         echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
         echo "IS_CE=False" >> $GITHUB_ENV
-    - name: Run ee test
+    - name: Run ee test for pod mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 k8s-ci.py
+    - name: Deploy JuiceFS CSI for process mode
+      run: |
+        export dev_tag=nightly
+        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh process
+    - name: Set ce secret env
+      run: |
+        echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
+        echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
+        echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
+        echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
+        echo "IS_CE=True" >> $GITHUB_ENV
+    - name: Run ce test for pod mode
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-process.py
+    - name: Set ee secret env
+      env:
+        JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+      run: |
+        echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
+        echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
+        echo "JUICEFS_ACCESS_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
+        echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
+        echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
+        echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
+        echo "IS_CE=False" >> $GITHUB_ENV
+    - name: Run ee test for pod mode
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-process.py
     - name: Login Docker Hub
       run: docker login --username juicefs --password ${PASSWORD}
       env:

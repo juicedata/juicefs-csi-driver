@@ -39,7 +39,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           make image-dev
           make push-dev
-      - name: Deploy JuiceFS CSI for pod
+      - name: Deploy JuiceFS CSI for pod mode
         run: |
           cd ${GITHUB_WORKSPACE}
           dev_tag=dev-$(git describe --always)
@@ -55,7 +55,7 @@ jobs:
           echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
           echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
           echo "IS_CE=True" >> $GITHUB_ENV
-      - name: Run ce test for pod
+      - name: Run ce test for pod mode
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 k8s-ci.py
@@ -75,7 +75,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 k8s-ci.py
-      - name: Deploy JuiceFS CSI for process
+      - name: Deploy JuiceFS CSI for process mode
         run: |
           cd ${GITHUB_WORKSPACE}
           dev_tag=dev-$(git describe --always)
