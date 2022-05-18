@@ -20,7 +20,7 @@ STORAGE = os.getenv("JUICEFS_STORAGE") or ""
 BUCKET = os.getenv("JUICEFS_BUCKET") or ""
 TOKEN = os.getenv("JUICEFS_TOKEN") or ""
 IS_CE = os.getenv("IS_CE") == "True"
-RESOURCE_PREFIX = "ce-" if IS_CE else "ee-"
+RESOURCE_PREFIX = "precess-ce-" if IS_CE else "precess-ee-"
 FORMAT = '%(asctime)s %(message)s'
 logging.basicConfig(format=FORMAT)
 LOG = logging.getLogger('main')
