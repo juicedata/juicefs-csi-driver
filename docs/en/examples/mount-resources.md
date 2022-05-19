@@ -95,7 +95,7 @@ kubectl get pods juicefs-app-resources
 Also you can verify that mount resources are customized in mount pod:
 
 ```sh
-kubectl -n kube-system get po juicefs-kube-node-2-test-bucket -o yaml | grep -A 6 resources
+kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
 ```
 
 ## Dynamic provisioning

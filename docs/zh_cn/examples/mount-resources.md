@@ -95,7 +95,7 @@ kubectl get pods juicefs-app-resources
 您可以验证 mount pod 的 resource 设置得是否正确：
 
 ```sh
-kubectl -n kube-system get po juicefs-kube-node-2-test-bucket -o yaml | grep -A 6 resources
+kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
 ```
 
 ## 动态配置

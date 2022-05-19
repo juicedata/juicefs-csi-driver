@@ -104,7 +104,7 @@ kubectl get pods juicefs-app-mount-options
 您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
 
 ```sh
-kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep mount.juicefs
+kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
 ```
 
 ## 动态配置
