@@ -15,9 +15,7 @@ The process of creating a secret is the same as the [static provision](static-pr
 
 Set `ReadWriteMany` in both PersistentVolume and PersistentVolumeClaim:
 
-```yaml
-kubectl apply -f - <<EOF
----
+```yaml {12}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -33,7 +31,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -80,7 +78,6 @@ spec:
   - name: data
     persistentVolumeClaim:
       claimName: juicefs-pvc
-EOF
 ```
 
 ## ReadOnlyMany
@@ -89,9 +86,7 @@ The process of creating a secret is the same as the [static provision](static-pr
 
 Set `ReadOnlyMany` in both PersistentVolume and PersistentVolumeClaim:
 
-```yaml
-kubectl apply -f - <<EOF
----
+```yaml {12}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -154,5 +149,4 @@ spec:
   - name: data
     persistentVolumeClaim:
       claimName: juicefs-pvc
-EOF
 ```

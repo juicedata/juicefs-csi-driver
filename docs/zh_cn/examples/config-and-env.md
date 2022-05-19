@@ -31,28 +31,38 @@ EOF
 
 ### 社区版
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
-    --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
+```yaml {13-14}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <NAME>
+  metaurl: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
+  envs: "{GOOGLE_APPLICATION_CREDENTIALS: /root/.config/gcloud/application_default_credentials.json}"
+  configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
 ### 云服务版
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=${JUICEFS_NAME} \
-    --from-literal=token=${JUICEFS_TOKEN} \
-    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
-    --from-literal=secretkey=${JUICEFS_SECRETKEY} \
-    --from-literal=envs={"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json"} \
-    --from-literal=configs={"gc-secret": "/root/.config/gcloud"}
+```yaml {11-12}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${JUICEFS_ACCESSKEY}
+  secret-key: ${JUICEFS_SECRETKEY}
+  envs: "{GOOGLE_APPLICATION_CREDENTIALS: /root/.config/gcloud/application_default_credentials.json}"
+  configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
 ## 部署
@@ -60,7 +70,6 @@ kubectl -n default create secret generic juicefs-secret \
 您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md)。这里以动态配置为例：
 
 ```yaml
-kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -107,7 +116,6 @@ spec:
     - name: juicefs-pv
       persistentVolumeClaim:
         claimName: juicefs-pvc
-EOF
 ```
 
 ## 检查 pod 是否使用了 JuiceFS 文件系统

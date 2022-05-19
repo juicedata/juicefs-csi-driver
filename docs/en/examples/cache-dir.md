@@ -28,7 +28,7 @@ spec:
     - cache-dir=/dev/vdb1
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret

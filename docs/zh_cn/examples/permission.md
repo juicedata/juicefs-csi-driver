@@ -10,14 +10,19 @@ JuiceFS 实现了 [POSIX](https://en.wikipedia.org/wiki/POSIX) 。没有
 
 创建 Secret：
 
-```shell
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY> 
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <NAME>
+  metaurl: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
 ```
 
 创建 StorageClass, PersistentVolumeClaim (PVC)：

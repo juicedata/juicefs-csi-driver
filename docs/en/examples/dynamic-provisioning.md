@@ -14,14 +14,19 @@ To create the CSI Driver `Secret` in Kubernetes, the required fields for the com
 
 Take Amazon S3 as an example:
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <NAME>
+  metaurl: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
 ```
 
 - `name`: The JuiceFS file system name.
@@ -39,20 +44,25 @@ You should ensure:
 
 ### Cloud service edition
 
-```shell
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=${JUICEFS_NAME} \
-    --from-literal=token=${JUICEFS_TOKEN} \
-    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
-    --from-literal=secretkey=${JUICEFS_SECRETKEY}
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${JUICEFS_ACCESSKEY}
+  secret-key: ${JUICEFS_SECRETKEY}
 ```
 
 - `name`: JuiceFS file system name
 - `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
-- `accesskey`: Object storage access key
-- `secretkey`: Object storage secret key
+- `access-key`: Object storage access key
+- `secret-key`: Object storage secret key
 
-You should ensure `accesskey` and `secretkey` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object storage bucket.
+You should ensure `access-key` and `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object storage bucket.
 
 ## Apply
 
