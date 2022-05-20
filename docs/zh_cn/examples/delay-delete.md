@@ -17,7 +17,7 @@ volume，mount pod 不会被摧毁重建，造成不必要的资源浪费。
 
 您可以在 PV 中配置延迟删除的时长，在 `volumeAttributes` 中设置 `juicefs/mount-delete-delay`，值为需要设置的时长，如下：
 
-```yaml
+```yaml {22}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -33,7 +33,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -97,7 +97,7 @@ spec:
 
 您也可以在 StorageClass 中配置延迟删除的时长，在 `parameters` 中设置 `juicefs/mount-delete-delay`，值为需要设置的时长，如下：
 
-```yaml
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

@@ -25,19 +25,23 @@ daemonset.apps/juicefs-csi-node patched
 
 ### 社区版
 
-秘钥管理参考[这篇文档](https://juicefs.com/docs/zh/community/security/encrypt#%E5%AF%86%E9%92%A5%E7%AE%A1%E7%90%86)
-生成秘钥后创建 Secret，如下：
+秘钥管理参考[这篇文档](https://juicefs.com/docs/zh/community/security/encrypt/#%E5%90%AF%E7%94%A8%E9%9D%99%E6%80%81%E5%8A%A0%E5%AF%86)生成秘钥后创建 Secret，如下：
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>} \
-    --from-literal=encrypt_rsa_key=<PATH_TO_PRIVATE_KEY>
+```yaml {13-14}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <NAME>
+  metaurl: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
+  envs: "{JFS_RSA_PASSPHRASE: <PASSPHRASE>}"
+  encrypt_rsa_key: <PATH_TO_PRIVATE_KEY>
 ```
 
 其中，`PASSPHRASE` 为创建秘钥时所用的密码，`PATH_TO_PRIVATE_KEY` 为生成的秘钥文件的路径。
@@ -49,15 +53,18 @@ kubectl -n default create secret generic juicefs-secret \
 托管秘钥的使用参考 [这篇文档](https://juicefs.com/docs/zh/cloud/encryption#%E6%89%98%E7%AE%A1%E5%AF%86%E9%92%A5)
 创建 Secret：
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>}
+```yaml {11}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${JUICEFS_ACCESSKEY}
+  secret-key: ${JUICEFS_SECRETKEY}
+  envs: "{JFS_RSA_PASSPHRASE: <PASSPHRASE>}"
 ```
 
 其中，`PASSPHRASE` 为在 JuiceFS 官方控制台开启存储加密功能时使用的密码。
@@ -67,16 +74,19 @@ kubectl -n default create secret generic juicefs-secret \
 秘钥的生成参考 [这篇文档](https://juicefs.com/docs/zh/cloud/encryption#%E8%87%AA%E8%A1%8C%E7%AE%A1%E7%90%86%E5%AF%86%E9%92%A5)
 生成秘钥后创建 Secret，如下：
 
-```sh
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY> \
-    --from-literal=envs={"JFS_RSA_PASSPHRASE": <PASSPHRASE>} \
-    --from-literal=encrypt_rsa_key=<PATH_TO_PRIVATE_KEY>
+```yaml {11-12}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${JUICEFS_ACCESSKEY}
+  secret-key: ${JUICEFS_SECRETKEY}
+  envs: "{JFS_RSA_PASSPHRASE: <PASSPHRASE>}"
+  encrypt_rsa_key: <PATH_TO_PRIVATE_KEY>
 ```
 
 其中，`PASSPHRASE` 为创建秘钥时所用的密码，`PATH_TO_PRIVATE_KEY` 为生成的秘钥文件的路径。

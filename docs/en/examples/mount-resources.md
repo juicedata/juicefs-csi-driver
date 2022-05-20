@@ -10,7 +10,7 @@ This document shows how to set resources limit and request to JuiceFS mount pod.
 
 You can set resources limit and request in PV:
 
-```yaml
+```yaml {22-25}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -26,7 +26,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -95,14 +95,14 @@ kubectl get pods juicefs-app-resources
 Also you can verify that mount resources are customized in mount pod:
 
 ```sh
-kubectl -n kube-system get po juicefs-kube-node-2-test-bucket -o yaml | grep -A 6 resources
+kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
 ```
 
 ## Dynamic provisioning
 
 You can set resources limit and request in StorageClass:
 
-```yaml
+```yaml {12-15}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

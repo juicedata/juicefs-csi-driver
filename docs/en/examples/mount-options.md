@@ -17,7 +17,7 @@ juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-x
 
 You can use mountOptions in PV:
 
-```yaml
+```yaml {14}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -39,7 +39,7 @@ spec:
     - allow_other
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -107,14 +107,14 @@ Also you can verify that mount options are customized in the mounted JuiceFS fil
 to [this document](../troubleshooting.md#get-mount-pod) to find mount pod and run this command as follows::
 
 ```sh
-kubectl get po juicefs-kube-node-3-test-bucket -oyaml | grep mount.juicefs
+kubectl get po juicefs-kube-node-3-juicefs-pv -oyaml | grep mount.juicefs
 ```
 
 ## Dynamic provisioning
 
 You can use mountOptions in StorageClass:
 
-```yaml
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

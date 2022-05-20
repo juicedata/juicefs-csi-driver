@@ -14,14 +14,19 @@ sidebar_label: 动态配置
 
 以 Amazon S3 为例：
 
-```shell
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=<NAME> \
-    --from-literal=metaurl=redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] \
-    --from-literal=storage=s3 \
-    --from-literal=bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --from-literal=access-key=<ACCESS_KEY> \
-    --from-literal=secret-key=<SECRET_KEY>
+```yaml {7-12}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <NAME>
+  metaurl: redis://[:<PASSWORD>]@<HOST>:6379[/<DB>]
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
 ```
 
 其中：
@@ -40,25 +45,30 @@ kubectl -n default create secret generic juicefs-secret \
 
 ### 云服务版
 
-```shell
-kubectl -n default create secret generic juicefs-secret \
-    --from-literal=name=${JUICEFS_NAME} \
-    --from-literal=token=${JUICEFS_TOKEN} \
-    --from-literal=accesskey=${JUICEFS_ACCESSKEY} \
-    --from-literal=secretkey=${JUICEFS_SECRETKEY}
+```yaml {7-10}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${JUICEFS_ACCESSKEY}
+  secret-key: ${JUICEFS_SECRETKEY}
 ```
 
 其中：
 - `name`：JuiceFS 文件系统名称
-- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
-- `accesskey`：对象存储的 Access key。
-- `secretkey`：对象存储的 Secret key。
+- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)。
+- `access-key`：对象存储的 Access key。
+- `secret-key`：对象存储的 Secret key。
 
-您应该确保 `accesskey` 和 `secretkey` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
+您应该确保 `access-key` 和 `secret-key` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
 
 ## 部署
 
-创建 StorageClass、PersistentVolumeClaim (PVC) 和示例 pod
+创建 StorageClass、PersistentVolumeClaim（PVC）和示例 pod：
 
 ```yaml
 kubectl apply -f - <<EOF

@@ -10,7 +10,7 @@ sidebar_label: 配置 Mount Pod 的资源限制
 
 您可以在 PV 中配置资源限制：
 
-```yaml
+```yaml {22-25}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -26,7 +26,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -95,14 +95,14 @@ kubectl get pods juicefs-app-resources
 您可以验证 mount pod 的 resource 设置得是否正确：
 
 ```sh
-kubectl -n kube-system get po juicefs-kube-node-2-test-bucket -o yaml | grep -A 6 resources
+kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
 ```
 
 ## 动态配置
 
 您可以在 StorageClass 中配置资源限制：
 
-```yaml
+```yaml {12-15}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

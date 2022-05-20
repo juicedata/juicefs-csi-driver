@@ -1,22 +1,20 @@
 ---
-sidebar_label: 设置挂载选项
+sidebar_label: 配置 Mount Pod 退出时清理缓存
 ---
 
-# 如何在 Kubernetes 中使用 Mount Options
+# 如何配置 Mount Pod 退出时清理缓存
 
-本文档展示了如何将 mount options 应用到 JuiceFS。
+本文档展示了如何配置 Mount Pod 退出时清理缓存，即当该节点中没有应用使用 PVC 时清理当前节点的缓存。
 
-CSI Driver 支持 `juicefs mount` 命令行选项和 _fuse_ 挂载选项（`-o` 表示 `juicefs mount` 命令）。
-
-```
-juicefs mount --max-uploads=50 --cache-dir=/var/foo --cache-size=2048 --enable-xattr -o allow_other <META-URL> <MOUNTPOINT>
-```
+:::note 注意
+此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
+:::
 
 ## 静态配置
 
-您可以在 PV 中使用 mountOptions：
+您可以在 PV 中配置是否需要清理缓存，在 `volumeAttributes` 中设置 `juicefs/clean-cache`，值为 `"true"`，如下：
 
-```yaml {14}
+```yaml {22}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -30,12 +28,6 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  mountOptions:
-    - enable-xattr
-    - max-uploads=50
-    - cache-size=2048
-    - cache-dir=/var/foo
-    - allow_other
   csi:
     driver: csi.juicefs.com
     volumeHandle: juicefs-pv
@@ -43,9 +35,9 @@ spec:
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
+    volumeAttributes:
+      juicefs/clean-cache: "true"
 ```
-
-更多配置选项参考 [JuiceFS mount 命令](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 
@@ -93,23 +85,9 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### 检查 mount options
-
-应用配置后，验证 pod 是否正在运行：
-
-```sh
-kubectl get pods juicefs-app-mount-options
-```
-
-您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
-
-```sh
-kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
-```
-
 ## 动态配置
 
-您也可以在 StorageClass 中使用 mountOptions：
+您可以在 StorageClass 中配置是否需要清理缓存，在 `parameters` 中设置 `juicefs/clean-cache`，值为 `"true"`，如下：
 
 ```yaml {12}
 apiVersion: storage.k8s.io/v1
@@ -123,15 +101,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions:
-  - enable-xattr
-  - max-uploads=50
-  - cache-size=2048
-  - cache-dir=/var/foo
-  - allow_other
+  juicefs/clean-cache: "true"
 ```
-
-更多配置选项参考 [JuiceFS mount 命令](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 。
 
 部署 PVC 和示例 pod：
 
@@ -170,18 +141,4 @@ spec:
     - name: juicefs-pv
       persistentVolumeClaim:
         claimName: juicefs-pvc
-```
-
-### 检查 mount options
-
-应用配置后，验证 pod 是否正在运行：
-
-```sh
-kubectl get pods juicefs-app-mount-options
-```
-
-您还可以验证 mount option 是否在挂载的 JuiceFS 文件系统中进行了自定义，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
-
-```sh
-kubectl -n kube-system get po juicefs-172.16.2.87-pvc-5916988b-71a0-4494-8315-877d2dbb8709 -oyaml | grep mount.juicefs
 ```

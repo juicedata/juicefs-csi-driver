@@ -19,7 +19,7 @@ This document shows how to set the delay deletion duration for mount pods.
 
 You can configure the length of time of delay deletion in PV. Set `juicefs/mount-delete-delay` in `volumeAttributes`, the value is the duration to be set. As follows:
 
-```yaml
+```yaml {22}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -35,7 +35,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -100,7 +100,7 @@ spec:
 
 You can configure the length of time of delay deletion in StorageClass. Set `juicefs/mount-delete-delay` in `parameters`, the value is the duration to be set. As follows:
 
-```yaml
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

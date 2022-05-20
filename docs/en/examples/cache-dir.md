@@ -28,7 +28,7 @@ spec:
     - cache-dir=/dev/vdb1
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -49,7 +49,7 @@ You can also verify that the JuiceFS client has the expected cache path set. Ref
 to [this document](../troubleshooting.md#find-mount-pod) to find mount pod and run this command as follows:
 
 ```sh
-kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep mount.juicefs
+kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
 ```
 
 ## Dynamic provisioning

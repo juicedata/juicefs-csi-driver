@@ -14,9 +14,7 @@ JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadWriteMany`：
 
-```yaml
-kubectl apply -f - <<EOF
----
+```yaml {12}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -32,7 +30,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -79,7 +77,6 @@ spec:
   - name: data
     persistentVolumeClaim:
       claimName: juicefs-pvc
-EOF
 ```
 
 ## ReadOnlyMany
@@ -88,9 +85,7 @@ EOF
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadOnlyMany`：
 
-```yaml
-kubectl apply -f - <<EOF
----
+```yaml {12}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -106,7 +101,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -153,5 +148,4 @@ spec:
   - name: data
     persistentVolumeClaim:
       claimName: juicefs-pvc
-EOF
 ```

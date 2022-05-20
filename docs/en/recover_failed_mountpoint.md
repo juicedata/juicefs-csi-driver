@@ -43,24 +43,24 @@ You can see mount pod as follows after application pod is created successfully:
 $ kubectl get po -A
 NAMESPACE     NAME                                                           READY   STATUS    RESTARTS   AGE
 default       juicefs-app-static-deploy-7fcc667995-cmswc                     1/1     Running   0          6m49s
-kube-system   juicefs-kube-node-3-test-bucket                                1/1     Running   0          6m30s
+kube-system   juicefs-kube-node-3-juicefs-pv                                1/1     Running   0          6m30s
 ```
 
-We delete mount pod `juicefs-kube-node-3-test-bucket` for testing, and then watch pod for recovery:
+We delete mount pod `juicefs-kube-node-3-juicefs-pv` for testing, and then watch pod for recovery:
 
 ```shell
 $ kubectl -n kube-system get po -w
 NAME                                                           READY   STATUS        RESTARTS   AGE
 ...
-juicefs-kube-node-3-test-bucket                                0/1     Terminating   0          8m8s
-juicefs-kube-node-3-test-bucket                                0/1     Terminating   0          8m28s
-juicefs-kube-node-3-test-bucket                                0/1     Terminating   0          8m37s
-juicefs-kube-node-3-test-bucket                                0/1     Terminating   0          8m37s
-juicefs-kube-node-3-test-bucket                                0/1     Pending       0          0s
-juicefs-kube-node-3-test-bucket                                0/1     ContainerCreating   0          0s
-juicefs-kube-node-3-test-bucket                                0/1     ContainerCreating   0          1s
-juicefs-kube-node-3-test-bucket                                0/1     Running             0          2s
-juicefs-kube-node-3-test-bucket                                1/1     Running             0          3s
+juicefs-kube-node-3-juicefs-pv                                0/1     Terminating   0          8m8s
+juicefs-kube-node-3-juicefs-pv                                0/1     Terminating   0          8m28s
+juicefs-kube-node-3-juicefs-pv                                0/1     Terminating   0          8m37s
+juicefs-kube-node-3-juicefs-pv                                0/1     Terminating   0          8m37s
+juicefs-kube-node-3-juicefs-pv                                0/1     Pending       0          0s
+juicefs-kube-node-3-juicefs-pv                                0/1     ContainerCreating   0          0s
+juicefs-kube-node-3-juicefs-pv                                0/1     ContainerCreating   0          1s
+juicefs-kube-node-3-juicefs-pv                                0/1     Running             0          2s
+juicefs-kube-node-3-juicefs-pv                                1/1     Running             0          3s
 ...
 ```
 

@@ -29,7 +29,7 @@ spec:
     - cache-dir=/dev/vdb1
   csi:
     driver: csi.juicefs.com
-    volumeHandle: test-bucket
+    volumeHandle: juicefs-pv
     fsType: juicefs
     nodePublishSecretRef:
       name: juicefs-secret
@@ -49,7 +49,7 @@ kubectl get pods juicefs-app
 您还可以验证 JuiceFS 客户端是否设置了预期的缓存路径，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
 
 ```sh
-kubectl -n kube-system get po juicefs-172.16.2.87-test-bucket -oyaml | grep mount.juicefs
+kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
 ```
 
 ## 动态配置
