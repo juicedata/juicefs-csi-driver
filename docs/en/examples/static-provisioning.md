@@ -14,7 +14,7 @@ To create the CSI Driver `Secret` in Kubernetes, the required fields for the com
 
 Take Amazon S3 as an example:
 
-```yaml
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -42,17 +42,17 @@ You should ensure:
 1. The `access-key`, `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object bucket
 2. The Redis DB is clean and the password (if provided) is right
 
-You can execute the [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-mount) command to ensure the secret is OK.
+You can execute the [`juicefs format`](https://juicefs.com/docs/community/command_reference#juicefs-format) command to ensure the Secret is OK:
 
 ```sh
-./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
+juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
     redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
 ```
 
 ### Cloud service edition
 
-```yaml
+```yaml {7-10}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -72,11 +72,11 @@ stringData:
 
 You should ensure `access-key` and `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object bucket.
 
-## Apply
+## Deploy
 
-Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and sample pod.
+Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and sample pod:
 
-:::note 
+:::note
 The PV volumeHandle needs to be unique within the cluster, just use the PV name.
 :::
 

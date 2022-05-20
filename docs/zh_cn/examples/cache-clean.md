@@ -1,10 +1,10 @@
 ---
-sidebar_label: 设置 Mount Pod 退出时清理缓存
+sidebar_label: 配置 Mount Pod 退出时清理缓存
 ---
 
-# 如何在 JuiceFS mount pod 中设置退出时清理缓存
+# 如何配置 Mount Pod 退出时清理缓存
 
-本文档展示了如何在 JuiceFS mount pod 中设置退出时清理缓存，即当该节点中没有应用使用 PVC 时清理当前节点的缓存。
+本文档展示了如何配置 Mount Pod 退出时清理缓存，即当该节点中没有应用使用 PVC 时清理当前节点的缓存。
 
 :::note 注意
 此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
@@ -87,7 +87,7 @@ spec:
 
 ## 动态配置
 
-您也可以在 StorageClass 中配置是否需要清理缓存，在 `parameters` 中设置 `juicefs/clean-cache`，值为 `"true"`，如下：
+您可以在 StorageClass 中配置是否需要清理缓存，在 `parameters` 中设置 `juicefs/clean-cache`，值为 `"true"`，如下：
 
 ```yaml {12}
 apiVersion: storage.k8s.io/v1

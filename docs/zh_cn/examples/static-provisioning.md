@@ -14,7 +14,7 @@ sidebar_label: 静态配置
 
 以 Amazon S3 为例：
 
-```yaml
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -43,17 +43,17 @@ stringData:
 1. `access-key` 和 `secret-key` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
 2. Redis DB 是干净的，并且 `password`（如果有的话）是正确的
 
-您可以执行 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount) 命令确保 secret 是正确的。
+您可以执行 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#juicefs-format) 命令确保 Secret 是正确的：
 
 ```sh
-./juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
+juicefs format --storage=s3 --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
     --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
     redis://[:<PASSWORD>]@<HOST>:6379[/<DB>] <NAME>
 ```
 
 ### 云服务版
 
-```yaml
+```yaml {7-10}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -76,7 +76,7 @@ stringData:
 
 ## 部署
 
-创建 PersistentVolume (PV)、PersistentVolumeClaim (PVC) 和示例 pod。
+创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
 
 :::note 注意
 PV 的 volumeHandle 需要保证集群内唯一，用 PV name 即可。

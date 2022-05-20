@@ -14,7 +14,7 @@ To create the CSI Driver `Secret` in Kubernetes, the required fields for the com
 
 Take Amazon S3 as an example:
 
-```yaml
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -44,7 +44,7 @@ You should ensure:
 
 ### Cloud service edition
 
-```yaml
+```yaml {7-10}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -64,9 +64,9 @@ stringData:
 
 You should ensure `access-key` and `secret-key` pair has `GetObject`, `PutObject`, `DeleteObject` permission for the object storage bucket.
 
-## Apply
+## Deploy
 
-Create StorageClass, PersistentVolumeClaim (PVC) and sample pod
+Create StorageClass, PersistentVolumeClaim (PVC) and sample pod:
 
 ```yaml
 kubectl apply -f - <<EOF

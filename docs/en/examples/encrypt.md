@@ -25,7 +25,7 @@ Make sure that the JuiceFS CSI node's pods are all rebuilt.
 
 ### Community edition
 
-Key management refer to [this document](https://juicefs.com/docs/community/security/encrypt#key-management).
+Key management refer to [this document](https://juicefs.com/docs/community/security/encrypt/#enable-data-encryption-at-rest).
 After generating the private key, create a Secret, as follows:
 
 ```yaml {13-14}

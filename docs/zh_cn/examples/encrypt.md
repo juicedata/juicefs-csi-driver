@@ -25,8 +25,7 @@ daemonset.apps/juicefs-csi-node patched
 
 ### 社区版
 
-秘钥管理参考[这篇文档](https://juicefs.com/docs/zh/community/security/encrypt#%E5%AF%86%E9%92%A5%E7%AE%A1%E7%90%86)
-生成秘钥后创建 Secret，如下：
+秘钥管理参考[这篇文档](https://juicefs.com/docs/zh/community/security/encrypt/#%E5%90%AF%E7%94%A8%E9%9D%99%E6%80%81%E5%8A%A0%E5%AF%86)生成秘钥后创建 Secret，如下：
 
 ```yaml {13-14}
 apiVersion: v1

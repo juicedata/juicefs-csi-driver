@@ -1,11 +1,10 @@
 ---
-sidebar_label: Clean Cache on Mount Pod exit
+sidebar_label: Configure Mount Pod to Clean Cache When Exiting
 ---
 
-# How to clean cache on exit of JuiceFS mount pod
+# How to configure Mount Pod to clean cache when it exits
 
-This document shows how to clean cache on exit of JuiceFS mount pod, that is, clean the cache of the current node when
-no PVC is used by the application.
+This document shows how to configure the Mount Pod to clean the cache when it exits, that is, to clean the cache of the current node when no PVC is used by the application on the node.
 
 :::note
 This feature requires JuiceFS CSI Driver version 0.14.1 and above.
@@ -41,7 +40,7 @@ spec:
       juicefs/clean-cache: "true"
 ```
 
-Apply PVC and sample pod as follows:
+Deploy PVC and sample pod as follows:
 
 ```yaml
 apiVersion: v1
@@ -89,8 +88,7 @@ spec:
 
 ## Dynamic provisioning
 
-You can configure if need to clean cache in StorageClass. Set `juicefs/clean-cache` in `"true"`, the value is the
-duration to be set. As follows:
+You can configure if need to clean cache in StorageClass. Set `juicefs/clean-cache` in `parameters` to `"true"`. As follows:
 
 ```yaml {12}
 apiVersion: storage.k8s.io/v1
@@ -107,7 +105,7 @@ parameters:
   juicefs/clean-cache: "true"
 ```
 
-Apply PVC and sample pod as follows:
+Deploy PVC and sample pod as follows:
 
 ```yaml
 apiVersion: v1

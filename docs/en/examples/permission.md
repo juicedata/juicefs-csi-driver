@@ -1,10 +1,12 @@
+---
+sidebar_label: Manage Permissions in JuiceFS
+---
+
 # How to manage permissions in JuiceFS
 
-JuiceFS is [POSIX](https://en.wikipedia.org/wiki/POSIX)-compilant. There is no
-extra effort to manage permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier)
-and [GID](https://en.wikipedia.org/wiki/Group_identifier).
+JuiceFS is [POSIX-compatible](https://juicefs.com/docs/community/posix_compatibility). There is no extra effort to manage permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier) and [GID](https://en.wikipedia.org/wiki/Group_identifier).
 
-## Apply 
+## Deploy
 
 You can use [static provision](static-provisioning.md) or [dynamic provision](dynamic-provisioning.md) . We take dynamic provision as example:
 
@@ -25,7 +27,7 @@ stringData:
   secret-key: <SECRET_KEY>
 ```
 
-Create StorageClass, PersistentVolumeClaim (PVC):
+Create StorageClass and PersistentVolumeClaim (PVC):
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -58,7 +60,7 @@ EOF
 
 ## Set permissions in pod
 
-```yaml
+```yaml {10,20-21,29,39-40,48,58-59}
 kubectl apply -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -134,8 +136,7 @@ EOF
 
 ## Check how permission works in JuiceFS volume
 
-The `owner` container is run as user `1000` and group `3000`. Check the file it created owned by 1000:3000 under permission `-rw-r--r--` since
-umask is `0022`
+The `owner` container is run as user `1000` and group `3000`. Check the file it created owned by `1000:3000` under permission `-rw-r--r--` since umask is `0022`:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- id
@@ -147,7 +148,7 @@ total 707088
 -rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txtkubectl get pods
 ```
 
-The `group` container is run as user `2000` and group `3000`. Check the file is readable by other user in the group.
+The `group` container is run as user `2000` and group `3000`. Check the file is readable by other user in the group:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c group -- id
@@ -158,7 +159,7 @@ Fri Aug 9 10:08:37 UTC 2019
 ...
 ```
 
-The `other` container is run as user `3000` and group `4000`. Check the file is not writable for users not in the group.
+The `other` container is run as user `3000` and group `4000`. Check the file is not writable for users not in the group:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c other -- id

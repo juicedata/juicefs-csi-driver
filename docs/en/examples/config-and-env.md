@@ -2,28 +2,30 @@
 sidebar_label: Set Configuration Files and Environment Variables in Mount Pod
 ---
 
-# How to set configuration files and environment variables in JuiceFS mount pod
+# How to set configuration files and environment variables in Mount Pod
 
-This document shows how to set the configuration file and environment variables in JuiceFS mount pod, taking set the key file and related environment variables of the Google Cloud service account as an example.
+This document shows how to set the configuration file and environment variables in Mount Pod, taking set the key file and related environment variables of the Google Cloud service account as an example.
 
 ## Set configuration files and environment variables in secret
 
 Please refer to Google Cloud documentation to learn how to perform [authentication](https://cloud.google.com/docs/authentication) and [authorization](https://cloud.google.com/iam/docs/overview).
 
-Put the manually generated [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account) after base64 encoding into the `data` field of the Kubernetes secret, the key is the name of the configuration file to put in the mount pod (such as `application_default_credentials.json`):
+Put the manually generated [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account) after Base64 encoding into the `data` field of the Kubernetes Secret, the key is the name of the configuration file to put in the mount pod (such as `application_default_credentials.json`):
 
-```yaml
+```yaml {9}
+kubectl apply -f - <<EOF
 apiVersion: v1
-data:
-  application_default_credentials.json: eyAiY2xpZW50X2lkIjogIjc2NDA4NjA1MTg1MC02cXI0cDZncGk2aG41MDZwdDhlanVxODNkaT*****=
 kind: Secret
 metadata:
   name: gc-secret
   namespace: kube-system
 type: Opaque
+data:
+  application_default_credentials.json: eyAiY2xpZW50X2lkIjogIjc2NDA4NjA1MTg1MC02cXI0cDZncGk2aG41MDZwdDhlanVxODNkaT*****=
+EOF
 ```
 
-Create a secret for the CSI driver in Kubernetes. The key of `configs` is the secret name created above, and the value is the root path of the configuration file saved in the mount pod. The `envs` is the environment variable you want to set for mount pod.
+Create a Secret for the CSI driver in Kubernetes, add `configs` and `envs` parameters. The key of `configs` is the Secret name created above, and the value is the root path of the configuration file saved in the mount pod. The `envs` is the environment variable you want to set for mount pod.
 
 The required fields for the community edition and the cloud service edition are different, as follows:
 

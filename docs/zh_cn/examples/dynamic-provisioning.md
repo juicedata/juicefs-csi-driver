@@ -14,7 +14,7 @@ sidebar_label: 动态配置
 
 以 Amazon S3 为例：
 
-```yaml
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -45,7 +45,7 @@ stringData:
 
 ### 云服务版
 
-```yaml
+```yaml {7-10}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -60,15 +60,15 @@ stringData:
 
 其中：
 - `name`：JuiceFS 文件系统名称
-- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
+- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)。
 - `access-key`：对象存储的 Access key。
 - `secret-key`：对象存储的 Secret key。
 
-您应该确保 `accesskey` 和 `secretkey` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
+您应该确保 `access-key` 和 `secret-key` 对需要有对象存储 bucket 的 `GetObject`、`PutObject`、`DeleteObject` 权限。
 
 ## 部署
 
-创建 StorageClass、PersistentVolumeClaim (PVC) 和示例 pod
+创建 StorageClass、PersistentVolumeClaim（PVC）和示例 pod：
 
 ```yaml
 kubectl apply -f - <<EOF
