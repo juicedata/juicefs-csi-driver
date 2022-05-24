@@ -30,7 +30,7 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 1. Prepare a YAML file
 
-Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to [JuiceFS Quick Start Guide](https://github.com/juicedata/juicefs/blob/main/docs/en/getting-started/_quick_start_guide.md) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank.
+Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to [JuiceFS Quick Start Guide](https://github.com/juicedata/juicefs/blob/main/docs/en/getting-started/_quick_start_guide.md) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or their value should be left blank.
 
 ```yaml
 storageClasses:
@@ -78,7 +78,7 @@ helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-sy
 
 4. Check the deployment
 
-- **Check pods are running**: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
+- **Check pods are running**: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with `1` replica and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods are running. For example:
 
 ```sh
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
@@ -133,7 +133,7 @@ $ ps -ef | grep kubelet | grep root-dir
 
 2. Deploy
 
-**If the check command returns a non-empty result**, it means that the `root-dir` path of the kubelet is not the default, so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
+**If the check command returns a non-empty result**, it means that the `root-dir` path of the kubelet is not the default value, so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
 
 ```shell
 # Kubernetes version >= v1.18
@@ -143,7 +143,7 @@ curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/
 curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
 ```
 
-> **Note**: please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
+> **Note**: please replace `{{KUBELET_DIR}}` in the above commands with the actual root directory path of kubelet.
 
 **If the check command returns an empty result**, you can deploy directly without modifying the configuration:
 
