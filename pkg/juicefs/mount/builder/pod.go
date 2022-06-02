@@ -32,7 +32,6 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	resourceRequirements := r.parsePodResources()
 
 	cmd := r.getCommand()
-	statCmd := "stat -c %i " + r.jfsSetting.MountPath
 
 	pod := r.generateJuicePod()
 	// add cache-dir host path volume
@@ -53,20 +52,14 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	}}
 	pod.Spec.Containers[0].Resources = resourceRequirements
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
-	pod.Spec.Containers[0].ReadinessProbe = &corev1.Probe{
-		Handler: corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", statCmd)},
-			}},
-		InitialDelaySeconds: 1,
-		PeriodSeconds:       1,
-	}
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
 				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
+	gracePeriod := int64(10)
+	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
 
 	for k, v := range r.jfsSetting.MountPodLabels {
 		pod.Labels[k] = v
