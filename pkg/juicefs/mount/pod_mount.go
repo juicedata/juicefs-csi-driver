@@ -56,7 +56,7 @@ func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	if err := p.createOrAddRef(jfsSetting, podName); err != nil {
 		return err
 	}
-	return p.waitUtilPodReady(jfsSetting, podName)
+	return p.waitUtilMountReady(jfsSetting, podName)
 }
 
 func (p *PodMount) GetMountRef(uniqueId, target string) (int, error) {
@@ -298,12 +298,13 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, podName stri
 	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
 }
 
-func (p *PodMount) waitUtilPodReady(jfsSetting *jfsConfig.JfsSetting, podName string) error {
+func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	// Wait until the mount point is ready
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		finfo, err := os.Stat(jfsSetting.MountPath)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			continue
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
@@ -314,14 +315,15 @@ func (p *PodMount) waitUtilPodReady(jfsSetting *jfsConfig.JfsSetting, podName st
 		} else {
 			klog.V(5).Info("Cannot reach here")
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 500)
 	}
+	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(podName)
 	if err != nil {
-		klog.Errorf("waitUtilPodReady: get pod %s log error %v", podName, err)
-		return status.Errorf(codes.Internal, "waitUtilPodReady: mount pod %s isn't ready in 30 seconds: %v", podName, log)
+		klog.Errorf("Get pod %s log error %v", podName, err)
+		return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: %v", jfsSetting.Source, jfsSetting.MountPath, log)
 }
 
 func (p *PodMount) waitUtilJobCompleted(jobName string) error {
