@@ -304,6 +304,7 @@ func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName 
 		finfo, err := os.Stat(jfsSetting.MountPath)
 		if err != nil {
 			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			time.Sleep(time.Millisecond * 500)
 			continue
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
