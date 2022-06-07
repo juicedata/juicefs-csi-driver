@@ -49,6 +49,7 @@ var (
 	mp             = corev1.MountPropagationBidirectional
 	dir            = corev1.HostPathDirectoryOrCreate
 	file           = corev1.HostPathFileOrCreate
+	gracePeriod    = int64(10)
 	podDefaultTest = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
@@ -124,23 +125,16 @@ var (
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
-				ReadinessProbe: &corev1.Probe{
-					Handler: corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-							"if [ x$(%v) = x1 ]; then exit 0; else exit 1; fi ", "stat -c %i /jfs/default-imagenet")},
-						}},
-					InitialDelaySeconds: 1,
-					PeriodSeconds:       1,
-				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s && rmdir %s", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
 					},
 				},
 			}},
-			RestartPolicy:     corev1.RestartPolicyAlways,
-			NodeName:          "node",
-			PriorityClassName: config.JFSMountPriorityName,
+			TerminationGracePeriodSeconds: &gracePeriod,
+			RestartPolicy:                 corev1.RestartPolicyAlways,
+			NodeName:                      "node",
+			PriorityClassName:             config.JFSMountPriorityName,
 		},
 	}
 )

@@ -18,7 +18,9 @@ package mount
 
 import (
 	"errors"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"os"
 	"os/exec"
 	"reflect"
 	"testing"
@@ -629,6 +631,10 @@ func TestJMount(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch2.Reset()
+			patch5 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+				return mocks.FakeFileInfoIno1{}, nil
+			})
+			defer patch5.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
 			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient}, mount.SafeFormatAndMount{
