@@ -17,8 +17,11 @@ limitations under the License.
 package util
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 	"strings"
 )
 
@@ -97,4 +100,29 @@ func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
 		return "", "", err
 	}
 	return sourcePath, volumeId, nil
+}
+
+func RemoveFinalizer(client *k8sclient.K8sClient, pod *corev1.Pod, finalizer string) error {
+	f := pod.GetFinalizers()
+	for i := 0; i < len(f); i++ {
+		if f[i] == finalizer {
+			f = append(f[:i], f[i+1:]...)
+			i--
+		}
+	}
+	payload := []k8sclient.PatchListValue{{
+		Op:    "replace",
+		Path:  "/metadata/finalizers",
+		Value: f,
+	}}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	if err := client.PatchPod(pod, payloadBytes); err != nil {
+		klog.Errorf("Patch pod err:%v", err)
+		return err
+	}
+	return nil
 }

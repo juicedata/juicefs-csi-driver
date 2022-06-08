@@ -19,12 +19,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -36,6 +38,7 @@ var (
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
 	process            = flag.Bool("by-process", false, "CSI Driver run juicefs in process or not. default false.")
 	provisioner        = flag.Bool("provisioner", false, "Enable provisioner in controller. default false.")
+	mountController    = flag.Bool("mount-controller", false, "Enable mount controller. default false.")
 )
 
 func init() {
@@ -43,6 +46,7 @@ func init() {
 	flag.Parse()
 	config.ByProcess = *process
 	config.Provisioner = *provisioner
+	config.MountController = *mountController
 	if *process {
 		// if run in process, does not need pod info
 		config.EnableManager = false
@@ -113,7 +117,20 @@ func main() {
 			klog.V(5).Infof("Could not Start Reconciler: %v", err)
 			os.Exit(1)
 		}
-		klog.V(5).Infof("Reconciler Stated")
+		klog.V(5).Infof("Reconciler Started")
+	}
+	if config.MountController {
+		mgr, err := app.NewMountManager()
+		if err != nil {
+			klog.Fatalln(err)
+		}
+		go func() {
+			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+				klog.Error(err, "fail to run mount controller")
+				os.Exit(1)
+			}
+		}()
+		klog.V(5).Infof("Mount Controller Started")
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)
