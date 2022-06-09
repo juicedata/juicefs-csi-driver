@@ -21,15 +21,26 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 type MountController struct {
 	*k8sclient.K8sClient
+}
+
+func NewMountController(client *k8sclient.K8sClient) *MountController {
+	return &MountController{client}
 }
 
 func (m MountController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -80,4 +91,55 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	}
 
 	return reconcile.Result{}, err
+}
+
+func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
+	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
+	if err != nil {
+		return err
+	}
+
+	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
+		CreateFunc: func(event event.CreateEvent) bool { return false },
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
+			if !ok {
+				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
+				return false
+			}
+
+			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
+			if !ok {
+				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
+				return false
+			}
+
+			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
+				klog.V(6).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
+				return false
+			}
+			// check mount pod deleted
+			if podNew.DeletionTimestamp == nil {
+				klog.V(6).Infof("pod %s is not deleted", podNew.Name)
+				return false
+			}
+			if !util.ContainsString(podNew.GetFinalizers(), config.Finalizer) {
+				return false
+			}
+			return true
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			pod := deleteEvent.Object.(*corev1.Pod)
+			// check mount pod deleted
+			if pod.DeletionTimestamp == nil {
+				klog.V(6).Infof("pod %s is not deleted", pod.Name)
+				return false
+			}
+			if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+				// do nothing
+				return false
+			}
+			return true
+		},
+	})
 }

@@ -25,11 +25,11 @@ import (
 )
 
 var (
-	ByProcess       = false // csi driver runs juicefs in process or not
-	EnableManager   = false // enable manager or not (only in k8s)
-	FormatInPod     = false // put format/auth in pod (only in k8s)
-	Provisioner     = false // provisioner in controller
-	MountController = false // manage mount pod in controller
+	ByProcess    = false // csi driver runs juicefs in process or not
+	PodManager   = false // enable pod manager or not (only in k8s)
+	FormatInPod  = false // put format/auth in pod (only in k8s)
+	Provisioner  = false // provisioner in controller
+	MountManager = false // manage mount pod in controller (only in k8s)
 
 	NodeName    = ""
 	Namespace   = ""

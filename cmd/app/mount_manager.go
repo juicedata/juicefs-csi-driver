@@ -27,11 +27,6 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var (
@@ -47,7 +42,7 @@ func NewMountManager() (ctrl.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	var mgr, _ = ctrl.NewManager(conf, ctrl.Options{
+	mgr, err := ctrl.NewManager(conf, ctrl.Options{
 		Scheme: scheme,
 		Port:   9443,
 		NewCache: cache.BuilderWithOptions(cache.Options{
@@ -59,6 +54,10 @@ func NewMountManager() (ctrl.Manager, error) {
 			},
 		}),
 	})
+	if err != nil {
+		klog.Errorf("New mount controller error: %v", err)
+		return nil, err
+	}
 
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClient()
@@ -68,20 +67,9 @@ func NewMountManager() (ctrl.Manager, error) {
 	}
 
 	// init Reconciler（Controller）
-	c, err := controller.New("mount", mgr, controller.Options{
-		Reconciler: &mountctrl.MountController{K8sClient: k8sClient},
-	})
-	if err != nil {
+	if err = (mountctrl.NewMountController(k8sClient)).SetupWithManager(mgr); err != nil {
+		klog.Errorf("Setup mount controller error: %v", err)
 		return nil, err
 	}
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool { return false },
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return true
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return true
-		},
-	})
 	return mgr, err
 }
