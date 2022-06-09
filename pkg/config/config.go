@@ -25,10 +25,11 @@ import (
 )
 
 var (
-	ByProcess     = false // csi driver runs juicefs in process or not
-	EnableManager = false // enable manager or not (only in k8s)
-	FormatInPod   = false // put format/auth in pod (only in k8s)
-	Provisioner   = false
+	ByProcess    = false // csi driver runs juicefs in process or not
+	PodManager   = false // enable pod manager or not (only in k8s)
+	FormatInPod  = false // put format/auth in pod (only in k8s)
+	Provisioner  = false // provisioner in controller
+	MountManager = false // manage mount pod in controller (only in k8s)
 
 	NodeName    = ""
 	Namespace   = ""
@@ -57,12 +58,14 @@ var (
 )
 
 const (
-	PodTypeKey   = "app.kubernetes.io/name"
-	PodTypeValue = "juicefs-mount"
-	Finalizer    = "juicefs.com/finalizer"
-	JuiceFSUUID  = "juicefs-uuid"
-	UniqueId     = "juicefs-uniqueid"
-	CleanCache   = "juicefs-clean-cache"
+	CSINodeLabelKey   = "app"
+	CSINodeLabelValue = "juicefs-csi-node"
+	PodTypeKey        = "app.kubernetes.io/name"
+	PodTypeValue      = "juicefs-mount"
+	Finalizer         = "juicefs.com/finalizer"
+	JuiceFSUUID       = "juicefs-uuid"
+	UniqueId          = "juicefs-uniqueid"
+	CleanCache        = "juicefs-clean-cache"
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"

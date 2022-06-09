@@ -19,23 +19,27 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"strings"
 )
 
 var (
 	endpoint           = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
 	version            = flag.Bool("version", false, "Print the version and exit.")
 	nodeID             = flag.String("nodeid", "", "Node ID")
-	enableManager      = flag.Bool("enable-manager", false, "Enable manager or not.")
+	podManager         = flag.Bool("enable-manager", false, "Enable pod manager or not.")
 	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
 	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
 	process            = flag.Bool("by-process", false, "CSI Driver run juicefs in process or not. default false.")
 	provisioner        = flag.Bool("provisioner", false, "Enable provisioner in controller. default false.")
+	mountManager       = flag.Bool("mount-manager", true, "Enable mount manager in csi controller. default false.")
 )
 
 func init() {
@@ -45,11 +49,11 @@ func init() {
 	config.Provisioner = *provisioner
 	if *process {
 		// if run in process, does not need pod info
-		config.EnableManager = false
+		config.PodManager = false
 		config.FormatInPod = false
+		config.MountManager = false
 		return
 	}
-	config.EnableManager = *enableManager
 	config.FormatInPod = *formatInPod
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
@@ -66,6 +70,12 @@ func init() {
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
+	}
+	if strings.Contains(config.PodName, "csi-controller") && *mountManager {
+		config.MountManager = true
+	}
+	if strings.Contains(config.PodName, "csi-node") && *podManager {
+		config.PodManager = true
 	}
 
 	config.ReconcilerInterval = *reconcilerInterval
@@ -108,12 +118,29 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
-	if config.EnableManager && config.KubeletPort != "" && config.HostIp != "" {
+	// enable pod manager in csi node
+	if config.PodManager && config.KubeletPort != "" && config.HostIp != "" {
 		if err := controller.StartReconciler(); err != nil {
 			klog.V(5).Infof("Could not Start Reconciler: %v", err)
 			os.Exit(1)
 		}
-		klog.V(5).Infof("Reconciler Stated")
+		klog.V(5).Infof("Pod Reconciler Started")
+	}
+
+	// enable mount manager in csi controller
+	if config.MountManager {
+		go func() {
+			mgr, err := app.NewMountManager()
+			if err != nil {
+				klog.Error(err)
+				return
+			}
+			klog.V(5).Infof("Mount Manager Started")
+			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+				klog.Error(err, "fail to run mount controller")
+				return
+			}
+		}()
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

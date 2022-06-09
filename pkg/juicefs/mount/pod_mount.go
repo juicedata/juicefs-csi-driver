@@ -344,11 +344,11 @@ func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, metav1.LabelSelector{
+	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"job-name": jobName,
 		},
-	})
+	}, nil)
 	if err != nil || len(pods) != 1 {
 		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}

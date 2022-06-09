@@ -25,6 +25,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -93,15 +94,21 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 	return mntPod, nil
 }
 
-func (k *K8sClient) ListPod(namespace string, labelSelector metav1.LabelSelector) ([]corev1.Pod, error) {
-	klog.V(6).Infof("List pod by labelSelector %v", labelSelector)
-	labelMap, err := metav1.LabelSelectorAsMap(&labelSelector)
-	if err != nil {
-		return nil, err
+func (k *K8sClient) ListPod(namespace string, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.Pod, error) {
+	klog.V(6).Infof("List pod by labelSelector %v, fieldSelector %v", labelSelector, filedSelector)
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		labelMap, err := metav1.LabelSelectorAsMap(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labels.SelectorFromSet(labelMap).String()
 	}
-	podList, err := k.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labelMap).String(),
-	})
+	if filedSelector != nil {
+		listOptions.FieldSelector = fields.SelectorFromSet(*filedSelector).String()
+	}
+
+	podList, err := k.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
 	if err != nil {
 		klog.V(6).Infof("Can't list pod in namespace %s by labelSelector %v: %v", namespace, labelSelector, err)
 		return nil, err
