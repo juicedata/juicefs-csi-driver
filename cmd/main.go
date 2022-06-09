@@ -120,17 +120,18 @@ func main() {
 		klog.V(5).Infof("Reconciler Started")
 	}
 	if config.MountController {
-		mgr, err := app.NewMountManager()
-		if err != nil {
-			klog.Fatalln(err)
-		}
 		go func() {
+			mgr, err := app.NewMountManager()
+			if err != nil {
+				klog.Error(err)
+				return
+			}
+			klog.V(5).Infof("Mount Controller Started")
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 				klog.Error(err, "fail to run mount controller")
 				os.Exit(1)
 			}
 		}()
-		klog.V(5).Infof("Mount Controller Started")
 	}
 
 	drv, err := driver.NewDriver(*endpoint, *nodeID)

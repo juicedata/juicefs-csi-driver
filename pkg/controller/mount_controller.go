@@ -23,6 +23,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -40,13 +41,13 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	}
 	if mountPod == nil {
 		klog.V(6).Infof("pod %s has been deleted.", request.Name)
-		return reconcile.Result{}, err
+		return reconcile.Result{}, nil
 	}
 
 	// check mount pod deleted
 	if mountPod.DeletionTimestamp == nil {
 		klog.V(6).Infof("pod %s is not deleted", mountPod.Name)
-		return reconcile.Result{}, err
+		return reconcile.Result{}, nil
 	}
 	if !util.ContainsString(mountPod.GetFinalizers(), config.Finalizer) {
 		// do nothing
@@ -58,16 +59,17 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
 	}
-	csiPods, err := m.ListPod(config.Namespace, labelSelector)
+	fieldSelector := fields.Set{
+		"spec.nodeName": nodeName,
+	}
+	csiPods, err := m.ListPod(config.Namespace, &labelSelector, &fieldSelector)
 	if err != nil {
-		klog.Errorf("list pod by label %s error: %v", config.CSINodeLabelValue, err)
+		klog.Errorf("list pod by label %s and field %s error: %v", config.CSINodeLabelValue, nodeName, err)
 		return reconcile.Result{}, err
 	}
-	for _, csiPod := range csiPods {
-		if csiPod.Spec.NodeName == nodeName {
-			klog.V(6).Infof("csi node in %s exists.", nodeName)
-			return reconcile.Result{}, nil
-		}
+	if len(csiPods) > 0 {
+		klog.V(6).Infof("csi node in %s exists.", nodeName)
+		return reconcile.Result{}, nil
 	}
 
 	klog.Infof("csi node in %s did not exist. remove finalizer of pod %s", nodeName, mountPod.Name)

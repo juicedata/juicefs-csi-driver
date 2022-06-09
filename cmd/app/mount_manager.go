@@ -43,7 +43,11 @@ func init() {
 }
 
 func NewMountManager() (ctrl.Manager, error) {
-	var mgr, _ = ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	conf, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	var mgr, _ = ctrl.NewManager(conf, ctrl.Options{
 		Scheme: scheme,
 		Port:   9443,
 		NewCache: cache.BuilderWithOptions(cache.Options{
