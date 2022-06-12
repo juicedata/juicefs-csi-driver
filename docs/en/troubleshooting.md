@@ -8,10 +8,10 @@ When the application pod fails to start normally or has an exception, it is usua
 First, you need to check the version of the JuiceFS CSI Driver installed in the current Kubernetes cluster, which can be obtained with the following command:
 
 ```sh
-kubectl -n kube-system get pod -l app=juicefs-csi-controller -o yaml | grep 'image: '
+kubectl -n kube-system get pod -l app=juicefs-csi-controller -o jsonpath="{.items[*].spec.containers[*].image}"
 ```
 
-The above command will output something like `image: juicedata/juicefs-csi-driver:v0.13.2`, the last `v0.13.2` is the version of JuiceFS CSI Driver.
+The above command will output something like `juicedata/juicefs-csi-driver:v0.13.2`, the last `v0.13.2` is the version of JuiceFS CSI Driver.
 
 
 ## View JuiceFS CSI Driver logs
@@ -130,7 +130,7 @@ You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi
    ```shell
    $ ./diagnose.sh
    Usage:
-       ./diagnose-juicefs.sh COMMAND [OPTIONS]
+       ./diagnose.sh COMMAND [OPTIONS]
    COMMAND:
        help
            Display this help message.

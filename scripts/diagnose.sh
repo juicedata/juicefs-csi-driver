@@ -5,7 +5,7 @@ set +x
 
 print_usage() {
   echo "Usage:"
-  echo "    ./diagnose-juicefs.sh COMMAND [OPTIONS]"
+  echo "    ./$0.sh COMMAND [OPTIONS]"
   echo "COMMAND:"
   echo "    help"
   echo "        Display this help message."
