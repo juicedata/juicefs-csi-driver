@@ -8,10 +8,10 @@
 首先需要查看当前 Kubernetes 集群安装的 JuiceFS CSI 驱动版本，可以通过以下命令获取：
 
 ```sh
-kubectl -n kube-system get pod -l app=juicefs-csi-controller -o yaml | grep 'image: '
+kubectl -n kube-system get pod -l app=juicefs-csi-controller -o jsonpath="{.items[*].spec.containers[*].image}"
 ```
 
-以上命令会有类似 `image: juicedata/juicefs-csi-driver:v0.13.2` 这样的输出，最后的 `v0.13.2` 即为 JuiceFS CSI 驱动的版本。
+以上命令会有类似 `juicedata/juicefs-csi-driver:v0.13.2` 这样的输出，最后的 `v0.13.2` 即为 JuiceFS CSI 驱动的版本。
 
 
 ## 查看 JuiceFS CSI 驱动日志
@@ -130,7 +130,7 @@ kubectl -n kube-system get pod -l app=juicefs-csi-controller -o yaml | grep 'ima
    ```shell
    $ ./diagnose.sh
    Usage:
-       ./diagnose-juicefs.sh COMMAND [OPTIONS]
+       ./diagnose.sh COMMAND [OPTIONS]
    COMMAND:
        help
            Display this help message.
