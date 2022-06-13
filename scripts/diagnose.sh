@@ -5,7 +5,7 @@ set +x
 
 print_usage() {
   echo "Usage:"
-  echo "    ./$0 COMMAND [OPTIONS]"
+  echo "    $0 COMMAND [OPTIONS]"
   echo "COMMAND:"
   echo "    help"
   echo "        Display this help message."
