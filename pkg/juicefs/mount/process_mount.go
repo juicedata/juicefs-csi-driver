@@ -17,6 +17,7 @@ limitations under the License.
 package mount
 
 import (
+	"context"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"os"
@@ -34,6 +35,8 @@ import (
 	_ "github.com/golang/mock/mockgen/model"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
+
+const defaultCheckTimeout = 2 * time.Second
 
 type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
@@ -56,21 +59,33 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.SubPath)
 
 	klog.V(6).Infof("JCreateVolume: checking %q exists in %v", volPath, jfsSetting.MountPath)
-	exists, err := k8sMount.PathExists(volPath)
-	if err != nil {
+	var exists bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(volPath)
+		return
+	}); err != nil {
 		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
 		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
-		err := os.MkdirAll(volPath, os.FileMode(0777))
-		if err != nil {
+		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			return os.MkdirAll(volPath, os.FileMode(0777))
+		}); err != nil {
 			return status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
 		}
-		if fi, err := os.Stat(volPath); err != nil {
+
+		var fi os.FileInfo
+		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			fi, err = os.Stat(volPath)
+			return err
+		}); err != nil {
 			return status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
-		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			err = os.Chmod(volPath, os.FileMode(0777))
-			if err != nil {
+		}
+
+		if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
+			if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+				return os.Chmod(volPath, os.FileMode(0777))
+			}); err != nil {
 				return status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
 			}
 		}
@@ -92,7 +107,12 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 
 	// 2. delete subPath volume
 	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.VolumeId)
-	if existed, err := k8sMount.PathExists(volPath); err != nil {
+
+	var existed bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		existed, err = k8sMount.PathExists(volPath)
+		return err
+	}); err != nil {
 		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
 		stdoutStderr, err := p.RmrDir(volPath, jfsSetting.IsCe)
@@ -126,16 +146,27 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		mountArgs = append(mountArgs, "-o", strings.Join(jfsSetting.Options, ","))
 	}
 
-	if exist, err := k8sMount.PathExists(jfsSetting.MountPath); err != nil {
+	var exist bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exist, err = k8sMount.PathExists(jfsSetting.MountPath)
+		return
+	}); err != nil {
 		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !exist {
-		if err = os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755)); err != nil {
+		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
+		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			return os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755))
+		}); err != nil {
 			return status.Errorf(codes.Internal, "Could not create dir %q: %v", jfsSetting.MountPath, err)
 		}
 	}
 
-	if notMounted, err := p.IsLikelyNotMountPoint(jfsSetting.MountPath); err != nil {
-		return err
+	var notMounted bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		notMounted, err = p.IsLikelyNotMountPoint(jfsSetting.MountPath)
+		return
+	}); err != nil {
+		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !notMounted {
 		err = p.Unmount(jfsSetting.MountPath)
 		if err != nil {
@@ -159,9 +190,14 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 	for i := 0; i < 30; i++ {
-		finfo, err := os.Stat(jfsSetting.MountPath)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+		var finfo os.FileInfo
+		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			finfo, err = os.Stat(jfsSetting.MountPath)
+			return err
+		}); err != nil {
+			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			time.Sleep(time.Millisecond * 500)
+			continue
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
@@ -171,7 +207,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		} else {
 			klog.V(5).Info("Cannot reach here")
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Millisecond * 500)
 	}
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
 }
@@ -180,14 +216,21 @@ func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
 	var refs []string
 
 	var corruptedMnt bool
-	exists, err := k8sMount.PathExists(target)
+	var exists bool
+	_, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(target)
+		return
+	})
 	if err == nil {
 		if !exists {
 			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
 			return 0, nil
 		}
 		var notMnt bool
-		notMnt, err = k8sMount.IsNotMountPoint(p, target)
+		_, err = util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() error {
+			notMnt, err = k8sMount.IsNotMountPoint(p, target)
+			return err
+		})
 		if err != nil {
 			return 0, status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
 		}
@@ -217,14 +260,21 @@ func (p *ProcessMount) JUmount(uniqueId, target string) error {
 	var refs []string
 
 	var corruptedMnt bool
-	exists, err := k8sMount.PathExists(target)
+	var exists bool
+	_, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(target)
+		return
+	})
 	if err == nil {
 		if !exists {
 			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
 			return nil
 		}
 		var notMnt bool
-		notMnt, err = k8sMount.IsNotMountPoint(p, target)
+		_, err = util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() error {
+			notMnt, err = k8sMount.IsNotMountPoint(p, target)
+			return err
+		})
 		if err != nil {
 			return status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
 		}
@@ -265,7 +315,11 @@ func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
-		if existed, err := k8sMount.PathExists(rawPath); err != nil {
+		var existed bool
+		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			existed, err = k8sMount.PathExists(rawPath)
+			return
+		}); err != nil {
 			klog.Errorf("Could not check raw path %q exists: %v", rawPath, err)
 			return err
 		} else if existed {
@@ -282,7 +336,9 @@ func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string
 func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
 	if isCeMount {
-		return p.Exec.Command(jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
+		cmd := exec.Command(jfsConfig.CeCliPath, "rmr", directory)
+		return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
 	}
-	return p.Exec.Command(jfsConfig.CliPath, "rmr", directory).CombinedOutput()
+	cmd := exec.Command(jfsConfig.CliPath, "rmr", directory)
+	return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
 }

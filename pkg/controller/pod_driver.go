@@ -19,25 +19,25 @@ package controller
 import (
 	"context"
 	"fmt"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
+
+const defaultCheckoutTimeout = 1 * time.Second
 
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
@@ -285,7 +285,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		// do not need to create new one, umount
 		umountPath(ctx, sourcePath)
 		// clean mount point
-		_, err = doWithinTime(ctx, nil, func() error {
+		_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
@@ -315,7 +315,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				_, err := doWithinTime(ctx, nil, func() error {
+				_, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -387,7 +387,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	_, e := doWithinTime(ctx, nil, func() error {
+	_, e := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
 		_, e := os.Stat(mntPath)
 		return e
 	})
@@ -478,47 +478,19 @@ func (p *PodDriver) umountTarget(target string, count int) {
 
 func umountPath(ctx context.Context, sourcePath string) {
 	cmd := exec.Command("umount", sourcePath)
-	out, err := doWithinTime(ctx, cmd, nil)
+	outByte, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
+	out := string(outByte)
 	if err != nil {
 		if !strings.Contains(out, "not mounted") &&
 			!strings.Contains(out, "mountpoint not found") &&
 			!strings.Contains(out, "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
 			cmd2 := exec.Command("umount", "-l", sourcePath)
-			output, err1 := doWithinTime(ctx, cmd2, nil)
-			if err1 != nil {
-				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err1, output)
+			output, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
+			if err != nil {
+				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
 			}
 		}
-	}
-}
-
-func doWithinTime(ctx context.Context, cmd *exec.Cmd, f func() error) (out string, err error) {
-	doneCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-
-	doneCh := make(chan error)
-	go func() {
-		if cmd != nil {
-			outByte, e := cmd.CombinedOutput()
-			out = string(outByte)
-			doneCh <- e
-		} else {
-			doneCh <- f()
-		}
-	}()
-
-	select {
-	case <-doneCtx.Done():
-		err = status.Error(codes.Internal, "context timeout")
-		if cmd != nil {
-			go func() {
-				cmd.Process.Kill()
-			}()
-		}
-		return
-	case err = <-doneCh:
-		return
 	}
 }
 
