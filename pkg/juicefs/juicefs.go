@@ -80,7 +80,6 @@ type jfs struct {
 type Jfs interface {
 	GetBasePath() string
 	CreateVol(volumeID, subPath string) (string, error)
-	DeleteVol(volumeID string, secrets map[string]string) error
 }
 
 var _ Jfs = &jfs{}
@@ -124,25 +123,6 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	}
 
 	return volPath, nil
-}
-
-func (fs *jfs) DeleteVol(volumeID string, secrets map[string]string) error {
-	volPath := filepath.Join(fs.MountPath, volumeID)
-	var existed bool
-	if _, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
-		existed, err = mount.PathExists(volPath)
-		return err
-	}); err != nil {
-		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
-	} else if existed {
-		_, isCeMount := secrets["metaurl"]
-		stdoutStderr, err := fs.Provider.RmrDir(volPath, isCeMount)
-		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
-		}
-	}
-	return nil
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system
@@ -376,16 +356,6 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return j.podMount.JUmount(uniqueId, mountPath)
 	}
 	return nil
-}
-
-func (j *juicefs) RmrDir(directory string, isCeMount bool) ([]byte, error) {
-	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
-	if isCeMount {
-		cmd := exec.Command(config.CeCliPath, "rmr", directory)
-		return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
-	}
-	cmd := exec.Command("rm", "-rf", directory)
-	return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
 }
 
 func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {

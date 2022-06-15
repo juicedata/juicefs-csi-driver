@@ -138,71 +138,6 @@ func Test_jfs_CreateVol(t *testing.T) {
 	})
 }
 
-func Test_jfs_DeleteVol(t *testing.T) {
-	Convey("Test DeleteVol", t, func() {
-		Convey("test normal", func() {
-			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-				return true, nil
-			})
-			defer patch1.Reset()
-			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "RmrDir", func(_ *juicefs, directory string, isCeMount bool) ([]byte, error) {
-				return []byte(""), nil
-			})
-			defer patch2.Reset()
-
-			j := jfs{
-				MountPath: "/mountPath",
-				Provider:  &juicefs{},
-			}
-			err := j.DeleteVol("", map[string]string{})
-			So(err, ShouldBeNil)
-		})
-		Convey("exist error", func() {
-			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-				return false, errors.New("test")
-			})
-			defer patch1.Reset()
-			j := jfs{
-				MountPath: "/mountPath",
-				Provider:  &juicefs{},
-			}
-			err := j.DeleteVol("", map[string]string{})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("not exist", func() {
-			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-				return false, nil
-			})
-			defer patch1.Reset()
-			j := jfs{
-				MountPath: "/mountPath",
-				Provider:  &juicefs{},
-			}
-			err := j.DeleteVol("", map[string]string{})
-			So(err, ShouldBeNil)
-		})
-		Convey("rmr error", func() {
-			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-				return true, nil
-			})
-			defer patch1.Reset()
-			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "RmrDir", func(_ *juicefs, directory string, isCeMount bool) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch2.Reset()
-
-			j := jfs{
-				MountPath: "/mountPath",
-				Provider:  &juicefs{},
-			}
-			err := j.DeleteVol("", map[string]string{})
-			So(err, ShouldNotBeNil)
-		})
-	})
-}
-
 func Test_jfs_GetBasePath(t *testing.T) {
 	type fields struct {
 		MountPath string
@@ -474,65 +409,6 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 				}),
 			}
 			err := jfs.JfsUnmount("test", targetPath)
-			So(err, ShouldNotBeNil)
-		})
-	})
-}
-
-func Test_juicefs_RmrDir(t *testing.T) {
-	Convey("Test RmrDir", t, func() {
-		Convey("ce normal", func() {
-			targetPath := "/target"
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), nil
-			})
-			defer patch3.Reset()
-
-			jfs := juicefs{
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: nil,
-			}
-			_, err := jfs.RmrDir(targetPath, true)
-			So(err, ShouldBeNil)
-		})
-		Convey("ee normal", func() {
-			targetPath := "/target"
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), nil
-			})
-			defer patch3.Reset()
-
-			jfs := juicefs{
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: nil,
-			}
-			_, err := jfs.RmrDir(targetPath, false)
-			So(err, ShouldBeNil)
-		})
-		Convey("error", func() {
-			targetPath := "/target"
-			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch3.Reset()
-
-			jfs := juicefs{
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: nil,
-			}
-			_, err := jfs.RmrDir(targetPath, true)
 			So(err, ShouldNotBeNil)
 		})
 	})

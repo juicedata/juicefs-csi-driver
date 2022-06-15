@@ -92,11 +92,6 @@ func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
 	return fs.volumes[name], nil
 }
 
-func (fs *fakeJfs) DeleteVol(name string, secrets map[string]string) error {
-	delete(fs.volumes, name)
-	return nil
-}
-
 func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }

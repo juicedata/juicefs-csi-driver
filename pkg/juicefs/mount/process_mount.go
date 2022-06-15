@@ -336,9 +336,7 @@ func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string
 func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
 	if isCeMount {
-		cmd := exec.Command(jfsConfig.CeCliPath, "rmr", directory)
-		return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
+		return p.Exec.Command(jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
 	}
-	cmd := exec.Command(jfsConfig.CliPath, "rmr", directory)
-	return util.DoWithinTime(context.TODO(), 5*time.Second, cmd, nil)
+	return p.Exec.Command(jfsConfig.CliPath, "rmr", directory).CombinedOutput()
 }
