@@ -18,17 +18,21 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"math/rand"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -363,4 +367,32 @@ func RandStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f func() error) (out []byte, err error) {
+	doneCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	doneCh := make(chan error)
+	go func() {
+		if cmd != nil {
+			out, err = cmd.CombinedOutput()
+			doneCh <- err
+		} else {
+			doneCh <- f()
+		}
+	}()
+
+	select {
+	case <-doneCtx.Done():
+		err = status.Error(codes.Internal, "context timeout")
+		if cmd != nil {
+			go func() {
+				cmd.Process.Kill()
+			}()
+		}
+		return
+	case err = <-doneCh:
+		return
+	}
 }
