@@ -32,12 +32,13 @@ type JfsSetting struct {
 	UsePod bool
 
 	UUID          string
-	Name          string `json:"name"`
-	MetaUrl       string `json:"metaurl"`
-	Source        string `json:"source"`
-	Storage       string `json:"storage"`
-	FormatOptions string `json:"format-options"`
-	CacheDirs     []string
+	Name          string     `json:"name"`
+	MetaUrl       string     `json:"metaurl"`
+	Source        string     `json:"source"`
+	Storage       string     `json:"storage"`
+	FormatOptions string     `json:"format-options"`
+	CachePVCs     []CachePVC // PVC using by mount pod
+	CacheDirs     []string   // hostPath using by mount pod
 
 	// put in secret
 	SecretKey     string            `json:"secret-key,omitempty"`
@@ -71,6 +72,11 @@ type JfsSetting struct {
 	SecretName string   // secret name which is set env in pod
 }
 
+type CachePVC struct {
+	PVCName string
+	Path    string
+}
+
 func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bool) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{
 		Options: []string{},
@@ -98,25 +104,56 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	jfsSetting.Envs = make(map[string]string)
 	jfsSetting.Configs = make(map[string]string)
 	jfsSetting.CacheDirs = []string{}
+	jfsSetting.CachePVCs = []CachePVC{}
+
+	// parse pvc of cache
+	dirs := []string{}
+	cachePVC := secrets["cachePVC"]
+	if cachePVC != "" {
+		cachePVCs := strings.Split(cachePVC, ",")
+		for i, pvc := range cachePVCs {
+			if pvc == "" {
+				continue
+			}
+			volPath := fmt.Sprintf("/var/jfsCache-%d", i)
+			jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, CachePVC{
+				PVCName: pvc,
+				Path:    volPath,
+			})
+			dirs = append(dirs, volPath)
+		}
+	}
+
+	// parse cacheDir in option
 	var cacheDirs []string
-	for _, o := range options {
+	for i, o := range options {
 		if strings.HasPrefix(o, "cache-dir") {
 			optValPair := strings.Split(o, "=")
 			if len(optValPair) != 2 {
 				continue
 			}
 			cacheDirs = strings.Split(strings.TrimSpace(optValPair[1]), ":")
+			dirs = append(dirs, cacheDirs...)
+			options = append(options[:i], options[i+1:]...)
 			break
 		}
 	}
-	if cacheDirs == nil {
+
+	cacheDir := strings.Join(dirs, ":")
+	if cacheDir != "" {
+		// replace cacheDir in option
+		options = append(options, fmt.Sprintf("cache-dir=%s", cacheDir))
+		jfsSetting.Options = options
+	}
+
+	if len(dirs) == 0 {
 		// set default cache dir
 		cacheDirs = []string{"/var/jfsCache"}
 	}
-	for _, cacheDir := range cacheDirs {
-		if cacheDir != "memory" {
+	for _, d := range cacheDirs {
+		if d != "memory" {
 			// filter out "memory"
-			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, cacheDir)
+			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, d)
 		}
 	}
 
