@@ -108,9 +108,9 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 
 	// parse pvc of cache
 	dirs := []string{}
-	cachePVC := secrets["cachePVC"]
-	if cachePVC != "" {
-		cachePVCs := strings.Split(cachePVC, ",")
+	cachePVCs, ok := volCtx[cachePVC]
+	if ok {
+		cachePVCs := strings.Split(cachePVCs, ",")
 		for i, pvc := range cachePVCs {
 			if pvc == "" {
 				continue
