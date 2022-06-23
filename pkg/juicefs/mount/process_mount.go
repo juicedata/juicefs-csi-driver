@@ -139,7 +139,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+	klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	mountArgs := []string{jfsSetting.Source, jfsSetting.MountPath}
 
 	if len(jfsSetting.Options) > 0 {
