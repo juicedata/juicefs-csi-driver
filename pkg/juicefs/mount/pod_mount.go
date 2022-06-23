@@ -326,9 +326,9 @@ func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName 
 	log, err := p.getErrContainerLog(podName)
 	if err != nil {
 		klog.Errorf("Get pod %s log error %v", podName, err)
-		return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
+		return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: %v", jfsSetting.Source, jfsSetting.MountPath, log)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, log)
 }
 
 func (p *PodMount) waitUtilJobCompleted(jobName string) error {

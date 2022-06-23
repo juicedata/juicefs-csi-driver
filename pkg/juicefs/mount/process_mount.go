@@ -209,7 +209,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 }
 
 func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
