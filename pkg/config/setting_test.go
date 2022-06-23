@@ -30,7 +30,6 @@ func TestParseSecret(t *testing.T) {
 		volCtx      map[string]string
 		options     []string
 		usePod      bool
-		Simple      bool
 		MountLabels string
 	}
 	tests := []struct {
@@ -65,6 +64,7 @@ func TestParseSecret(t *testing.T) {
 				Source:    "test",
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -88,6 +88,7 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				UsePod:    true,
 				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -103,6 +104,7 @@ func TestParseSecret(t *testing.T) {
 				UsePod:    true,
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -123,6 +125,7 @@ func TestParseSecret(t *testing.T) {
 				Options:          []string{},
 				MountPodCpuLimit: "1",
 				CacheDirs:        []string{"/var/jfsCache"},
+				CachePVCs:        []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -143,6 +146,7 @@ func TestParseSecret(t *testing.T) {
 				MountPodMemLimit: "1G",
 				Options:          []string{},
 				CacheDirs:        []string{"/var/jfsCache"},
+				CachePVCs:        []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -163,6 +167,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:               map[string]string{},
 				Options:            []string{},
 				CacheDirs:          []string{"/var/jfsCache"},
+				CachePVCs:          []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -180,6 +185,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:               map[string]string{},
 				Options:            []string{},
 				CacheDirs:          []string{"/var/jfsCache"},
+				CachePVCs:          []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -197,6 +203,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:           map[string]string{},
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
+				CachePVCs:      []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -222,6 +229,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:           map[string]string{},
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
+				CachePVCs:      []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -239,6 +247,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:                map[string]string{},
 				Options:             []string{},
 				CacheDirs:           []string{"/var/jfsCache"},
+				CachePVCs:           []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -268,6 +277,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:                   map[string]string{},
 				Options:                []string{},
 				CacheDirs:              []string{"/var/jfsCache"},
+				CachePVCs:              []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -281,6 +291,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:      map[string]string{},
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -304,6 +315,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:           map[string]string{},
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
+				CachePVCs:      []CachePVC{},
 			},
 			wantErr: false,
 		},
@@ -344,6 +356,66 @@ func TestParseSecret(t *testing.T) {
 				Options:       []string{},
 				FormatOptions: "xxx",
 				CacheDirs:     []string{"/var/jfsCache"},
+				CachePVCs:     []CachePVC{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "cache-pvc1",
+			args: args{
+				secrets: map[string]string{
+					"name": "abc",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-cache-pvc": "abc,def",
+				},
+				options: []string{"cache-dir=/abc"},
+				usePod:  true,
+			},
+			want: &JfsSetting{
+				IsCe:   false,
+				UsePod: true,
+				Name:   "abc",
+				Source: "abc",
+				CachePVCs: []CachePVC{{
+					PVCName: "abc",
+					Path:    "/var/jfsCache-0",
+				}, {
+					PVCName: "def",
+					Path:    "/var/jfsCache-1",
+				}},
+				CacheDirs: []string{"/abc"},
+				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/abc"},
+				Envs:      map[string]string{},
+				Configs:   map[string]string{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "cache-pvc2",
+			args: args{
+				secrets: map[string]string{
+					"name": "abc",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-cache-pvc": "abc",
+				},
+				options: []string{},
+				usePod:  true,
+			},
+			want: &JfsSetting{
+				IsCe:   false,
+				UsePod: true,
+				Name:   "abc",
+				Source: "abc",
+				CachePVCs: []CachePVC{{
+					PVCName: "abc",
+					Path:    "/var/jfsCache-0",
+				}},
+				CacheDirs: []string{},
+				Options:   []string{"cache-dir=/var/jfsCache-0"},
+				Envs:      map[string]string{},
+				Configs:   map[string]string{},
 			},
 			wantErr: false,
 		},

@@ -134,6 +134,26 @@ func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMod
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
 	}
 
+	for i, cache := range r.jfsSetting.CachePVCs {
+		name := fmt.Sprintf("cachedir-pvc-%d", i)
+		pvcVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: cache.PVCName,
+					ReadOnly:  false,
+				},
+			},
+		}
+		cacheVolumes = append(cacheVolumes, pvcVolume)
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: cache.Path,
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
 	return cacheVolumes, cacheVolumeMounts
 }
 
