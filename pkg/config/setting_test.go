@@ -364,8 +364,10 @@ func TestParseSecret(t *testing.T) {
 			name: "cache-pvc1",
 			args: args{
 				secrets: map[string]string{
-					"name":     "abc",
-					"cachePVC": "abc,def",
+					"name": "abc",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-cache-pvc": "abc,def",
 				},
 				options: []string{"cache-dir=/abc"},
 				usePod:  true,
@@ -393,8 +395,10 @@ func TestParseSecret(t *testing.T) {
 			name: "cache-pvc2",
 			args: args{
 				secrets: map[string]string{
-					"name":     "abc",
-					"cachePVC": "abc",
+					"name": "abc",
+				},
+				volCtx: map[string]string{
+					"juicefs/mount-cache-pvc": "abc",
 				},
 				options: []string{},
 				usePod:  true,
