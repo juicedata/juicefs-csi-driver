@@ -169,7 +169,7 @@ func (r *Builder) getCommand() string {
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", r.jfsSetting.Source, r.jfsSetting.MountPath)
+		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
 		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
 		options = append(options, "foreground")
 		if r.jfsSetting.EncryptRsaKey != "" {

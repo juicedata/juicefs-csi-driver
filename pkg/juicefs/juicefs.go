@@ -491,7 +491,7 @@ func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 		mnt = j.processMount
 	}
 
-	klog.V(5).Infof("Mount: mounting %q at %q with options %v", jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Options)
+	klog.V(5).Infof("Mount: mounting %q at %q with options %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, jfsSetting.Options)
 	err := mnt.JMount(jfsSetting)
 	if err != nil {
 		return "", err

@@ -139,7 +139,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
+	klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	mountArgs := []string{jfsSetting.Source, jfsSetting.MountPath}
 
 	if len(jfsSetting.Options) > 0 {
@@ -209,7 +209,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", jfsSetting.Source, jfsSetting.MountPath)
+	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 }
 
 func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
