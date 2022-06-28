@@ -942,6 +942,7 @@ def test_static_delete_policy():
         if pv_status.phase == "Bound":
             bound = True
             break
+        time.sleep(5)
 
     if not bound:
         die("PersistentVolume {} not bound".format(pv.name))
