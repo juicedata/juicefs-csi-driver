@@ -165,7 +165,8 @@ class PVC:
 
 
 class PV:
-    def __init__(self, *, name, access_mode, volume_handle, secret_name, parameters=None, options=None):
+    def __init__(self, *, name, access_mode, volume_handle, secret_name,
+                 parameters=None, options=None, annotation=None):
         self.name = RESOURCE_PREFIX + name
         self.access_mode = access_mode
         self.volume_handle = volume_handle
@@ -173,6 +174,7 @@ class PV:
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
         self.mount_options = options
+        self.annotation = annotation
 
     def create(self):
         spec = client.V1PersistentVolumeSpec(
@@ -195,7 +197,7 @@ class PV:
         pv = client.V1PersistentVolume(
             api_version="v1",
             kind="PersistentVolume",
-            metadata=client.V1ObjectMeta(name=self.name, labels={"pv": self.name}),
+            metadata=client.V1ObjectMeta(name=self.name, labels={"pv": self.name}, annotations=self.annotation),
             spec=spec
         )
         client.CoreV1Api().create_persistent_volume(body=pv)
@@ -208,6 +210,10 @@ class PV:
     def get_volume_id(self):
         p = client.CoreV1Api().read_persistent_volume(name=self.name)
         return p.spec.csi.volume_handle
+
+    def get_volume_status(self):
+        p = client.CoreV1Api().read_persistent_volume(name=self.name)
+        return p.status
 
 
 class Deployment:
@@ -908,6 +914,62 @@ def test_delete_pvc():
     LOG.info("Test pass.")
 
 
+def test_static_delete_policy():
+    LOG.info("[test case] Delete Reclaim policy of static begin..")
+    volume_id = "pv-static-delete"
+    mount_point = "/mnt/jfs"
+
+    LOG.info("create subdir {}".format(volume_id))
+    mount_on_host(mount_point)
+    os.mkdir(mount_point + "/" + volume_id)
+
+    # deploy pv
+    pv = PV(name="pv-static-delete", access_mode="ReadWriteMany", volume_handle="pv-static-delete",
+            secret_name=SECRET_NAME, annotation={"pv.kubernetes.io/provisioned-by": "csi.juicefs.com"})
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-static-delete", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # check pvc and pv status
+    LOG.info("check pv status")
+    bound = False
+    for i in range(0, 60):
+        pv_status = pv.get_volume_status()
+        if pv_status.phase == "Bound":
+            bound = True
+            break
+
+    if not bound:
+        die("PersistentVolume {} not bound".format(pv.name))
+
+    LOG.info("PVC delete..")
+    pvc.delete()
+    for i in range(0, 60):
+        if pvc.check_is_deleted():
+            LOG.info("PVC is deleted.")
+            break
+        time.sleep(5)
+
+    LOG.info("Check dir is deleted or not..")
+    file_exist = True
+    for i in range(0, 60):
+        f = pathlib.Path(mount_point + "/" + volume_id)
+        if f.exists() is False:
+            file_exist = False
+            break
+        time.sleep(5)
+    if not file_exist:
+        die("SubPath of static pv volume_id {} is deleted.".format(volume_id))
+    LOG.info("Umount /mnt/jfs.")
+    subprocess.run(["sudo", "umount", "/mnt/jfs"])
+
+    LOG.info("Test pass.")
+
+
 def test_dynamic_delete_pod():
     LOG.info("[test case] Deployment with dynamic storage and delete pod begin..")
     # deploy pvc
@@ -1209,6 +1271,7 @@ if __name__ == "__main__":
         LOG.info("clean juicefs volume first.")
         clean_juicefs_volume("/mnt/jfs")
         try:
+            test_static_delete_policy()
             deploy_secret_and_sc()
             test_deployment_using_storage_rw()
             test_deployment_using_storage_ro()
