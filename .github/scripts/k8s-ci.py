@@ -953,6 +953,7 @@ def test_static_delete_policy():
             LOG.info("PVC is deleted.")
             break
         time.sleep(5)
+    PVs.remove(pv)
 
     LOG.info("Check dir is deleted or not..")
     file_exist = True
