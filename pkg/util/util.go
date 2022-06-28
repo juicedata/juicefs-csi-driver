@@ -35,6 +35,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -395,4 +396,8 @@ func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f f
 	case err = <-doneCh:
 		return
 	}
+}
+
+func CheckDynamicPV(name string) (bool, error) {
+	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
 }

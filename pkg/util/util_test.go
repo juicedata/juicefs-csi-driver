@@ -382,3 +382,44 @@ func TestStripPasswd(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckDynamicPV(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				name: "pvc-95aba554-3fe4-4433-9d25-d2a63a114367",
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "test-false",
+			args: args{
+				name: "test",
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CheckDynamicPV(tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckDynamicPV() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("CheckDynamicPV() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
