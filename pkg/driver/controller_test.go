@@ -279,10 +279,10 @@ func TestDeleteVolume(t *testing.T) {
 		{
 			name: "success normal",
 			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
+				volumeId := "pvc-95aba554-3fe4-4433-9d25-d2a63a114367"
 				secret := map[string]string{"a": "b"}
 				req := &csi.DeleteVolumeRequest{
-					VolumeId: "vol-test",
+					VolumeId: volumeId,
 					Secrets:  secret,
 				}
 
@@ -344,7 +344,7 @@ func TestDeleteVolume(t *testing.T) {
 		{
 			name: "DeleteVol error",
 			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
+				volumeId := "pvc-95aba554-3fe4-4433-9d25-d2a63a114367"
 				secret := map[string]string{"a": "b"}
 				req := &csi.DeleteVolumeRequest{
 					VolumeId: volumeId,
@@ -373,6 +373,28 @@ func TestDeleteVolume(t *testing.T) {
 				}
 				if srvErr.Code() != codes.Internal {
 					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
+				}
+			},
+		},
+		{
+			name: "test-static-pv",
+			testFunc: func(t *testing.T) {
+				secret := map[string]string{"a": "b"}
+				req := &csi.DeleteVolumeRequest{
+					VolumeId: "abc",
+					Secrets:  secret,
+				}
+
+				ctx := context.Background()
+
+				juicefsDriver := controllerService{
+					juicefs: nil,
+					vols:    make(map[string]int64),
+				}
+
+				_, err := juicefsDriver.DeleteVolume(ctx, req)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
 				}
 			},
 		},
