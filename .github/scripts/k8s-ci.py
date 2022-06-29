@@ -921,7 +921,9 @@ def test_static_delete_policy():
 
     LOG.info("create subdir {}".format(volume_id))
     mount_on_host(mount_point)
-    os.mkdir(mount_point + "/" + volume_id)
+    subdir = mount_point + "/" + volume_id
+    if not os.path.exists(subdir):
+        os.mkdir(mount_point + "/" + volume_id)
 
     # deploy pv
     pv = PV(name="pv-static-delete", access_mode="ReadWriteMany", volume_handle="pv-static-delete",
