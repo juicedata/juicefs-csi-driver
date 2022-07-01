@@ -159,14 +159,6 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
    kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
    ```
 
-## 故障排查
-
-请参考 [故障排查](troubleshooting.md) 或 [FAQ](faq) 文档。
-
-## 升级 CSI 驱动
-
-请参考 [升级 JuiceFS CSI 驱动](upgrade-csi-driver.md) 文档
-
 ## 示例
 
 开始之前，你需要：
@@ -192,6 +184,14 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 :::info 说明
 由于 JuiceFS 是一个弹性文件系统，它不需要强制分配容量。你在 `PersistentVolume` 和 `PersistentVolumeClaim` 中指定的容量并不是实际存储容量。但是，由于存储容量是 Kubernetes 的必填字段，因此您可以使用任何有效值，例如 `10Pi` 表示容量。
 :::
+
+## 故障排查
+
+请参考 [故障排查](troubleshooting.md) 或 [FAQ](faq) 文档。
+
+## 升级 CSI 驱动
+
+请参考 [升级 JuiceFS CSI 驱动](upgrade-csi-driver.md) 文档
 
 ## 已知问题
 

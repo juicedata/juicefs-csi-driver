@@ -1,6 +1,6 @@
 # 使用 librados 访问 Ceph 集群
 
-如果使用 [Ceph](https://ceph.io/) 作为 JucieFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/) ，也可以使用效率更高的  [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
+如果使用 [Ceph](https://ceph.io/) 作为 JucieFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw/)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
 
 JuiceFS CSI Driver 从 v0.10.0 版本开始支持向 JuiceFS 提供配置文件，更多细节可以参考文档[「如何在 Mount Pod 中设置配置文件和环境变量」](examples/config-and-env.md)。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件传递给运行在 Kubernetes 中的 JuiceFS mount 进程。
 
@@ -18,17 +18,17 @@ JuiceFS CSI Driver 从 v0.10.0 版本开始支持向 JuiceFS 提供配置文件�
 └── ...
 ```
 
-通过 `ceph.conf`和 `ceph.client.admin.keyring` 就可以用 `librados` 访问 Ceph 集群。
+通过 `ceph.conf` 和 `ceph.client.admin.keyring` 就可以用 `librados` 访问 Ceph 集群。
 
 在这个节点上创建一个 JuiceFS volume `ceph-volume`：
 
 ```sh
-$ ./juicefs format --storage=ceph \
-    --bucket=ceph://ceph-test \
-    --access-key=ceph \
-    --secret-key=client.admin \
-    redis://juicefs-redis.example.com/2 \
-    ceph-volume
+juicefs format --storage=ceph \
+  --bucket=ceph://ceph-test \
+  --access-key=ceph \
+  --secret-key=client.admin \
+  redis://juicefs-redis.example.com/2 \
+  ceph-volume
 ```
 
 :::note 注意
@@ -156,7 +156,7 @@ JuiceFS 目前支持到 Ceph 12，如果你使用的 Ceph 版本高于 12，请�
 使用官方的 [ceph/ceph](https://hub.docker.com/r/ceph/ceph) 作为基础镜像，根据 Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) 构建 JuiceFS CSI Driver 镜像，例如：
 
 ```bash
-$ docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
+docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
 ```
 
 `ceph/ceph:v14` 镜像是 Ceph Nautilus 的官方 Ceph 镜像，对于其他 Ceph 发布基础镜像，请参考 [Ceph 镜像仓库](https://hub.docker.com/r/ceph/ceph)。

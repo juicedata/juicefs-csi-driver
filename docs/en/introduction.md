@@ -30,7 +30,7 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
 
 1. Prepare a YAML file
 
-   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system, 
+   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system,
    you can refer to ["JuiceFS Quick Start Guide"](https://juicefs.com/docs/community/quick_start_guide) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
    The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank. Take Community edition as an example:
 
@@ -159,14 +159,6 @@ Since Kubernetes will deprecate some old APIs when a new version is released, yo
    kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
    ```
 
-## Troubleshooting & FAQs
-
-If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md) or [FAQ](faq) document.
-
-## Upgrade CSI Driver
-
-Refer to [Upgrade CSI Driver](upgrade-csi-driver.md) document.
-
 ## Examples
 
 Before the example, you need to:
@@ -191,6 +183,14 @@ Before the example, you need to:
 :::info
 Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
 :::
+
+## Troubleshooting & FAQs
+
+If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md) or [FAQ](faq) document.
+
+## Upgrade CSI Driver
+
+Refer to [Upgrade CSI Driver](upgrade-csi-driver.md) document.
 
 ## Known issues
 
