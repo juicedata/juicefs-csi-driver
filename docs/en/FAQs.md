@@ -69,3 +69,7 @@ When using Redis as the metadata engine, the metadata engine URL needs to contai
 ## How to check the currently installed JuiceFS CSI Driver version?
 
 Please refer to the ["Troubleshooting"](troubleshooting.md#check-juicefs-csi-driver-version) document for detailed steps.
+
+## How to set the time zone of JuiceFS Mount Pod?
+
+You need to add `envs: "{TZ: <YOUR-TIME-ZONE>}"` configuration in `stringData` of `Secret`, please replace `<YOUR-TIME-ZONE>` with the actual value (e.g. `Asia/Shanghai`). For specific examples, please refer to the ["Static Provisioning"](examples/static-provisioning.md) or ["Dynamic Provisioning"](examples/dynamic-provisioning.md) documentation.

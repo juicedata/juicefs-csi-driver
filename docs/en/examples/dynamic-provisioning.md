@@ -14,7 +14,7 @@ To create the CSI Driver `Secret` in Kubernetes, the required fields for the com
 
 Take Amazon S3 as an example:
 
-```yaml {7-12}
+```yaml {7-14}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -27,6 +27,8 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
+  # If you need to set the time zone of the JuiceFS Mount Pod, please uncomment the next line, the default is UTC time.
+  # envs: "{TZ: Asia/Shanghai}"
 ```
 
 - `name`: The JuiceFS file system name.
@@ -44,7 +46,7 @@ You should ensure:
 
 ### Cloud service edition
 
-```yaml {7-10}
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -55,6 +57,8 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${JUICEFS_ACCESSKEY}
   secret-key: ${JUICEFS_SECRETKEY}
+  # If you need to set the time zone of the JuiceFS Mount Pod, please uncomment the next line, the default is UTC time.
+  # envs: "{TZ: Asia/Shanghai}"
 ```
 
 - `name`: JuiceFS file system name

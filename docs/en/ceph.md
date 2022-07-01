@@ -23,12 +23,12 @@ With `ceph.conf` and `ceph.client.admin.keyring`, we can access Ceph cluster wit
 On this node, we create an new JuiceFS volume `ceph-volume`
 
 ```sh
-$ ./juicefs format --storage=ceph \
-    --bucket=ceph://ceph-test \
-    --access-key=ceph \
-    --secret-key=client.admin \
-    redis://juicefs-redis.example.com/2 \
-    ceph-volume
+juicefs format --storage=ceph \
+  --bucket=ceph://ceph-test \
+  --access-key=ceph \
+  --secret-key=client.admin \
+  redis://juicefs-redis.example.com/2 \
+  ceph-volume
 ```
 
 :::note
@@ -156,7 +156,7 @@ JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph hig
 We use the official [ceph/ceph](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/):
 
 ```bash
-$ docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
+docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
 ```
 
 The `ceph/ceph:v14` image is the official Ceph image for Ceph Nautilus. For other Ceph release base images, see the [Ceph image repository](https://hub.docker.com/r/ceph/ceph) .

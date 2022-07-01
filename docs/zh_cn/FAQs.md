@@ -70,3 +70,7 @@ spec:
 ## 如何查看当前已安装的 JuiceFS CSI 驱动版本？
 
 请参考[「故障排查」](troubleshooting.md#查看-juicefs-csi-驱动的版本)文档了解详细步骤。
+
+## 如何设置 JuiceFS Mount Pod 的时区？
+
+你需要在 `Secret` 的 `stringData` 中新增 `envs: "{TZ: <YOUR-TIME-ZONE>}"` 配置，请将 `<YOUR-TIME-ZONE>` 替换为实际的值（如 `Asia/Shanghai`）。具体示例请参考[「静态配置」](examples/static-provisioning.md)或[「动态配置」](examples/dynamic-provisioning.md)文档。

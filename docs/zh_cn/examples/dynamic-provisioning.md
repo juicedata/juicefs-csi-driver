@@ -14,7 +14,7 @@ sidebar_label: 动态配置
 
 以 Amazon S3 为例：
 
-```yaml {7-12}
+```yaml {7-14}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -27,6 +27,8 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
+  # 如果需要设置 JuiceFS Mount Pod 的时区请将下一行的注释符号删除，默认为 UTC 时间。
+  # envs: "{TZ: Asia/Shanghai}"
 ```
 
 其中：
@@ -45,7 +47,7 @@ stringData:
 
 ### 云服务版
 
-```yaml {7-10}
+```yaml {7-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -56,6 +58,8 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${JUICEFS_ACCESSKEY}
   secret-key: ${JUICEFS_SECRETKEY}
+  # 如果需要设置 JuiceFS Mount Pod 的时区请将下一行的注释符号删除，默认为 UTC 时间。
+  # envs: "{TZ: Asia/Shanghai}"
 ```
 
 其中：
