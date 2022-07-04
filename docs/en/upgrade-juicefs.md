@@ -1,11 +1,12 @@
-# Upgrade JuiceFS Client Individually
+# Upgrade JuiceFS Client Independently
 
-For versions prior to v0.10.0, the JuiceFS client can be upgraded separately without upgrading the CSI Driver by the following method.
+For versions prior to v0.10.0, the JuiceFS client can be upgraded independently without upgrading the CSI Driver by the following method.
 
 1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` pod with the new built one:
 
    ```bash
    #!/bin/bash
+
    KUBECTL=/path/to/kubectl
    JUICEFS_BIN=/path/to/new/juicefs
 

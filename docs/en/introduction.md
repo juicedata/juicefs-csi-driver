@@ -135,33 +135,37 @@ Since Kubernetes will deprecate some old APIs when a new version is released, yo
 
 2. Deploy
 
-   **If the check command returns a non-empty result**, it means that the root directory (`--root-dir`) of the kubelet is not the default (`/var/lib/kubelet`), so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
+   - **If the check command returns a non-empty result**, it means that the root directory (`--root-dir`) of the kubelet is not the default (`/var/lib/kubelet`), so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
 
-   ```shell
-   # Kubernetes version >= v1.18
-   curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     :::note
+     Please replace `{{KUBELET_DIR}}` in the below command with the actual root directory path of kubelet.
+     :::
 
-   # Kubernetes version < v1.18
-   curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-   ```
+     ```shell
+     # Kubernetes version >= v1.18
+     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     ```
 
-   :::note
-   Please replace `{{KUBELET_DIR}}` in the above command with the actual root directory path of kubelet.
-   :::
+     ```shell
+     # Kubernetes version < v1.18
+     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     ```
 
-   **If the check command returns an empty result**, you can deploy directly without modifying the configuration:
+   - **If the check command returns an empty result**, you can deploy directly without modifying the configuration:
 
-   ```shell
-   # Kubernetes version >= v1.18
-   kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+     ```shell
+     # Kubernetes version >= v1.18
+     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+     ```
 
-   # Kubernetes version < v1.18
-   kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
-   ```
+     ```shell
+     # Kubernetes version < v1.18
+     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+     ```
 
-## Examples
+## Usage
 
-Before the example, you need to:
+Before getting started, you need:
 
 * Get yourself familiar with how to setup Kubernetes and how to use JuiceFS file system.
 * Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
@@ -175,14 +179,14 @@ Before the example, you need to:
 * [Config Mount Options](examples/mount-options.md)
 * [Mount Subdirectory](examples/subpath.md)
 * [Data Encryption](examples/encrypt.md)
+* [Manage Permissions in JuiceFS](examples/permission.md)
 * [Use ReadWriteMany and ReadOnlyMany](examples/rwx-and-rox.md)
 * [Config Mount Pod Resources](examples/mount-resources.md)
 * [Set Configuration Files and Environment Variables in Mount Pod](examples/config-and-env.md)
 * [Delay Deletion of Mount Pod](examples/delay-delete.md)
-
-:::info
-Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
-:::
+* [Configure Mount Pod to Clean Cache When Exiting](examples/cache-clean.md)
+* [Reclaim Policy of PV](examples/reclaim-policy.md)
+* [Automatic Mount Point Recovery](recover_failed_mountpoint.md)
 
 ## Troubleshooting & FAQs
 

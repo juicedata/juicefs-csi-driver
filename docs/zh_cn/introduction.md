@@ -135,33 +135,37 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 2. 部署
 
-   **如果上一步检查命令返回的结果不为空**，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），因此需要在 CSI 驱动的部署文件中更新 `kubeletDir` 路径并部署：
+   - **如果上一步检查命令返回的结果不为空**，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），因此需要在 CSI 驱动的部署文件中更新 `kubeletDir` 路径并部署：
 
-   ```shell
-   # Kubernetes 版本 >= v1.18
-   curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     :::note 注意
+     请将下述命令中的 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
+     :::
 
-   # Kubernetes 版本 < v1.18
-   curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-   ```
+     ```shell
+     # Kubernetes 版本 >= v1.18
+     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     ```
 
-   :::note 注意
-   请将上述命令中 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
-   :::
+     ```shell
+     # Kubernetes 版本 < v1.18
+     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
+     ```
 
-   **如果前面检查命令返回的结果为空**，无需修改配置，可直接部署：
+   - **如果前面检查命令返回的结果为空**，无需修改配置，可直接部署：
 
-   ```shell
-   # Kubernetes 版本 >= v1.18
-   kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+     ```shell
+     # Kubernetes 版本 >= v1.18
+     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+     ```
 
-   # Kubernetes 版本 < v1.18
-   kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
-   ```
+     ```shell
+     # Kubernetes 版本 < v1.18
+     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
+     ```
 
-## 示例
+## 使用
 
-开始之前，你需要：
+开始使用之前，你需要：
 
 * 了解如何设置 Kubernetes 和 JuiceFS
 * 确保 JuiceFS 能够被 Kuberenetes 集群访问。建议在与 Kubernetes 集群相同的区域创建文件系统。
@@ -176,14 +180,14 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 * [设置缓存路径](examples/cache-dir.md)
 * [挂载子目录](examples/subpath.md)
 * [数据加密](examples/encrypt.md)
+* [管理权限](examples/permission.md)
 * [使用 ReadWriteMany 和 ReadOnlyMany](examples/rwx-and-rox.md)
 * [配置 Mount Pod 的资源限制](examples/mount-resources.md)
 * [在 Mount Pod 中设置配置文件和环境变量](examples/config-and-env.md)
 * [延迟删除 Mount Pod](examples/delay-delete.md)
-
-:::info 说明
-由于 JuiceFS 是一个弹性文件系统，它不需要强制分配容量。你在 `PersistentVolume` 和 `PersistentVolumeClaim` 中指定的容量并不是实际存储容量。但是，由于存储容量是 Kubernetes 的必填字段，因此您可以使用任何有效值，例如 `10Pi` 表示容量。
-:::
+* [配置 Mount Pod 退出时清理缓存](examples/cache-clean.md)
+* [PV 的回收策略](examples/reclaim-policy.md)
+* [挂载点自动恢复](recover_failed_mountpoint.md)
 
 ## 故障排查
 

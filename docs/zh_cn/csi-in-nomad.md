@@ -2,20 +2,20 @@
 sidebar_label: 在 Nomad 中使用
 ---
 
-# 如何在 Nomad 中使用 JuiceFS CSI Driver
+# 如何在 Nomad 中使用 JuiceFS CSI 驱动
 
 :::note 注意
 此特性需使用 0.13.2 及以上版本的 JuiceFS CSI 驱动
 :::
 
-## 安装 JuiceFS CSI Driver
+## 安装 JuiceFS CSI 驱动
 
 ### 前置条件
 
 1. Nomad 版本在 v0.12.0 及以上。
 2. 开启 privileged Docker jobs。如果您的 Nomad 客户端配置尚未指定 Docker 插件配置，将以下最小配置文件添加到您的 Nomad 客户端配置并重新启动 Nomad：
 
-    ```
+    ```hcl
     plugin "docker" {
         config {
             allow_privileged = true
@@ -27,7 +27,7 @@ sidebar_label: 在 Nomad 中使用
 
 将以下配置文件保存为文件 `csi-controller.nomad`：
 
-```
+```hcl title="csi-controller.nomad"
 job "jfs-controller" {
   datacenters = ["dc1"]
   type = "system"
@@ -105,9 +105,9 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 
 ### 安装 CSI Node
 
-将以下配置文件保存为文件 `csi-node.nomad`。
+将以下配置文件保存为文件 `csi-node.nomad`：
 
-```
+```hcl title="csi-node.nomad"
 job "jfs-node" {
   datacenters = ["dc1"]
   type = "system"
@@ -187,7 +187,7 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 
 将以下配置文件保存为文件 `volume.hcl`：
 
-```
+```hcl title="volume.hcl"
 type = "csi"
 id = "juicefs-volume"
 name = "juicefs-volume"
@@ -227,7 +227,7 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 将以下配置文件保存为文件 `volume.hcl`：
 
-```
+```hcl title="volume.hcl"
 type = "csi"
 id = "juicefs-volume"
 name = "juicefs-volume"
@@ -257,9 +257,9 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 ### 在应用中使用
 
-Volume 创建好之后，就可以在应用中使用，具体可以参考[官方文档](https://www.nomadproject.io/docs/job-specification/volume) 。如：
+Volume 创建好之后，就可以在应用中使用，具体可以参考[官方文档](https://www.nomadproject.io/docs/job-specification/volume)。如：
 
-```
+```hcl title="job.nomad"
 job "demo" {
   datacenters = ["dc1"]
   group "node" {

@@ -1,11 +1,12 @@
-# 单独升级 JuiceFS 客户端
+# 独立升级 JuiceFS 客户端
 
-对于 v0.10.0 之前的版本，可以通过以下方法单独升级 JuiceFS 客户端，无需升级 CSI Driver。
+对于 v0.10.0 之前的版本，可以通过以下方法单独升级 JuiceFS 客户端，无需升级 CSI 驱动。
 
 1. 使用以下脚本将 `juicefs-csi-node` pod 中的 `juicefs` 客户端替换为新版：
 
    ```bash
    #!/bin/bash
+
    KUBECTL=/path/to/kubectl
    JUICEFS_BIN=/path/to/new/juicefs
 

@@ -72,6 +72,10 @@ You should ensure `access-key` and `secret-key` pair has `GetObject`, `PutObject
 
 Create StorageClass, PersistentVolumeClaim (PVC) and sample pod:
 
+:::info
+Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+:::
+
 ```yaml
 kubectl apply -f - <<EOF
 apiVersion: storage.k8s.io/v1
