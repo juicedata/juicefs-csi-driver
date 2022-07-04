@@ -84,6 +84,10 @@ Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and sample pod:
 The PV volumeHandle needs to be unique within the cluster, just use the PV name.
 :::
 
+:::info
+Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
+:::
+
 ```yaml
 apiVersion: v1
 kind: PersistentVolume

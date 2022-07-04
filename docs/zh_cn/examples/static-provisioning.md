@@ -86,6 +86,10 @@ stringData:
 PV 的 volumeHandle 需要保证集群内唯一，用 PV name 即可。
 :::
 
+:::info 说明
+由于 JuiceFS 是一个弹性文件系统，它不需要强制分配容量。你在 `PersistentVolume` 和 `PersistentVolumeClaim` 中指定的容量并不是实际存储容量。但是，由于存储容量是 Kubernetes 的必填字段，因此您可以使用任何有效值，例如 `10Pi` 表示容量。
+:::
+
 ```yaml
 apiVersion: v1
 kind: PersistentVolume

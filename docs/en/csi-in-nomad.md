@@ -4,6 +4,10 @@ sidebar_label: Use in Nomad
 
 # How to Use JuiceFS CSI Driver in Nomad
 
+:::note
+This feature requires JuiceFS CSI Driver version 0.13.2 and above.
+:::
+
 ## Install JuiceFS CSI Driver
 
 ### Prerequisites
@@ -11,7 +15,7 @@ sidebar_label: Use in Nomad
 1. Nomad v0.12.0 or greater.
 2. Enable privileged Docker jobs. If your Nomad client configuration does not already specify a Docker plugin configuration, this minimal one will allow privileged containers. Add it to your Nomad client configuration and restart Nomad.
 
-    ```
+    ```hcl
     plugin "docker" {
         config {
             allow_privileged = true
@@ -23,7 +27,7 @@ sidebar_label: Use in Nomad
 
 Save the following configuration as a file `csi-controller.nomad`:
 
-```
+```hcl title="csi-controller.nomad"
 job "jfs-controller" {
   datacenters = ["dc1"]
   type = "system"
@@ -103,7 +107,7 @@ In the above output, if the `Allocation` status is `running`, it means CSI Contr
 
 Save the following configuration as a file `csi-node.nomad`:
 
-```
+```hcl title="csi-node.nomad"
 job "jfs-node" {
   datacenters = ["dc1"]
   type = "system"
@@ -183,7 +187,7 @@ In the above output, if the `Allocation` status is `running`, it means CSI Node 
 
 Save the following configuration as a file `volume.hcl`:
 
-```
+```hcl title="volume.hcl"
 type = "csi"
 id = "juicefs-volume"
 name = "juicefs-volume"
@@ -222,7 +226,7 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 Save the following configuration as a file `volume.hcl`:
 
-```
+```hcl title="volume.hcl"
 type = "csi"
 id = "juicefs-volume"
 name = "juicefs-volume"
@@ -257,7 +261,7 @@ Created external volume juicefs-volume with ID juicefs-volume
 
 After the volume is created, it can be used in the application. For details, please refer to [official documentation](https://www.nomadproject.io/docs/job-specification/volume). Such as:
 
-```
+```hcl title="job.nomad"
 job "demo" {
   datacenters = ["dc1"]
   group "node" {
