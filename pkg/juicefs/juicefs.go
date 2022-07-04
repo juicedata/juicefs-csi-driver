@@ -472,7 +472,7 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 	}
 	authCmd.SetEnv(envs)
 	var res []byte
-	res, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
+	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
 		res, err = authCmd.CombinedOutput()
 		return
 	})
@@ -614,7 +614,7 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	}
 	formatCmd.SetEnv(envs)
 	var res []byte
-	res, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
+	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
 		res, err = formatCmd.CombinedOutput()
 		return
 	})
