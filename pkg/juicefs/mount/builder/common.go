@@ -33,7 +33,7 @@ func NewBuilder(setting *config.JfsSetting) *Builder {
 }
 
 func (r *Builder) generateJuicePod() *corev1.Pod {
-	pod := config.GeneratePodTemplate()
+	pod := r.generatePodTemplate()
 
 	volumes := r.getVolumes()
 	volumeMounts := r.getVolumeMounts()
@@ -208,4 +208,39 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 		},
 	}
 	return pod
+}
+
+func (r *Builder) generatePodTemplate() *corev1.Pod {
+	isPrivileged := true
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.jfsSetting.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey:          config.PodTypeValue,
+				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:  "jfs-mount",
+				Image: r.jfsSetting.Image,
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &isPrivileged,
+				},
+				Env: []corev1.EnvVar{},
+			}},
+			NodeName:           config.NodeName,
+			HostNetwork:        r.jfsSetting.HostNetwork,
+			HostAliases:        r.jfsSetting.HostAliases,
+			HostPID:            r.jfsSetting.HostPID,
+			HostIPC:            r.jfsSetting.HostIPC,
+			DNSConfig:          r.jfsSetting.DNSConfig,
+			DNSPolicy:          r.jfsSetting.DNSPolicy,
+			ServiceAccountName: r.jfsSetting.ServiceAccountName,
+			ImagePullSecrets:   r.jfsSetting.ImagePullSecrets,
+			PreemptionPolicy:   r.jfsSetting.PreemptionPolicy,
+			Tolerations:        r.jfsSetting.Tolerations,
+		},
+	}
 }

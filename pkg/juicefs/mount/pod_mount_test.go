@@ -41,12 +41,18 @@ import (
 var testA = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-a",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "a",
+		},
 	},
 }
 
 var testB = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-b",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "b",
+		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
@@ -55,6 +61,9 @@ var testB = &corev1.Pod{
 var testC = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-c",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "c",
+		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
@@ -63,6 +72,9 @@ var testC = &corev1.Pod{
 var testD = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-d",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "d",
+		},
 		Annotations: map[string]string{"a": "b",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def"},
 	},
@@ -71,6 +83,9 @@ var testD = &corev1.Pod{
 var testE = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-e",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "e",
+		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
@@ -81,6 +96,9 @@ var testE = &corev1.Pod{
 var testF = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-f",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "f",
+		},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -97,6 +115,9 @@ var testF = &corev1.Pod{
 var testG = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-g",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "g",
+		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
@@ -117,6 +138,9 @@ var testG = &corev1.Pod{
 var testH = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-h",
+		Labels: map[string]string{
+			jfsConfig.PodUniqueIdLabelKey: "h",
+		},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -220,8 +244,8 @@ func TestJUmount(t *testing.T) {
 	fakeClientSet := fake.NewSimpleClientset()
 
 	type args struct {
-		volumeId string
-		target   string
+		podName string
+		target  string
 	}
 	var tests = []struct {
 		name           string
@@ -233,18 +257,18 @@ func TestJUmount(t *testing.T) {
 		{
 			name: "test-delete",
 			args: args{
-				volumeId: "a",
-				target:   "/mnt/abc",
+				podName: testC.Name,
+				target:  "/mnt/abc",
 			},
 			pod:            testC,
 			wantErr:        false,
-			wantPodDeleted: true,
+			wantPodDeleted: false,
 		},
 		{
 			name: "test-delete2",
 			args: args{
-				volumeId: "d",
-				target:   "/mnt/def",
+				podName: testD.Name,
+				target:  "/mnt/def",
 			},
 			pod:            testD,
 			wantErr:        false,
@@ -253,8 +277,8 @@ func TestJUmount(t *testing.T) {
 		{
 			name: "test-true",
 			args: args{
-				volumeId: "e",
-				target:   "/mnt/def",
+				podName: testE.Name,
+				target:  "/mnt/def",
 			},
 			pod:            testE,
 			wantErr:        false,
@@ -263,8 +287,8 @@ func TestJUmount(t *testing.T) {
 		{
 			name: "test-delete3",
 			args: args{
-				volumeId: "f",
-				target:   "/mnt/def",
+				podName: testF.Name,
+				target:  "/mnt/def",
 			},
 			pod:            testF,
 			wantErr:        false,
@@ -273,8 +297,8 @@ func TestJUmount(t *testing.T) {
 		{
 			name: "test-nil",
 			args: args{
-				volumeId: "x",
-				target:   "/mnt/def",
+				podName: "x",
+				target:  "/mnt/def",
 			},
 			pod:            nil,
 			wantErr:        false,
@@ -292,13 +316,12 @@ func TestJUmount(t *testing.T) {
 			if tt.pod != nil {
 				_, _ = p.K8sClient.CreatePod(tt.pod)
 			}
-			if err := p.JUmount(tt.args.volumeId, tt.args.target); (err != nil) != tt.wantErr {
+			if err := p.JUmount(tt.args.target, tt.args.podName); (err != nil) != tt.wantErr {
 				t.Errorf("JUmount() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			podName := GenNameByUniqueId(tt.args.volumeId)
-			got, _ := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+			got, _ := p.K8sClient.GetPod(tt.args.podName, jfsConfig.Namespace)
 			if tt.wantPodDeleted && got != nil {
-				t.Errorf("DelRefOfMountPod() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
+				t.Errorf("JUmount() got: %v, wanted pod deleted: %v", got, tt.wantPodDeleted)
 			}
 		})
 	}
@@ -321,7 +344,7 @@ func TestJUmountWithMock(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.JUmount("ttt", "/test")
+			err := p.JUmount("/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod hasRef", func() {
@@ -337,7 +360,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByUniqueId("ttt")
+			podName := GenPodNameByUniqueId("ttt", true)
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -347,7 +370,7 @@ func TestJUmountWithMock(t *testing.T) {
 					},
 				},
 			})
-			err := p.JUmount("ttt", "/test")
+			err := p.JUmount("/test", podName)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod conflict", func() {
@@ -363,7 +386,7 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByUniqueId("ttt")
+			podName := GenPodNameByUniqueId("ttt", true)
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -373,7 +396,7 @@ func TestJUmountWithMock(t *testing.T) {
 					},
 				},
 			})
-			err := p.JUmount("ttt", "/test")
+			err := p.JUmount("/test", podName)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod delete error", func() {
@@ -390,14 +413,14 @@ func TestJUmountWithMock(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByUniqueId("ttt")
+			podName := GenPodNameByUniqueId("ttt", true)
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
 				},
 			})
-			err := p.JUmount("ttt", "/test")
+			err := p.JUmount("/test", podName)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -429,7 +452,7 @@ func TestUmountTarget(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.UmountTarget("ttt", "/test")
+			err := p.UmountTarget("/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod conflict", func() {
@@ -450,7 +473,7 @@ func TestUmountTarget(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByUniqueId("ttt")
+			podName := GenPodNameByUniqueId("ttt", true)
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -460,7 +483,7 @@ func TestUmountTarget(t *testing.T) {
 					},
 				},
 			})
-			err := p.UmountTarget("ttt", "/test")
+			err := p.UmountTarget("/test", podName)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod update error", func() {
@@ -486,7 +509,7 @@ func TestUmountTarget(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
-			podName := GenNameByUniqueId("aaa")
+			podName := GenPodNameByUniqueId("aaa", true)
 			p.K8sClient.CreatePod(&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
@@ -496,7 +519,7 @@ func TestUmountTarget(t *testing.T) {
 					},
 				},
 			})
-			err := p.UmountTarget("aaa", "/test")
+			err := p.UmountTarget("/test", podName)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -572,15 +595,21 @@ func TestWaitUntilMount(t *testing.T) {
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			if tt.pod != nil {
+				hashVal, _ := GenHashOfSetting(*tt.args.jfsSetting)
+				tt.pod.Labels = map[string]string{
+					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
+					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
+					jfsConfig.PodJuiceHashLabelKey: hashVal,
+				}
 				_, _ = p.K8sClient.CreatePod(tt.pod)
 			}
-			podName := GenNameByUniqueId(tt.args.jfsSetting.VolumeId)
-			if err := p.createOrAddRef(tt.args.jfsSetting, podName); (err != nil) != tt.wantErr {
+			podName, err := p.createOrAddRef(tt.args.jfsSetting)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			newPod, _ := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 			if newPod == nil || !reflect.DeepEqual(newPod.Annotations, tt.wantAnno) {
-				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod, tt.wantAnno)
+				t.Errorf("waitUntilMount() got = %v, wantAnnotation = %v", newPod.Annotations, tt.wantAnno)
 			}
 		})
 	}
@@ -612,8 +641,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
-			podName := GenNameByUniqueId("ttt")
-			err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"}, podName)
+			_, err := p.createOrAddRef(&jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -734,6 +762,41 @@ func TestGetRef(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetRef(tt.args.pod); got != tt.want {
 				t.Errorf("HasRef() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGenHashOfSetting(t *testing.T) {
+	type args struct {
+		setting jfsConfig.JfsSetting
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				setting: jfsConfig.JfsSetting{
+					Name: "test",
+				},
+			},
+			want:    "5bac3d3b2240bc23b234f6b42126e98934408beebbc67963cd1a6b40bd2b5c9",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GenHashOfSetting(tt.args.setting)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenHashOfSetting() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

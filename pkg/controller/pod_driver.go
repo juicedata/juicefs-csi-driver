@@ -393,7 +393,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 	})
 
 	if e != nil {
-		klog.Errorf("[podReadyHandler] stat mntPath:%s err:%v, don't do recovery", mntPath, e)
+		klog.Errorf("[podReadyHandler] stat mntPath: %s err: %v, don't do recovery", mntPath, e)
 		return nil
 	}
 

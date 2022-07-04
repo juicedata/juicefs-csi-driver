@@ -26,9 +26,9 @@ type MntInterface interface {
 	JMount(jfsSetting *jfsConfig.JfsSetting) error
 	JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error
 	JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error
-	GetMountRef(uniqueId, target string) (int, error)
-	UmountTarget(uniqueId, target string) error
-	JUmount(uniqueId, target string) error
+	GetMountRef(target, podName string) (int, error) // podName is only used by podMount
+	UmountTarget(target, podName string) error       // podName is only used by podMount
+	JUmount(target, podName string) error            // podName is only used by podMount
 	AddRefOfMount(target string, podName string) error
 	CleanCache(id string, volumeId string, cacheDirs []string) error
 }

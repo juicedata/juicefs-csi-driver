@@ -48,20 +48,6 @@ func (mr *MockJfsMockRecorder) CreateVol(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVol", reflect.TypeOf((*MockJfs)(nil).CreateVol), arg0, arg1)
 }
 
-// DeleteVol mocks base method.
-func (m *MockJfs) DeleteVol(arg0 string, arg1 map[string]string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteVol", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteVol indicates an expected call of DeleteVol.
-func (mr *MockJfsMockRecorder) DeleteVol(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVol", reflect.TypeOf((*MockJfs)(nil).DeleteVol), arg0, arg1)
-}
-
 // GetBasePath mocks base method.
 func (m *MockJfs) GetBasePath() string {
 	m.ctrl.T.Helper()

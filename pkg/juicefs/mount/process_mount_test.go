@@ -70,7 +70,7 @@ func TestNewProcessMount(t *testing.T) {
 
 func TestProcessMount_JUmount(t *testing.T) {
 	targetPath := "/test"
-	volumeId := "test"
+	podName := "test"
 	Convey("Test JUmount", t, func() {
 		Convey("test", func() {
 			patch1 := ApplyFunc(k8sMount.PathExists, func(path string) (bool, error) {
@@ -98,7 +98,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(volumeId, targetPath); err != nil {
+			if err := p.JUmount(targetPath, podName); err != nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -110,7 +110,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 			}
-			if err := p.JUmount(volumeId, targetPath); err == nil {
+			if err := p.JUmount(targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -140,7 +140,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(volumeId, targetPath); err == nil {
+			if err := p.JUmount(targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})

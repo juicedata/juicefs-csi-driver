@@ -18,7 +18,6 @@ package config
 
 import (
 	"hash/fnv"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -58,14 +57,16 @@ var (
 )
 
 const (
-	CSINodeLabelKey   = "app"
-	CSINodeLabelValue = "juicefs-csi-node"
-	PodTypeKey        = "app.kubernetes.io/name"
-	PodTypeValue      = "juicefs-mount"
-	Finalizer         = "juicefs.com/finalizer"
-	JuiceFSUUID       = "juicefs-uuid"
-	UniqueId          = "juicefs-uniqueid"
-	CleanCache        = "juicefs-clean-cache"
+	CSINodeLabelKey      = "app"
+	CSINodeLabelValue    = "juicefs-csi-node"
+	PodTypeKey           = "app.kubernetes.io/name"
+	PodTypeValue         = "juicefs-mount"
+	PodUniqueIdLabelKey  = "volume-id"
+	PodJuiceHashLabelKey = "juicefs-hash"
+	Finalizer            = "juicefs.com/finalizer"
+	JuiceFSUUID          = "juicefs-uuid"
+	UniqueId             = "juicefs-uniqueid"
+	CleanCache           = "juicefs-clean-cache"
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
@@ -91,38 +92,4 @@ func GetPodLock(podName string) *sync.Mutex {
 	h.Write([]byte(podName))
 	index := int(h.Sum32())
 	return &PodLocks[index%1024]
-}
-
-func GeneratePodTemplate() *corev1.Pod {
-	isPrivileged := true
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: Namespace,
-			Labels: map[string]string{
-				PodTypeKey: PodTypeValue,
-			},
-			Annotations: make(map[string]string),
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:  "jfs-mount",
-				Image: MountImage,
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &isPrivileged,
-				},
-				Env: []corev1.EnvVar{},
-			}},
-			NodeName:           NodeName,
-			HostNetwork:        CSIPod.Spec.HostNetwork,
-			HostAliases:        CSIPod.Spec.HostAliases,
-			HostPID:            CSIPod.Spec.HostPID,
-			HostIPC:            CSIPod.Spec.HostIPC,
-			DNSConfig:          CSIPod.Spec.DNSConfig,
-			DNSPolicy:          CSIPod.Spec.DNSPolicy,
-			ServiceAccountName: CSIPod.Spec.ServiceAccountName,
-			ImagePullSecrets:   CSIPod.Spec.ImagePullSecrets,
-			PreemptionPolicy:   CSIPod.Spec.PreemptionPolicy,
-			Tolerations:        CSIPod.Spec.Tolerations,
-		},
-	}
 }

@@ -18,7 +18,11 @@ package mount
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,15 +57,14 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	podName := GenNameByUniqueId(jfsSetting.UniqueId)
-	if err := p.createOrAddRef(jfsSetting, podName); err != nil {
+	podName, err := p.createOrAddRef(jfsSetting)
+	if err != nil {
 		return err
 	}
 	return p.waitUtilMountReady(jfsSetting, podName)
 }
 
-func (p *PodMount) GetMountRef(uniqueId, target string) (int, error) {
-	podName := GenNameByUniqueId(uniqueId)
+func (p *PodMount) GetMountRef(target, podName string) (int, error) {
 	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -73,8 +76,7 @@ func (p *PodMount) GetMountRef(uniqueId, target string) (int, error) {
 	return GetRef(pod), nil
 }
 
-func (p *PodMount) UmountTarget(uniqueId, target string) error {
-	podName := GenNameByUniqueId(uniqueId)
+func (p *PodMount) UmountTarget(target, podName string) error {
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
 	klog.V(5).Infof("JfsUnmount: umount %s", target)
@@ -107,6 +109,11 @@ func (p *PodMount) UmountTarget(uniqueId, target string) error {
 	// check mount pod is need to delete
 	klog.V(5).Infof("JUmount: Delete target ref [%s] and check mount pod [%s] is need to delete or not.", target, podName)
 
+	if podName == "" {
+		// mount pod not exist
+		klog.V(5).Infof("JUmount: Mount pod of target %s not exists.", target)
+		return nil
+	}
 	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("JUmount: Get pod %s err: %v", podName, err)
@@ -136,14 +143,13 @@ func (p *PodMount) UmountTarget(uniqueId, target string) error {
 		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
 	})
 	if err != nil {
-		klog.Errorf("JUmount: Remove ref of uniqueId %s err: %v", uniqueId, err)
+		klog.Errorf("JUmount: Remove ref of target %s err: %v", target, err)
 		return err
 	}
 	return nil
 }
 
-func (p *PodMount) JUmount(uniqueId, target string) error {
-	podName := GenNameByUniqueId(uniqueId)
+func (p *PodMount) JUmount(target, podName string) error {
 
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
@@ -169,7 +175,7 @@ func (p *PodMount) JUmount(uniqueId, target string) error {
 			// do not set delay delete, delete it now
 			klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
 			if err := p.K8sClient.DeletePod(po); err != nil {
-				klog.V(5).Infof("JUmount: Delete pod of uniqueId %s error: %v", uniqueId, err)
+				klog.V(5).Infof("JUmount: Delete pod %s error: %v", podName, err)
 				return err
 			}
 
@@ -251,14 +257,37 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return err
 }
 
-func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	secretName := podName + "-secret"
-	jfsSetting.SecretName = secretName
-	r := builder.NewBuilder(jfsSetting)
+func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
+	hashVal, err := GenHashOfSetting(*jfsSetting)
+	if err != nil {
+		klog.Errorf("Generate hash of jfsSetting error: %v", err)
+		return "", err
+	}
+
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
+		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
+		jfsConfig.PodJuiceHashLabelKey: hashVal,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": jfsConfig.NodeName}
+	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, hashVal, err)
+		return "", err
+	}
+	if len(pods) > 0 {
+		podName = pods[0].Name
+	} else {
+		podName = GenPodNameByUniqueId(jfsSetting.UniqueId, true)
+	}
+	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
+
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
+	jfsSetting.SecretName = podName + "-secret"
+	r := builder.NewBuilder(jfsSetting)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
@@ -273,30 +302,28 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting, podName stri
 				// pod not exist, create
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
 				newPod := r.NewMountPod(podName)
-				if newPod.Annotations == nil {
-					newPod.Annotations = make(map[string]string)
-				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
+				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
 				_, err := p.K8sClient.CreatePod(newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
 				if err := p.createOrUpdateSecret(&secret); err != nil {
-					return err
+					return "", err
 				}
-				return err
+				return podName, err
 			}
 			// unexpect error
 			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
-			return err
+			return "", err
 		}
 		// pod exist, add refs
 		if err := p.createOrUpdateSecret(&secret); err != nil {
-			return err
+			return "", err
 		}
-		return p.AddRefOfMount(jfsSetting.TargetPath, podName)
+		return podName, p.AddRefOfMount(jfsSetting.TargetPath, podName)
 	}
-	return status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
+	return podName, status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
 }
 
 func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName string) error {
@@ -499,6 +526,23 @@ func GetRef(pod *corev1.Pod) int {
 	return res
 }
 
-func GenNameByUniqueId(uniqueId string) string {
-	return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
+func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
+	if !withRandom {
+		return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
+	}
+	return fmt.Sprintf("juicefs-%s-%s-%s", jfsConfig.NodeName, uniqueId, util.RandStringRunes(6))
+}
+
+func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
+	// target path should not affect hash val
+	setting.TargetPath = ""
+	settingStr, err := json.Marshal(setting)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	h.Write(settingStr)
+	val := hex.EncodeToString(h.Sum(nil))[:63]
+	klog.Infof("jfsSetting hash: %s", val)
+	return val, nil
 }

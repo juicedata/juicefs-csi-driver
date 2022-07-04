@@ -19,7 +19,6 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +54,8 @@ var (
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey: config.PodTypeValue,
+				config.PodTypeKey:          config.PodTypeValue,
+				config.PodUniqueIdLabelKey: "",
 			},
 			Annotations: map[string]string{
 				config.JuiceFSUUID: "",
@@ -165,44 +165,6 @@ func putDefaultCacheDir(pod *corev1.Pod) {
 	}
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMount)
-}
-
-func Test_parsePodResources(t *testing.T) {
-	type args struct {
-		MountPodCpuLimit   string
-		MountPodMemLimit   string
-		MountPodCpuRequest string
-		MountPodMemRequest string
-	}
-	tests := []struct {
-		name string
-		args args
-		want corev1.ResourceRequirements
-	}{
-		{
-			name: "test",
-			args: args{
-				MountPodCpuLimit:   "1",
-				MountPodMemLimit:   "2G",
-				MountPodCpuRequest: "3",
-				MountPodMemRequest: "4G",
-			},
-			want: testResources,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			builder := &Builder{jfsSetting: &config.JfsSetting{
-				MountPodCpuLimit:   tt.args.MountPodCpuLimit,
-				MountPodMemLimit:   tt.args.MountPodMemLimit,
-				MountPodMemRequest: tt.args.MountPodMemRequest,
-				MountPodCpuRequest: tt.args.MountPodCpuRequest,
-			}}
-			if got := builder.parsePodResources(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parsePodResources() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func Test_getCacheDirVolumes(t *testing.T) {
@@ -397,19 +359,19 @@ func TestNewMountPod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
 			jfsSetting := &config.JfsSetting{
-				IsCe:                   true,
-				Name:                   tt.args.name,
-				Source:                 "redis://127.0.0.1:6379/0",
-				Configs:                tt.args.configs,
-				Envs:                   tt.args.env,
-				MountPodLabels:         tt.args.labels,
-				MountPodAnnotations:    tt.args.annotations,
-				MountPodServiceAccount: tt.args.serviceAccount,
-				MountPath:              tt.args.mountPath,
-				VolumeId:               tt.args.name,
-				Options:                tt.args.options,
-				CacheDirs:              tt.args.cacheDirs,
-				SecretName:             podName,
+				IsCe:                true,
+				Name:                tt.args.name,
+				Source:              "redis://127.0.0.1:6379/0",
+				Configs:             tt.args.configs,
+				Envs:                tt.args.env,
+				MountPodLabels:      tt.args.labels,
+				MountPodAnnotations: tt.args.annotations,
+				ServiceAccountName:  tt.args.serviceAccount,
+				MountPath:           tt.args.mountPath,
+				VolumeId:            tt.args.name,
+				Options:             tt.args.options,
+				CacheDirs:           tt.args.cacheDirs,
+				SecretName:          podName,
 			}
 			r := Builder{jfsSetting}
 			got := r.NewMountPod(podName)

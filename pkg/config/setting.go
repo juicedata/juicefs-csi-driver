@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
 	"strings"
@@ -51,15 +53,10 @@ type JfsSetting struct {
 	Configs       map[string]string `json:"configs_map,omitempty"`
 
 	// put in volCtx
-	MountPodCpuLimit       string            `json:"mount_pod_cpu_limit"`
-	MountPodMemLimit       string            `json:"mount_pod_mem_limit"`
-	MountPodCpuRequest     string            `json:"mount_pod_cpu_request"`
-	MountPodMemRequest     string            `json:"mount_pod_mem_request"`
-	MountPodLabels         map[string]string `json:"mount_pod_labels"`
-	MountPodAnnotations    map[string]string `json:"mount_pod_annotations"`
-	MountPodServiceAccount string            `json:"mount_pod_service_account"`
-	DeletedDelay           string            `json:"deleted_delay"`
-	CleanCache             bool              `json:"clean_cache"`
+	MountPodLabels      map[string]string `json:"mount_pod_labels"`
+	MountPodAnnotations map[string]string `json:"mount_pod_annotations"`
+	DeletedDelay        string            `json:"deleted_delay"`
+	CleanCache          bool              `json:"clean_cache"`
 
 	// mount
 	VolumeId   string   // volumeHandle of PV
@@ -70,6 +67,25 @@ type JfsSetting struct {
 	FormatCmd  string   // format or auth
 	SubPath    string   // subPath which is to be created or deleted
 	SecretName string   // secret name which is set env in pod
+
+	ServiceAccountName   string
+	Resources            corev1.ResourceRequirements
+	Namespace            string
+	MountPointPath       string
+	JFSConfigPath        string
+	JFSMountPriorityName string
+
+	// inherit from csi
+	Image            string
+	HostNetwork      bool
+	HostAliases      []corev1.HostAlias
+	HostPID          bool
+	HostIPC          bool
+	DNSConfig        *corev1.PodDNSConfig
+	DNSPolicy        corev1.DNSPolicy
+	ImagePullSecrets []corev1.LocalObjectReference
+	PreemptionPolicy *corev1.PreemptionPolicy
+	Tolerations      []corev1.Toleration
 }
 
 type CachePVC struct {
@@ -204,13 +220,34 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		}
 	}
 
+	// inherit attr from csi
+	jfsSetting.Image = MountImage
+	jfsSetting.Namespace = Namespace
+	jfsSetting.MountPointPath = MountPointPath
+	jfsSetting.JFSConfigPath = JFSConfigPath
+	jfsSetting.JFSMountPriorityName = JFSMountPriorityName
+	jfsSetting.ServiceAccountName = CSIPod.Spec.ServiceAccountName
+	jfsSetting.HostNetwork = CSIPod.Spec.HostNetwork
+	jfsSetting.HostAliases = CSIPod.Spec.HostAliases
+	jfsSetting.HostPID = CSIPod.Spec.HostPID
+	jfsSetting.HostIPC = CSIPod.Spec.HostIPC
+	jfsSetting.DNSConfig = CSIPod.Spec.DNSConfig
+	jfsSetting.DNSPolicy = CSIPod.Spec.DNSPolicy
+	jfsSetting.ImagePullSecrets = CSIPod.Spec.ImagePullSecrets
+	jfsSetting.PreemptionPolicy = CSIPod.Spec.PreemptionPolicy
+	jfsSetting.Tolerations = CSIPod.Spec.Tolerations
+
 	if volCtx != nil {
 		klog.V(5).Infof("VolCtx got in config: %v", volCtx)
-		jfsSetting.MountPodCpuLimit = volCtx[mountPodCpuLimitKey]
-		jfsSetting.MountPodMemLimit = volCtx[mountPodMemLimitKey]
-		jfsSetting.MountPodCpuRequest = volCtx[mountPodCpuRequestKey]
-		jfsSetting.MountPodMemRequest = volCtx[mountPodMemRequestKey]
-		jfsSetting.MountPodServiceAccount = volCtx[mountPodServiceAccount]
+		cpuLimit := volCtx[mountPodCpuLimitKey]
+		memoryLimit := volCtx[mountPodMemLimitKey]
+		cpuRequest := volCtx[mountPodCpuRequestKey]
+		memoryRequest := volCtx[mountPodMemRequestKey]
+		jfsSetting.Resources = parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+
+		if volCtx[mountPodServiceAccount] != "" {
+			jfsSetting.ServiceAccountName = volCtx[mountPodServiceAccount]
+		}
 		if volCtx[cleanCache] == "true" {
 			jfsSetting.CleanCache = true
 		}
@@ -255,4 +292,31 @@ func parseYamlOrJson(source string, dst interface{}) error {
 		}
 	}
 	return nil
+}
+
+func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) corev1.ResourceRequirements {
+	podLimit := map[corev1.ResourceName]resource.Quantity{}
+	podRequest := map[corev1.ResourceName]resource.Quantity{}
+	if ContainerResource.Limits != nil {
+		podLimit = ContainerResource.Limits
+	}
+	if ContainerResource.Requests != nil {
+		podRequest = ContainerResource.Requests
+	}
+	if cpuLimit != "" {
+		podLimit[corev1.ResourceCPU] = resource.MustParse(cpuLimit)
+	}
+	if memoryLimit != "" {
+		podLimit[corev1.ResourceMemory] = resource.MustParse(memoryLimit)
+	}
+	if cpuRequest != "" {
+		podRequest[corev1.ResourceCPU] = resource.MustParse(cpuRequest)
+	}
+	if memoryRequest != "" {
+		podRequest[corev1.ResourceMemory] = resource.MustParse(memoryRequest)
+	}
+	return corev1.ResourceRequirements{
+		Limits:   podLimit,
+		Requests: podRequest,
+	}
 }
