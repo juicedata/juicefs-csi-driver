@@ -272,7 +272,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 // 		UniqueId set as volumeId
 func (j *juicefs) getUniqueId(volumeId string) (string, error) {
-	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -311,11 +311,11 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return err
 	}
 	if config.ByProcess {
-		ref, err := j.processMount.GetMountRef(uniqueId, mountPath)
+		ref, err := j.processMount.GetMountRef(mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
-		err = j.processMount.JUmount(uniqueId, mountPath)
+		err = j.processMount.JUmount(mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
