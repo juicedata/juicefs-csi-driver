@@ -543,6 +543,6 @@ func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
-	klog.Infof("jfsSetting hash: %s", val)
+	klog.V(6).Infof("jfsSetting hash: %s", val)
 	return val, nil
 }
