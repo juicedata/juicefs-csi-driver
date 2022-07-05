@@ -212,7 +212,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 }
 
-func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
+func (p *ProcessMount) GetMountRef(target, podName string) (int, error) {
 	var refs []string
 
 	var corruptedMnt bool
@@ -249,14 +249,14 @@ func (p *ProcessMount) GetMountRef(uniqueId, target string) (int, error) {
 	return len(refs), err
 }
 
-func (p *ProcessMount) UmountTarget(uniqueId, target string) error {
+func (p *ProcessMount) UmountTarget(target, podName string) error {
 	// process mnt need target to get ref
 	// so, umount target in JUmount
 	return nil
 }
 
 //JUmount umount targetPath
-func (p *ProcessMount) JUmount(uniqueId, target string) error {
+func (p *ProcessMount) JUmount(target, podName string) error {
 	var refs []string
 
 	var corruptedMnt bool

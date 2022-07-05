@@ -402,6 +402,7 @@ func Test_juicefs_JfsUnmount(t *testing.T) {
 			jfs := juicefs{
 				Mutex:              sync.Mutex{},
 				SafeFormatAndMount: *mounter,
+				K8sClient:          k8sClient,
 				processMount:       podmount.NewProcessMount(*mounter),
 				podMount: podmount.NewPodMount(k8sClient, mount.SafeFormatAndMount{
 					Interface: *mounter,

@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -269,7 +272,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 // 		UniqueId set as volumeId
 func (j *juicefs) getUniqueId(volumeId string) (string, error) {
-	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -308,11 +311,11 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		return err
 	}
 	if config.ByProcess {
-		ref, err := j.processMount.GetMountRef(uniqueId, mountPath)
+		ref, err := j.processMount.GetMountRef(mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
-		err = j.processMount.JUmount(uniqueId, mountPath)
+		err = j.processMount.JUmount(mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
@@ -337,23 +340,64 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	}
 
 	mnt := j.podMount
-	podName := podmount.GenNameByUniqueId(uniqueId)
+	mountPods := []corev1.Pod{}
+	var mountPod *corev1.Pod
+	var podName string
+	// get pod by exact name
+	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
+	pod, err := j.K8sClient.GetPod(oldPodName, config.Namespace)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			klog.Errorf("JfsUnmount: Get mount pod %s err %v", oldPodName, err)
+			return err
+		}
+	}
+	if pod != nil {
+		mountPods = append(mountPods, *pod)
+	}
+	// get pod by label
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		config.PodTypeKey:          config.PodTypeValue,
+		config.PodUniqueIdLabelKey: config.UniqueId,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := j.K8sClient.ListPod(config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		klog.Errorf("List pods of uniqueId %s error: %v", uniqueId, err)
+		return err
+	}
+	mountPods = append(mountPods, pods...)
+	// find pod by target
+	key := util.GetReferenceKey(mountPath)
+	for _, po := range mountPods {
+		if _, ok := po.Annotations[key]; ok {
+			mountPod = &po
+			break
+		}
+	}
+	if mountPod != nil {
+		podName = mountPod.Name
+	}
+
 	lock := config.GetPodLock(podName)
 	lock.Lock()
 	defer lock.Unlock()
 
 	// umount target path
-	if err = mnt.UmountTarget(uniqueId, mountPath); err != nil {
+	if err = mnt.UmountTarget(mountPath, podName); err != nil {
 		return err
 	}
+	if podName == "" {
+		return nil
+	}
 	// get refs of mount pod
-	refs, err := mnt.GetMountRef(uniqueId, mountPath)
+	refs, err := mnt.GetMountRef(mountPath, podName)
 	if err != nil {
 		return err
 	}
 	if refs == 0 {
 		// if refs is none, umount
-		return j.podMount.JUmount(uniqueId, mountPath)
+		return j.podMount.JUmount(mountPath, podName)
 	}
 	return nil
 }
@@ -491,11 +535,11 @@ func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 		mnt = j.processMount
 	}
 
-	klog.V(5).Infof("Mount: mounting %q at %q with options %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, jfsSetting.Options)
 	err := mnt.JMount(jfsSetting)
 	if err != nil {
 		return "", err
 	}
+	klog.V(5).Infof("Mount: mounting %q at %q with options %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, jfsSetting.Options)
 	return jfsSetting.MountPath, nil
 }
 

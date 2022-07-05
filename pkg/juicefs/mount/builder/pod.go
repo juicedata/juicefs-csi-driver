@@ -23,13 +23,12 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (r *Builder) NewMountPod(podName string) *corev1.Pod {
-	resourceRequirements := r.parsePodResources()
+	resourceRequirements := r.jfsSetting.Resources
 
 	cmd := r.getCommand()
 
@@ -40,9 +39,7 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
 	pod.Name = podName
-	if r.jfsSetting.MountPodServiceAccount != "" {
-		pod.Spec.ServiceAccountName = r.jfsSetting.MountPodServiceAccount
-	}
+	pod.Spec.ServiceAccountName = r.jfsSetting.ServiceAccountName
 	controllerutil.AddFinalizer(pod, config.Finalizer)
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
@@ -76,33 +73,6 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 		pod.Annotations[config.CleanCache] = "true"
 	}
 	return pod
-}
-
-func (r *Builder) parsePodResources() corev1.ResourceRequirements {
-	podLimit := map[corev1.ResourceName]resource.Quantity{}
-	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	if config.ContainerResource.Limits != nil {
-		podLimit = config.ContainerResource.Limits
-	}
-	if config.ContainerResource.Requests != nil {
-		podRequest = config.ContainerResource.Requests
-	}
-	if r.jfsSetting.MountPodCpuLimit != "" {
-		podLimit[corev1.ResourceCPU] = resource.MustParse(r.jfsSetting.MountPodCpuLimit)
-	}
-	if r.jfsSetting.MountPodMemLimit != "" {
-		podLimit[corev1.ResourceMemory] = resource.MustParse(r.jfsSetting.MountPodMemLimit)
-	}
-	if r.jfsSetting.MountPodCpuRequest != "" {
-		podRequest[corev1.ResourceCPU] = resource.MustParse(r.jfsSetting.MountPodCpuRequest)
-	}
-	if r.jfsSetting.MountPodMemRequest != "" {
-		podRequest[corev1.ResourceMemory] = resource.MustParse(r.jfsSetting.MountPodMemRequest)
-	}
-	return corev1.ResourceRequirements{
-		Limits:   podLimit,
-		Requests: podRequest,
-	}
 }
 
 func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMode) ([]corev1.Volume, []corev1.VolumeMount) {

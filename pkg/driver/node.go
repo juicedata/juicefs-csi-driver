@@ -18,7 +18,6 @@ package driver
 
 import (
 	"context"
-	"fmt"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -106,15 +105,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
-	options := make(map[string]string)
+	options := []string{}
 	if req.GetReadonly() || req.VolumeCapability.AccessMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		options["ro"] = ""
+		options = append(options, "ro")
 	}
 	if m := volCap.GetMount(); m != nil {
-		for _, f := range m.MountFlags {
-			// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
-			options[f] = ""
-		}
+		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
+		options = append(options, m.MountFlags...)
 	}
 
 	volCtx := req.GetVolumeContext()
@@ -126,12 +123,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opts, ok := volCtx["mountOptions"]; ok {
 		mountOptions = strings.Split(opts, ",")
 	}
-	for k, v := range options {
-		if v != "" {
-			k = fmt.Sprintf("%s=%s", k, v)
-		}
-		mountOptions = append(mountOptions, k)
-	}
+	mountOptions = append(mountOptions, options...)
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
 	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions)
