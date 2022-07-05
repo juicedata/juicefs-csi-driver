@@ -486,9 +486,13 @@ def wait_dir_not_empty(check_path):
 
 
 def get_mount_pod_name(volume_id):
-    nodes = client.CoreV1Api().list_node()
-    node_name = nodes.items[0].metadata.name
-    return "juicefs-{}-{}".format(node_name, volume_id)
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="volume-id={}".format(volume_id)
+    )
+    if len(pods) == 0:
+        die(Exception("Can't get mount pod of volume id {}".format(volume_id)))
+    return pods[0].name
 
 
 def check_mount_pod_refs(pod_name, replicas):
