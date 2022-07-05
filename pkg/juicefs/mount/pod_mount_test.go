@@ -784,7 +784,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Name: "test",
 				},
 			},
-			want:    "5bac3d3b2240bc23b234f6b42126e98934408beebbc67963cd1a6b40bd2b5c9",
+			want:    "551d22f6ec39a4b5e281d577fb45ad978935abb4e96ea1544ef52173b25131d",
 			wantErr: false,
 		},
 	}

@@ -214,7 +214,7 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 	isPrivileged := true
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: r.jfsSetting.Namespace,
+			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
 				config.PodTypeKey:          config.PodTypeValue,
 				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
@@ -224,23 +224,23 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:  "jfs-mount",
-				Image: r.jfsSetting.Image,
+				Image: r.jfsSetting.Attr.Image,
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 				},
 				Env: []corev1.EnvVar{},
 			}},
 			NodeName:           config.NodeName,
-			HostNetwork:        r.jfsSetting.HostNetwork,
-			HostAliases:        r.jfsSetting.HostAliases,
-			HostPID:            r.jfsSetting.HostPID,
-			HostIPC:            r.jfsSetting.HostIPC,
-			DNSConfig:          r.jfsSetting.DNSConfig,
-			DNSPolicy:          r.jfsSetting.DNSPolicy,
+			HostNetwork:        r.jfsSetting.Attr.HostNetwork,
+			HostAliases:        r.jfsSetting.Attr.HostAliases,
+			HostPID:            r.jfsSetting.Attr.HostPID,
+			HostIPC:            r.jfsSetting.Attr.HostIPC,
+			DNSConfig:          r.jfsSetting.Attr.DNSConfig,
+			DNSPolicy:          r.jfsSetting.Attr.DNSPolicy,
 			ServiceAccountName: r.jfsSetting.ServiceAccountName,
-			ImagePullSecrets:   r.jfsSetting.ImagePullSecrets,
-			PreemptionPolicy:   r.jfsSetting.PreemptionPolicy,
-			Tolerations:        r.jfsSetting.Tolerations,
+			ImagePullSecrets:   r.jfsSetting.Attr.ImagePullSecrets,
+			PreemptionPolicy:   r.jfsSetting.Attr.PreemptionPolicy,
+			Tolerations:        r.jfsSetting.Attr.Tolerations,
 		},
 	}
 }

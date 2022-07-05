@@ -372,6 +372,12 @@ func TestNewMountPod(t *testing.T) {
 				Options:             tt.args.options,
 				CacheDirs:           tt.args.cacheDirs,
 				SecretName:          podName,
+				Attr: config.PodAttr{
+					Namespace:      config.Namespace,
+					MountPointPath: config.MountPointPath,
+					JFSConfigPath:  config.JFSConfigPath,
+					Image:          config.MountImage,
+				},
 			}
 			r := Builder{jfsSetting}
 			got := r.NewMountPod(podName)
