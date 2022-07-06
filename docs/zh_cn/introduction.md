@@ -32,6 +32,10 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
    创建一个配置文件，例如：`values.yaml`，复制并完善下列配置信息。其中，`backend` 部分是 JuiceFS 文件系统相关的信息，你可以参照[「JuiceFS 快速上手指南」](https://juicefs.com/docs/zh/community/quick_start_guide)了解相关内容。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。`mountPod` 部分可以对使用此驱动的 Pod 设置 CPU 和内存的资源配置。不需要的项可以删除，或者将它的值留空。这里以社区版为例：
 
+   :::info 说明
+   请参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)了解 JuiceFS CSI 驱动的 Helm chart 支持的所有配置项
+   :::
+
    ```yaml title="values.yaml"
    storageClasses:
    - name: juicefs-sc
@@ -44,6 +48,8 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
        accessKey: "<access-key>"
        secretKey: "<secret-key>"
        bucket: "<bucket>"
+       # 如果需要设置 JuiceFS Mount Pod 的时区请将下一行的注释符号删除，默认为 UTC 时间。
+       # envs: "{TZ: Asia/Shanghai}"
      mountPod:
        resources:
          limits:
