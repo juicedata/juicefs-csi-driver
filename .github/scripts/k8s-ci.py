@@ -1375,7 +1375,7 @@ def test_deployment_patch_pv():
         namespace=KUBE_SYSTEM,
         label_selector="deployment={}".format(deployment.name)
     )
-    for pod in pods:
+    for pod in pods.items:
         source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
             pod.metadata.uid, volume_id)
         try:
