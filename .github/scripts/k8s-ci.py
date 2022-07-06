@@ -1365,7 +1365,7 @@ def test_deployment_patch_pv():
 
     # check subdir
     LOG.info("Check subdir {}".format(subdir))
-    result = check_mount_point(subdir + "/out.txt")
+    result = check_mount_point(subdir + "/{}/out.txt".format(volume_id))
     if not result:
         die("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
 
