@@ -19,6 +19,7 @@ BUCKET = os.getenv("JUICEFS_BUCKET") or ""
 TOKEN = os.getenv("JUICEFS_TOKEN") or ""
 IS_CE = os.getenv("IS_CE") == "True"
 RESOURCE_PREFIX = "ce-" if IS_CE else "ee-"
+GLOBAL_MOUNTPOINT = "/mnt/jfs"
 FORMAT = '%(asctime)s %(message)s'
 logging.basicConfig(format=FORMAT)
 LOG = logging.getLogger('main')
@@ -85,7 +86,9 @@ class StorageClass:
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
-        self.mount_options = options
+        self.mount_options = ["attr-cache=1", "entry-cache=1", "enable-xattr", "verbose"]
+        if options:
+            self.mount_options.extend(options)
 
     def create(self):
         sc = client.V1StorageClass(
@@ -173,8 +176,10 @@ class PV:
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
-        self.mount_options = options
         self.annotation = annotation
+        self.mount_options = ["attr-cache=1", "entry-cache=1", "enable-xattr", "verbose"]
+        if options:
+            self.mount_options.extend(options)
 
     def create(self):
         spec = client.V1PersistentVolumeSpec(
@@ -214,6 +219,14 @@ class PV:
     def get_volume_status(self):
         p = client.CoreV1Api().read_persistent_volume(name=self.name)
         return p.status
+
+    def get_volume(self):
+        p = client.CoreV1Api().read_persistent_volume(name=self.name)
+        return p
+
+    def patch_mount_options(self):
+        p = client.CoreV1Api().patch_persistent_volume(name=self.name)
+        return p.spec.csi.volume_handle
 
 
 class Deployment:
@@ -435,8 +448,12 @@ def mount_on_host(mount_path):
         raise e
 
 
-def check_mount_point(mount_path, check_path):
-    mount_on_host(mount_path)
+def umount(mount_path):
+    subprocess.run(["sudo", "umount", mount_path])
+
+
+def check_mount_point(check_path):
+    check_path = GLOBAL_MOUNTPOINT + "/" + check_path
     for i in range(0, 60):
         try:
             LOG.info("Open file {}".format(check_path))
@@ -444,13 +461,11 @@ def check_mount_point(mount_path, check_path):
             content = f.read(1)
             if content is not None and content != "":
                 f.close()
-                LOG.info(f"Umount {mount_path}.")
-                subprocess.run(["sudo", "umount", mount_path])
                 return True
             time.sleep(5)
             f.close()
         except FileNotFoundError:
-            LOG.info(os.listdir(mount_path))
+            LOG.info(os.listdir(GLOBAL_MOUNTPOINT))
             LOG.info("Can't find file: {}".format(check_path))
             time.sleep(5)
             continue
@@ -459,8 +474,6 @@ def check_mount_point(mount_path, check_path):
             log = open("/var/log/juicefs.log", "rt")
             LOG.info(log.read())
             raise e
-    LOG.info(f"Umount {mount_path}.")
-    subprocess.run(["sudo", "umount", mount_path])
     return False
 
 
@@ -491,14 +504,24 @@ def wait_dir_not_empty(check_path):
     return False
 
 
-def get_mount_pod_name(volume_id):
+def get_only_mount_pod_name(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
         label_selector="volume-id={}".format(volume_id)
     )
     if len(pods.items) == 0:
         die(Exception("Can't get mount pod of volume id {}".format(volume_id)))
+    if len(pods.items) > 1:
+        die(Exception("Get more than one mount pod of volume id {}".format(volume_id)))
     return pods.items[0].metadata.name
+
+
+def get_mount_pods(volume_id):
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="volume-id={}".format(volume_id)
+    )
+    return pods
 
 
 def check_mount_pod_refs(pod_name, replicas):
@@ -558,16 +581,14 @@ def tear_down():
             LOG.info("Delete secret {}".format(secret.secret_name))
             secret.delete()
         LOG.info("Delete all volumes in file system.")
-        clean_juicefs_volume("/mnt/jfs")
+        clean_juicefs_volume()
     except Exception as e:
         LOG.info("Error in tear down: {}".format(e))
     LOG.info("Tear down success.")
 
 
-def clean_juicefs_volume(mount_path):
-    mount_on_host(mount_path)
-    subprocess.run(["sudo", "rm", "-rf", mount_path + "/*"])
-    subprocess.run(["sudo", "umount", mount_path])
+def clean_juicefs_volume():
+    subprocess.run(["sudo", "rm", "-rf", GLOBAL_MOUNTPOINT + "/*"])
 
 
 def die(e):
@@ -617,9 +638,8 @@ def test_deployment_using_storage_rw():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + volume_id + "/out.txt"
-    result = check_mount_point(mount_path, check_path)
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
     LOG.info("Test pass.")
@@ -695,9 +715,7 @@ def test_deployment_use_pv_rw():
     LOG.info("Check mount point..")
     volume_id = pv.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + out_put
-    result = check_mount_point(mount_path, check_path)
+    result = check_mount_point(out_put)
     if not result:
         die("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
@@ -773,7 +791,7 @@ def test_delete_one():
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
-    mount_pod_name = get_mount_pod_name(volume_id)
+    mount_pod_name = get_only_mount_pod_name(volume_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
@@ -828,7 +846,7 @@ def test_delete_all():
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
-    mount_pod_name = get_mount_pod_name(volume_id)
+    mount_pod_name = get_only_mount_pod_name(volume_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
@@ -878,9 +896,8 @@ def test_delete_pvc():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + volume_id + "/out.txt"
-    result = check_mount_point(mount_path, check_path)
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
@@ -902,18 +919,15 @@ def test_delete_pvc():
         time.sleep(5)
 
     LOG.info("Check dir is deleted or not..")
-    mount_on_host("/mnt/jfs")
     file_exist = True
     for i in range(0, 60):
-        f = pathlib.Path("/mnt/jfs/" + volume_id)
+        f = pathlib.Path(GLOBAL_MOUNTPOINT + "/" + volume_id)
         if f.exists() is False:
             file_exist = False
             break
         time.sleep(5)
     if file_exist:
         die("SubPath of volume_id {} still exists.".format(volume_id))
-    LOG.info("Umount /mnt/jfs.")
-    subprocess.run(["sudo", "umount", "/mnt/jfs"])
 
     LOG.info("Test pass.")
 
@@ -921,16 +935,14 @@ def test_delete_pvc():
 def test_static_delete_policy():
     LOG.info("[test case] Delete Reclaim policy of static begin..")
     volume_id = "pv-static-delete"
-    mount_point = "/mnt/jfs"
 
     LOG.info("create subdir {}".format(volume_id))
-    mount_on_host(mount_point)
-    subdir = mount_point + "/" + volume_id
+    subdir = GLOBAL_MOUNTPOINT + "/" + volume_id
     if not os.path.exists(subdir):
-        os.mkdir(mount_point + "/" + volume_id)
+        os.mkdir(subdir)
 
     # deploy pv
-    pv = PV(name="pv-static-delete", access_mode="ReadWriteMany", volume_handle="pv-static-delete",
+    pv = PV(name="pv-static-delete", access_mode="ReadWriteMany", volume_handle=volume_id,
             secret_name=SECRET_NAME, annotation={"pv.kubernetes.io/provisioned-by": "csi.juicefs.com"})
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
@@ -965,15 +977,13 @@ def test_static_delete_policy():
     LOG.info("Check dir is deleted or not..")
     file_exist = True
     for i in range(0, 60):
-        f = pathlib.Path(mount_point + "/" + volume_id)
+        f = pathlib.Path(subdir)
         if f.exists() is False:
             file_exist = False
             break
         time.sleep(5)
     if not file_exist:
         die("SubPath of static pv volume_id {} is deleted.".format(volume_id))
-    LOG.info("Umount /mnt/jfs.")
-    subprocess.run(["sudo", "umount", "/mnt/jfs"])
 
     LOG.info("Test pass.")
 
@@ -998,14 +1008,13 @@ def test_dynamic_delete_pod():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + volume_id + "/out.txt"
-    result = check_mount_point(mount_path, check_path)
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     LOG.info("Mount pod delete..")
-    mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
     LOG.info("Wait for a sec..")
     time.sleep(5)
@@ -1074,14 +1083,12 @@ def test_static_delete_pod():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + out_put
-    result = check_mount_point(mount_path, check_path)
+    result = check_mount_point(out_put)
     if not result:
         die("mount Point of /jfs/out.txt are not ready within 5 min.")
 
     LOG.info("Mount pod delete..")
-    mount_pod = Pod(name=get_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
     LOG.info("Wait for a sec..")
     time.sleep(5)
@@ -1151,16 +1158,14 @@ def test_static_cache_clean_upon_umount():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + out_put
-    result = check_mount_point(mount_path, check_path)
+    result = check_mount_point(out_put)
     if not result:
         die("mount Point of /jfs/out.txt are not ready within 5 min.")
 
     # get volume uuid
     uuid = SECRET_NAME
     if IS_CE:
-        mount_pod_name = get_mount_pod_name(volume_id)
+        mount_pod_name = get_only_mount_pod_name(volume_id)
         mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
         annotations = mount_pod.metadata.annotations
         if annotations is None or annotations.get("juicefs-uuid") is None:
@@ -1222,16 +1227,15 @@ def test_dynamic_cache_clean_upon_umount():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    mount_path = "/mnt/jfs"
-    check_path = mount_path + "/" + volume_id + "/" + out_put
-    result = check_mount_point(mount_path, check_path)
+    check_path = volume_id + "/" + out_put
+    result = check_mount_point(check_path)
     if not result:
         die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # get volume uuid
     uuid = SECRET_NAME
     if IS_CE:
-        mount_pod_name = get_mount_pod_name(volume_id)
+        mount_pod_name = get_only_mount_pod_name(volume_id)
         mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
         annotations = mount_pod.metadata.annotations
         if annotations is None or annotations.get("juicefs-uuid") is None:
@@ -1264,6 +1268,94 @@ def test_dynamic_cache_clean_upon_umount():
     LOG.info("Test pass.")
 
 
+def test_deployment_patch_pv():
+    LOG.info("[test case] Deployment update pv")
+    # deploy pvc
+    pvc = PVC(name="pvc-dynamic-update-pv", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    deployment = Deployment(name="app-dynamic-update-pv", pvc=pvc.name, replicas=2)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        die("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    # patch pv
+    subdir = "aaa"
+    pv_name = "pvc-{}".format(volume_id)
+    pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
+    pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
+    pv.spec.mount_options.append("subdir={}".format(subdir))
+    LOG.info(f"Patch PV {pv_name}: add subdir={subdir} and verbose in mountOptions")
+    client.CoreV1Api().patch_persistent_volume(pv_name, pv)
+
+    # delete one app pod
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="deployment={}".format(deployment.name)
+    )
+    pod = pods.items[0]
+    client.CoreV1Api().delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+
+    # watch for app pod ready again
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount pod
+    mount_pods = get_mount_pods(volume_id)
+    if len(mount_pods.items) != 2:
+        die("There should be 2 Mount pods, [{}] are found.".format(len(mount_pods.items)))
+
+    # check subdir
+    result = check_mount_point(subdir)
+    if not result:
+        die("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
+    LOG.info("Test pass.")
+
+    # check target
+    LOG.info("Check mount point is ok..")
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="deployment={}".format(deployment.name)
+    )
+    for pod in pods:
+        source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+            pod.metadata.uid, volume_id)
+        try:
+            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            die(e)
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    return
+
+
 def check_do_test():
     if IS_CE:
         return True
@@ -1277,7 +1369,8 @@ if __name__ == "__main__":
         config.load_kube_config()
         # clear juicefs volume first.
         LOG.info("clean juicefs volume first.")
-        clean_juicefs_volume("/mnt/jfs")
+        mount_on_host(GLOBAL_MOUNTPOINT)
+        clean_juicefs_volume()
         try:
             test_static_delete_policy()
             deploy_secret_and_sc()
@@ -1292,7 +1385,9 @@ if __name__ == "__main__":
             test_static_delete_pod()
             test_static_cache_clean_upon_umount()
             test_dynamic_cache_clean_upon_umount()
+            test_deployment_patch_pv()
         finally:
             tear_down()
+            umount(GLOBAL_MOUNTPOINT)
     else:
         LOG.info("skip test.")
