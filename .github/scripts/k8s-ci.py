@@ -1309,6 +1309,7 @@ def test_deployment_patch_pv():
         label_selector="deployment={}".format(deployment.name)
     )
     pod = pods.items[0]
+    LOG.info("Delete pod {}".format(pod.metadata.name))
     client.CoreV1Api().delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
 
     # watch for app pod ready again
@@ -1327,7 +1328,6 @@ def test_deployment_patch_pv():
     result = check_mount_point(subdir)
     if not result:
         die("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
-    LOG.info("Test pass.")
 
     # check target
     LOG.info("Check mount point is ok..")
@@ -1342,6 +1342,8 @@ def test_deployment_patch_pv():
             subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             die(e)
+
+    LOG.info("Test pass.")
 
     # delete test resources
     LOG.info("Remove deployment {}".format(deployment.name))
@@ -1372,8 +1374,8 @@ if __name__ == "__main__":
         mount_on_host(GLOBAL_MOUNTPOINT)
         clean_juicefs_volume()
         try:
-            test_static_delete_policy()
             deploy_secret_and_sc()
+            # test_static_delete_policy()
             # test_deployment_using_storage_rw()
             # test_deployment_using_storage_ro()
             # test_deployment_use_pv_rw()
