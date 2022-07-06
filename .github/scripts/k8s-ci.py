@@ -86,7 +86,7 @@ class StorageClass:
         self.secret_name = secret_name
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
-        self.mount_options = ["buffer-size=300MiB", "cache-size=100GiB", "enable-xattr"]
+        self.mount_options = ["buffer-size=300", "cache-size=100", "enable-xattr"]
         if options:
             self.mount_options.extend(options)
 
