@@ -524,6 +524,17 @@ def get_mount_pods(volume_id):
     return pods
 
 
+def check_pod_ready(pod):
+    if pod.status.phase.lower() != "running":
+        LOG.info("Pod {} status phase: {}".format(pod.metadata.name, pod.status.phase))
+        return False
+    conditions = pod.status.conditions
+    for c in conditions:
+        if c.status != "True":
+            return False
+    return True
+
+
 def check_mount_pod_refs(pod_name, replicas):
     pod = client.CoreV1Api().read_namespaced_pod(name=pod_name, namespace=KUBE_SYSTEM)
     annotations = pod.metadata.annotations
@@ -1309,20 +1320,47 @@ def test_deployment_patch_pv():
         label_selector="deployment={}".format(deployment.name)
     )
     pod = pods.items[0]
-    LOG.info("Delete pod {}".format(pod.metadata.name))
-    client.CoreV1Api().delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+    pod_name = pod.metadata.name
+    pod_namespace = pod.metadata.namespace
+    LOG.info("Delete pod {}".format(pod_name))
+    client.CoreV1Api().delete_namespaced_pod(pod_name, pod_namespace)
+    # wait for pod deleted
+    LOG.info("Wait for pod {} deleting...".format(pod_name))
+    for i in range(0, 60):
+        try:
+            client.CoreV1Api().read_namespaced_pod(pod_name, pod_namespace)
+            time.sleep(5)
+            continue
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                LOG.info("Pod {} has been deleted.".format(pod_name))
+                break
+            die(e)
 
-    # watch for app pod ready again
-    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    # wait for app pod ready again
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
-    result = pod.watch_for_success()
-    if not result:
-        die("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+    pod_ready = True
+    for i in range(0, 60):
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace=KUBE_SYSTEM,
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_ready = True
+            if not check_pod_ready(po):
+                pod_ready = False
+                time.sleep(2)
+                break
+        if pod_ready:
+            break
+
+    if not pod_ready:
+        die("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check mount pod
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 2:
-        die("There should be 2 Mount pods, [{}] are found.".format(len(mount_pods.items)))
+        die("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
 
     # check subdir
     result = check_mount_point(subdir)
