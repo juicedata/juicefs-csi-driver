@@ -1358,17 +1358,19 @@ def test_deployment_patch_pv():
         die("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check mount pod
+    LOG.info("Check 2 mount pods.")
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 2:
         die("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
 
     # check subdir
-    result = check_mount_point(subdir)
+    LOG.info("Check subdir {}".format(subdir))
+    result = check_mount_point(subdir + "/out.txt")
     if not result:
         die("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
 
     # check target
-    LOG.info("Check mount point is ok..")
+    LOG.info("Check target path is ok..")
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
         label_selector="deployment={}".format(deployment.name)
