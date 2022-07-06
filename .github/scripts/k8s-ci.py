@@ -1500,7 +1500,7 @@ def test_deployment_static_patch_pv():
     )
     for pod in pods.items:
         source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
-            pod.metadata.uid, volume_id)
+            pod.metadata.uid, pv_name)
         try:
             subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
