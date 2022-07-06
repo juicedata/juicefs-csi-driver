@@ -1296,7 +1296,7 @@ def test_deployment_patch_pv():
 
     # patch pv
     subdir = "aaa"
-    pv_name = "pvc-{}".format(volume_id)
+    pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
     pv.spec.mount_options.append("subdir={}".format(subdir))
@@ -1374,17 +1374,17 @@ if __name__ == "__main__":
         try:
             test_static_delete_policy()
             deploy_secret_and_sc()
-            test_deployment_using_storage_rw()
-            test_deployment_using_storage_ro()
-            test_deployment_use_pv_rw()
-            test_deployment_use_pv_ro()
-            test_delete_one()
-            test_delete_all()
-            test_delete_pvc()
-            test_dynamic_delete_pod()
-            test_static_delete_pod()
-            test_static_cache_clean_upon_umount()
-            test_dynamic_cache_clean_upon_umount()
+            # test_deployment_using_storage_rw()
+            # test_deployment_using_storage_ro()
+            # test_deployment_use_pv_rw()
+            # test_deployment_use_pv_ro()
+            # test_delete_one()
+            # test_delete_all()
+            # test_delete_pvc()
+            # test_dynamic_delete_pod()
+            # test_static_delete_pod()
+            # test_static_cache_clean_upon_umount()
+            # test_dynamic_cache_clean_upon_umount()
             test_deployment_patch_pv()
         finally:
             tear_down()
