@@ -34,6 +34,10 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
    you can refer to ["JuiceFS Quick Start Guide"](https://juicefs.com/docs/community/quick_start_guide) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
    The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank. Take Community edition as an example:
 
+   :::info
+   Please refer to [documentation](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for all configuration items supported by Helm chart of JuiceFS CSI Driver
+   :::
+
    ```yaml title="values.yaml"
    storageClasses:
    - name: juicefs-sc
@@ -46,6 +50,8 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
        accessKey: "<access-key>"
        secretKey: "<secret-key>"
        bucket: "<bucket>"
+       # If you need to set the time zone of the JuiceFS Mount Pod, please uncomment the next line, the default is UTC time.
+       # envs: "{TZ: Asia/Shanghai}"
      mountPod:
        resources:
          limits:
