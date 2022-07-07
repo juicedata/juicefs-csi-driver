@@ -177,7 +177,7 @@ class PV:
         self.secret_namespace = KUBE_SYSTEM
         self.parameters = parameters
         self.annotation = annotation
-        self.mount_options = ["attr-cache=1", "entry-cache=1", "enable-xattr", "verbose"]
+        self.mount_options = ["cache-size=100", "enable-xattr", "verbose"]
         if options:
             self.mount_options.extend(options)
 
