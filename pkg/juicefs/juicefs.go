@@ -358,7 +358,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	// get pod by label
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		config.PodTypeKey:          config.PodTypeValue,
-		config.PodUniqueIdLabelKey: config.UniqueId,
+		config.PodUniqueIdLabelKey: uniqueId,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	pods, err := j.K8sClient.ListPod(config.Namespace, labelSelector, fieldSelector)
