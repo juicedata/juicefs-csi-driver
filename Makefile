@@ -144,7 +144,9 @@ image-release-check:
 
 .PHONY: image-release-check-push
 image-release-check-push:
-	minikube cache add $(IMAGE):$(DEV_TAG)
+	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
+	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
+	rm -f juicefs-csi-driver-$(DEV_TAG).tar
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:

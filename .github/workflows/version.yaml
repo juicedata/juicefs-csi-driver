@@ -1,9 +1,6 @@
 name: version
 
 on:
-  push:
-    branches:
-      - release*
   release:
     types:
       - created
