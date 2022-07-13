@@ -8,9 +8,9 @@ sidebar_label: 挂载子目录
 
 ## 使用 `subPath`
 
-社区版和云服务版的使用方式一致。
+`subPath` 的原理是 JuiceFS CSI 驱动会将其指定的子路径 bind mount 到应用 pod 中。
 
-您可以在 PV 中使用 `subPath`：
+您可以在 PV 中这样使用 `subPath`：
 
 ```yaml {21-22}
 apiVersion: v1
@@ -97,7 +97,9 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 
 ## 使用 `subdir`
 
-如果您使用的是云服务版，且所用 token 只有子目录的权限，可以使用以下方式，只需要在 `mountOptions` 中指定 `subdir=xxx`：
+`subdir` 是指直接用子路径挂载。如果您使用的是云服务版，且所用 token 只有子目录的权限，可以使用这种方式；如果您需要在应用 pod 中进行缓存预热，可以使用这种方式。
+
+您只需要在 PV 的 `mountOptions` 中指定 `subdir=xxx` 即可：
 
 ```yaml {21-22}
 apiVersion: v1

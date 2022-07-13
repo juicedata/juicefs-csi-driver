@@ -8,9 +8,9 @@ This document shows how to mount with subdirectory in Kubernetes.
 
 ## Using `subPath`
 
-The community edition and the cloud service edition are used in the same way.
+The `subPath` means that the JuiceFS CSI driver bind mount the specified subpath to the application pod.
 
-You can use `subPath` in PV:
+You can use `subPath` in PV as follows:
 
 ```yaml {21-22}
 apiVersion: v1
@@ -97,7 +97,10 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 
 ## Using `subdir`
 
-If you are using the cloud service edition, and the token you use only has permission for subdirectory, you can use the following methods, only need to specify `subdir=xxx` in `mountOptions`:
+`subdir` means to mount directly with a subdirectory. If you are using the cloud service edition, and the token you use only has permission for subdirectory, you can use this way.
+If you need warmup cache in your app pod, you can use this way.
+
+Only need to specify `subdir=xxx` in `mountOptions` of PV as follows:
 
 ```yaml {21-22}
 apiVersion: v1
