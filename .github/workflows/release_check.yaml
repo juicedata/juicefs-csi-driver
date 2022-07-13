@@ -33,7 +33,7 @@ jobs:
       - name: Build image
         env:
           DEV_K8S: microk8s
-          JUICEFS_RELEASE_CHECK_VERSION: v1.0.0-alpha7
+          JUICEFS_VERSION: v1.0.0-alpha7
         run: |
           cd ${GITHUB_WORKSPACE}
           make image-release-check
