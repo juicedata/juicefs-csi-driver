@@ -147,6 +147,8 @@ image-release-check-push:
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
 	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
+	docker tag $(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION) $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
+	docker push $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
