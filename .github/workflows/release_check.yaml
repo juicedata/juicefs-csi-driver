@@ -30,6 +30,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Prepare microk8s environment
         run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Login Docker Hub
+        run: docker login --username juicefs --password ${PASSWORD}
+        env:
+          PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
       - name: Build image
         env:
           DEV_K8S: microk8s
