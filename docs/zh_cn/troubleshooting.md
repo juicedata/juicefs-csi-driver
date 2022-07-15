@@ -18,6 +18,10 @@ kubectl -n kube-system get pod -l app=juicefs-csi-controller -o jsonpath="{.item
 
 ### v0.10 及以后版本
 
+:::tip 提示
+建议持续收集及存储 JuiceFS Mount Pod 的日志，便于后续进行故障排查，具体请参考[「收集 Mount Pod 日志」](client-log.md)文档。
+:::
+
 #### 找到 mount pod
 
 1. 找到您的 pod 所在的节点。比如，假设您的 pod 名为 `juicefs-app`：
