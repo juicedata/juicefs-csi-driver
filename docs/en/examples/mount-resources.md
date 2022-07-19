@@ -4,7 +4,11 @@ sidebar_label: Config Mount Pod Resources
 
 # How to set resource limit and request in mount pod
 
-This document shows how to set resources limit and request to JuiceFS mount pod.
+This document shows how to set resources limit and request to JuiceFS mount pod. The resource limit/request of mount pod inherits the limit/request of CSI node DaemonSet by default.
+
+:::note
+If you want to clear resource limit/request of mount pod, need to clear resource limit/request of CSI DaemonSet as well
+:::
 
 ## Static provisioning
 

@@ -4,7 +4,11 @@ sidebar_label: 配置 Mount Pod 的资源限制
 
 # 如何配置 Mount Pod 的资源限制
 
-本文档展示了如何给 JuiceFS mount pod 设置资源 limit 和 request。
+本文档展示了如何给 JuiceFS mount pod 设置资源 limit 和 request。Mount pod 的资源限制默认继承 CSI node DaemonSet 的 limit/request。
+
+:::note 注意
+若需要清除 Mount pod 的资源限制，需要将 CSI DaemonSet 的资源限制也清除掉
+:::
 
 ## 静态配置
 
