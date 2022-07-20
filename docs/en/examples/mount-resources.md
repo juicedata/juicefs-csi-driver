@@ -1,18 +1,20 @@
 ---
-sidebar_label: Config Mount Pod Resources
+sidebar_label: Resource Management for Mount Pod
 ---
 
-# How to set resource limit and request in mount pod
+# How to configure resource request and limit for Mount Pod
 
-This document shows how to set resources limit and request to JuiceFS mount pod. The resource limit/request of mount pod inherits the limit/request of CSI node DaemonSet by default.
+This document shows how to [configure resource](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) request and limit for JuiceFS Mount Pod. The resource request and limit of the Mount Pod are inherited from the resource request and limit of the `DaemonSet` of the JuiceFS CSI Node by default.
 
 :::note
-If you want to clear resource limit/request of mount pod, need to clear resource limit/request of CSI DaemonSet as well
+If you need to clear the resource request and limit of the Mount Pod, you need to clear the resource request and limit of the `DaemonSet` corresponding to the JuiceFS CSI Node.
+
+It is not recommended to clear the resource request and limit of the Mount Pod, which may affect the stability of the cluster.
 :::
 
 ## Static provisioning
 
-You can set resources limit and request in PV:
+You can set resource request and limit in `PersistentVolume`:
 
 ```yaml {22-25}
 apiVersion: v1
@@ -104,7 +106,7 @@ kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6
 
 ## Dynamic provisioning
 
-You can set resources limit and request in StorageClass:
+You can set resource request and limit in `StorageClass`:
 
 ```yaml {12-15}
 apiVersion: storage.k8s.io/v1
