@@ -1,14 +1,20 @@
 ---
-sidebar_label: 配置 Mount Pod 的资源限制
+sidebar_label: 为 Mount Pod 管理资源
 ---
 
-# 如何配置 Mount Pod 的资源限制
+# 如何为 Mount Pod 配置资源请求和约束
 
-本文档展示了如何给 JuiceFS mount pod 设置资源 limit 和 request。
+本文档展示了如何为 JuiceFS Mount Pod [配置资源](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)请求（`request`）和约束（`limit`）。Mount Pod 的资源请求和约束默认继承自 JuiceFS CSI Node 这个 `DaemonSet` 的资源请求和约束。
+
+:::note 注意
+若需要清除 Mount Pod 的资源请求和约束，需要将 JuiceFS CSI Node 对应的 `DaemonSet` 的资源请求和约束也清除。
+
+不建议清除 Mount Pod 的资源请求和约束，有可能会对集群的稳定性造成影响。
+:::
 
 ## 静态配置
 
-您可以在 PV 中配置资源限制：
+您可以在 `PersistentVolume` 中配置资源请求和约束：
 
 ```yaml {22-25}
 apiVersion: v1
@@ -100,7 +106,7 @@ kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6
 
 ## 动态配置
 
-您可以在 StorageClass 中配置资源限制：
+您可以在 `StorageClass` 中配置资源请求和约束：
 
 ```yaml {12-15}
 apiVersion: storage.k8s.io/v1
