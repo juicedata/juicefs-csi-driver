@@ -63,6 +63,34 @@ func (mr *MockMntInterfaceMockRecorder) CleanCache(arg0, arg1, arg2 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanCache", reflect.TypeOf((*MockMntInterface)(nil).CleanCache), arg0, arg1, arg2)
 }
 
+// CleanEphemeralVolume mocks base method.
+func (m *MockMntInterface) CleanEphemeralVolume(arg0, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanEphemeralVolume", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CleanEphemeralVolume indicates an expected call of CleanEphemeralVolume.
+func (mr *MockMntInterfaceMockRecorder) CleanEphemeralVolume(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanEphemeralVolume", reflect.TypeOf((*MockMntInterface)(nil).CleanEphemeralVolume), arg0, arg1)
+}
+
+// GetMountPath mocks base method.
+func (m *MockMntInterface) GetMountPath(arg0, arg1 string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMountPath", arg0, arg1)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetMountPath indicates an expected call of GetMountPath.
+func (mr *MockMntInterfaceMockRecorder) GetMountPath(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountPath", reflect.TypeOf((*MockMntInterface)(nil).GetMountPath), arg0, arg1)
+}
+
 // GetMountRef mocks base method.
 func (m *MockMntInterface) GetMountRef(arg0, arg1 string) (int, error) {
 	m.ctrl.T.Helper()

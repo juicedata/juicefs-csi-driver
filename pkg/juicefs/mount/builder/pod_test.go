@@ -98,6 +98,9 @@ var (
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
+				}, {
+					Name:  config.JuiceMountPathKey,
+					Value: "/jfs/default-imagenet",
 				}},
 				EnvFrom: []corev1.EnvFromSource{{
 					SecretRef: &corev1.SecretEnvSource{
