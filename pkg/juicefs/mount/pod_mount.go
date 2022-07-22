@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -257,6 +258,42 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return err
 }
 
+func (p *PodMount) GetMountPath(target, podName string) string {
+	po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+	if err != nil {
+		klog.Errorf("GetMountPath: Get mount pod %s err %v", podName, err)
+		return ""
+	}
+	for _, v := range po.Spec.Containers[0].Env {
+		if v.Name == jfsConfig.JuiceMountPathKey {
+			return v.Value
+		}
+	}
+	return ""
+}
+
+func (p *PodMount) CleanEphemeralVolume(mountPath, uniqueId string) error {
+	ephemeralSubpath := fmt.Sprintf("ephemeral-%s", uniqueId)
+	subPath := path.Join(mountPath, ephemeralSubpath)
+	var exists bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(subPath)
+		return
+	}); err != nil {
+		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", subPath, err)
+	}
+	if exists {
+		// clean ephemeral volume
+		klog.Infof("Clean ephemeral volume path: %s", subPath)
+		err := os.RemoveAll(subPath)
+		if err != nil {
+			klog.Errorf("Could not clean ephemeral volume %q: %v", subPath, err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
@@ -266,7 +303,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName str
 
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
-		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
+		jfsConfig.PodUniqueIdLabelKey:  util.GenUniqueIdForLabelValue(jfsSetting.UniqueId),
 		jfsConfig.PodJuiceHashLabelKey: hashVal,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": jfsConfig.NodeName}

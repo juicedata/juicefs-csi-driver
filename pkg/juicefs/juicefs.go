@@ -53,7 +53,7 @@ type Interface interface {
 	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error
 	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
-	JfsUnmount(volumeID, mountPath string) error
+	JfsUnmount(volumeID, target string) error
 	JfsCleanupMountPoint(mountPath string) error
 	GetJfsVolUUID(name string) (string, error)
 	Version() ([]byte, error)
@@ -304,18 +304,26 @@ func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
 	return idStrs[3], nil
 }
 
-func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
+func (j *juicefs) JfsUnmount(volumeId, target string) error {
 	uniqueId, err := j.getUniqueId(volumeId)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
 		return err
 	}
 	if config.ByProcess {
-		ref, err := j.processMount.GetMountRef(mountPath, "")
+		// check ephemeral volume
+		mountPath := j.processMount.GetMountPath(target, "")
+		if mountPath != "" {
+			if err := j.processMount.CleanEphemeralVolume(mountPath, uniqueId); err != nil {
+				return err
+			}
+		}
+
+		ref, err := j.processMount.GetMountRef(target, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
-		err = j.processMount.JUmount(mountPath, "")
+		err = j.processMount.JUmount(target, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
@@ -358,7 +366,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	// get pod by label
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		config.PodTypeKey:          config.PodTypeValue,
-		config.PodUniqueIdLabelKey: uniqueId,
+		config.PodUniqueIdLabelKey: util.GenUniqueIdForLabelValue(uniqueId),
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	pods, err := j.K8sClient.ListPod(config.Namespace, labelSelector, fieldSelector)
@@ -368,7 +376,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	}
 	mountPods = append(mountPods, pods...)
 	// find pod by target
-	key := util.GetReferenceKey(mountPath)
+	key := util.GetReferenceKey(target)
 	for _, po := range mountPods {
 		if _, ok := po.Annotations[key]; ok {
 			mountPod = &po
@@ -377,6 +385,13 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	}
 	if mountPod != nil {
 		podName = mountPod.Name
+		// check ephemeral volume
+		mountPath := j.podMount.GetMountPath(target, podName)
+		if mountPath != "" {
+			if err := j.podMount.CleanEphemeralVolume(mountPath, uniqueId); err != nil {
+				return err
+			}
+		}
 	}
 
 	lock := config.GetPodLock(podName)
@@ -384,20 +399,20 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	defer lock.Unlock()
 
 	// umount target path
-	if err = mnt.UmountTarget(mountPath, podName); err != nil {
+	if err = mnt.UmountTarget(target, podName); err != nil {
 		return err
 	}
 	if podName == "" {
 		return nil
 	}
 	// get refs of mount pod
-	refs, err := mnt.GetMountRef(mountPath, podName)
+	refs, err := mnt.GetMountRef(target, podName)
 	if err != nil {
 		return err
 	}
 	if refs == 0 {
 		// if refs is none, umount
-		return j.podMount.JUmount(mountPath, podName)
+		return j.podMount.JUmount(target, podName)
 	}
 	return nil
 }

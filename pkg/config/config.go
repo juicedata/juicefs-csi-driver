@@ -67,6 +67,7 @@ const (
 	JuiceFSUUID          = "juicefs-uuid"
 	UniqueId             = "juicefs-uniqueid"
 	CleanCache           = "juicefs-clean-cache"
+	JuiceMountPathKey    = "JFS_MOUNT_PATH"
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"

@@ -18,6 +18,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	"os"
@@ -116,6 +117,12 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	volCtx := req.GetVolumeContext()
 	klog.V(5).Infof("NodePublishVolume: volume context: %v", volCtx)
+	ephemeralVolume := req.GetVolumeContext()["csi.storage.k8s.io/ephemeral"] == "true"
+	if ephemeralVolume {
+		subPath := fmt.Sprintf("ephemeral-%s", volumeID)
+		klog.Infof("NodePublishVolume: ephemeralVolume, set subPath %s", subPath)
+		volCtx["subPath"] = subPath
+	}
 
 	secrets := req.Secrets
 	mountOptions := []string{}
@@ -161,6 +168,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}
+	// check ephemeral volume
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

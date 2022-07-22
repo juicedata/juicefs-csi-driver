@@ -29,6 +29,8 @@ type MntInterface interface {
 	GetMountRef(target, podName string) (int, error) // podName is only used by podMount
 	UmountTarget(target, podName string) error       // podName is only used by podMount
 	JUmount(target, podName string) error            // podName is only used by podMount
-	AddRefOfMount(target string, podName string) error
-	CleanCache(id string, volumeId string, cacheDirs []string) error
+	GetMountPath(target, podName string) string      // podName is only used by podMount
+	CleanEphemeralVolume(mountPath, uniqueId string) error
+	AddRefOfMount(target, podName string) error
+	CleanCache(id string, uniqueId string, cacheDirs []string) error
 }

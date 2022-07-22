@@ -156,8 +156,23 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		if err != nil {
 			return err
 		}
+		// if there are no refs or after delay time, delete it
 		if !shouldDelay {
-			// if there are no refs or after delay time, delete it
+			// check ephemeral volume
+			uniqueId := pod.Annotations[config.UniqueId]
+			var mountPath string
+			for _, v := range pod.Spec.Containers[0].Env {
+				if v.Name == config.JuiceMountPathKey {
+					mountPath = v.Value
+					break
+				}
+			}
+			if mountPath != "" {
+				podMnt := podmount.NewPodMount(p.Client, p.SafeFormatAndMount)
+				if err := podMnt.CleanEphemeralVolume(mountPath, uniqueId); err != nil {
+					klog.Errorf("Clean ephemeral volume %s err: %v", uniqueId, err)
+				}
+			}
 			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
 			if err := p.Client.DeletePod(pod); err != nil {
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)

@@ -22,6 +22,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -305,6 +306,71 @@ func (p *ProcessMount) JUmount(target, podName string) error {
 		}
 	}
 	return err
+}
+
+func (p *ProcessMount) GetMountPath(target, podName string) string {
+	var refs []string
+	var corruptedMnt bool
+	var exists bool
+	_, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(target)
+		return
+	})
+	if err == nil {
+		if !exists {
+			klog.V(5).Infof("GetMountPath: %s target not exists", target)
+			return ""
+		}
+		var notMnt bool
+		_, err = util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() error {
+			notMnt, err = k8sMount.IsNotMountPoint(p, target)
+			return err
+		})
+		if err != nil {
+			klog.Errorf("GetMountPath: Check target path is mountpoint failed: %q", err)
+			return ""
+		}
+		if notMnt { // target exists but not a mountpoint
+			klog.V(5).Infof("GetMountPath: %s target not mounted", target)
+			return ""
+		}
+	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
+		klog.Errorf("GetMountPath: Check path %s failed: %q", target, err)
+		return ""
+	}
+
+	refs, err = util.GetMountDeviceRefs(target, corruptedMnt)
+	if err != nil {
+		klog.Errorf("GetMountPath: Fail to get mount device refs: %q", err)
+		return ""
+	}
+
+	if len(refs) != 0 {
+		return refs[0]
+	}
+	return ""
+}
+
+func (p *ProcessMount) CleanEphemeralVolume(mountPath, uniqueId string) error {
+	ephemeralSubpath := fmt.Sprintf("ephemeral-%s", uniqueId)
+	subPath := path.Join(mountPath, ephemeralSubpath)
+	var exists bool
+	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		exists, err = k8sMount.PathExists(subPath)
+		return
+	}); err != nil {
+		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", subPath, err)
+	}
+	if exists {
+		// clean ephemeral volume
+		klog.Infof("Clean ephemeral volume path: %s", subPath)
+		err := os.RemoveAll(subPath)
+		if err != nil {
+			klog.Errorf("Could not clean ephemeral volume %q: %v", subPath, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *ProcessMount) AddRefOfMount(target string, podName string) error {

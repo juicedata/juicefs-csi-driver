@@ -19,6 +19,7 @@ package builder
 import (
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
@@ -217,7 +218,7 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
 				config.PodTypeKey:          config.PodTypeValue,
-				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+				config.PodUniqueIdLabelKey: util.GenUniqueIdForLabelValue(r.jfsSetting.UniqueId),
 			},
 			Annotations: make(map[string]string),
 		},

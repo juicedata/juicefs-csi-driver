@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -261,6 +262,16 @@ func GetReferenceKey(target string) string {
 	h := sha256.New()
 	h.Write([]byte(target))
 	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
+}
+
+func GenUniqueIdForLabelValue(uniqueId string) string {
+	if len(uniqueId) <= 63 {
+		return uniqueId
+	}
+	h := sha256.New()
+	h.Write([]byte(uniqueId))
+	val := hex.EncodeToString(h.Sum(nil))[:63]
+	return val
 }
 
 // ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)

@@ -46,6 +46,9 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
 		Name:  "JFS_FOREGROUND",
 		Value: "1",
+	}, {
+		Name:  config.JuiceMountPathKey,
+		Value: r.jfsSetting.MountPath,
 	}}
 	pod.Spec.Containers[0].Resources = resourceRequirements
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
