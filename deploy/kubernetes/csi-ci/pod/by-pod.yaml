@@ -30,3 +30,14 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --v=6
             - --enable-manager=true
+---
+kind: CSIDriver
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: csi.juicefs.com
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+  volumeLifecycleModes:
+    - Persistent
+    - Ephemeral
