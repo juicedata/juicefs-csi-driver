@@ -1,19 +1,16 @@
 ---
-sidebar_label: Generic ephemeral volumes
+sidebar_label: Use Generic Ephemeral Volumes
 ---
 
 # How to use generic ephemeral volumes for JuiceFS in Kubernetes
 
-Kubernetes [Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)
-are
-similar to `emptyDir`, provide a per-pod directory for scratch data. This document shows how to use generic ephemeral
-volume for JuiceFS.
+Kubernetes' [Generic Ephemeral Volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, provide a per-pod directory for scratch data. This document shows how to use generic ephemeral volume for JuiceFS.
 
 ## Prerequisite
 
 ### Create Secret
 
-Create a `Secret` in Kubernetes. Refer to doc: [Create Secret](./dynamic-provisioning.md#Prerequisite).
+Create a `Secret` in Kubernetes. Refer to document: [Create Secret](./dynamic-provisioning.md#prerequisite).
 
 ### Create StorageClass
 

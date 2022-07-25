@@ -1,11 +1,10 @@
 ---
-sidebar_label: 通用临时卷
+sidebar_label: 使用通用临时卷
 ---
 
 # 在 Kubernetes 中使用 JuiceFS 的通用临时卷
 
-Kubernetes 的[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)
-类似于 `emptyDir`，指为 pod 提供临时数据存放目录。本文档将展示如何使用 JuiceFS 的通用临时卷。
+Kubernetes 的[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。本文档将展示如何使用 JuiceFS 的通用临时卷。
 
 ## 准备工作
 
