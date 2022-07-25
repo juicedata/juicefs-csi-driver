@@ -111,12 +111,11 @@ kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount
 
 您也可以在 StorageClass 中使用 mountOptions：
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

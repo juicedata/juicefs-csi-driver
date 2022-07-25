@@ -99,12 +99,11 @@ spec:
 
 By default, the cache path is `/var/jfsCache`, which CSI Driver will mount into the mount pod. You can set cache directory in `mountOptions` of StorageClass:
 
-```yaml {13}
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
@@ -137,12 +136,11 @@ kubectl -n kube-system get po juicefs-172.16.2.87-pvc-5916988b-71a0-4494-8315-87
 You can also configure a PVC for mount pods in StorageClass, set `juicefs/mount-cache-pvc` in `parameters`, the value is
 the PVC name, assuming the PVC name is `ebs-pvc`:
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

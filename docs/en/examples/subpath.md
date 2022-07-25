@@ -206,12 +206,11 @@ juicefs-csi-controller-0                2/2     Running   0                24m
 
 You can use `pathPattern` in `StorageClass` like this:
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

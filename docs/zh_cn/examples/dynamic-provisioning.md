@@ -84,7 +84,6 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
