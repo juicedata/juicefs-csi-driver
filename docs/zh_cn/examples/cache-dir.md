@@ -95,12 +95,11 @@ spec:
 
 默认情况下，缓存路径为 `/var/jfsCache`，CSI 驱动会将该路径挂载到 mount pod 中。您也可以在 StorageClass 的 `mountOptions` 中配置缓存路径：
 
-```yaml {13}
+```yaml {12}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
@@ -131,12 +130,11 @@ kubectl -n kube-system get po juicefs-172.16.2.87-pvc-5916988b-71a0-4494-8315-87
 
 您也可以在 StorageClass 中配置给 mount pod 用的 PVC，在 `parameters` 中设置 `juicefs/mount-cache-pvc`，值为 PVC 名，假设 PVC 名为 `ebs-pvc`：
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

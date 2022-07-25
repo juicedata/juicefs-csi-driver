@@ -89,12 +89,11 @@ spec:
 
 您可以在 StorageClass 中配置是否需要清理缓存，在 `parameters` 中设置 `juicefs/clean-cache`，值为 `"true"`，如下：
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

@@ -90,12 +90,11 @@ spec:
 
 You can configure if need to clean cache in StorageClass. Set `juicefs/clean-cache` in `parameters` to `"true"`. As follows:
 
-```yaml {12}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret

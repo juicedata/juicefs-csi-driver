@@ -108,12 +108,11 @@ kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6
 
 您可以在 `StorageClass` 中配置资源请求和约束：
 
-```yaml {12-15}
+```yaml {11-14}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
-  namespace: default
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
