@@ -493,11 +493,29 @@ def check_ephemeral_mount_point():
     check_path = GLOBAL_MOUNTPOINT
     for i in range(0, 60):
         dirs = os.listdir(check_path)
-        for dir in dirs:
-            if dir.lower().find("csi-"):
+        for d in dirs:
+            if d.lower().find("csi-"):
                 return True
         time.sleep(5)
     return False
+
+
+def check_ephemeral_mount_point_for_deleted():
+    check_path = GLOBAL_MOUNTPOINT
+    exist = False
+    i = 0
+    while True:
+        i += 1
+        if i >= 60 or exist is not True:
+            break
+        dirs = os.listdir(check_path)
+        for d in dirs:
+            if d.lower().find("csi-"):
+                time.sleep(5)
+                exist = True
+                break
+            exist = False
+    return exist
 
 
 def wait_dir_empty(check_path):
