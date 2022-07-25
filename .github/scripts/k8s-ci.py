@@ -230,11 +230,12 @@ class PV:
 
 
 class Deployment:
-    def __init__(self, *, name, pvc, replicas, out_put=""):
+    def __init__(self, *, name, pvc, replicas, out_put="", use_ephemeral=False):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
         self.pvc = pvc
+        self.ephemeral = use_ephemeral
         self.replicas = replicas
         self.out_put = out_put
 
@@ -253,14 +254,25 @@ class Deployment:
                 mount_propagation="HostToContainer",
             )]
         )
+        if not self.ephemeral:
+            csi_volume = client.V1Volume(
+                name="juicefs-pv",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
+            )
+        else:
+            csi_volume = client.V1Volume(
+                name="juicefs-pv",
+                csi=client.V1CSIPersistentVolumeSource(
+                    driver="csi.juicefs.com",
+                    fs_type="juicefs",
+                    node_publish_secret_ref=SECRET_NAME
+                )
+            )
         template = client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels={"deployment": self.name}),
             spec=client.V1PodSpec(
                 containers=[container],
-                volumes=[client.V1Volume(
-                    name="juicefs-pv",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
-                )]),
+                volumes=[csi_volume]),
         )
         deploySpec = client.V1DeploymentSpec(
             replicas=self.replicas,
@@ -474,6 +486,17 @@ def check_mount_point(check_path):
             log = open("/var/log/juicefs.log", "rt")
             LOG.info(log.read())
             raise e
+    return False
+
+
+def check_ephemeral_mount_point():
+    check_path = GLOBAL_MOUNTPOINT
+    for i in range(0, 60):
+        dirs = os.listdir(check_path)
+        for dir in dirs:
+            if dir.lower().find("csi-"):
+                return True
+        time.sleep(5)
     return False
 
 
@@ -1521,6 +1544,45 @@ def test_deployment_static_patch_pv():
     return
 
 
+def test_ephemeral_volume():
+    LOG.info("[test case] Ephemeral volume begin..")
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-ephemeral-volume", pvc="", replicas=1, out_put=out_put, use_ephemeral=True)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        die("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    result = check_ephemeral_mount_point()
+    if not result:
+        die("Mount point of ephemeral volume are not ready within 5 min.")
+
+    # delete deployment
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
+    # check ephemeral volume deleted or not.
+    LOG.info("Check mount point..")
+    result = check_ephemeral_mount_point()
+    if result:
+        die("Mount point of ephemeral volume are not deleted within 5 min.")
+
+    LOG.info("Test pass.")
+    return
+
+
 def check_do_test():
     if IS_CE:
         return True
@@ -1538,20 +1600,22 @@ if __name__ == "__main__":
         clean_juicefs_volume()
         try:
             deploy_secret_and_sc()
-            test_static_delete_policy()
-            test_deployment_using_storage_rw()
-            test_deployment_using_storage_ro()
-            test_deployment_use_pv_rw()
-            test_deployment_use_pv_ro()
-            test_delete_one()
-            test_delete_all()
-            test_delete_pvc()
-            test_dynamic_delete_pod()
-            test_static_delete_pod()
-            test_static_cache_clean_upon_umount()
-            test_dynamic_cache_clean_upon_umount()
-            test_deployment_dynamic_patch_pv()
-            test_deployment_static_patch_pv()
+
+            # test_static_delete_policy()
+            # test_deployment_using_storage_rw()
+            # test_deployment_using_storage_ro()
+            # test_deployment_use_pv_rw()
+            # test_deployment_use_pv_ro()
+            # test_delete_one()
+            # test_delete_all()
+            # test_delete_pvc()
+            # test_dynamic_delete_pod()
+            # test_static_delete_pod()
+            # test_static_cache_clean_upon_umount()
+            # test_dynamic_cache_clean_upon_umount()
+            # test_deployment_dynamic_patch_pv()
+            # test_deployment_static_patch_pv()
+            test_ephemeral_volume()
         finally:
             tear_down()
             umount(GLOBAL_MOUNTPOINT)
