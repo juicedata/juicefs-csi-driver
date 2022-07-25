@@ -262,7 +262,7 @@ class Deployment:
         else:
             csi_volume = client.V1Volume(
                 name="juicefs-pv",
-                csi=client.V1CSIPersistentVolumeSource(
+                csi=client.V1CSIVolumeSource(
                     driver="csi.juicefs.com",
                     fs_type="juicefs",
                     node_publish_secret_ref=SECRET_NAME
