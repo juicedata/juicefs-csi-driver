@@ -33,6 +33,10 @@ parameters:
 
 在 Pod 中可以直接申明通用临时卷，指定 `storageClassName` 即可：
 
+:::note 注意
+以下示例中的 `storage: 1Gi` 并不会真正限制通用临时卷的最大容量为 1GiB，因为 JuiceFS 暂不支持对子目录设置容量配额。
+:::
+
 ```yaml {19-30}
 apiVersion: v1
 kind: Pod
