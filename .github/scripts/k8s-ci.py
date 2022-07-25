@@ -265,7 +265,7 @@ class Deployment:
                 csi=client.V1CSIVolumeSource(
                     driver="csi.juicefs.com",
                     fs_type="juicefs",
-                    node_publish_secret_ref=SECRET_NAME
+                    node_publish_secret_ref=client.V1LocalObjectReference(name=SECRET_NAME)
                 )
             )
         template = client.V1PodTemplateSpec(
