@@ -33,6 +33,10 @@ parameters:
 
 Generic ephemeral volume can be declared directly in the Pod:
 
+:::note
+The `storage: 1Gi` in the following example does not really limit the maximum size of the generic ephemeral volume to 1GiB, because JuiceFS does not currently support setting capacity quotas on subdirectory.
+:::
+
 ```yaml {19-30}
 apiVersion: v1
 kind: Pod
