@@ -1593,7 +1593,7 @@ def test_ephemeral_volume():
 
     # check ephemeral volume deleted or not.
     LOG.info("Check mount point..")
-    result = check_ephemeral_mount_point()
+    result = check_ephemeral_mount_point_for_deleted()
     if result:
         die("Mount point of ephemeral volume are not deleted within 5 min.")
 
