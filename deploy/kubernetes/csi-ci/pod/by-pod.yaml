@@ -13,6 +13,7 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=6
+            - --format-in-pod=true
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -29,4 +30,5 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=6
+            - --format-in-pod=true
             - --enable-manager=true
