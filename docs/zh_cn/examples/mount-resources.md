@@ -4,10 +4,10 @@ sidebar_label: 为 Mount Pod 管理资源
 
 # 如何为 Mount Pod 配置资源请求和约束
 
-本文档展示了如何为 JuiceFS Mount Pod [配置资源](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)请求（`request`）和约束（`limit`）。Mount Pod 的资源请求默认为 `1c1g`，资源约束默认为 `2c5g`。
+本文档展示了如何为 JuiceFS Mount Pod [配置资源](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)请求（`request`）和约束（`limit`）。Mount Pod 的资源请求默认为 1 CPU 和 1GiB 内存，资源约束默认为 2 CPU 和 5GiB 内存。
 
 :::note 注意
-若采用进程挂载的方式启动 CSI Driver，即 CSI Node 和 CSI Controller 的启动参数使用 `--by-process=true`，需要将 CSI Node DaemonSet 的资源请求调大到至少 `1c1g`，资源限制调大到至少 `2c5g`。
+若采用进程挂载的方式启动 CSI 驱动，即 CSI Node 和 CSI Controller 的启动参数使用 `--by-process=true`，需要将 CSI Node `DaemonSet` 的资源请求调大到至少 1 CPU 和 1GiB 内存，资源约束调大到至少 2 CPU 和 5GiB 内存。
 :::
 
 ## 静态配置

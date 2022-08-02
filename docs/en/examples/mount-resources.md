@@ -4,10 +4,10 @@ sidebar_label: Resource Management for Mount Pod
 
 # How to configure resource request and limit for Mount Pod
 
-This document shows how to [configure resource](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) request and limit for JuiceFS Mount Pod. The resource request default value is `1c1g` and limit default value is `2c5g`.
+This document shows how to [configure resource](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) request and limit for JuiceFS Mount Pod. The resource request for the Mount Pod defaults to 1 CPU and 1GiB of memory, and the resource limit defaults to 2 CPU and 5GiB of memory.
 
 :::note
-If the CSI Driver is started by process mounting, that is, the startup parameters of CSI Node and CSI Controller use `--by-process=true`, you need to increase the resource request of CSI Node DaemonSet to at least `1c1g`, and increase the resource limit as large as at least `2c5g`.
+If the CSI driver is started by process mounting, that is, the startup parameters of CSI Node and CSI Controller use `--by-process=true`, you need to increase the resource request of CSI Node `DaemonSet` to at least 1 CPU and 1GiB of memory , the resource limit is increased to at least 2 CPU and 5GiB of memory.
 :::
 
 ## Static provisioning
