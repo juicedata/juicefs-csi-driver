@@ -954,3 +954,81 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 		})
 	})
 }
+
+func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
+	config.FormatInPod = true
+	type args struct {
+		secrets  map[string]string
+		noUpdate bool
+		setting  *config.JfsSetting
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "name-metaurl",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"metaurl": "redis://127.0.0.1:6379/0",
+				},
+				noUpdate: false,
+				setting: &config.JfsSetting{
+					FormatOptions: "",
+				},
+			},
+			want:    "/usr/local/bin/juicefs format ${metaurl} test",
+			wantErr: false,
+		},
+		{
+			name: "all",
+			args: args{
+				secrets: map[string]string{
+					"name":       "test",
+					"metaurl":    "redis://127.0.0.1:6379/0",
+					"access-key": "minioadmin",
+					"secret-key": "minioadmin",
+					"storage":    "s3",
+					"bucket":     "http://test.127.0.0.1:9000",
+				},
+				noUpdate: false,
+				setting: &config.JfsSetting{
+					FormatOptions: "",
+				},
+			},
+			want:    "/usr/local/bin/juicefs format --storage=s3 --bucket=http://test.127.0.0.1:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} test",
+			wantErr: false,
+		},
+		{
+			name: "option",
+			args: args{
+				secrets: map[string]string{
+					"name":    "test",
+					"metaurl": "redis://127.0.0.1:6379/0",
+				},
+				noUpdate: false,
+				setting: &config.JfsSetting{
+					FormatOptions: "block-size=100,trash-days=0,shards=0",
+				},
+			},
+			want:    "/usr/local/bin/juicefs format ${metaurl} test --block-size=100 --trash-days=0 --shards=0",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			j := &juicefs{}
+			got, err := j.ceFormat(tt.args.secrets, tt.args.noUpdate, tt.args.setting)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ceFormat() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ceFormat() got = %v, \nwant %v", got, tt.want)
+			}
+		})
+	}
+}
