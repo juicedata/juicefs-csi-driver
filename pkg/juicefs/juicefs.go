@@ -450,24 +450,14 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		"secretkey",
 		"secretkey2",
 		"passphrase"}
-	isOptional := map[string]bool{
-		"accesskey":  true,
-		"accesskey2": true,
-		"secretkey":  true,
-		"secretkey2": true,
-		"bucket":     true,
-		"bucket2":    true,
-		"passphrase": true,
-		"subdir":     true,
-	}
 	for _, k := range keys {
-		if !isOptional[k] || secrets[k] != "" {
+		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
 	for _, k := range keysStripped {
-		if !isOptional[k] || secrets[k] != "" {
+		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, k))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
@@ -608,22 +598,14 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 		"shards",
 	}
 	keysStripped := map[string]string{"secret-key": "secretkey"}
-	isOptional := map[string]bool{
-		"block-size": true,
-		"compress":   true,
-		"trash-days": true,
-		"capacity":   true,
-		"inodes":     true,
-		"shards":     true,
-	}
 	for _, k := range keys {
-		if !isOptional[k] || secrets[k] != "" {
+		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}
 	for k, v := range keysStripped {
-		if !isOptional[k] || secrets[k] != "" {
+		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, v))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
