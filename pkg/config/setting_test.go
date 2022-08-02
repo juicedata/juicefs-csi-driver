@@ -45,6 +45,16 @@ func TestParseSecret(t *testing.T) {
 		"a":                              "b",
 		"c":                              "d",
 	}
+	defaultResource := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+		},
+	}
 
 	type args struct {
 		secrets     map[string]string
@@ -86,7 +96,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:      s,
 				Configs:   map[string]string{},
 				Options:   []string{},
-				Resources: corev1.ResourceRequirements{},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -116,6 +126,7 @@ func TestParseSecret(t *testing.T) {
 				UsePod:    true,
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -137,7 +148,7 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: corev1.ResourceRequirements{},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -165,8 +176,10 @@ func TestParseSecret(t *testing.T) {
 				CachePVCs: []CachePVC{},
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceCPU: resource.MustParse("1"),
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
 					},
+					Requests: defaultResource.Requests,
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
@@ -196,7 +209,9 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
+						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
 					},
+					Requests: defaultResource.Requests,
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
@@ -226,7 +241,9 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
+						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
 					},
+					Limits: defaultResource.Limits,
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
@@ -252,8 +269,10 @@ func TestParseSecret(t *testing.T) {
 				CachePVCs: []CachePVC{},
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceCPU: resource.MustParse("1"),
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
 					},
+					Limits: defaultResource.Limits,
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
@@ -278,6 +297,7 @@ func TestParseSecret(t *testing.T) {
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
 				CachePVCs:      []CachePVC{},
+				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -309,6 +329,7 @@ func TestParseSecret(t *testing.T) {
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
 				CachePVCs:      []CachePVC{},
+				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -332,6 +353,7 @@ func TestParseSecret(t *testing.T) {
 				Options:             []string{},
 				CacheDirs:           []string{"/var/jfsCache"},
 				CachePVCs:           []CachePVC{},
+				Resources:           defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -367,6 +389,7 @@ func TestParseSecret(t *testing.T) {
 				Options:            []string{},
 				CacheDirs:          []string{"/var/jfsCache"},
 				CachePVCs:          []CachePVC{},
+				Resources:          defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -385,6 +408,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:      map[string]string{},
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -415,6 +439,7 @@ func TestParseSecret(t *testing.T) {
 				Options:        []string{},
 				CacheDirs:      []string{"/var/jfsCache"},
 				CachePVCs:      []CachePVC{},
+				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -460,6 +485,7 @@ func TestParseSecret(t *testing.T) {
 				Options:       []string{},
 				FormatOptions: "xxx",
 				CacheDirs:     []string{"/var/jfsCache"},
+				Resources:     defaultResource,
 				CachePVCs:     []CachePVC{},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
@@ -493,6 +519,7 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/abc"},
 				Envs:      map[string]string{},
 				Configs:   map[string]string{},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
@@ -522,6 +549,7 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{"cache-dir=/var/jfsCache-0"},
 				Envs:      map[string]string{},
 				Configs:   map[string]string{},
+				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
 					MountPointPath:       MountPointPath,
