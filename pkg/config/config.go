@@ -38,8 +38,7 @@ var (
 	HostIp      = ""
 	KubeletPort = ""
 
-	CSIPod            = corev1.Pod{}
-	ContainerResource = corev1.ResourceRequirements{}
+	CSIPod = corev1.Pod{}
 
 	MountPointPath       = "/var/lib/juicefs/volume"
 	JFSConfigPath        = "/var/lib/juicefs/config"
@@ -83,6 +82,12 @@ const (
 	// DeleteDelayTimeKey mount pod annotation
 	DeleteDelayTimeKey = "juicefs-delete-delay"
 	DeleteDelayAtKey   = "juicefs-delete-at"
+
+	// default value
+	defaultMountPodCpuLimit   = "2000m"
+	defaultMountPodMemLimit   = "5Gi"
+	defaultMountPodCpuRequest = "1000m"
+	defaultMountPodMemRequest = "1Gi"
 )
 
 var PodLocks [1024]sync.Mutex

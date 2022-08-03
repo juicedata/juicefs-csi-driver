@@ -243,6 +243,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		Tolerations:          CSIPod.Spec.Tolerations,
 	}
 
+	// set default resource limit & request
+	jfsSetting.Resources = getDefaultResource()
 	if volCtx != nil {
 		klog.V(5).Infof("VolCtx got in config: %v", volCtx)
 		cpuLimit := volCtx[mountPodCpuLimitKey]
@@ -307,12 +309,11 @@ func parseYamlOrJson(source string, dst interface{}) error {
 func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) (corev1.ResourceRequirements, error) {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
-	if ContainerResource.Limits != nil {
-		podLimit = ContainerResource.Limits
-	}
-	if ContainerResource.Requests != nil {
-		podRequest = ContainerResource.Requests
-	}
+	// set default value
+	podLimit[corev1.ResourceCPU] = resource.MustParse(defaultMountPodCpuLimit)
+	podLimit[corev1.ResourceMemory] = resource.MustParse(defaultMountPodMemLimit)
+	podRequest[corev1.ResourceCPU] = resource.MustParse(defaultMountPodCpuRequest)
+	podRequest[corev1.ResourceMemory] = resource.MustParse(defaultMountPodMemRequest)
 	var err error
 	if cpuLimit != "" {
 		if podLimit[corev1.ResourceCPU], err = resource.ParseQuantity(cpuLimit); err != nil {
@@ -338,4 +339,17 @@ func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 		Limits:   podLimit,
 		Requests: podRequest,
 	}, nil
+}
+
+func getDefaultResource() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+		},
+	}
 }
