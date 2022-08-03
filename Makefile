@@ -24,6 +24,7 @@ LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.git
 GO111MODULE=on
 IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoint=/usr/bin/juicefs $(IMAGE):$(VERSION) version | cut -d' ' -f3)
 JUICEFS_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+JUICEFS_RELEASE_CHECK_VERSION=${JUICEFS_VERSION}
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
 
 GOPROXY=https://goproxy.io
@@ -130,6 +131,24 @@ else ifeq ("$(DEV_K8S)", "kubeadm")
 else
 	minikube cache add $(IMAGE):$(DEV_TAG)
 endif
+
+.PHONY: image-release-check
+image-release-check:
+	# Build image with release juicefs
+	echo JUICEFS_RELEASE_CHECK_VERSION=$(JUICEFS_RELEASE_CHECK_VERSION)
+	docker build --build-arg JUICEFS_CSI_REPO_REF=master \
+        --build-arg JUICEFS_REPO_REF=$(JUICEFS_RELEASE_CHECK_VERSION) \
+		--build-arg TARGETARCH=amd64 \
+		--build-arg=JFS_AUTO_UPGRADE=disabled \
+		-t $(IMAGE):$(DEV_TAG) -f Dockerfile .
+
+.PHONY: image-release-check-push
+image-release-check-push:
+	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
+	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
+	rm -f juicefs-csi-driver-$(DEV_TAG).tar
+	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
+	docker push $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
