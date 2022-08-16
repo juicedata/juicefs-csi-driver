@@ -157,7 +157,7 @@ image-release-check-push:
 .PHONY: fuse-image-version
 fuse-image-version:
 	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
-	docker buildx build -f fuse.Dockerfile -t $(FUSE_IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+	docker buildx build -f fuse.Dockerfile -t $(FUSE_IMAGE):$(JUICEFS_LATEST_VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 .PHONY: deploy-dev/kustomization.yaml
