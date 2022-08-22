@@ -36,7 +36,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
 
-
   k8s-ci:
     runs-on: ubuntu-latest
     steps:
