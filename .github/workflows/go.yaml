@@ -25,6 +25,16 @@ jobs:
         run: make test
       - name: Test sanity
         run: make test-sanity
+      - name: Coverage File
+        run: |
+          pwd
+          cat cov1.out >> coverage.txt
+          cat cov2.out >> coverage.txt
+      - name: Code Coverage
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.txt
 
 
   k8s-ci:

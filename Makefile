@@ -43,11 +43,11 @@ verify:
 
 .PHONY: test
 test:
-	go test -v -race ./pkg/...
+	go test -v -race -cover ./pkg/... -coverprofile=cov1.out
 
 .PHONY: test-sanity
 test-sanity:
-	go test -v ./tests/sanity/...
+	go test -v -cover ./tests/sanity/... -coverprofile=cov2.out
 
 .PHONY: image-nightly
 image-nightly:
