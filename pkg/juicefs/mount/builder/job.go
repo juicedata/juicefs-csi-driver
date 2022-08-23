@@ -31,14 +31,18 @@ import (
 func (r *Builder) NewJobForCreateVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-createvol"
 	job := r.newJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCreateVolumeCmd()}
+	createCmd := r.getCreateVolumeCmd()
+	klog.Infof("createvol cmd: %s", createCmd)
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", createCmd}
 	return job
 }
 
 func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-delvol"
 	job := r.newJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getDeleteVolumeCmd()}
+	deleteCmd := r.getDeleteVolumeCmd()
+	klog.Infof("delete cmd: %s", deleteCmd)
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", deleteCmd}
 	return job
 }
 
