@@ -25,6 +25,7 @@ GO111MODULE=on
 IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoint=/usr/bin/juicefs $(IMAGE):$(VERSION) version | cut -d' ' -f3)
 JUICEFS_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
 JUICEFS_RELEASE_CHECK_VERSION=${JUICEFS_VERSION}
+JFS_CHAN=${JFSCHAN}
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
 
 GOPROXY=https://goproxy.io
@@ -139,6 +140,7 @@ image-release-check:
 	docker build --build-arg JUICEFS_CSI_REPO_REF=master \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_RELEASE_CHECK_VERSION) \
 		--build-arg TARGETARCH=amd64 \
+		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled \
 		-t $(IMAGE):$(DEV_TAG) -f Dockerfile .
 
