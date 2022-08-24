@@ -413,7 +413,7 @@ spec:
               command:
               - /bin/sh
               - -c
-              - rm /registration/csi.juicefs.com-reg.sock /csi/csi.sock
+              - rm /csi/csi.sock
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -450,8 +450,6 @@ spec:
         - mountPath: /root/.juicefs
           mountPropagation: Bidirectional
           name: jfs-root-dir
-        - mountPath: /registration
-          name: registration-dir
       - args:
         - --csi-address=$(ADDRESS)
         - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -462,6 +460,13 @@ spec:
         - name: DRIVER_REG_SOCK_PATH
           value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
         image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - rm /registration/csi.juicefs.com-reg.sock
         name: node-driver-registrar
         volumeMounts:
         - mountPath: /csi
