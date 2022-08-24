@@ -377,15 +377,13 @@ spec:
             - mountPath: /root/.juicefs
               mountPropagation: Bidirectional
               name: jfs-root-dir
-            - name: registration-dir
-              mountPath: /registration
           lifecycle:
             preStop:
               exec:
                 command:
                   - /bin/sh
                   - -c
-                  - rm /registration/csi.juicefs.com-reg.sock /csi/csi.sock
+                  - rm /csi/csi.sock
           ports:
             - name: healthz
               containerPort: 9909
@@ -414,6 +412,13 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - rm /registration/csi.juicefs.com-reg.sock
         - name: liveness-probe
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
