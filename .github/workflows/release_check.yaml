@@ -37,7 +37,8 @@ jobs:
       - name: Build image
         env:
           DEV_K8S: microk8s
-          JUICEFS_VERSION: v1.0.0-alpha10
+          JUICEFS_VERSION: v1.0.0
+          JFSCHAN: beta
         run: |
           cd ${GITHUB_WORKSPACE}
           make image-release-check
