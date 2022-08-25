@@ -18,10 +18,12 @@ package config
 
 import (
 	"encoding/json"
+	"reflect"
+	"strings"
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"reflect"
-	"testing"
 )
 
 var (
@@ -690,6 +692,86 @@ func Test_parsePodResources(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parsePodResources() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_ParseFormatOptions(t *testing.T) {
+	type TestCase struct {
+		strippedKeys                    []string
+		description, origin, args, repr string
+		parseFail                       bool
+	}
+
+	testCases := []TestCase{
+		{
+			description: "test kv",
+			origin:      "trash-days=1,block-size=4096",
+			args:        "--trash-days=1 --block-size=4096",
+			repr:        "--trash-days=1 --block-size=4096",
+		},
+		{
+			description: "test single key",
+			origin:      "format-in-pod,quiet",
+			args:        "--format-in-pod --quiet",
+			repr:        "--format-in-pod --quiet",
+		},
+		{
+			description:  "test strip",
+			origin:       "trash-days=1,block-size=4096",
+			args:         "--trash-days=1 --block-size=4096",
+			strippedKeys: []string{"trash-days", "block-size"},
+			repr:         "--trash-days={trash-days} --block-size={block-size}",
+		},
+		{
+			description:  "test mix",
+			origin:       "trash-days=1,block-size=4096,format-in-pod,quiet",
+			args:         "--trash-days=1 --block-size=4096 --format-in-pod --quiet",
+			strippedKeys: []string{"trash-days", "block-size"},
+			repr:         "--trash-days={trash-days} --block-size={block-size} --format-in-pod --quiet",
+		},
+		{
+			description: "test empty",
+			origin:      "",
+			parseFail:   true,
+		},
+		{
+			description: "test error",
+			origin:      "trash-days=1=2",
+			parseFail:   true,
+		},
+		{
+			description: "test error 2",
+			origin:      "format-in-pod,,quiet",
+			parseFail:   true,
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			setting := JfsSetting{FormatOptions: c.origin}
+			if c.parseFail {
+				_, err := setting.parseFormatOptions()
+				if err == nil {
+					t.Errorf("parseFormatOptions() should fail")
+				}
+				return
+			}
+
+			args, err := setting.ParseFormatOptions()
+			if err != nil {
+				t.Errorf("ParseFormatOptions() error = %v", err)
+			}
+			if strings.Join(args, " ") != c.args {
+				t.Errorf("ParseFormatOptions() got = %v, want %v", strings.Join(args, " "), c.args)
+			}
+			repr, err := setting.StripFormatOptions(c.strippedKeys)
+			if err != nil {
+				t.Errorf("StripFormatOptions() error = %v", err)
+			}
+			if strings.Join(repr, " ") != c.repr {
+				t.Errorf("StripFormatOptions() got = %v, want %v", strings.Join(repr, " "), c.repr)
 			}
 		})
 	}

@@ -302,7 +302,7 @@ func (s JfsSetting) parseFormatOptions() ([][]string, error) {
 	parsedOptions := make([][]string, 0, len(options))
 	for _, option := range options {
 		pair := strings.Split(strings.TrimSpace(option), "=")
-		if len(pair) != 1 && len(pair) != 2 {
+		if pair[0] == "" || len(pair) != 1 && len(pair) != 2 {
 			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
 		}
 
@@ -352,7 +352,6 @@ func (s JfsSetting) StripFormatOptions(strippedKeys []string) ([]string, error) 
 				option = fmt.Sprintf("%s=%s", option, o[1])
 			}
 		}
-
 		options = append(options, option)
 	}
 	return options, nil
