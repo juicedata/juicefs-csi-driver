@@ -140,12 +140,8 @@ image-release-check:
 	echo JUICEFS_RELEASE_CHECK_VERSION=$(JUICEFS_RELEASE_CHECK_VERSION)
 	docker build --build-arg JUICEFS_CSI_REPO_REF=master \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_RELEASE_CHECK_VERSION) \
-<<<<<<< HEAD
 		--build-arg TARGETARCH=$(TARGETARCH) \
-=======
-		--build-arg TARGETARCH=amd64 \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
->>>>>>> master
 		--build-arg=JFS_AUTO_UPGRADE=disabled \
 		-t $(IMAGE):$(DEV_TAG) -f Dockerfile .
 
