@@ -19,14 +19,15 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
-	"strings"
-	"time"
 )
 
 type JfsSetting struct {
@@ -294,6 +295,53 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		jfsSetting.MountPodLabels = labels
 	}
 	return &jfsSetting, nil
+}
+
+func (s JfsSetting) parseFormatOptions() ([][]string, error) {
+	options := strings.Split(s.FormatOptions, ",")
+	parsedOptions := make([][]string, 0)
+	for _, option := range options {
+		pair := strings.Split(strings.TrimSpace(option), "=")
+		if len(pair) != 2 {
+			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
+		}
+		parsedOptions = append(parsedOptions, []string{strings.TrimSpace(pair[0]), strings.TrimSpace(pair[1])})
+	}
+	return parsedOptions, nil
+}
+
+func (s JfsSetting) ParseFormatOptions() ([]string, error) {
+	options := make([]string, 0)
+	parsedOptions, err := s.parseFormatOptions()
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range parsedOptions {
+		options = append(options, fmt.Sprintf("--%s=%s", o[0], o[1]))
+	}
+	return options, nil
+}
+
+func (s JfsSetting) StripFormatOptions(strippedKeys []string) ([]string, error) {
+	options := make([]string, 0)
+	parsedOptions, err := s.parseFormatOptions()
+	if err != nil {
+		return nil, err
+	}
+
+	strippedMap := make(map[string]bool)
+	for _, key := range strippedKeys {
+		strippedMap[key] = true
+	}
+
+	for _, o := range parsedOptions {
+		if strippedMap[o[0]] {
+			options = append(options, fmt.Sprintf("--%s={%s}", o[0], o[0]))
+		} else {
+			options = append(options, fmt.Sprintf("--%s=%s", o[0], o[1]))
+		}
+	}
+	return options, nil
 }
 
 func parseYamlOrJson(source string, dst interface{}) error {

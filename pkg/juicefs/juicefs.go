@@ -19,12 +19,7 @@ package juicefs
 import (
 	"context"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +29,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
@@ -486,14 +487,17 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		}
 	}
 	if setting.FormatOptions != "" {
-		formatOptions := strings.Split(setting.FormatOptions, ",")
-		for _, option := range formatOptions {
-			o := strings.TrimSpace(option)
-			if o != "" {
-				args = append(args, fmt.Sprintf("--%s", o))
-				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
-			}
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			status.Errorf(codes.InvalidArgument, err.Error())
 		}
+		args = append(args, options...)
+
+		strippedOptions, err := setting.StripFormatOptions([]string{"session-token"})
+		if err != nil {
+			status.Errorf(codes.InvalidArgument, err.Error())
+		}
+		cmdArgs = append(cmdArgs, strippedOptions...)
 	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
@@ -617,15 +621,19 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	args = append(args, secrets["metaurl"], secrets["name"])
 
 	if setting.FormatOptions != "" {
-		formatOptions := strings.Split(setting.FormatOptions, ",")
-		for _, option := range formatOptions {
-			o := strings.TrimSpace(option)
-			if o != "" {
-				args = append(args, fmt.Sprintf("--%s", o))
-				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
-			}
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			status.Errorf(codes.InvalidArgument, err.Error())
 		}
+		args = append(args, options...)
+
+		strippedOptions, err := setting.StripFormatOptions([]string{"session-token"})
+		if err != nil {
+			status.Errorf(codes.InvalidArgument, err.Error())
+		}
+		cmdArgs = append(cmdArgs, strippedOptions...)
 	}
+
 	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
 
 	if config.FormatInPod {
