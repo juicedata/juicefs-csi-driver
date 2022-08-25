@@ -299,13 +299,18 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 
 func (s JfsSetting) parseFormatOptions() ([][]string, error) {
 	options := strings.Split(s.FormatOptions, ",")
-	parsedOptions := make([][]string, 0)
+	parsedOptions := make([][]string, 0, len(options))
 	for _, option := range options {
 		pair := strings.Split(strings.TrimSpace(option), "=")
-		if len(pair) != 2 {
+		if len(pair) != 1 && len(pair) != 2 {
 			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
 		}
-		parsedOptions = append(parsedOptions, []string{strings.TrimSpace(pair[0]), strings.TrimSpace(pair[1])})
+
+		trimmedPair := make([]string, 0, len(pair))
+		for _, i := range pair {
+			trimmedPair = append(trimmedPair, strings.TrimSpace(i))
+		}
+		parsedOptions = append(parsedOptions, trimmedPair)
 	}
 	return parsedOptions, nil
 }
@@ -317,7 +322,11 @@ func (s JfsSetting) ParseFormatOptions() ([]string, error) {
 		return nil, err
 	}
 	for _, o := range parsedOptions {
-		options = append(options, fmt.Sprintf("--%s=%s", o[0], o[1]))
+		option := fmt.Sprintf("--%s", o[0])
+		if len(o) == 2 {
+			option = fmt.Sprintf("%s=%s", option, o[1])
+		}
+		options = append(options, option)
 	}
 	return options, nil
 }
@@ -335,11 +344,16 @@ func (s JfsSetting) StripFormatOptions(strippedKeys []string) ([]string, error) 
 	}
 
 	for _, o := range parsedOptions {
-		if strippedMap[o[0]] {
-			options = append(options, fmt.Sprintf("--%s={%s}", o[0], o[0]))
-		} else {
-			options = append(options, fmt.Sprintf("--%s=%s", o[0], o[1]))
+		option := fmt.Sprintf("--%s", o[0])
+		if len(o) == 2 {
+			if strippedMap[o[0]] {
+				option = fmt.Sprintf("%s={%s}", option, o[0])
+			} else {
+				option = fmt.Sprintf("%s=%s", option, o[1])
+			}
 		}
+
+		options = append(options, option)
 	}
 	return options, nil
 }
