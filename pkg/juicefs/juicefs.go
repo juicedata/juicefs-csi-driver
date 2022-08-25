@@ -267,10 +267,13 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
 // When STORAGE_CLASS_SHARE_MOUNT env is set:
-//		in dynamic provision, UniqueId set as SC name
-//		in static provision, UniqueId set as volumeId
+//
+//	in dynamic provision, UniqueId set as SC name
+//	in static provision, UniqueId set as volumeId
+//
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
-// 		UniqueId set as volumeId
+//
+//	UniqueId set as volumeId
 func (j *juicefs) getUniqueId(volumeId string) (string, error) {
 	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(volumeId)

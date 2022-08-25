@@ -255,7 +255,7 @@ func (p *ProcessMount) UmountTarget(target, podName string) error {
 	return nil
 }
 
-//JUmount umount targetPath
+// JUmount umount targetPath
 func (p *ProcessMount) JUmount(target, podName string) error {
 	var refs []string
 
