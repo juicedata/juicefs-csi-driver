@@ -19,15 +19,19 @@ package main
 import (
 	"flag"
 	"fmt"
+	"k8s.io/klog"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"strings"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"k8s.io/klog"
-	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"strings"
 )
 
 var (
@@ -117,6 +121,13 @@ func main() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
+	go func() {
+		port := 6060
+		for {
+			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
+			port++
+		}
+	}()
 	// enable pod manager in csi node
 	if config.PodManager && config.KubeletPort != "" && config.HostIp != "" {
 		if err := controller.StartReconciler(); err != nil {
