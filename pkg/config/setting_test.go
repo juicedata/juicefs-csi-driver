@@ -722,14 +722,14 @@ func Test_ParseFormatOptions(t *testing.T) {
 			origin:       "trash-days=1,block-size=4096",
 			args:         "--trash-days=1 --block-size=4096",
 			strippedKeys: []string{"trash-days", "block-size"},
-			repr:         "--trash-days={trash-days} --block-size={block-size}",
+			repr:         "--trash-days=${trash-days} --block-size=${block-size}",
 		},
 		{
 			description:  "test mix",
 			origin:       "trash-days=1,block-size=4096,format-in-pod,quiet",
 			args:         "--trash-days=1 --block-size=4096 --format-in-pod --quiet",
 			strippedKeys: []string{"trash-days", "block-size"},
-			repr:         "--trash-days={trash-days} --block-size={block-size} --format-in-pod --quiet",
+			repr:         "--trash-days=${trash-days} --block-size=${block-size} --format-in-pod --quiet",
 		},
 		{
 			description: "test empty",

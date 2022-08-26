@@ -347,7 +347,7 @@ func (s JfsSetting) StripFormatOptions(strippedKeys []string) ([]string, error) 
 		option := fmt.Sprintf("--%s", o[0])
 		if len(o) == 2 {
 			if strippedMap[o[0]] {
-				option = fmt.Sprintf("%s={%s}", option, o[0])
+				option = fmt.Sprintf("%s=${%s}", option, o[0])
 			} else {
 				option = fmt.Sprintf("%s=%s", option, o[1])
 			}
