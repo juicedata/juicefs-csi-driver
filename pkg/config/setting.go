@@ -44,14 +44,15 @@ type JfsSetting struct {
 	CacheDirs     []string   // hostPath using by mount pod
 
 	// put in secret
-	SecretKey     string            `json:"secret-key,omitempty"`
-	SecretKey2    string            `json:"secret-key2,omitempty"`
-	Token         string            `json:"token,omitempty"`
-	Passphrase    string            `json:"passphrase,omitempty"`
-	Envs          map[string]string `json:"envs_map,omitempty"`
-	EncryptRsaKey string            `json:"encrypt_rsa_key,omitempty"`
-	InitConfig    string            `json:"initconfig,omitempty"`
-	Configs       map[string]string `json:"configs_map,omitempty"`
+	SecretKey           string            `json:"secret-key,omitempty"`
+	SecretKey2          string            `json:"secret-key2,omitempty"`
+	Token               string            `json:"token,omitempty"`
+	Passphrase          string            `json:"passphrase,omitempty"`
+	Envs                map[string]string `json:"envs_map,omitempty"`
+	EncryptRsaKey       string            `json:"encrypt_rsa_key,omitempty"`
+	InitConfig          string            `json:"initconfig,omitempty"`
+	Configs             map[string]string `json:"configs_map,omitempty"`
+	ParsedFormatOptions map[string]string `json:"parsed-format-options,omitempty"`
 
 	// put in volCtx
 	MountPodLabels      map[string]string `json:"mount_pod_labels"`
@@ -126,6 +127,12 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	jfsSetting.Configs = make(map[string]string)
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
+
+	if jfsSetting.FormatOptions != "" {
+		if err = jfsSetting.parseFormatOptions(); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		}
+	}
 
 	// parse pvc of cache
 	dirs := []string{}
@@ -297,64 +304,54 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	return &jfsSetting, nil
 }
 
-func (s JfsSetting) parseFormatOptions() ([][]string, error) {
+func (s *JfsSetting) parseFormatOptions() error {
 	options := strings.Split(s.FormatOptions, ",")
-	parsedOptions := make([][]string, 0, len(options))
+	s.ParsedFormatOptions = make(map[string]string)
 	for _, option := range options {
 		pair := strings.Split(strings.TrimSpace(option), "=")
 		if pair[0] == "" || len(pair) != 1 && len(pair) != 2 {
-			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
+			return fmt.Errorf("invalid format options: %s", s.FormatOptions)
 		}
-
-		trimmedPair := make([]string, 0, len(pair))
-		for _, i := range pair {
-			trimmedPair = append(trimmedPair, strings.TrimSpace(i))
+		key := strings.TrimSpace(pair[0])
+		s.ParsedFormatOptions[key] = ""
+		if len(pair) == 2 {
+			s.ParsedFormatOptions[key] = strings.TrimSpace(pair[1])
 		}
-		parsedOptions = append(parsedOptions, trimmedPair)
 	}
-	return parsedOptions, nil
+	return nil
 }
 
-func (s JfsSetting) ParseFormatOptions() ([]string, error) {
+func (s *JfsSetting) RepresentFormatOptions() []string {
 	options := make([]string, 0)
-	parsedOptions, err := s.parseFormatOptions()
-	if err != nil {
-		return nil, err
-	}
-	for _, o := range parsedOptions {
-		option := fmt.Sprintf("--%s", o[0])
-		if len(o) == 2 {
-			option = fmt.Sprintf("%s=%s", option, o[1])
+	for k, v := range s.ParsedFormatOptions {
+		option := fmt.Sprintf("--%s", k)
+		if v != "" {
+			option = fmt.Sprintf("%s=%s", option, v)
 		}
 		options = append(options, option)
 	}
-	return options, nil
+	return options
 }
 
-func (s JfsSetting) StripFormatOptions(strippedKeys []string) ([]string, error) {
+func (s *JfsSetting) StripFormatOptions(strippedKeys []string) []string {
 	options := make([]string, 0)
-	parsedOptions, err := s.parseFormatOptions()
-	if err != nil {
-		return nil, err
-	}
-
 	strippedMap := make(map[string]bool)
 	for _, key := range strippedKeys {
 		strippedMap[key] = true
 	}
 
-	for _, o := range parsedOptions {
-		option := fmt.Sprintf("--%s", o[0])
-		if len(o) == 2 {
-			if strippedMap[o[0]] {
-				option = fmt.Sprintf("%s=${%s}", option, o[0])
+	for k, v := range s.ParsedFormatOptions {
+		option := fmt.Sprintf("--%s", k)
+		if v != "" {
+			if strippedMap[k] {
+				option = fmt.Sprintf("%s=${%s}", option, k)
 			} else {
-				option = fmt.Sprintf("%s=%s", option, o[1])
+				option = fmt.Sprintf("%s=%s", option, v)
 			}
 		}
 		options = append(options, option)
 	}
-	return options, nil
+	return options
 }
 
 func parseYamlOrJson(source string, dst interface{}) error {

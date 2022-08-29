@@ -19,6 +19,7 @@ package config
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -699,37 +700,37 @@ func Test_parsePodResources(t *testing.T) {
 
 func Test_ParseFormatOptions(t *testing.T) {
 	type TestCase struct {
-		strippedKeys                    []string
-		description, origin, args, repr string
-		parseFail                       bool
+		description, origin       string
+		stripKeys, args, stripped []string
+		parseFail                 bool
 	}
 
 	testCases := []TestCase{
 		{
 			description: "test kv",
 			origin:      "trash-days=1,block-size=4096",
-			args:        "--trash-days=1 --block-size=4096",
-			repr:        "--trash-days=1 --block-size=4096",
+			args:        []string{"--trash-days=1", "--block-size=4096"},
+			stripped:    []string{"--trash-days=1", "--block-size=4096"},
 		},
 		{
 			description: "test single key",
 			origin:      "format-in-pod,quiet",
-			args:        "--format-in-pod --quiet",
-			repr:        "--format-in-pod --quiet",
+			args:        []string{"--format-in-pod", "--quiet"},
+			stripped:    []string{"--format-in-pod", "--quiet"},
 		},
 		{
-			description:  "test strip",
-			origin:       "trash-days=1,block-size=4096",
-			args:         "--trash-days=1 --block-size=4096",
-			strippedKeys: []string{"trash-days", "block-size"},
-			repr:         "--trash-days=${trash-days} --block-size=${block-size}",
+			description: "test strip",
+			origin:      "trash-days=1,block-size=4096",
+			args:        []string{"--trash-days=1", "--block-size=4096"},
+			stripKeys:   []string{"trash-days", "block-size"},
+			stripped:    []string{"--trash-days=${trash-days}", "--block-size=${block-size}"},
 		},
 		{
-			description:  "test mix",
-			origin:       "trash-days=1,block-size=4096,format-in-pod,quiet",
-			args:         "--trash-days=1 --block-size=4096 --format-in-pod --quiet",
-			strippedKeys: []string{"trash-days", "block-size"},
-			repr:         "--trash-days=${trash-days} --block-size=${block-size} --format-in-pod --quiet",
+			description: "test mix",
+			origin:      "trash-days=1,block-size=4096,format-in-pod,quiet",
+			args:        []string{"--trash-days=1", "--block-size=4096", "--format-in-pod", "--quiet"},
+			stripKeys:   []string{"trash-days", "block-size"},
+			stripped:    []string{"--trash-days=${trash-days}", "--block-size=${block-size}", "--format-in-pod", "--quiet"},
 		},
 		{
 			description: "test empty",
@@ -750,28 +751,30 @@ func Test_ParseFormatOptions(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.description, func(t *testing.T) {
-			setting := JfsSetting{FormatOptions: c.origin}
+			setting := &JfsSetting{FormatOptions: c.origin}
+			err := setting.parseFormatOptions()
 			if c.parseFail {
-				_, err := setting.parseFormatOptions()
 				if err == nil {
 					t.Errorf("parseFormatOptions() should fail")
 				}
 				return
 			}
 
-			args, err := setting.ParseFormatOptions()
 			if err != nil {
-				t.Errorf("ParseFormatOptions() error = %v", err)
+				t.Errorf("parseFormatOptions() should success, but got error: %v", err)
 			}
-			if strings.Join(args, " ") != c.args {
-				t.Errorf("ParseFormatOptions() got = %v, want %v", strings.Join(args, " "), c.args)
+
+			args := setting.RepresentFormatOptions()
+			sort.Strings(args)
+			sort.Strings(c.args)
+			if !reflect.DeepEqual(args, c.args) {
+				t.Errorf("ParseFormatOptions() got %v, want %v", strings.Join(args, " "), c.args)
 			}
-			repr, err := setting.StripFormatOptions(c.strippedKeys)
-			if err != nil {
-				t.Errorf("StripFormatOptions() error = %v", err)
-			}
-			if strings.Join(repr, " ") != c.repr {
-				t.Errorf("StripFormatOptions() got = %v, want %v", strings.Join(repr, " "), c.repr)
+			stripped := setting.StripFormatOptions(c.stripKeys)
+			sort.Strings(stripped)
+			sort.Strings(c.stripped)
+			if !reflect.DeepEqual(stripped, c.stripped) {
+				t.Errorf("StripFormatOptions() got %v, want %v", strings.Join(stripped, " "), c.stripped)
 			}
 		})
 	}
