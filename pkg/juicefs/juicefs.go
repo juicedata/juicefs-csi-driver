@@ -487,9 +487,12 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		}
 	}
 	if setting.FormatOptions != "" {
-		options := setting.RepresentFormatOptions()
-		args = append(args, options...)
-		stripped := setting.StripFormatOptions([]string{"session-token"})
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
+		}
+		args = append(args, setting.RepresentFormatOptions(options)...)
+		stripped := setting.StripFormatOptions(options, []string{"session-token"})
 		cmdArgs = append(cmdArgs, stripped...)
 	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
@@ -614,10 +617,12 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	args = append(args, secrets["metaurl"], secrets["name"])
 
 	if setting.FormatOptions != "" {
-		options := setting.RepresentFormatOptions()
-		args = append(args, options...)
-
-		stripped := setting.StripFormatOptions([]string{"session-token"})
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
+		}
+		args = append(args, setting.RepresentFormatOptions(options)...)
+		stripped := setting.StripFormatOptions(options, []string{"session-token"})
 		cmdArgs = append(cmdArgs, stripped...)
 	}
 

@@ -19,7 +19,6 @@ package config
 import (
 	"encoding/json"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
@@ -700,51 +699,54 @@ func Test_parsePodResources(t *testing.T) {
 
 func Test_ParseFormatOptions(t *testing.T) {
 	type TestCase struct {
-		description, origin       string
-		stripKeys, args, stripped []string
-		parseFail                 bool
+		description, origin, args, stripped string
+		stripKeys                           []string
+		parseFail                           bool
 	}
 
 	testCases := []TestCase{
 		{
+			description: "test empty",
+			origin:      "",
+			args:        "",
+			stripped:    "",
+		},
+		{
 			description: "test kv",
 			origin:      "trash-days=1,block-size=4096",
-			args:        []string{"--trash-days=1", "--block-size=4096"},
-			stripped:    []string{"--trash-days=1", "--block-size=4096"},
+			args:        "--trash-days=1 --block-size=4096",
+			stripped:    "--trash-days=1 --block-size=4096",
 		},
 		{
 			description: "test single key",
 			origin:      "format-in-pod,quiet",
-			args:        []string{"--format-in-pod", "--quiet"},
-			stripped:    []string{"--format-in-pod", "--quiet"},
+			args:        "--format-in-pod --quiet",
+			stripped:    "--format-in-pod --quiet",
+		},
+		{
+			description: "test empty item",
+			origin:      "format-in-pod,,quiet",
+			args:        "--format-in-pod --quiet",
+			stripped:    "--format-in-pod --quiet",
 		},
 		{
 			description: "test strip",
 			origin:      "trash-days=1,block-size=4096",
-			args:        []string{"--trash-days=1", "--block-size=4096"},
+			args:        "--trash-days=1 --block-size=4096",
 			stripKeys:   []string{"trash-days", "block-size"},
-			stripped:    []string{"--trash-days=${trash-days}", "--block-size=${block-size}"},
+			stripped:    "--trash-days=${trash-days} --block-size=${block-size}",
 		},
 		{
 			description: "test mix",
 			origin:      "trash-days=1,block-size=4096,format-in-pod,quiet",
-			args:        []string{"--trash-days=1", "--block-size=4096", "--format-in-pod", "--quiet"},
+			args:        "--trash-days=1 --block-size=4096 --format-in-pod --quiet",
 			stripKeys:   []string{"trash-days", "block-size"},
-			stripped:    []string{"--trash-days=${trash-days}", "--block-size=${block-size}", "--format-in-pod", "--quiet"},
+			stripped:    "--trash-days=${trash-days} --block-size=${block-size} --format-in-pod --quiet",
 		},
-		{
-			description: "test empty",
-			origin:      "",
-			parseFail:   true,
-		},
+
 		{
 			description: "test error",
 			origin:      "trash-days=1=2",
-			parseFail:   true,
-		},
-		{
-			description: "test error 2",
-			origin:      "format-in-pod,,quiet",
 			parseFail:   true,
 		},
 	}
@@ -752,28 +754,24 @@ func Test_ParseFormatOptions(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c.description, func(t *testing.T) {
 			setting := &JfsSetting{FormatOptions: c.origin}
-			err := setting.parseFormatOptions()
+			options, err := setting.ParseFormatOptions()
 			if c.parseFail {
 				if err == nil {
-					t.Errorf("parseFormatOptions() should fail")
+					t.Errorf("ParseFormatOptions() should fail")
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("parseFormatOptions() should success, but got error: %v", err)
+				t.Errorf("ParseFormatOptions() should success, but got error: %v", err)
 			}
 
-			args := setting.RepresentFormatOptions()
-			sort.Strings(args)
-			sort.Strings(c.args)
-			if !reflect.DeepEqual(args, c.args) {
-				t.Errorf("ParseFormatOptions() got %v, want %v", strings.Join(args, " "), c.args)
+			args := setting.RepresentFormatOptions(options)
+			if strings.Join(args, " ") != c.args {
+				t.Errorf("RepresentFormatOptions() got %v, want %v", strings.Join(args, " "), c.args)
 			}
-			stripped := setting.StripFormatOptions(c.stripKeys)
-			sort.Strings(stripped)
-			sort.Strings(c.stripped)
-			if !reflect.DeepEqual(stripped, c.stripped) {
+			stripped := setting.StripFormatOptions(options, c.stripKeys)
+			if strings.Join(stripped, " ") != c.stripped {
 				t.Errorf("StripFormatOptions() got %v, want %v", strings.Join(stripped, " "), c.stripped)
 			}
 		})
