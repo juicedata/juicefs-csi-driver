@@ -45,6 +45,7 @@ const (
 	maxListTries                         = 3
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
+	defaultCheckoutTimeout               = 1 * time.Second
 )
 
 func init() {
@@ -400,4 +401,22 @@ func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f f
 
 func CheckDynamicPV(name string) (bool, error) {
 	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
+}
+
+func UmountPath(ctx context.Context, sourcePath string) {
+	cmd := exec.Command("umount", sourcePath)
+	outByte, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
+	out := string(outByte)
+	if err != nil {
+		if !strings.Contains(out, "not mounted") &&
+			!strings.Contains(out, "mountpoint not found") &&
+			!strings.Contains(out, "no mount point specified") {
+			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
+			cmd2 := exec.Command("umount", "-l", sourcePath)
+			output, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
+			if err != nil {
+				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
+			}
+		}
+	}
 }

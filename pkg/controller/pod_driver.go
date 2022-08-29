@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -283,7 +282,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 	if len(existTargets) == 0 {
 		// do not need to create new one, umount
-		umountPath(ctx, sourcePath)
+		util.UmountPath(ctx, sourcePath)
 		// clean mount point
 		_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
@@ -324,7 +323,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				})
 				if err != nil {
 					klog.Infof("start to umount: %s", sourcePath)
-					umountPath(ctx, sourcePath)
+					util.UmountPath(ctx, sourcePath)
 				}
 				// create pod
 				var newPod = &corev1.Pod{
@@ -473,24 +472,6 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	for i := 0; i < count; i++ {
 		// ignore error
 		p.Unmount(target)
-	}
-}
-
-func umountPath(ctx context.Context, sourcePath string) {
-	cmd := exec.Command("umount", sourcePath)
-	outByte, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
-	out := string(outByte)
-	if err != nil {
-		if !strings.Contains(out, "not mounted") &&
-			!strings.Contains(out, "mountpoint not found") &&
-			!strings.Contains(out, "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			cmd2 := exec.Command("umount", "-l", sourcePath)
-			output, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
-			if err != nil {
-				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
-			}
-		}
 	}
 }
 

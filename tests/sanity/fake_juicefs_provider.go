@@ -95,3 +95,7 @@ func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
 func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }
+
+func (fs *fakeJfs) BindTarget(bindSource, target string) error {
+	return nil
+}
