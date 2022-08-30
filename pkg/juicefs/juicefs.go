@@ -46,8 +46,6 @@ import (
 	"k8s.io/utils/mount"
 )
 
-const defaultCheckTimeout = 2 * time.Second
-
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
