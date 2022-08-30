@@ -19,14 +19,15 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
-	"strings"
-	"time"
 )
 
 type JfsSetting struct {
@@ -294,6 +295,61 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		jfsSetting.MountPodLabels = labels
 	}
 	return &jfsSetting, nil
+}
+
+func (s *JfsSetting) ParseFormatOptions() ([][]string, error) {
+	options := strings.Split(s.FormatOptions, ",")
+	parsedFormatOptions := make([][]string, 0, len(options))
+	for _, option := range options {
+		pair := strings.Split(strings.TrimSpace(option), "=")
+		if len(pair) != 1 && len(pair) != 2 {
+			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
+		}
+		key := strings.TrimSpace(pair[0])
+		if key == "" {
+			// ignore empty key
+			continue
+		}
+		value := ""
+		if len(pair) == 2 {
+			value = strings.TrimSpace(pair[1])
+		}
+		parsedFormatOptions = append(parsedFormatOptions, []string{key, value})
+	}
+	return parsedFormatOptions, nil
+}
+
+func (s *JfsSetting) RepresentFormatOptions(parsedOptions [][]string) []string {
+	options := make([]string, 0)
+	for _, pair := range parsedOptions {
+		option := fmt.Sprintf("--%s", pair[0])
+		if pair[1] != "" {
+			option = fmt.Sprintf("%s=%s", option, pair[1])
+		}
+		options = append(options, option)
+	}
+	return options
+}
+
+func (s *JfsSetting) StripFormatOptions(parsedOptions [][]string, strippedKeys []string) []string {
+	options := make([]string, 0)
+	strippedMap := make(map[string]bool)
+	for _, key := range strippedKeys {
+		strippedMap[key] = true
+	}
+
+	for _, pair := range parsedOptions {
+		option := fmt.Sprintf("--%s", pair[0])
+		if pair[1] != "" {
+			if strippedMap[pair[0]] {
+				option = fmt.Sprintf("%s=${%s}", option, pair[0])
+			} else {
+				option = fmt.Sprintf("%s=%s", option, pair[1])
+			}
+		}
+		options = append(options, option)
+	}
+	return options
 }
 
 func parseYamlOrJson(source string, dst interface{}) error {

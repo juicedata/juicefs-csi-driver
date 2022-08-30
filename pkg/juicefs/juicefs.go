@@ -19,12 +19,7 @@ package juicefs
 import (
 	"context"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +29,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
@@ -267,10 +268,13 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
 // When STORAGE_CLASS_SHARE_MOUNT env is set:
-//		in dynamic provision, UniqueId set as SC name
-//		in static provision, UniqueId set as volumeId
+//
+//	in dynamic provision, UniqueId set as SC name
+//	in static provision, UniqueId set as volumeId
+//
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
-// 		UniqueId set as volumeId
+//
+//	UniqueId set as volumeId
 func (j *juicefs) getUniqueId(volumeId string) (string, error) {
 	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
@@ -483,14 +487,13 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		}
 	}
 	if setting.FormatOptions != "" {
-		formatOptions := strings.Split(setting.FormatOptions, ",")
-		for _, option := range formatOptions {
-			o := strings.TrimSpace(option)
-			if o != "" {
-				args = append(args, fmt.Sprintf("--%s", o))
-				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
-			}
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
 		}
+		args = append(args, setting.RepresentFormatOptions(options)...)
+		stripped := setting.StripFormatOptions(options, []string{"session-token"})
+		cmdArgs = append(cmdArgs, stripped...)
 	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
@@ -614,15 +617,15 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	args = append(args, secrets["metaurl"], secrets["name"])
 
 	if setting.FormatOptions != "" {
-		formatOptions := strings.Split(setting.FormatOptions, ",")
-		for _, option := range formatOptions {
-			o := strings.TrimSpace(option)
-			if o != "" {
-				args = append(args, fmt.Sprintf("--%s", o))
-				cmdArgs = append(cmdArgs, fmt.Sprintf("--%s", o))
-			}
+		options, err := setting.ParseFormatOptions()
+		if err != nil {
+			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
 		}
+		args = append(args, setting.RepresentFormatOptions(options)...)
+		stripped := setting.StripFormatOptions(options, []string{"session-token"})
+		cmdArgs = append(cmdArgs, stripped...)
 	}
+
 	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
 
 	if config.FormatInPod {

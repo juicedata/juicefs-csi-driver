@@ -46,6 +46,13 @@ func (r *Builder) NewSecret() corev1.Secret {
 	if r.jfsSetting.InitConfig != "" {
 		data["init_config"] = r.jfsSetting.InitConfig
 	}
+	if options, err := r.jfsSetting.ParseFormatOptions(); err == nil {
+		for _, pair := range options {
+			if pair[0] == "session-token" {
+				data["session-token"] = pair[1]
+			}
+		}
+	}
 	for k, v := range r.jfsSetting.Envs {
 		data[k] = v
 	}
