@@ -47,12 +47,10 @@ func (r *Builder) NewSecret() corev1.Secret {
 		data["init_config"] = r.jfsSetting.InitConfig
 	}
 	if options, err := r.jfsSetting.ParseFormatOptions(); err == nil {
-		omap := make(map[string]string)
 		for _, pair := range options {
-			omap[pair[0]] = pair[1]
-		}
-		if sessionToken, ok := omap["session-token"]; ok {
-			data["session-token"] = sessionToken
+			if pair[0] == "session-token" {
+				data["session-token"] = pair[1]
+			}
 		}
 	}
 	for k, v := range r.jfsSetting.Envs {
