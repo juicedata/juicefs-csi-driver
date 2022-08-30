@@ -69,8 +69,8 @@ func TestNodePublishVolume(t *testing.T) {
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
 						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
@@ -115,8 +115,8 @@ func TestNodePublishVolume(t *testing.T) {
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
 						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
@@ -160,8 +160,8 @@ func TestNodePublishVolume(t *testing.T) {
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(nil)
 						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{
@@ -292,8 +292,8 @@ func TestNodePublishVolume(t *testing.T) {
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(bindSource, targetPath).Return(errors.New("test"))
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().Mount(bindSource, targetPath, fsTypeNone, []string{"bind"}).Return(errors.New("test"))
 						mockJuicefs.EXPECT().JfsMount(volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 
 						juicefsDriver := &nodeService{

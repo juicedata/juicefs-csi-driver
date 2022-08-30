@@ -46,7 +46,11 @@ import (
 	"k8s.io/utils/mount"
 )
 
-const defaultCheckTimeout = 2 * time.Second
+const (
+	defaultCheckTimeout = 2 * time.Second
+	fsTypeNone          = "none"
+	procMountInfoPath   = "/proc/self/mountinfo"
+)
 
 // Interface of juicefs provider
 type Interface interface {
@@ -84,6 +88,7 @@ type jfs struct {
 type Jfs interface {
 	GetBasePath() string
 	CreateVol(volumeID, subPath string) (string, error)
+	BindTarget(bindSource, target string) error
 }
 
 var _ Jfs = &jfs{}
@@ -127,6 +132,43 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	}
 
 	return volPath, nil
+}
+
+func (fs *jfs) BindTarget(bindSource, target string) error {
+	mountInfos, err := mount.ParseMountInfo(procMountInfoPath)
+	if err != nil {
+		return err
+	}
+	var mountMinor, targetMinor *int
+	for _, mi := range mountInfos {
+		if mi.MountPoint == fs.MountPath {
+			minor := mi.Minor
+			mountMinor = &minor
+		}
+		if mi.MountPoint == target {
+			targetMinor = &mi.Minor
+		}
+	}
+	if mountMinor == nil {
+		return fmt.Errorf("BindTarget: mountPath %s not mounted", fs.MountPath)
+	}
+	if targetMinor != nil {
+		if *targetMinor == *mountMinor {
+			// target already binded mountpath
+			klog.V(6).Infof("BindTarget: target %s already bind mount to %s", target, fs.MountPath)
+			return nil
+		}
+		// target is bind by other path, umount it
+		klog.Infof("BindTarget: target %s bind mount to other path, umount it", target)
+		util.UmountPath(context.TODO(), target)
+	}
+	// bind target to mountpath
+	klog.Infof("BindTarget: binding %s at %s", bindSource, target)
+	if err := fs.Provider.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
+		os.Remove(target)
+		return err
+	}
+	return nil
 }
 
 // NewJfsProvider creates a provider for JuiceFS file system

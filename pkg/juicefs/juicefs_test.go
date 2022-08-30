@@ -138,6 +138,137 @@ func Test_jfs_CreateVol(t *testing.T) {
 	})
 }
 
+func Test_jfs_BindTarget(t *testing.T) {
+	Convey("Test BindTarget", t, func() {
+		Convey("test normal", func() {
+			mountPath := "/var/lib/juicefs/volume/ce-static-vsvhgz"
+			target := "/var/lib/kubelet/pods/8687ae00-ce35-4715-a117-f2d21e24ae4f/volumes/kubernetes.io~csi/ce-static/mount"
+			mockMits := []mount.MountInfo{{
+				ID:         3280,
+				ParentID:   31,
+				Major:      0,
+				Minor:      231,
+				Root:       "/",
+				Source:     "JuiceFS:minio",
+				MountPoint: mountPath,
+				FsType:     "fuse.juicefs",
+			}}
+			patch1 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return mockMits, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().Mount(mountPath, target, fsTypeNone, []string{"bind"}).Return(nil)
+
+			j := jfs{
+				MountPath: mountPath,
+				Provider: &juicefs{
+					SafeFormatAndMount: mount.SafeFormatAndMount{
+						Interface: mockMount,
+						Exec:      k8sexec.New(),
+					},
+				},
+			}
+			err := j.BindTarget(mountPath, target)
+			So(err, ShouldBeNil)
+		})
+		Convey("test already bind", func() {
+			mountPath := "/var/lib/juicefs/volume/ce-static-vsvhgz"
+			target := "/var/lib/kubelet/pods/8687ae00-ce35-4715-a117-f2d21e24ae4f/volumes/kubernetes.io~csi/ce-static/mount"
+			mockMits := []mount.MountInfo{{
+				ID:         3280,
+				ParentID:   31,
+				Major:      0,
+				Minor:      231,
+				Root:       "/",
+				Source:     "JuiceFS:minio",
+				MountPoint: mountPath,
+				FsType:     "fuse.juicefs",
+			}, {
+				ID:         3299,
+				ParentID:   497,
+				Major:      0,
+				Minor:      231,
+				Root:       "/",
+				Source:     "JuiceFS:minio",
+				MountPoint: target,
+				FsType:     "fuse.juicefs",
+			}}
+			patch1 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return mockMits, nil
+			})
+			defer patch1.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+			mockMount := mocks.NewMockInterface(mockCtl)
+
+			j := jfs{
+				MountPath: mountPath,
+				Provider: &juicefs{
+					SafeFormatAndMount: mount.SafeFormatAndMount{
+						Interface: mockMount,
+						Exec:      k8sexec.New(),
+					},
+				},
+			}
+			err := j.BindTarget(mountPath, target)
+			So(err, ShouldBeNil)
+		})
+		Convey("test bind other path", func() {
+			mountPath := "/var/lib/juicefs/volume/ce-static-vsvhgz"
+			target := "/var/lib/kubelet/pods/8687ae00-ce35-4715-a117-f2d21e24ae4f/volumes/kubernetes.io~csi/ce-static/mount"
+			mockMits := []mount.MountInfo{{
+				ID:         3280,
+				ParentID:   31,
+				Major:      0,
+				Minor:      231,
+				Root:       "/",
+				Source:     "JuiceFS:minio",
+				MountPoint: mountPath,
+				FsType:     "fuse.juicefs",
+			}, {
+				ID:         3299,
+				ParentID:   497,
+				Major:      0,
+				Minor:      232,
+				Root:       "/",
+				Source:     "JuiceFS:minio",
+				MountPoint: target,
+				FsType:     "fuse.juicefs",
+			}}
+			patch1 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return mockMits, nil
+			})
+			defer patch1.Reset()
+			var tmpCmd = &exec.Cmd{}
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte{}, nil
+			})
+			defer patch3.Reset()
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+			mockMount := mocks.NewMockInterface(mockCtl)
+			mockMount.EXPECT().Mount(mountPath, target, fsTypeNone, []string{"bind"}).Return(nil)
+
+			j := jfs{
+				MountPath: mountPath,
+				Provider: &juicefs{
+					SafeFormatAndMount: mount.SafeFormatAndMount{
+						Interface: mockMount,
+						Exec:      k8sexec.New(),
+					},
+				},
+			}
+			err := j.BindTarget(mountPath, target)
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
 func Test_jfs_GetBasePath(t *testing.T) {
 	type fields struct {
 		MountPath string
