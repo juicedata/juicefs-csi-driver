@@ -30,6 +30,9 @@ import (
 	"k8s.io/klog"
 )
 
+const defaultContextTimeout = 10 * time.Second
+const ContextTimeoutEnv = "JFS_CONTEXT_TIMEOUT"
+
 type JfsSetting struct {
 	IsCe   bool
 	UsePod bool

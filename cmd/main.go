@@ -19,11 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"k8s.io/klog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strings"
+	"time"
+
+	"k8s.io/klog"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -68,6 +70,13 @@ func init() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	if timeout := os.Getenv("JUICEFS_CONTEXT_TIMEOUT"); timeout != "" {
+		duration, _ := time.ParseDuration(timeout)
+		if duration > config.ContextTimeout {
+			config.ContextTimeout = duration
+		}
+	}
+
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
 	}

@@ -22,23 +22,21 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
 	"math/rand"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 )
 
 const (
@@ -370,31 +368,17 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
-func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f func() error) (out []byte, err error) {
-	doneCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
+func DoWithContext(ctx context.Context, f func() error) error {
 	doneCh := make(chan error)
 	go func() {
-		if cmd != nil {
-			out, err = cmd.CombinedOutput()
-			doneCh <- err
-		} else {
-			doneCh <- f()
-		}
+		doneCh <- f()
 	}()
 
 	select {
-	case <-doneCtx.Done():
-		err = status.Error(codes.Internal, "context timeout")
-		if cmd != nil {
-			go func() {
-				cmd.Process.Kill()
-			}()
-		}
-		return
-	case err = <-doneCh:
-		return
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-doneCh:
+		return err
 	}
 }
 

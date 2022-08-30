@@ -85,7 +85,9 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			err := driver.Run(context.Background(), pod)
+			ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+			defer cancel()
+			err := driver.Run(ctx, pod)
 			if err != nil {
 				klog.Errorf("Check pod %s: %s", pod.Name, err)
 			}

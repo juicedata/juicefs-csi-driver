@@ -22,12 +22,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	"k8s.io/apimachinery/pkg/fields"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -328,12 +329,17 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName str
 
 func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	// Wait until the mount point is ready
-	for i := 0; i < 60; i++ {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+	defer cancel()
+	for {
 		var finfo os.FileInfo
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithContext(ctx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
+			if err == context.DeadlineExceeded {
+				break
+			}
 			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
 			time.Sleep(time.Millisecond * 500)
 			continue

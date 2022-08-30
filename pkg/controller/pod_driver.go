@@ -285,7 +285,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		// do not need to create new one, umount
 		umountPath(ctx, sourcePath)
 		// clean mount point
-		_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+		err = util.DoWithContext(ctx, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
@@ -315,7 +315,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				_, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+				err := util.DoWithContext(ctx, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -387,7 +387,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	_, e := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+	e := util.DoWithContext(ctx, func() error {
 		_, e := os.Stat(mntPath)
 		return e
 	})
@@ -477,16 +477,14 @@ func (p *PodDriver) umountTarget(target string, count int) {
 }
 
 func umountPath(ctx context.Context, sourcePath string) {
-	cmd := exec.Command("umount", sourcePath)
-	outByte, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
-	out := string(outByte)
-	if err != nil {
+	cmd := exec.CommandContext(ctx, "umount", sourcePath)
+	if outBytes, err := cmd.CombinedOutput(); err != nil {
+		out := string(outBytes)
 		if !strings.Contains(out, "not mounted") &&
 			!strings.Contains(out, "mountpoint not found") &&
 			!strings.Contains(out, "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			cmd2 := exec.Command("umount", "-l", sourcePath)
-			output, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
+			output, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
 			if err != nil {
 				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
 			}

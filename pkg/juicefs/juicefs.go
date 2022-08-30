@@ -95,10 +95,12 @@ func (fs *jfs) GetBasePath() string {
 // CreateVol creates the directory needed
 func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
-
 	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	var exists bool
-	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+	defer cancel()
+
+	if err := util.DoWithContext(ctx, func() (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -106,19 +108,19 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithContext(ctx, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithContext(ctx, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			if err := util.DoWithContext(ctx, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
@@ -408,10 +410,12 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 
 func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() error {
+	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+	defer cancel()
+
+	return util.DoWithContext(ctx, func() (err error) {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
-	return err
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
@@ -502,17 +506,16 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		return cmd, nil
 	}
 
-	authCmd := j.Exec.Command(config.CliPath, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+	defer cancel()
+
+	authCmd := j.Exec.CommandContext(ctx, config.CliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	authCmd.SetEnv(envs)
-	var res []byte
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
-		res, err = authCmd.CombinedOutput()
-		return
-	})
+	res, err := authCmd.CombinedOutput()
 	klog.Infof("Auth output is %s", res)
 	return string(res), err
 }
@@ -633,7 +636,10 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 		return cmd, nil
 	}
 
-	formatCmd := j.Exec.Command(config.CeCliPath, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+	defer cancel()
+
+	formatCmd := j.Exec.CommandContext(ctx, config.CeCliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
@@ -642,11 +648,7 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
 	formatCmd.SetEnv(envs)
-	var res []byte
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
-		res, err = formatCmd.CombinedOutput()
-		return
-	})
+	res, err := formatCmd.CombinedOutput()
 	klog.Infof("Format output is %s", res)
 	return string(res), err
 }
