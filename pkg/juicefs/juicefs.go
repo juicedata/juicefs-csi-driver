@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -549,7 +550,10 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	authCmd.SetEnv(envs)
 	res, err := authCmd.CombinedOutput()
 	klog.Infof("Auth output is %s", res)
-	return string(res), err
+	if err != nil {
+		return "", errors.Wrap(err, "execute auth command")
+	}
+	return string(res), nil
 }
 
 // MountFs mounts JuiceFS with idempotency
@@ -679,5 +683,8 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	formatCmd.SetEnv(envs)
 	res, err := formatCmd.CombinedOutput()
 	klog.Infof("Format output is %s", res)
-	return string(res), err
+	if err != nil {
+		return "", errors.Wrap(err, "execute format command")
+	}
+	return string(res), nil
 }
