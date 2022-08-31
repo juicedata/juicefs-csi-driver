@@ -290,7 +290,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	r := builder.NewBuilder(jfsSetting)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
-	for i := 0; i < 120; i++ {
+	for {
 		// wait for old pod deleted
 		oldPod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
@@ -312,6 +312,8 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 					return "", err
 				}
 				return podName, err
+			} else if k8serrors.IsTimeout(err) {
+				return podName, status.Errorf(codes.Internal, "Mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
@@ -323,14 +325,15 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 		}
 		return podName, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
-	return podName, status.Errorf(codes.Internal, "Mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	// Wait until the mount point is ready
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(ctx, func() (err error) {
+		if err := util.DoWithContext(waitCtx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
@@ -363,12 +366,15 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
-	for i := 0; i < 120; i++ {
+	for {
 		job, err := p.K8sClient.GetJob(ctx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
 				return nil
+			}
+			if k8serrors.IsTimeout(err) {
+				break
 			}
 			return status.Errorf(codes.Internal, "waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
 		}
@@ -378,6 +384,7 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
+
 	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"job-name": jobName,
@@ -390,7 +397,7 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 	if err != nil {
 		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed in 1 min: %v", jobName, log)
+	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed: %v", jobName, log)
 }
 
 func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName string) error {

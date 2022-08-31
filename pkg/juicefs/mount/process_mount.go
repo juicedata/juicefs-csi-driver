@@ -191,9 +191,11 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(ctx, func() (err error) {
+		if err := util.DoWithContext(waitCtx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {

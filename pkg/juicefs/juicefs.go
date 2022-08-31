@@ -378,7 +378,8 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 				delete(j.CacheDirMaps, uniqueId)
 
 				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
-				go j.processMount.CleanCache(ctx, uuid, uniqueId, cacheDirs)
+				// clean cache should be done even when top context timeout
+				go j.processMount.CleanCache(context.TODO(), uuid, uniqueId, cacheDirs)
 			}()
 		}
 		return err
