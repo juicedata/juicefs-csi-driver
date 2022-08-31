@@ -17,7 +17,14 @@ limitations under the License.
 package mount
 
 import (
+	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"reflect"
+	"syscall"
+	"testing"
+
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
@@ -25,11 +32,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
-	"os"
-	"os/exec"
-	"reflect"
-	"syscall"
-	"testing"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -98,7 +100,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(targetPath, podName); err != nil {
+			if err := p.JUmount(context.TODO(), targetPath, podName); err != nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -110,7 +112,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 			}
-			if err := p.JUmount(targetPath, podName); err == nil {
+			if err := p.JUmount(context.TODO(), targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -140,7 +142,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(targetPath, podName); err == nil {
+			if err := p.JUmount(context.TODO(), targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -171,7 +173,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(&jfsConfig.JfsSetting{
+				if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 					Source:    eeSource,
 					VolumeId:  volumeId,
 					MountPath: targetPath,
@@ -199,7 +201,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(&jfsConfig.JfsSetting{
+				if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 					Source:    eeSource,
 					VolumeId:  volumeId,
 					MountPath: targetPath,
@@ -252,7 +254,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							Storage:   "ceph",
 							VolumeId:  volumeId,
@@ -293,7 +295,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							Storage:   "ceph",
 							VolumeId:  volumeId,
@@ -334,7 +336,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source: ceSource, Storage: "ceph",
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -351,7 +353,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -371,7 +373,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -396,7 +398,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -422,7 +424,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(&jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,

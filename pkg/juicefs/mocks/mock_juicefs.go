@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -36,18 +37,18 @@ func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
 }
 
 // GetJfsVolUUID mocks base method.
-func (m *MockInterface) GetJfsVolUUID(arg0 string) (string, error) {
+func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0)
+	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0, arg1)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetJfsVolUUID indicates an expected call of GetJfsVolUUID.
-func (mr *MockInterfaceMockRecorder) GetJfsVolUUID(arg0 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) GetJfsVolUUID(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJfsVolUUID", reflect.TypeOf((*MockInterface)(nil).GetJfsVolUUID), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJfsVolUUID", reflect.TypeOf((*MockInterface)(nil).GetJfsVolUUID), arg0, arg1)
 }
 
 // GetMountRefs mocks base method.
@@ -81,74 +82,74 @@ func (mr *MockInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) *go
 }
 
 // JfsCleanupMountPoint mocks base method.
-func (m *MockInterface) JfsCleanupMountPoint(arg0 string) error {
+func (m *MockInterface) JfsCleanupMountPoint(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsCleanupMountPoint", arg0)
+	ret := m.ctrl.Call(m, "JfsCleanupMountPoint", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JfsCleanupMountPoint indicates an expected call of JfsCleanupMountPoint.
-func (mr *MockInterfaceMockRecorder) JfsCleanupMountPoint(arg0 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsCleanupMountPoint(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCleanupMountPoint", reflect.TypeOf((*MockInterface)(nil).JfsCleanupMountPoint), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCleanupMountPoint", reflect.TypeOf((*MockInterface)(nil).JfsCleanupMountPoint), arg0, arg1)
 }
 
 // JfsCreateVol mocks base method.
-func (m *MockInterface) JfsCreateVol(arg0, arg1 string, arg2 map[string]string) error {
+func (m *MockInterface) JfsCreateVol(arg0 context.Context, arg1, arg2 string, arg3 map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsCreateVol", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "JfsCreateVol", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JfsCreateVol indicates an expected call of JfsCreateVol.
-func (mr *MockInterfaceMockRecorder) JfsCreateVol(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsCreateVol(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCreateVol", reflect.TypeOf((*MockInterface)(nil).JfsCreateVol), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsCreateVol", reflect.TypeOf((*MockInterface)(nil).JfsCreateVol), arg0, arg1, arg2, arg3)
 }
 
 // JfsDeleteVol mocks base method.
-func (m *MockInterface) JfsDeleteVol(arg0, arg1 string, arg2 map[string]string) error {
+func (m *MockInterface) JfsDeleteVol(arg0 context.Context, arg1, arg2 string, arg3 map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsDeleteVol", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "JfsDeleteVol", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JfsDeleteVol indicates an expected call of JfsDeleteVol.
-func (mr *MockInterfaceMockRecorder) JfsDeleteVol(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsDeleteVol(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsDeleteVol", reflect.TypeOf((*MockInterface)(nil).JfsDeleteVol), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsDeleteVol", reflect.TypeOf((*MockInterface)(nil).JfsDeleteVol), arg0, arg1, arg2, arg3)
 }
 
 // JfsMount mocks base method.
-func (m *MockInterface) JfsMount(arg0, arg1 string, arg2, arg3 map[string]string, arg4 []string) (juicefs.Jfs, error) {
+func (m *MockInterface) JfsMount(arg0 context.Context, arg1, arg2 string, arg3, arg4 map[string]string, arg5 []string) (juicefs.Jfs, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsMount", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "JfsMount", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(juicefs.Jfs)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // JfsMount indicates an expected call of JfsMount.
-func (mr *MockInterfaceMockRecorder) JfsMount(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsMount(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsMount", reflect.TypeOf((*MockInterface)(nil).JfsMount), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsMount", reflect.TypeOf((*MockInterface)(nil).JfsMount), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // JfsUnmount mocks base method.
-func (m *MockInterface) JfsUnmount(arg0, arg1 string) error {
+func (m *MockInterface) JfsUnmount(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JfsUnmount", arg0, arg1)
+	ret := m.ctrl.Call(m, "JfsUnmount", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JfsUnmount indicates an expected call of JfsUnmount.
-func (mr *MockInterfaceMockRecorder) JfsUnmount(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) JfsUnmount(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsUnmount", reflect.TypeOf((*MockInterface)(nil).JfsUnmount), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JfsUnmount", reflect.TypeOf((*MockInterface)(nil).JfsUnmount), arg0, arg1, arg2)
 }
 
 // List mocks base method.
