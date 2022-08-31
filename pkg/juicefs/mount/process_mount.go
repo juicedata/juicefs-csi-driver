@@ -26,7 +26,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 
 	"google.golang.org/grpc/codes"
@@ -48,9 +47,9 @@ func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 	return &ProcessMount{mounter}
 }
 
-func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
+func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
-	err := p.JMount(jfsSetting)
+	err := p.JMount(ctx, jfsSetting)
 	if err != nil {
 		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -60,8 +59,6 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 
 	klog.V(6).Infof("JCreateVolume: checking %q exists in %v", volPath, jfsSetting.MountPath)
 	var exists bool
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
 	if err := util.DoWithContext(ctx, func() (err error) {
 		exists, err = k8sMount.PathExists(volPath)
 		return
@@ -100,9 +97,9 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return nil
 }
 
-func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
+func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
-	err := p.JMount(jfsSetting)
+	err := p.JMount(ctx, jfsSetting)
 	if err != nil {
 		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
@@ -111,8 +108,6 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.VolumeId)
 
 	var existed bool
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
 
 	if err := util.DoWithContext(ctx, func() (err error) {
 		existed, err = k8sMount.PathExists(volPath)
@@ -120,7 +115,7 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	}); err != nil {
 		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
-		stdoutStderr, err := p.RmrDir(volPath, jfsSetting.IsCe)
+		stdoutStderr, err := p.RmrDir(ctx, volPath, jfsSetting.IsCe)
 		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
@@ -134,7 +129,7 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	return nil
 }
 
-func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
+func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	if !strings.Contains(jfsSetting.Source, "://") {
 		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
 		err := p.Mount(jfsSetting.Source, jfsSetting.MountPath, jfsConfig.FsType, jfsSetting.Options)
@@ -152,8 +147,6 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	}
 
 	var exist bool
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
 
 	if err := util.DoWithContext(ctx, func() (err error) {
 		exist, err = k8sMount.PathExists(jfsSetting.MountPath)
@@ -198,11 +191,9 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	go func() { _ = mntCmd.Run() }()
 	// Wait until the mount point is ready
 
-	mountCtx, mountCancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer mountCancel()
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(mountCtx, func() (err error) {
+		if err := util.DoWithContext(ctx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
@@ -226,13 +217,11 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 }
 
-func (p *ProcessMount) GetMountRef(target, podName string) (int, error) {
+func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
 	var refs []string
 
 	var corruptedMnt bool
 	var exists bool
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
 
 	err := util.DoWithContext(ctx, func() (err error) {
 		exists, err = k8sMount.PathExists(target)
@@ -266,20 +255,18 @@ func (p *ProcessMount) GetMountRef(target, podName string) (int, error) {
 	return len(refs), err
 }
 
-func (p *ProcessMount) UmountTarget(target, podName string) error {
+func (p *ProcessMount) UmountTarget(ctx context.Context, target, podName string) error {
 	// process mnt need target to get ref
 	// so, umount target in JUmount
 	return nil
 }
 
 // JUmount umount targetPath
-func (p *ProcessMount) JUmount(target, podName string) error {
+func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) error {
 	var refs []string
 
 	var corruptedMnt bool
 	var exists bool
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
 
 	err := util.DoWithContext(ctx, func() (err error) {
 		exists, err = k8sMount.PathExists(target)
@@ -327,13 +314,11 @@ func (p *ProcessMount) JUmount(target, podName string) error {
 	return err
 }
 
-func (p *ProcessMount) AddRefOfMount(target string, podName string) error {
+func (p *ProcessMount) AddRefOfMount(ctx context.Context, target string, podName string) error {
 	panic("implement me")
 }
 
-func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
-	defer cancel()
+func (p *ProcessMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
@@ -355,10 +340,10 @@ func (p *ProcessMount) CleanCache(id string, volumeId string, cacheDirs []string
 	return nil
 }
 
-func (p *ProcessMount) RmrDir(directory string, isCeMount bool) ([]byte, error) {
+func (p *ProcessMount) RmrDir(ctx context.Context, directory string, isCeMount bool) ([]byte, error) {
 	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
 	if isCeMount {
-		return p.Exec.Command(jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
+		return p.Exec.CommandContext(ctx, jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
 	}
-	return p.Exec.Command(jfsConfig.CliPath, "rmr", directory).CombinedOutput()
+	return p.Exec.CommandContext(ctx, jfsConfig.CliPath, "rmr", directory).CombinedOutput()
 }

@@ -19,13 +19,14 @@ package controller
 import (
 	"context"
 	"errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"reflect"
 	"syscall"
 	"testing"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	k8sexec "k8s.io/utils/exec"
 
@@ -755,13 +756,13 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			tmpPod := copyPod(readyPod)
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
 			patch2 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput",
 				func(_ *exec.Cmd) ([]byte, error) {
-					err := d.Client.DeletePod(tmpPod)
+					err := d.Client.DeletePod(context.TODO(), tmpPod)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -814,7 +815,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = nil
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -830,7 +831,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			tmpPod.Annotations = map[string]string{
 				"/var/lib/xxx": "/var/lib/xxx",
 			}
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -844,7 +845,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			tmpPod := copyPod(readyPod)
 			tmpPod.Spec.Containers = nil
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -862,7 +863,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			tmpPod := copyPod(readyPod)
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -934,8 +935,8 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				return false, notExistsErr
 			})
 			defer patch1.Reset()
-			_, err := d.Client.CreatePod(errorPod1)
-			defer d.Client.DeletePod(errorPod1)
+			_, err := d.Client.CreatePod(context.TODO(), errorPod1)
+			defer d.Client.DeletePod(context.TODO(), errorPod1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -960,7 +961,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			errPod := copyPod(resourceErrPod)
-			d.Client.CreatePod(errPod)
+			d.Client.CreatePod(context.TODO(), errPod)
 			err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})

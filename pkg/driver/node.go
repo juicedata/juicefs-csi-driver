@@ -18,11 +18,12 @@ package driver
 
 import (
 	"context"
-	k8sexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 	"os"
 	"reflect"
 	"strings"
+
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -30,10 +31,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-)
-
-const (
-	fsTypeNone = "none"
 )
 
 var (
@@ -126,16 +123,16 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	mountOptions = append(mountOptions, options...)
 
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
-	jfs, err := d.juicefs.JfsMount(volumeID, target, secrets, volCtx, mountOptions)
+	jfs, err := d.juicefs.JfsMount(ctx, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource, err := jfs.CreateVol(volumeID, volCtx["subPath"])
+	bindSource, err := jfs.CreateVol(ctx, volumeID, volCtx["subPath"])
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
-	if err := jfs.BindTarget(bindSource, target); err != nil {
+	if err := jfs.BindTarget(ctx, bindSource, target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
@@ -155,7 +152,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	klog.V(5).Infof("NodeUnpublishVolume: volume_id is %s", volumeId)
 
-	err := d.juicefs.JfsUnmount(volumeId, target)
+	err := d.juicefs.JfsUnmount(ctx, volumeId, target)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}

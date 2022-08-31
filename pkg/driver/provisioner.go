@@ -20,15 +20,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	"os"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
-	"strconv"
 )
 
 var (
@@ -93,7 +94,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
 	secretName, secretNamespace := sc.Parameters[provisionerSecretName], sc.Parameters[provisionerSecretNamespace]
-	secret, err := j.K8sClient.GetSecret(secretName, secretNamespace)
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
@@ -102,7 +103,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	for k, v := range secret.Data {
 		secretData[k] = string(v)
 	}
-	if err := j.juicefs.JfsCreateVol(options.PVName, subPath, secretData); err != nil {
+	if err := j.juicefs.JfsCreateVol(ctx, options.PVName, subPath, secretData); err != nil {
 		klog.Errorf("[PVCReconciler]: create vol error %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
 	}
@@ -154,7 +155,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[provisionerSecretName], volume.Spec.CSI.VolumeAttributes[provisionerSecretNamespace]
-	secret, err := j.K8sClient.GetSecret(secretName, secretNamespace)
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return err
@@ -165,7 +166,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 
 	klog.V(5).Infof("Provisioner Delete: Deleting volume subpath %q", subPath)
-	if err := j.juicefs.JfsDeleteVol(volume.Name, subPath, secretData); err != nil {
+	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData); err != nil {
 		klog.Errorf("provisioner: delete vol error %v", err)
 		return errors.New("unable to provision delete volume: " + err.Error())
 	}

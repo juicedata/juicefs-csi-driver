@@ -38,7 +38,7 @@ var (
 	MountLabels    = ""
 	HostIp         = ""
 	KubeletPort    = ""
-	ContextTimeout = 15 * time.Second
+	ContextTimeout = 1 * time.Minute
 
 	CSIPod = corev1.Pod{}
 
