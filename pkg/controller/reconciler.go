@@ -85,7 +85,7 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), config.ContextTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
 			defer cancel()
 			err := driver.Run(ctx, pod)
 			if err != nil {
