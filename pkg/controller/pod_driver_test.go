@@ -676,15 +676,15 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch2.Reset()
 			k := &k8sclient.K8sClient{}
-			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
 				return nil, nil
 			})
 			defer patch5.Reset()
@@ -716,15 +716,15 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch2.Reset()
 			k := &k8sclient.K8sClient{}
-			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
 				return nil, nil
 			})
 			defer patch5.Reset()
@@ -902,7 +902,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 		})
 		Convey("GetPod error", func() {
 			k := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Finalizers: []string{jfsConfig.Finalizer},
@@ -910,11 +910,11 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				}, nil
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) error {
 				return nil
 			})
 			defer patch3.Reset()
