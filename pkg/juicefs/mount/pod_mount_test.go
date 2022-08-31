@@ -229,7 +229,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 	Convey("Test AddRefOfMount", t, func() {
 		Convey("get pod error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch1.Reset()
@@ -337,7 +337,7 @@ func TestJUmountWithMock(t *testing.T) {
 			})
 			defer patch1.Reset()
 			client := &k8sclient.K8sClient{}
-			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch2.Reset()
@@ -403,7 +403,7 @@ func TestJUmountWithMock(t *testing.T) {
 		})
 		Convey("pod delete error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "DeletePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "DeletePod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod) error {
 				return errors.New("test")
 			})
 			defer patch1.Reset()
@@ -436,7 +436,7 @@ func TestUmountTarget(t *testing.T) {
 			})
 			defer patch1.Reset()
 			client := &k8sclient.K8sClient{}
-			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch2.Reset()
@@ -490,7 +490,7 @@ func TestUmountTarget(t *testing.T) {
 		})
 		Convey("pod update error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
 				return errors.New("test")
 			})
 			defer patch1.Reset()
@@ -625,11 +625,11 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				return true
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(client), "CreatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(client), "CreatePod", func(_ context.Context, _ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
@@ -657,7 +657,7 @@ func TestJMount(t *testing.T) {
 				return false
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ context.Context, _ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch2.Reset()

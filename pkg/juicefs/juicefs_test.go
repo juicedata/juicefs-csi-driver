@@ -311,14 +311,13 @@ func Test_juicefs_JfsMount(t *testing.T) {
 
 			jf := &juicefs{}
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, secrets map[string]string, setting *config.JfsSetting) (string, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ context.Context, _ *juicefs, secrets map[string]string, setting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ context.Context, _ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -349,11 +348,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ context.Context, _ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ context.Context, _ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -389,11 +388,9 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ context.Context, _ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -413,15 +410,13 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ context.Context, _ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ context.Context, _ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -451,11 +446,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ context.Context, _ *juicefs, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ context.Context, _ *juicefs, name string) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
