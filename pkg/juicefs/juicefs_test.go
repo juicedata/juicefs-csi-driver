@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
@@ -712,7 +713,9 @@ func Test_juicefs_MountFs(t *testing.T) {
 					Exec:      k8sexec.New(),
 				}),
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_, e := jfs.MountFs(ctx, jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("add ref err", func() {

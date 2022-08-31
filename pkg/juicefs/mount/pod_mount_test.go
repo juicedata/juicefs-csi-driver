@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -236,7 +237,9 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 			p := &PodMount{
 				K8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			}
-			err := p.AddRefOfMount(context.TODO(), "test-target", "test-pod")
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err := p.AddRefOfMount(ctx, "test-target", "test-pod")
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -346,7 +349,9 @@ func TestJUmountWithMock(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.JUmount(context.TODO(), "/test", "ttt")
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := p.JUmount(ctx, "/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod hasRef", func() {
@@ -422,7 +427,9 @@ func TestJUmountWithMock(t *testing.T) {
 					Namespace: jfsConfig.Namespace,
 				},
 			})
-			err := p.JUmount(context.TODO(), "/test", podName)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := p.JUmount(ctx, "/test", podName)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -454,7 +461,9 @@ func TestUmountTarget(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.UmountTarget(context.TODO(), "/test", "ttt")
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := p.UmountTarget(ctx, "/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pod conflict", func() {
@@ -521,7 +530,9 @@ func TestUmountTarget(t *testing.T) {
 					},
 				},
 			})
-			err := p.UmountTarget(context.TODO(), "/test", podName)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := p.UmountTarget(ctx, "/test", podName)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -643,7 +654,9 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
-			_, err := p.createOrAddRef(context.TODO(), &jfsConfig.JfsSetting{Storage: "ttt"})
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_, err := p.createOrAddRef(ctx, &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -671,7 +684,9 @@ func TestJMount(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
-			err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{Storage: "ttt"})
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err := p.JMount(ctx, &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})

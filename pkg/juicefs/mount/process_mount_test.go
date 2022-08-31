@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"syscall"
 	"testing"
+	"time"
 
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
@@ -112,7 +113,9 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 			}
-			if err := p.JUmount(context.TODO(), targetPath, podName); err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := p.JUmount(ctx, targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -142,7 +145,9 @@ func TestProcessMount_JUmount(t *testing.T) {
 			p := &ProcessMount{
 				SafeFormatAndMount: *mounter,
 			}
-			if err := p.JUmount(context.TODO(), targetPath, podName); err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := p.JUmount(ctx, targetPath, podName); err == nil {
 				t.Errorf("JUmount() error = %v", err)
 			}
 		})
@@ -201,7 +206,9 @@ func TestProcessMount_JMount(t *testing.T) {
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 					Source:    eeSource,
 					VolumeId:  volumeId,
 					MountPath: targetPath,
@@ -295,7 +302,9 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							Storage:   "ceph",
 							VolumeId:  volumeId,
@@ -336,7 +345,9 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source: ceSource, Storage: "ceph",
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -353,7 +364,9 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -373,7 +386,9 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -398,7 +413,9 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -424,7 +441,10 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+
+						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+						defer cancel()
+						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
