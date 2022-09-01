@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"strings"
@@ -33,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
@@ -534,6 +534,8 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
 	// target path should not affect hash val
 	setting.TargetPath = ""
+	setting.VolumeId = ""
+	setting.SubPath = ""
 	settingStr, err := json.Marshal(setting)
 	if err != nil {
 		return "", err
