@@ -22,12 +22,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/fields"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	"k8s.io/apimachinery/pkg/fields"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -536,6 +537,8 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
 	// target path should not affect hash val
 	setting.TargetPath = ""
+	setting.VolumeId = ""
+	setting.SubPath = ""
 	settingStr, err := json.Marshal(setting)
 	if err != nil {
 		return "", err
