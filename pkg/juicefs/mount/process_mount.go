@@ -27,8 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
@@ -52,7 +50,7 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
 	err := p.JMount(jfsSetting)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
 
 	// 2. create subPath volume
@@ -64,14 +62,14 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		exists, err = k8sMount.PathExists(volPath)
 		return
 	}); err != nil {
-		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
 		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
 		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
-			return status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
+			return fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 
 		var fi os.FileInfo
@@ -79,21 +77,21 @@ func (p *ProcessMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
-			return status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
+			return fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		}
 
 		if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
 			if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
-				return status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
+				return fmt.Errorf("could not chmod directory %s: %q", volPath, err)
 			}
 		}
 	}
 
 	// 3. umount
 	if err = p.Unmount(jfsSetting.MountPath); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount %q: %v", jfsSetting.MountPath, err)
+		return fmt.Errorf("could not unmount %q: %v", jfsSetting.MountPath, err)
 	}
 	return nil
 }
@@ -102,7 +100,7 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
 	err := p.JMount(jfsSetting)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
+		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
 
 	// 2. delete subPath volume
@@ -113,18 +111,18 @@ func (p *ProcessMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 		existed, err = k8sMount.PathExists(volPath)
 		return err
 	}); err != nil {
-		return status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
 		stdoutStderr, err := p.RmrDir(volPath, jfsSetting.IsCe)
 		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Could not delete volume path %q: %v", volPath, err)
+			return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
 		}
 	}
 
 	// 3. umount
 	if err = p.Unmount(jfsSetting.MountPath); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount volume %q: %v", jfsSetting.SubPath, err)
+		return fmt.Errorf("could not unmount volume %q: %v", jfsSetting.SubPath, err)
 	}
 	return nil
 }
@@ -134,7 +132,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
 		err := p.Mount(jfsSetting.Source, jfsSetting.MountPath, jfsConfig.FsType, jfsSetting.Options)
 		if err != nil {
-			return status.Errorf(codes.Internal, "Could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
+			return fmt.Errorf("could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
 		}
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
@@ -151,13 +149,13 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		exist, err = k8sMount.PathExists(jfsSetting.MountPath)
 		return
 	}); err != nil {
-		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", jfsSetting.MountPath, err)
+		return fmt.Errorf("could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !exist {
 		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
 		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 			return os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755))
 		}); err != nil {
-			return status.Errorf(codes.Internal, "Could not create dir %q: %v", jfsSetting.MountPath, err)
+			return fmt.Errorf("could not create dir %q: %v", jfsSetting.MountPath, err)
 		}
 	}
 
@@ -166,7 +164,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		notMounted, err = p.IsLikelyNotMountPoint(jfsSetting.MountPath)
 		return
 	}); err != nil {
-		return status.Errorf(codes.Internal, "Could not check existence of dir %q: %v", jfsSetting.MountPath, err)
+		return fmt.Errorf("could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !notMounted {
 		err = p.Unmount(jfsSetting.MountPath)
 		if err != nil {
@@ -209,7 +207,7 @@ func (p *ProcessMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+	return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 }
 
 func (p *ProcessMount) GetMountRef(target, podName string) (int, error) {
@@ -232,19 +230,19 @@ func (p *ProcessMount) GetMountRef(target, podName string) (int, error) {
 			return err
 		})
 		if err != nil {
-			return 0, status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
+			return 0, fmt.Errorf("check target path is mountpoint failed: %q", err)
 		}
 		if notMnt { // target exists but not a mountpoint
 			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
 			return 0, nil
 		}
 	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
-		return 0, status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
+		return 0, fmt.Errorf("check path %s failed: %q", target, err)
 	}
 
 	refs, err = util.GetMountDeviceRefs(target, corruptedMnt)
 	if err != nil {
-		return 0, status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
+		return 0, fmt.Errorf("fail to get mount device refs: %q", err)
 	}
 	return len(refs), err
 }
@@ -276,24 +274,24 @@ func (p *ProcessMount) JUmount(target, podName string) error {
 			return err
 		})
 		if err != nil {
-			return status.Errorf(codes.Internal, "Check target path is mountpoint failed: %q", err)
+			return fmt.Errorf("check target path is mountpoint failed: %q", err)
 		}
 		if notMnt { // target exists but not a mountpoint
 			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
 			return nil
 		}
 	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
-		return status.Errorf(codes.Internal, "Check path %s failed: %q", target, err)
+		return fmt.Errorf("check path %s failed: %q", target, err)
 	}
 
 	refs, err = util.GetMountDeviceRefs(target, corruptedMnt)
 	if err != nil {
-		return status.Errorf(codes.Internal, "Fail to get mount device refs: %q", err)
+		return fmt.Errorf("fail to get mount device refs: %q", err)
 	}
 
 	klog.V(5).Infof("ProcessUmount: unmounting target %s", target)
 	if err := p.Unmount(target); err != nil {
-		return status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
+		return fmt.Errorf("could not unmount %q: %v", target, err)
 	}
 
 	// we can only unmount this when only one is left

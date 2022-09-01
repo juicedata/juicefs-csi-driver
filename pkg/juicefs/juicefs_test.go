@@ -33,8 +33,6 @@ import (
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"
 	. "github.com/smartystreets/goconvey/convey"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -75,13 +73,6 @@ func Test_jfs_CreateVol(t *testing.T) {
 			got, err := j.CreateVol("", "subPath")
 			So(err, ShouldNotBeNil)
 			So(got, ShouldEqual, "")
-			srvErr, ok := status.FromError(err)
-			if !ok {
-				t.Fatalf("Could not get error status code from error: %v", srvErr)
-			}
-			if srvErr.Code() != codes.Internal {
-				t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-			}
 		})
 		Convey("test mkdirAll err", func() {
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
@@ -99,13 +90,6 @@ func Test_jfs_CreateVol(t *testing.T) {
 			got, err := j.CreateVol("", "subPath")
 			So(err, ShouldNotBeNil)
 			So(got, ShouldEqual, "")
-			srvErr, ok := status.FromError(err)
-			if !ok {
-				t.Fatalf("Could not get error status code from error: %v", srvErr)
-			}
-			if srvErr.Code() != codes.Internal {
-				t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-			}
 		})
 		Convey("test stat err", func() {
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
@@ -127,13 +111,6 @@ func Test_jfs_CreateVol(t *testing.T) {
 			got, err := j.CreateVol("", "subPath")
 			So(err, ShouldNotBeNil)
 			So(got, ShouldEqual, "")
-			srvErr, ok := status.FromError(err)
-			if !ok {
-				t.Fatalf("Could not get error status code from error: %v", srvErr)
-			}
-			if srvErr.Code() != codes.Internal {
-				t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-			}
 		})
 	})
 }
@@ -1066,7 +1043,7 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 		})
 		Convey("status error", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "Output", func(_ *exec.Cmd) ([]byte, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
 				return []byte(""), errors.New("test")
 			})
 			defer patch3.Reset()
