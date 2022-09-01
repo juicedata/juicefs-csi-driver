@@ -48,8 +48,9 @@ import (
 )
 
 const (
-	fsTypeNone        = "none"
-	procMountInfoPath = "/proc/self/mountinfo"
+	defaultCheckTimeout = 2 * time.Second
+	fsTypeNone          = "none"
+	procMountInfoPath   = "/proc/self/mountinfo"
 )
 
 // Interface of juicefs provider
@@ -100,9 +101,10 @@ func (fs *jfs) GetBasePath() string {
 // CreateVol creates the directory needed
 func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
+
 	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	var exists bool
-	if err := util.DoWithContext(ctx, func() (err error) {
+	if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -110,19 +112,19 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		if err := util.DoWithContext(ctx, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if err := util.DoWithContext(ctx, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if err := util.DoWithContext(ctx, func() (err error) {
+			if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -450,9 +452,10 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 
 func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	return util.DoWithContext(ctx, func() (err error) {
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() error {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
+	return err
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only

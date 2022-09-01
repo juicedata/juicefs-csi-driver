@@ -325,18 +325,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	// Wait until the mount point is ready
-	for {
+	for i := 0; i < 60; i++ {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(waitCtx, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
-			if err == context.DeadlineExceeded {
-				break
-			}
 			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
 			time.Sleep(time.Millisecond * 500)
 			continue

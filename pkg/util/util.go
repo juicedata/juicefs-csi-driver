@@ -36,6 +36,8 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 )
@@ -370,17 +372,31 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
-func DoWithContext(ctx context.Context, f func() error) error {
+func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f func() error) (out []byte, err error) {
+	doneCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	doneCh := make(chan error)
 	go func() {
-		doneCh <- f()
+		if cmd != nil {
+			out, err = cmd.CombinedOutput()
+			doneCh <- err
+		} else {
+			doneCh <- f()
+		}
 	}()
 
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-doneCh:
-		return err
+	case <-doneCtx.Done():
+		err = status.Error(codes.Internal, "context timeout")
+		if cmd != nil {
+			go func() {
+				cmd.Process.Kill()
+			}()
+		}
+		return
+	case err = <-doneCh:
+		return
 	}
 }
 
@@ -389,14 +405,16 @@ func CheckDynamicPV(name string) (bool, error) {
 }
 
 func UmountPath(ctx context.Context, sourcePath string) {
-	cmd := exec.CommandContext(ctx, "umount", sourcePath)
-	if outBytes, err := cmd.CombinedOutput(); err != nil {
-		out := string(outBytes)
+	cmd := exec.Command("umount", sourcePath)
+	outByte, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
+	out := string(outByte)
+	if err != nil {
 		if !strings.Contains(out, "not mounted") &&
 			!strings.Contains(out, "mountpoint not found") &&
 			!strings.Contains(out, "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			output, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
+			cmd2 := exec.Command("umount", "-l", sourcePath)
+			output, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
 			if err != nil {
 				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
 			}

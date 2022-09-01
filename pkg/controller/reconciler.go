@@ -17,11 +17,11 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"strconv"
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"golang.org/x/net/context"
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -85,9 +85,7 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
-			defer cancel()
-			err := driver.Run(ctx, pod)
+			err := driver.Run(context.TODO(), pod)
 			if err != nil {
 				klog.Errorf("Check pod %s: %s", pod.Name, err)
 			}

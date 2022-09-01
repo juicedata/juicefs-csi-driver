@@ -19,7 +19,6 @@ package config
 import (
 	"hash/fnv"
 	"sync"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -31,14 +30,13 @@ var (
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
 
-	NodeName         = ""
-	Namespace        = ""
-	PodName          = ""
-	MountImage       = ""
-	MountLabels      = ""
-	HostIp           = ""
-	KubeletPort      = ""
-	ReconcileTimeout = 1 * time.Minute
+	NodeName    = ""
+	Namespace   = ""
+	PodName     = ""
+	MountImage  = ""
+	MountLabels = ""
+	HostIp      = ""
+	KubeletPort = ""
 
 	CSIPod = corev1.Pod{}
 
