@@ -28,14 +28,11 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/apimachinery/pkg/fields"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
@@ -313,7 +310,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 				}
 				return podName, err
 			} else if k8serrors.IsTimeout(err) {
-				return podName, status.Errorf(codes.Internal, "Mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
+				return podName, fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
@@ -359,9 +356,9 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	log, err := p.getErrContainerLog(ctx, podName)
 	if err != nil {
 		klog.Errorf("Get pod %s log error %v", podName, err)
-		return status.Errorf(codes.Internal, "Mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	}
-	return status.Errorf(codes.Internal, "Mount %v at %v failed: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, log)
+	return fmt.Errorf("mount %v at %v failed: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, log)
 }
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
@@ -376,7 +373,7 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 			if k8serrors.IsTimeout(err) {
 				break
 			}
-			return status.Errorf(codes.Internal, "waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
+			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
 		}
 		if util.IsJobCompleted(job) {
 			klog.V(5).Infof("waitUtilJobCompleted: Job %s is completed", jobName)
@@ -391,13 +388,13 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 		},
 	}, nil)
 	if err != nil || len(pods) != 1 {
-		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
+		return fmt.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
 	log, err := p.getNotCompleteCnLog(ctx, pods[0].Name)
 	if err != nil {
-		return status.Errorf(codes.Internal, "waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
+		return fmt.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return status.Errorf(codes.Internal, "waitUtilJobCompleted: job %s isn't completed: %v", jobName, log)
+	return fmt.Errorf("waitUtilJobCompleted: job %s isn't completed: %v", jobName, log)
 }
 
 func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName string) error {
@@ -411,7 +408,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 			return err
 		}
 		if exist.DeletionTimestamp != nil {
-			return status.Errorf(codes.Internal, "addRefOfMount: Mount pod [%s] has been deleted.", podName)
+			return fmt.Errorf("addRefOfMount: Mount pod [%s] has been deleted", podName)
 		}
 		annotation := exist.Annotations
 		if _, ok := annotation[key]; ok {
