@@ -18,6 +18,7 @@ package juicefs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -107,26 +108,26 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
-		return "", status.Errorf(codes.Internal, "Could not check volume path %q exists: %v", volPath, err)
+		return "", fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
 		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
-			return "", status.Errorf(codes.Internal, "Could not make directory for meta %q: %v", volPath, err)
+			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
 		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
-			return "", status.Errorf(codes.Internal, "Could not stat directory %s: %q", volPath, err)
+			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
 			if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
-				return "", status.Errorf(codes.Internal, "Could not chmod directory %s: %q", volPath, err)
+				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
 			}
 		}
 	}
@@ -233,7 +234,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 	}
 	mountPath, err := j.MountFs(jfsSetting)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "%v", err)
+		return nil, err
 	}
 
 	return &jfs{
@@ -259,7 +260,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		} else {
 			res, err := j.AuthFs(secrets, jfsSetting)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, "Could not auth juicefs: %v", err)
+				return nil, fmt.Errorf("juicefs auth error: %v", err)
 			}
 			if config.FormatInPod {
 				jfsSetting.FormatCmd = res
@@ -277,7 +278,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		}
 		res, err := j.ceFormat(secrets, noUpdate, jfsSetting)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "%v", err)
+			return nil, fmt.Errorf("juicefs format error: %v", err)
 		}
 		if config.FormatInPod {
 			jfsSetting.FormatCmd = res
@@ -336,15 +337,15 @@ func (j *juicefs) getUniqueId(volumeId string) (string, error) {
 func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
 	stdout, err := j.Exec.Command(config.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
-		klog.Errorf("juicefs status: output is '%s'", stdout)
-		return "", err
+		klog.Errorf("juicefs status error: %v, output: '%s'", err, string(stdout))
+		return "", fmt.Errorf("juicefs status error: %s", string(stdout))
 	}
 
 	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
 	idStr := matchExp.FindString(string(stdout))
 	idStrs := strings.Split(idStr, "\"")
 	if len(idStrs) < 4 {
-		return "", status.Errorf(codes.Internal, "get uuid of %s error", name)
+		return "", fmt.Errorf("get uuid of %s error", name)
 	}
 
 	return idStrs[3], nil
@@ -512,8 +513,7 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		cmdArgs = append(cmdArgs, "--no-update")
 		args = append(args, "--no-update")
 		if secrets["bucket"] == "" {
-			return "", status.Errorf(codes.InvalidArgument,
-				"bucket argument is required when --no-update option is provided")
+			return "", fmt.Errorf("bucket argument is required when --no-update option is provided")
 		}
 		if !config.FormatInPod && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
@@ -521,8 +521,7 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
-					return "", status.Errorf(codes.Internal,
-						"Create config file %q failed: %v", confPath, err)
+					return "", fmt.Errorf("create config file %q failed: %v", confPath, err)
 				}
 				klog.V(5).Infof("Create config file: %q success", confPath)
 			}
@@ -555,8 +554,12 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		res, err = authCmd.CombinedOutput()
 		return
 	})
-	klog.Infof("Auth output is %s", res)
-	return string(res), err
+	if err != nil {
+		klog.Infof("Auth error: %v, output: %s", err, string(res))
+		return "", errors.New(string(res))
+	}
+	klog.Infof("Auth output: %s", string(res))
+	return string(res), nil
 }
 
 // MountFs mounts JuiceFS with idempotency
@@ -685,10 +688,14 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	}
 	formatCmd.SetEnv(envs)
 	var res []byte
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
+	_, err := util.DoWithinTime(context.TODO(), 50*time.Second, nil, func() (err error) {
 		res, err = formatCmd.CombinedOutput()
 		return
 	})
-	klog.Infof("Format output is %s", res)
-	return string(res), err
+	if err != nil {
+		klog.Infof("Format error: %v, output: %s", err, string(res))
+		return "", errors.New(string(res))
+	}
+	klog.Infof("Format output: %s", string(res))
+	return string(res), nil
 }
