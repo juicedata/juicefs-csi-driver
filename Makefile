@@ -170,7 +170,6 @@ image-release-check-push:
 # build & push image for fluid fuse
 .PHONY: fuse-image-version
 fuse-image-version:
-	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
 	docker buildx build -f docker/fuse.Dockerfile -t $(FUSE_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
@@ -184,7 +183,6 @@ csi-slim-image-version:
 # build & push juicefs image
 .PHONY: juicefs-image-version
 juicefs-image-version:
-	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
 	docker buildx build -f docker/juicefs.Dockerfile -t $(JUICEFS_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
