@@ -27,7 +27,7 @@ LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.git
 GO111MODULE=on
 IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoint=/usr/bin/juicefs $(IMAGE):$(VERSION) version | cut -d' ' -f3)
 JUICEFS_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
-JUICEFS_EE_LATEST_VERSION=$(shell curl --silent --location https://juicefs.com/static/juicefs -o juicefs && chmod +x juicefs && juicefs version | cut -d' ' -f3)
+JUICEFS_EE_LATEST_VERSION=$(shell curl --silent --location https://juicefs.com/static/juicefs -o juicefs && chmod +x juicefs && ./juicefs version | cut -d' ' -f3)
 JUICEFS_RELEASE_CHECK_VERSION=${JUICEFS_VERSION}
 JFS_CHAN=${JFSCHAN}
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
