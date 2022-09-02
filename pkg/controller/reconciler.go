@@ -17,16 +17,16 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"strconv"
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"golang.org/x/net/context"
+	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"k8s.io/klog"
-	k8sexec "k8s.io/utils/exec"
 )
 
 type PodReconciler struct {
