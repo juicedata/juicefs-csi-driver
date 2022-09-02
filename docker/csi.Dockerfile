@@ -39,7 +39,8 @@ FROM alpine:3.15.5
 COPY --from=builder /workspace/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs
 COPY --from=builder /tini /tini
+RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 
-RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
+RUN /usr/local/bin/juicefs --version
 
 ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
