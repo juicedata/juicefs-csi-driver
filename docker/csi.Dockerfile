@@ -22,7 +22,7 @@ ARG TARGETARCH
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 
 WORKDIR /workspace
-COPY .. .
+COPY . .
 RUN make
 
 ENV STATIC=1
