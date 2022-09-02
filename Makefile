@@ -15,6 +15,7 @@
 IMAGE=juicedata/juicefs-csi-driver
 REGISTRY?=docker.io
 TARGETARCH?=amd64
+FUSE_IMAGE=juicedata/juicefs-fuse
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -152,6 +153,12 @@ image-release-check-push:
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
 	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
 	docker push $(REGISTRY)/$(IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-check
+
+.PHONY: fuse-image-version
+fuse-image-version:
+	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
+	docker buildx build -f fuse.Dockerfile -t $(FUSE_IMAGE):$(JUICEFS_LATEST_VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
