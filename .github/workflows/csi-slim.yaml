@@ -5,6 +5,9 @@ on:
   release:
     types:
       - created
+  push:
+    branches:
+      - mount_pod_image
 
 jobs:
   publish-image:
