@@ -287,7 +287,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	r := builder.NewBuilder(jfsSetting)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
-	for {
+	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
 		oldPod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
@@ -322,6 +322,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 		}
 		return podName, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
+	return podName, fmt.Errorf("mount %v failed: mount pod %s has been deleting", jfsSetting.VolumeId, podName)
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
