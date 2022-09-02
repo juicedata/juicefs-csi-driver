@@ -357,15 +357,12 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
-	for {
+	for i := 0; i < 120; i++ {
 		job, err := p.K8sClient.GetJob(ctx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
 				return nil
-			}
-			if k8serrors.IsTimeout(err) {
-				break
 			}
 			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
 		}
