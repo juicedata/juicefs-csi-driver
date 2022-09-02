@@ -550,7 +550,11 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	authCmd.SetEnv(envs)
-	res, err := authCmd.CombinedOutput()
+	var res []byte
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
+		res, err = authCmd.CombinedOutput()
+		return
+	})
 	klog.Infof("Auth output is %s", res)
 	if err != nil {
 		klog.Infof("Auth error: %v", err)
@@ -684,7 +688,11 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
 	formatCmd.SetEnv(envs)
-	res, err := formatCmd.CombinedOutput()
+	var res []byte
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
+		res, err = formatCmd.CombinedOutput()
+		return
+	})
 	klog.Infof("Format output is %s", res)
 	if err != nil {
 		klog.Infof("Format error: %v", err)
