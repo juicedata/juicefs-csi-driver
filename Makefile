@@ -176,7 +176,6 @@ fuse-image-version:
 # build & push csi slim image
 .PHONY: csi-slim-image-version
 csi-slim-image-version:
-	[ -z `git status --porcelain` ] || (git --no-pager diff && exit 255)
 	docker buildx build -f docker/csi.Dockerfile -t $(IMAGE):$(VERSION)-slim \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) --build-arg JUICEFS_EE_VERSION=$(JUICEFS_EE_LATEST_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
