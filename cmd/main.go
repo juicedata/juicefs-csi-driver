@@ -103,8 +103,7 @@ func init() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
-	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", config.PodName)
-	os.Exit(0)
+	return
 }
 
 func main() {
