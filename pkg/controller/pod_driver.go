@@ -36,8 +36,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-const defaultCheckoutTimeout = 1 * time.Second
-
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
 	handlers map[podStatus]podHandler
@@ -194,7 +192,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 			}
 			isDeleted := false
 			// wait pod delete for 1min
-			for i := 0; i < 120; i++ {
+			for {
 				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 				if err == nil {
 					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
@@ -205,10 +203,13 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 					isDeleted = true
 					break
 				}
+				if apierrors.IsTimeout(err) {
+					break
+				}
 				klog.Errorf("get mountPod err:%v", err)
 			}
 			if !isDeleted {
-				klog.Errorf("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+				klog.Errorf("Old pod %s %s deleting timeout", pod.Name, config.Namespace)
 				return nil
 			}
 			var newPod = &corev1.Pod{
@@ -304,7 +305,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	klog.V(5).Infof("pod targetPath not empty, need create pod:%s", pod.Name)
 
 	// check pod delete
-	for i := 0; i < 120; i++ {
+	for {
 		po, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err == nil && po.DeletionTimestamp != nil {
 			klog.V(6).Infof("pod %s %s is being deleted, waiting", pod.Name, pod.Namespace)
@@ -312,6 +313,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			continue
 		}
 		if err != nil {
+			if apierrors.IsTimeout(err) {
+				break
+			}
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
 				err := util.DoWithContext(ctx, func() error {
@@ -360,9 +364,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		}
 		return err
 	}
-
-	klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
-	return fmt.Errorf("old pod %s %s can't be deleted within 1min", pod.Name, config.Namespace)
+	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
+	klog.V(5).Infof(err.Error())
+	return err
 }
 
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) error {

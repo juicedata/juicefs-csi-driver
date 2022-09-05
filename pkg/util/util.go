@@ -45,7 +45,6 @@ const (
 	maxListTries                         = 3
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
-	defaultCheckoutTimeout               = 1 * time.Second
 )
 
 func init() {
