@@ -333,7 +333,9 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	// Wait until the mount point is ready
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(waitCtx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(waitCtx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {

@@ -36,6 +36,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
+const defaultCheckoutTimeout = 1 * time.Second
+
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
 	handlers map[podStatus]podHandler
@@ -285,7 +287,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		// do not need to create new one, umount
 		util.UmountPath(ctx, sourcePath)
 		// clean mount point
-		err = util.DoWithContext(ctx, func() error {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
+		defer cmdCancel()
+		err = util.DoWithContext(cmdCtx, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
@@ -318,7 +322,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			}
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				err := util.DoWithContext(ctx, func() error {
+				cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
+				defer cmdCancel()
+				err := util.DoWithContext(cmdCtx, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -390,7 +396,9 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	e := util.DoWithContext(ctx, func() error {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
+	defer cmdCancel()
+	e := util.DoWithContext(cmdCtx, func() error {
 		_, e := os.Stat(mntPath)
 		return e
 	})
@@ -493,10 +501,15 @@ func (p PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 
 	// wait for pod deleted.
 	isDeleted := false
-	for i := 0; i < 360; i++ {
-		if _, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace); err != nil {
+	getCtx, getCancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer getCancel()
+	for {
+		if _, err := p.Client.GetPod(getCtx, pod.Name, pod.Namespace); err != nil {
 			if apierrors.IsNotFound(err) {
 				isDeleted = true
+				break
+			}
+			if apierrors.IsTimeout(err) {
 				break
 			}
 			klog.V(5).Infof("[CleanUpCache] Get pod %s error %v. Skip clean cache.", pod.Name, err)

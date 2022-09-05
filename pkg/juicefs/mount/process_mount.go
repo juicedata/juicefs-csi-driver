@@ -34,6 +34,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
+const defaultCheckTimeout = 2 * time.Second
+
 type ProcessMount struct {
 	k8sMount.SafeFormatAndMount
 }
@@ -56,7 +58,9 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	klog.V(6).Infof("JCreateVolume: checking %q exists in %v", volPath, jfsSetting.MountPath)
 	var exists bool
-	if err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	if err := util.DoWithContext(cmdCtx, func() (err error) {
 		exists, err = k8sMount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -64,14 +68,18 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 	}
 	if !exists {
 		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
-		if err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 
 		var fi os.FileInfo
-		if err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel = context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
@@ -79,7 +87,9 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 		}
 
 		if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if err := util.DoWithContext(ctx, func() (err error) {
+			cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+			defer cmdCancel()
+			if err := util.DoWithContext(cmdCtx, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -106,13 +116,17 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	var existed bool
 
-	if err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	if err := util.DoWithContext(cmdCtx, func() (err error) {
 		existed, err = k8sMount.PathExists(volPath)
 		return err
 	}); err != nil {
 		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
-		stdoutStderr, err := p.RmrDir(ctx, volPath, jfsSetting.IsCe)
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		stdoutStderr, err := p.RmrDir(cmdCtx, volPath, jfsSetting.IsCe)
 		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 		if err != nil {
 			return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
@@ -145,14 +159,18 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 
 	var exist bool
 
-	if err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	if err := util.DoWithContext(cmdCtx, func() (err error) {
 		exist, err = k8sMount.PathExists(jfsSetting.MountPath)
 		return
 	}); err != nil {
 		return fmt.Errorf("could not check existence of dir %q: %v", jfsSetting.MountPath, err)
 	} else if !exist {
 		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
-		if err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			return os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755))
 		}); err != nil {
 			return fmt.Errorf("could not create dir %q: %v", jfsSetting.MountPath, err)
@@ -160,7 +178,9 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 	}
 
 	var notMounted bool
-	if err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel = context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	if err := util.DoWithContext(cmdCtx, func() (err error) {
 		notMounted, err = p.IsLikelyNotMountPoint(jfsSetting.MountPath)
 		return
 	}); err != nil {
@@ -192,7 +212,9 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 	defer cancel()
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithContext(waitCtx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(waitCtx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
@@ -222,7 +244,9 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	err := util.DoWithContext(cmdCtx, func() (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -232,7 +256,9 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 			return 0, nil
 		}
 		var notMnt bool
-		err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		err := util.DoWithContext(cmdCtx, func() (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
@@ -267,7 +293,9 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithContext(ctx, func() (err error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cmdCancel()
+	err := util.DoWithContext(cmdCtx, func() (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -277,7 +305,9 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 			return nil
 		}
 		var notMnt bool
-		err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		err := util.DoWithContext(cmdCtx, func() (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
@@ -322,7 +352,9 @@ func (p *ProcessMount) CleanCache(ctx context.Context, id string, volumeId strin
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
 		var existed bool
-		if err := util.DoWithContext(ctx, func() (err error) {
+		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+		defer cmdCancel()
+		if err := util.DoWithContext(cmdCtx, func() (err error) {
 			existed, err = k8sMount.PathExists(rawPath)
 			return
 		}); err != nil {
