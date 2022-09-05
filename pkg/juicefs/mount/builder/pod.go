@@ -157,7 +157,7 @@ func (r *Builder) getInitContainer() corev1.Container {
 	formatCmd := r.jfsSetting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",
-		Image: config.MountImage,
+		Image: r.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,
 		},
