@@ -384,6 +384,12 @@ func DoWithContext(ctx context.Context, f func() error) error {
 	}
 }
 
+func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+	return DoWithContext(ctx, f)
+}
+
 func CheckDynamicPV(name string) (bool, error) {
 	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
 }

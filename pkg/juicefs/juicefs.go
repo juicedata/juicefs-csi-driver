@@ -103,9 +103,7 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	volPath := filepath.Join(fs.MountPath, subPath)
 	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	var exists bool
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
-	defer cmdCancel()
-	if err := util.DoWithContext(cmdCtx, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -113,25 +111,19 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
-		defer cmdCancel()
-		if err := util.DoWithContext(cmdCtx, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		cmdCtx, cmdCancel = context.WithTimeout(ctx, defaultCheckTimeout)
-		defer cmdCancel()
-		if err := util.DoWithContext(cmdCtx, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
-			defer cmdCancel()
-			if err := util.DoWithContext(cmdCtx, func() (err error) {
+			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -459,9 +451,7 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 
 func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
-	defer cmdCancel()
-	return util.DoWithContext(cmdCtx, func() (err error) {
+	return util.DoWithTimeout(ctx, 2*defaultCheckTimeout, func() (err error) {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
 }

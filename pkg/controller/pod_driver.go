@@ -287,9 +287,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		// do not need to create new one, umount
 		util.UmountPath(ctx, sourcePath)
 		// clean mount point
-		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
-		defer cmdCancel()
-		err = util.DoWithContext(cmdCtx, func() error {
+		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
@@ -322,9 +320,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			}
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
-				defer cmdCancel()
-				err := util.DoWithContext(cmdCtx, func() error {
+				err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -396,9 +392,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckoutTimeout)
-	defer cmdCancel()
-	e := util.DoWithContext(cmdCtx, func() error {
+	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 		_, e := os.Stat(mntPath)
 		return e
 	})
