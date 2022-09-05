@@ -1,9 +1,6 @@
 name: build csi slim image
 
 on:
-  release:
-    types:
-      - created
   workflow_dispatch:
 
 jobs:
