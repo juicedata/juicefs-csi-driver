@@ -17,7 +17,6 @@ ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 ARG JUICEFS_CSI_REPO_REF=master
-ARG TARGETARCH
 
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 
@@ -31,9 +30,6 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make && upx juicefs
 RUN upx /workspace/bin/juicefs-csi-driver
 
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
-RUN chmod +x /tini
-
 FROM alpine:3.15.5
 
 ARG JUICEFS_REPO_BRANCH=main
@@ -43,7 +39,7 @@ ENV JUICEFS_MOUNT_IMAGE=juicedata/mount:$JUICEFS_REPO_REF-$JUICEFS_EE_VERSION
 
 COPY --from=builder /workspace/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs
-COPY --from=builder /tini /tini
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
+RUN apk add --no-cache tini
 
-ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
+ENTRYPOINT ["/sbin/tini", "--", "/bin/juicefs-csi-driver"]
