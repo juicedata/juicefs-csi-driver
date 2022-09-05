@@ -36,6 +36,11 @@ RUN chmod +x /tini
 
 FROM alpine:3.15.5
 
+ARG JUICEFS_REPO_BRANCH=main
+ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
+ARG JUICEFS_EE_VERSION
+ENV JUICEFS_MOUNT_IMAGE=juicedata/mount:$JUICEFS_REPO_REF-$JUICEFS_EE_VERSION
+
 COPY --from=builder /workspace/bin/juicefs-csi-driver /bin/juicefs-csi-driver
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs
 COPY --from=builder /tini /tini
