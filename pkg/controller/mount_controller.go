@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -45,7 +46,7 @@ func NewMountController(client *k8sclient.K8sClient) *MountController {
 
 func (m MountController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(6).Infof("Receive pod %s %s", request.Name, request.Namespace)
-	mountPod, err := m.GetPod(request.Name, request.Namespace)
+	mountPod, err := m.GetPod(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("get pod %s error: %v", request.Name, err)
 		return reconcile.Result{}, err
@@ -73,7 +74,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	fieldSelector := fields.Set{
 		"spec.nodeName": nodeName,
 	}
-	csiPods, err := m.ListPod(config.Namespace, &labelSelector, &fieldSelector)
+	csiPods, err := m.ListPod(ctx, config.Namespace, &labelSelector, &fieldSelector)
 	if err != nil {
 		klog.Errorf("list pod by label %s and field %s error: %v", config.CSINodeLabelValue, nodeName, err)
 		return reconcile.Result{}, err
@@ -85,7 +86,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 
 	klog.Infof("csi node in %s did not exist. remove finalizer of pod %s", nodeName, mountPod.Name)
 	// remove finalizer
-	err = util.RemoveFinalizer(m.K8sClient, mountPod, config.Finalizer)
+	err = util.RemoveFinalizer(ctx, m.K8sClient, mountPod, config.Finalizer)
 	if err != nil {
 		klog.Errorf("remove finalizer of pod %s error: %v", mountPod.Name, err)
 	}

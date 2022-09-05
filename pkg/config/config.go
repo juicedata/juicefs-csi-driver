@@ -44,13 +44,14 @@ var (
 	JFSConfigPath        = "/var/lib/juicefs/config"
 	JFSMountPriorityName = "system-node-critical"
 
-	PodMountBase = "/jfs"
-	MountBase    = "/var/lib/jfs"
-	FsType       = "juicefs"
-	CliPath      = "/usr/bin/juicefs"
-	CeCliPath    = "/usr/local/bin/juicefs"
-	CeMountPath  = "/bin/mount.juicefs"
-	JfsMountPath = "/sbin/mount.juicefs"
+	TmpPodMountBase = "/tmp"
+	PodMountBase    = "/jfs"
+	MountBase       = "/var/lib/jfs"
+	FsType          = "juicefs"
+	CliPath         = "/usr/bin/juicefs"
+	CeCliPath       = "/usr/local/bin/juicefs"
+	CeMountPath     = "/bin/mount.juicefs"
+	JfsMountPath    = "/sbin/mount.juicefs"
 
 	ReconcilerInterval = 5
 )

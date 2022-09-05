@@ -18,7 +18,6 @@ package juicefs
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,6 +31,7 @@ import (
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,12 +56,12 @@ const (
 // Interface of juicefs provider
 type Interface interface {
 	mount.Interface
-	JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
-	JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error
-	JfsDeleteVol(volumeID string, target string, secrets map[string]string) error
-	JfsUnmount(volumeID, mountPath string) error
-	JfsCleanupMountPoint(mountPath string) error
-	GetJfsVolUUID(name string) (string, error)
+	JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
+	JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error
+	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets map[string]string) error
+	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
+	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
+	GetJfsVolUUID(ctx context.Context, name string) (string, error)
 	Version() ([]byte, error)
 }
 
@@ -88,8 +88,8 @@ type jfs struct {
 // Jfs is the interface of a mounted file system
 type Jfs interface {
 	GetBasePath() string
-	CreateVol(volumeID, subPath string) (string, error)
-	BindTarget(bindSource, target string) error
+	CreateVol(ctx context.Context, volumeID, subPath string) (string, error)
+	BindTarget(ctx context.Context, bindSource, target string) error
 }
 
 var _ Jfs = &jfs{}
@@ -99,12 +99,12 @@ func (fs *jfs) GetBasePath() string {
 }
 
 // CreateVol creates the directory needed
-func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
+func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
 
 	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	var exists bool
-	if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+	if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -112,19 +112,19 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+			if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -135,7 +135,7 @@ func (fs *jfs) CreateVol(volumeID, subPath string) (string, error) {
 	return volPath, nil
 }
 
-func (fs *jfs) BindTarget(bindSource, target string) error {
+func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error {
 	mountInfos, err := mount.ParseMountInfo(procMountInfoPath)
 	if err != nil {
 		return err
@@ -161,7 +161,7 @@ func (fs *jfs) BindTarget(bindSource, target string) error {
 		}
 		// target is bind by other path, umount it
 		klog.Infof("BindTarget: target %s bind mount to other path, umount it", target)
-		util.UmountPath(context.TODO(), target)
+		util.UmountPath(ctx, target)
 	}
 	// bind target to mountpath
 	klog.Infof("BindTarget: binding %s at %s", bindSource, target)
@@ -196,43 +196,43 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	}
 }
 
-func (j *juicefs) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
+func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
+	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
 	jfsSetting.SubPath = subPath
-	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+	jfsSetting.MountPath = filepath.Join(config.TmpPodMountBase, jfsSetting.VolumeId)
 	if config.FormatInPod {
-		return j.podMount.JCreateVolume(jfsSetting)
+		return j.podMount.JCreateVolume(ctx, jfsSetting)
 	}
-	return j.processMount.JCreateVolume(jfsSetting)
+	return j.processMount.JCreateVolume(ctx, jfsSetting)
 }
 
-func (j *juicefs) JfsDeleteVol(volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(volumeID, "", secrets, nil, []string{})
+func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
+	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, nil, []string{})
 	if err != nil {
 		return err
 	}
 	jfsSetting.SubPath = subPath
-	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+	jfsSetting.MountPath = filepath.Join(config.TmpPodMountBase, jfsSetting.VolumeId)
 
 	mnt := j.processMount
 	if config.FormatInPod {
 		mnt = j.podMount
 	}
-	if err := mnt.JDeleteVolume(jfsSetting); err != nil {
+	if err := mnt.JDeleteVolume(ctx, jfsSetting); err != nil {
 		return err
 	}
-	return j.JfsCleanupMountPoint(jfsSetting.MountPath)
+	return j.JfsCleanupMountPoint(ctx, jfsSetting.MountPath)
 }
 
-func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
-	jfsSetting, err := j.getSettings(volumeID, target, secrets, volCtx, options)
+func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
+	jfsSetting, err := j.getSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
 	}
-	mountPath, err := j.MountFs(jfsSetting)
+	mountPath, err := j.MountFs(ctx, jfsSetting)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (j *juicefs) JfsMount(volumeID string, target string, secrets, volCtx map[s
 }
 
 // JfsMount auths and mounts JuiceFS
-func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+func (j *juicefs) getSettings(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
 	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
@@ -258,7 +258,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
-			res, err := j.AuthFs(secrets, jfsSetting)
+			res, err := j.AuthFs(ctx, secrets, jfsSetting)
 			if err != nil {
 				return nil, fmt.Errorf("juicefs auth error: %v", err)
 			}
@@ -276,7 +276,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		if config.FormatInPod && (secrets["storage"] == "ceph" || secrets["storage"] == "gs") {
 			jfsSetting.Envs["JFS_NO_CHECK_OBJECT_STORAGE"] = "1"
 		}
-		res, err := j.ceFormat(secrets, noUpdate, jfsSetting)
+		res, err := j.ceFormat(ctx, secrets, noUpdate, jfsSetting)
 		if err != nil {
 			return nil, fmt.Errorf("juicefs format error: %v", err)
 		}
@@ -285,7 +285,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 		}
 	}
 
-	uniqueId, err := j.getUniqueId(volumeID)
+	uniqueId, err := j.getUniqueId(ctx, volumeID)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)
 		return nil, err
@@ -294,7 +294,7 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 	if jfsSetting.CleanCache {
 		uuid := jfsSetting.Name
 		if jfsSetting.IsCe {
-			if uuid, err = j.GetJfsVolUUID(jfsSetting.Source); err != nil {
+			if uuid, err = j.GetJfsVolUUID(ctx, jfsSetting.Source); err != nil {
 				return nil, err
 			}
 		}
@@ -318,9 +318,9 @@ func (j *juicefs) getSettings(volumeID string, target string, secrets, volCtx ma
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 //
 //	UniqueId set as volumeId
-func (j *juicefs) getUniqueId(volumeId string) (string, error) {
+func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, error) {
 	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
-		pv, err := j.K8sClient.GetPersistentVolume(volumeId)
+		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
 			return "", err
@@ -334,8 +334,8 @@ func (j *juicefs) getUniqueId(volumeId string) (string, error) {
 }
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
-func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
-	stdout, err := j.Exec.Command(config.CeCliPath, "status", name).CombinedOutput()
+func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
+	stdout, err := j.Exec.CommandContext(ctx, config.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
 		klog.Errorf("juicefs status error: %v, output: '%s'", err, string(stdout))
 		return "", fmt.Errorf("juicefs status error: %s", string(stdout))
@@ -351,18 +351,18 @@ func (j *juicefs) GetJfsVolUUID(name string) (string, error) {
 	return idStrs[3], nil
 }
 
-func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
-	uniqueId, err := j.getUniqueId(volumeId)
+func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
+	uniqueId, err := j.getUniqueId(ctx, volumeId)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeId, err)
 		return err
 	}
 	if config.ByProcess {
-		ref, err := j.processMount.GetMountRef(mountPath, "")
+		ref, err := j.processMount.GetMountRef(ctx, mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
-		err = j.processMount.JUmount(mountPath, "")
+		err = j.processMount.JUmount(ctx, mountPath, "")
 		if err != nil {
 			klog.Errorf("Get mount ref error: %v", err)
 		}
@@ -380,7 +380,8 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 				delete(j.CacheDirMaps, uniqueId)
 
 				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
-				go j.processMount.CleanCache(uuid, uniqueId, cacheDirs)
+				// clean cache should be done even when top context timeout
+				go j.processMount.CleanCache(context.TODO(), uuid, uniqueId, cacheDirs)
 			}()
 		}
 		return err
@@ -392,7 +393,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	var podName string
 	// get pod by exact name
 	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
-	pod, err := j.K8sClient.GetPod(oldPodName, config.Namespace)
+	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			klog.Errorf("JfsUnmount: Get mount pod %s err %v", oldPodName, err)
@@ -408,7 +409,7 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 		config.PodUniqueIdLabelKey: uniqueId,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	pods, err := j.K8sClient.ListPod(config.Namespace, labelSelector, fieldSelector)
+	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
 	if err != nil {
 		klog.Errorf("List pods of uniqueId %s error: %v", uniqueId, err)
 		return err
@@ -431,34 +432,34 @@ func (j *juicefs) JfsUnmount(volumeId, mountPath string) error {
 	defer lock.Unlock()
 
 	// umount target path
-	if err = mnt.UmountTarget(mountPath, podName); err != nil {
+	if err = mnt.UmountTarget(ctx, mountPath, podName); err != nil {
 		return err
 	}
 	if podName == "" {
 		return nil
 	}
 	// get refs of mount pod
-	refs, err := mnt.GetMountRef(mountPath, podName)
+	refs, err := mnt.GetMountRef(ctx, mountPath, podName)
 	if err != nil {
 		return err
 	}
 	if refs == 0 {
 		// if refs is none, umount
-		return j.podMount.JUmount(mountPath, podName)
+		return j.podMount.JUmount(ctx, mountPath, podName)
 	}
 	return nil
 }
 
-func (j *juicefs) JfsCleanupMountPoint(mountPath string) error {
+func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() error {
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() error {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
 	return err
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) (string, error) {
+func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -543,27 +544,27 @@ func (j *juicefs) AuthFs(secrets map[string]string, setting *config.JfsSetting) 
 		return cmd, nil
 	}
 
-	authCmd := j.Exec.Command(config.CliPath, args...)
+	authCmd := j.Exec.CommandContext(ctx, config.CliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	authCmd.SetEnv(envs)
 	var res []byte
-	_, err := util.DoWithinTime(context.TODO(), 5*time.Second, nil, func() (err error) {
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
 		res, err = authCmd.CombinedOutput()
 		return
 	})
+	klog.Infof("Auth output is %s", res)
 	if err != nil {
-		klog.Infof("Auth error: %v, output: %s", err, string(res))
-		return "", errors.New(string(res))
+		klog.Infof("Auth error: %v", err)
+		return "", errors.Wrap(err, string(res))
 	}
-	klog.Infof("Auth output: %s", string(res))
 	return string(res), nil
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
+func (j *juicefs) MountFs(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
 		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.UniqueId)
@@ -573,7 +574,7 @@ func (j *juicefs) MountFs(jfsSetting *config.JfsSetting) (string, error) {
 		mnt = j.processMount
 	}
 
-	err := mnt.JMount(jfsSetting)
+	err := mnt.JMount(ctx, jfsSetting)
 	if err != nil {
 		return "", err
 	}
@@ -615,7 +616,7 @@ func (j *juicefs) Version() ([]byte, error) {
 	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
-func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *config.JfsSetting) (string, error) {
+func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpdate bool, setting *config.JfsSetting) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -678,7 +679,7 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 		return cmd, nil
 	}
 
-	formatCmd := j.Exec.Command(config.CeCliPath, args...)
+	formatCmd := j.Exec.CommandContext(ctx, config.CeCliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
@@ -688,14 +689,14 @@ func (j *juicefs) ceFormat(secrets map[string]string, noUpdate bool, setting *co
 	}
 	formatCmd.SetEnv(envs)
 	var res []byte
-	_, err := util.DoWithinTime(context.TODO(), 50*time.Second, nil, func() (err error) {
+	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
 		res, err = formatCmd.CombinedOutput()
 		return
 	})
+	klog.Infof("Format output is %s", res)
 	if err != nil {
-		klog.Infof("Format error: %v, output: %s", err, string(res))
-		return "", errors.New(string(res))
+		klog.Infof("Format error: %v", err)
+		return "", errors.Wrap(err, string(res))
 	}
-	klog.Infof("Format output: %s", string(res))
 	return string(res), nil
 }

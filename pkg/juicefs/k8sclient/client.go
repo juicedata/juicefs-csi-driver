@@ -19,9 +19,11 @@ package k8sclient
 import (
 	"bytes"
 	"context"
+	"io"
+	"time"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
-	"time"
 )
 
 const (
@@ -70,13 +71,13 @@ func NewClient() (*K8sClient, error) {
 	return &K8sClient{client}, nil
 }
 
-func (k *K8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
+func (k *K8sClient) CreatePod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
 	if pod == nil {
 		klog.V(5).Info("Create pod: pod is nil")
 		return nil, nil
 	}
 	klog.V(6).Infof("Create pod %s", pod.Name)
-	mntPod, err := k.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	mntPod, err := k.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		klog.V(5).Infof("Can't create pod %s: %v", pod.Name, err)
 		return nil, err
@@ -84,9 +85,9 @@ func (k *K8sClient) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
 	return mntPod, nil
 }
 
-func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
+func (k *K8sClient) GetPod(ctx context.Context, podName, namespace string) (*corev1.Pod, error) {
 	klog.V(6).Infof("Get pod %s", podName)
-	mntPod, err := k.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	mntPod, err := k.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get pod %s namespace %s: %v", podName, namespace, err)
 		return nil, err
@@ -94,7 +95,7 @@ func (k *K8sClient) GetPod(podName, namespace string) (*corev1.Pod, error) {
 	return mntPod, nil
 }
 
-func (k *K8sClient) ListPod(namespace string, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.Pod, error) {
+func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.Pod, error) {
 	klog.V(6).Infof("List pod by labelSelector %v, fieldSelector %v", labelSelector, filedSelector)
 	listOptions := metav1.ListOptions{}
 	if labelSelector != nil {
@@ -108,7 +109,7 @@ func (k *K8sClient) ListPod(namespace string, labelSelector *metav1.LabelSelecto
 		listOptions.FieldSelector = fields.SelectorFromSet(*filedSelector).String()
 	}
 
-	podList, err := k.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+	podList, err := k.CoreV1().Pods(namespace).List(ctx, listOptions)
 	if err != nil {
 		klog.V(6).Infof("Can't list pod in namespace %s by labelSelector %v: %v", namespace, labelSelector, err)
 		return nil, err
@@ -116,14 +117,14 @@ func (k *K8sClient) ListPod(namespace string, labelSelector *metav1.LabelSelecto
 	return podList.Items, nil
 }
 
-func (k *K8sClient) GetPodLog(podName, namespace, containerName string) (string, error) {
+func (k *K8sClient) GetPodLog(ctx context.Context, podName, namespace, containerName string) (string, error) {
 	klog.V(6).Infof("Get pod %s log", podName)
 	tailLines := int64(20)
 	req := k.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
 		TailLines: &tailLines,
 	})
-	podLogs, err := req.Stream(context.TODO())
+	podLogs, err := req.Stream(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -138,39 +139,39 @@ func (k *K8sClient) GetPodLog(podName, namespace, containerName string) (string,
 	return str, nil
 }
 
-func (k *K8sClient) PatchPod(pod *corev1.Pod, data []byte) error {
+func (k *K8sClient) PatchPod(ctx context.Context, pod *corev1.Pod, data []byte) error {
 	if pod == nil {
 		klog.V(5).Info("Patch pod: pod is nil")
 		return nil
 	}
 	klog.V(6).Infof("Patch pod %v", pod.Name)
-	_, err := k.CoreV1().Pods(pod.Namespace).Patch(context.TODO(),
+	_, err := k.CoreV1().Pods(pod.Namespace).Patch(ctx,
 		pod.Name, types.JSONPatchType, data, metav1.PatchOptions{})
 	return err
 }
 
-func (k *K8sClient) UpdatePod(pod *corev1.Pod) error {
+func (k *K8sClient) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		klog.V(5).Info("Update pod: pod is nil")
 		return nil
 	}
 	klog.V(6).Infof("Update pod %v", pod.Name)
-	_, err := k.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+	_, err := k.CoreV1().Pods(pod.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
 	return err
 }
 
-func (k *K8sClient) DeletePod(pod *corev1.Pod) error {
+func (k *K8sClient) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		klog.V(5).Info("Delete pod: pod is nil")
 		return nil
 	}
 	klog.V(6).Infof("Delete pod %v", pod.Name)
-	return k.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+	return k.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
 }
 
-func (k *K8sClient) GetSecret(secretName, namespace string) (*corev1.Secret, error) {
+func (k *K8sClient) GetSecret(ctx context.Context, secretName, namespace string) (*corev1.Secret, error) {
 	klog.V(6).Infof("Get secret %s", secretName)
-	secret, err := k.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := k.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get secret %s namespace %s: %v", secretName, namespace, err)
 		return nil, err
@@ -178,13 +179,13 @@ func (k *K8sClient) GetSecret(secretName, namespace string) (*corev1.Secret, err
 	return secret, nil
 }
 
-func (k *K8sClient) CreateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
+func (k *K8sClient) CreateSecret(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error) {
 	if secret == nil {
 		klog.V(5).Info("Create secret: secret is nil")
 		return nil, nil
 	}
 	klog.V(6).Infof("Create secret %s", secret.Name)
-	secret, err := k.CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	secret, err := k.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
 		klog.V(5).Infof("Can't create secret %s: %v", secret.Name, err)
 		return nil, err
@@ -192,24 +193,24 @@ func (k *K8sClient) CreateSecret(secret *corev1.Secret) (*corev1.Secret, error) 
 	return secret, nil
 }
 
-func (k *K8sClient) UpdateSecret(secret *corev1.Secret) error {
+func (k *K8sClient) UpdateSecret(ctx context.Context, secret *corev1.Secret) error {
 	if secret == nil {
 		klog.V(5).Info("Update secret: secret is nil")
 		return nil
 	}
 	klog.V(6).Infof("Update secret %v", secret.Name)
-	_, err := k.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+	_, err := k.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	return err
 }
 
-func (k *K8sClient) DeleteSecret(secretName string, namespace string) error {
+func (k *K8sClient) DeleteSecret(ctx context.Context, secretName string, namespace string) error {
 	klog.V(6).Infof("Delete secret %s", secretName)
-	return k.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+	return k.CoreV1().Secrets(namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 }
 
-func (k *K8sClient) GetJob(jobName, namespace string) (*batchv1.Job, error) {
+func (k *K8sClient) GetJob(ctx context.Context, jobName, namespace string) (*batchv1.Job, error) {
 	klog.V(6).Infof("Get job %s", jobName)
-	job, err := k.BatchV1().Jobs(namespace).Get(context.TODO(), jobName, metav1.GetOptions{})
+	job, err := k.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get job %s namespace %s: %v", jobName, namespace, err)
 		return nil, err
@@ -217,13 +218,13 @@ func (k *K8sClient) GetJob(jobName, namespace string) (*batchv1.Job, error) {
 	return job, nil
 }
 
-func (k *K8sClient) CreateJob(job *batchv1.Job) (*batchv1.Job, error) {
+func (k *K8sClient) CreateJob(ctx context.Context, job *batchv1.Job) (*batchv1.Job, error) {
 	if job == nil {
 		klog.V(5).Info("Create job: job is nil")
 		return nil, nil
 	}
 	klog.V(6).Infof("Create job %s", job.Name)
-	created, err := k.BatchV1().Jobs(job.Namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	created, err := k.BatchV1().Jobs(job.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		klog.V(5).Infof("Can't create job %s: %v", job.Name, err)
 		return nil, err
@@ -231,27 +232,27 @@ func (k *K8sClient) CreateJob(job *batchv1.Job) (*batchv1.Job, error) {
 	return created, nil
 }
 
-func (k *K8sClient) UpdateJob(job *batchv1.Job) error {
+func (k *K8sClient) UpdateJob(ctx context.Context, job *batchv1.Job) error {
 	if job == nil {
 		klog.V(5).Info("Update job: job is nil")
 		return nil
 	}
 	klog.V(6).Infof("Update job %v", job.Name)
-	_, err := k.BatchV1().Jobs(job.Namespace).Update(context.TODO(), job, metav1.UpdateOptions{})
+	_, err := k.BatchV1().Jobs(job.Namespace).Update(ctx, job, metav1.UpdateOptions{})
 	return err
 }
 
-func (k *K8sClient) DeleteJob(jobName string, namespace string) error {
+func (k *K8sClient) DeleteJob(ctx context.Context, jobName string, namespace string) error {
 	klog.V(6).Infof("Delete job %s", jobName)
 	policy := metav1.DeletePropagationBackground
-	return k.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{
+	return k.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
 }
 
-func (k *K8sClient) GetPersistentVolume(pvName string) (*corev1.PersistentVolume, error) {
+func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*corev1.PersistentVolume, error) {
 	klog.V(6).Infof("Get pv %s", pvName)
-	mntPod, err := k.CoreV1().PersistentVolumes().Get(context.TODO(), pvName, metav1.GetOptions{})
+	mntPod, err := k.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get pv %s : %v", pvName, err)
 		return nil, err

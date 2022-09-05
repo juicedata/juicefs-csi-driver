@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -68,6 +69,7 @@ func init() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
 	}
@@ -97,7 +99,7 @@ func init() {
 		klog.V(5).Infof("Can't get k8s client: %v", err)
 		os.Exit(0)
 	}
-	pod, err := k8sclient.GetPod(config.PodName, config.Namespace)
+	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
 	if err != nil {
 		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
 		os.Exit(0)

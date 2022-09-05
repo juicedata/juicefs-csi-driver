@@ -576,6 +576,29 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "specify mount image",
+			args: args{
+				volCtx:  map[string]string{mountPodImageKey: "abc"},
+				options: []string{},
+				usePod:  true,
+			},
+			want: &JfsSetting{
+				IsCe:      false,
+				UsePod:    true,
+				CacheDirs: []string{},
+				Options:   []string{},
+				Envs:      map[string]string{},
+				Configs:   map[string]string{},
+				Attr: PodAttr{
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "abc",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
