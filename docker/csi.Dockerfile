@@ -41,6 +41,5 @@ COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs
 COPY --from=builder /tini /tini
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 
-RUN /usr/local/bin/juicefs --version
 
 ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
