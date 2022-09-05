@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"k8s.io/klog"
-	k8sexec "k8s.io/utils/exec"
 )
 
 type PodReconciler struct {
@@ -85,9 +85,11 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
-			defer cancel()
-			err := driver.Run(ctx, pod)
+			err := func() error {
+				ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
+				defer cancel()
+				return driver.Run(ctx, pod)
+			}()
 			if err != nil {
 				klog.Errorf("Check pod %s: %s", pod.Name, err)
 			}

@@ -543,6 +543,8 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
 	// target path should not affect hash val
 	setting.TargetPath = ""
+	setting.VolumeId = ""
+	setting.SubPath = ""
 	settingStr, err := json.Marshal(setting)
 	if err != nil {
 		return "", err

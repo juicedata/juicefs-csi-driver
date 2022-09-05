@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"k8s.io/klog"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
