@@ -292,8 +292,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			klog.Errorf("Clean mount point %s error: %v", sourcePath, err)
 		}
-		// cleanup cache if set
-		go p.CleanUpCache(ctx, pod)
+		// cleanup cache should always complete, don't set timeout
+		go p.CleanUpCache(context.TODO(), pod)
 		return nil
 	}
 
