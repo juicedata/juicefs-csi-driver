@@ -287,9 +287,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	r := builder.NewBuilder(jfsSetting)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
+
+	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer waitCancel()
 	for {
 		// wait for old pod deleted
-		oldPod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
+		oldPod, err := p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
@@ -363,8 +366,10 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
+	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer waitCancel()
 	for {
-		job, err := p.K8sClient.GetJob(ctx, jobName, jfsConfig.Namespace)
+		job, err := p.K8sClient.GetJob(waitCtx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
