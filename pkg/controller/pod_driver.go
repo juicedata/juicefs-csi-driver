@@ -75,13 +75,13 @@ const (
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
-	err := p.checkAnnotations(current)
+	err := p.checkAnnotations(ctx, current)
 	if apierrors.IsConflict(err) {
-		current, err = p.Client.GetPod(current.Name, current.Namespace)
+		current, err = p.Client.GetPod(ctx, current.Name, current.Namespace)
 		if err != nil {
 			return err // temporary
 		}
-		err = p.checkAnnotations(current)
+		err = p.checkAnnotations(ctx, current)
 	}
 	if err != nil {
 		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
@@ -95,7 +95,7 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
-	pod, err := p.Client.GetPod(current.Name, current.Namespace)
+	pod, err := p.Client.GetPod(ctx, current.Name, current.Namespace)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 	return podPending
 }
 
-func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
+func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	// check refs in mount pod, the corresponding pod exists or not
 	lock := config.GetPodLock(pod.Name)
 	lock.Lock()
@@ -144,28 +144,28 @@ func (p *PodDriver) checkAnnotations(pod *corev1.Pod) error {
 		delete(annotation, config.DeleteDelayAtKey)
 	}
 	if len(pod.Annotations) != len(annotation) {
-		if err := util.PatchPodAnnotation(p.Client, pod, annotation); err != nil {
+		if err := util.PatchPodAnnotation(ctx, p.Client, pod, annotation); err != nil {
 			klog.Errorf("Update pod %s error: %v", pod.Name, err)
 			return err
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
 		var shouldDelay bool
-		shouldDelay, err := util.ShouldDelay(pod, p.Client)
+		shouldDelay, err := util.ShouldDelay(ctx, pod, p.Client)
 		if err != nil {
 			return err
 		}
 		if !shouldDelay {
 			// if there are no refs or after delay time, delete it
 			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
-			if err := p.Client.DeletePod(pod); err != nil {
+			if err := p.Client.DeletePod(ctx, pod); err != nil {
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 				return err
 			}
 			// delete related secret
 			secretName := pod.Name + "-secret"
 			klog.V(6).Infof("delete related secret of pod: %s", secretName)
-			if err := p.Client.DeleteSecret(secretName, pod.Namespace); err != nil {
+			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); err != nil {
 				klog.V(5).Infof("Delete secret %s error: %v", secretName, err)
 			}
 		}
@@ -186,16 +186,16 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 		klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
 		if util.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
-			_ = util.RemoveFinalizer(p.Client, pod, config.Finalizer)
+			_ = util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
 			klog.V(5).Infof("Delete it and deploy again with no resource.")
-			if err := p.Client.DeletePod(pod); err != nil {
+			if err := p.Client.DeletePod(ctx, pod); err != nil {
 				klog.Errorf("delete po:%s err:%v", pod.Name, err)
 				return nil
 			}
 			isDeleted := false
 			// wait pod delete for 1min
 			for i := 0; i < 120; i++ {
-				_, err := p.Client.GetPod(pod.Name, pod.Namespace)
+				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 				if err == nil {
 					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
 					time.Sleep(time.Microsecond * 500)
@@ -222,7 +222,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			util.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(newPod)
+			_, err := p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				klog.Errorf("create pod:%s err:%v", pod.Name, err)
 			}
@@ -253,7 +253,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	}
 
 	// remove finalizer of pod
-	if err := util.RemoveFinalizer(p.Client, pod, config.Finalizer); err != nil {
+	if err := util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer); err != nil {
 		klog.Errorf("remove pod finalizer err:%v", err)
 		return err
 	}
@@ -292,7 +292,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			klog.Errorf("Clean mount point %s error: %v", sourcePath, err)
 		}
 		// cleanup cache if set
-		go p.CleanUpCache(pod)
+		go p.CleanUpCache(ctx, pod)
 		return nil
 	}
 
@@ -305,7 +305,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 	// check pod delete
 	for i := 0; i < 120; i++ {
-		po, err := p.Client.GetPod(pod.Name, pod.Namespace)
+		po, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err == nil && po.DeletionTimestamp != nil {
 			klog.V(6).Infof("pod %s %s is being deleted, waiting", pod.Name, pod.Namespace)
 			time.Sleep(time.Millisecond * 500)
@@ -314,7 +314,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				_, err := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+				_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -337,7 +337,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				}
 				controllerutil.AddFinalizer(newPod, config.Finalizer)
 				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
-				_, err = p.Client.CreatePod(newPod)
+				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("Create pod:%s err:%v", pod.Name, err)
 				}
@@ -355,7 +355,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			// add exist target in annotation
 			po.Annotations[k] = v
 		}
-		if err := util.PatchPodAnnotation(p.Client, pod, annotation); err != nil {
+		if err := util.PatchPodAnnotation(ctx, p.Client, pod, annotation); err != nil {
 			klog.Errorf("Update pod %s %s error: %v", po.Name, po.Namespace, err)
 		}
 		return err
@@ -475,7 +475,7 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	}
 }
 
-func (p PodDriver) CleanUpCache(pod *corev1.Pod) {
+func (p PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	if pod.Annotations[config.CleanCache] != "true" {
 		return
 	}
@@ -490,7 +490,7 @@ func (p PodDriver) CleanUpCache(pod *corev1.Pod) {
 	// wait for pod deleted.
 	isDeleted := false
 	for i := 0; i < 360; i++ {
-		if _, err := p.Client.GetPod(pod.Name, pod.Namespace); err != nil {
+		if _, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace); err != nil {
 			if apierrors.IsNotFound(err) {
 				isDeleted = true
 				break
@@ -513,7 +513,7 @@ func (p PodDriver) CleanUpCache(pod *corev1.Pod) {
 			cacheDirs = append(cacheDirs, dir.HostPath.Path)
 		}
 	}
-	if err := podMnt.CleanCache(uuid, uniqueId, cacheDirs); err != nil {
+	if err := podMnt.CleanCache(ctx, uuid, uniqueId, cacheDirs); err != nil {
 		klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s error %v", uniqueId, err)
 	}
 }

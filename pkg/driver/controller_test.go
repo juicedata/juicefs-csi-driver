@@ -19,6 +19,10 @@ package driver
 import (
 	"context"
 	"errors"
+	"os/exec"
+	"reflect"
+	"testing"
+
 	. "github.com/agiledragon/gomonkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
@@ -29,9 +33,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes/fake"
-	"os/exec"
-	"reflect"
-	"testing"
 )
 
 func TestNewControllerService(t *testing.T) {
@@ -103,7 +104,7 @@ func TestCreateVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(volumeId, volumeId, secret).Return(nil)
+				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -244,7 +245,7 @@ func TestCreateVolume(t *testing.T) {
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(volumeId, volumeId, secret).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -290,7 +291,7 @@ func TestDeleteVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsDeleteVol(volumeId, volumeId, secret).Return(nil)
+				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -356,7 +357,7 @@ func TestDeleteVolume(t *testing.T) {
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsDeleteVol(volumeId, volumeId, secret).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,

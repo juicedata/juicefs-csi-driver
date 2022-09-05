@@ -2,11 +2,12 @@ package driver
 
 import (
 	"context"
+	"reflect"
+
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"reflect"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,7 +76,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	d.vols[req.Name] = requiredCap
 
 	// create volume
-	err := d.juicefs.JfsCreateVol(volumeId, subPath, secrets)
+	err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
 	}
@@ -115,7 +116,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
-	err = d.juicefs.JfsDeleteVol(volumeID, volumeID, secrets)
+	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delVol in juicefs: %v", err)
 	}

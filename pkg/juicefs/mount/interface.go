@@ -17,18 +17,20 @@ limitations under the License.
 package mount
 
 import (
+	"context"
+
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sMount "k8s.io/utils/mount"
 )
 
 type MntInterface interface {
 	k8sMount.Interface
-	JMount(jfsSetting *jfsConfig.JfsSetting) error
-	JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error
-	JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error
-	GetMountRef(target, podName string) (int, error) // podName is only used by podMount
-	UmountTarget(target, podName string) error       // podName is only used by podMount
-	JUmount(target, podName string) error            // podName is only used by podMount
-	AddRefOfMount(target string, podName string) error
-	CleanCache(id string, volumeId string, cacheDirs []string) error
+	JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
+	JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
+	JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
+	GetMountRef(ctx context.Context, target, podName string) (int, error) // podName is only used by podMount
+	UmountTarget(ctx context.Context, target, podName string) error       // podName is only used by podMount
+	JUmount(ctx context.Context, target, podName string) error            // podName is only used by podMount
+	AddRefOfMount(ctx context.Context, target string, podName string) error
+	CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error
 }

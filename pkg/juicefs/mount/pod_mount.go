@@ -54,16 +54,16 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 	return &PodMount{mounter, client}
 }
 
-func (p *PodMount) JMount(jfsSetting *jfsConfig.JfsSetting) error {
-	podName, err := p.createOrAddRef(jfsSetting)
+func (p *PodMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+	podName, err := p.createOrAddRef(ctx, jfsSetting)
 	if err != nil {
 		return err
 	}
-	return p.waitUtilMountReady(jfsSetting, podName)
+	return p.waitUtilMountReady(ctx, jfsSetting, podName)
 }
 
-func (p *PodMount) GetMountRef(target, podName string) (int, error) {
-	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return 0, nil
@@ -74,7 +74,7 @@ func (p *PodMount) GetMountRef(target, podName string) (int, error) {
 	return GetRef(pod), nil
 }
 
-func (p *PodMount) UmountTarget(target, podName string) error {
+func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) error {
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
 	klog.V(5).Infof("JfsUnmount: umount %s", target)
@@ -112,7 +112,7 @@ func (p *PodMount) UmountTarget(target, podName string) error {
 		klog.V(5).Infof("JUmount: Mount pod of target %s not exists.", target)
 		return nil
 	}
-	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("JUmount: Get pod %s err: %v", podName, err)
 		return err
@@ -128,7 +128,7 @@ func (p *PodMount) UmountTarget(target, podName string) error {
 	klog.V(6).Infof("JUmount: Target %v hash of target %v", target, key)
 
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		po, err := p.K8sClient.GetPod(pod.Name, pod.Namespace)
+		po, err := p.K8sClient.GetPod(ctx, pod.Name, pod.Namespace)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func (p *PodMount) UmountTarget(target, podName string) error {
 			return nil
 		}
 		delete(annotation, key)
-		return util.PatchPodAnnotation(p.K8sClient, pod, annotation)
+		return util.PatchPodAnnotation(ctx, p.K8sClient, pod, annotation)
 	})
 	if err != nil {
 		klog.Errorf("JUmount: Remove ref of target %s err: %v", target, err)
@@ -147,10 +147,9 @@ func (p *PodMount) UmountTarget(target, podName string) error {
 	return nil
 }
 
-func (p *PodMount) JUmount(target, podName string) error {
-
+func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		po, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+		po, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				return nil
@@ -165,14 +164,14 @@ func (p *PodMount) JUmount(target, podName string) error {
 		}
 
 		var shouldDelay bool
-		shouldDelay, err = util.ShouldDelay(po, p.K8sClient)
+		shouldDelay, err = util.ShouldDelay(ctx, po, p.K8sClient)
 		if err != nil {
 			return err
 		}
 		if !shouldDelay {
 			// do not set delay delete, delete it now
 			klog.V(5).Infof("JUmount: pod %s has no juicefs- refs. delete it.", podName)
-			if err := p.K8sClient.DeletePod(po); err != nil {
+			if err := p.K8sClient.DeletePod(ctx, po); err != nil {
 				klog.V(5).Infof("JUmount: Delete pod %s error: %v", podName, err)
 				return err
 			}
@@ -180,7 +179,7 @@ func (p *PodMount) JUmount(target, podName string) error {
 			// delete related secret
 			secretName := po.Name + "-secret"
 			klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
-			if err := p.K8sClient.DeleteSecret(secretName, po.Namespace); err != nil {
+			if err := p.K8sClient.DeleteSecret(ctx, secretName, po.Namespace); err != nil {
 				// do not return err if delete secret failed
 				klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
 			}
@@ -191,14 +190,14 @@ func (p *PodMount) JUmount(target, podName string) error {
 	return err
 }
 
-func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
+func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
 	r := builder.NewBuilder(jfsSetting)
 	job := r.NewJobForCreateVolume()
-	exist, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("JCreateVolume: create job %s", job.Name)
-		exist, err = p.K8sClient.CreateJob(job)
+		exist, err = p.K8sClient.CreateJob(ctx, job)
 		if err != nil {
 			klog.Errorf("JCreateVolume: create job %s err: %v", job.Name, err)
 			return err
@@ -210,27 +209,27 @@ func (p *PodMount) JCreateVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	}
 	secret := r.NewSecret()
 	builder.SetJobAsOwner(&secret, *exist)
-	if err := p.createOrUpdateSecret(&secret); err != nil {
+	if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 		return err
 	}
-	err = p.waitUtilJobCompleted(job.Name)
+	err = p.waitUtilJobCompleted(ctx, job.Name)
 	if err != nil {
 		// fall back if err
-		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
 			klog.Errorf("JCreateVolume: delete job %s error: %v", job.Name, e)
 		}
 	}
 	return err
 }
 
-func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
+func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
 	r := builder.NewBuilder(jfsSetting)
 	job := r.NewJobForDeleteVolume()
-	exist, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("JDeleteVolume: create job %s", job.Name)
-		exist, err = p.K8sClient.CreateJob(job)
+		exist, err = p.K8sClient.CreateJob(ctx, job)
 		if err != nil {
 			klog.Errorf("JDeleteVolume: create job %s err: %v", job.Name, err)
 			return err
@@ -242,20 +241,20 @@ func (p *PodMount) JDeleteVolume(jfsSetting *jfsConfig.JfsSetting) error {
 	}
 	secret := r.NewSecret()
 	builder.SetJobAsOwner(&secret, *exist)
-	if err := p.createOrUpdateSecret(&secret); err != nil {
+	if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 		return err
 	}
-	err = p.waitUtilJobCompleted(job.Name)
+	err = p.waitUtilJobCompleted(ctx, job.Name)
 	if err != nil {
 		// fall back if err
-		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
 			klog.Errorf("JDeleteVolume: delete job %s error: %v", job.Name, e)
 		}
 	}
 	return err
 }
 
-func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
+func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
 		klog.Errorf("Generate hash of jfsSetting error: %v", err)
@@ -268,7 +267,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName str
 		jfsConfig.PodJuiceHashLabelKey: hashVal,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": jfsConfig.NodeName}
-	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, labelSelector, fieldSelector)
+	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
 	if err != nil {
 		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, hashVal, err)
 		return "", err
@@ -290,7 +289,7 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName str
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 	for i := 0; i < 120; i++ {
 		// wait for old pod deleted
-		oldPod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+		oldPod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
@@ -302,33 +301,34 @@ func (p *PodMount) createOrAddRef(jfsSetting *jfsConfig.JfsSetting) (podName str
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
-				_, err := p.K8sClient.CreatePod(newPod)
+				_, err := p.K8sClient.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
-				if err := p.createOrUpdateSecret(&secret); err != nil {
+				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 					return "", err
 				}
 				return podName, err
+			} else if k8serrors.IsTimeout(err) {
+				return podName, fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
 			return "", err
 		}
 		// pod exist, add refs
-		if err := p.createOrUpdateSecret(&secret); err != nil {
+		if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 			return "", err
 		}
-		return podName, p.AddRefOfMount(jfsSetting.TargetPath, podName)
+		return podName, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
-	return podName, fmt.Errorf("mount %v failed: mount pod %s has been deleting for 1 min", jfsSetting.VolumeId, podName)
+	return podName, fmt.Errorf("mount %v failed: mount pod %s has been deleting", jfsSetting.VolumeId, podName)
 }
 
-func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	// Wait until the mount point is ready
+func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	for i := 0; i < 60; i++ {
 		var finfo os.FileInfo
-		if _, err := util.DoWithinTime(context.TODO(), defaultCheckTimeout, nil, func() (err error) {
+		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
@@ -348,7 +348,7 @@ func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName 
 		time.Sleep(time.Millisecond * 500)
 	}
 	// mountpoint not ready, get mount pod log for detail
-	log, err := p.getErrContainerLog(podName)
+	log, err := p.getErrContainerLog(ctx, podName)
 	if err != nil {
 		klog.Errorf("Get pod %s log error %v", podName, err)
 		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
@@ -356,10 +356,10 @@ func (p *PodMount) waitUtilMountReady(jfsSetting *jfsConfig.JfsSetting, podName 
 	return fmt.Errorf("mount %v at %v failed: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, log)
 }
 
-func (p *PodMount) waitUtilJobCompleted(jobName string) error {
+func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
 	for i := 0; i < 120; i++ {
-		job, err := p.K8sClient.GetJob(jobName, jfsConfig.Namespace)
+		job, err := p.K8sClient.GetJob(ctx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
@@ -373,7 +373,8 @@ func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	pods, err := p.K8sClient.ListPod(jfsConfig.Namespace, &metav1.LabelSelector{
+
+	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			"job-name": jobName,
 		},
@@ -381,20 +382,20 @@ func (p *PodMount) waitUtilJobCompleted(jobName string) error {
 	if err != nil || len(pods) != 1 {
 		return fmt.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
-	log, err := p.getNotCompleteCnLog(pods[0].Name)
+	log, err := p.getNotCompleteCnLog(ctx, pods[0].Name)
 	if err != nil {
 		return fmt.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return fmt.Errorf("waitUtilJobCompleted: job %s isn't completed in 1 min: %v", jobName, log)
+	return fmt.Errorf("waitUtilJobCompleted: job %s isn't completed: %v", jobName, log)
 }
 
-func (p *PodMount) AddRefOfMount(target string, podName string) error {
+func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName string) error {
 	klog.V(5).Infof("addRefOfMount: Add target ref in mount pod. mount pod: [%s], target: [%s]", podName, target)
 	// add volumeId ref in pod annotation
 	key := util.GetReferenceKey(target)
 
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		exist, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+		exist, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err != nil {
 			return err
 		}
@@ -412,7 +413,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, jfsConfig.DeleteDelayAtKey)
-		return util.PatchPodAnnotation(p.K8sClient, exist, annotation)
+		return util.PatchPodAnnotation(ctx, p.K8sClient, exist, annotation)
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
@@ -421,7 +422,7 @@ func (p *PodMount) AddRefOfMount(target string, podName string) error {
 	return nil
 }
 
-func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) error {
+func (p *PodMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
 	jfsSetting := &jfsConfig.JfsSetting{
 		VolumeId:  volumeId,
 		CacheDirs: cacheDirs,
@@ -430,34 +431,34 @@ func (p *PodMount) CleanCache(id string, volumeId string, cacheDirs []string) er
 	r := builder.NewBuilder(jfsSetting)
 	job := r.NewJobForCleanCache()
 	klog.V(6).Infof("Clean cache job: %v", job)
-	_, err := p.K8sClient.GetJob(job.Name, job.Namespace)
+	_, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("CleanCache: create job %s", job.Name)
-		_, err = p.K8sClient.CreateJob(job)
+		_, err = p.K8sClient.CreateJob(ctx, job)
 	}
 	if err != nil {
 		klog.Errorf("CleanCache: get or create job %s err: %s", job.Name, err)
 		return err
 	}
-	err = p.waitUtilJobCompleted(job.Name)
+	err = p.waitUtilJobCompleted(ctx, job.Name)
 	if err != nil {
 		klog.Errorf("CleanCache: wait for job completed err and fall back to delete job\n %v", err)
 		// fall back if err
-		if e := p.K8sClient.DeleteJob(job.Name, job.Namespace); e != nil {
+		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
 			klog.Errorf("CleanCache: delete job %s error: %v", job.Name, e)
 		}
 	}
 	return nil
 }
 
-func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
+func (p *PodMount) createOrUpdateSecret(ctx context.Context, secret *corev1.Secret) error {
 	klog.V(5).Infof("createOrUpdateSecret: %s, %s", secret.Name, secret.Namespace)
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		oldSecret, err := p.K8sClient.GetSecret(secret.Name, jfsConfig.Namespace)
+		oldSecret, err := p.K8sClient.GetSecret(ctx, secret.Name, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				// secret not exist, create
-				_, err := p.K8sClient.CreateSecret(secret)
+				_, err := p.K8sClient.CreateSecret(ctx, secret)
 				return err
 			}
 			// unexpected err
@@ -465,7 +466,7 @@ func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
 		}
 
 		oldSecret.StringData = secret.StringData
-		return p.K8sClient.UpdateSecret(oldSecret)
+		return p.K8sClient.UpdateSecret(ctx, oldSecret)
 	})
 	if err != nil {
 		klog.Errorf("createOrUpdateSecret: secret %s: %v", secret.Name, err)
@@ -474,40 +475,40 @@ func (p *PodMount) createOrUpdateSecret(secret *corev1.Secret) error {
 	return nil
 }
 
-func (p *PodMount) getErrContainerLog(podName string) (log string, err error) {
-	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+func (p *PodMount) getErrContainerLog(ctx context.Context, podName string) (log string, err error) {
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 	if err != nil {
 		return
 	}
 	for _, cn := range pod.Status.InitContainerStatuses {
 		if !cn.Ready {
-			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
 			return
 		}
 	}
 	for _, cn := range pod.Status.ContainerStatuses {
 		if !cn.Ready {
-			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
 			return
 		}
 	}
 	return
 }
 
-func (p *PodMount) getNotCompleteCnLog(podName string) (log string, err error) {
-	pod, err := p.K8sClient.GetPod(podName, jfsConfig.Namespace)
+func (p *PodMount) getNotCompleteCnLog(ctx context.Context, podName string) (log string, err error) {
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 	if err != nil {
 		return
 	}
 	for _, cn := range pod.Status.InitContainerStatuses {
 		if cn.State.Terminated == nil || cn.State.Terminated.Reason != "Completed" {
-			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
 			return
 		}
 	}
 	for _, cn := range pod.Status.ContainerStatuses {
 		if cn.State.Terminated == nil || cn.State.Terminated.Reason != "Completed" {
-			log, err = p.K8sClient.GetPodLog(pod.Name, pod.Namespace, cn.Name)
+			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
 			return
 		}
 	}

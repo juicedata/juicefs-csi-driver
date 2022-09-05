@@ -17,6 +17,7 @@ limitations under the License.
 package k8sclient
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -100,7 +101,7 @@ func TestK8sClient_CreatePod(t *testing.T) {
 			k := &K8sClient{
 				Interface: fake.NewSimpleClientset(),
 			}
-			got, err := k.CreatePod(tt.args.pod)
+			got, err := k.CreatePod(context.TODO(), tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreatePod() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -151,9 +152,9 @@ func TestK8sClient_GetPod(t *testing.T) {
 				Interface: fake.NewSimpleClientset(),
 			}
 			if tt.pod != nil {
-				_, _ = k.CreatePod(tt.pod)
+				_, _ = k.CreatePod(context.TODO(), tt.pod)
 			}
-			got, err := k.GetPod(tt.args.podName, tt.args.namespace)
+			got, err := k.GetPod(context.TODO(), tt.args.podName, tt.args.namespace)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreatePod() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -213,20 +214,20 @@ func TestK8sClient_PatchPod(t *testing.T) {
 				Interface: fake.NewSimpleClientset(),
 			}
 			if tt.pod != nil {
-				_, _ = k.CreatePod(tt.pod)
+				_, _ = k.CreatePod(context.TODO(), tt.pod)
 			}
 			data, err := json.Marshal([]PatchMapValue{tt.args.data})
 			if err != nil {
 				t.Errorf("Parse json error: %v", err)
 				return
 			}
-			err = k.PatchPod(tt.args.pod, data)
+			err = k.PatchPod(context.TODO(), tt.args.pod, data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PatchPod() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.pod != nil {
-				got, _ := k.GetPod(tt.pod.Name, tt.pod.Namespace)
+				got, _ := k.GetPod(context.TODO(), tt.pod.Name, tt.pod.Namespace)
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("PatchPod() got = %v, want %v", got, tt.want)
 				}
@@ -281,15 +282,15 @@ func TestK8sClient_UpdatePod(t *testing.T) {
 				Interface: fake.NewSimpleClientset(),
 			}
 			if tt.pod != nil {
-				_, _ = k.CreatePod(tt.pod)
+				_, _ = k.CreatePod(context.TODO(), tt.pod)
 			}
-			err := k.UpdatePod(tt.args.pod)
+			err := k.UpdatePod(context.TODO(), tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdatePod() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.pod != nil {
-				got, _ := k.GetPod(tt.pod.Name, tt.pod.Namespace)
+				got, _ := k.GetPod(context.TODO(), tt.pod.Name, tt.pod.Namespace)
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("UpdatePod() got = %v, want %v", got, tt.want)
 				}
@@ -329,15 +330,15 @@ func TestK8sClient_DeletePod(t *testing.T) {
 				Interface: fake.NewSimpleClientset(),
 			}
 			if tt.pod != nil {
-				_, _ = k.CreatePod(tt.pod)
+				_, _ = k.CreatePod(context.TODO(), tt.pod)
 			}
-			err := k.DeletePod(tt.args.pod)
+			err := k.DeletePod(context.TODO(), tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeletePod() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.pod != nil {
-				got, err := k.GetPod(tt.pod.Name, tt.pod.Namespace)
+				got, err := k.GetPod(context.TODO(), tt.pod.Name, tt.pod.Namespace)
 				if err == nil || got != nil {
 					t.Errorf("DeletePod() error = %v, got %v", err, got)
 					return

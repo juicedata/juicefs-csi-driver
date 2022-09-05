@@ -17,6 +17,7 @@ limitations under the License.
 package sanity
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -33,19 +34,19 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
-func (j *fakeJfsProvider) GetJfsVolUUID(name string) (string, error) {
+func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
 	return "", nil
 }
 
-func (j *fakeJfsProvider) JfsCreateVol(volumeID string, subPath string, secrets map[string]string) error {
+func (j *fakeJfsProvider) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsDeleteVol(volumeID string, target string, secrets map[string]string) error {
+func (j *fakeJfsProvider) JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets map[string]string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsMount(volumeID string, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
+func (j *fakeJfsProvider) JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (juicefs.Jfs, error) {
 	jfsName := "fake"
 	fs, ok := j.fs[jfsName]
 
@@ -62,11 +63,11 @@ func (j *fakeJfsProvider) JfsMount(volumeID string, target string, secrets, volC
 	return &fs, nil
 }
 
-func (j *fakeJfsProvider) JfsCleanupMountPoint(mountPath string) error {
+func (j *fakeJfsProvider) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsUnmount(volumeId, mountPath string) error {
+func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	return nil
 }
 
@@ -80,7 +81,7 @@ func newFakeJfsProvider() *fakeJfsProvider {
 	}
 }
 
-func (fs *fakeJfs) CreateVol(name, subPath string) (string, error) {
+func (fs *fakeJfs) CreateVol(ctx context.Context, name, subPath string) (string, error) {
 	_, ok := fs.volumes[name]
 
 	if !ok {
@@ -96,6 +97,6 @@ func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }
 
-func (fs *fakeJfs) BindTarget(bindSource, target string) error {
+func (fs *fakeJfs) BindTarget(ctx context.Context, bindSource, target string) error {
 	return nil
 }

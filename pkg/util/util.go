@@ -22,13 +22,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
 	"math/rand"
 	"net/url"
 	"os"
@@ -39,6 +33,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 )
 
 const (
@@ -291,7 +292,7 @@ func GetTime(str string) (time.Time, error) {
 	return time.Parse("2006-01-02 15:04:05", str)
 }
 
-func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
+func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
 	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
 	if !delayExist {
 		// not set delete delay
@@ -306,7 +307,7 @@ func ShouldDelay(pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err 
 			return false, nil
 		}
 		pod.Annotations[config.DeleteDelayAtKey] = d
-		if err := PatchPodAnnotation(Client, pod, pod.Annotations); err != nil {
+		if err := PatchPodAnnotation(ctx, Client, pod, pod.Annotations); err != nil {
 			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
 			return true, err
 		}
@@ -343,7 +344,7 @@ func StripPasswd(uri string) string {
 	return uri[:sp+3+cp] + ":****" + uri[p:]
 }
 
-func PatchPodAnnotation(client *k8s.K8sClient, pod *corev1.Pod, annotation map[string]string) error {
+func PatchPodAnnotation(ctx context.Context, client *k8s.K8sClient, pod *corev1.Pod, annotation map[string]string) error {
 	payload := []k8s.PatchMapValue{{
 		Op:    "replace",
 		Path:  "/metadata/annotations",
@@ -354,7 +355,7 @@ func PatchPodAnnotation(client *k8s.K8sClient, pod *corev1.Pod, annotation map[s
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
-	if err := client.PatchPod(pod, payloadBytes); err != nil {
+	if err := client.PatchPod(ctx, pod, payloadBytes); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
 	}

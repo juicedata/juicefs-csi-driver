@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -36,46 +37,46 @@ func (m *MockMntInterface) EXPECT() *MockMntInterfaceMockRecorder {
 }
 
 // AddRefOfMount mocks base method.
-func (m *MockMntInterface) AddRefOfMount(arg0, arg1 string) error {
+func (m *MockMntInterface) AddRefOfMount(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddRefOfMount", arg0, arg1)
+	ret := m.ctrl.Call(m, "AddRefOfMount", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddRefOfMount indicates an expected call of AddRefOfMount.
-func (mr *MockMntInterfaceMockRecorder) AddRefOfMount(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) AddRefOfMount(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRefOfMount", reflect.TypeOf((*MockMntInterface)(nil).AddRefOfMount), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRefOfMount", reflect.TypeOf((*MockMntInterface)(nil).AddRefOfMount), arg0, arg1, arg2)
 }
 
 // CleanCache mocks base method.
-func (m *MockMntInterface) CleanCache(arg0, arg1 string, arg2 []string) error {
+func (m *MockMntInterface) CleanCache(arg0 context.Context, arg1, arg2 string, arg3 []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CleanCache", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "CleanCache", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CleanCache indicates an expected call of CleanCache.
-func (mr *MockMntInterfaceMockRecorder) CleanCache(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) CleanCache(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanCache", reflect.TypeOf((*MockMntInterface)(nil).CleanCache), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanCache", reflect.TypeOf((*MockMntInterface)(nil).CleanCache), arg0, arg1, arg2, arg3)
 }
 
 // GetMountRef mocks base method.
-func (m *MockMntInterface) GetMountRef(arg0, arg1 string) (int, error) {
+func (m *MockMntInterface) GetMountRef(arg0 context.Context, arg1, arg2 string) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMountRef", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetMountRef", arg0, arg1, arg2)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMountRef indicates an expected call of GetMountRef.
-func (mr *MockMntInterfaceMockRecorder) GetMountRef(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) GetMountRef(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountRef", reflect.TypeOf((*MockMntInterface)(nil).GetMountRef), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountRef", reflect.TypeOf((*MockMntInterface)(nil).GetMountRef), arg0, arg1, arg2)
 }
 
 // GetMountRefs mocks base method.
@@ -109,59 +110,59 @@ func (mr *MockMntInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) 
 }
 
 // JCreateVolume mocks base method.
-func (m *MockMntInterface) JCreateVolume(arg0 *config.JfsSetting) error {
+func (m *MockMntInterface) JCreateVolume(arg0 context.Context, arg1 *config.JfsSetting) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JCreateVolume", arg0)
+	ret := m.ctrl.Call(m, "JCreateVolume", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JCreateVolume indicates an expected call of JCreateVolume.
-func (mr *MockMntInterfaceMockRecorder) JCreateVolume(arg0 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JCreateVolume(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JCreateVolume", reflect.TypeOf((*MockMntInterface)(nil).JCreateVolume), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JCreateVolume", reflect.TypeOf((*MockMntInterface)(nil).JCreateVolume), arg0, arg1)
 }
 
 // JDeleteVolume mocks base method.
-func (m *MockMntInterface) JDeleteVolume(arg0 *config.JfsSetting) error {
+func (m *MockMntInterface) JDeleteVolume(arg0 context.Context, arg1 *config.JfsSetting) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JDeleteVolume", arg0)
+	ret := m.ctrl.Call(m, "JDeleteVolume", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JDeleteVolume indicates an expected call of JDeleteVolume.
-func (mr *MockMntInterfaceMockRecorder) JDeleteVolume(arg0 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JDeleteVolume(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JDeleteVolume", reflect.TypeOf((*MockMntInterface)(nil).JDeleteVolume), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JDeleteVolume", reflect.TypeOf((*MockMntInterface)(nil).JDeleteVolume), arg0, arg1)
 }
 
 // JMount mocks base method.
-func (m *MockMntInterface) JMount(arg0 *config.JfsSetting) error {
+func (m *MockMntInterface) JMount(arg0 context.Context, arg1 *config.JfsSetting) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JMount", arg0)
+	ret := m.ctrl.Call(m, "JMount", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JMount indicates an expected call of JMount.
-func (mr *MockMntInterfaceMockRecorder) JMount(arg0 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JMount(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0, arg1)
 }
 
 // JUmount mocks base method.
-func (m *MockMntInterface) JUmount(arg0, arg1 string) error {
+func (m *MockMntInterface) JUmount(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JUmount", arg0, arg1)
+	ret := m.ctrl.Call(m, "JUmount", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JUmount indicates an expected call of JUmount.
-func (mr *MockMntInterfaceMockRecorder) JUmount(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JUmount(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JUmount", reflect.TypeOf((*MockMntInterface)(nil).JUmount), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JUmount", reflect.TypeOf((*MockMntInterface)(nil).JUmount), arg0, arg1, arg2)
 }
 
 // List mocks base method.
@@ -208,17 +209,17 @@ func (mr *MockMntInterfaceMockRecorder) MountSensitive(arg0, arg1, arg2, arg3, a
 }
 
 // UmountTarget mocks base method.
-func (m *MockMntInterface) UmountTarget(arg0, arg1 string) error {
+func (m *MockMntInterface) UmountTarget(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UmountTarget", arg0, arg1)
+	ret := m.ctrl.Call(m, "UmountTarget", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UmountTarget indicates an expected call of UmountTarget.
-func (mr *MockMntInterfaceMockRecorder) UmountTarget(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) UmountTarget(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UmountTarget", reflect.TypeOf((*MockMntInterface)(nil).UmountTarget), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UmountTarget", reflect.TypeOf((*MockMntInterface)(nil).UmountTarget), arg0, arg1, arg2)
 }
 
 // Unmount mocks base method.

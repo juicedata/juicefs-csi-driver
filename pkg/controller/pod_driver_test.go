@@ -19,13 +19,14 @@ package controller
 import (
 	"context"
 	"errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"os/exec"
 	"reflect"
 	"syscall"
 	"testing"
 	"time"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	k8sexec "k8s.io/utils/exec"
 
@@ -675,15 +676,15 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch2.Reset()
 			k := &k8sclient.K8sClient{}
-			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
 				return nil, nil
 			})
 			defer patch5.Reset()
@@ -715,15 +716,15 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch2.Reset()
 			k := &k8sclient.K8sClient{}
-			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) (*corev1.Pod, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
 				return nil, nil
 			})
 			defer patch5.Reset()
@@ -755,13 +756,13 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			tmpPod := copyPod(readyPod)
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
 			patch2 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput",
 				func(_ *exec.Cmd) ([]byte, error) {
-					err := d.Client.DeletePod(tmpPod)
+					err := d.Client.DeletePod(context.TODO(), tmpPod)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -814,7 +815,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = nil
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -830,7 +831,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			tmpPod.Annotations = map[string]string{
 				"/var/lib/xxx": "/var/lib/xxx",
 			}
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -844,7 +845,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			tmpPod := copyPod(readyPod)
 			tmpPod.Spec.Containers = nil
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -862,7 +863,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			tmpPod := copyPod(readyPod)
-			_, err := d.Client.CreatePod(tmpPod)
+			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -901,7 +902,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 		})
 		Convey("GetPod error", func() {
 			k := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, podName, namespace string) (*corev1.Pod, error) {
+			patch1 := ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
 				return &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Finalizers: []string{jfsConfig.Finalizer},
@@ -909,11 +910,11 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				}, nil
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, pod *corev1.Pod, data []byte) error {
+			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, pod *corev1.Pod) error {
+			patch3 := ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) error {
 				return nil
 			})
 			defer patch3.Reset()
@@ -934,8 +935,8 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				return false, notExistsErr
 			})
 			defer patch1.Reset()
-			_, err := d.Client.CreatePod(errorPod1)
-			defer d.Client.DeletePod(errorPod1)
+			_, err := d.Client.CreatePod(context.TODO(), errorPod1)
+			defer d.Client.DeletePod(context.TODO(), errorPod1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -960,7 +961,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			errPod := copyPod(resourceErrPod)
-			d.Client.CreatePod(errPod)
+			d.Client.CreatePod(context.TODO(), errPod)
 			err := d.podErrorHandler(context.Background(), errPod)
 			So(err, ShouldBeNil)
 		})
