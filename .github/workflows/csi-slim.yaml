@@ -1,10 +1,10 @@
 name: build csi slim image
 
 on:
-  workflow_dispatch:
   release:
     types:
       - created
+  workflow_dispatch:
 
 jobs:
   publish-image:
