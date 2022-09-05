@@ -105,7 +105,6 @@ func init() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
-	return
 }
 
 func main() {
