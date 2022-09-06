@@ -2,9 +2,9 @@ name: build juicefs image
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches:
-      - master
+      - mount_pod_image
 
 jobs:
   publish-image:

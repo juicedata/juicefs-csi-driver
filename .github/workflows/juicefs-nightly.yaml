@@ -3,10 +3,7 @@ name: build juicefs nightly image
 on:
   push:
     branches:
-      - master
-  pull_request:
-    branches:
-      - master
+      - mount_pod_image
   schedule:
     - cron: "0 0 * * *"
 
