@@ -542,7 +542,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return cmd, nil
 	}
 
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 5*defaultCheckTimeout)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
 	envs := syscall.Environ()
@@ -553,8 +553,9 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	res, err := authCmd.CombinedOutput()
 	klog.Infof("Auth output is %s", res)
 	if err != nil {
-		klog.Infof("Auth error: %v", err)
-		return "", errors.Wrap(err, string(res))
+		err = errors.Wrap(err, "juicefs auth failed")
+		klog.Infof(err.Error())
+		return "", err
 	}
 	return string(res), nil
 }
@@ -675,7 +676,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return cmd, nil
 	}
 
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 5*defaultCheckTimeout)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	formatCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
 	envs := syscall.Environ()
@@ -689,8 +690,9 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	res, err := formatCmd.CombinedOutput()
 	klog.Infof("Format output is %s", res)
 	if err != nil {
-		klog.Infof("Format error: %v", err)
-		return "", errors.Wrap(err, string(res))
+		err = errors.Wrap(err, "juicefs format failed")
+		klog.Infof(err.Error())
+		return "", err
 	}
 	return string(res), nil
 }
