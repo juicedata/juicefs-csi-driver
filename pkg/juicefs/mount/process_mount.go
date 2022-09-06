@@ -114,9 +114,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 	}); err != nil {
 		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
-		cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
-		defer cmdCancel()
-		stdoutStderr, err := p.RmrDir(cmdCtx, volPath, jfsSetting.IsCe)
+		stdoutStderr, err := p.RmrDir(ctx, volPath, jfsSetting.IsCe)
 		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
 		if err != nil {
 			return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
