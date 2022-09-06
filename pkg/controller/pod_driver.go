@@ -194,7 +194,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 			}
 			isDeleted := false
 			// wait pod delete for 1min
-			for i := 0; i < 120; i++ {
+			for {
 				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 				if err == nil {
 					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
@@ -205,10 +205,13 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 					isDeleted = true
 					break
 				}
+				if apierrors.IsTimeout(err) {
+					break
+				}
 				klog.Errorf("get mountPod err:%v", err)
 			}
 			if !isDeleted {
-				klog.Errorf("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
+				klog.Errorf("Old pod %s %s deleting timeout", pod.Name, config.Namespace)
 				return nil
 			}
 			var newPod = &corev1.Pod{
@@ -284,15 +287,15 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		// do not need to create new one, umount
 		util.UmountPath(ctx, sourcePath)
 		// clean mount point
-		_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 			klog.V(5).Infof("Clean mount point : %s", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
 		if err != nil {
 			klog.Errorf("Clean mount point %s error: %v", sourcePath, err)
 		}
-		// cleanup cache if set
-		go p.CleanUpCache(ctx, pod)
+		// cleanup cache should always complete, don't set timeout
+		go p.CleanUpCache(context.TODO(), pod)
 		return nil
 	}
 
@@ -304,7 +307,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	klog.V(5).Infof("pod targetPath not empty, need create pod:%s", pod.Name)
 
 	// check pod delete
-	for i := 0; i < 120; i++ {
+	for {
 		po, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err == nil && po.DeletionTimestamp != nil {
 			klog.V(6).Infof("pod %s %s is being deleted, waiting", pod.Name, pod.Namespace)
@@ -312,9 +315,12 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			continue
 		}
 		if err != nil {
+			if apierrors.IsTimeout(err) {
+				break
+			}
 			if apierrors.IsNotFound(err) {
 				// umount mount point before recreate mount pod
-				_, err = util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+				err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 					exist, _ := mount.PathExists(sourcePath)
 					if !exist {
 						return fmt.Errorf("%s not exist", sourcePath)
@@ -360,9 +366,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		}
 		return err
 	}
-
-	klog.V(5).Infof("Old pod %s %s can't be deleted within 1min.", pod.Name, config.Namespace)
-	return fmt.Errorf("old pod %s %s can't be deleted within 1min", pod.Name, config.Namespace)
+	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
+	klog.V(5).Infof(err.Error())
+	return err
 }
 
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) error {
@@ -386,7 +392,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	_, e := util.DoWithinTime(ctx, defaultCheckoutTimeout, nil, func() error {
+	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 		_, e := os.Stat(mntPath)
 		return e
 	})
@@ -489,10 +495,15 @@ func (p PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 
 	// wait for pod deleted.
 	isDeleted := false
-	for i := 0; i < 360; i++ {
-		if _, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace); err != nil {
+	getCtx, getCancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer getCancel()
+	for {
+		if _, err := p.Client.GetPod(getCtx, pod.Name, pod.Namespace); err != nil {
 			if apierrors.IsNotFound(err) {
 				isDeleted = true
+				break
+			}
+			if apierrors.IsTimeout(err) {
 				break
 			}
 			klog.V(5).Infof("[CleanUpCache] Get pod %s error %v. Skip clean cache.", pod.Name, err)

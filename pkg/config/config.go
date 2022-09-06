@@ -19,6 +19,7 @@ package config
 import (
 	"hash/fnv"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -30,13 +31,14 @@ var (
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
 
-	NodeName    = ""
-	Namespace   = ""
-	PodName     = ""
-	MountImage  = "juicedata/juicefs-csi-driver:nightly" // mount pod image
-	MountLabels = ""
-	HostIp      = ""
-	KubeletPort = ""
+	NodeName         = ""
+	Namespace        = ""
+	PodName          = ""
+	MountImage       = "juicedata/juicefs-csi-driver:nightly" // mount pod image
+	MountLabels      = ""
+	HostIp           = ""
+	KubeletPort      = ""
+	ReconcileTimeout = 1 * time.Minute
 
 	CSIPod = corev1.Pod{}
 
