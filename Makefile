@@ -194,7 +194,7 @@ juicefs-image-version:
 # build & push juicefs nightly image
 .PHONY: juicefs-image-nightly
 juicefs-image-nightly:
-	docker buildx build -f docker/juicefs.Dockerfile -t $(JUICEFS_IMAGE):main-$(JUICEFS_EE_LATEST_VERSION) \
+	docker buildx build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):main-$(JUICEFS_EE_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 .PHONY: deploy-dev/kustomization.yaml
