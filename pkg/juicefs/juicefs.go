@@ -555,8 +555,8 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	if err != nil {
 		re := string(res)
 		klog.Infof("Auth error: %v", err)
-		if k8serrors.IsTimeout(err) {
-			re = "juicefs auth 16s timed out."
+		if err == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs auth %s timed out", 8*defaultCheckTimeout)
 		}
 		return "", errors.Wrap(err, re)
 	}
@@ -695,8 +695,8 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	if err != nil {
 		re := string(res)
 		klog.Infof("Format error: %v", err)
-		if k8serrors.IsTimeout(err) {
-			re = "juicefs format 16s timed out."
+		if err == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs format %s timed out", 8*defaultCheckTimeout)
 		}
 		return "", errors.Wrap(err, re)
 	}
