@@ -101,10 +101,9 @@ func (fs *jfs) GetBasePath() string {
 // CreateVol creates the directory needed
 func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string, error) {
 	volPath := filepath.Join(fs.MountPath, subPath)
-
 	klog.V(6).Infof("CreateVol: checking %q exists in %v", volPath, fs)
 	var exists bool
-	if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -112,19 +111,19 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	}
 	if !exists {
 		klog.V(5).Infof("CreateVol: volume not existed")
-		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
+			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -452,10 +451,9 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 
 func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	klog.V(5).Infof("JfsCleanupMountPoint: clean up mount point: %q", mountPath)
-	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() error {
+	return util.DoWithTimeout(ctx, 2*defaultCheckTimeout, func() (err error) {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
-	return err
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
@@ -544,21 +542,23 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return cmd, nil
 	}
 
-	authCmd := j.Exec.CommandContext(ctx, config.CliPath, args...)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
+	defer cmdCancel()
+	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	authCmd.SetEnv(envs)
-	var res []byte
-	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
-		res, err = authCmd.CombinedOutput()
-		return
-	})
+	res, err := authCmd.CombinedOutput()
 	klog.Infof("Auth output is %s", res)
 	if err != nil {
+		re := string(res)
 		klog.Infof("Auth error: %v", err)
-		return "", errors.Wrap(err, string(res))
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs auth %s timed out", 8*defaultCheckTimeout)
+		}
+		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
 }
@@ -679,7 +679,9 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return cmd, nil
 	}
 
-	formatCmd := j.Exec.CommandContext(ctx, config.CeCliPath, args...)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
+	defer cmdCancel()
+	formatCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
@@ -688,15 +690,15 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
 	formatCmd.SetEnv(envs)
-	var res []byte
-	_, err := util.DoWithinTime(ctx, 5*time.Second, nil, func() (err error) {
-		res, err = formatCmd.CombinedOutput()
-		return
-	})
+	res, err := formatCmd.CombinedOutput()
 	klog.Infof("Format output is %s", res)
 	if err != nil {
+		re := string(res)
 		klog.Infof("Format error: %v", err)
-		return "", errors.Wrap(err, string(res))
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs format %s timed out", 8*defaultCheckTimeout)
+		}
+		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
 }

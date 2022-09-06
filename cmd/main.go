@@ -24,9 +24,9 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"strings"
+	"time"
 
 	"k8s.io/klog"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
@@ -70,6 +70,12 @@ func init() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	if timeout := os.Getenv("JUICEFS_RECONCILE_TIMEOUT"); timeout != "" {
+		duration, _ := time.ParseDuration(timeout)
+		if duration > config.ReconcileTimeout {
+			config.ReconcileTimeout = duration
+		}
+	}
 
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName

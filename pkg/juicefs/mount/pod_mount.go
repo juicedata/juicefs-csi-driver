@@ -287,9 +287,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	r := builder.NewBuilder(jfsSetting)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
-	for i := 0; i < 120; i++ {
+
+	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer waitCancel()
+	for {
 		// wait for old pod deleted
-		oldPod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
+		oldPod, err := p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
 			time.Sleep(time.Millisecond * 500)
@@ -322,16 +325,21 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 		}
 		return podName, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
-	return podName, fmt.Errorf("mount %v failed: mount pod %s has been deleting", jfsSetting.VolumeId, podName)
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	for i := 0; i < 60; i++ {
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	// Wait until the mount point is ready
+	for {
 		var finfo os.FileInfo
-		if _, err := util.DoWithinTime(ctx, defaultCheckTimeout, nil, func() (err error) {
+		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func() (err error) {
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
+			if err == context.DeadlineExceeded {
+				break
+			}
 			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
 			time.Sleep(time.Millisecond * 500)
 			continue
@@ -358,12 +366,17 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
-	for i := 0; i < 120; i++ {
-		job, err := p.K8sClient.GetJob(ctx, jobName, jfsConfig.Namespace)
+	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer waitCancel()
+	for {
+		job, err := p.K8sClient.GetJob(waitCtx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
 				return nil
+			}
+			if k8serrors.IsTimeout(err) {
+				break
 			}
 			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
 		}

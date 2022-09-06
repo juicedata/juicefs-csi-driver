@@ -36,8 +36,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 )
@@ -46,7 +45,6 @@ const (
 	maxListTries                         = 3
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
-	defaultCheckoutTimeout               = 1 * time.Second
 )
 
 func init() {
@@ -372,32 +370,24 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
-func DoWithinTime(ctx context.Context, timeout time.Duration, cmd *exec.Cmd, f func() error) (out []byte, err error) {
-	doneCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
+func DoWithContext(ctx context.Context, f func() error) error {
 	doneCh := make(chan error)
 	go func() {
-		if cmd != nil {
-			out, err = cmd.CombinedOutput()
-			doneCh <- err
-		} else {
-			doneCh <- f()
-		}
+		doneCh <- f()
 	}()
 
 	select {
-	case <-doneCtx.Done():
-		err = status.Error(codes.Internal, "context timeout")
-		if cmd != nil {
-			go func() {
-				cmd.Process.Kill()
-			}()
-		}
-		return
-	case err = <-doneCh:
-		return
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-doneCh:
+		return err
 	}
+}
+
+func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+	return DoWithContext(ctx, f)
 }
 
 func CheckDynamicPV(name string) (bool, error) {
@@ -405,16 +395,14 @@ func CheckDynamicPV(name string) (bool, error) {
 }
 
 func UmountPath(ctx context.Context, sourcePath string) {
-	cmd := exec.Command("umount", sourcePath)
-	outByte, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd, nil)
-	out := string(outByte)
-	if err != nil {
+	cmd := exec.CommandContext(ctx, "umount", sourcePath)
+	if outBytes, err := cmd.CombinedOutput(); err != nil {
+		out := string(outBytes)
 		if !strings.Contains(out, "not mounted") &&
 			!strings.Contains(out, "mountpoint not found") &&
 			!strings.Contains(out, "no mount point specified") {
 			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			cmd2 := exec.Command("umount", "-l", sourcePath)
-			output, err := DoWithinTime(ctx, defaultCheckoutTimeout, cmd2, nil)
+			output, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
 			if err != nil {
 				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
 			}
