@@ -173,21 +173,21 @@ image-release-check-push:
 # build & push image for fluid fuse
 .PHONY: fuse-image-version
 fuse-image-version:
-	docker buildx build -f docker/fuse.Dockerfile -t $(FUSE_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+	docker buildx build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
 # build & push csi slim image
 .PHONY: csi-slim-image-version
 csi-slim-image-version:
-	docker buildx build -f docker/csi.Dockerfile -t $(IMAGE):$(VERSION)-slim \
+	docker buildx build -f docker/csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(VERSION)-slim \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) --build-arg JUICEFS_EE_VERSION=$(JUICEFS_EE_LATEST_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
 # build & push juicefs image
 .PHONY: juicefs-image-version
 juicefs-image-version:
-	docker buildx build -f docker/juicefs.Dockerfile -t $(JUICEFS_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+	docker buildx build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
