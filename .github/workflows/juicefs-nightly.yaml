@@ -20,6 +20,7 @@ jobs:
         PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
       run: docker login --username chnliyong --password ${PASSWORD}
     - name: Buildx and Push juicefs nightly image
+      uses: actions/checkout@v2
       with:
         context: .
       run: |
