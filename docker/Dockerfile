@@ -57,7 +57,7 @@ COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
-COPY ../THIRD-PARTY /
+COPY THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 

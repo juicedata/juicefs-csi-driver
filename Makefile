@@ -184,7 +184,7 @@ fuse-image-version:
 csi-slim-image-version:
 	docker buildx build -f docker/csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(VERSION)-slim \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
-        --build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+        --build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
 # build & push juicefs image
