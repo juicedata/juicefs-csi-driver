@@ -15,7 +15,7 @@
 FROM golang:1.17-buster as builder
 
 WORKDIR /workspace
-COPY . .
+COPY .. .
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
   make juicefs.ceph && mv juicefs.ceph juicefs
 

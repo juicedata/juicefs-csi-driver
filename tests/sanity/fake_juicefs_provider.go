@@ -71,10 +71,6 @@ func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath st
 	return nil
 }
 
-func (j *fakeJfsProvider) Version() ([]byte, error) {
-	return []byte{}, nil
-}
-
 func newFakeJfsProvider() *fakeJfsProvider {
 	return &fakeJfsProvider{
 		fs: map[string]fakeJfs{},

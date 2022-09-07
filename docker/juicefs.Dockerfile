@@ -17,13 +17,10 @@ FROM golang:1.17-buster as builder
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
-ARG JUICEFS_CSI_REPO_REF=master
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
-    git clone https://github.com/juicedata/juicefs-csi-driver && \
-    cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs
 
@@ -31,17 +28,13 @@ FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
 ARG TARGETARCH
-ARG JFSCHAN
 
 WORKDIR /app
+COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
-ENV JFSCHAN=${JFSCHAN}
-
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
-RUN chmod +x /tini
 
 RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && \
@@ -51,12 +44,7 @@ RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
-COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
-COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
-
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 COPY THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
-
-ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
