@@ -34,7 +34,7 @@ var (
 	NodeName         = ""
 	Namespace        = ""
 	PodName          = ""
-	MountImage       = "juicedata/juicefs-csi-driver:nightly" // mount pod image
+	MountImage       = "juicedata/mount:nightly" // mount pod image
 	MountLabels      = ""
 	HostIp           = ""
 	KubeletPort      = ""
