@@ -199,7 +199,7 @@ juicefs-image-version:
 # build & push juicefs nightly image
 .PHONY: juicefs-image-nightly
 juicefs-image-nightly:
-	docker buildx build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):nightly-$(JUICEFS_EE_LATEST_VERSION) \
+	docker buildx build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         --build-arg JUICEFS_REPO_REF=main \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
