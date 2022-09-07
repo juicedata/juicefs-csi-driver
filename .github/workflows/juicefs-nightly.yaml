@@ -1,9 +1,6 @@
 name: build juicefs nightly image
 
 on:
-  push:
-    branches:
-      - mount_pod_image
   schedule:
     - cron: "0 0 * * *"
 
