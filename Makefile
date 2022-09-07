@@ -31,6 +31,8 @@ JUICEFS_EE_LATEST_VERSION=$(shell curl -sSL https://juicefs.com/static/juicefs -
 JUICEFS_RELEASE_CHECK_VERSION=${JUICEFS_VERSION}
 JFS_CHAN=${JFSCHAN}
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+JUICEFS_MOUNT_IMAGE?=juicedata/mount:$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION)
+JUICEFS_MOUNT_NIGHTLY_IMAGE?=juicedata/mount:nightly-$(JUICEFS_EE_LATEST_VERSION)
 
 GOPROXY=https://goproxy.io
 GOPATH=$(shell go env GOPATH)
@@ -59,7 +61,7 @@ test-sanity:
 image-nightly:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker build --build-arg TARGETARCH=$(TARGETARCH) \
-		--build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:nightly-$(JUICEFS_EE_LATEST_VERSION) \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         -t $(IMAGE):nightly -f docker/Dockerfile .
 
 # build & push nightly image
@@ -67,7 +69,7 @@ image-nightly:
 image-nightly-buildx:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker buildx build -t $(IMAGE):nightly \
-		--build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:nightly-$(JUICEFS_EE_LATEST_VERSION) \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         -f docker/Dockerfile --platform linux/amd64,linux/arm64 . --push
 
 # build latest image
@@ -76,7 +78,7 @@ image-nightly-buildx:
 image-latest:
 	# Build image with latest stable juicefs-csi-driver and juicefs
 	docker build --build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_LATEST_VERSION) \
-		--build-arg JUICEFS_REPO_REF=$( JUICEFS_CE_LATEST_VERSION) \
+		--build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
 		--build-arg JFS_AUTO_UPGRADE=disabled \
 		--build-arg TARGETARCH=$(TARGETARCH) \
 		-t $(IMAGE):latest -f docker/Dockerfile .
@@ -105,7 +107,7 @@ push-branch:
 .PHONY: image-version
 image-version:
 	docker buildx build -t $(IMAGE):$(VERSION) --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
-		--build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 -f docker/Dockerfile . --push
 
 .PHONY: push-version
@@ -160,7 +162,7 @@ image-release-check:
 		--build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled \
-		--build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
 		-t $(IMAGE):$(DEV_TAG) -f docker/Dockerfile .
 
 # push image for release check
@@ -184,7 +186,7 @@ fuse-image-version:
 csi-slim-image-version:
 	docker buildx build -f docker/csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(VERSION)-slim \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
-        --build-arg JUICEFS_MOUNT_IMAGE=juicedata/mount:$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+        --build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
 		--platform linux/amd64,linux/arm64 . --push
 
 # build & push juicefs image
