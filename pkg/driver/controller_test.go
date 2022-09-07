@@ -51,20 +51,6 @@ func TestNewControllerService(t *testing.T) {
 			_, err := newControllerService(&k8s.K8sClient{Interface: &fake.Clientset{}})
 			So(err, ShouldBeNil)
 		})
-		Convey("version error", func() {
-			var tmpCmd = &exec.Cmd{}
-			patch2 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
-				return tmpCmd
-			})
-			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), errors.New("test")
-			})
-			defer patch3.Reset()
-
-			_, err := newControllerService(&k8s.K8sClient{Interface: &fake.Clientset{}})
-			So(err, ShouldNotBeNil)
-		})
 	})
 }
 

@@ -156,7 +156,7 @@ JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph hig
 We use the official [ceph/ceph](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/):
 
 ```bash
-docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
+docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f docker/ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .
 ```
 
 The `ceph/ceph:v14` image is the official Ceph image for Ceph Nautilus. For other Ceph release base images, see the [Ceph image repository](https://hub.docker.com/r/ceph/ceph) .

@@ -62,7 +62,6 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
-	Version() ([]byte, error)
 }
 
 type juicefs struct {
@@ -610,10 +609,6 @@ func (j *juicefs) Upgrade() {
 	}
 
 	klog.V(5).Infof("Upgrade: successfully upgraded to newest version")
-}
-
-func (j *juicefs) Version() ([]byte, error) {
-	return j.Exec.Command(config.CliPath, "version").CombinedOutput()
 }
 
 func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpdate bool, setting *config.JfsSetting) (string, error) {

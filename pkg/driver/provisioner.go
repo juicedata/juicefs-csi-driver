@@ -46,11 +46,6 @@ type provisionerService struct {
 
 func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
-	stdoutStderr, err := jfs.Version()
-	if err != nil {
-		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
-		return provisionerService{}, err
-	}
 	return provisionerService{
 		juicefs:   jfs,
 		K8sClient: k8sClient,

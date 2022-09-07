@@ -50,11 +50,6 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient) (*nodeService
 		Exec:      k8sexec.New(),
 	}
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
-	stdoutStderr, err := jfsProvider.Version()
-	if err != nil {
-		klog.Errorf("Error juicefs version: %v, stdoutStderr: %s", err, string(stdoutStderr))
-		return nil, err
-	}
 
 	return &nodeService{
 		SafeFormatAndMount: *mounter,
