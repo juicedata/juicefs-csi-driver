@@ -52,7 +52,8 @@ jobs:
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
-        echo "IS_CE=True" >> $GITHUB_ENV
+        echo "JUICEFS_MODE=ce" >> $GITHUB_ENV
+        echo "MOUNT_MODE=pod" >> $GITHUB_ENV
     - name: Run ce test for pod mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
@@ -68,7 +69,8 @@ jobs:
         echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
         echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
-        echo "IS_CE=False" >> $GITHUB_ENV
+        echo "JUICEFS_MODE=ee" >> $GITHUB_ENV
+        echo "MOUNT_MODE=pod" >> $GITHUB_ENV
     - name: Run ee test for pod mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
@@ -85,8 +87,9 @@ jobs:
         echo "JUICEFS_SECRET_KEY=minioadmin" >> $GITHUB_ENV
         echo "JUICEFS_NAME=ce-secret" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
-        echo "IS_CE=True" >> $GITHUB_ENV
-    - name: Run ce test for pod mode
+        echo "JUICEFS_MODE=ce" >> $GITHUB_ENV
+        echo "MOUNT_MODE=process" >> $GITHUB_ENV
+    - name: Run ce test for process mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-process.py
@@ -101,8 +104,9 @@ jobs:
         echo "JUICEFS_NAME=csi-ci" >> $GITHUB_ENV
         echo "JUICEFS_TOKEN=$JUICEFS_TOKEN" >> $GITHUB_ENV
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
-        echo "IS_CE=False" >> $GITHUB_ENV
-    - name: Run ee test for pod mode
+        echo "JUICEFS_MODE=ee" >> $GITHUB_ENV
+        echo "MOUNT_MODE=process" >> $GITHUB_ENV
+    - name: Run ee test for process mode
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-process.py
