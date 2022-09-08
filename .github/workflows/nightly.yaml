@@ -41,11 +41,11 @@ jobs:
         docker image save -o juicefs-csi-driver-nightly.tar juicedata/juicefs-csi-driver:nightly
         sudo microk8s.ctr image import juicefs-csi-driver-nightly.tar
         rm -f juicefs-csi-driver-nightly.tar
-    - name: [pod mode] Deploy JuiceFS CSI
+    - name: pod mode - Deploy JuiceFS CSI
       run: |
         export dev_tag=nightly
         ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh pod
-    - name: [pod mode] Set ce secret env
+    - name: pod mode - Set ce secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
@@ -55,11 +55,11 @@ jobs:
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ce" >> $GITHUB_ENV
         echo "MOUNT_MODE=pod" >> $GITHUB_ENV
-    - name: [pod mode] Run ce test
+    - name: pod mode - Run ce test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-pod.py
-    - name: [pod mode] Set ee secret env
+    - name: pod mode - Set ee secret env
       env:
         JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
       run: |
@@ -72,15 +72,15 @@ jobs:
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ee" >> $GITHUB_ENV
         echo "MOUNT_MODE=pod" >> $GITHUB_ENV
-    - name: [pod mode] Run ee test
+    - name: pod mode - Run ee test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-pod.py
-    - name: [pod mode mount shared] Deploy JuiceFS CSI
+    - name: mount shared - Deploy JuiceFS CSI
       run: |
         export dev_tag=nightly
         ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh pod-mount-share
-    - name: [pod mode mount shared] Set ce secret env
+    - name: mount shared - Set ce secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
@@ -90,11 +90,11 @@ jobs:
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ce" >> $GITHUB_ENV
         echo "MOUNT_MODE=pod" >> $GITHUB_ENV
-    - name: [pod mode mount shared] Run ce test
+    - name: mount shared - Run ce test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-pod-share-mount.py
-    - name: [pod mode mount shared] Set ee secret env
+    - name: mount shared - Set ee secret env
       env:
         JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
       run: |
@@ -107,15 +107,15 @@ jobs:
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ee" >> $GITHUB_ENV
         echo "MOUNT_MODE=pod" >> $GITHUB_ENV
-    - name: [pod mode mount shared] Run ee test
+    - name: mount shared - Run ee test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-pod-share-mount.py
-    - name: [process mode] Deploy JuiceFS CSI
+    - name: process mode - Deploy JuiceFS CSI
       run: |
         export dev_tag=nightly
         ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh process
-    - name: [process mode] Set ce secret env
+    - name: process mode - Set ce secret env
       run: |
         echo "JUICEFS_STORAGE=s3" >> $GITHUB_ENV
         echo "JUICEFS_BUCKET=http://juicefs-bucket.minio.default.svc.cluster.local:9000" >> $GITHUB_ENV
@@ -125,11 +125,11 @@ jobs:
         echo "JUICEFS_META_URL=redis://redis.default.svc.cluster.local:6379/1" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ce" >> $GITHUB_ENV
         echo "MOUNT_MODE=process" >> $GITHUB_ENV
-    - name: [process mode] Run ce test
+    - name: process mode - Run ce test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-process.py
-    - name: [process mode] Set ee secret env
+    - name: process mode - Set ee secret env
       env:
         JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
       run: |
@@ -142,7 +142,7 @@ jobs:
         echo "JUICEFS_META_URL=''" >> $GITHUB_ENV
         echo "JUICEFS_MODE=ee" >> $GITHUB_ENV
         echo "MOUNT_MODE=process" >> $GITHUB_ENV
-    - name: [process mode] Run ee test
+    - name: process mode - Run ee test
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
         python3 ci-process.py
