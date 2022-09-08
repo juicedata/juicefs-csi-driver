@@ -1,0 +1,239 @@
+#  Copyright 2022 Juicedata Inc
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+import os
+import random
+import re
+import string
+import subprocess
+import time
+
+from kubernetes import client
+
+from config import KUBE_SYSTEM, LOG, IS_CE, SECRET_NAME, GLOBAL_MOUNTPOINT, SECRET_KEY, ACCESS_KEY, META_URL, \
+    BUCKET, TOKEN, STORAGECLASS_NAME
+from model import Pod, Secret, STORAGE, StorageClass, PODS, DEPLOYMENTs, PVCs, PVs, SECRETs, STORAGECLASSs
+
+
+def check_do_test():
+    if IS_CE:
+        return True
+    if TOKEN == "":
+        return False
+    return True
+
+
+def die(e):
+    csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
+    po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    LOG.info("Get csi node log:")
+    LOG.info(po.get_log("juicefs-plugin"))
+    LOG.info("Get csi controller log:")
+    controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    LOG.info(controller_po.get_log("juicefs-plugin"))
+    LOG.info("Get event: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
+    LOG.info("Get pvc: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "pvc", "--all-namespaces"], check=True)
+    LOG.info("Get pv: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "pv"], check=True)
+    LOG.info("Get sc: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "sc"], check=True)
+    LOG.info("Get job: ")
+    subprocess.run(["sudo", "microk8s.kubectl", "get", "job", "--all-namespaces"], check=True)
+    raise Exception(e)
+
+
+def mount_on_host(mount_path):
+    LOG.info(f"Mount {mount_path}")
+    try:
+        if IS_CE:
+            subprocess.check_call(
+                ["sudo", "/usr/local/bin/juicefs", "format", f"--storage={STORAGE}", f"--access-key={ACCESS_KEY}",
+                 f"--secret-key={SECRET_KEY}", f"--bucket={BUCKET}", META_URL, SECRET_NAME])
+            subprocess.check_call(["sudo", "/usr/local/bin/juicefs", "mount", "-d", META_URL, mount_path])
+        else:
+            subprocess.check_call(
+                ["sudo", "/usr/bin/juicefs", "auth", f"--token={TOKEN}", f"--accesskey={ACCESS_KEY}",
+                 f"--secretkey={SECRET_KEY}", f"--bucket={BUCKET}", SECRET_NAME])
+            subprocess.check_call(["sudo", "/usr/bin/juicefs", "mount", "-d", SECRET_NAME, mount_path])
+        LOG.info("Mount success.")
+    except Exception as e:
+        LOG.info("Error in juicefs mount: {}".format(e))
+        raise e
+
+
+def umount(mount_path):
+    subprocess.run(["sudo", "umount", mount_path])
+
+
+def check_mount_point(check_path):
+    check_path = GLOBAL_MOUNTPOINT + "/" + check_path
+    for i in range(0, 60):
+        try:
+            LOG.info("Open file {}".format(check_path))
+            f = open(check_path)
+            content = f.read(1)
+            if content is not None and content != "":
+                f.close()
+                return True
+            time.sleep(5)
+            f.close()
+        except FileNotFoundError:
+            LOG.info(os.listdir(GLOBAL_MOUNTPOINT))
+            LOG.info("Can't find file: {}".format(check_path))
+            time.sleep(5)
+            continue
+        except Exception as e:
+            LOG.info(e)
+            log = open("/var/log/juicefs.log", "rt")
+            LOG.info(log.read())
+            raise e
+    return False
+
+
+def wait_dir_empty(check_path):
+    LOG.info(f"check path {check_path} empty")
+    for i in range(0, 60):
+        output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if output.stderr.decode("utf-8") != "":
+            LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            return True
+        if output.stdout.decode("utf-8") == "":
+            return True
+        time.sleep(5)
+
+    return False
+
+
+def wait_dir_not_empty(check_path):
+    LOG.info(f"check path {check_path} not empty")
+    for i in range(0, 60):
+        output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if output.stderr.decode("utf-8") != "":
+            LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            continue
+        if output.stdout.decode("utf-8") != "":
+            return True
+        time.sleep(5)
+    return False
+
+
+def get_only_mount_pod_name(volume_id):
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="volume-id={}".format(volume_id)
+    )
+    if len(pods.items) == 0:
+        raise Exception("Can't get mount pod of volume id {}".format(volume_id))
+    if len(pods.items) > 1:
+        raise Exception("Get more than one mount pod of volume id {}".format(volume_id))
+    return pods.items[0].metadata.name
+
+
+def get_mount_pods(volume_id):
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace=KUBE_SYSTEM,
+        label_selector="volume-id={}".format(volume_id)
+    )
+    return pods
+
+
+def check_pod_ready(pod):
+    if pod.status.phase.lower() != "running":
+        LOG.info("Pod {} status phase: {}".format(pod.metadata.name, pod.status.phase))
+        return False
+    conditions = pod.status.conditions
+    for c in conditions:
+        if c.status != "True":
+            return False
+    return True
+
+
+def check_mount_pod_refs(pod_name, replicas):
+    pod = client.CoreV1Api().read_namespaced_pod(name=pod_name, namespace=KUBE_SYSTEM)
+    annotations = pod.metadata.annotations
+    if annotations is None:
+        if replicas == 0:
+            return True
+        else:
+            return False
+    num = 0
+    for k, v in annotations.items():
+        if k.startswith("juicefs-") and "/var/lib/kubelet/pods" in v:
+            num += 1
+    return num == replicas
+
+
+def deploy_secret_and_sc():
+    LOG.info("Deploy secret & storageClass..")
+    secret = Secret(secret_name=SECRET_NAME)
+    secret.create()
+    LOG.info("Deploy secret {}".format(secret.secret_name))
+    sc = StorageClass(name=STORAGECLASS_NAME, secret_name=secret.secret_name)
+    sc.create()
+    LOG.info("Deploy storageClass {}".format(sc.name))
+
+
+def tear_down():
+    LOG.info("Tear down all resources begin..")
+    try:
+        for po in PODS:
+            LOG.info("Delete pod {}".format(po.name))
+            po.delete()
+            LOG.info("Watch for pods {} for delete.".format(po.name))
+            result = po.watch_for_delete(1)
+            if not result:
+                raise Exception("Pods {} are not delete within 5 min.".format(po.name))
+        for deploy in DEPLOYMENTs:
+            LOG.info("Delete deployment {}".format(deploy.name))
+            deploy = deploy.refresh()
+            deploy.delete()
+            pod = Pod(name="", deployment_name=deploy.name, replicas=deploy.replicas)
+            LOG.info("Watch for pods of deployment {} for delete.".format(deploy.name))
+            result = pod.watch_for_delete(deploy.replicas)
+            if not result:
+                raise Exception("Pods of deployment {} are not delete within 5 min.".format(deploy.name))
+        for pvc in PVCs:
+            LOG.info("Delete pvc {}".format(pvc.name))
+            pvc.delete()
+        for sc in STORAGECLASSs:
+            LOG.info("Delete storageclass {}".format(sc.name))
+            sc.delete()
+        for pv in PVs:
+            LOG.info("Delete pv {}".format(pv.name))
+            pv.delete()
+        for secret in SECRETs:
+            LOG.info("Delete secret {}".format(secret.secret_name))
+            secret.delete()
+        LOG.info("Delete all volumes in file system.")
+        clean_juicefs_volume()
+    except Exception as e:
+        LOG.info("Error in tear down: {}".format(e))
+    LOG.info("Tear down success.")
+
+
+def clean_juicefs_volume():
+    subprocess.run(["sudo", "rm", "-rf", GLOBAL_MOUNTPOINT + "/*"])
+
+
+def gen_random_string(slen=10):
+    return ''.join(random.sample(string.ascii_letters + string.digits, slen))
+
+
+def get_vol_uuid(name):
+    output = subprocess.run(
+        ["sudo", "/usr/local/bin/juicefs", "status", name], stdout=subprocess.PIPE)
+    out = output.stdout.decode("utf-8")
+    return re.search("\"UUID\": \"(.*)\"", out).group(1)
