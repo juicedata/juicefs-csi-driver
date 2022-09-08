@@ -923,3 +923,71 @@ def test_deployment_static_patch_pv():
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
+
+
+def test_share_mount():
+    LOG.info("[test case] Two Deployment using storageClass shared mount begin..")
+    # deploy pvc
+    pvc1 = PVC(name="pvc-share-mount-1", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc1.name))
+    pvc1.create()
+    pvc2 = PVC(name="pvc-share-mount-2", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc2.name))
+    pvc2.create()
+
+    # deploy pod
+    deployment1 = Deployment(name="app-share-mount-1", pvc=pvc1.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment1.name))
+    deployment1.create()
+    pod1 = Pod(name="", deployment_name=deployment1.name, replicas=deployment1.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment1.name))
+    result = pod1.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment1.name))
+    deployment2 = Deployment(name="app-share-mount-2", pvc=pvc2.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment2.name))
+    deployment2.create()
+    pod2 = Pod(name="", deployment_name=deployment2.name, replicas=deployment2.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment2.name))
+    result = pod2.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment2.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = STORAGECLASS_NAME
+    check_path = "{}/out.txt".format(volume_id)
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    # check mount pod refs
+    mount_pod_name = get_only_mount_pod_name(STORAGECLASS_NAME)
+    LOG.info("Check mount pod {} refs.".format(mount_pod_name))
+    result = check_mount_pod_refs(mount_pod_name, 2)
+    if not result:
+        raise Exception("Mount pod {} does not have {} juicefs- refs.".format(mount_pod_name, 2))
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment1.name))
+    deployment1.delete()
+    pod = Pod(name="", deployment_name=deployment1.name, replicas=deployment1.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment1.name))
+    result = pod.watch_for_delete(deployment1.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment1.name))
+    LOG.info("Remove pvc {}".format(pvc1.name))
+    pvc1.delete()
+
+    LOG.info("Remove deployment {}".format(deployment2.name))
+    deployment2.delete()
+    pod = Pod(name="", deployment_name=deployment2.name, replicas=deployment2.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment2.name))
+    result = pod.watch_for_delete(deployment2.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment2.name))
+    LOG.info("Remove pvc {}".format(pvc2.name))
+    pvc2.delete()
+
+    LOG.info("Test pass.")
+    return
