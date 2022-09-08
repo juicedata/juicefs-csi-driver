@@ -63,7 +63,7 @@ jobs:
       - name: Run ce test for pod mode
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          python3 k8s-ci.py
+          python3 ci-pod.py
       - name: Set ee secret env
         env:
           JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
@@ -79,7 +79,7 @@ jobs:
       - name: Run ee test for pod
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          python3 k8s-ci.py
+          python3 ci-pod.py
       - name: Deploy JuiceFS CSI for process mode
         run: |
           cd ${GITHUB_WORKSPACE}
