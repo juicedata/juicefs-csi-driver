@@ -125,7 +125,7 @@ kubectl get -n kube-system po juicefs-{k8s-node}-juicefs-pv-{hash id} -o yaml | 
 
 ## 在 StorageClass 中配置
 
-您可以在 `StorageClass` 中配置资源请求和约束：
+您可以在 `StorageClass` 中配置 Mount Pod 镜像：
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
