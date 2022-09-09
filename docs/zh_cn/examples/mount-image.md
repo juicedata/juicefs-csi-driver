@@ -1,30 +1,32 @@
 ---
-sidebar_label: 为 Mount Pod 指定镜像
+sidebar_label: 自定义 Mount Pod 的容器镜像
 ---
 
-# 如何让 Mount Pod 使用自定义的镜像
+# 如何自定义 Mount Pod 的容器镜像
 
-本文档展示了如何让 JuiceFS Mount Pod 使用自定义[镜像](https://kubernetes.io/zh-cn/docs/concepts/containers/images/)。默认的镜像为[`juicedata/mount:nightly`](https://hub.docker.com/r/juicedata/mount/tags)，为使 Mount Pod 能正常运行，请使用基于[`juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile)构建的镜像。
+默认情况下，JuiceFS Mount Pod 的容器镜像为 `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`，其中 `<JUICEFS-CE-LATEST-VERSION>` 表示 JuiceFS 社区版客户端的最新版本号（如 `1.0.0`），`<JUICEFS-EE-LATEST-VERSION>` 表示 JuiceFS 云服务客户端的最新版本号（如 `4.8.0`）。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 上查看所有镜像标签。
+
+本文档展示了如何自定义 Mount Pod 的容器镜像，关于如何构建 Mount Pod 的容器镜像请参考[文档](../build-juicefs-image.md#构建-juicefs-mount-pod-的容器镜像)。
 
 :::note 注意
 若采用进程挂载的方式启动 CSI 驱动，即 CSI Node 和 CSI Controller 的启动参数使用 `--by-process=true`，则本文档的相关配置会被忽略。
 :::
 
-## 安装 CSI 时覆盖默认镜像
+## 安装 CSI 驱动时覆盖默认容器镜像
 
-CSI node 启动时，在 juicefs-plugin 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量可覆盖默认的 Mount Pod 镜像，CSI image 在构建时把 `JUICEFS_MOUNT_IMAGE` 设为当时最新的稳定版 Mount Pod 镜像，一般为 `juicedata/mount:{latest ce version}-{latest ee version}`。
+JuiceFS CSI Node 启动时，在 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量可覆盖默认的 Mount Pod 镜像：
 
 :::note 注意
-一旦 juicefs-plugin 容器启动，默认的 Mount Pod 镜像就无法修改，如需修改只能在容器重新创建时再次设置 `JUICEFS_MOUNT_IMAGE` 环境变量。
+一旦 `juicefs-plugin` 容器启动，默认的 Mount Pod 镜像就无法修改。如需修改请重新创建容器，并设置新的 `JUICEFS_MOUNT_IMAGE` 环境变量。
 :::
 
 ```yaml {12-13}
 apiVersion: apps/v1
 kind: DaemonSet
-# metadata:
+# metadata: ...
 spec:
   template:
-    # metadata:
+    # metadata: ...
     spec:
       containers:
       - name: juicefs-plugin
@@ -34,7 +36,7 @@ spec:
           value: juicedata/mount:patch-some-bug
 ```
 
-## 在 PersistentVolume 中配置
+## 在 `PersistentVolume` 中配置容器镜像
 
 您也可以在 `PersistentVolume` 中配置 Mount Pod 镜像：
 
@@ -109,7 +111,7 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### 检查 mount pod 的 image 设置
+### 检查 Mount Pod 的 image 设置
 
 应用配置后，验证 pod 是否正在运行：
 
@@ -117,13 +119,13 @@ spec:
 kubectl get pods juicefs-app
 ```
 
-您可以验证 mount pod 的 image 设置得是否正确：
+您可以验证 Mount Pod 的 image 设置得是否正确：
 
 ```sh
-kubectl get -n kube-system po juicefs-{k8s-node}-juicefs-pv-{hash id} -o yaml | grep image
+kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o yaml | grep 'image: '
 ```
 
-## 在 StorageClass 中配置
+## 在 `StorageClass` 中配置容器镜像
 
 您可以在 `StorageClass` 中配置 Mount Pod 镜像：
 
@@ -180,7 +182,7 @@ spec:
         claimName: juicefs-pvc
 ```
 
-### 检查 mount pod 的 image 设置
+### 检查 Mount Pod 的 image 设置
 
 应用配置后，验证 pod 是否正在运行：
 
@@ -188,8 +190,8 @@ spec:
 kubectl get pods juicefs-app
 ```
 
-您可以验证 mount pod 的 image 设置得是否正确：
+您可以验证 Mount Pod 的 image 设置得是否正确：
 
 ```sh
-kubectl get -n kube-system po juicefs-{k8s-node}-juicefs-pv-{hash id} -o yaml | grep image
+kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o yaml | grep 'image: '
 ```

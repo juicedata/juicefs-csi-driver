@@ -14,12 +14,17 @@
 
 FROM golang:1.17-buster as builder
 
+ARG GOPROXY
+
 WORKDIR /workspace
-COPY .. .
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
+COPY . .
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
-  make juicefs.ceph && mv juicefs.ceph juicefs
+    make juicefs.ceph && mv juicefs.ceph juicefs
 
 FROM juicedata/juicefs-csi-driver:nightly
-COPY --from=builder /workspace/juicefs /usr/local/bin/
 
-ENTRYPOINT ["/bin/juicefs-csi-driver"]
+COPY --from=builder /workspace/juicefs /usr/local/bin/
+RUN /usr/local/bin/juicefs --version
+
+ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]

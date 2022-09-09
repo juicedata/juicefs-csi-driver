@@ -1,30 +1,32 @@
 ---
-sidebar_label: Specify image for Mount Pod
+sidebar_label: Customize the Container Image of Mount Pod
 ---
 
-# How to use customized image in Mount Pod
+# How to customize the container image of Mount Pod
 
-This document shows how to specify a customized [image](https://kubernetes.io/docs/concepts/containers/images/) for the Mount Pod. The default image used by the Mount Pod is [`juicedata/mount:nightly`](https://hub.docker.com/r/juicedata/mount/tags), to ensure the Mount Pod works well, please use images built by Dockerfile based on the [`juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile).
+By default, the container image of the JuiceFS Mount Pod is `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`, where `<JUICEFS-CE-LATEST-VERSION>` means The latest version number of JuiceFS Community Edition client (e.g. `1.0.0`), `<JUICEFS-EE-LATEST-VERSION>` represents the latest version number of JuiceFS Cloud Service client (e.g. `4.8.0`). You can view all image tags on [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags).
 
-:::note 注意
-If the CSI driver is started by process mounting, that is, the startup parameters of CSI Node and CSI Controller use `--by-process=true`, all relevant settings described in this document will be ignored.
+This document shows how to customize the container image of Mount Pod. For how to build the container image of Mount Pod, please refer to [document](../build-juicefs-image.md#build-the-container-image-of-juicefs-mount-pod).
+
+:::note
+If the CSI Driver is started by process mounting, that is, the startup parameters of CSI Node and CSI Controller use `--by-process=true`, all relevant settings described in this document will be ignored.
 :::
 
-## Overwrite default image when installing CSI
+## Overwrite default container image when installing CSI Driver
 
-When the CSI nodes start, we can overwrite the default Mount Pod image by settring the env variable `JUICEFS_MOUNT_IMAGE` for the container `juicefs-plugin`. We already set `JUICEFS_MOUNT_IMAGE` to the latest stable Mount Pod image to `juicedata/mount:{latest ce version}-{latest ee version}` when building the CSI image.
+When the JuiceFS CSI Node starts, setting the `JUICEFS_MOUNT_IMAGE` environment variable in the `juicefs-plugin` container can override the default Mount Pod image:
 
-:::note 注意
-Once the container `juicefs-plugin` starts, you can never modify the default image of the Mount Pod. If you persist to modify it, please re-create the container and set the env variable `JUICEFS_MOUNT_IMAGE` again.
+:::note
+Once the `juicefs-plugin` container is started, the default Mount Pod image cannot be modified. If you need to modify it, please recreate the container and set the new `JUICEFS_MOUNT_IMAGE` environment variable.
 :::
 
 ```yaml {12-13}
 apiVersion: apps/v1
 kind: DaemonSet
-# metadata:
+# metadata: ...
 spec:
   template:
-    # metadata:
+    # metadata: ...
     spec:
       containers:
       - name: juicefs-plugin
@@ -34,7 +36,7 @@ spec:
           value: juicedata/mount:patch-some-bug
 ```
 
-## Set image in `PersistentVolume`
+## Set container image in `PersistentVolume`
 
 You can also set image for the Mount Pod in `PersistentVolume`:
 
@@ -120,10 +122,10 @@ kubectl get pods juicefs-app
 Also you can verify that mount image are customized in the Mount Pod:
 
 ```sh
-kubectl get -n kube-system po juicefs-{k8s-node}-juicefs-pv-{hash id} -o yaml | grep image
+kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o yaml | grep 'image: '
 ```
 
-## Set image in `StorageClass`
+## Set container image in `StorageClass`
 
 You can also set image for the Mount Pod in `StorageClass`:
 
@@ -191,5 +193,5 @@ kubectl get pods juicefs-app
 Also you can verify that mount image are customized in the Mount Pod:
 
 ```sh
-kubectl get -n kube-system po juicefs-{k8s-node}-juicefs-pv-{hash id} -o yaml | grep image
+kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o yaml | grep 'image: '
 ```
