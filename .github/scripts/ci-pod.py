@@ -16,7 +16,8 @@ from test_case import (
     test_deployment_static_patch_pv,
     test_dynamic_cache_clean_upon_umount,
     test_static_cache_clean_upon_umount,
-    test_mount_image
+    test_dynamic_mount_image,
+    test_static_mount_image,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
 
@@ -43,7 +44,8 @@ if __name__ == "__main__":
             test_dynamic_cache_clean_upon_umount()
             test_deployment_dynamic_patch_pv()
             test_deployment_static_patch_pv()
-            test_mount_image()
+            test_dynamic_mount_image()
+            test_static_mount_image()
         except Exception as e:
             die(e)
         finally:
