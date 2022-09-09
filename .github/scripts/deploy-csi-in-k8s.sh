@@ -19,7 +19,7 @@ function main() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     count=$(sudo microk8s.kubectl -n default get pods | grep juicefs-csi | awk '{print $2}' | tr '/' '-' | bc | grep -v '^0$' | wc -l)
     if [ $count = 0 ]; then
-      node_pod=$(sudo microk8s.kubectl -n default get pods | grep 3/3 | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
+      node_pod=$(sudo microk8s.kubectl -n default get pods | grep Running | grep 3/3 | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
       sudo microk8s.kubectl cp default/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin && \
