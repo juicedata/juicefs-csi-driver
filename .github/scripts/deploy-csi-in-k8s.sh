@@ -20,6 +20,7 @@ function main() {
     count=$(sudo microk8s.kubectl -n default get pods | grep juicefs-csi | awk '{print $2}' | tr '/' '-' | bc | grep -v '^0$' | wc -l)
     if [ $count = 0 ]; then
       node_pod=$(sudo microk8s.kubectl -n default get pods -o name | grep juicefs-csi-node | cut -d/ -f2)
+      echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
       sudo microk8s.kubectl cp default/$node_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin && \
           sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
