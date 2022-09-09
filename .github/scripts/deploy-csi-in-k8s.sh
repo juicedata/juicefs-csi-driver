@@ -17,8 +17,8 @@ function main() {
     timeout=$(expr $timeout + 1)
     echo "Wait JuiceFS CSI to be ready ..."
     # The juicefs-csi-{node|controller} pods' containers should be all ready
-    count=$(sudo microk8s.kubectl -n default get pods | grep juicefs-csi | awk '{print $2}' | tr '/' '-' | bc | grep -v '^0$' | wc -l)
-    if [ $count = 0 ]; then
+    count=$(sudo microk8s.kubectl -n default get pods | grep juicefs-csi | grep Running | grep 3/3 | wc -l)
+    if [ $count = 2 ]; then
       node_pod=$(sudo microk8s.kubectl -n default get pods | grep Running | grep 3/3 | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
