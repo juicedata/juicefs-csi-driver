@@ -101,6 +101,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -131,6 +132,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -153,6 +155,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -185,6 +188,7 @@ func TestParseSecret(t *testing.T) {
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -217,6 +221,7 @@ func TestParseSecret(t *testing.T) {
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -249,6 +254,7 @@ func TestParseSecret(t *testing.T) {
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -278,6 +284,7 @@ func TestParseSecret(t *testing.T) {
 				},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -302,6 +309,7 @@ func TestParseSecret(t *testing.T) {
 				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -334,6 +342,7 @@ func TestParseSecret(t *testing.T) {
 				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -358,6 +367,7 @@ func TestParseSecret(t *testing.T) {
 				Resources:           defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -394,6 +404,7 @@ func TestParseSecret(t *testing.T) {
 				Resources:          defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -413,6 +424,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -444,6 +456,7 @@ func TestParseSecret(t *testing.T) {
 				Resources:      defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -491,6 +504,7 @@ func TestParseSecret(t *testing.T) {
 				CachePVCs:     []CachePVC{},
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -524,6 +538,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -554,9 +569,34 @@ func TestParseSecret(t *testing.T) {
 				Resources: defaultResource,
 				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
+					Image:                MountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "specify mount image",
+			args: args{
+				secrets: map[string]string{"configs": "a: b", "name": "test"},
+				volCtx:  map[string]string{mountPodImageKey: "abc"},
+			},
+			want: &JfsSetting{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{"a": "b"},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				Resources: defaultResource,
+				Attr: PodAttr{
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "abc",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs: []CachePVC{},
 			},
 			wantErr: false,
 		},

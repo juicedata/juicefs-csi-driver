@@ -34,7 +34,7 @@ var (
 	NodeName         = ""
 	Namespace        = ""
 	PodName          = ""
-	MountImage       = ""
+	MountImage       = "juicedata/mount:nightly" // mount pod image
 	MountLabels      = ""
 	HostIp           = ""
 	KubeletPort      = ""
@@ -78,6 +78,7 @@ const (
 	mountPodLabelKey       = "juicefs/mount-labels"
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
+	mountPodImageKey       = "juicefs/mount-image"
 	deleteDelay            = "juicefs/mount-delete-delay"
 	cleanCache             = "juicefs/clean-cache"
 	cachePVC               = "juicefs/mount-cache-pvc"

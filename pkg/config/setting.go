@@ -129,9 +129,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 
 	// parse pvc of cache
 	dirs := []string{}
-	cachePVCs, ok := volCtx[cachePVC]
-	if ok {
-		cachePVCs := strings.Split(strings.TrimSpace(cachePVCs), ",")
+	if volCtx != nil && volCtx[cachePVC] != "" {
+		cachePVCs := strings.Split(strings.TrimSpace(volCtx[cachePVC]), ",")
 		for i, pvc := range cachePVCs {
 			if pvc == "" {
 				continue
@@ -242,6 +241,10 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		ImagePullSecrets:     CSIPod.Spec.ImagePullSecrets,
 		PreemptionPolicy:     CSIPod.Spec.PreemptionPolicy,
 		Tolerations:          CSIPod.Spec.Tolerations,
+	}
+
+	if volCtx != nil && volCtx[mountPodImageKey] != "" {
+		jfsSetting.Attr.Image = volCtx[mountPodImageKey]
 	}
 
 	// set default resource limit & request

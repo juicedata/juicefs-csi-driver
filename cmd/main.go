@@ -80,6 +80,11 @@ func init() {
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
 	}
+
+	if mountPodImage := os.Getenv("JUICEFS_MOUNT_IMAGE"); mountPodImage != "" {
+		config.MountImage = mountPodImage
+	}
+
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")
 		os.Exit(0)
@@ -107,14 +112,6 @@ func init() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
-	for i := range pod.Spec.Containers {
-		if pod.Spec.Containers[i].Name == "juicefs-plugin" {
-			config.MountImage = pod.Spec.Containers[i].Image
-			return
-		}
-	}
-	klog.V(5).Infof("Can't get container juicefs-plugin in pod %s", config.PodName)
-	os.Exit(0)
 }
 
 func main() {
