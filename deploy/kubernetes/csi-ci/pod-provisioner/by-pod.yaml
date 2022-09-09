@@ -14,7 +14,6 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --v=6
             - --format-in-pod=true
-            - --provisioner=true
 ---
 kind: DaemonSet
 apiVersion: apps/v1

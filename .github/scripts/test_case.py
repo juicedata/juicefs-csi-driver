@@ -540,8 +540,14 @@ def test_static_delete_pod():
 
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
+    by_process = MOUNT_MODE == "process"
+
     cache_dir = "/mnt/static/cache1:/mnt/static/cache2"
     cache_dirs = ["/mnt/static/cache1", "/mnt/static/cache2"]
+    if by_process:
+        cache_dir = "/jfs/static/cache1:/jfs/static/cache2"
+        cache_dirs = ["/var/lib/juicefs/volume/static/cache1", "/var/lib/juicefs/volume/static/cache2"]
+
     # deploy pv
     pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
             secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
@@ -574,7 +580,7 @@ def test_static_cache_clean_upon_umount():
     # get volume uuid
     uuid = SECRET_NAME
     if IS_CE:
-        if MOUNT_MODE == "pod":
+        if not by_process:
             mount_pod_name = get_only_mount_pod_name(volume_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
@@ -922,6 +928,64 @@ def test_deployment_static_patch_pv():
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    return
+
+
+def test_mount_image():
+    LOG.info("[test case] Deployment set mount image in storageClass begin..")
+    mount_image = "juicedata/mount:v1.0.0-4.8"
+    # deploy sc
+    sc_name = "mount-image-sc"
+    sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
+                      parameters={"juicefs/mount-image": mount_image})
+    LOG.info("Deploy storageClass {}".format(sc.name))
+    sc.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-mount-image-sc", access_mode="ReadWriteMany", storage_name=sc.name, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    deployment = Deployment(name="app-mount-image-sc", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    LOG.info("Test pass.")
+
+    mount_pods = get_mount_pods(volume_id)
+    if len(mount_pods.items) != 1:
+        raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
+    mount_pod = mount_pods.items()[0]
+    # check mount pod image
+    if mount_pod.spec.containers[0].image != mount_image:
+        raise Exception("Image of mount pod is not {}".format(mount_image))
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    LOG.info("Remove sc {}".format(pvc.name))
+    sc.delete()
     return
 
 
