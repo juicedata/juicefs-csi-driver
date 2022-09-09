@@ -953,14 +953,6 @@ def test_share_mount():
     if not result:
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment2.name))
 
-    # check mount point
-    LOG.info("Check mount point..")
-    volume_id = STORAGECLASS_NAME
-    check_path = "{}/out.txt".format(volume_id)
-    result = check_mount_point(check_path)
-    if not result:
-        raise Exception("mount Point of /mnt/jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-
     # check mount pod refs
     mount_pod_name = get_only_mount_pod_name(STORAGECLASS_NAME)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
