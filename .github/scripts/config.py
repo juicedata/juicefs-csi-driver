@@ -28,6 +28,8 @@ MOUNT_MODE = os.getenv("MOUNT_MODE")
 RESOURCE_PREFIX = "{}-{}-".format(MOUNT_MODE, JUICEFS_MODE)
 
 GLOBAL_MOUNTPOINT = "/mnt/jfs"
+FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=FORMAT)
 LOG = logging.getLogger('main')
 LOG.setLevel(logging.INFO)
 
