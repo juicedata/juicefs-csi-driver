@@ -28,7 +28,6 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
 FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
-ARG TARGETARCH
 
 WORKDIR /app
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/

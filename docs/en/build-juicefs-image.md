@@ -10,19 +10,19 @@ The JuiceFS CSI Driver contains various types of components, and different compo
 
 The default container image used by JuiceFS CSI Controller and JuiceFS CSI Node is [`juicedata/juicefs-csi-driver`](https://hub.docker.com/r/juicedata/juicefs-csi-driver), and the corresponding Dockerfile is [`docker/Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/Dockerfile). You can build a container image with the following command:
 
-```shell
-make image-latest
-```
-
-After the build is completed, a container image called `juicedata/juicefs-csi-driver:latest` will be generated. If you want to change the name of the container image, you can set the `IMAGE` environment variable:
+The container image contains the latest version of JuiceFS Community Edition and JuiceFS Cloud Service client by default. If you want to modify code and build your own CSI image, you can execute the following commands:
 
 ```shell
-IMAGE=foo/juicefs-csi-driver make image-latest
+DEV_REGISTRY=foo/juicefs-csi-driver make image-dev
 ```
 
-The container image contains the latest version of JuiceFS Community Edition and JuiceFS Cloud Service client by default. If you want to use a different version of the JuiceFS client, you can follow the steps below:
+## Build the container image of JuiceFS Mount Pod
 
-1. Clone the JuiceFS repository to the root directory of the JuiceFS CSI Driver project and switch to the branch you want to compile or modify the code as needed:
+The default container image used by JuiceFS Mount Pod is [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and the corresponding Dockerfile is [`docker/juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile). 
+
+If you want to build your own image, you can follow these steps:
+
+1. Clone the JuiceFS repository to the root directory of the JuiceFS CSI driver project and switch to the branch you want to compile or modify the code as needed:
 
    ```shell
    git clone git@github.com:juicedata/juicefs.git
@@ -32,25 +32,7 @@ The container image contains the latest version of JuiceFS Community Edition and
 2. Execute the following command to build the image:
 
    ```shell
-   docker build -t foo/juicefs-csi-driver:latest -f ../docker/dev.juicefs.Dockerfile .
+   docker build -t foo/mount:latest -f ../docker/dev.juicefs.Dockerfile .
    ```
 
-## Build the container image of JuiceFS Mount Pod
-
-The default container image used by JuiceFS Mount Pod is [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and the corresponding Dockerfile is [`docker/juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile). You can build a container image with the following command:
-
-```shell
-make juicefs-image
-```
-
-The build will generate a container image called `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`, where `<JUICEFS-CE-LATEST-VERSION>` means The latest version number of JuiceFS Community Edition client (e.g. `1.0.0`), `<JUICEFS-EE-LATEST-VERSION>` represents the latest version number of JuiceFS Cloud Service client (e.g. `4.8.0`). If you want to change the name of the container image you can set the `JUICEFS_IMAGE` environment variable:
-
-```shell
-JUICEFS_IMAGE=foo/mount make juicefs-image
-```
-
-The container image contains the latest version of JuiceFS Community Edition and JuiceFS Cloud Service client by default. If you want to use a different version of the JuiceFS client, you can set the `JUICEFS_REPO_URL` and `JUICEFS_REPO_REF` environment variables:
-
-```shell
-JUICEFS_REPO_URL=https://github.com/foo/juicefs JUICEFS_REPO_REF=v1.0.0 make juicefs-image
-```
+After image building, you can refer to [this document](examples/mount-image.md) to specify the image of the Mount Pod in PV/StorageClass.

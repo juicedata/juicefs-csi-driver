@@ -22,9 +22,7 @@ COPY . .
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
     make juicefs.ceph && mv juicefs.ceph juicefs
 
-FROM juicedata/juicefs-csi-driver:nightly
+FROM juicedata/mount:nightly
 
 COPY --from=builder /workspace/juicefs /usr/local/bin/
 RUN /usr/local/bin/juicefs --version
-
-ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
