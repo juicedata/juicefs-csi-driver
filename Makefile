@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-IMAGE=juicedata/juicefs-csi-driver
+
+IMAGE?=juicedata/juicefs-csi-driver
 REGISTRY?=docker.io
 TARGETARCH?=amd64
 FUSE_IMAGE=juicedata/juicefs-fuse
-JUICEFS_IMAGE=juicedata/mount
+JUICEFS_IMAGE?=juicedata/mount
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -33,6 +33,8 @@ JFS_CHAN=${JFSCHAN}
 JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
 JUICEFS_MOUNT_IMAGE?=$(JUICEFS_IMAGE):$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION)
 JUICEFS_MOUNT_NIGHTLY_IMAGE?=$(JUICEFS_IMAGE):nightly
+JUICEFS_REPO_URL?=https://github.com/juicedata/juicefs
+JUICEFS_REPO_REF?=$(JUICEFS_CE_LATEST_VERSION)
 
 GOPROXY=https://goproxy.io
 GOPATH=$(shell go env GOPATH)
@@ -188,6 +190,17 @@ csi-slim-image-version:
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
         --build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
 		--platform linux/amd64,linux/arm64 . --push
+
+# build juicefs image
+.PHONY: juicefs-image
+juicefs-image:
+	docker build \
+		-f docker/juicefs.Dockerfile \
+		-t $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_REPO_REF)-$(JUICEFS_EE_LATEST_VERSION) \
+		--build-arg JUICEFS_REPO_URL=$(JUICEFS_REPO_URL) \
+		--build-arg JUICEFS_REPO_REF=$(JUICEFS_REPO_REF) \
+		--build-arg JFS_AUTO_UPGRADE=disabled \
+		.
 
 # build & push juicefs image
 .PHONY: juicefs-image-version

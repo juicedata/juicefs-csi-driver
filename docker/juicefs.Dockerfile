@@ -15,19 +15,19 @@
 FROM golang:1.17-buster as builder
 
 ARG GOPROXY
+ARG JUICEFS_REPO_URL=https://github.com/juicedata/juicefs
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
-    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
+    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs
 
 FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
-ARG TARGETARCH
 
 WORKDIR /app
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
