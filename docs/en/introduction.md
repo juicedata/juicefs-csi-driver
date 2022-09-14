@@ -36,7 +36,7 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
 
    Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
    Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
-   please refer to ["this document"](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), 
+   please refer to [juicefs-csi-driver values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), 
    items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
    
    ```yaml title="values.yaml"
@@ -88,9 +88,9 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-4. Check the deployment
+4. Verify installation
 
-   The deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
+   The installation will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
 
    ```sh
    $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver

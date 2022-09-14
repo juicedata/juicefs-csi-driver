@@ -5,7 +5,7 @@
 [English](./README.md) | 简体中文
 
 [JuiceFS](https://github.com/juicedata/juicefs) CSI 驱动遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口，支持动态配置 JuiceFS 卷提供给 Pod 使用。
-更多使用方法请参考[官方文档库](https://juicefs.com/docs/zh/csi/introduction)。
+更多使用方法请参考[文档库](https://juicefs.com/docs/zh/csi/introduction)。
 
 ## 版本要求
 

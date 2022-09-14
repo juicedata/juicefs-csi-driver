@@ -5,7 +5,7 @@
 English | [简体中文](./README_CN.md)
 
 The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface (CSI) Driver implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS file system.
-For more usage methods, please refer to [Official Documentation Library](https://juicefs.com/docs/csi/introduction)。
+For more usage, please refer to [CSI Documentation Library](https://juicefs.com/docs/csi/introduction)。
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ Notice: If you do not need to create a StorageClass when installing the CSI driv
 
 Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
 Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
-please refer to ["this document"](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values),
+please refer to [juicefs-csi-driver values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values),
 items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
 
 ```yaml
@@ -85,9 +85,9 @@ helm repo update
 helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-4. Check the deployment
+4. Verify installation
 
-The deployment will launch a `StatefulSet` named `juicefs-csi-controller` with `1` replica and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods are running. For example:
+The installation will launch a `StatefulSet` named `juicefs-csi-controller` with `1` replica and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods are running. For example:
 
 ```sh
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
