@@ -191,17 +191,6 @@ csi-slim-image-version:
         --build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
 		--platform linux/amd64,linux/arm64 . --push
 
-# build juicefs image
-.PHONY: juicefs-image
-juicefs-image:
-	docker build \
-		-f docker/juicefs.Dockerfile \
-		-t $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_REPO_REF)-$(JUICEFS_EE_LATEST_VERSION) \
-		--build-arg JUICEFS_REPO_URL=$(JUICEFS_REPO_URL) \
-		--build-arg JUICEFS_REPO_REF=$(JUICEFS_REPO_REF) \
-		--build-arg JFS_AUTO_UPGRADE=disabled \
-		.
-
 # build & push juicefs image
 .PHONY: juicefs-image-version
 juicefs-image-version:
