@@ -69,17 +69,17 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	d.vols[req.Name] = requiredCap
 
-	// create volume
-	err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
-	}
-
 	// set volume context
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		volCtx[k] = v
 	}
+	// create volume
+	err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
+	}
+
 	volCtx["subPath"] = subPath
 	volume := csi.Volume{
 		VolumeId:      volumeId,
@@ -108,9 +108,13 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	secrets := req.Secrets
 	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
+	if len(secrets) == 0 {
+		klog.V(5).Infof("DeleteVolume: Secrets is empty, skip.")
+		return &csi.DeleteVolumeResponse{}, nil
+	}
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
-	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets)
+	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delVol in juicefs: %v", err)
 	}

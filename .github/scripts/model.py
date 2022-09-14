@@ -102,12 +102,16 @@ class StorageClass:
 
 
 class PVC:
-    def __init__(self, *, name, access_mode, storage_name, pv):
+    def __init__(self, *, name, access_mode, storage_name, pv, labels=None, annotations=None):
+        if labels is None:
+            labels = {}
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.access_mode = access_mode
         self.storage_class = storage_name
         self.pv = pv
+        self.labels = labels
+        self.annotations = annotations
 
     def create(self):
         spec = client.V1PersistentVolumeClaimSpec(
@@ -122,7 +126,7 @@ class PVC:
         pvc = client.V1PersistentVolumeClaim(
             api_version="v1",
             kind="PersistentVolumeClaim",
-            metadata=client.V1ObjectMeta(name=self.name),
+            metadata=client.V1ObjectMeta(name=self.name, labels=self.labels, annotations=self.annotations),
             spec=spec
         )
         client.CoreV1Api().create_namespaced_persistent_volume_claim(namespace=self.namespace, body=pvc)

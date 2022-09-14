@@ -14,6 +14,9 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --v=6
             - --format-in-pod=true
+            - --provisioner=true
+        - name: csi-provisioner
+          $patch: delete
 ---
 kind: DaemonSet
 apiVersion: apps/v1

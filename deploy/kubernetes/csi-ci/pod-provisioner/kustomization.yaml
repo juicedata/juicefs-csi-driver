@@ -5,4 +5,4 @@ namespace: default
 resources:
 - ../../base
 patches:
-- by-pod.yaml
+- provisioner.yaml

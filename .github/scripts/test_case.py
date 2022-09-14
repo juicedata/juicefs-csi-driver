@@ -617,8 +617,14 @@ def test_static_cache_clean_upon_umount():
 
 def test_dynamic_cache_clean_upon_umount():
     LOG.info("[test case] Pod with dynamic storage and clean cache upon umount begin..")
+    by_process = MOUNT_MODE == "process"
+
     cache_dir = "/mnt/dynamic/cache1:/mnt/dynamic/cache2"
     cache_dirs = ["/mnt/dynamic/cache1", "/mnt/dynamic/cache2"]
+    if by_process:
+        cache_dir = "/jfs/dynamic/cache1:/jfs/dynamic/cache2"
+        cache_dirs = ["/var/lib/juicefs/volume/dynamic/cache1", "/var/lib/juicefs/volume/dynamic/cache2"]
+
     sc_name = RESOURCE_PREFIX + "-sc-cache"
     # deploy sc
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
@@ -653,7 +659,7 @@ def test_dynamic_cache_clean_upon_umount():
     # get volume uuid
     uuid = SECRET_NAME
     if IS_CE:
-        if MOUNT_MODE == "pod":
+        if not by_process:
             mount_pod_name = get_only_mount_pod_name(volume_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
@@ -933,7 +939,7 @@ def test_deployment_static_patch_pv():
 
 def test_dynamic_mount_image():
     LOG.info("[test case] Deployment set mount image in storageClass begin..")
-    mount_image = "juicedata/mount:v1.0.0-4.8"
+    mount_image = "juicedata/mount:v1.0.0-4.8.0"
     # deploy sc
     sc_name = "mount-image-dynamic"
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
@@ -964,12 +970,12 @@ def test_dynamic_mount_image():
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    LOG.info("Test pass.")
 
+    LOG.info("Check mount pod image")
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 1:
         raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
-    mount_pod = mount_pods.items()[0]
+    mount_pod = mount_pods.items[0]
     # check mount pod image
     if mount_pod.spec.containers[0].image != mount_image:
         raise Exception("Image of mount pod is not {}".format(mount_image))
@@ -986,12 +992,13 @@ def test_dynamic_mount_image():
     pvc.delete()
     LOG.info("Remove sc {}".format(pvc.name))
     sc.delete()
+    LOG.info("Test pass.")
     return
 
 
 def test_static_mount_image():
-    LOG.info("[test case] Deployment set mount image in storageClass begin..")
-    mount_image = "juicedata/mount:v1.0.0-4.8"
+    LOG.info("[test case] Deployment set mount image in PV begin..")
+    mount_image = "juicedata/mount:v1.0.0-4.8.0"
     # deploy pv
     pv_name = "mount-image-pv"
     pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name,
@@ -1000,12 +1007,13 @@ def test_static_mount_image():
     pv.create()
 
     # deploy pvc
-    pvc = PVC(name="pvc-mount-image-static", access_mode="ReadWriteMany", storage_name="", pv=pv_name)
+    pvc = PVC(name="pvc-mount-image-static", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
     # deploy pod
-    deployment = Deployment(name="app-mount-image-static", pvc=pvc.name, replicas=1)
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-mount-image-static", pvc=pvc.name, replicas=1, out_put=out_put)
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -1016,18 +1024,17 @@ def test_static_mount_image():
 
     # check mount point
     LOG.info("Check mount point..")
-    volume_id = pvc.get_volume_id()
+    volume_id = pv.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    check_path = volume_id + "/out.txt"
-    result = check_mount_point(check_path)
+    result = check_mount_point(out_put)
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    LOG.info("Test pass.")
 
+    LOG.info("Check mount pod image")
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 1:
         raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
-    mount_pod = mount_pods.items()[0]
+    mount_pod = mount_pods.items[0]
     # check mount pod image
     if mount_pod.spec.containers[0].image != mount_image:
         raise Exception("Image of mount pod is not {}".format(mount_image))
@@ -1044,6 +1051,7 @@ def test_static_mount_image():
     pvc.delete()
     LOG.info("Remove pv {}".format(pvc.name))
     pv.delete()
+    LOG.info("Test pass.")
     return
 
 
@@ -1104,4 +1112,55 @@ def test_share_mount():
     pvc2.delete()
 
     LOG.info("Test pass.")
+    return
+
+
+def test_path_pattern_in_storage_class():
+    LOG.info("[test case] Path pattern in storageClass begin..")
+    label_value = "def"
+    anno_value = "xyz"
+    # deploy sc
+    sc_name = "path-pattern-dynamic"
+    sc = StorageClass(
+        name=sc_name, secret_name=SECRET_NAME,
+        parameters={"pathPattern": "${.PVC.namespace}-${.PVC.name}-${.PVC.labels.abc}-${.PVC.annotations.abc}"})
+    LOG.info("Deploy storageClass {}".format(sc.name))
+    sc.create()
+
+    # deploy pvc
+    pvc = PVC(name="path-pattern-dynamic", access_mode="ReadWriteMany",
+              storage_name=sc.name, pv="", labels={"abc": label_value}, annotations={"abc": anno_value})
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    deployment = Deployment(name="app-path-pattern-dynamic", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    check_path = "{}-{}-{}-{}/out.txt".format(KUBE_SYSTEM, pvc.name, label_value, anno_value)
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
+    LOG.info("Test pass.")
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    LOG.info("Remove sc {}".format(pvc.name))
+    sc.delete()
     return

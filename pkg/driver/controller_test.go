@@ -90,7 +90,7 @@ func TestCreateVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret).Return(nil)
+				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret, volCtx).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -231,7 +231,7 @@ func TestCreateVolume(t *testing.T) {
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret, volCtx).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -277,7 +277,7 @@ func TestDeleteVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret).Return(nil)
+				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret, nil).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -343,7 +343,7 @@ func TestDeleteVolume(t *testing.T) {
 				defer mockCtl.Finish()
 
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret).Return(errors.New("test"))
+				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret, nil).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,

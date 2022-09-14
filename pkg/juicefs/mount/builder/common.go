@@ -201,7 +201,7 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:         "jfs-cache-clean",
-				Image:        config.MountImage,
+				Image:        r.jfsSetting.Attr.Image,
 				Command:      []string{"sh", "-c", "rm -rf /var/jfsCache/*/chunks"},
 				VolumeMounts: cacheVolumeMounts,
 			}},

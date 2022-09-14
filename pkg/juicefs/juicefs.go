@@ -57,8 +57,8 @@ const (
 type Interface interface {
 	mount.Interface
 	JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
-	JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error
-	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets map[string]string) error
+	JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error
+	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string) error
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
@@ -194,8 +194,8 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	}
 }
 
-func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, nil, []string{})
+func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
+	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
 		return err
 	}
@@ -207,8 +207,8 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 	return j.processMount.JCreateVolume(ctx, jfsSetting)
 }
 
-func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
-	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, nil, []string{})
+func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
+	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
 		return err
 	}
