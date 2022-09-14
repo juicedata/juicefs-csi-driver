@@ -436,15 +436,18 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 }
 
 func (p *PodMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
-	jfsSetting := &jfsConfig.JfsSetting{
-		VolumeId:  volumeId,
-		CacheDirs: cacheDirs,
-		UUID:      id,
+	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true)
+	if err != nil {
+		klog.Errorf("CleanCache: parse jfs setting err: %v", err)
+		return err
 	}
+	jfsSetting.VolumeId = volumeId
+	jfsSetting.CacheDirs = cacheDirs
+	jfsSetting.UUID = id
 	r := builder.NewBuilder(jfsSetting)
 	job := r.NewJobForCleanCache()
 	klog.V(6).Infof("Clean cache job: %v", job)
-	_, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
+	_, err = p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
 		klog.V(5).Infof("CleanCache: create job %s", job.Name)
 		_, err = p.K8sClient.CreateJob(ctx, job)

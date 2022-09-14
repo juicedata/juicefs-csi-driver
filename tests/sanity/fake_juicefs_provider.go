@@ -38,11 +38,11 @@ func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (strin
 	return "", nil
 }
 
-func (j *fakeJfsProvider) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets map[string]string) error {
+func (j *fakeJfsProvider) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets map[string]string) error {
+func (j *fakeJfsProvider) JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string) error {
 	return nil
 }
 

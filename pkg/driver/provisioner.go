@@ -98,7 +98,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	for k, v := range secret.Data {
 		secretData[k] = string(v)
 	}
-	if err := j.juicefs.JfsCreateVol(ctx, options.PVName, subPath, secretData); err != nil {
+	if err := j.juicefs.JfsCreateVol(ctx, options.PVName, subPath, secretData, nil); err != nil {
 		klog.Errorf("[PVCReconciler]: create vol error %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
 	}
@@ -161,7 +161,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 
 	klog.V(5).Infof("Provisioner Delete: Deleting volume subpath %q", subPath)
-	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData); err != nil {
+	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, nil); err != nil {
 		klog.Errorf("provisioner: delete vol error %v", err)
 		return errors.New("unable to provision delete volume: " + err.Error())
 	}
