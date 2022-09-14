@@ -31,9 +31,12 @@ To install Helm, refer to the [Helm install guide](https://github.com/helm/helm#
 
 1. Prepare a YAML file
 
-If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
+Notice: If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
 
-Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information (take community edition as an example). Among them, the `backend` part is the information related to the JuiceFS file system, you can refer to [JuiceFS Quick Start Guide](https://juicefs.com/docs/community/quick_start_guide/) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or their value should be left blank.
+Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
+Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
+please refer to ["this document"](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values),
+items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
 
 ```yaml
 storageClasses:
@@ -41,22 +44,23 @@ storageClasses:
   enabled: true
   reclaimPolicy: Retain
   backend:
-    name: "<name>"
-    metaurl: "<meta-url>"
-    storage: "<storage-type>"
-    accessKey: "<access-key>"
-    secretKey: "<secret-key>"
-    bucket: "<bucket>"
+    name: "<name>"             # JuiceFS volume name
+    metaurl: "<meta-url>"      # Database URL for metadata storage
+    storage: "<storage-type>"  # Object storage type (e.g. s3, gcs, oss, cos) 
+    accessKey: "<access-key>"  # Access Key for object storage
+    secretKey: "<secret-key>"  # Secret Key for object storage
+    bucket: "<bucket>"         # A bucket URL to store data
   mountPod:
-    resources:
+    resources:                 # Resource limit/request for mount pod
       limits:
-        cpu: "<cpu-limit>"
-        memory: "<memory-limit>"
+        cpu: "1"
+        memory: "1Gi"
       requests:
-        cpu: "<cpu-request>"
-        memory: "<memory-request>"
+        cpu: "5"
+        memory: "5Gi"
 ```
 
+Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
 For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](https://juicefs.com/docs/csi/examples/dynamic-provisioning).
 
 2. Check and update kubelet root-dir
@@ -78,7 +82,7 @@ kubeletDir: <kubelet-dir>
 ```sh
 helm repo add juicefs-csi-driver https://juicedata.github.io/charts/
 helm repo update
-helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
 4. Check the deployment

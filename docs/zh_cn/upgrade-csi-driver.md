@@ -12,7 +12,7 @@ JuiceFS CSI 驱动从 v0.10.0 开始将 JuiceFS 客户端与 CSI 驱动进行了
 
 ```bash
 helm repo update
-helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
 ### 通过 kubectl 升级

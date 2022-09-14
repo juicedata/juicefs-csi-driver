@@ -190,7 +190,33 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 此特性需使用 0.13.3 及以上版本的 JuiceFS CSI 驱动
 :::
 
-`pathPattern` 允许您在 `StorageClass` 中定义其不同 PV 的子目录格式，可以指定用于通过 PVC 元数据（例如标签、注释、名称或命名空间）创建目录路径的模板。默认关闭，需要手动开启，方式如下：
+`pathPattern` 允许您在 `StorageClass` 中定义其不同 PV 的子目录格式，可以指定用于通过 PVC 元数据（例如标签、注释、名称或命名空间）创建目录路径的模板。默认关闭，需要手动开启。
+
+### Helm 
+
+若您使用 helm 来安装 JuiceFS CSI 驱动，可以在 `values.yaml` 中添加如下配置以开启该功能：
+
+```yaml
+controller:
+  provisioner: true
+```
+
+再重新部署 csi 驱动：
+
+```bash
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+确保 JuiceFS CSI Controller 的 pod 已重启：
+
+```bash
+$ kubectl -n kube-system get po -l app=juicefs-csi-controller
+juicefs-csi-controller-0                2/2     Running   0                24m
+```
+
+### Kubectl 
+
+若您使用 `kubectl apply` 方式来安装 JuiceFS CSI 驱动，启动方式如下：
 
 ```bash
 kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value":["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
@@ -202,6 +228,8 @@ kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op"
 $ kubectl -n kube-system get po -l app=juicefs-csi-controller
 juicefs-csi-controller-0                2/2     Running   0                24m
 ```
+
+### 使用方式
 
 您可以在 `StorageClass` 中这样使用 `pathPattern`：
 
