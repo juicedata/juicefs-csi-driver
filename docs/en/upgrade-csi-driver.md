@@ -12,7 +12,7 @@ Please run the following commands in sequence to upgrade the JuiceFS CSI Driver:
 
 ```bash
 helm repo update
-helm upgrade juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
 ### Upgrade via kubectl

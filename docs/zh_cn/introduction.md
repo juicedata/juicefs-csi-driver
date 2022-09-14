@@ -30,11 +30,13 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 1. 准备配置文件
 
-   创建一个配置文件，例如：`values.yaml`，复制并完善下列配置信息。其中，`backend` 部分是 JuiceFS 文件系统相关的信息，你可以参照[「JuiceFS 快速上手指南」](https://juicefs.com/docs/zh/community/quick_start_guide)了解相关内容。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。`mountPod` 部分可以对使用此驱动的 Pod 设置 CPU 和内存的资源配置。不需要的项可以删除，或者将它的值留空。这里以社区版为例：
-
    :::info 说明
-   请参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)了解 JuiceFS CSI 驱动的 Helm chart 支持的所有配置项
+   若您不需要在安装 CSI 驱动时创建 StorageClass，可以忽略此步骤。
    :::
+
+   创建一个配置文件，例如：`values.yaml`，复制并完善下列配置信息。
+   当前只列举出较为基础的配置，更多的 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[「这篇文档」](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，
+   不需要的项可以删除，或者将它的值留空。这里以社区版为例：
 
    ```yaml title="values.yaml"
    storageClasses:
@@ -42,23 +44,25 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
      enabled: true
      reclaimPolicy: Retain
      backend:
-       name: "<name>"
-       metaurl: "<meta-url>"
-       storage: "<storage-type>"
-       accessKey: "<access-key>"
-       secretKey: "<secret-key>"
-       bucket: "<bucket>"
+       name: "<name>"                # JuiceFS 文件系统名
+       metaurl: "<meta-url>"         # 元数据存储的数据库 URL
+       storage: "<storage-type>"     # 对象存储类型 (例如 s3、gcs、oss、cos)
+       accessKey: "<access-key>"     # 对象存储的 Access Key
+       secretKey: "<secret-key>"     # 对象存储的 Secret Key
+       bucket: "<bucket>"            # 存储数据的桶路径
        # 如果需要设置 JuiceFS Mount Pod 的时区请将下一行的注释符号删除，默认为 UTC 时间。
        # envs: "{TZ: Asia/Shanghai}"
      mountPod:
-       resources:
+       resources:                    # Mount pod 的资源配置
          limits:
-           cpu: "<cpu-limit>"
-           memory: "<memory-limit>"
+           cpu: "1"
+           memory: "1Gi"
          requests:
-           cpu: "<cpu-request>"
-           memory: "<memory-request>"
+           cpu: "5"
+           memory: "5Gi"
    ```
+   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。
+   更加详细的 StorageClass 使用方式可参考文档：[动态配置](./examples/dynamic-provisioning.md)。
 
 2. 检查 kubelet 根目录
 
@@ -79,53 +83,21 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
    依次执行以下三条命令，通过 Helm 部署 JuiceFS CSI 驱动。
 
    ```sh
-   helm repo add juicefs-csi-driver https://juicedata.github.io/charts/
+   helm repo add juicefs https://juicedata.github.io/charts/
    helm repo update
-   helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
 4. 检查部署状态
 
-   - **检查 Pods**：部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个（`n` 指 Kubernetes 的 Node 数量）pod 在运行，例如：
+   部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个（`n` 指 Kubernetes 的 Node 数量）pod 在运行，例如：
 
-     ```sh
-     $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-     NAME                       READY   STATUS    RESTARTS   AGE
-     juicefs-csi-controller-0   3/3     Running   0          22m
-     juicefs-csi-node-v9tzb     3/3     Running   0          14m
-     ```
-
-   - **检查 Secret**：通过命令 `kubectl -n kube-system describe secret juicefs-sc-secret` 可以看到前面 `values.yaml` 配置文件中 `backend` 部分的 secret 信息。
-
-     ```
-     Name:         juicefs-sc-secret
-     Namespace:    kube-system
-     Labels:       app.kubernetes.io/instance=juicefs-csi-driver
-                   app.kubernetes.io/managed-by=Helm
-                   app.kubernetes.io/name=juicefs-csi-driver
-                   app.kubernetes.io/version=0.7.0
-                   helm.sh/chart=juicefs-csi-driver-0.1.0
-     Annotations:  meta.helm.sh/release-name: juicefs-csi-driver
-                   meta.helm.sh/release-namespace: default
-
-     Type:  Opaque
-
-     Data
-     ====
-     access-key:  0 bytes
-     bucket:      47 bytes
-     metaurl:     54 bytes
-     name:        4 bytes
-     secret-key:  0 bytes
-     storage:     2 bytes
-     ```
-
-   - **检查存储类（StorageClass）**：通过命令 `kubectl get sc juicefs-sc` 会看到类似下面的存储类信息。
-
-     ```
-     NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
-     juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
-     ```
+   ```sh
+   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+   NAME                       READY   STATUS    RESTARTS   AGE
+   juicefs-csi-controller-0   3/3     Running   0          22m
+   juicefs-csi-node-v9tzb     3/3     Running   0          14m
+   ```
 
 ### 方法二：通过 kubectl 安装
 

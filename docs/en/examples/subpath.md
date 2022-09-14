@@ -191,7 +191,33 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 This feature requires JuiceFS CSI Driver version 0.13.3 and above.
 :::
 
-`pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. It is turned off by default and needs to be turned on manually, as follows:
+`pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. It is turned off by default and needs to be turned on manually.
+
+### Helm 
+
+If you used helm to install the JuiceFS CSI driver, you can add the following configuration to `values.yaml` to enable this feature:
+
+```yaml
+controller:
+  provisioner: true
+```
+
+Then reinstall csi driver:
+
+```bash
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+Make sure pods of JuiceFS CSI Controller are restarted:
+
+```bash
+$ kubectl -n kube-system get po -l app=juicefs-csi-controller
+juicefs-csi-controller-0                2/2     Running   0                24m
+```
+
+### Kubectl
+
+If you used `kubectl apply` to install the JuiceFS CSI driver, the startup method is as follows:
 
 ```bash
 kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value":["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
@@ -203,6 +229,8 @@ Make sure pods of JuiceFS CSI Controller are restarted:
 $ kubectl -n kube-system get po -l app=juicefs-csi-controller
 juicefs-csi-controller-0                2/2     Running   0                24m
 ```
+
+### Usage
 
 You can use `pathPattern` in `StorageClass` like this:
 

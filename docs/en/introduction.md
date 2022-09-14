@@ -30,37 +30,41 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
 
 1. Prepare a YAML file
 
-   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information. Among them, the `backend` part is the information related to the JuiceFS file system,
-   you can refer to ["JuiceFS Quick Start Guide"](https://juicefs.com/docs/community/quick_start_guide) for more information. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
-   The `mountPod` part can specify CPU/memory limits and requests of mount pod for pods using this driver. Unneeded items should be deleted, or its value should be left blank. Take Community edition as an example:
-
    :::info
-   Please refer to [documentation](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for all configuration items supported by Helm chart of JuiceFS CSI Driver
+   If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
    :::
 
+   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
+   Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
+   please refer to [juicefs-csi-driver values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), 
+   items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
+   
    ```yaml title="values.yaml"
    storageClasses:
    - name: juicefs-sc
      enabled: true
      reclaimPolicy: Retain
      backend:
-       name: "<name>"
-       metaurl: "<meta-url>"
-       storage: "<storage-type>"
-       accessKey: "<access-key>"
-       secretKey: "<secret-key>"
-       bucket: "<bucket>"
+       name: "<name>"               # JuiceFS volume name
+       metaurl: "<meta-url>"        # Database URL for metadata storage
+       storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos) 
+       accessKey: "<access-key>"    # Access Key for object storage
+       secretKey: "<secret-key>"    # Secret Key for object storage
+       bucket: "<bucket>"           # A bucket URL to store data
        # If you need to set the time zone of the JuiceFS Mount Pod, please uncomment the next line, the default is UTC time.
        # envs: "{TZ: Asia/Shanghai}"
      mountPod:
-       resources:
+       resources:                   # Resource limit/request for mount pod
          limits:
-           cpu: "<cpu-limit>"
-           memory: "<memory-limit>"
+           cpu: "1"
+           memory: "1Gi"
          requests:
-           cpu: "<cpu-request>"
-           memory: "<memory-request>"
+           cpu: "5"
+           memory: "5Gi"
    ```
+
+   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
+   For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
 
 2. Check and update kubelet root directory
 
@@ -79,53 +83,21 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
 3. Deploy
 
    ```sh
-   helm repo add juicefs-csi-driver https://juicedata.github.io/charts/
+   helm repo add juicefs https://juicedata.github.io/charts/
    helm repo update
-   helm install juicefs-csi-driver juicefs-csi-driver/juicefs-csi-driver -n kube-system -f ./values.yaml
+   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-4. Check the deployment
+4. Verify installation
 
-   - **Check pods are running**: the deployment will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
+   The installation will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
 
-     ```sh
-     $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-     NAME                       READY   STATUS    RESTARTS   AGE
-     juicefs-csi-controller-0   3/3     Running   0          22m
-     juicefs-csi-node-v9tzb     3/3     Running   0          14m
-     ```
-
-   - **Check secret**: `kubectl -n kube-system describe secret juicefs-sc-secret` will show the secret with above `backend` fields in `values.yaml`:
-
-     ```
-     Name:         juicefs-sc-secret
-     Namespace:    kube-system
-     Labels:       app.kubernetes.io/instance=juicefs-csi-driver
-                   app.kubernetes.io/managed-by=Helm
-                   app.kubernetes.io/name=juicefs-csi-driver
-                   app.kubernetes.io/version=0.7.0
-                   helm.sh/chart=juicefs-csi-driver-0.1.0
-     Annotations:  meta.helm.sh/release-name: juicefs-csi-driver
-                   meta.helm.sh/release-namespace: default
-
-     Type:  Opaque
-
-     Data
-     ====
-     access-key:  0 bytes
-     bucket:      47 bytes
-     metaurl:     54 bytes
-     name:        4 bytes
-     secret-key:  0 bytes
-     storage:     2 bytes
-     ```
-
-   - **Check StorageClass**: `kubectl get sc juicefs-sc` will show the StorageClass like this:
-
-     ```
-     NAME         PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
-     juicefs-sc   csi.juicefs.com   Retain          Immediate           false                  69m
-     ```
+   ```sh
+   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+   NAME                       READY   STATUS    RESTARTS   AGE
+   juicefs-csi-controller-0   3/3     Running   0          22m
+   juicefs-csi-node-v9tzb     3/3     Running   0          14m
+   ```
 
 ### 2. Install via kubectl
 
