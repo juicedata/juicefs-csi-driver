@@ -436,7 +436,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 }
 
 func (p *PodMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
-	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{}, nil, []string{}, true)
+	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true)
 	if err != nil {
 		klog.Errorf("CleanCache: parse jfs setting err: %v", err)
 		return err
