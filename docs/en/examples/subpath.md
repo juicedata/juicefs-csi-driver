@@ -191,18 +191,18 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 This feature requires JuiceFS CSI Driver version 0.13.3 and above.
 :::
 
-`pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. It is turned off by default and needs to be turned on manually.
+The `pathPattern` allows you to customize the format of subdirectories of different PVs in the `StorageClass`, you can specify a template for creating directory paths from PVC metadata such as labels, annotations, names, or namespaces. This feature is turned off by default and needs to be turned on manually.
 
-### Helm 
+### Helm
 
-If you used helm to install the JuiceFS CSI driver, you can add the following configuration to `values.yaml` to enable this feature:
+If you used Helm to install the JuiceFS CSI Driver, you can add the following configuration to `values.yaml` to enable this feature:
 
-```yaml
+```yaml title="values.yaml"
 controller:
   provisioner: true
 ```
 
-Then reinstall csi driver:
+Then reinstall JuiceFS CSI Driver:
 
 ```bash
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
@@ -217,10 +217,12 @@ juicefs-csi-controller-0                2/2     Running   0                24m
 
 ### Kubectl
 
-If you used `kubectl apply` to install the JuiceFS CSI driver, the startup method is as follows:
+If you are using `kubectl` to install the JuiceFS CSI Driver, you need to modify the default startup options via the `kubectl patch` command to enable this feature:
 
 ```bash
-kubectl -n kube-system patch sts juicefs-csi-controller --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value":["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
+kubectl -n kube-system patch sts juicefs-csi-controller \
+  --type='json' \
+  -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
 ```
 
 Make sure pods of JuiceFS CSI Controller are restarted:

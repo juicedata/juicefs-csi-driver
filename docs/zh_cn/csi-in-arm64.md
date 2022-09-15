@@ -12,9 +12,9 @@ JuiceFS CSI Driver 在 v0.11.1 及之后版本才支持 ARM64 环境的容器镜
 请使用 v0.7.1 及之后版本的 Helm chart 进行安装
 :::
 
-在 ARM64 环境中安装最主要的区别是[「第 1 步准备配置文件」](introduction.md#安装)，需要在 YAML 文件中新增 `sidecars` 配置，具体内容如下：
+在 ARM64 环境中安装最主要的区别是[「第 1 步准备配置文件」](introduction.md#安装-juicefs-csi-驱动)，需要在 YAML 文件中新增 `sidecars` 配置，具体内容如下：
 
-```yaml {1-10}
+```yaml {1-10} title="values.yaml"
 sidecars:
   livenessProbeImage:
     repository: k8s.gcr.io/sig-storage/livenessprobe
@@ -46,18 +46,18 @@ storageClasses:
           memory: "<memory-request>"
 ```
 
-之后的安装步骤请按照[「介绍」](introduction.md#方法一：通过-helm-安装)文档中的说明进行。
+之后的安装步骤请按照[「介绍」](introduction.md#方法一通过-helm-安装)文档中的说明进行。
 
 ## 方法二：通过 kubectl 安装
 
-在 ARM64 环境中安装最主要的区别是[「第 2 步部署」](introduction.md#方法二：通过-kubectl-安装)，需要替换几个 sidecar 容器的镜像地址。假设已经将 [`k8s.yaml`](https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml) 文件下载到本地目录，具体命令如下：
+在 ARM64 环境中安装最主要的区别是[「第 2 步部署」](introduction.md#方法二通过-kubectl-安装)，需要替换几个 sidecar 容器的镜像地址。假设已经将 [`k8s.yaml`](https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml) 文件下载到本地目录，具体命令如下：
 
 ```shell
 cat ./k8s.yaml | \
 sed -e 's@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.0.2@' \
--e 's@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.2.0@' \
--e 's@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1@' | \
+    -e 's@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.2.0@' \
+    -e 's@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1@' | \
 kubectl apply -f -
 ```
 
-其它安装步骤请按照[「介绍」](introduction.md#方法二：通过-kubectl-安装)文档中的说明进行。
+其它安装步骤请按照[「介绍」](introduction.md#方法二通过-kubectl-安装)文档中的说明进行。

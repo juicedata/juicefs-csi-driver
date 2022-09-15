@@ -34,11 +34,10 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
    If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
    :::
 
-   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
-   Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
-   please refer to [juicefs-csi-driver values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), 
-   items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
-   
+   Create a configuration file (e.g. `values.yaml`), copy and complete the following configuration information. Currently only the basic configurations are listed. For more configurations supported by Helm chart of JuiceFS CSI Driver, please refer to [document](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), unneeded items can be deleted, or their values ​​can be left blank.
+
+   Here is an example of the community edition:
+
    ```yaml title="values.yaml"
    storageClasses:
    - name: juicefs-sc
@@ -46,8 +45,8 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
      reclaimPolicy: Retain
      backend:
        name: "<name>"               # JuiceFS volume name
-       metaurl: "<meta-url>"        # Database URL for metadata storage
-       storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos) 
+       metaurl: "<meta-url>"        # URL of metadata engine
+       storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
        accessKey: "<access-key>"    # Access Key for object storage
        secretKey: "<secret-key>"    # Secret Key for object storage
        bucket: "<bucket>"           # A bucket URL to store data
@@ -63,8 +62,7 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
            memory: "5Gi"
    ```
 
-   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
-   For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
+   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
 
 2. Check and update kubelet root directory
 
@@ -76,11 +74,13 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
 
    If the result is not empty, it means that the root directory (`--root-dir`) of kubelet is not the default value (`/var/lib/kubelet`) and you need to set `kubeletDir` to the current root directly of kubelet in the configuration file `values.yaml` prepared in the first step.
 
-   ```yaml
+   ```yaml title="values.yaml"
    kubeletDir: <kubelet-dir>
    ```
 
 3. Deploy
+
+   Execute the following three commands in sequence to deploy the JuiceFS CSI Driver through Helm. If the Helm configuration file is not prepared, you can omit the last `-f ./values.yaml` option when executing the `helm install` command.
 
    ```sh
    helm repo add juicefs https://juicedata.github.io/charts/
