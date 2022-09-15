@@ -45,7 +45,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
      reclaimPolicy: Retain
      backend:
        name: "<name>"                # JuiceFS 文件系统名
-       metaurl: "<meta-url>"         # 元数据存储的数据库 URL
+       metaurl: "<meta-url>"         # 元数据引擎的 URL
        storage: "<storage-type>"     # 对象存储类型 (例如 s3、gcs、oss、cos)
        accessKey: "<access-key>"     # 对象存储的 Access Key
        secretKey: "<secret-key>"     # 对象存储的 Secret Key
@@ -61,6 +61,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
            cpu: "5"
            memory: "5Gi"
    ```
+
    其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。
    更加详细的 StorageClass 使用方式可参考文档：[动态配置](./examples/dynamic-provisioning.md)。
 
@@ -74,13 +75,13 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
    如果结果不为空，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），需要在第一步准备的配置文件 `values.yaml` 中将 `kubeletDir` 设置为 kubelet 当前的根目录路径：
 
-   ```yaml
+   ```yaml title="values.yaml"
    kubeletDir: <kubelet-dir>
    ```
 
 3. 部署
 
-   依次执行以下三条命令，通过 Helm 部署 JuiceFS CSI 驱动。
+   依次执行以下三条命令，通过 Helm 部署 JuiceFS CSI 驱动。如果没有准备 Helm 配置文件，在执行 `helm install` 命令时可以去掉最后的 `-f ./values.yaml` 选项。
 
    ```sh
    helm repo add juicefs https://juicedata.github.io/charts/
