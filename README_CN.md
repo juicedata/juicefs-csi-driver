@@ -4,7 +4,7 @@
 
 [English](./README.md) | 简体中文
 
-[JuiceFS](https://github.com/juicedata/juicefs) CSI 驱动遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口，支持动态配置 JuiceFS 卷提供给 Pod 使用。更多使用方法请参考[文档库](https://juicefs.com/docs/zh/csi/introduction)。
+[JuiceFS](https://github.com/juicedata/juicefs) CSI 驱动遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口，支持动态配置 JuiceFS 卷提供给 Pod 使用。更多使用方法请参考[文档](https://juicefs.com/docs/zh/csi/introduction)。
 
 ## 版本要求
 
@@ -34,9 +34,9 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
    >
    > 若您不需要在安装 CSI 驱动时创建 StorageClass，可以忽略此步骤。
 
-   创建一个配置文件，例如：`values.yaml`，复制并完善下列配置信息。
-   当前只列举出较为基础的配置，更多的 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[「这篇文档」](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，
-   不需要的项可以删除，或者将它的值留空。这里以社区版为例：
+   创建一个配置文件（例如 `values.yaml`），复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，不需要的项可以删除，或者将它的值留空。
+
+   这里以社区版为例：
 
    ```yaml title="values.yaml"
    storageClasses:
@@ -62,8 +62,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
            memory: "5Gi"
    ```
 
-   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。
-   更加详细的 StorageClass 使用方式可参考文档：[动态配置](https://juicefs.com/docs/zh/csi/examples/dynamic-provisioning)。
+   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。更加详细的 StorageClass 使用方式可参考文档：[动态配置](https://juicefs.com/docs/zh/csi/examples/dynamic-provisioning)。
 
 2. 检查 kubelet 根目录
 
@@ -182,4 +181,4 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 授权许可
 
-该库在 Apache 2.0 许可下授权。
+JuiceFS CSI 驱动使用 Apache License 2.0 开源，详见 [LICENSE](LICENSE)。

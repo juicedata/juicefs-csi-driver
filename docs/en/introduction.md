@@ -34,10 +34,9 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
    If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
    :::
 
-   Create a configuration file, for example: `values.yaml`, copy and complete the following configuration information.
-   Currently only the basic configurations are listed. For more configurations supported by JuiceFS CSI Driver Helm charts,
-   please refer to [juicefs-csi-driver values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values),
-   items that are not needed can be deleted, or their values can be left blank. Here is an example of the community edition:
+   Create a configuration file (e.g. `values.yaml`), copy and complete the following configuration information. Currently only the basic configurations are listed. For more configurations supported by Helm chart of JuiceFS CSI Driver, please refer to [document](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), unneeded items can be deleted, or their values ​​can be left blank.
+
+   Here is an example of the community edition:
 
    ```yaml title="values.yaml"
    storageClasses:
@@ -63,8 +62,7 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
            memory: "5Gi"
    ```
 
-   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`.
-   For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
+   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
 
 2. Check and update kubelet root directory
 

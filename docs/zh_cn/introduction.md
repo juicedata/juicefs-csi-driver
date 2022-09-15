@@ -34,9 +34,9 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
    若您不需要在安装 CSI 驱动时创建 StorageClass，可以忽略此步骤。
    :::
 
-   创建一个配置文件，例如：`values.yaml`，复制并完善下列配置信息。
-   当前只列举出较为基础的配置，更多的 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[「这篇文档」](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，
-   不需要的项可以删除，或者将它的值留空。这里以社区版为例：
+   创建一个配置文件（例如 `values.yaml`），复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，不需要的项可以删除，或者将它的值留空。
+
+   这里以社区版为例：
 
    ```yaml title="values.yaml"
    storageClasses:
@@ -62,8 +62,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
            memory: "5Gi"
    ```
 
-   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。
-   更加详细的 StorageClass 使用方式可参考文档：[动态配置](./examples/dynamic-provisioning.md)。
+   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。更加详细的 StorageClass 使用方式可参考文档：[动态配置](./examples/dynamic-provisioning.md)。
 
 2. 检查 kubelet 根目录
 
