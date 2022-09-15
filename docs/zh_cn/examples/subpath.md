@@ -190,7 +190,7 @@ kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 此特性需使用 0.13.3 及以上版本的 JuiceFS CSI 驱动
 :::
 
-通过 `pathPattern` 允许您在 `StorageClass` 中定义其不同 PV 的子目录格式，可以指定用于通过 PVC 元数据（例如标签、注释、名称或命名空间）创建目录路径的模板。此特性默认关闭，需要手动开启。
+通过 `pathPattern` 您可以在 `StorageClass` 中定义其不同 PV 的子目录格式，可以指定用于通过 PVC 元数据（例如标签、注释、名称或命名空间）创建目录路径的模板。此特性默认关闭，需要手动开启。
 
 ### Helm
 
