@@ -277,6 +277,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	} else {
 		podName = GenPodNameByUniqueId(jfsSetting.UniqueId, true)
 	}
+	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 
 	lock := jfsConfig.GetPodLock(podName)
@@ -340,7 +341,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 			if err == context.DeadlineExceeded {
 				break
 			}
-			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			klog.V(5).Infof("mount path %v not ready: %v", jfsSetting.MountPath, err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
@@ -366,7 +367,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
 	// Wait until the job is completed
-	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
+	waitCtx, waitCancel := context.WithTimeout(ctx, 40*time.Second)
 	defer waitCancel()
 	for {
 		job, err := p.K8sClient.GetJob(waitCtx, jobName, jfsConfig.Namespace)
@@ -375,7 +376,8 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 				klog.Infof("waitUtilJobCompleted: Job %s is completed and been recycled", jobName)
 				return nil
 			}
-			if k8serrors.IsTimeout(err) {
+			if waitCtx.Err() == context.DeadlineExceeded || waitCtx.Err() == context.Canceled {
+				klog.V(6).Infof("job %s timeout", jobName)
 				break
 			}
 			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
