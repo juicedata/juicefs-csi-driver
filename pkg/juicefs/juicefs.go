@@ -288,6 +288,7 @@ func (j *juicefs) getSettings(ctx context.Context, volumeID string, target strin
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)
 		return nil, err
 	}
+	klog.V(6).Infof("Get uniqueId of volume [%s]: %s", volumeID, uniqueId)
 	jfsSetting.UniqueId = uniqueId
 	if jfsSetting.CleanCache {
 		uuid := jfsSetting.Name
@@ -303,6 +304,7 @@ func (j *juicefs) getSettings(ctx context.Context, volumeID string, target strin
 			j.CacheDirMaps[uniqueId] = jfsSetting.CacheDirs
 			j.Unlock()
 		}
+		klog.V(6).Infof("Get uuid of volume [%s]: %s", volumeID, uuid)
 	}
 	return jfsSetting, nil
 }
@@ -333,10 +335,17 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, err
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
 func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
-	stdout, err := j.Exec.CommandContext(ctx, config.CeCliPath, "status", name).CombinedOutput()
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
+	defer cmdCancel()
+	stdout, err := j.Exec.CommandContext(cmdCtx, config.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
-		klog.Errorf("juicefs status error: %v, output: '%s'", err, string(stdout))
-		return "", fmt.Errorf("juicefs status error: %s", string(stdout))
+		re := string(stdout)
+		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
+		}
+		return "", errors.Wrap(err, re)
 	}
 
 	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
@@ -556,6 +565,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		klog.Infof("Auth error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs auth %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
 		}
 		return "", errors.Wrap(err, re)
 	}
@@ -692,6 +702,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		klog.Infof("Format error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs format %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
 		}
 		return "", errors.Wrap(err, re)
 	}
