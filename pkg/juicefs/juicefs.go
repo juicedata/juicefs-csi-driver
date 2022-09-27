@@ -18,6 +18,7 @@ package juicefs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -62,6 +63,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
+	SetUpCSINode(ctx context.Context, nodeName string) error
 }
 
 type juicefs struct {
@@ -192,6 +194,99 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 		UUIDMaps:           uuidMaps,
 		CacheDirMaps:       cacheDirMaps,
 	}
+}
+
+func (j *juicefs) SetUpCSINode(ctx context.Context, nodeName string) error {
+	node, err := j.GetNode(ctx, nodeName)
+	if err != nil {
+		return fmt.Errorf("get node %s error: %v", nodeName, err)
+	}
+	// check csi node exist or not
+	klog.V(6).Infof("SetUpCSINode: Check csi node pod exist or not.")
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
+	}
+	fieldSelector := fields.Set{
+		"spec.nodeName": nodeName,
+	}
+	csiPods, err := j.ListPod(ctx, config.Namespace, &labelSelector, &fieldSelector)
+	if err != nil {
+		klog.Errorf("SetUpCSINode: list pod by label %s and field %s error: %v", config.CSINodeLabelValue, nodeName, err)
+		return fmt.Errorf("get csi pod in node %s error: %v", nodeName, err)
+	}
+
+	// csi node exist
+	if len(csiPods) > 0 {
+		klog.V(6).Infof("SetUpCSINode: csi node in %s exists.", nodeName)
+		return nil
+	}
+
+	// csi node not exist
+	klog.Infof("SetUpCSINode: csi node pod not exist.")
+	// add label on node
+	ds, err := j.GetDaemonSet(ctx, config.CSINodeDaemonSetName, config.Namespace)
+	if err != nil {
+		klog.Errorf("SetUpCSINode: get daemonset %s error: %v", config.CSINodeDaemonSetName, err)
+		return fmt.Errorf("get daemonset error: %v", err)
+	}
+	nodeSelector := ds.Spec.Template.Spec.NodeSelector
+	if nodeSelector == nil {
+		return fmt.Errorf("daemonset has no nodeSelector but there is no csi node pod in node %s. please check taint of node and add toleration in csi daemonset", nodeName)
+	}
+
+	klog.Infof("SetUpCSINode: set labels %v in node %s.", nodeSelector, nodeName)
+	labels := nodeSelector
+	payload := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: labels,
+		},
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("parse json error: %v", err)
+	}
+	if err = j.PatchNode(ctx, node, payloadBytes); err != nil {
+		return fmt.Errorf("patch node %s error: %v", nodeName, err)
+	}
+
+	// wait for csi node pod ready
+	return j.waitForCSIReady(ctx, nodeName)
+}
+
+func (j *juicefs) waitForCSIReady(ctx context.Context, nodeName string) error {
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
+	}
+	fieldSelector := fields.Set{
+		"spec.nodeName": nodeName,
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	for {
+		csiPods, err := j.ListPod(waitCtx, config.Namespace, &labelSelector, &fieldSelector)
+		if err != nil {
+			if waitCtx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("csi pod in node %s can't be ready in 30 seconds", nodeName)
+			}
+			klog.Errorf("SetUpCSINode: list pod by label %s and field %s error: %v", config.CSINodeLabelValue, nodeName, err)
+			return fmt.Errorf("get csi pod in node %s error: %v", nodeName, err)
+		}
+
+		// csi node exist
+		if len(csiPods) == 0 {
+			klog.V(6).Infof("SetUpCSINode: csi node in %s not created.", nodeName)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		pod := csiPods[0]
+		if util.IsContainerReady(&pod) {
+			klog.Infof("SetUpCSINode: csi node in %s is ready now.", nodeName)
+			// for csi node socket ready
+			time.Sleep(500 * time.Millisecond)
+			break
+		}
+	}
+	return nil
 }
 
 func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {

@@ -14,13 +14,16 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
@@ -29,7 +32,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list", "create", "update", "patch", "delete"]
@@ -42,7 +45,12 @@ rules:
   - apiGroups: [ "" ]
     resources: [ "endpoints" ]
     verbs: [ "get", "list", "watch", "create", "update", "patch" ]
-
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments" ]
+    verbs: [ "get", "list", "watch", "update", "patch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments/status" ]
+    verbs: [ "patch" ]
 ---
 
 kind: ClusterRoleBinding
@@ -178,7 +186,7 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: csi.juicefs.com
 spec:
-  attachRequired: false
+  attachRequired: true
   podInfoOnMount: false
 ---
 
@@ -265,6 +273,20 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 10
             failureThreshold: 5
+        - name: csi-attacher
+          image: registry.cn-hangzhou.aliyuncs.com/hdls/juicefs-csi:csi-attacher
+          args:
+            - --csi-address=$(ADDRESS)
+            - --v=2
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.6.0
           args:

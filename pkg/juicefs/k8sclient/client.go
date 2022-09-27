@@ -24,6 +24,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,7 @@ import (
 )
 
 const (
-	timeout = 10 * time.Second
+	timeout = 20 * time.Second
 )
 
 type PatchListValue struct {
@@ -258,4 +259,53 @@ func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*co
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) GetNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
+	klog.V(6).Infof("Get node %s", nodeName)
+	node, err := k.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get node %s: %v", nodeName, err)
+		return nil, err
+	}
+	return node, nil
+}
+
+func (k *K8sClient) PatchNode(ctx context.Context, node *corev1.Node, data []byte) error {
+	if node == nil {
+		klog.V(5).Info("Patch node: node is nil")
+		return nil
+	}
+	klog.V(6).Infof("Patch node %v", node.Name)
+	_, err := k.CoreV1().Nodes().Patch(ctx, node.Name, types.MergePatchType, data, metav1.PatchOptions{})
+	return err
+}
+
+func (k *K8sClient) GetDaemonSet(ctx context.Context, dsName, namespace string) (*appsv1.DaemonSet, error) {
+	klog.V(6).Infof("Get daemonset %s", dsName)
+	ds, err := k.AppsV1().DaemonSets(namespace).Get(ctx, dsName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get daemonset %s in namespace %s: %v", dsName, namespace, err)
+		return nil, err
+	}
+	return ds, nil
+}
+
+func (k *K8sClient) ListDaemonSet(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector) ([]appsv1.DaemonSet, error) {
+	klog.V(6).Infof("List daemonset by labelSelector %v", labelSelector)
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		labelMap, err := metav1.LabelSelectorAsMap(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labels.SelectorFromSet(labelMap).String()
+	}
+
+	dsList, err := k.AppsV1().DaemonSets(namespace).List(ctx, listOptions)
+	if err != nil {
+		klog.V(6).Infof("Can't list daemonset in namespace %s by labelSelector %v: %v", namespace, labelSelector, err)
+		return nil, err
+	}
+	return dsList.Items, nil
 }

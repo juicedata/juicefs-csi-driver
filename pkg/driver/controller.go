@@ -2,16 +2,17 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 
 	controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
 	}
 )
 
@@ -220,12 +222,20 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 
 // ControllerPublishVolume unimplemented
 func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	klog.V(6).Infof("ControllerPublishVolume req: %v", req)
+	nodeName := req.NodeId
+	err := d.juicefs.SetUpCSINode(ctx, nodeName)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("setup csi node err: %v", err))
+	}
+	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 // ControllerUnpublishVolume unimplemented
 func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	klog.V(6).Infof("ControllerUnpublishVolume req: %v", req)
+	// do nothing
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (d *controllerService) ControllerGetVolume(ctx context.Context, request *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {

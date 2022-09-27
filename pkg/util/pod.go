@@ -37,6 +37,15 @@ func IsPodReady(pod *corev1.Pod) bool {
 	return conditionsTrue == 2
 }
 
+func IsContainerReady(pod *corev1.Pod) bool {
+	for _, cn := range pod.Status.ContainerStatuses {
+		if !cn.Ready {
+			return false
+		}
+	}
+	return true
+}
+
 func containError(statuses []corev1.ContainerStatus) bool {
 	for _, status := range statuses {
 		if (status.State.Waiting != nil && status.State.Waiting.Reason != "ContainerCreating") ||

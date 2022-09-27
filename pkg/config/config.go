@@ -61,6 +61,7 @@ var (
 const (
 	CSINodeLabelKey      = "app"
 	CSINodeLabelValue    = "juicefs-csi-node"
+	CSINodeDaemonSetName = "juicefs-csi-node"
 	PodTypeKey           = "app.kubernetes.io/name"
 	PodTypeValue         = "juicefs-mount"
 	PodUniqueIdLabelKey  = "volume-id"
