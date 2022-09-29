@@ -34,6 +34,10 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
+func (j *fakeJfsProvider) SetUpCSINode(ctx context.Context, nodeName string) error {
+	return nil
+}
+
 func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
 	return "", nil
 }

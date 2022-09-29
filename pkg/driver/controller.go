@@ -3,12 +3,11 @@ package driver
 import (
 	"context"
 	"fmt"
-	"reflect"
-
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+	"reflect"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
@@ -220,10 +219,28 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-// ControllerPublishVolume unimplemented
+// ControllerPublishVolume setup csi node
 func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	klog.V(6).Infof("ControllerPublishVolume req: %v", req)
-	nodeName := req.NodeId
+	fmt.Println(req)
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	nodeName := req.GetNodeId()
+	if len(nodeName) == 0 {
+		klog.Error("Node id is null")
+		return nil, status.Error(codes.InvalidArgument, "Node id is null")
+	}
+	volCap := req.GetVolumeCapability()
+	if volCap == nil || !isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
+		return nil, status.Error(codes.InvalidArgument, "Valid volume capability")
+	}
+	if _, ok := d.vols[volumeID]; !ok {
+		return nil, status.Error(codes.NotFound, "Volume ID not provided")
+	}
+
 	err := d.juicefs.SetUpCSINode(ctx, nodeName)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("setup csi node err: %v", err))
@@ -231,10 +248,19 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-// ControllerUnpublishVolume unimplemented
+// ControllerUnpublishVolume do nothing
 func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.V(6).Infof("ControllerUnpublishVolume req: %v", req)
 	// do nothing
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+	nodeName := req.GetNodeId()
+	if len(nodeName) == 0 {
+		klog.Error("Node id is null")
+		return nil, status.Error(codes.InvalidArgument, "Node id is null")
+	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 

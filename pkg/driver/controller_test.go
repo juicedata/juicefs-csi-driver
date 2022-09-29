@@ -413,13 +413,22 @@ func TestControllerGetCapabilities(t *testing.T) {
 			fields: fields{},
 			args:   args{},
 			want: &csi.ControllerGetCapabilitiesResponse{
-				Capabilities: []*csi.ControllerServiceCapability{{
-					Type: &csi.ControllerServiceCapability_Rpc{
-						Rpc: &csi.ControllerServiceCapability_RPC{
-							Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+				Capabilities: []*csi.ControllerServiceCapability{
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+							},
 						},
 					},
-				}},
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+							},
+						},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -844,9 +853,11 @@ func Test_controllerService_ControllerPublishVolume(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
+			name:   "test",
+			fields: fields{},
+			args: args{
+				req: &csi.ControllerPublishVolumeRequest{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -886,11 +897,13 @@ func Test_controllerService_ControllerUnpublishVolume(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
+			name:   "test",
+			fields: fields{},
+			args: args{
+				req: &csi.ControllerUnpublishVolumeRequest{},
+			},
+			want:    &csi.ControllerUnpublishVolumeResponse{},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
