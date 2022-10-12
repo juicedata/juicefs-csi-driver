@@ -42,6 +42,7 @@ jobs:
           JFSCHAN: beta
         run: |
           cd ${GITHUB_WORKSPACE}
+          make juicefs-image-release-check
           make image-release-check
           make image-release-check-push
       - name: pod mode - Deploy JuiceFS CSI for pod mode
