@@ -1134,7 +1134,8 @@ def test_path_pattern_in_storage_class():
     pvc.create()
 
     # deploy pod
-    deployment = Deployment(name="app-path-pattern-dynamic", pvc=pvc.name, replicas=1)
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-path-pattern-dynamic", pvc=pvc.name, replicas=1, out_put=out_put)
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -1145,7 +1146,7 @@ def test_path_pattern_in_storage_class():
 
     # check mount point
     LOG.info("Check mount point..")
-    check_path = "{}-{}-{}-{}/out.txt".format(KUBE_SYSTEM, pvc.name, label_value, anno_value)
+    check_path = "{}-{}-{}-{}/{}".format(KUBE_SYSTEM, pvc.name, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
