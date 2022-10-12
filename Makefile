@@ -164,7 +164,7 @@ image-release-check:
 		--build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled \
-		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_IMAGE) \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
 		-t $(IMAGE):$(DEV_TAG) -f docker/Dockerfile .
 
 # push image for release check
