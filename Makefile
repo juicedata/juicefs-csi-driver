@@ -164,7 +164,7 @@ image-release-check:
 		--build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled \
-		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-release-check \
+		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-check \
 		-t $(IMAGE):$(DEV_TAG) -f docker/Dockerfile .
 
 # push image for release check
@@ -179,10 +179,10 @@ image-release-check-push:
 # build & push juicefs image for release check
 .PHONY: juicefs-image-release-check
 juicefs-image-release-check:
-	docker build -t $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-release-check \
+	docker build -t $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-check \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_RELEASE_CHECK_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled -f docker/juicefs.Dockerfile .
-	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-release-check
+	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(JUICEFS_RELEASE_CHECK_VERSION)-$(JUICEFS_EE_LATEST_VERSION)-check
 
 # build & push image for fluid fuse
 .PHONY: fuse-image-version
