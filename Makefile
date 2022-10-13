@@ -198,6 +198,14 @@ juicefs-image-version:
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
 
+# build & push juicefs latest image
+.PHONY: juicefs-image-latest
+juicefs-image-latest:
+	docker build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):latest \
+        --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled .
+	docker push $(REGISTRY)/$(JUICEFS_IMAGE):latest
+
 # build & push juicefs nightly image
 .PHONY: juicefs-image-nightly
 juicefs-image-nightly:
