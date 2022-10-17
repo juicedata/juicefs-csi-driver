@@ -54,10 +54,10 @@ To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/int
        # envs: "{TZ: Asia/Shanghai}"
      mountPod:
        resources:                   # Resource limit/request for mount pod
-         limits:
+         requests:
            cpu: "1"
            memory: "1Gi"
-         requests:
+         limits:
            cpu: "5"
            memory: "5Gi"
    ```
