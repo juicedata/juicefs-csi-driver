@@ -54,10 +54,6 @@ verify:
 test:
 	go test -v -race -cover ./pkg/... -coverprofile=cov1.out
 
-.PHONY: test-sanity
-test-sanity:
-	go test -v -cover ./tests/sanity/... -coverprofile=cov2.out
-
 # build nightly image
 .PHONY: image-nightly
 image-nightly:

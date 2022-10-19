@@ -237,9 +237,6 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 	if volCap == nil || !isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Valid volume capability")
 	}
-	if _, ok := d.vols[volumeID]; !ok {
-		return nil, status.Error(codes.NotFound, "Volume ID not provided")
-	}
 
 	err := d.juicefs.SetUpCSINode(ctx, nodeName)
 	if err != nil {

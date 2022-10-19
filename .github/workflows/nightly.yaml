@@ -23,8 +23,6 @@ jobs:
         run: make verify
       - name: Test
         run: make test
-      - name: Test sanity
-        run: make test-sanity
 
   publish-nightly:
     needs: test

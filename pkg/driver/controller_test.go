@@ -900,7 +900,10 @@ func Test_controllerService_ControllerUnpublishVolume(t *testing.T) {
 			name:   "test",
 			fields: fields{},
 			args: args{
-				req: &csi.ControllerUnpublishVolumeRequest{},
+				req: &csi.ControllerUnpublishVolumeRequest{
+					VolumeId: "test-volume",
+					NodeId:   "test-node",
+				},
 			},
 			want:    &csi.ControllerUnpublishVolumeResponse{},
 			wantErr: false,
