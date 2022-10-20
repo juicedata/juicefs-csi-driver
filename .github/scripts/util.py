@@ -41,7 +41,7 @@ def die(e):
         LOG.info("Get csi node log:")
         LOG.info(po.get_log("juicefs-plugin"))
     else:
-        pods = client.CoreV1Api().list_namespaced_pod(KUBE_SYSTEM, label_selector={"app": "juicefs-csi-node"})
+        pods = client.CoreV1Api().list_namespaced_pod(KUBE_SYSTEM, label_selector="app=juicefs-csi-node")
         if len(pods.items()) == 0:
             return
         pod = pods.items()[0]
