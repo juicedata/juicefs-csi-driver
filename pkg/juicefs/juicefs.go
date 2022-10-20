@@ -197,6 +197,10 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 }
 
 func (j *juicefs) SetUpCSINode(ctx context.Context, nodeName string) error {
+	if config.ByProcess {
+		klog.V(6).Infof("SetUpCSINode: process mode do not support CSI deploy on demand")
+		return nil
+	}
 	node, err := j.GetNode(ctx, nodeName)
 	if err != nil {
 		return fmt.Errorf("get node %s error: %v", nodeName, err)
