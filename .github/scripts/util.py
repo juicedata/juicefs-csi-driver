@@ -40,9 +40,20 @@ def die(e):
         po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
         LOG.info("Get csi node log:")
         LOG.info(po.get_log("juicefs-plugin"))
-    LOG.info("Get csi controller log:")
+    else:
+        pods = client.CoreV1Api().list_namespaced_pod(KUBE_SYSTEM, label_selector={"app": "juicefs-csi-node"})
+        if len(pods.items()) == 0:
+            return
+        pod = pods.items()[0]
+        po = Pod(name=pod.name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+        LOG.info("Get csi node log:")
+        LOG.info(po.get_log("juicefs-plugin"))
+
     controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    LOG.info("Get juicefs-plugin csi controller log:")
     LOG.info(controller_po.get_log("juicefs-plugin"))
+    LOG.info("Get csi-attacher csi controller log:")
+    LOG.info(controller_po.get_log("csi-attacher"))
     LOG.info("Get event: ")
     subprocess.run(["sudo", "microk8s.kubectl", "get", "event", "--all-namespaces"], check=True)
     LOG.info("Get pvc: ")

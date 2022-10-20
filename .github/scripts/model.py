@@ -373,6 +373,15 @@ class Pod:
             raise e
 
     def get_log(self, container_name):
+        if self.deployment != "":
+            deploy = client.AppsV1Api().read_namespaced_deployment(name=self.name, namespace=self.namespace)
+            selector = deploy.spec.selector
+            pods = client.CoreV1Api().list_namespaced_pod(self.namespace, label_selector=selector)
+            if len(pods.items()) == 0:
+                return
+            pod = pods.items()[0]
+            return client.CoreV1Api().read_namespaced_pod_log(pod.name, self.namespace, container=container_name)
+
         return client.CoreV1Api().read_namespaced_pod_log(self.name, self.namespace, container=container_name)
 
     def delete(self):
