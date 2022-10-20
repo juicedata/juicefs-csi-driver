@@ -43,7 +43,7 @@ jobs:
       run: |
         export dev_tag=nightly
         ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh csi-on-demand
-    - name: pod mode - Run test
+    - name: csi ondemand mode - Run test
       env:
         JUICEFS_STORAGE: "s3"
         JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
