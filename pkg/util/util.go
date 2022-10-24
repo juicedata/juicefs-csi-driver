@@ -250,7 +250,7 @@ func GetMountDeviceRefs(pathname string, corrupted bool) ([]string, error) {
 
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
-		if item == s {
+		if strings.Contains(item, s) {
 			return true
 		}
 	}
