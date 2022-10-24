@@ -104,7 +104,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 	}
 
 	// 2. delete subPath volume
-	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.VolumeId)
+	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.SubPath)
 
 	var existed bool
 

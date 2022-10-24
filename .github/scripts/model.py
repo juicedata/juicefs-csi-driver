@@ -412,3 +412,10 @@ class Pod:
             return po.metadata.uid
         except client.exceptions.ApiException as e:
             raise e
+
+    def get_spec(self):
+        try:
+            po = client.CoreV1Api().read_namespaced_pod(self.name, self.namespace)
+            return po.spec
+        except client.exceptions.ApiException as e:
+            raise e

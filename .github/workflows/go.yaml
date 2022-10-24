@@ -83,6 +83,74 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-pod.py
+      - name: mount shared - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh pod-mount-share
+      - name: mount shared - Run ce test
+        env:
+          JUICEFS_STORAGE: "s3"
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: "ce"
+          MOUNT_MODE: "pod"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-pod-share-mount.py
+      - name: mount shared - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: "s3"
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "pod"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-pod-share-mount.py
+      - name: provisioner - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh pod-provisioner
+      - name: provisioner - Run ce test
+        env:
+          JUICEFS_STORAGE: "s3"
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: "ce"
+          MOUNT_MODE: "pod"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-pod-provisioner.py
+      - name: provisioner - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: "s3"
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "pod"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-pod-provisioner.py
       - name: process mode - Deploy JuiceFS CSI for process mode
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -90,8 +158,6 @@ jobs:
           echo "Dev tag is: " $dev_tag
           export dev_tag=$dev_tag
           .github/scripts/deploy-csi-in-k8s.sh process
-      - name: process mode - Set ce secret env
-        run: |
       - name: process mode - Run ce test
         env:
           JUICEFS_STORAGE: "s3"
