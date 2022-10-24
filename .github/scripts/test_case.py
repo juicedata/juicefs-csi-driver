@@ -538,6 +538,58 @@ def test_static_delete_pod():
     LOG.info("Test pass.")
 
 
+def test_pod_resource_err():
+    LOG.info("[test case] Pod resource error begin..")
+    # deploy pv
+    pv = PV(name="pv-resource-err", access_mode="ReadWriteMany", volume_handle="pv-resource-err",
+            secret_name=SECRET_NAME,
+            parameters={"juicefs/mount-cpu-request": "10", "juicefs/mount-memory-request": "50Gi",
+                        "juicefs/mount-cpu-limit": "10", "juicefs/mount-memory-limit": "50Gi", })
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-resource-err", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    pod = Pod(name="app-resource-err", deployment_name="", replicas=1, namespace="default", pvc=pvc.name,
+              out_put=out_put)
+    pod.create()
+    LOG.info("Watch for pod {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 5 min.".format(pod.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    result = check_mount_point(out_put)
+    if not result:
+        raise Exception("mount Point of /jfs/out.txt are not ready within 5 min.")
+
+    LOG.info("Check resources of mount pod..")
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    spec = mount_pod.get_spec()
+    resource_requests = spec.containers[0].resources.requests
+    if resource_requests is not None and resource_requests["cpu"] != "" and resource_requests["memory"] != "":
+        raise Exception("Mount pod {} resources request is not none.".format(mount_pod.name))
+
+    # delete test resources
+    LOG.info("Remove pod {}".format(pod.name))
+    pod.delete()
+    LOG.info("Watch for pods for delete.".format(pod.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods are not delete within 5 min.".format(pod.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    LOG.info("Test pass.")
+
+
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
     by_process = MOUNT_MODE == "process"
@@ -1203,12 +1255,22 @@ def test_dynamic_pvc_delete_with_path_pattern():
     if not result:
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
 
+    LOG.info("Development delete..")
+    deployment.delete()
+    LOG.info("Watch deployment deleted..")
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
     LOG.info("PVC delete..")
     pvc.delete()
     for i in range(0, 60):
         if pvc.check_is_deleted():
             LOG.info("PVC is deleted.")
             break
+        LOG.info("PVC is not deleted.")
         time.sleep(5)
 
     LOG.info("Check dir is deleted or not..")
@@ -1219,20 +1281,14 @@ def test_dynamic_pvc_delete_with_path_pattern():
             file_exist = False
             break
         time.sleep(5)
+
     if file_exist:
+        LOG.info("Mount point dir: ")
+        LOG.info(os.listdir(GLOBAL_MOUNTPOINT))
         raise Exception("SubPath of volume_id {} still exists.".format(check_path))
 
     LOG.info("Test pass.")
     # delete test resources
-    LOG.info("Remove deployment {}".format(deployment.name))
-    deployment.delete()
-    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
-    result = pod.watch_for_delete(deployment.replicas)
-    if not result:
-        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    LOG.info("Remove pvc {}".format(pvc.name))
-    pvc.delete()
     LOG.info("Remove sc {}".format(pvc.name))
     sc.delete()
     return

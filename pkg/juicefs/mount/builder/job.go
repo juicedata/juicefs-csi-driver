@@ -39,6 +39,7 @@ func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-delvol"
 	job := r.newJob(jobName)
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getDeleteVolumeCmd()}
+	klog.Infof("job cmd: %s", r.getDeleteVolumeCmd())
 	return job
 }
 
