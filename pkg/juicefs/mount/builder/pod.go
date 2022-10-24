@@ -133,7 +133,7 @@ func (r *Builder) getCommand() string {
 	if r.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
 		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
-		if !util.ContainsString(options, "metrics") {
+		if !util.ContainsPrefix(options, "metrics=") {
 			options = append(options, "metrics=0.0.0.0:9567")
 		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
