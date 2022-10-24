@@ -248,6 +248,7 @@ func GetMountDeviceRefs(pathname string, corrupted bool) ([]string, error) {
 	return searchMountPoints(realpath, procMountInfoPath)
 }
 
+// ContainsString checks if a string is in a string slice.
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -257,6 +258,7 @@ func ContainsString(slice []string, s string) bool {
 	return false
 }
 
+// ContainsPrefix String checks if a string slice contains a string with a given prefix
 func ContainsPrefix(slice []string, s string) bool {
 	for _, item := range slice {
 		if strings.HasPrefix(item, s) {

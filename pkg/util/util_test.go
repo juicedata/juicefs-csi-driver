@@ -54,14 +54,6 @@ func TestContainsString(t *testing.T) {
 			},
 			want: false,
 		},
-		{
-			name: "test-contain",
-			args: args{
-				slice: []string{"abc", "bcd"},
-				s:     "a",
-			},
-			want: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -427,6 +419,42 @@ func TestCheckDynamicPV(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("CheckDynamicPV() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestContainsPrefix(t *testing.T) {
+	type args struct {
+		slice []string
+		s     string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				slice: []string{"metrics=0.0.0.0:9567", "subdir=/metrics"},
+				s:     "metrics=",
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				slice: []string{"subdir=/metrics"},
+				s:     "metrics=",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ContainsPrefix(tt.args.slice, tt.args.s); got != tt.want {
+				t.Errorf("ContainsPrefix() = %v, want %v", got, tt.want)
 			}
 		})
 	}
