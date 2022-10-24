@@ -31,15 +31,18 @@ import (
 func (r *Builder) NewJobForCreateVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-createvol"
 	job := r.newJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getCreateVolumeCmd()}
+	jobCmd := r.getCreateVolumeCmd()
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", jobCmd}
+	klog.Infof("create volume job cmd: %s", jobCmd)
 	return job
 }
 
 func (r *Builder) NewJobForDeleteVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-delvol"
 	job := r.newJob(jobName)
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", r.getDeleteVolumeCmd()}
-	klog.Infof("job cmd: %s", r.getDeleteVolumeCmd())
+	jobCmd := r.getDeleteVolumeCmd()
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", jobCmd}
+	klog.Infof("delete volume job cmd: %s", jobCmd)
 	return job
 }
 
@@ -143,6 +146,5 @@ func (r *Builder) getJobCommand() string {
 		args = append(args, "-o", strings.Join(options, ","))
 		cmd = strings.Join(args, " ")
 	}
-	klog.Infof("job cmd: %s", cmd)
 	return util.QuoteForShell(cmd)
 }
