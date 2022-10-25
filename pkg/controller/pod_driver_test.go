@@ -796,6 +796,11 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
 			})
+			k := &k8sclient.K8sClient{}
+			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+				return nil
+			})
+			defer patch1.Reset()
 			err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
