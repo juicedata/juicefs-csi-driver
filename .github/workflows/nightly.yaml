@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - deploy_on_demand
   schedule:
     - cron: "0 0 * * *"
 

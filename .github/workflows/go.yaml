@@ -46,6 +46,26 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           make image-dev
           make push-dev
+      - name: csi ondemand mode - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh csi-on-demand
+      - name: csi ondemand mode - Run test
+        env:
+          JUICEFS_STORAGE: "s3"
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: "ce"
+          MOUNT_MODE: "pod"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-csi-ondemand.py
       - name: pod mode - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
