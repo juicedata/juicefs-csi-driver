@@ -54,10 +54,10 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
        # envs: "{TZ: Asia/Shanghai}"
      mountPod:
        resources:                    # Mount pod 的资源配置
-         limits:
+         requests:
            cpu: "1"
            memory: "1Gi"
-         requests:
+         limits:
            cpu: "5"
            memory: "5Gi"
    ```
