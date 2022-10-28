@@ -8,7 +8,7 @@ The [JuiceFS](https://github.com/juicedata/juicefs) Container Storage Interface 
 
 ## Prerequisites
 
-- Kubernetes 1.14+
+- Kubernetes 1.14 and above
 
 ## Installation
 
@@ -18,7 +18,7 @@ There are two ways to install JuiceFS CSI Driver.
 
 #### Prerequisites
 
-- Helm 3.1.0+
+- Helm 3.1.0 and above
 
 #### Install Helm
 

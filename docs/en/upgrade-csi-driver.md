@@ -39,9 +39,9 @@ cause all PVs become unavailable, so we need to stop all the application pod fir
     * Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 3. Start all the application pods.
 
-### Cross-version upgrade
+### Major version upgrade
 
-If you want to upgrade CSI Driver from v0.9.0 to v0.10.0+, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](upgrade-csi-driver-from-0.9-to-0.10.md).
+If you want to upgrade CSI Driver from v0.9.0 to v0.10.0 and above, follow ["How to upgrade CSI Driver from v0.9.0 to v0.10.0+"](upgrade-csi-driver-from-0.9-to-0.10.md).
 
 ### Other
 
