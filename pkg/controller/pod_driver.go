@@ -104,6 +104,7 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	return p.handlers[p.getPodStatus(pod)](ctx, pod)
 }
 
+// getPodStatus get pod status
 func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 	if pod == nil {
 		return podError
@@ -120,6 +121,9 @@ func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
 	return podPending
 }
 
+// checkAnnotations
+// 1. check refs in mount pod annotation
+// 2. delete ref that target pod is not found
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	// check refs in mount pod, the corresponding pod exists or not
 	lock := config.GetPodLock(pod.Name)
@@ -173,6 +177,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	return nil
 }
 
+// podErrorHandler handles mount pod error status
 func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		return nil
@@ -236,6 +241,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 	return nil
 }
 
+// podDeletedHandler handles mount pod that will be deleted
 func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		klog.Errorf("get nil pod")
@@ -249,16 +255,16 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		return nil
 	}
 
-	// pod with resource error
-	if util.IsPodResourceError(pod) {
-		klog.V(5).Infof("The pod is PodResourceError, podDeletedHandler skip delete the pod:%s", pod.Name)
-		return nil
-	}
-
 	// remove finalizer of pod
 	if err := util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer); err != nil {
 		klog.Errorf("remove pod finalizer err:%v", err)
 		return err
+	}
+
+	// pod with resource error
+	if util.IsPodResourceError(pod) {
+		klog.V(6).Infof("The pod is PodResourceError, podDeletedHandler skip delete the pod:%s", pod.Name)
+		return nil
 	}
 
 	// get mount point
@@ -371,11 +377,13 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	return err
 }
 
+// podPendingHandler handles mount pod that is pending
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) error {
 	// do nothing
 	return nil
 }
 
+// podReadyHandler handles mount pod that is ready
 func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		klog.Errorf("[podReadyHandler] get nil pod")
@@ -421,6 +429,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 	return nil
 }
 
+// recoverTarget recovers target path
 func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi *mountItem) {
 	switch ti.status {
 	case targetStatusNotExist:
@@ -474,6 +483,7 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 	}
 }
 
+// umountTarget umount target path
 func (p *PodDriver) umountTarget(target string, count int) {
 	for i := 0; i < count; i++ {
 		// ignore error
@@ -481,7 +491,8 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	}
 }
 
-func (p PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
+// CleanUpCache clean up cache
+func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	if pod.Annotations[config.CleanCache] != "true" {
 		return
 	}
