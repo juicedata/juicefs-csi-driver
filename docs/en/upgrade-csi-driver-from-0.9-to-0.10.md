@@ -1,14 +1,14 @@
 ---
-sidebar_label: Upgrade from v0.9.0 to v0.10.0+
+sidebar_label: Upgrade from v0.9.0 to v0.10.0 and above
 ---
 
-# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0+
+# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0 and above
 
-In order to reduce the impact of upgrade operation on the application system, JuiceFS CSI Driver from v0.10.0 onwards separates JuiceFS Client and CSI Driver, so that users can upgrade JuiceFS Client or CSI Driver separately as needed. However, the upgrade from v0.9.0 to v0.10.0+ requires a service restart, which will make all PVs unavailable during the upgrade process. You can refer to the following two options for upgrading depending on the actual situation.
+In order to reduce the impact of upgrading JuiceFS Client on the application, from v0.10.0, JuiceFS CSI Driver separates JuiceFS Client and CSI Driver, so that users can upgrade JuiceFS Client or CSI Driver separately as needed. However, migrating from v0.9.0 to v0.10.0 and above requires a service restart, which will make all PV unavailable in the mean time. Choose one of the below methods to migrate depending on the actual situation.
 
-## Method 1: Upgrade one by one node
+## Method 1: Rolling upgrade
 
-This option can be used if the application using JuiceFS cannot be interrupted.
+Use this option if the application using JuiceFS cannot be interrupted.
 
 ### 1. Create resources added in new version
 
@@ -126,7 +126,7 @@ spec:
           name: jfs-root-dir
 ```
 
-### 4. Upgrade node service pod one by one node
+### 4. Rolling upgrade
 
 Do operations below per node:
 
@@ -523,4 +523,4 @@ Make sure all `juicefs-csi-controller-***` pods are updated.
 
 Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
 
-### 3. Start all the applications using JuiceFS volume
+After upgrade, start all the applications using JuiceFS volume.

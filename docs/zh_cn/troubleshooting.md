@@ -2,7 +2,6 @@
 
 当应用 pod 无法正常启动或出现异常时，通常需要查看 JuiceFS CSI 驱动的日志来排查问题。不同版本的 CSI 驱动查看日志的方式不同，以下分别介绍。
 
-
 ## 查看 JuiceFS CSI 驱动的版本
 
 首先需要查看当前 Kubernetes 集群安装的 JuiceFS CSI 驱动版本，可以通过以下命令获取：
@@ -19,7 +18,7 @@ kubectl -n kube-system get pod -l app=juicefs-csi-controller -o jsonpath="{.item
 ### v0.10 及以后版本
 
 :::tip 提示
-建议持续收集及存储 JuiceFS Mount Pod 的日志，便于后续进行故障排查，具体请参考[「收集 Mount Pod 日志」](client-log.md)文档。
+建议持续收集 JuiceFS Mount Pod 日志，便于后续进行故障排查，详见[「收集 Mount Pod 日志」](client-log.md)。
 :::
 
 #### 找到 mount pod
