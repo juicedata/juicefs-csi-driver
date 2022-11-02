@@ -23,7 +23,7 @@ ARG JUICEFS_REPO_TAG
 ARG JUICEFS_CSI_REPO_REF=master
 
 RUN mkdir -p ${GOROOT} && \
-    curl -fsSL https://golang.org/dl/go1.14.linux-${GO_ARCH}.tar.gz | \
+    curl -fsSL https://golang.org/dl/go1.18.linux-${GO_ARCH}.tar.gz | \
     tar -xzf - -C ${GOROOT} --strip-components=1 && \
     ${GOROOT}/bin/go version && ${GOROOT}/bin/go env && \
     yum -y install libcephfs-devel librados-devel librbd-devel gcc make git upx
