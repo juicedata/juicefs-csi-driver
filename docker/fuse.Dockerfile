@@ -1,4 +1,4 @@
-FROM golang:1.16-buster as builder
+FROM golang:1.18-buster as builder
 
 ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
