@@ -4,177 +4,42 @@ sidebar_label: 介绍
 
 # JuiceFS CSI 驱动
 
-[JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口，支持动态配置 JuiceFS 卷提供给 Pod 使用。
+[JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口，让 JuiceFS 文件系统以卷（Volume）的形式提供给 Pod 使用。
 
-## 版本要求
+JuiceFS CSI 驱动会在你的集群中部署以下组件：JuiceFS CSI Controller（StatefulSet），以及 JuiceFS CSI Node Service（DaemonSet），你可以方便地用 kubectl 查看：
 
-- Kubernetes 1.14 及以上
+```shell
+$ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
+NAME                       READY   STATUS        RESTARTS   AGE
+juicefs-csi-controller-0   2/2     Running       0          141d
+juicefs-csi-node-8rd96     3/3     Running       0          141d
+```
 
-## 安装
+JuiceFS CSI 驱动的架构如图所示：
 
-以下提供了两种安装 JuiceFS CSI 驱动的方式。
+![](./images/csi-driver-architecture.jpg)
 
-### 方法一：通过 Helm 安装
+顺着架构图简单介绍一番 CSI 驱动的工作原理：JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，由的 Node Service 来管理其生命周期。这样的架构提供如下好处：
 
-#### 版本要求
+* 允许多个应用 Pod 共用 PV，当多个 Pod 共用 PV 时，不会新建 Mount Pod，而是对已有的 Mount Pod 做引用计数，计数归零时删除 Mount Pod。
+* CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](./upgrade-csi-driver.md)。
 
-- Helm 3.1.0 及以上
+以[「动态配置」](./examples/dynamic-provisioning.md)为例，创建 PV 和使用的流程大致如下：
 
-#### 安装 Helm
+* 用户创建 PVC（PersistentVolumeClaim）和使用其作为 Volume 的 Application Pod。
+* CSI Node Service，也就是 JuiceFS CSI Driver 的 DaemonSet 组件，会负责创建 Mount Pod。
+* CSI Controller，也就是 JuiceFS CSI Driver 的 StatefulSet 组件，会负责将 PVC 目录在 JuiceFS 文件系统中初始化。
+* Mount Pod 启动，执行 JuiceFS 客户端挂载，将 PV 对应的 JuiceFS 子目录挂载到容器内的 `/jfs/[pv-name]`，这个目录往往对应着宿主机的 `/var/lib/juicefs/volume/[pv-name]`。
+* Application Pod 创建，与 PV 进行绑定，按照声明的路径挂载进容器。
 
-Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把它看作是 Homebrew formula，APT dpkg，或 YUM RPM 在 Kubernetes 中的等价物。
+因此在使用 JuiceFS CSI 驱动时，Application Pod 总是与 Mount Pod 一起存在：
 
-请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
+```
+default       app-web-xxx            1/1     Running        0            1d
+kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
+```
 
-#### 安装 JuiceFS CSI 驱动
+阅读以下文章深入了解 CSI 驱动的架构设计：
 
-1. 准备配置文件
-
-   :::info 说明
-   若您不需要在安装 CSI 驱动时创建 StorageClass，可以忽略此步骤。
-   :::
-
-   创建一个配置文件（例如 `values.yaml`），复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，不需要的项可以删除，或者将它的值留空。
-
-   这里以社区版为例：
-
-   ```yaml title="values.yaml"
-   storageClasses:
-   - name: juicefs-sc
-     enabled: true
-     reclaimPolicy: Retain
-     backend:
-       name: "<name>"                # JuiceFS 文件系统名
-       metaurl: "<meta-url>"         # 元数据引擎的 URL
-       storage: "<storage-type>"     # 对象存储类型 (例如 s3、gcs、oss、cos)
-       accessKey: "<access-key>"     # 对象存储的 Access Key
-       secretKey: "<secret-key>"     # 对象存储的 Secret Key
-       bucket: "<bucket>"            # 存储数据的桶路径
-       # 如果需要设置 JuiceFS Mount Pod 的时区请将下一行的注释符号删除，默认为 UTC 时间。
-       # envs: "{TZ: Asia/Shanghai}"
-     mountPod:
-       resources:                    # Mount pod 的资源配置
-         requests:
-           cpu: "1"
-           memory: "1Gi"
-         limits:
-           cpu: "5"
-           memory: "5Gi"
-   ```
-
-   其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。更加详细的 StorageClass 使用方式可参考文档：[动态配置](./examples/dynamic-provisioning.md)。
-
-2. 检查 kubelet 根目录
-
-   执行以下命令
-
-   ```shell
-   ps -ef | grep kubelet | grep root-dir
-   ```
-
-   如果结果不为空，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），需要在第一步准备的配置文件 `values.yaml` 中将 `kubeletDir` 设置为 kubelet 当前的根目录路径：
-
-   ```yaml title="values.yaml"
-   kubeletDir: <kubelet-dir>
-   ```
-
-3. 部署
-
-   依次执行以下三条命令，通过 Helm 部署 JuiceFS CSI 驱动。如果没有准备 Helm 配置文件，在执行 `helm install` 命令时可以去掉最后的 `-f ./values.yaml` 选项。
-
-   ```sh
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
-   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
-   ```
-
-4. 检查部署状态
-
-   部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个（`n` 指 Kubernetes 的 Node 数量）pod 在运行，例如：
-
-   ```sh
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
-
-### 方法二：通过 kubectl 安装
-
-由于 Kubernetes 在版本变更过程中会废弃部分旧的 API，因此需要根据你使用 Kubernetes 版本选择适用的部署文件。
-
-1. 检查 kubelet 根目录
-
-   在 Kubernetes 集群中任意一个非 Master 节点上执行以下命令：
-
-   ```shell
-   ps -ef | grep kubelet | grep root-dir
-   ```
-
-2. 部署
-
-   - **如果上一步检查命令返回的结果不为空**，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），因此需要在 CSI 驱动的部署文件中更新 `kubeletDir` 路径并部署：
-
-     :::note 注意
-     请将下述命令中的 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
-     :::
-
-     ```shell
-     # Kubernetes 版本 >= v1.18
-     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-     ```
-
-     ```shell
-     # Kubernetes 版本 < v1.18
-     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-     ```
-
-   - **如果前面检查命令返回的结果为空**，无需修改配置，可直接部署：
-
-     ```shell
-     # Kubernetes 版本 >= v1.18
-     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
-     ```
-
-     ```shell
-     # Kubernetes 版本 < v1.18
-     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
-     ```
-
-## 使用
-
-开始使用之前，你需要：
-
-* 了解如何设置 Kubernetes 和 JuiceFS
-* 确保 JuiceFS 能够被 Kuberenetes 集群访问。建议在与 Kubernetes 集群相同的区域创建文件系统。
-* 参照[说明](#安装)安装 JuiceFS CSI 驱动。
-
-### 目录
-
-* [静态配置](examples/static-provisioning.md)
-* [动态配置](examples/dynamic-provisioning.md)
-* [配置文件系统设置](examples/format-options.md)
-* [设置挂载选项](examples/mount-options.md)
-* [设置缓存路径](examples/cache-dir.md)
-* [挂载子目录](examples/subpath.md)
-* [数据加密](examples/encrypt.md)
-* [管理权限](examples/permission.md)
-* [使用 ReadWriteMany 和 ReadOnlyMany](examples/rwx-and-rox.md)
-* [配置 Mount Pod 的资源限制](examples/mount-resources.md)
-* [在 Mount Pod 中设置配置文件和环境变量](examples/config-and-env.md)
-* [延迟删除 Mount Pod](examples/delay-delete.md)
-* [配置 Mount Pod 退出时清理缓存](examples/cache-clean.md)
-* [PV 的回收策略](examples/reclaim-policy.md)
-* [挂载点自动恢复](recover_failed_mountpoint.md)
-
-## 故障排查
-
-请参考 [故障排查](troubleshooting.md) 或 [FAQ](faq) 文档。
-
-## 升级 CSI 驱动
-
-请参考 [升级 JuiceFS CSI 驱动](upgrade-csi-driver.md) 文档
-
-## 已知问题
-
-- JuiceFS CSI 驱动 v0.10.0 及以上版本不支持在 `--cache-dir` 挂载选项中使用通配符
+* [「JuiceFS CSI Driver v0.10 全新架构解读」](https://www.juicefs.com/zh-cn/blog/engineering/juicefs-csi-driver-v010)
+* [「JuiceFS CSI Driver 架构设计详解」](https://juicefs.com/zh-cn/blog/engineering/juicefs-csi-driver-arch-design)
