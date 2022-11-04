@@ -167,7 +167,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 故障排查
 
-请参考 [故障排查](troubleshooting.md) 或 [FAQ](faq) 文档。
+请参考 [故障排查](troubleshooting.md) 或 [FAQ](FAQs.md) 文档。
 
 ## 升级 CSI 驱动
 

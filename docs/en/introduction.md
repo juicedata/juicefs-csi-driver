@@ -168,7 +168,7 @@ Before getting started, you need:
 
 ## Troubleshooting & FAQs
 
-If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md) or [FAQ](faq) document.
+If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md) or [FAQ](FAQs.md) document.
 
 ## Upgrade CSI Driver
 
