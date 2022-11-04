@@ -1,10 +1,8 @@
 ---
-sidebar_label: Introduction
+sidebar_label: Quick Start Guide
 ---
 
-# JuiceFS CSI Driver
-
-The [JuiceFS CSI Driver](https://github.com/juicedata/juicefs-csi-driver) implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS file system.
+# Quick Start Guide
 
 ## Prerequisites
 
