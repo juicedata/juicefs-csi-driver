@@ -2,6 +2,8 @@
 sidebar_label: Quick Start Guide
 ---
 
+# Quick Start Guide
+
 ## Prerequisites
 
 - Kubernetes 1.14 and above

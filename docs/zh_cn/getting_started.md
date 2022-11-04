@@ -2,6 +2,8 @@
 sidebar_label: 快速上手
 ---
 
+# 快速上手
+
 ## 版本要求
 
 - Kubernetes 1.14 及以上
