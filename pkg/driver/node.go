@@ -18,7 +18,6 @@ package driver
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -176,7 +175,6 @@ func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 // NodeGetInfo is called by CO for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
 func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	klog.V(6).Infof("NodeGetInfo: called with args %+v", req)
-	fmt.Println("!!!")
 
 	return &csi.NodeGetInfoResponse{
 		NodeId: d.nodeID,

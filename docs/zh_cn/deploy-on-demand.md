@@ -27,7 +27,7 @@ spec:
       nodeSelector:
         app: juicefs-csi-node
     containers:
-    - name: juicefs-csi-node
+    - name: juicefs-plugin
       image: juicedata/juicefs-csi-driver:<csi-version>-slim   // csi-version 为当前 CSI 驱动版本
 ...
 ```

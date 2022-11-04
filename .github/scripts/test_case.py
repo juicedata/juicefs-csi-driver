@@ -138,6 +138,8 @@ def test_deployment_use_pv_rw():
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    LOG.info("Remove pv {}".format(pvc.name))
+    pv.delete()
     LOG.info("Test pass.")
     return
 
