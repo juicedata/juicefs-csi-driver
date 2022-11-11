@@ -2,7 +2,7 @@
 
 If you use [Ceph](https://ceph.io/) as the underlying storage for JucieFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
 
-Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["How to set config files and environment in mount pod"](examples/config-and-env.md) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
+Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["How to set config files and environment in mount pod"](../examples/config-and-env.md) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
 
 Here we demonstrate how to access Ceph cluster with `librados` in Kubernetes.
 
@@ -141,11 +141,11 @@ As we want the `ceph-conf` secret we created before to be mounted under `/etc/ce
 
 ### Dynamic provisioning
 
-Please refer ["Dynamic Provisioning"](examples/dynamic-provisioning.md) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
+Please refer ["Dynamic Provisioning"](../examples/dynamic-provisioning.md) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
 
 ### Static provisioning
 
-Please refer ["Static Provisioning"](examples/static-provisioning.md) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
+Please refer ["Static Provisioning"](../examples/static-provisioning.md) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
 
 ## Other Ceph versions
 

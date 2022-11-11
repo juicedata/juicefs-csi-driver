@@ -19,7 +19,7 @@ The above command will output something like `juicedata/juicefs-csi-driver:v0.13
 ### v0.10 and above
 
 :::tip
-It is recommended to collect the logs of the JuiceFS Mount Pod to facilitate troubleshooting, refer to ["Collect Mount Pod Logs"](client-log.md).
+It is recommended to collect the logs of the JuiceFS Mount Pod to facilitate troubleshooting, refer to ["Collect Mount Pod Logs"](administration/client-log.md).
 :::
 
 #### Find mount pod

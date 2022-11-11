@@ -35,4 +35,4 @@ If you want to build your own image, you can follow these steps:
    docker build -t foo/mount:latest -f ../docker/dev.juicefs.Dockerfile .
    ```
 
-After the image is built, you can refer to [this document](examples/mount-image.md) to specify the image of the Mount Pod in PV/StorageClass.
+After the image is built, you can refer to [this document](../examples/mount-image.md) to specify the image of the Mount Pod in PV/StorageClass.
