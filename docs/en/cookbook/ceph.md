@@ -1,3 +1,7 @@
+---
+slug: /ceph
+---
+
 # Access Ceph Cluster with librados
 
 If you use [Ceph](https://ceph.io/) as the underlying storage for JucieFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.

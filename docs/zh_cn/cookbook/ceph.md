@@ -1,3 +1,7 @@
+---
+slug: /ceph
+---
+
 # 使用 librados 访问 Ceph 集群
 
 如果使用 [Ceph](https://ceph.io/) 作为 JucieFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw/)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。

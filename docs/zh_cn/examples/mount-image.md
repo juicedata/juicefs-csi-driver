@@ -11,7 +11,7 @@ sidebar_label: 自定义 Mount Pod 的容器镜像
 
 默认情况下，JuiceFS Mount Pod 的容器镜像为 `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`，其中 `<JUICEFS-CE-LATEST-VERSION>` 表示 JuiceFS 社区版客户端的最新版本号（如 `1.0.0`），`<JUICEFS-EE-LATEST-VERSION>` 表示 JuiceFS 云服务客户端的最新版本号（如 `4.8.0`）。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 上查看所有镜像标签。
 
-本文档展示了如何自定义 Mount Pod 的容器镜像，关于如何构建 Mount Pod 的容器镜像请参考[文档](../develop/build-juicefs-image.md#构建-juicefs-mount-pod-的容器镜像)。
+本文档展示了如何自定义 Mount Pod 的容器镜像，关于如何构建 Mount Pod 的容器镜像请参考[文档](../development/build-juicefs-image.md#构建-juicefs-mount-pod-的容器镜像)。
 
 ## 安装 CSI 驱动时覆盖默认容器镜像
 

@@ -1,5 +1,5 @@
 ---
-slug: recover-failed-mountpoint
+slug: /recover-failed-mountpoint
 ---
 
 # Automatic Mount Point Recovery

@@ -1,4 +1,5 @@
 ---
+slug: /csi-in-arm64
 sidebar_label: Install in ARM64 Environment
 ---
 

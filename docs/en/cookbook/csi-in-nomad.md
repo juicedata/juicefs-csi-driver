@@ -1,4 +1,5 @@
 ---
+slug: /csi-in-nomad
 sidebar_label: Use in Nomad
 ---
 

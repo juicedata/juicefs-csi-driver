@@ -1,5 +1,5 @@
 ---
-slug: recover-failed-mountpoint
+slug: /recover-failed-mountpoint
 ---
 
 # 挂载点自动恢复
