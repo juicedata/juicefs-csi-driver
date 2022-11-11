@@ -1,4 +1,5 @@
 ---
+slug: /build-juicefs-image
 sidebar_label: Build the Container Image of JuiceFS CSI Driver
 ---
 

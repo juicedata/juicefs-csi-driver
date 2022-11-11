@@ -1,4 +1,5 @@
 ---
+slug: /upgrade-csi-driver-from-0.9-to-0.10
 sidebar_label: 从 v0.9.0 升级到 v0.10.0 及以上
 ---
 

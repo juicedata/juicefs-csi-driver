@@ -1,4 +1,5 @@
 ---
+slug: /upgrade-csi-driver-from-0.9-to-0.10
 sidebar_label: Upgrade from v0.9.0 to v0.10.0 and above
 ---
 

@@ -1,4 +1,5 @@
 ---
+slug: /build-juicefs-image
 sidebar_label: 构建 JuiceFS CSI 驱动的容器镜像
 ---
 

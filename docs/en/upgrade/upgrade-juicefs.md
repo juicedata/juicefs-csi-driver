@@ -1,3 +1,7 @@
+---
+slug: /upgrade-juicefs
+---
+
 # Upgrade JuiceFS Client Independently
 
 For versions prior to v0.10.0, the JuiceFS client can be upgraded independently without upgrading the CSI Driver by the following method.
