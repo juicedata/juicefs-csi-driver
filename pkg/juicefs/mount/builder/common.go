@@ -26,6 +26,11 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
+const (
+	JfsDirName     = "jfs-dir"
+	JfsRootDirName = "jfs-root-dir"
+)
+
 type Builder struct {
 	jfsSetting *config.JfsSetting
 }
@@ -78,14 +83,14 @@ func (r *Builder) getVolumes() []corev1.Volume {
 	file := corev1.HostPathFileOrCreate
 	secretName := r.jfsSetting.SecretName
 	volumes := []corev1.Volume{{
-		Name: "jfs-dir",
+		Name: JfsDirName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: config.MountPointPath,
 				Type: &dir,
 			},
 		}}, {
-		Name: "jfs-root-dir",
+		Name: JfsRootDirName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: config.JFSConfigPath,
@@ -132,11 +137,11 @@ func (r *Builder) getVolumes() []corev1.Volume {
 func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	mp := corev1.MountPropagationBidirectional
 	volumeMounts := []corev1.VolumeMount{{
-		Name:             "jfs-dir",
+		Name:             JfsDirName,
 		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
-		Name:             "jfs-root-dir",
+		Name:             JfsRootDirName,
 		MountPath:        "/root/.juicefs",
 		MountPropagation: &mp,
 	}, {

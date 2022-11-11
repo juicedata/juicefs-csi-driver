@@ -31,14 +31,15 @@ var (
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
 
-	NodeName         = ""
-	Namespace        = ""
-	PodName          = ""
-	MountImage       = "juicedata/mount:nightly" // mount pod image
-	MountLabels      = ""
-	HostIp           = ""
-	KubeletPort      = ""
-	ReconcileTimeout = 1 * time.Minute
+	NodeName           = ""
+	Namespace          = ""
+	PodName            = ""
+	MountImage         = "juicedata/mount:nightly" // mount pod image
+	MountLabels        = ""
+	HostIp             = ""
+	KubeletPort        = ""
+	ReconcileTimeout   = 1 * time.Minute
+	ReconcilerInterval = 5
 
 	CSIPod = corev1.Pod{}
 
@@ -54,11 +55,11 @@ var (
 	CeCliPath       = "/usr/local/bin/juicefs"
 	CeMountPath     = "/bin/mount.juicefs"
 	JfsMountPath    = "/sbin/mount.juicefs"
-
-	ReconcilerInterval = 5
 )
 
 const (
+	// DriverName to be registered
+	DriverName           = "csi.juicefs.com"
 	CSINodeLabelKey      = "app"
 	CSINodeLabelValue    = "juicefs-csi-node"
 	PodTypeKey           = "app.kubernetes.io/name"
@@ -69,6 +70,12 @@ const (
 	JuiceFSUUID          = "juicefs-uuid"
 	UniqueId             = "juicefs-uniqueid"
 	CleanCache           = "juicefs-clean-cache"
+
+	// CSI Secret
+	ProvisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
+	ProvisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
+	PublishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
+	PublishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"

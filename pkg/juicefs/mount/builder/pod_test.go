@@ -66,7 +66,7 @@ var (
 		Spec: corev1.PodSpec{
 			Volumes: []corev1.Volume{
 				{
-					Name: "jfs-dir",
+					Name: JfsDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: config.MountPointPath,
@@ -74,7 +74,7 @@ var (
 						},
 					},
 				}, {
-					Name: "jfs-root-dir",
+					Name: JfsRootDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: config.JFSConfigPath,
@@ -108,11 +108,11 @@ var (
 				}},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:             "jfs-dir",
+						Name:             JfsDirName,
 						MountPath:        config.PodMountBase,
 						MountPropagation: &mp,
 					}, {
-						Name:             "jfs-root-dir",
+						Name:             JfsRootDirName,
 						MountPath:        "/root/.juicefs",
 						MountPropagation: &mp,
 					}, {
@@ -178,22 +178,22 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
 	volumeMounts := []corev1.VolumeMount{{
-		Name:             "jfs-dir",
+		Name:             JfsDirName,
 		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
-		Name:             "jfs-root-dir",
+		Name:             JfsRootDirName,
 		MountPath:        "/root/.juicefs",
 		MountPropagation: &mp,
 	}}
 
 	volumes := []corev1.Volume{{
-		Name: "jfs-dir",
+		Name: JfsDirName,
 		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
 			Path: config.MountPointPath,
 			Type: &dir,
 		}}}, {
-		Name: "jfs-root-dir",
+		Name: JfsRootDirName,
 		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
 			Path: config.JFSConfigPath,
 			Type: &dir,
