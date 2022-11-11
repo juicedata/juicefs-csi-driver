@@ -4,20 +4,22 @@ slug: deploy-on-demand
 
 # CSI Node Deployed on Demand
 
-The components of JuiceFS CSI Driver are divided into CSI Controller, CSI Node and Mount Pod. For details, please refer to [JuiceFS CSI Architecture Document](../introduction.md).
-CSI Controller is deployed in StatefulSet, CSI Node is deployed as DaemonSet, and the Mount Pod is the Pod of JuiceFS client.
+JuiceFS CSI Driver consists of CSI Controller, CSI Node and Mount Pod. Refer to [JuiceFS CSI Architecture Document](../introduction.md) for details.
 
-By default, CSI Node will be started on all nodes, but in some scenarios, users may want to start CSI Node only on nodes that need to mount the JuiceFS file system, which can reduce resource usage and improve cluster availability.
-This document will describe how to start the CSI Node component on demand in a Kubernetes cluster.
+By default, CSI Node (Kubernetes DaemonSet) will run on all nodes, users may want to start CSI Node only on nodes that really need to use JuiceFS, to further reduce resource usage.
 
 ## Configure JuiceFS CSI Node
 
-Before starting JuiceFS CSI Node, you need to configure JuiceFS CSI Node. Add `nodeSelector` in DaemonSet, 
-the value is the label that the business pod runs on the node that needs to use JuiceFS. Here, it is assumed that the Label of the business Node is `app: model-training`.
+Running CSI Node on demand can be achieved by simply adding a `nodeSelector` clause in the DaemonSet manifest. Set the value to match the desired node label, assuming that the nodes have already been labeled with `app: model-training`:
+
+```shell
+# adjust nodes and label accordingly
+kubectl label node [node-1] [node-2] app=model-training
+```
 
 ### Kubectl
 
-If you use `kubectl` to install JuiceFS CSI Driver, you need to add `nodeSelector` in `juicefs-csi-node.yaml`, the configuration is as follows:
+Either edit `juicefs-csi-node.yaml` and run `kubectl apply -f juicefs-csi-node.yaml`, or edit directly using `kubectl -n kube-system edit daemonset juicefs-csi-node`, add the `nodeSelector` part:
 
 ```yaml {11-12}
 apiVersion: apps/v1
@@ -31,6 +33,7 @@ spec:
   template:
     spec:
       nodeSelector:
+        # adjust accordingly
         app: model-training
       containers:
       - name: juicefs-plugin
@@ -38,16 +41,13 @@ spec:
 ...
 ```
 
-Among them, the value of `nodeSelector` needs to be configured according to the actual situation of the node where the business pods run in. 
-After the configuration is complete, the JuiceFS CSI Driver can be installed.
-
 ### Helm
 
-If you use Helm to install JuiceFS CSI Driver, you need to add `nodeSelector` in `values.yaml`, the configuration is as follows:
+Add `nodeSelector` in `values.yaml`:
 
 ```yaml title="values.yaml"
 node:
-  nodeSelector: 
+  nodeSelector:
     app: model-training
 ```
 
