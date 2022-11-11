@@ -17,9 +17,10 @@ limitations under the License.
 package driver
 
 import (
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 // NewFakeDriver creates a new mock driver used for testing

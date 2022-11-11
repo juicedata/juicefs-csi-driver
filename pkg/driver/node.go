@@ -22,15 +22,15 @@ import (
 	"reflect"
 	"strings"
 
-	k8sexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
-
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+	k8sexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var (

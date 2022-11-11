@@ -20,9 +20,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type Builder struct {

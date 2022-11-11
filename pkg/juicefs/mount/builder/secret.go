@@ -17,10 +17,11 @@ limitations under the License.
 package builder
 
 import (
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (r *Builder) NewSecret() corev1.Secret {

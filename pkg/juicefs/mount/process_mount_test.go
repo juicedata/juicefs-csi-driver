@@ -28,13 +28,13 @@ import (
 
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
-	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	. "github.com/smartystreets/goconvey/convey"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestNewProcessMount(t *testing.T) {

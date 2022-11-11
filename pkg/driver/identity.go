@@ -3,7 +3,7 @@ package driver
 import (
 	"context"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/klog"
 )
 

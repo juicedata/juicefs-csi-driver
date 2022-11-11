@@ -26,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/golang/mock/mockgen/model"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
-	_ "github.com/golang/mock/mockgen/model"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )

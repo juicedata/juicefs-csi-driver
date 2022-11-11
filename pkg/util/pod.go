@@ -22,9 +22,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func IsPodReady(pod *corev1.Pod) bool {
