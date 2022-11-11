@@ -17,9 +17,10 @@
 package util
 
 import (
+	"testing"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"testing"
 )
 
 func TestIsJobCompleted(t *testing.T) {

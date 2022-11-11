@@ -18,15 +18,17 @@ package driver
 
 import (
 	"errors"
-	. "github.com/agiledragon/gomonkey"
-	"github.com/golang/mock/gomock"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	. "github.com/smartystreets/goconvey/convey"
-	"k8s.io/client-go/kubernetes/fake"
 	"os/exec"
 	"reflect"
 	"testing"
+
+	. "github.com/agiledragon/gomonkey"
+	"github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func TestNewDriver(t *testing.T) {

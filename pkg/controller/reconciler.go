@@ -21,12 +21,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 type PodReconciler struct {

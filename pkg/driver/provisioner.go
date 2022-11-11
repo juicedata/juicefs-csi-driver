@@ -23,13 +23,14 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (

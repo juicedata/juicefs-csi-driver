@@ -19,10 +19,11 @@ package driver
 import (
 	"encoding/json"
 	"errors"
-	. "github.com/agiledragon/gomonkey"
-	. "github.com/smartystreets/goconvey/convey"
 	"strings"
 	"testing"
+
+	. "github.com/agiledragon/gomonkey"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestGetVersionJSON(t *testing.T) {

@@ -29,15 +29,16 @@ import (
 
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
-	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	mntmock "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/mocks"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func Test_jfs_CreateVol(t *testing.T) {

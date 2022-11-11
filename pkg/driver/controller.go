@@ -4,14 +4,14 @@ import (
 	"context"
 	"reflect"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (

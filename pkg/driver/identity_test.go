@@ -18,11 +18,13 @@ package driver
 
 import (
 	"context"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"google.golang.org/grpc"
 	"reflect"
 	"testing"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 )
 
 func TestDriver_GetPluginInfo(t *testing.T) {

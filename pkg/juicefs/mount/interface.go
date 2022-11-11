@@ -19,8 +19,9 @@ package mount
 import (
 	"context"
 
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8sMount "k8s.io/utils/mount"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type MntInterface interface {

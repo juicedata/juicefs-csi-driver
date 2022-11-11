@@ -34,11 +34,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 const (

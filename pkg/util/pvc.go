@@ -17,9 +17,10 @@
 package util
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"regexp"
 	"strings"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 var (

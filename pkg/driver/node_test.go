@@ -24,15 +24,15 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
-
 	. "github.com/agiledragon/gomonkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/k8sclient"
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func TestNodePublishVolume(t *testing.T) {
