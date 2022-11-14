@@ -209,6 +209,9 @@ spec:
       containers:
         - name: juicefs-plugin
           image: juicedata/juicefs-csi-driver:v0.17.1
+          command:
+            - juicefs-csi-driver
+            - start-controller
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -332,6 +335,9 @@ spec:
           securityContext:
             privileged: true
           image: juicedata/juicefs-csi-driver:v0.17.1
+          command:
+            - juicefs-csi-driver
+            - start-node
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
