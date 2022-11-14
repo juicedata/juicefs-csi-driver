@@ -24,6 +24,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -258,4 +259,20 @@ func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*co
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) GetAdmissionWebhookConfig(ctx context.Context, name string) (*admissionv1.MutatingWebhookConfiguration, error) {
+	klog.V(6).Infof("Get admission webhook %s", name)
+	wh, err := k.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get admission webhook %s: %v", name, err)
+		return nil, err
+	}
+	return wh, nil
+}
+
+func (k *K8sClient) PatchAdmissionWebhookConfig(ctx context.Context, whName string, data []byte) error {
+	klog.V(6).Infof("Update admission webhook %v", whName)
+	_, err := k.AdmissionregistrationV1().MutatingWebhookConfigurations().Patch(ctx, whName, types.MergePatchType, data, metav1.PatchOptions{})
+	return err
 }
