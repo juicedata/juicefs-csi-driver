@@ -28,16 +28,10 @@ import (
 	"k8s.io/klog"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-)
-
-var (
-	provisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
-	provisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
-	publishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
-	publishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
 )
 
 type provisionerService struct {
@@ -67,7 +61,7 @@ func (j *provisionerService) Run(ctx context.Context) {
 		}
 	}
 	pc := provisioncontroller.NewProvisionController(j.K8sClient,
-		DriverName,
+		config.DriverName,
 		j,
 		serverVersion.GitVersion,
 		provisioncontroller.LeaderElection(leaderElection),
@@ -89,7 +83,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	if options.StorageClass.Parameters["pathPattern"] != "" {
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
-	secretName, secretNamespace := sc.Parameters[provisionerSecretName], sc.Parameters[provisionerSecretNamespace]
+	secretName, secretNamespace := sc.Parameters[config.ProvisionerSecretName], sc.Parameters[config.ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
@@ -119,14 +113,14 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			},
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				CSI: &corev1.CSIPersistentVolumeSource{
-					Driver:           DriverName,
+					Driver:           config.DriverName,
 					VolumeHandle:     pvName,
 					ReadOnly:         false,
 					FSType:           "juicefs",
 					VolumeAttributes: volCtx,
 					NodePublishSecretRef: &corev1.SecretReference{
-						Name:      sc.Parameters[publishSecretName],
-						Namespace: sc.Parameters[publishSecretNamespace],
+						Name:      sc.Parameters[config.PublishSecretName],
+						Namespace: sc.Parameters[config.PublishSecretNamespace],
 					},
 				},
 			},
@@ -150,7 +144,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		return nil
 	}
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
-	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[provisionerSecretName], volume.Spec.CSI.VolumeAttributes[provisionerSecretNamespace]
+	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretName], volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)

@@ -3,6 +3,6 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: default
 resources:
-- ../../base
+- ../../release
 patches:
 - by-pod.yaml
