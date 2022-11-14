@@ -33,12 +33,13 @@ var (
 	process     bool
 )
 
-var cmd = &cobra.Command{
-	Use:   "juicefs-csi",
-	Short: "juicefs csi driver",
-}
+func main() {
+	var cmd = &cobra.Command{
+		Use:   "juicefs-csi",
+		Short: "juicefs csi driver",
+	}
 
-func init() {
+	// parse global flags
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "unix://tmp/csi.sock", "CSI endpoint")
 	cmd.PersistentFlags().BoolVar(&version, "version", false, "Print the version and exit.")
 	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "Node ID")
@@ -47,9 +48,10 @@ func init() {
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
 	cmd.PersistentFlags().AddGoFlagSet(goFlag)
-}
 
-func main() {
+	// add sub commands
+	controllerCmd := NewControllerCmd()
+	nodeCmd := NewNodeCmd()
 	cmd.AddCommand(controllerCmd, nodeCmd)
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)

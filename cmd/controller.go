@@ -30,20 +30,22 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 )
 
-var controllerCmd = &cobra.Command{
-	Use:   "start-controller",
-	Short: "juicefs csi controller server",
-	Run: func(cmd *cobra.Command, args []string) {
-		controllerRun()
-	},
-}
-
 var (
-	provisioner *bool
+	provisioner  *bool
+	mountManager *bool
 )
 
-func init() {
+func NewControllerCmd() *cobra.Command {
+	var controllerCmd = &cobra.Command{
+		Use:   "start-controller",
+		Short: "juicefs csi controller server",
+		Run: func(cmd *cobra.Command, args []string) {
+			controllerRun()
+		},
+	}
 	provisioner = controllerCmd.Flags().Bool("provisioner", false, "Enable provisioner in controller. default false.")
+	mountManager = controllerCmd.Flags().Bool("mount-manager", true, "Enable mount manager in controller. default true.")
+	return controllerCmd
 }
 
 func parseControllerConfig() {
@@ -51,7 +53,7 @@ func parseControllerConfig() {
 	config.Provisioner = *provisioner
 	config.FormatInPod = formatInPod
 	// enable mount manager by default in csi controller
-	config.MountManager = true
+	config.MountManager = *mountManager
 	if process {
 		// if run in process, does not need pod info
 		config.FormatInPod = false

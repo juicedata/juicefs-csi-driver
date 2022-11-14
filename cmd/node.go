@@ -32,22 +32,22 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-var nodeCmd = &cobra.Command{
-	Use:   "start-node",
-	Short: "juicefs csi node server",
-	Run: func(cmd *cobra.Command, args []string) {
-		nodeRun()
-	},
-}
-
 var (
 	podManager         bool
 	reconcilerInterval int
 )
 
-func init() {
+func NewNodeCmd() *cobra.Command {
+	var nodeCmd = &cobra.Command{
+		Use:   "start-node",
+		Short: "juicefs csi node server",
+		Run: func(cmd *cobra.Command, args []string) {
+			nodeRun()
+		},
+	}
 	nodeCmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")
 	nodeCmd.Flags().IntVar(&reconcilerInterval, "reconciler-interval", 5, "interval (default 5s) for reconciler")
+	return nodeCmd
 }
 
 func parseNodeConfig() {
