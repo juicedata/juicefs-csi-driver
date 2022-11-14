@@ -35,7 +35,7 @@ var (
 
 func main() {
 	var cmd = &cobra.Command{
-		Use:   "juicefs-csi",
+		Use:   "juicefs-csi-driver",
 		Short: "juicefs csi driver",
 	}
 
