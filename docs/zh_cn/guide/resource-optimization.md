@@ -521,7 +521,7 @@ JuiceFS CSI Driver 的组件分为 CSI Controller、CSI Node 及 Mount Pod，详
 配置按需启动很简单，仅需在 DaemonSet 中加入 `nodeSelector`，指向实际需要使用 JuiceFS 的节点，假设需要的 Node 都已经打上了该 Label：`app: model-training`。
 
 ```shell
-# 根据实际情况修改 nodes 和 label
+# 根据实际情况为 nodes 打上 label
 kubectl label node [node-1] [node-2] app=model-training
 ```
 
@@ -529,7 +529,7 @@ kubectl label node [node-1] [node-2] app=model-training
 
 修改 `juicefs-csi-node.yaml` 然后运行 `kubectl apply -f juicefs-csi.node.yaml`，或者直接 `kubectl -n kube-system edit daemonset juicefs-csi-node`，加入 `nodeSelector` 配置：
 
-```yaml {11-12}
+```yaml {11-13}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
