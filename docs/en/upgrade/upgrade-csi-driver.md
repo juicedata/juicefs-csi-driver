@@ -1,3 +1,7 @@
+---
+slug: /upgrade-csi-driver
+---
+
 # Upgrade JuiceFS CSI Driver
 
 Please check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) page of the JuiceFS CSI Driver for information on all released versions.

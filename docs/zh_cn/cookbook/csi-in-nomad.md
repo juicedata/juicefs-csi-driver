@@ -1,19 +1,20 @@
 ---
-sidebar_label: Use in Nomad
+slug: /csi-in-nomad
+sidebar_label: 在 Nomad 中使用
 ---
 
-# How to Use JuiceFS CSI Driver in Nomad
+# 如何在 Nomad 中使用 JuiceFS CSI 驱动
 
-:::note
-This feature requires JuiceFS CSI Driver version 0.13.2 and above.
+:::note 注意
+此特性需使用 0.13.2 及以上版本的 JuiceFS CSI 驱动
 :::
 
-## Install JuiceFS CSI Driver
+## 安装 JuiceFS CSI 驱动
 
-### Prerequisites
+### 前置条件
 
-1. Nomad v0.12.0 or greater.
-2. Enable privileged Docker jobs. If your Nomad client configuration does not already specify a Docker plugin configuration, this minimal one will allow privileged containers. Add it to your Nomad client configuration and restart Nomad.
+1. Nomad 版本在 v0.12.0 及以上。
+2. 开启 privileged Docker jobs。如果您的 Nomad 客户端配置尚未指定 Docker 插件配置，将以下最小配置文件添加到您的 Nomad 客户端配置并重新启动 Nomad：
 
     ```hcl
     plugin "docker" {
@@ -23,9 +24,9 @@ This feature requires JuiceFS CSI Driver version 0.13.2 and above.
     }
     ```
 
-### Install CSI Controller
+### 安装 CSI Controller
 
-Save the following configuration as a file `csi-controller.nomad`:
+将以下配置文件保存为文件 `csi-controller.nomad`：
 
 ```hcl title="csi-controller.nomad"
 job "jfs-controller" {
@@ -64,7 +65,7 @@ job "jfs-controller" {
 }
 ```
 
-Run CSI Controller job:
+启动 CSI Controller job：
 
 ```shell
 $ nomad job run csi-controller.nomad
@@ -77,7 +78,7 @@ $ nomad job run csi-controller.nomad
 ==> 2022-03-14T17:00:21+08:00: Evaluation "2287baf7" finished with status "complete"
 ```
 
-Run command `nomad job status jfs-controller` to check if CSI Controller runs successfully:
+运行命令 `nomad job status jfs-controller` 可检查 CSI Controller 是否正常运行：
 
 ```shell
 $ nomad job status jfs-controller
@@ -101,11 +102,11 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 00806191  0673a790  controller  0        run      running  31m47s ago  31m42s ago
 ```
 
-In the above output, if the `Allocation` status is `running`, it means CSI Controller runs successfully.
+在上述输出中，`Allocation` 状态为 `running` 即代表 CSI Controller 启动成功。
 
-### Install CSI Node
+### 安装 CSI Node
 
-Save the following configuration as a file `csi-node.nomad`:
+将以下配置文件保存为文件 `csi-node.nomad`：
 
 ```hcl title="csi-node.nomad"
 job "jfs-node" {
@@ -144,7 +145,7 @@ job "jfs-node" {
 }
 ```
 
-Run CSI Node job:
+启动 CSI Node job：
 
 ```shell
 $ nomad job run csi-node.nomad
@@ -155,7 +156,7 @@ $ nomad job run csi-node.nomad
 ==> 2022-03-14T17:01:15+08:00: Evaluation "31d7ed49" finished with status "complete"
 ```
 
-Run command `nomad job status jfs-node` to check if CSI Node runs successfully:
+运行命令 `nomad job status jfs-node` 可检查 CSI Node 是否正常运行：
 
 ```shell
 $ nomad job status jfs-node
@@ -179,13 +180,13 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 047a1386  0673a790  nodes       0        run      running  28m41s ago  28m35s ago
 ```
 
-In the above output, if the `Allocation` status is `running`, it means CSI Node runs successfully.
+在上述输出中，`Allocation` 状态为 `running` 即代表 CSI Node 启动成功。
 
-### Create Volume
+### 创建 volume
 
-#### Community edition
+#### 社区版
 
-Save the following configuration as a file `volume.hcl`:
+将以下配置文件保存为文件 `volume.hcl`：
 
 ```hcl title="volume.hcl"
 type = "csi"
@@ -208,23 +209,24 @@ secrets {
 }
 ```
 
-- `name`: The JuiceFS file system name.
-- `metaurl`: Connection URL for metadata engine (e.g. Redis). Read [this document](https://juicefs.com/docs/community/databases_for_metadata) for more information.
-- `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [this document](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list.
-- `bucket`: Bucket URL. Read [this document](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage.
-- `access-key`: Access key.
-- `secret-key`: Secret key.
+其中：
+- `name`：JuiceFS 文件系统名称
+- `metaurl`：元数据引擎的访问 URL（比如 Redis）。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/databases_for_metadata)。
+- `storage`：对象存储类型，比如 `s3`、`gs`、`oss`。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage)。
+- `bucket`：Bucket URL。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage)。
+- `access-key`：对象存储的 access key。
+- `secret-key`：对象存储的 secret key。
 
-Create volume:
+创建 volume：
 
 ```shell
 $ nomad volume create volume.hcl
 Created external volume juicefs-volume with ID juicefs-volume
 ```
 
-#### Cloud service edition
+#### 云服务版
 
-Save the following configuration as a file `volume.hcl`:
+将以下配置文件保存为文件 `volume.hcl`：
 
 ```hcl title="volume.hcl"
 type = "csi"
@@ -240,26 +242,23 @@ plugin_id = "juicefs0"
 secrets {
   name="juicefs-volume"
   token="**********"
-  access-key="*****"
-  secret-key="*****"
 }
 ```
 
-- `name`: JuiceFS file system name
-- `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
-- `access-key`: Object storage access key
-- `secret-key`: Object storage secret key
+其中：
+- `name`：JuiceFS 文件系统名称
+- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
 
-Create volume:
+创建 volume：
 
 ```shell
 $ nomad volume create volume.hcl
 Created external volume juicefs-volume with ID juicefs-volume
 ```
 
-### Use volume in app
+### 在应用中使用
 
-After the volume is created, it can be used in the application. For details, please refer to [official documentation](https://www.nomadproject.io/docs/job-specification/volume). Such as:
+Volume 创建好之后，就可以在应用中使用，具体可以参考[官方文档](https://www.nomadproject.io/docs/job-specification/volume)。如：
 
 ```hcl title="job.nomad"
 job "demo" {
@@ -300,7 +299,7 @@ job "demo" {
 }
 ```
 
-Run job:
+运行 job：
 
 ```shell
 $ nomad job run job.nomad
@@ -326,7 +325,7 @@ $ nomad job run job.nomad
     node        1        1       1        0          2022-03-14T17:22:08+08:00
 ```
 
-After the job runs successfully, you can check whether JuiceFS is mounted successfully:
+Job 运行成功后，可以检查 JuiceFS 是否挂载成功：
 
 ```shell
 $ nomad alloc exec -i -t 1ccca0b4 bash

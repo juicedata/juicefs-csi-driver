@@ -163,7 +163,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 * [延迟删除 Mount Pod](examples/delay-delete.md)
 * [配置 Mount Pod 退出时清理缓存](examples/cache-clean.md)
 * [PV 的回收策略](examples/reclaim-policy.md)
-* [挂载点自动恢复](recover_failed_mountpoint.md)
+* [挂载点自动恢复](administration/recover_failed_mountpoint.md)
 
 ## 故障排查
 
@@ -171,7 +171,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 升级 CSI 驱动
 
-请参考 [升级 JuiceFS CSI 驱动](upgrade-csi-driver.md) 文档
+请参考 [升级 JuiceFS CSI 驱动](upgrade/upgrade-csi-driver.md) 文档
 
 ## 已知问题
 

@@ -1,5 +1,5 @@
 ---
-slug: collect-mount-pod-logs
+slug: /collect-mount-pod-logs
 sidebar_label: Collect Mount Pod Logs
 ---
 

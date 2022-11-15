@@ -1,4 +1,5 @@
 ---
+slug: /build-juicefs-image
 sidebar_label: 构建 JuiceFS CSI 驱动的容器镜像
 ---
 
@@ -35,4 +36,4 @@ JuiceFS Mount Pod 默认使用的容器镜像是 [`juicedata/mount`](https://hub
    docker build -t foo/mount:latest -f ../docker/dev.juicefs.Dockerfile .
    ```
 
-镜像构建完后，可以参照[这篇文档](examples/mount-image.md)在 PV/StorageClass 中指定 Mount Pod 的镜像。
+镜像构建完后，可以参照[这篇文档](../examples/mount-image.md)在 PV/StorageClass 中指定 Mount Pod 的镜像。
