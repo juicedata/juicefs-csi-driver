@@ -1,10 +1,10 @@
 ---
-slug: deploy-on-demand
+slug: /deploy-on-demand
 ---
 
 # CSI Node Deployed on Demand
 
-JuiceFS CSI Driver consists of CSI Controller, CSI Node and Mount Pod. Refer to [JuiceFS CSI Architecture Document](../introduction.md) for details.
+JuiceFS CSI Driver consists of CSI Controller, CSI Node and Mount Pod. Refer to [JuiceFS CSI Architecture Document](/csi/introduction) for details.
 
 By default, CSI Node (Kubernetes DaemonSet) will run on all nodes, users may want to start CSI Node only on nodes that really need to use JuiceFS, to further reduce resource usage.
 
