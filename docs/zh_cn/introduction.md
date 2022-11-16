@@ -22,7 +22,7 @@ JuiceFS CSI 驱动的架构如图所示：
 顺着架构图简单介绍一番 CSI 驱动的工作原理：JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，并由 Node Service 来管理 Mount Pod 的生命周期。这样的架构提供如下好处：
 
 * 允许多个应用 Pod 共用 PV，当多个 Pod 共用 PV 时，不会新建 Mount Pod，而是对已有的 Mount Pod 做引用计数，计数归零时删除 Mount Pod。
-* CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](./upgrade-csi-driver.md)。
+* CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](upgrade/upgrade-csi-driver.md)。
 
 以[「动态配置」](./examples/dynamic-provisioning.md)为例，创建 PV 和使用的流程大致如下：
 

@@ -102,9 +102,22 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool { return false },
+		CreateFunc: func(event event.CreateEvent) bool {
+			pod := event.Object.(*corev1.Pod)
+			klog.V(6).Infof("watch pod %s created", pod.GetName())
+			// check mount pod deleted
+			if pod.DeletionTimestamp == nil {
+				klog.V(6).Infof("pod %s is not deleted", pod.Name)
+				return false
+			}
+			if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+				return false
+			}
+			return true
+		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
+			klog.V(6).Infof("watch pod %s updated", podNew.GetName())
 			if !ok {
 				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
 				return false
@@ -132,6 +145,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pod := deleteEvent.Object.(*corev1.Pod)
+			klog.V(6).Infof("watch pod %s deleted", pod.GetName())
 			// check mount pod deleted
 			if pod.DeletionTimestamp == nil {
 				klog.V(6).Infof("pod %s is not deleted", pod.Name)

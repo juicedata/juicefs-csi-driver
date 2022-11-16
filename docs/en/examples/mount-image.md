@@ -11,7 +11,7 @@ If the CSI Driver is started by process mounting, that is, the startup parameter
 
 By default, the container image of the JuiceFS Mount Pod is `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`, where `<JUICEFS-CE-LATEST-VERSION>` means The latest version number of JuiceFS Community Edition client (e.g. `1.0.0`), `<JUICEFS-EE-LATEST-VERSION>` represents the latest version number of JuiceFS Cloud Service client (e.g. `4.8.0`). You can view all image tags on [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags).
 
-This document shows how to customize the container image of Mount Pod. For how to build the container image of Mount Pod, please refer to [document](../build-juicefs-image.md#build-the-container-image-of-juicefs-mount-pod).
+This document shows how to customize the container image of Mount Pod. For how to build the container image of Mount Pod, please refer to [document](../development/build-juicefs-image.md#build-the-container-image-of-juicefs-mount-pod).
 
 ## Overwrite default container image when installing CSI Driver
 

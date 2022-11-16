@@ -1,3 +1,7 @@
+---
+slug: /upgrade-juicefs
+---
+
 # 独立升级 JuiceFS 客户端
 
 对于 v0.10.0 之前的版本，可以通过以下方法单独升级 JuiceFS 客户端，无需升级 CSI 驱动。

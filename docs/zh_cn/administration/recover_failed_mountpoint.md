@@ -1,16 +1,14 @@
 ---
-slug: recover-failed-mountpoint
+slug: /recover-failed-mountpoint
 ---
 
-# Automatic Mount Point Recovery
+# 挂载点自动恢复
 
-JuiceFS CSI Driver started to support automatic mount point recovery since version v0.10.7.
+JuiceFS CSI Driver v0.10.7 开始支持挂载点自动恢复。
 
-## Usage
+## 使用方法
 
-Applications need to set `mountPropagation` to `HostToContainer` or `Bidirectional`(privileged required) in the
-MountVolume of the pod. In this way, the mount information of the host is transmitted to the pod. The configuration is
-as follows:
+业务应用需要在 pod 的 MountVolume 中设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`（需要设置 pod 为特权 pod），从而将 host 的挂载信息传送给 pod。配置如下：
 
 ```yaml
 apiVersion: apps/v1
@@ -23,21 +21,21 @@ spec:
     ...
     spec:
       containers:
-        - name: app
-          volumeMounts:
-            - mountPath: /data
-              name: data
-              mountPropagation: HostToContainer
-          ...
+      - name: app
+        volumeMounts:
+        - mountPath: /data
+          name: data
+          mountPropagation: HostToContainer
+        ...
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: juicefs-pvc-static
+      - name: data
+        persistentVolumeClaim:
+          claimName: juicefs-pvc-static
 ```
 
-## Test for recovery of mount point
+## 挂载点恢复测试
 
-You can see mount pod as follows after application pod is created successfully:
+pod 挂载后，可以看到 mount pod 如下：
 
 ```shell
 $ kubectl get po -A
@@ -46,7 +44,7 @@ default       juicefs-app-static-deploy-7fcc667995-cmswc                     1/1
 kube-system   juicefs-kube-node-3-juicefs-pv                                1/1     Running   0          6m30s
 ```
 
-We delete mount pod `juicefs-kube-node-3-juicefs-pv` for testing, and then watch pod for recovery:
+为了做测试，我们将 mount pod `juicefs-kube-node-3-juicefs-pv` 删除，然后观察 pod 的恢复情况，结果如下：
 
 ```shell
 $ kubectl -n kube-system get po -w
@@ -64,8 +62,7 @@ juicefs-kube-node-3-juicefs-pv                                1/1     Running   
 ...
 ```
 
-From the above, we can see mount pod is created again after it has been deleted. Then we check mount point in
-application pod:
+通过 watch 的结果，可以看到 mount pod 在被删除之后，又被新建出来。接着在业务容器中检查挂载点信息：
 
 ```shell
 $ kubectl -n default exec -it juicefs-app-static-deploy-7fcc667995-cmswc bash

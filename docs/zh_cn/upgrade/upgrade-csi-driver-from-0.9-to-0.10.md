@@ -1,18 +1,19 @@
 ---
-sidebar_label: Upgrade from v0.9.0 to v0.10.0 and above
+slug: /upgrade-csi-driver-from-0.9-to-0.10
+sidebar_label: 从 v0.9.0 升级到 v0.10.0 及以上
 ---
 
-# How to upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0 and above
+# JuiceFS CSI Driver 从 v0.9.0 升级到 v0.10.0 及以上
 
-In order to reduce the impact of upgrading JuiceFS Client on the application, from v0.10.0, JuiceFS CSI Driver separates JuiceFS Client and CSI Driver, so that users can upgrade JuiceFS Client or CSI Driver separately as needed. However, migrating from v0.9.0 to v0.10.0 and above requires a service restart, which will make all PV unavailable in the mean time. Choose one of the below methods to migrate depending on the actual situation.
+为了降低升级操作对业务系统的影响，JuiceFS CSI Driver 从 v0.10.0 开始将 JuiceFS 客户端与 CSI Driver 进行了分离，用户可以根据需要单独对 JuiceFS 客户端或  CSI Driver 进行升级。但从 v0.9.0 升级到 v0.10.0 及以上时需要重启服务，这会导致所有的 PV 在升级过程中不可用。您可以根据实际情况，参考以下两种方案进行升级。
 
-## Method 1: Rolling upgrade
+## 方案一：逐台升级
 
-Use this option if the application using JuiceFS cannot be interrupted.
+如果使用 JuiceFS 的应用不可被中断，可以采用此方案。
 
-### 1. Create resources added in new version
+### 1. 创建新版本新增的资源
 
-Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
+将以下的 YAML 文件保存成 `csi_new_resource.yaml`，然后执行 `kubectl apply -f csi_new_resource.yaml`。
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -65,15 +66,15 @@ metadata:
     app.kubernetes.io/version: "v0.10.6"
 ```
 
-### 2. Update node service DaemonSet `updateStrategy` to `OnDelete`
+### 2. 将 node service DaemonSet 的升级策略改成 OnDelete
 
 ```shell
 kubectl -n kube-system patch ds <ds_name> -p '{"spec": {"updateStrategy": {"type": "OnDelete"}}}'
 ```
 
-### 3. Update CSI Driver node service DaemonSet
+### 3. 升级 CSI 驱动的 node service DaemonSet
 
-Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
+将以下的 YAML 文件保存成 `ds_patch.yaml`，然后执行 `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`。
 
 ```yaml
 spec:
@@ -126,62 +127,62 @@ spec:
           name: jfs-root-dir
 ```
 
-### 4. Rolling upgrade
+### 4. 逐台升级 node service
 
-Do operations below per node:
+在每台节点上执行以下操作：
 
-1. Delete CSI Driver pod in one node:
+1. 删除当前节点上的 CSI Driver pod：
 
 ```shell
 kubectl -n kube-system delete po juicefs-csi-node-df7m7
 ```
 
-2. Verify new node service pod is ready (suppose the host name of node is `kube-node-2`):
+2. 确认新的 node service pod 已经 ready（假设节点名为 `kube-node-2`）：
 
 ```shell
 $ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
 juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
 ```
 
-3. In this node, delete the pods mounting JuiceFS volume and recreate them.
+3. 在当前节点上，删除使用 JuiceFS 的业务 pod 并重新创建。
 
-4. Verify if the pods mounting JuiceFS volume is ready, and check them if works well.
+4. 确认使用 JuiceFS 的业务 pod 已经 ready，并检查是否正常工作。
 
-### 5. Upgrade CSI Driver controller service and its role
+### 5. 升级 CSI Driver controller 服务及其 role
 
-Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
+将以下的 YAML 文件保存成 `sts_patch.yaml`，然后执行 `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`。
 
 ```yaml
 spec:
   template:
     spec:
       containers:
-      - name: juicefs-plugin
-        image: juicedata/juicefs-csi-driver:v0.10.6
-        env:
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: JUICEFS_MOUNT_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: JUICEFS_MOUNT_PATH
-          value: /var/lib/juicefs/volume
-        - name: JUICEFS_CONFIG_PATH
-          value: /var/lib/juicefs/config
-        volumeMounts:
-        - mountPath: /jfs
-          mountPropagation: Bidirectional
-          name: jfs-dir
-        - mountPath: /root/.juicefs
-          mountPropagation: Bidirectional
-          name: jfs-root-dir
+        - name: juicefs-plugin
+          image: juicedata/juicefs-csi-driver:v0.10.6
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: JUICEFS_MOUNT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: JUICEFS_MOUNT_PATH
+              value: /var/lib/juicefs/volume
+            - name: JUICEFS_CONFIG_PATH
+              value: /var/lib/juicefs/config
+          volumeMounts:
+            - mountPath: /jfs
+              mountPropagation: Bidirectional
+              name: jfs-dir
+            - mountPath: /root/.juicefs
+              mountPropagation: Bidirectional
+              name: jfs-root-dir
       volumes:
         - hostPath:
             path: /var/lib/juicefs/volume
@@ -193,7 +194,7 @@ spec:
           name: jfs-root-dir
 ```
 
-Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+将以下的 YAML 文件保存成 `clusterrole_patch.yaml`，然后执行 `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`。
 
 ```yaml
 rules:
@@ -272,17 +273,15 @@ rules:
       - delete
 ```
 
-## Method 2: Upgrade the whole cluster
+## 方案二：整体升级
 
-This option can be used if the application using JuiceFS is allowed to be suspended.
+### 1. 停掉所有使用 JuiceFS 的应用
 
-### 1. Stop all the applications using JuiceFS volume
+### 2. 升级 CSI 驱动
 
-### 2. Upgrade CSI driver
+#### 1. 创建新版本新增的资源
 
-#### 1. Create resources added in new version
-
-Replace namespace of YAML below and save it as `csi_new_resource.yaml`, and then apply with `kubectl apply -f csi_new_resource.yaml`.
+将以下的 YAML 文件保存成 `csi_new_resource.yaml`，然后执行 `kubectl apply -f csi_new_resource.yaml"`。
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -335,9 +334,9 @@ metadata:
     app.kubernetes.io/version: "v0.10.6"
 ```
 
-#### 2. Update CSI Driver node service DaemonSet
+#### 2. 升级 CSI Driver node service DaemonSet
 
-Save YAML below as `ds_patch.yaml`, and then apply with `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
+将以下的 YAML 文件保存成 `ds_patch.yaml`，然后执行 `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`。
 
 ```yaml
 spec:
@@ -392,11 +391,11 @@ spec:
           name: jfs-root-dir
 ```
 
-Make sure all juicefs-csi-node-*** pods are updated.
+确认所有 `juicefs-csi-node-***` pods 都升级了。
 
-#### 3. Upgrade CSI Driver controller service and its role
+#### 3. 升级 CSI Driver controller 服务及其 role
 
-Save YAML below as `sts_patch.yaml`, and then apply with `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
+将以下的 YAML 文件保存成 `sts_patch.yaml`，然后执行 `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`。
 
 ```yaml
 spec:
@@ -440,7 +439,7 @@ spec:
           name: jfs-root-dir
 ```
 
-Save YAML below as `clusterrole_patch.yaml`, and then apply with `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
+将以下的 YAML 文件保存成 `clusterrole_patch.yaml`，然后执行 `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`。
 
 ```yaml
 rules:
@@ -519,8 +518,8 @@ rules:
       - delete
 ```
 
-Make sure all `juicefs-csi-controller-***` pods are updated.
+确认 `juicefs-csi-controller-***` pod 已经升级.
 
-Alternatively, if JuiceFS CSI driver is installed using Helm, you can also use Helm to upgrade it.
+另外，如果 JuiceFS CSI Driver 是使用 Helm 安装的，也可以使用 Helm 来升级。
 
-After upgrade, start all the applications using JuiceFS volume.
+操作完成以后，重新启动所有使用 JuiceFS 的应用。

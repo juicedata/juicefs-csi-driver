@@ -162,7 +162,7 @@ Before getting started, you need:
 * [Delay Deletion of Mount Pod](examples/delay-delete.md)
 * [Configure Mount Pod to Clean Cache When Exiting](examples/cache-clean.md)
 * [Reclaim Policy of PV](examples/reclaim-policy.md)
-* [Automatic Mount Point Recovery](recover_failed_mountpoint.md)
+* [Automatic Mount Point Recovery](administration/recover_failed_mountpoint.md)
 
 ## Troubleshooting & FAQs
 
@@ -170,7 +170,7 @@ If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md
 
 ## Upgrade CSI Driver
 
-Refer to [Upgrade CSI Driver](upgrade-csi-driver.md) document.
+Refer to [Upgrade CSI Driver](upgrade/upgrade-csi-driver.md) document.
 
 ## Known issues
 
