@@ -141,11 +141,7 @@ Since Kubernetes will deprecate some old APIs when a new version is released, yo
 
 ## Usage
 
-Before getting started, you need:
-
-* Get yourself familiar with how to setup Kubernetes and how to use JuiceFS file system.
-* Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
-* Install JuiceFS CSI driver following the [Installation](#installation) steps.
+Please refer to the "User Guide" category on the left sidebar.
 
 ## Troubleshooting & FAQs
 

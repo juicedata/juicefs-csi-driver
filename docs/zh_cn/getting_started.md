@@ -141,11 +141,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 使用
 
-开始使用之前，你需要：
-
-* 了解如何设置 Kubernetes 和 JuiceFS
-* 确保 JuiceFS 能够被 Kuberenetes 集群访问。建议在与 Kubernetes 集群相同的区域创建文件系统。
-* 参照[说明](#安装)安装 JuiceFS CSI 驱动。
+请参考左侧侧边栏的「使用指南」分类
 
 ## 故障排查
 
