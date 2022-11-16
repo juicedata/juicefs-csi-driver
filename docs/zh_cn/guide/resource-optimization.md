@@ -168,7 +168,7 @@ spec:
 kubectl get pods juicefs-app-resources
 ```
 
-验证 mount pod resource：
+验证 mount pod 资源：
 
 ```sh
 kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -o yaml | grep -A 6 resources
@@ -182,66 +182,9 @@ kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-08
 此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
 :::
 
-### 动态配置
-
-在 StorageClass 中配置 `parameters`，添加 `juicefs/clean-cache: "true"`：
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/clean-cache: "true"
-```
-
-部署 PVC 和示例 pod：
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app-mount-options
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
 ### 静态配置
 
-在 PV 的资源定义中修改 `volumeAttributes`，添加`juicefs/clean-cache: "true"`：
+在 PV 的资源定义中修改 `volumeAttributes`，添加 `juicefs/clean-cache: "true"`：
 
 ```yaml {22}
 apiVersion: v1
@@ -314,25 +257,9 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## 延迟删除 Mount Pod
-
-:::note 注意
-此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动
-:::
-
-Mount Pod 是支持复用的，由 JuiceFS CSI Node Service 以引用计数的方式进行管理：当没有任何应用 Pod 在使用该 Mount Pod 创建出来的 PV 时，JuiceFS CSI Node Service 会删除 Mount Pod。
-
-但在 Kubernetes 不少场景中，容器转瞬即逝，调度极其频繁，这时可以为 mount pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，mount pod 能够被继续复用，免除了反复销毁创建的开销。
-
-控制延迟删除 Mount Pod 的配置项形如 `juicefs/mount-delete-delay: 1m`，单位支持 "ns"（纳秒），"us"（微秒），"ms"（毫秒），"s"（秒），"m"（分钟），"h"（小时）。
-
-配置好延迟删除后，当引用计数归零，mount pod 会被打上 `juicefs-delete-at` 的注解（annotation），标记好删除时间，到达设置的删除时间后，mount pod 才会被删除。但如果在此期间有新的应用 Pod 欲使用该 PV，注解 `juicefs-delete-at` 就被清空，mount pod 的删除计划随之取消，得以继续复用。
-
-动态和静态配置方式中，需要在不同的地方填写该配置。
-
 ### 动态配置
 
-需要在 StorageClass 定义中配置延迟删除的时长，修改 `parameters` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
+在 StorageClass 中配置 `parameters`，添加 `juicefs/clean-cache: "true"`：
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -345,7 +272,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-delete-delay: 1m
+  juicefs/clean-cache: "true"
 ```
 
 部署 PVC 和示例 pod：
@@ -386,6 +313,22 @@ spec:
       persistentVolumeClaim:
         claimName: juicefs-pvc
 ```
+
+## 延迟删除 Mount Pod
+
+:::note 注意
+此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动
+:::
+
+Mount Pod 是支持复用的，由 JuiceFS CSI Node Service 以引用计数的方式进行管理：当没有任何应用 Pod 在使用该 Mount Pod 创建出来的 PV 时，JuiceFS CSI Node Service 会删除 Mount Pod。
+
+但在 Kubernetes 不少场景中，容器转瞬即逝，调度极其频繁，这时可以为 mount pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，mount pod 能够被继续复用，免除了反复销毁创建的开销。
+
+控制延迟删除 Mount Pod 的配置项形如 `juicefs/mount-delete-delay: 1m`，单位支持 `ns`（纳秒）、`us`（微秒）、`ms`（毫秒）、`s`（秒）、`m`（分钟）、`h`（小时）。
+
+配置好延迟删除后，当引用计数归零，mount pod 会被打上 `juicefs-delete-at` 的注解（annotation），标记好删除时间，到达设置的删除时间后，mount pod 才会被删除。但如果在此期间有新的应用 Pod 欲使用该 PV，注解 `juicefs-delete-at` 就被清空，mount pod 的删除计划随之取消，得以继续复用。
+
+静态和动态配置方式中，需要在不同的地方填写该配置。
 
 ### 静态配置
 
@@ -463,27 +406,66 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## PV 回收策略
-
-[回收策略](https://kubernetes.io/zh-cn/docs/concepts/storage/persistent-volumes/#reclaiming)决定了 PVC 或 PV 被删除后，存储里的数据何去何从。常用的回收策略是保留（Retain）和删除（Delete），保留回收策略需要用户自己回收资源（包括 PV、JuiceFS 上的数据），而删除回收策略则意味着 PV 及 JuiceFS 上的数据会随着 PVC 删除而直接清理掉。
-
 ### 动态配置
 
-动态配置默认的回收策略为 Delete，可以在 StorageClass 定义中修改为 Retain：
+需要在 StorageClass 定义中配置延迟删除的时长，修改 `parameters` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
 
-```yaml {6}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
-reclaimPolicy: Retain
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-delete-delay: 1m
 ```
+
+部署 PVC 和示例 pod：
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Pi
+  storageClassName: juicefs-sc
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app-mount-options
+  namespace: default
+spec:
+  containers:
+    - args:
+        - -c
+        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+      command:
+        - /bin/sh
+      image: centos
+      name: app
+      volumeMounts:
+        - mountPath: /data
+          name: juicefs-pv
+  volumes:
+    - name: juicefs-pv
+      persistentVolumeClaim:
+        claimName: juicefs-pvc
+```
+
+## PV 回收策略
+
+[回收策略](https://kubernetes.io/zh-cn/docs/concepts/storage/persistent-volumes/#reclaiming)决定了 PVC 或 PV 被删除后，存储里的数据何去何从。常用的回收策略是保留（Retain）和删除（Delete），保留回收策略需要用户自己回收资源（包括 PV、JuiceFS 上的数据），而删除回收策略则意味着 PV 及 JuiceFS 上的数据会随着 PVC 删除而直接清理掉。
 
 ### 静态配置
 
@@ -512,11 +494,29 @@ spec:
       namespace: default
 ```
 
+### 动态配置
+
+动态配置默认的回收策略为 Delete，可以在 StorageClass 定义中修改为 Retain：
+
+```yaml {6}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+reclaimPolicy: Retain
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+```
+
 ## 仅在某些节点上运行 CSI Node Service
 
-JuiceFS CSI 驱动的组件分为 CSI Controller、CSI Node 及 Mount Pod，详细可参考 [JuiceFS CSI 驱动架构](/csi/introduction)。
+JuiceFS CSI 驱动的组件分为 CSI Controller、CSI Node Service 及 Mount Pod，详细可参考 [JuiceFS CSI 驱动架构](../introduction.md)。
 
-默认情况下，CSI Node（Kubernetes DaemonSet）会在所有 Kubernetes 节点上启动，如果希望进一步减少资源占用，则可按照本节介绍的方式，让 CSI Node 仅在实际需要使用 JuiceFS 的节点上启动。
+默认情况下，CSI Node Service（DaemonSet）会在所有 Kubernetes 节点上启动，如果希望进一步减少资源占用，则可按照本节介绍的方式，让 CSI Node 仅在实际需要使用 JuiceFS 的节点上启动。
 
 ### 配置节点标签
 

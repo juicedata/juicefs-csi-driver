@@ -182,63 +182,6 @@ Local cache can be a precious resource, especially when dealing with large scale
 This feature requires JuiceFS CSI Driver 0.14.1 and above.
 :::
 
-### Dynamic provisioning
-
-Configure `parameters` in StorageClass definition, add `juicefs/clean-cache: "true"`:
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/clean-cache: "true"
-```
-
-Deploy PVC and example pod:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app-mount-options
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
 ### Static provisioning
 
 Modify `volumeAttributes` in PV definition, add `juicefs/clean-cache: "true"`:
@@ -314,25 +257,9 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## Delayed mount pod deletion
-
-:::note
-This feature requires JuiceFS CSI Driver 0.13.0 and above.
-:::
-
-Mount pod will be re-used when multiple applications reference a same PV, JuiceFS CSI Node Service will manage mount pod life cycle using reference counting: when no application is using a JuiceFS PV anymore, JuiceFS CSI Node Service will delete the corresponding mount pod.
-
-But with Kubernetes, containers are ephemeral and sometimes scheduling happens so frequently, you may prefer to keep the mount pod for a short while after PV deletion, so that newly created pods can continue using the same mount pod without the need to re-create, further saving cluster resources.
-
-Delayed deletion is controlled by a piece of config that looks like `juicefs/mount-delete-delay: 1m`, this supports a variety of units: "ns" (nanoseconds), "us" (microseconds), "ms" (milliseconds), "s" (seconds), "m" (minutes), "h" (hours).
-
-With delete delay set, when reference count becomes zero, the mount pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this mount pod.
-
-Config is set differently for dynamic and static provisioning.
-
 ### Dynamic provisioning
 
-In StorageClass definition, modify the `parameters` field, add `juicefs/mount-delete-delay`:
+Configure `parameters` in StorageClass definition, add `juicefs/clean-cache: "true"`:
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -345,10 +272,10 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-delete-delay: 1m
+  juicefs/clean-cache: "true"
 ```
 
-Apply PVC and sample pod:
+Deploy PVC and example pod:
 
 ```yaml
 apiVersion: v1
@@ -386,6 +313,22 @@ spec:
       persistentVolumeClaim:
         claimName: juicefs-pvc
 ```
+
+## Delayed mount pod deletion
+
+:::note
+This feature requires JuiceFS CSI Driver 0.13.0 and above.
+:::
+
+Mount pod will be re-used when multiple applications reference a same PV, JuiceFS CSI Node Service will manage mount pod life cycle using reference counting: when no application is using a JuiceFS PV anymore, JuiceFS CSI Node Service will delete the corresponding mount pod.
+
+But with Kubernetes, containers are ephemeral and sometimes scheduling happens so frequently, you may prefer to keep the mount pod for a short while after PV deletion, so that newly created pods can continue using the same mount pod without the need to re-create, further saving cluster resources.
+
+Delayed deletion is controlled by a piece of config that looks like `juicefs/mount-delete-delay: 1m`, this supports a variety of units: `ns` (nanoseconds), `us` (microseconds), `ms` (milliseconds), `s` (seconds), `m` (minutes), `h` (hours).
+
+With delete delay set, when reference count becomes zero, the mount pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this mount pod.
+
+Config is set differently for static and dynamic provisioning.
 
 ### Static provisioning
 
@@ -462,27 +405,66 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## PV Reclaim Policy
-
-[Reclaim policy](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming) dictates what happens to data in storage after PVC or PV is deleted. Retain and Delete are the most commonly used policies, Retain means PV (alongside with its associated storage asset) is kept after PVC is deleted, while the Delete policy will remove PV and its data in JuiceFS when PVC is deleted.
-
 ### Dynamic provisioning
 
-For dynamic provisioning, reclaim policy is Delete by default, can be changed to Retain in StorageClass definition:
+In StorageClass definition, modify the `parameters` field, add `juicefs/mount-delete-delay`:
 
-```yaml {6}
+```yaml {11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
-reclaimPolicy: Retain
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-delete-delay: 1m
 ```
+
+Apply PVC and sample pod:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Pi
+  storageClassName: juicefs-sc
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app-mount-options
+  namespace: default
+spec:
+  containers:
+    - args:
+        - -c
+        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+      command:
+        - /bin/sh
+      image: centos
+      name: app
+      volumeMounts:
+        - mountPath: /data
+          name: juicefs-pv
+  volumes:
+    - name: juicefs-pv
+      persistentVolumeClaim:
+        claimName: juicefs-pvc
+```
+
+## PV Reclaim Policy
+
+[Reclaim policy](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming) dictates what happens to data in storage after PVC or PV is deleted. Retain and Delete are the most commonly used policies, Retain means PV (alongside with its associated storage asset) is kept after PVC is deleted, while the Delete policy will remove PV and its data in JuiceFS when PVC is deleted.
 
 ### Static provisioning
 
@@ -511,11 +493,29 @@ spec:
       namespace: default
 ```
 
-## Running CSI Node Service on select Nodes
+### Dynamic provisioning
 
-JuiceFS CSI Driver consists of CSI Controller, CSI Node and Mount Pod. Refer to [JuiceFS CSI Architecture Document](/csi/introduction) for details.
+For dynamic provisioning, reclaim policy is Delete by default, can be changed to Retain in StorageClass definition:
 
-By default, CSI Node Service (Kubernetes DaemonSet) will run on all nodes, users may want to run it only on nodes that really need to use JuiceFS, to further reduce resource usage.
+```yaml {6}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+reclaimPolicy: Retain
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+```
+
+## Running CSI Node Service on select nodes
+
+JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md) for details.
+
+By default, CSI Node Service (DaemonSet) will run on all nodes, users may want to run it only on nodes that really need to use JuiceFS, to further reduce resource usage.
 
 ### Add node label
 
@@ -526,9 +526,9 @@ Add label for nodes that actually need to use JuiceFS, for example, mark nodes t
 kubectl label node [node-1] [node-2] app=model-training
 ```
 
-### Modify JuiceFS CSI Driver config
+### Modify JuiceFS CSI Driver installation configuration
 
-#### Helm
+#### Install via Helm
 
 Add `nodeSelector` in `values.yaml`:
 
@@ -544,7 +544,7 @@ Install JuiceFS CSI Driver:
 helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-#### Kubectl
+#### Install via kubectl
 
 Either edit `juicefs-csi-node.yaml` and run `kubectl apply -f juicefs-csi-node.yaml`, or edit directly using `kubectl -n kube-system edit daemonset juicefs-csi-node`, add the `nodeSelector` part:
 
