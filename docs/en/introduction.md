@@ -4,176 +4,52 @@ sidebar_label: Introduction
 
 # JuiceFS CSI Driver
 
-The [JuiceFS CSI Driver](https://github.com/juicedata/juicefs-csi-driver) implements the [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) specification for container orchestrators to manage the lifecycle of JuiceFS file system.
+[JuiceFS CSI Driver](https://github.com/juicedata/juicefs-csi-driver) implements the [CSI specification](https://github.com/container-storage-interface/spec/blob/master/spec.md), allowing JuiceFS to be integrated with container orchestration systems. Under Kubernetes, JuiceFS can provide storage service to pods via PersistentVolume.
 
-## Prerequisites
+JuiceFS CSI Driver consists of JuiceFS CSI Controller (StatefulSet) and JuiceFS CSI Node Service (DaemonSet), they can be viewed using `kubectl`:
 
-- Kubernetes 1.14 and above
+```shell
+$ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
+NAME                       READY   STATUS        RESTARTS   AGE
+juicefs-csi-controller-0   2/2     Running       0          141d
+juicefs-csi-node-8rd96     3/3     Running       0          141d
+```
 
-## Installation
+JuiceFS CSI Driver architecture diagram:
 
-There are two ways to install JuiceFS CSI Driver.
+![](./images/csi-driver-architecture.jpg)
 
-### 1. Install via Helm
+As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated mount pod, Node Service will manage mount pod lifecycle. This architecture proves several advantages:
 
-#### Prerequisites
+* When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
+* Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](upgrade/upgrade-csi-driver.md).
 
-- Helm 3.1.0 and above
+Take [dynamic provisioning](./examples/dynamic-provisioning.md) for example, this is the process of creating and using a PV:
 
-#### Install Helm
+* User creates a PVC (PersistentVolumeClaim) using the JuiceFS StorageClass;
+* PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root;
+* Kubernetes PV Controller binds user-created PVC with the PV created by CSI Controller, PVC and PV both enter "Bound" state;
+* User creates application pod, referencing PVC previously created;
+* CSI Node Service creates mount pod on the associating node;
+* A JuiceFS Client runs inside the mount pod, and mounts JuiceFS volume to host, path being `/var/lib/juicefs/volume/[pv-name]`;
+* CSI Node Service waits until mount pod is up and running, and binds PV with the associated container, the PV sub-directory is mounted in pod, path defined by `volumeMounts`;
+* Application pod is created by Kubelet;
 
-Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
+As explained above, when using JuiceFS CSI Driver, application pod is always accompanied by a mount pod:
 
-To install Helm, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` of your shell.
+```
+default       app-web-xxx            1/1     Running        0            1d
+kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
+```
 
-#### Using Helm To Deploy
+## Mount by process {#by-process}
 
-1. Prepare a YAML file
+Apart from using a dedicated mount pod (mount by pod), JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node, as processes (mount by process). In this mode, one or several JuiceFS Client will run inside the CSI Node pod, managing all JuiceFS mountpoint for application pods referencing JuiceFS PV in the associating node.
 
-   :::info
-   If you do not need to create a StorageClass when installing the CSI driver, you can ignore this step.
-   :::
+To enable mount by process, add `--by-process=true` to CSI Node and CSI Controller startup command.
 
-   Create a configuration file (e.g. `values.yaml`), copy and complete the following configuration information. Currently only the basic configurations are listed. For more configurations supported by Helm chart of JuiceFS CSI Driver, please refer to [document](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values), unneeded items can be deleted, or their values ​​can be left blank.
+When all JuiceFS Client run inside CSI Node pod, it's not hard to imagine that CSI Node DaemonSet will be needing more resource. For CSI Node DaemonSet, it's recommended to increase resource requests to 1 CPU, 1GiB Memory, limits to 2 CPU, 5GiB Memory, or adjust according to the actual resource usage.
 
-   Here is an example of the community edition:
+In Kubernetes, mount by pod is no doubt the more recommended way to use JuiceFS CSI Driver. But outside the Kubernetes world, there'll be scenarios requiring the mount by process mode, for example, [Use JuiceFS CSI Driver in Nomad](./cookbook/csi-in-nomad.md).
 
-   ```yaml title="values.yaml"
-   storageClasses:
-   - name: juicefs-sc
-     enabled: true
-     reclaimPolicy: Retain
-     backend:
-       name: "<name>"               # JuiceFS volume name
-       metaurl: "<meta-url>"        # URL of metadata engine
-       storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
-       accessKey: "<access-key>"    # Access Key for object storage
-       secretKey: "<secret-key>"    # Secret Key for object storage
-       bucket: "<bucket>"           # A bucket URL to store data
-       # If you need to set the time zone of the JuiceFS Mount Pod, please uncomment the next line, the default is UTC time.
-       # envs: "{TZ: Asia/Shanghai}"
-     mountPod:
-       resources:                   # Resource limit/request for mount pod
-         requests:
-           cpu: "1"
-           memory: "1Gi"
-         limits:
-           cpu: "5"
-           memory: "5Gi"
-   ```
-
-   Among them, the `backend` part is the information related to the JuiceFS file system. If you are using a JuiceFS volume that has been created, you only need to fill in the two items `name` and `metaurl`. For more details on how to use StorageClass, please refer to the document: [Dynamic Provisioning](./examples/dynamic-provisioning.md).
-
-2. Check and update kubelet root directory
-
-   Execute the following command.
-
-   ```shell
-   ps -ef | grep kubelet | grep root-dir
-   ```
-
-   If the result is not empty, it means that the root directory (`--root-dir`) of kubelet is not the default value (`/var/lib/kubelet`) and you need to set `kubeletDir` to the current root directly of kubelet in the configuration file `values.yaml` prepared in the first step.
-
-   ```yaml title="values.yaml"
-   kubeletDir: <kubelet-dir>
-   ```
-
-3. Deploy
-
-   Execute the following three commands in sequence to deploy the JuiceFS CSI Driver through Helm. If the Helm configuration file is not prepared, you can omit the last `-f ./values.yaml` option when executing the `helm install` command.
-
-   ```sh
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
-   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
-   ```
-
-4. Verify installation
-
-   The installation will launch a `StatefulSet` named `juicefs-csi-controller` with replica `1` and a `DaemonSet` named `juicefs-csi-node`, so run `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` should see `n+1` (where `n` is the number of worker nodes of the Kubernetes cluster) pods is running. For example:
-
-   ```sh
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
-
-### 2. Install via kubectl
-
-Since Kubernetes will deprecate some old APIs when a new version is released, you need to choose the appropriate deployment configuration file.
-
-1. Check the root directory path of kubelet
-
-   Execute the following command on any non-Master node in the Kubernetes cluster.
-
-   ```shell
-   ps -ef | grep kubelet | grep root-dir
-   ```
-
-2. Deploy
-
-   - **If the check command returns a non-empty result**, it means that the root directory (`--root-dir`) of the kubelet is not the default (`/var/lib/kubelet`), so you need to update the `kubeletDir` path in the CSI Driver's deployment file and deploy.
-
-     :::note
-     Please replace `{{KUBELET_DIR}}` in the below command with the actual root directory path of kubelet.
-     :::
-
-     ```shell
-     # Kubernetes version >= v1.18
-     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-     ```
-
-     ```shell
-     # Kubernetes version < v1.18
-     curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
-     ```
-
-   - **If the check command returns an empty result**, you can deploy directly without modifying the configuration:
-
-     ```shell
-     # Kubernetes version >= v1.18
-     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
-     ```
-
-     ```shell
-     # Kubernetes version < v1.18
-     kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
-     ```
-
-## Usage
-
-Before getting started, you need:
-
-* Get yourself familiar with how to setup Kubernetes and how to use JuiceFS file system.
-* Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
-* Install JuiceFS CSI driver following the [Installation](#installation) steps.
-
-### Table of contents
-
-* [Static Provisioning](examples/static-provisioning.md)
-* [Dynamic Provisioning](examples/dynamic-provisioning.md)
-* [Config File System Settings](examples/format-options.md)
-* [Config Mount Options](examples/mount-options.md)
-* [Mount Subdirectory](examples/subpath.md)
-* [Data Encryption](examples/encrypt.md)
-* [Manage Permissions in JuiceFS](examples/permission.md)
-* [Use ReadWriteMany and ReadOnlyMany](examples/rwx-and-rox.md)
-* [Config Mount Pod Resources](examples/mount-resources.md)
-* [Set Configuration Files and Environment Variables in Mount Pod](examples/config-and-env.md)
-* [Delay Deletion of Mount Pod](examples/delay-delete.md)
-* [Configure Mount Pod to Clean Cache When Exiting](examples/cache-clean.md)
-* [Reclaim Policy of PV](examples/reclaim-policy.md)
-* [Automatic Mount Point Recovery](administration/recover_failed_mountpoint.md)
-
-## Troubleshooting & FAQs
-
-If you encounter any issue, please refer to [Troubleshooting](troubleshooting.md) or [FAQ](FAQs.md) document.
-
-## Upgrade CSI Driver
-
-Refer to [Upgrade CSI Driver](upgrade/upgrade-csi-driver.md) document.
-
-## Known issues
-
-- JuiceFS CSI Driver v0.10.0 and above does not support wildcards in `--cache-dir` mount option
+For versions before v0.10.0,  JuiceFS CSI Driver only supports mount by process. For v0.10.0 and above, mount by pod is the default behavior. To upgrade from v0.9 to v0.10, refer to [Upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0 and above](./upgrade/upgrade-csi-driver-from-0.9-to-0.10.md).

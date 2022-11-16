@@ -8,10 +8,6 @@ Every application pod that uses JuiceFS PV requires a running mount pod (reused 
 
 Read the official documentation [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits. For a default JuiceFS mount pod, resource requests is 1 CPU and 1GiB memory, resource limits is 2 CPU and 5GiB memory.
 
-:::note
-If the CSI driver is started by process mounting, that is, the startup parameters of CSI Node and CSI Controller use `--by-process=true`, you need to increase the resource requests of CSI Node `DaemonSet` to at least 1 CPU and 1GiB of memory , the resource limit is increased to at least 2 CPU and 5GiB of memory.
-:::
-
 ### Static provisioning
 
 You can set resource requests and limits in `PersistentVolume`:
