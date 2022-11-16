@@ -8,10 +8,6 @@ Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱�
 
 关于为 Pod 和容器管理资源，配置资源请求（`request`）和约束（`limit`），请详读 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)，此处便不再赘述。JuiceFS Mount Pod 的资源请求默认为 1 CPU 和 1GiB 内存，资源约束默认为 2 CPU 和 5GiB 内存。
 
-:::note 注意
-若采用进程挂载的方式启动 CSI 驱动，即 CSI Node 和 CSI Controller 的启动参数使用 `--by-process=true`，需要将 CSI Node `DaemonSet` 的资源请求调大到至少 1 CPU 和 1GiB 内存，资源约束调大到至少 2 CPU 和 5GiB 内存。
-:::
-
 ### 静态配置
 
 您可以在 `PersistentVolume` 中配置资源请求和约束：

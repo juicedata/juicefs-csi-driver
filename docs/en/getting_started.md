@@ -141,28 +141,7 @@ Since Kubernetes will deprecate some old APIs when a new version is released, yo
 
 ## Usage
 
-Before getting started, you need:
-
-* Get yourself familiar with how to setup Kubernetes and how to use JuiceFS file system.
-* Make sure JuiceFS is accessible from Kuberenetes cluster. It is recommended to create the file system inside the same region as Kubernetes cluster.
-* Install JuiceFS CSI driver following the [Installation](#installation) steps.
-
-### Table of contents
-
-* [Static Provisioning](examples/static-provisioning.md)
-* [Dynamic Provisioning](examples/dynamic-provisioning.md)
-* [Config File System Settings](examples/format-options.md)
-* [Config Mount Options](examples/mount-options.md)
-* [Mount Subdirectory](examples/subpath.md)
-* [Data Encryption](examples/encrypt.md)
-* [Manage Permissions in JuiceFS](examples/permission.md)
-* [Use ReadWriteMany and ReadOnlyMany](examples/rwx-and-rox.md)
-* [Config Mount Pod Resources](examples/mount-resources.md)
-* [Set Configuration Files and Environment Variables in Mount Pod](examples/config-and-env.md)
-* [Delay Deletion of Mount Pod](examples/delay-delete.md)
-* [Configure Mount Pod to Clean Cache When Exiting](examples/cache-clean.md)
-* [Reclaim Policy of PV](examples/reclaim-policy.md)
-* [Automatic Mount Point Recovery](administration/recover_failed_mountpoint.md)
+Please refer to the "User Guide" category on the left sidebar.
 
 ## Troubleshooting & FAQs
 

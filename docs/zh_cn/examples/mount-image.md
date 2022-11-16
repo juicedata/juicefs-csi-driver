@@ -5,8 +5,7 @@ sidebar_label: 自定义 Mount Pod 的容器镜像
 # 如何自定义 Mount Pod 的容器镜像
 
 :::note 注意
-此特性需使用 0.17.1 及以上版本的 JuiceFS CSI 驱动
-若采用进程挂载的方式启动 CSI 驱动，即 CSI Node 和 CSI Controller 的启动参数使用 `--by-process=true`，则本文档的相关配置会被忽略。
+此特性需使用 0.17.1 及以上版本的 JuiceFS CSI 驱动，且在[进程挂载](../introduction.md#by-process)模式下不支持。
 :::
 
 默认情况下，JuiceFS Mount Pod 的容器镜像为 `juicedata/mount:v<JUICEFS-CE-LATEST-VERSION>-<JUICEFS-EE-LATEST-VERSION>`，其中 `<JUICEFS-CE-LATEST-VERSION>` 表示 JuiceFS 社区版客户端的最新版本号（如 `1.0.0`），`<JUICEFS-EE-LATEST-VERSION>` 表示 JuiceFS 云服务客户端的最新版本号（如 `4.8.0`）。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 上查看所有镜像标签。

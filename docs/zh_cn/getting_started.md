@@ -141,29 +141,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 使用
 
-开始使用之前，你需要：
-
-* 了解如何设置 Kubernetes 和 JuiceFS
-* 确保 JuiceFS 能够被 Kuberenetes 集群访问。建议在与 Kubernetes 集群相同的区域创建文件系统。
-* 参照[说明](#安装)安装 JuiceFS CSI 驱动。
-
-### 目录
-
-* [静态配置](examples/static-provisioning.md)
-* [动态配置](examples/dynamic-provisioning.md)
-* [配置文件系统设置](examples/format-options.md)
-* [设置挂载选项](examples/mount-options.md)
-* [设置缓存路径](examples/cache-dir.md)
-* [挂载子目录](examples/subpath.md)
-* [数据加密](examples/encrypt.md)
-* [管理权限](examples/permission.md)
-* [使用 ReadWriteMany 和 ReadOnlyMany](examples/rwx-and-rox.md)
-* [配置 Mount Pod 的资源限制](examples/mount-resources.md)
-* [在 Mount Pod 中设置配置文件和环境变量](examples/config-and-env.md)
-* [延迟删除 Mount Pod](examples/delay-delete.md)
-* [配置 Mount Pod 退出时清理缓存](examples/cache-clean.md)
-* [PV 的回收策略](examples/reclaim-policy.md)
-* [挂载点自动恢复](administration/recover_failed_mountpoint.md)
+请参考左侧侧边栏的「使用指南」分类
 
 ## 故障排查
 
