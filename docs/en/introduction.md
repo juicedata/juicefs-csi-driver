@@ -24,7 +24,7 @@ As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated 
 * When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
 * Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](upgrade/upgrade-csi-driver.md).
 
-Take [dynamic provisioning](./examples/dynamic-provisioning.md) for example, this is the process of creating and using a PV:
+Take [dynamic provisioning](./examples/dynamic-provisioning.md) as an example, this is the process of creating and using a PV:
 
 * User creates a PVC (PersistentVolumeClaim) using the JuiceFS StorageClass;
 * PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root;
