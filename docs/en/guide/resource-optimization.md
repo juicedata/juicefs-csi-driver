@@ -458,13 +458,13 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## PV Reclaim Policy
+## PV Reclaim Policy {#reclaim-policy}
 
 [Reclaim policy](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming) dictates what happens to data in storage after PVC or PV is deleted. Retain and Delete are the most commonly used policies, Retain means PV (alongside with its associated storage asset) is kept after PVC is deleted, while the Delete policy will remove PV and its data in JuiceFS when PVC is deleted.
 
 ### Static provisioning
 
-Static provisioning only support Retain reclaim policy:
+Static provisioning only support the Retain reclaim policy:
 
 ```yaml {13}
 apiVersion: v1
