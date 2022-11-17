@@ -1,16 +1,12 @@
 ---
-sidebar_label: 管理权限
+title: File permission
 ---
 
-# 如何管理 JuiceFS 中的权限
+JuiceFS is fully POSIX-compatible, simply manage file permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier)/[GID](https://en.wikipedia.org/wiki/Group_identifier).
 
-JuiceFS [完全兼容 POSIX 接口](https://juicefs.com/docs/zh/community/posix_compatibility)。没有额外的权限管理工作，使用类 Unix 系统的 [UID](https://en.wikipedia.org/wiki/User_identifier) 和 [GID](https://en.wikipedia.org/wiki/Group_identifier) 即可。
+## Deploy
 
-## 部署
-
-您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们以动态配置为例：
-
-创建 Secret：
+For example, with dynamic provisioning, first create a Kubernetes Secret:
 
 ```yaml
 apiVersion: v1
@@ -27,7 +23,7 @@ stringData:
   secret-key: <SECRET_KEY>
 ```
 
-创建 StorageClass 和 PersistentVolumeClaim（PVC）：
+Create StorageClass and PersistentVolumeClaim (PVC):
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -57,7 +53,7 @@ spec:
 EOF
 ```
 
-## 在 pod 中设置权限
+## Set permissions in pod
 
 ```yaml {10,20-21,29,39-40,48,58-59}
 kubectl apply -f - <<EOF
@@ -133,9 +129,9 @@ spec:
 EOF
 ```
 
-## 检查 JuiceFS volume 中的权限如何工作
+## Verify file permission in JuiceFS volume
 
-`owner` 容器以用户 `1000` 和组 `3000` 的身份运行。检查它创建的文件属于 `1000:3000` 用户和用户组，文件权限为 `-rw-r--r--`，因为 umask 是 `0022`：
+The `owner` container is run as user `1000` and group `3000`. Check the file it created owned by `1000:3000` under permission `-rw-r--r--` since umask is `0022`:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- id
@@ -144,10 +140,10 @@ uid=1000 gid=3000 groups=3000
 0022
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- ls -l /data
 total 707088
--rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txtkubectl get pods
+-rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txt
 ```
 
-`group` 容器以用户 `2000` 和组 `3000` 运行。检查该文件是否可由组中的其他用户读取：
+The `group` container is run as user `2000` and group `3000`. Check the file is readable by other user in the group:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c group -- id
@@ -158,7 +154,7 @@ Fri Aug 9 10:08:37 UTC 2019
 ...
 ```
 
-`other` 容器以用户 `3000` 和组 `4000` 运行。检查文件对于不在组中的用户不可写：
+The `other` container is run as user `3000` and group `4000`. Check the file is not writable for users not in the group:
 
 ```sh
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c other -- id
