@@ -1,5 +1,5 @@
 ---
-title: File permission
+title: Manage File Permission
 ---
 
 JuiceFS is fully POSIX-compatible, simply manage file permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier)/[GID](https://en.wikipedia.org/wiki/Group_identifier).

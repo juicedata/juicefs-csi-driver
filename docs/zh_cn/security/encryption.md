@@ -10,7 +10,7 @@ JuiceFS 支持数据加密，在 CSI 驱动中，你需要将密钥配置加入 
 
 ```shell
 kubectl -n kube-system patch daemonset juicefs-csi-node --patch '{"spec": {"template": {"spec": {"containers": [{"name": "juicefs-plugin","args": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--format-in-pod=true"]}]}}}}'
-# 确保 JuiceFS CSI Node pod 均已重建
+# 确保 JuiceFS CSI Node Service 的 pod 均已重建
 kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
@@ -20,7 +20,7 @@ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
 
 参考[启用静态加密](https://juicefs.com/docs/zh/community/security/encrypt/#%E5%90%AF%E7%94%A8%E9%9D%99%E6%80%81%E5%8A%A0%E5%AF%86)生成秘钥后创建 Kubernetes Secret：
 
-```yaml {13-14}
+```yaml {13-16}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -43,9 +43,9 @@ stringData:
 
 #### 托管密钥
 
-参考[托管密钥](https://juicefs.com/docs/zh/cloud/encryption#%E6%89%98%E7%AE%A1%E5%AF%86%E9%92%A5)在云服务中启用加密，然后用相关信息创建 Kubernetes Secret：
+参考[「托管密钥」](https://juicefs.com/docs/zh/cloud/encryption#%E6%89%98%E7%AE%A1%E5%AF%86%E9%92%A5)在云服务中启用加密，然后用相关信息创建 Kubernetes Secret：
 
-```yaml {11}
+```yaml {11-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -62,9 +62,9 @@ stringData:
 
 #### 自行管理密钥
 
-参考[自行管理密钥](https://juicefs.com/docs/zh/cloud/encryption#%E8%87%AA%E8%A1%8C%E7%AE%A1%E7%90%86%E5%AF%86%E9%92%A5) 生成秘钥后，然后创建 Kubernetes Secret：
+参考[「自行管理密钥」](https://juicefs.com/docs/zh/cloud/encryption#%E8%87%AA%E8%A1%8C%E7%AE%A1%E7%90%86%E5%AF%86%E9%92%A5)生成密钥。生成密钥后，然后创建 Kubernetes Secret：
 
-```yaml {11-12}
+```yaml {11-14}
 apiVersion: v1
 kind: Secret
 metadata:

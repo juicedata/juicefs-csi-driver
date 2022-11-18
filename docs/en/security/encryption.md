@@ -10,7 +10,7 @@ This feature demands CSI Node Service be started with `--format-in-pod=true` (av
 
 ```shell
 kubectl -n kube-system patch ds juicefs-csi-node --patch '{"spec": {"template": {"spec": {"containers": [{"name": "juicefs-plugin","args": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--format-in-pod=true"]}]}}}}'
-# wait until JuiceFS CSI Node pod are re-created
+# Wait until JuiceFS CSI Node Service pods are re-created
 kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
@@ -20,7 +20,7 @@ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
 
 Refer to [Enable Data Encryption At Rest](https://juicefs.com/docs/community/security/encrypt/#enable-data-encryption-at-rest) to generate a private key, and then create a Kubernetes Secret:
 
-```yaml {13-14}
+```yaml {13-16}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -33,9 +33,9 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # passphrase for private key
+  # Passphrase for private key
   envs: "{JFS_RSA_PASSPHRASE: <PASSPHRASE>}"
-  # generated private key string
+  # Generated private key string
   encrypt_rsa_key: <PRIVATE_KEY>
 ```
 
@@ -43,9 +43,9 @@ stringData:
 
 #### Delegated Key Management
 
-Refer to [Delegated Key Management](https://juicefs.com/docs/cloud/encryption#delegated-key-management) to enable encryption in JuiceFS Cloud Service, and then create a Kubernetes Secret using relevant credentials:
+Refer to ["Delegated Key Management"](https://juicefs.com/docs/cloud/encryption#delegated-key-management) to enable encryption in JuiceFS Cloud Service, and then create a Kubernetes Secret using relevant credentials:
 
-```yaml {11}
+```yaml {11-12}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -62,10 +62,9 @@ stringData:
 
 #### Self Managed Key
 
-Key management refer to [this document](https://juicefs.com/docs/cloud/encryption#self-managed-key)
-After generating the private key, create a Secret, as follows:
+Refer to ["Self Managed Key"](https://juicefs.com/docs/cloud/encryption#self-managed-key) to generate private key. After generating the private key, create a Kubernetes Secret as follows:
 
-```yaml {11-12}
+```yaml {11-14}
 apiVersion: v1
 kind: Secret
 metadata:
