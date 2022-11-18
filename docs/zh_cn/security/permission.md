@@ -1,16 +1,12 @@
 ---
-sidebar_label: 管理权限
+title: 管理文件权限
 ---
 
-# 如何管理 JuiceFS 中的权限
-
-JuiceFS [完全兼容 POSIX 接口](https://juicefs.com/docs/zh/community/posix_compatibility)。没有额外的权限管理工作，使用类 Unix 系统的 [UID](https://en.wikipedia.org/wiki/User_identifier) 和 [GID](https://en.wikipedia.org/wiki/Group_identifier) 即可。
+JuiceFS 完全兼容 POSIX 接口，可以直接使用类 Unix 系统的 [UID](https://en.wikipedia.org/wiki/User_identifier)、[GID](https://en.wikipedia.org/wiki/Group_identifier) 对文件权限进行管理。
 
 ## 部署
 
-您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们以动态配置为例：
-
-创建 Secret：
+以动态配置为例，先创建 Secret：
 
 ```yaml
 apiVersion: v1
@@ -133,7 +129,7 @@ spec:
 EOF
 ```
 
-## 检查 JuiceFS volume 中的权限如何工作
+## 确认 volume 中的文件权限
 
 `owner` 容器以用户 `1000` 和组 `3000` 的身份运行。检查它创建的文件属于 `1000:3000` 用户和用户组，文件权限为 `-rw-r--r--`，因为 umask 是 `0022`：
 
@@ -144,7 +140,7 @@ uid=1000 gid=3000 groups=3000
 0022
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- ls -l /data
 total 707088
--rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txtkubectl get pods
+-rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txt
 ```
 
 `group` 容器以用户 `2000` 和组 `3000` 运行。检查该文件是否可由组中的其他用户读取：

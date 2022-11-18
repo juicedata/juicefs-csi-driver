@@ -1,16 +1,12 @@
 ---
-sidebar_label: Manage Permissions in JuiceFS
+title: Manage File Permission
 ---
 
-# How to manage permissions in JuiceFS
-
-JuiceFS is [POSIX-compatible](https://juicefs.com/docs/community/posix_compatibility). There is no extra effort to manage permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier) and [GID](https://en.wikipedia.org/wiki/Group_identifier).
+JuiceFS is fully POSIX-compatible, simply manage file permissions with Unix-like [UID](https://en.wikipedia.org/wiki/User_identifier)/[GID](https://en.wikipedia.org/wiki/Group_identifier).
 
 ## Deploy
 
-You can use [static provision](static-provisioning.md) or [dynamic provision](dynamic-provisioning.md) . We take dynamic provision as example:
-
-Create secret:
+For example, with dynamic provisioning, first create a Kubernetes Secret:
 
 ```yaml
 apiVersion: v1
@@ -133,7 +129,7 @@ spec:
 EOF
 ```
 
-## Check how permission works in JuiceFS volume
+## Verify file permission in JuiceFS volume
 
 The `owner` container is run as user `1000` and group `3000`. Check the file it created owned by `1000:3000` under permission `-rw-r--r--` since umask is `0022`:
 
@@ -144,7 +140,7 @@ uid=1000 gid=3000 groups=3000
 0022
 >> kubectl exec -it juicefs-app-perms-7c6c95b68-76g8g -c owner -- ls -l /data
 total 707088
--rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txtkubectl get pods
+-rw-r--r--   1 1000 3000      3780 Aug  9 11:23 out-juicefs-app-perms-7c6c95b68-76g8g.txt
 ```
 
 The `group` container is run as user `2000` and group `3000`. Check the file is readable by other user in the group:
