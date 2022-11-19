@@ -149,7 +149,7 @@ Helm 是 Kubernetes 的包管理器，Chart 是 Helm 管理的包。你可以把
 
 ## 升级 CSI 驱动
 
-请参考 [升级 JuiceFS CSI 驱动](upgrade/upgrade-csi-driver.md) 文档
+请参考 [升级 JuiceFS CSI 驱动](./administration/upgrade-csi-driver.md) 文档
 
 ## 已知问题
 

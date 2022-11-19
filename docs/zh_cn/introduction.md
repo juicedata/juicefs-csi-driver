@@ -22,7 +22,7 @@ JuiceFS CSI 驱动的架构如图所示：
 如架构图所示，JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，并由 CSI Node Service 来管理 Mount Pod 的生命周期。这样的架构提供如下好处：
 
 * 多个 Pod 共用 PV 时，不会新建 Mount Pod，而是对已有的 Mount Pod 做引用计数，计数归零时删除 Mount Pod。
-* CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](upgrade/upgrade-csi-driver.md)。
+* CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](./administration/upgrade-csi-driver.md)。
 
 以[「动态配置」](./examples/dynamic-provisioning.md)为例，创建 PV 和使用的流程大致如下：
 
@@ -56,4 +56,4 @@ kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
 
 在 Kubernetes 中，容器挂载模式无疑是更加推荐的 CSI 驱动用法，但脱离 Kubernetes 的某些场景，则可能需要选用进程挂载模式，比如[「在 Nomad 中使用 JuiceFS CSI 驱动」](./cookbook/csi-in-nomad.md)。
 
-在 v0.10.0 之前，JuiceFS CSI 驱动仅支持进程挂载模式。而 v0.10.0 及之后版本则默认为容器挂载模式。如果你需要在 v0.9 到 v0.10 进行升级，请参考[「从 v0.9.0 升级到 v0.10.0 及以上」](./upgrade/upgrade-csi-driver-from-0.9-to-0.10.md)。
+在 v0.10 之前，JuiceFS CSI 驱动仅支持进程挂载模式。而 v0.10 及之后版本则默认为容器挂载模式。如果你需要升级到 v0.10，请参考[「升级至 v0.10」](./administration/upgrade-csi-driver.md#upgrade-from-legacy)。
