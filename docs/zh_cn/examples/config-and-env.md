@@ -67,7 +67,7 @@ stringData:
 
 ## 部署
 
-您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md)。这里以动态配置为例：
+您可以使用 [静态配置](../guide/pv.md#static-provisioning) 或 [动态配置](../guide/pv.md#dynamic-provisioning)。这里以动态配置为例：
 
 ```yaml
 apiVersion: storage.k8s.io/v1

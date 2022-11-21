@@ -8,9 +8,9 @@ JuiceFS 支持 ReadWriteMany 和 ReadOnlyMany 两种访问方式。
 
 ## ReadWriteMany
 
-您可以使用 [静态配置](static-provisioning.md) 或 [动态配置](dynamic-provisioning.md) 。我们采取静态配置为例：
+您可以使用 [静态配置](../guide/pv.md#static-provisioning) 或 [动态配置](../guide/pv.md#dynamic-provisioning) 。我们采取静态配置为例：
 
-创建 Secret 的过程与 [静态配置](static-provisioning.md) 文档一致。
+创建 Secret 的过程与 [静态配置](../guide/pv.md#static-provisioning) 文档一致。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadWriteMany`：
 
@@ -81,7 +81,7 @@ spec:
 
 ## ReadOnlyMany
 
-创建 Secret 的过程与 [静态配置](static-provisioning.md) 文档一致。
+创建 Secret 的过程与 [静态配置](../guide/pv.md#static-provisioning) 文档一致。
 
 在 PersistentVolume 和 PersistentVolumeClaim 中均设置 `ReadOnlyMany`：
 
