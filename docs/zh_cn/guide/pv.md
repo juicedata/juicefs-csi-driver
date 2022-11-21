@@ -117,8 +117,8 @@ mountOptions:
 
 社区版与云服务的挂载参数有所区别，请参考文档：
 
-- 社区版 [`juicefs mount`](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- 云服务 [`juicefs mount`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ## 动态配置（Dynamic provisioning）
 
@@ -330,8 +330,8 @@ spec:
 
 社区版与云服务的挂载参数有所区别，请参考文档：
 
-- 社区版 [`juicefs mount`](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- 云服务 [`juicefs mount`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ## 常用 PV 设置
 
