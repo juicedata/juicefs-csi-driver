@@ -95,7 +95,7 @@ Learn about dynamic provisioning and static provisioning in [Usage](./introducti
 
 Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
 
-Configuration are different between Cloud Service and Community Edition, using Community Edition as an example:
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [values.yaml](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121).
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -122,6 +122,8 @@ storageClasses:
         cpu: "5"
         memory: "5Gi"
 ```
+
+When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
 
 ### kubectl
 

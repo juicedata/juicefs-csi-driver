@@ -7,6 +7,10 @@ sidebar_position: 1
 
 在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息以及挂载参数，均存在 Kubernetes Secret 中。所以为了使用 JuiceFS 文件系统，首先需要创建 Kubernetes Secret。
 
+:::note
+如果你已经在[用 Helm 管理 StorageClass](../getting_started.md#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
+:::
+
 ### 社区版
 
 使用 PV 前，请先[创建好 JuiceFS 文件系统](https://juicefs.com/docs/zh/community/quick_start_guide#%E5%88%9B%E5%BB%BA%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F)。例如：

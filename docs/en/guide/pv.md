@@ -7,6 +7,10 @@ sidebar_position: 1
 
 With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
 
+:::note
+If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+:::
+
 ### Community edition
 
 Before using PV, you should [create a JuiceFS volume](https://juicefs.com/docs/community/quick_start_guide/#creating-a-file-system), for example:

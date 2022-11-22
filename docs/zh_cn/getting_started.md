@@ -89,11 +89,11 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
 
 阅读[「使用方式」](./introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
-### Helm
+### Helm {#helm-sc}
 
 创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
 
-JuiceFS 社区版和云服务的配置项略有不同，这里以社区版为例：
+JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [values.yaml](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121) 找到全面示范。
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -120,6 +120,8 @@ storageClasses:
         cpu: "5"
         memory: "5Gi"
 ```
+
+用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](./guide/pv.md#create-mount-config)。
 
 ### 通过 kubectl 安装
 
