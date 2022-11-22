@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"strconv"
+	"sync"
 	"time"
 
 	"k8s.io/klog"
@@ -52,29 +53,23 @@ func StartReconciler() error {
 		return err
 	}
 
-	mounter := mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      k8sexec.New(),
-	}
-
-	podDriver := NewPodDriver(k8sClient, mounter)
-
-	go doReconcile(kc, podDriver)
+	go doReconcile(k8sClient, kc)
 	return nil
 }
 
-func doReconcile(kc *kubeletClient, driver *PodDriver) {
+func doReconcile(ks *k8sclient.K8sClient, kc *kubeletClient) {
 	for {
+		mit := newMountInfoTable()
 		podList, err := kc.GetNodeRunningPods()
+		wg := sync.WaitGroup{}
 		if err != nil {
 			klog.Errorf("doReconcile GetNodeRunningPods: %v", err)
 			goto finish
 		}
-		if err := driver.mit.parse(); err != nil {
+		if err := mit.parse(); err != nil {
 			klog.Errorf("doReconcile ParseMountInfo: %v", err)
 			goto finish
 		}
-		driver.mit.setPodsStatus(podList)
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]
@@ -85,16 +80,27 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			err := func() error {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 				ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
 				defer cancel()
-				return driver.Run(ctx, pod)
-			}()
-			if err != nil {
-				klog.Errorf("Check pod %s: %s", pod.Name, err)
-			}
-		}
+				mounter := mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				}
 
+				driver := NewPodDriver(ks, mounter)
+				driver.SetMountInfo(*mit)
+				driver.mit.setPodsStatus(podList)
+
+				err := driver.Run(ctx, pod)
+				if err != nil {
+					klog.Errorf("Check pod %s: %s", pod.Name, err)
+				}
+			}()
+		}
+		wg.Wait()
 	finish:
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)
 	}

@@ -41,7 +41,7 @@ const defaultCheckoutTimeout = 1 * time.Second
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
 	handlers map[podStatus]podHandler
-	mit      *mountInfoTable
+	mit      mountInfoTable
 	mount.SafeFormatAndMount
 }
 
@@ -53,7 +53,6 @@ func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount)
 	driver := &PodDriver{
 		Client:             client,
 		handlers:           map[podStatus]podHandler{},
-		mit:                newMountInfoTable(),
 		SafeFormatAndMount: mounter,
 	}
 	driver.handlers[podReady] = driver.podReadyHandler
@@ -72,6 +71,10 @@ const (
 	podDeleted podStatus = "podDeleted"
 	podPending podStatus = "podPending"
 )
+
+func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
+	p.mit = mit
+}
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
@@ -188,7 +191,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 
 	// check resource err
 	if util.IsPodResourceError(pod) {
-		klog.V(5).Infof("waitUtilMount: Pod is failed because of resource.")
+		klog.V(5).Infof("waitUtilMount: Pod %s is failed because of resource.", pod.Name)
 		if util.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
 			_ = util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
@@ -211,6 +214,9 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 					break
 				}
 				if apierrors.IsTimeout(err) {
+					break
+				}
+				if ctx.Err() == context.Canceled || ctx.Err() == context.DeadlineExceeded {
 					break
 				}
 				klog.Errorf("get mountPod err:%v", err)

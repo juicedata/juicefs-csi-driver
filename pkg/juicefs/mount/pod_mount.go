@@ -338,7 +338,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 			finfo, err = os.Stat(jfsSetting.MountPath)
 			return err
 		}); err != nil {
-			if err == context.DeadlineExceeded {
+			if err == context.Canceled || err == context.DeadlineExceeded {
 				break
 			}
 			klog.V(5).Infof("mount path %v not ready: %v", jfsSetting.MountPath, err)
