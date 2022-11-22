@@ -94,7 +94,7 @@ stringData:
 
 ### 部署
 
-创建 `PersistentVolumeClaim`（PVC）和示例 pod：
+创建 PersistentVolumeClaim（PVC）和示例 pod：
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -137,13 +137,13 @@ EOF
 
 确认容器顺利创建运行后，可以钻进容器里确认数据正常写入 JuiceFS：
 
-```sh
+```shell
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
 ## 使用通用临时卷 {#general-ephemeral-storage}
 
-Kubernetes 的[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。当容器需要大容量临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
+[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。当应用容器需要大容量临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
 
 JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](../getting_started.md#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
 
@@ -182,8 +182,8 @@ spec:
               storage: 1Gi
 ```
 
-:::note 注意
-临时卷的用法原理与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
+:::note
+在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
 ## 静态配置 {#static-provisioning}
@@ -192,7 +192,7 @@ spec:
 
 所谓「静态配置」，指的是自行创建 PV 和 PVC，流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。
 
-动态配置免除了手动创建和管理 PV、PVC 的麻烦，但如果你在 JuiceFS 中已经有了大量数据，希望能在 Kubernetes 中直接挂载到容器中使用，则需要选用静态配置的方式来使用。
+动态配置免除了手动创建和管理 PV 的麻烦，但如果你在 JuiceFS 中已经有了大量数据，希望能在 Kubernetes 中直接挂载到容器中使用，则需要选用静态配置的方式来使用。
 
 ### 部署
 
@@ -270,7 +270,7 @@ spec:
 当所有的资源创建好之后，可以用以下命令确认一切符合预期：
 
 ```shell
-# 确认 PV 正常创建，容量显示正确
+# 确认 PV 正常创建
 kubectl get pv juicefs-pv
 
 # 确认 pod 正常运行
@@ -318,4 +318,4 @@ resources:
 
 ### 访问模式 {#access-modes}
 
-JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在 PV、PVC，或者 `volumeClaimTemplate` 中填写需要的 `accessModes` 即可。详见上方各小节中代码块，搜索 `accessModes`。
+JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV/PVC，（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。

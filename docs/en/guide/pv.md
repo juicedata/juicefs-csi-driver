@@ -90,11 +90,11 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
-Create StorageClass, PersistentVolumeClaim (PVC) and sample pod:
+Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](../getting_started.md#create-storage-class) in advance.
 
-:::info
-Since JuiceFS is an elastic file system it doesn't really enforce any file system capacity. The actual storage capacity value in `PersistentVolume` and `PersistentVolumeClaim` is not used when creating the file system. However, since the storage capacity is a required field by Kubernetes, you must specify the value and you can use any valid value e.g. `10Pi` for the capacity.
-:::
+### Deploy
+
+Create PersistentVolumeClaim (PVC) and example pod:
 
 ```yaml
 kubectl apply -f - <<EOF
@@ -135,16 +135,187 @@ spec:
 EOF
 ```
 
-## Check JuiceFS file system is used
+Verify that pod is running, and check if data is written into JuiceFS:
 
-After the objects are created, verify that pod is running:
-
-```sh
-kubectl get pods
-```
-
-Also you can verify that data is written onto JuiceFS file system:
-
-```sh
+```shell
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
+
+## Use generic ephemeral volume {#general-ephemeral-storage}
+
+[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods are in need of large volume ephemeral storage, consider using JuiceFS as generic ephemeral volume.
+
+Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](../getting_started.md#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for you.
+
+Declare generic ephemeral volume directly in pod definition:
+
+```yaml {19-30}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: juicefs-pv
+  volumes:
+  - name: juicefs-pv
+    ephemeral:
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            type: juicefs-ephemeral-volume
+        spec:
+          accessModes: [ "ReadWriteMany" ]
+          storageClassName: "juicefs-sc"
+          resources:
+            requests:
+              storage: 1Gi
+```
+
+:::note
+As for retain policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](../guide/resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
+:::
+
+## Static Provisioning {#static-provisioning}
+
+Read [Usage](../introduction.md#usage) to learn about static provisioning.
+
+Static provisioning means you are in charge of creating and managing PV/PVC, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/).
+
+Although dynamic provisioning saves you from manually creating PVs, static provisioning is still helpful when you already have loads of data stored in JuiceFS, and wants to directly expose to Kubernetes pods.
+
+### Deploy
+
+Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
+
+:::note
+PV volumeHandle needs to be unique within the cluster, simply using the PV name is recommended
+:::
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+```
+
+After all resources are created, verify that all is working well:
+
+```shell
+# Verify PV is created
+kubectl get pv
+
+# Verify the pod is running
+kubectl get pods
+
+# Verify that data is written into JuiceFS
+kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+```
+
+You can customize mount options by appending `mountOptions` to above PV definition:
+
+```yaml {8-13}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - enable-xattr
+    - max-uploads=50
+    - cache-size=2048
+    - cache-dir=/var/foo
+    - allow_other
+  ...
+```
+
+Mount options are different between Community Edition and Cloud Service:
+
+- [Community edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
+## Common PV settings
+
+### PV storage capacity {#storage-capacity}
+
+For now, storage capacity isn't really supported in JuiceFS CSI Driver. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
+
+```yaml
+resources:
+  requests:
+    storage: 100Gi
+```
+
+### Access modes {#access-modes}
+
+JuiceFS PV supports ReadWriteMany and ReadOnlyMany as access modes, change the `accessModes` field accordingly in above PV/PVC (or volumeClaimTemplate) definitions.

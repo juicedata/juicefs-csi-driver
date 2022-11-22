@@ -85,7 +85,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## Create StorageClass {#create-storage-class}
+## Create a StorageClass {#create-storage-class}
 
 If you decide to use JuiceFS CSI Driver via [dynamic provisioning](./guide/pv.md#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
@@ -138,9 +138,9 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
 
-### 调整挂载参数
+### Adjust mount options
 
-如果需要调整挂载参数，可以在上方的 StorageClass 定义中追加 `mountOptions` 配置。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
+To customize mount options, append `mountOptions` to the above StorageClass definition. If you need to use different mount options for different applications, you'll need to create multiple StorageClass.
 
 ```yaml
 mountOptions:
@@ -151,8 +151,8 @@ mountOptions:
   - allow_other
 ```
 
-JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
+Mount options are different between Community Edition and Cloud Service, see:
 
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
