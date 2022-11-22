@@ -36,7 +36,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -420,33 +419,4 @@ func UmountPath(ctx context.Context, sourcePath string) {
 			}
 		}
 	}
-}
-
-// NoRequeue returns the result of a reconcile invocation and no err
-// The Object will requeue immediately
-func NoRequeue() (ctrl.Result, error) {
-	return RequeueIfError(nil)
-}
-
-// RequeueAfterInterval returns the result of a reconcile invocation with a given requeue interval and no err
-// The Object will requeue after the given requeue interval
-func RequeueAfterInterval(interval time.Duration) (ctrl.Result, error) {
-	return ctrl.Result{RequeueAfter: interval}, nil
-}
-
-// RequeueIfError returns the result of a reconciler invocation and the err
-// The Object will requeue immediately whether the err is nil or not
-func RequeueIfError(err error) (ctrl.Result, error) {
-	return ctrl.Result{}, err
-}
-
-// Check if the key has the expected value
-func CheckExpectValue(m map[string]string, key string, targetValue string) bool {
-	if len(m) == 0 {
-		return false
-	}
-	if v, ok := m[key]; ok {
-		return v == targetValue
-	}
-	return false
 }

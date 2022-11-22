@@ -77,9 +77,6 @@ const (
 	PublishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
 	PublishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
 
-	// webhook
-	WebhookName = "juicefs-admission-webhook"
-
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
 	mountPodMemLimitKey    = "juicefs/mount-memory-limit"
