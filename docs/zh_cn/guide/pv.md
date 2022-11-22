@@ -87,9 +87,9 @@ stringData:
 
 云服务的 `auth` 命令作用类似于社区版的 `format` 命令，因此字段名依然叫做 `format-options`。
 
-## 动态配置（Dynamic provisioning） {#dynamic-provisioning}
+## 动态配置 {#dynamic-provisioning}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置过程会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](../getting_started.md#storageclass)。
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](../getting_started.md#create-storage-class)。
 
 ### 部署
 
@@ -144,7 +144,7 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 Kubernetes 的[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。当容器需要大容量临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
 
-JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](../getting_started.md#storageclass)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
+JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](../getting_started.md#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
 
 在 Pod 定义中声明使用通用临时卷：
 
@@ -182,20 +182,20 @@ spec:
 ```
 
 :::note 注意
-临时卷的用法原理与动态配置一致，因此如果将 [默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
+临时卷的用法原理与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
 ## 静态配置 {#static-provisioning}
 
 阅读[「使用方式」](../introduction.md#usage)以了解什么是「静态配置」。
 
-所谓「静态配置」，在本文档指的就是手动创建 PV、PVC，流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。
+所谓「静态配置」，指的是自行创建 PV 和 PVC，流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。
 
 动态配置免除了手动创建和管理 PV、PVC 的麻烦，但如果你在 JuiceFS 中已经有了大量数据，希望能在 Kubernetes 中直接挂载到容器中使用，则需要选用静态配置的方式来使用。
 
 ### 部署
 
-创建 `PersistentVolume`（PV）、`PersistentVolumeClaim`（PVC）和示例 pod：
+创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
 
 :::note 注意
 PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
@@ -270,17 +270,18 @@ spec:
 
 ```shell
 # 确认 PV 正常创建，容量显示正确
-kubectl get pv
+kubectl get pv juicefs-pv
+
 # 确认 pod 正常运行
-kubectl get pods
-# 确认数据被正确地写入 JuiceFS 文件系统中
+kubectl get pods juicefs-app
+
+# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
-# 与此同时，也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建
 ```
 
 如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置：
 
-```yaml
+```yaml {8-13}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -297,7 +298,7 @@ spec:
   ...
 ```
 
-社区版与云服务的挂载参数有所区别，请参考文档：
+JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
@@ -306,7 +307,7 @@ spec:
 
 ### PV 容量分配 {#storage-capacity}
 
-目前而言，JuiceFS CSI 驱动不支持设置存储配额。在 `PersistentVolume` 和 `PersistentVolumeClaim` 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
+目前而言，JuiceFS CSI 驱动不支持设置存储配额。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
 
 ```yaml
 resources:

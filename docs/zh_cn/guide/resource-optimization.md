@@ -230,7 +230,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -290,7 +290,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -379,7 +379,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -439,7 +439,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:

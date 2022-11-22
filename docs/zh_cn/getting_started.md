@@ -8,11 +8,11 @@ JuiceFS CSI 驱动需要 Kubernetes 1.14 及以上版本，通过以下方法进
 
 ### 通过 Helm 安装
 
-Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以把它看作是 Homebrew formula，APT dpkg，或 YUM RPM 在 Kubernetes 中的等价物。
+Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以把它看作是 Homebrew、APT 或 YUM 在 Kubernetes 中的等价物。
 
 安装 JuiceFS CSI 驱动需要用 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
 
-* 检查 kubelet 根目录
+1. 检查 kubelet 根目录
 
    执行以下命令
 
@@ -26,7 +26,7 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
    kubeletDir: <kubelet-dir>
    ```
 
-* 部署
+2. 部署
 
    依次执行以下三条命令，通过 Helm 部署 JuiceFS CSI 驱动。如果没有准备 Helm 配置文件，在执行 `helm install` 命令时可以去掉最后的 `-f ./values.yaml` 选项。
 
@@ -36,7 +36,7 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-* 检查部署状态
+3. 检查部署状态
 
    部署过程会启动一个名为 `juicefs-csi-controller` 的 `StatefulSet` 及一个 replica，以及一个名为 `juicefs-csi-node` 的 `DaemonSet`。执行命令 `kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver` 会看到有 `n+1` 个（`n` 指 Kubernetes 的 Node 数量）pod 在运行，例如：
 
@@ -61,10 +61,10 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
 
 2. 部署
 
-   - **如果上一步检查命令返回的结果不为空**，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），因此需要在 CSI 驱动的部署文件中更新 `kubeletDir` 路径并部署：
+   - **如果上一步检查命令返回的结果不为空**，则代表 kubelet 的根目录（`--root-dir`）不是默认值（`/var/lib/kubelet`），因此需要在 CSI 驱动的部署文件中更新 kubelet 根目录路径后再部署：
 
      ```shell
-     # 请将下述命令中的 `{{KUBELET_DIR}}` 替换成 kubelet 当前的根目录路径。
+     # 请将下述命令中的 {{KUBELET_DIR}} 替换成 kubelet 当前的根目录路径
 
      # Kubernetes 版本 >= v1.18
      curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
@@ -83,7 +83,7 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## 创建 StorageClass
+## 创建 StorageClass {#create-storage-class}
 
 如果你打算以[「动态配置」](./guide/pv.md#dynamic-provisioning)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
 
@@ -91,7 +91,7 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
 
 创建配置文件 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考[文档](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)，不需要的项可以删除，或者留空。
 
-以社区版为例：
+JuiceFS 社区版和云服务的配置项略有不同，这里以社区版为例：
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -117,7 +117,7 @@ storageClasses:
         memory: "5Gi"
 ```
 
-其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 卷，则只需填写 `name` 和 `metaurl` 这两项即可。
+其中，`backend` 部分是 JuiceFS 文件系统相关的信息。如果使用的是已经提前创建好的 JuiceFS 文件系统，则只需填写 `name` 和 `metaurl` 这两项即可。
 
 ### 通过 kubectl 安装
 
@@ -136,7 +136,7 @@ parameters:
 
 ### 调整挂载参数
 
-如果需要调整挂载参数，可以在上方的 StorageClass 定义中追加 `mountOptions` 配置。可想而知，如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
+如果需要调整挂载参数，可以在上方的 StorageClass 定义中追加 `mountOptions` 配置。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
 
 ```yaml
 mountOptions:
@@ -147,7 +147,7 @@ mountOptions:
   - allow_other
 ```
 
-社区版与云服务的挂载参数有所区别，请参考文档：
+JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)

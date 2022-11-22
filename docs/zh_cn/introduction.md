@@ -26,9 +26,9 @@ JuiceFS CSI 驱动的架构如图所示：
 
 ## 使用方式 {#usage}
 
-你可以用[「静态配置」](./guide/pv.md#static-provisioning)和[「动态配置」](./guide/pv.md#dynamic-provisioning)的方式来使用 JuiceFS CSI 驱动。所谓「静态配置」，在本文档中指的是自行创建 PersistentVolume（PV）以及 PersistentVolumeClaim（PVC）的使用方式。创建完毕以后，手动在 Pod 定义中引用该 PVC，以使用 JuiceFS。如果说你在 JuiceFS 中已经存在大量数据，想要直接在 Kubernetes 容器中访问这些数据，一般采用静态配置的方式。
+你可以用[「静态配置」](./guide/pv.md#static-provisioning)和[「动态配置」](./guide/pv.md#dynamic-provisioning)的方式来使用 JuiceFS CSI 驱动。所谓「静态配置」，指的是自行创建 PersistentVolume（PV）以及 PersistentVolumeClaim（PVC）的使用方式。创建完毕以后，手动在 Pod 定义中引用该 PVC，以使用 JuiceFS。如果说你在 JuiceFS 中已经存储了大量数据，想要直接在 Kubernetes 容器中访问，一般采用静态配置的方式。
 
-但在纯容器集群场景中，「静态配置」所需的手动创建 PV、PVC 等步骤也许过于繁琐，这时候则推荐「动态配置」流程，你只需要创建 PVC，并且在 Pod 中引用该 PVC，CSI 驱动会为你自动创建 PV。
+但如果需要动态创建 PV，这时候则推荐「动态配置」方式，你只需要创建 PVC，并且在 Pod 中引用该 PVC，JuiceFS CSI 驱动会为你自动创建 PV。
 
 以[「动态配置」](./guide/pv.md#dynamic-provisioning)为例，创建 PV 和使用的流程大致如下：
 
