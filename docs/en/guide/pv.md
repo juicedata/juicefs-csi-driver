@@ -52,7 +52,7 @@ stringData:
 - `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage.
 - `access-key`/`secret-key`: Object storage credentials.
 - `envs`：Mount pod environment variables.
-- `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format).
+- `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format). This options is only available in v0.13.3 and above.
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
@@ -86,7 +86,7 @@ stringData:
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token).
 - `access-key`/`secret-key`: Object storage credentials.
 - `envs`：Mount pod environment variables.
-- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration.
+- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above.
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
