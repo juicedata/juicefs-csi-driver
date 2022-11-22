@@ -3,15 +3,13 @@ title: 创建和使用 PV
 sidebar_position: 1
 ---
 
-本章详细介绍如何创建和使用 PV 来访问 JuiceFS 文件系统，以及常见用法和配置。
-
 ## 创建挂载配置 {#create-mount-config}
 
 在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息以及挂载参数，均存在 Kubernetes Secret 中。所以为了使用 JuiceFS 文件系统，首先需要创建 Kubernetes Secret。
 
 ### 社区版
 
-建议在使用 JuiceFS CSI 驱动前先创建好 JuiceFS 文件系统，请参考[「快速上手」](https://juicefs.com/docs/zh/community/quick_start_guide#%E5%88%9B%E5%BB%BA%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F)文档具体了解如何创建。例如：
+使用 PV 前，请先[创建好 JuiceFS 文件系统](https://juicefs.com/docs/zh/community/quick_start_guide#%E5%88%9B%E5%BB%BA%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F)。例如：
 
 ```shell
 juicefs format \
@@ -51,13 +49,15 @@ stringData:
 - `bucket`：对象存储 Bucket URL。更多信息参考[「如何设置对象存储」](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
-- `format-options`：创建文件系统（[`format` 命令](https://juicefs.com/docs/zh/community/command_reference#juicefs-format)）所使用的的参数。
+- `format-options`：创建文件系统的选项，详见 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format)。
 
 如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
 ### 云服务
 
-请先参考[「快速上手」](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)文档了解如何在 JuiceFS 云服务中创建文件系统，然后创建 Kubernetes Secret：
+操作之前，请先[在 JuiceFS 云服务中创建文件系统](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)。
+
+创建 Kubernetes Secret：
 
 ```yaml {7-14}
 apiVersion: v1
@@ -79,13 +79,14 @@ stringData:
 其中：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
-- `format-options`：云服务 [`auth` 命令](https://juicefs.com/docs/zh/cloud/commands_reference#auth)所使用的的参数，作用是认证，以及生成挂载的配置文件。
+- `envs`：Mount Pod 的环境变量
+- `format-options`：云服务 [`juicefs auth` 命令](https://juicefs.com/docs/zh/cloud/commands_reference#auth)所使用的的参数，作用是认证，以及生成挂载的配置文件。
 
 如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
-云服务的 `auth` 命令作用类似于社区版的 `format` 命令，因此字段名依然叫做 `format-options`。
+云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此字段名依然叫做 `format-options`。
 
 ## 动态配置 {#dynamic-provisioning}
 
