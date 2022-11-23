@@ -3,7 +3,7 @@ title: 升级 JuiceFS CSI 驱动
 slug: /upgrade-csi-driver
 ---
 
-阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。
+阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。如果你希望仅升级 JuiceFS 客户端，参考[「升级 JuiceFS 客户端」](./upgrade-juicefs-client.md)。
 
 :::note
 如果你以[「进程挂载模式」](../introduction.md#by-process)使用 CSI 驱动，或者还在使用 v0.10 之前的版本，则需参照[「进程挂载模式下升级」](#mount-by-process-upgrade)的步骤进行操作。
@@ -309,30 +309,3 @@ rules:
 如果你能接受服务中断，这将是更为简单的升级手段。
 
 此法需要卸载所有正在使用 JuiceFS PV 的应用，按照上方的[正常升级流程](#upgrade)操作，然后重新创建受影响的应用即可。
-
-## 独立升级 JuiceFS 客户端 {#upgrade-juicefs-client}
-
-如果你在使用进程挂载模式，或者仅仅是难以升级到 v0.10 之后的版本，但又需要使用新版 JuiceFS 进行挂载，那么也可以通过以下方法，在不升级 CSI 驱动的前提下，单独升级 CSI Node JuiceFS 客户端。
-
-由于这是在 CSI Node 容器中临时升级 JuiceFS 客户端，完全是临时解决方案，可想而知，如果 DaemonSet Pod 发生了重建，又或是新增了节点，都需要再次执行该升级过程。
-
-1. 使用以下脚本将 `juicefs-csi-node` pod 中的 `juicefs` 客户端替换为新版：
-
-   ```bash
-   #!/bin/bash
-
-   # 运行前请替换为正确路径
-   KUBECTL=/path/to/kubectl
-   JUICEFS_BIN=/path/to/new/juicefs
-
-   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
-       xargs -L 1 -P 10 -I'{}' \
-       $KUBECTL -n kube-system cp $JUICEFS_BIN '{}':/tmp/juicefs -c juicefs-plugin
-
-   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
-       xargs -L 1 -P 10 -I'{}' \
-       $KUBECTL -n kube-system exec -i '{}' -c juicefs-plugin -- \
-       chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
-   ```
-
-2. 将应用逐个重新启动，或 kill 掉已存在的 pod。
