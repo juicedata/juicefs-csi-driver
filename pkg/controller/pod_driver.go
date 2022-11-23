@@ -191,7 +191,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 
 	// check resource err
 	if util.IsPodResourceError(pod) {
-		klog.V(5).Infof("waitUtilMount: Pod %s is failed because of resource.", pod.Name)
+		klog.V(5).Infof("waitUtilMount: Pod %s failed because of resource.", pod.Name)
 		if util.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
 			_ = util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
