@@ -2,7 +2,7 @@
 slug: /faq
 ---
 
-# FAQ
+# 常见问题
 
 ## Pod 创建失败，错误信息 "driver name csi.juicefs.com not found in the list of registered CSI drivers"
 
@@ -73,4 +73,4 @@ spec:
 
 ## 如何设置 JuiceFS Mount Pod 的时区？
 
-你需要在 `Secret` 的 `stringData` 中新增 `envs: "{TZ: <YOUR-TIME-ZONE>}"` 配置，请将 `<YOUR-TIME-ZONE>` 替换为实际的值（如 `Asia/Shanghai`）。具体示例请参考[「静态配置」](examples/static-provisioning.md)或[「动态配置」](examples/dynamic-provisioning.md)文档。
+你需要在 `Secret` 的 `stringData` 中新增 `envs: "{TZ: <YOUR-TIME-ZONE>}"` 配置，请将 `<YOUR-TIME-ZONE>` 替换为实际的值（如 `Asia/Shanghai`）。具体示例请参考[「静态配置」](./guide/pv.md#static-provisioning)或[「动态配置」](./guide/pv.md#dynamic-provisioning)文档。

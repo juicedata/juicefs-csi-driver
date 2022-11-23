@@ -37,7 +37,7 @@ spec:
       namespace: default
 ```
 
-For PVC (PersistentVolumeClaim) and sample pod, Refer to [this document](./static-provisioning.md) for more details.
+For PVC (PersistentVolumeClaim) and sample pod, Refer to [this document](../guide/pv.md#static-provisioning) for more details.
 
 #### Check cache directory
 
@@ -114,7 +114,7 @@ mountOptions:
   - cache-dir=/dev/vdb1
 ```
 
-For PVC (PersistentVolumeClaim) and sample pod, Refer to [this document](./dynamic-provisioning.md) for more details.
+For PVC (PersistentVolumeClaim) and sample pod, Refer to [this document](../guide/pv.md#dynamic-provisioning) for more details.
 
 #### Check cache directory
 

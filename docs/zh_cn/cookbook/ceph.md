@@ -145,11 +145,11 @@ storage:     4 bytes
 
 ### 动态挂载
 
-如何使用 StorageClass 访问 JuiceFS，请参考[「动态配置」](../examples/dynamic-provisioning.md)将 `$(SECRET_NAME)` 替换为 `juicefs-secret`，将 `$(SECRET_NAMESPACE)` 替换为 `kube-system`。
+如何使用 StorageClass 访问 JuiceFS，请参考[「动态配置」](../guide/pv.md#dynamic-provisioning)将 `$(SECRET_NAME)` 替换为 `juicefs-secret`，将 `$(SECRET_NAMESPACE)` 替换为 `kube-system`。
 
 ### 静态挂载
 
-如何使用 Persistent Volume 访问 JuiceFS，请参考[「静态配置」](../examples/static-provisioning.md)将 `nodePublishSecretRef` 的 `name` 和 `namespace` 替换为 `juicefs-sceret` 和 `kube-system`。
+如何使用 Persistent Volume 访问 JuiceFS，请参考[「静态配置」](../guide/pv.md#static-provisioning)将 `nodePublishSecretRef` 的 `name` 和 `namespace` 替换为 `juicefs-sceret` 和 `kube-system`。
 
 ## 其他 Ceph 版本
 

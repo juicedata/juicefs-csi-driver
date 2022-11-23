@@ -230,7 +230,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -290,7 +290,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -379,7 +379,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -439,7 +439,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: juicefs-app-mount-options
+  name: juicefs-app
   namespace: default
 spec:
   containers:
@@ -459,7 +459,7 @@ spec:
         claimName: juicefs-pvc
 ```
 
-## PV 回收策略
+## PV 回收策略 {#reclaim-policy}
 
 [回收策略](https://kubernetes.io/zh-cn/docs/concepts/storage/persistent-volumes/#reclaiming)决定了 PVC 或 PV 被删除后，存储里的数据何去何从。常用的回收策略是保留（Retain）和删除（Delete），保留回收策略需要用户自己回收资源（包括 PV、JuiceFS 上的数据），而删除回收策略则意味着 PV 及 JuiceFS 上的数据会随着 PVC 删除而直接清理掉。
 
