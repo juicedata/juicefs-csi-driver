@@ -28,7 +28,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 2. Deploy
 
-   Execute below commands to deploy JuiceFS CSI Driver.
+   Execute below commands to deploy JuiceFS CSI Driver:
 
    ```shell
    helm repo add juicefs https://juicedata.github.io/charts/
@@ -36,7 +36,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-4. Verify installation
+3. Verify installation
 
    Verify all CSI Driver components are running:
 
@@ -61,10 +61,10 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 2. Deploy
 
-   - If above command returns a non-empty result other than `/var/lib/kubelet`, it means kubelet root directory (`--root-dir`) was customized, you need to update the `kubeletDir` path in the CSI Driver's deployment file.
+   - If above command returns a non-empty result other than `/var/lib/kubelet`, it means kubelet root directory (`--root-dir`) was customized, you need to update the kubelet path in the CSI Driver's deployment file.
 
      ```shell
-     # replace {{KUBELET_DIR}} in the below command with the actual root directory path of kubelet.
+     # Replace {{KUBELET_DIR}} in the below command with the actual root directory path of kubelet.
 
      # Kubernetes version >= v1.18
      curl -sSL https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml | sed 's@/var/lib/kubelet@{{KUBELET_DIR}}@g' | kubectl apply -f -
@@ -78,12 +78,23 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
      ```shell
      # Kubernetes version >= v1.18
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
-     ```
 
-     ```shell
      # Kubernetes version < v1.18
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
+
+3. Verify installation
+
+   Verify all CSI Driver components are running:
+
+   ```shell
+   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+   NAME                       READY   STATUS    RESTARTS   AGE
+   juicefs-csi-controller-0   3/3     Running   0          22m
+   juicefs-csi-node-v9tzb     3/3     Running   0          14m
+   ```
+
+   Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
 ## Create a StorageClass {#create-storage-class}
 
@@ -91,11 +102,11 @@ If you decide to use JuiceFS CSI Driver via [dynamic provisioning](./guide/pv.md
 
 Learn about dynamic provisioning and static provisioning in [Usage](./introduction.md#usage).
 
-### Helm
+### Create via Helm {#helm-sc}
 
 Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
 
-Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [values.yaml](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121).
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121).
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -125,7 +136,7 @@ storageClasses:
 
 When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
 
-### kubectl
+### Create via kubectl
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -157,4 +168,3 @@ Mount options are different between Community Edition and Cloud Service, see:
 
 - [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
 - [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
-

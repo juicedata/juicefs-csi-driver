@@ -72,4 +72,4 @@ Please refer to the ["Troubleshooting"](troubleshooting.md#check-juicefs-csi-dri
 
 ## How to set the time zone of JuiceFS Mount Pod?
 
-You need to add `envs: "{TZ: <YOUR-TIME-ZONE>}"` configuration in `stringData` of `Secret`, please replace `<YOUR-TIME-ZONE>` with the actual value (e.g. `Asia/Shanghai`). For specific examples, please refer to the ["Static Provisioning"](examples/static-provisioning.md) or ["Dynamic Provisioning"](examples/dynamic-provisioning.md) documentation.
+You need to add `envs: "{TZ: <YOUR-TIME-ZONE>}"` configuration in `stringData` of `Secret`, please replace `<YOUR-TIME-ZONE>` with the actual value (e.g. `Asia/Shanghai`). For specific examples, please refer to the ["Static Provisioning"](./guide/pv.md#static-provisioning) or ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning) documentation.

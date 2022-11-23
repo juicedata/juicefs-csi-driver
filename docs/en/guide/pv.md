@@ -13,7 +13,7 @@ If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc
 
 ### Community edition
 
-Before using PV, you should [create a JuiceFS volume](https://juicefs.com/docs/community/quick_start_guide/#creating-a-file-system), for example:
+Before using PV, you should [create a file system](https://juicefs.com/docs/community/quick_start_guide/#creating-a-file-system), for example:
 
 ```shell
 juicefs format \
@@ -39,26 +39,27 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # Adjust mount pod timezone, defaults to UTC
+  # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # You can also choose to format a volume within the mount pod
-  # fill in format options below
+  # You can also choose to format a volume within the mount pod fill in format options below.
   # format-options: trash-days=1,block-size=4096
 ```
 
+Fields description:
+
 - `name`: The JuiceFS file system name.
-- `metaurl`: Connection URL for metadata engine. Read [Metadata Engine](https://juicefs.com/docs/community/databases_for_metadata) for details.
+- `metaurl`: Connection URL for metadata engine. Read [Set Up Metadata Engine](https://juicefs.com/docs/community/databases_for_metadata) for details.
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list.
 - `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage.
 - `access-key`/`secret-key`: Object storage credentials.
 - `envs`：Mount pod environment variables.
-- `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format). This options is only available in v0.13.3 and above.
+- `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/community/command_reference#format). This options is only available in v0.13.3 and above.
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
-### Cloud service edition
+### Cloud service
 
-Before continue, you should have already [created a filesystem](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system).
+Before continue, you should have already [created a file system](https://juicefs.com/docs/cloud/getting_started#create-file-system).
 
 Create Kubernetes Secret:
 
@@ -75,18 +76,19 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # Adjust mount pod timezone, defaults to UTC
+  # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # You can also choose to run juicefs auth within the mount pod
-  # fill in auth parameters below
+  # You can also choose to run juicefs auth within the mount pod fill in auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
+
+Fields description:
 
 - `name`: The JuiceFS file system name.
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token).
 - `access-key`/`secret-key`: Object storage credentials.
 - `envs`：Mount pod environment variables.
-- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above.
+- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above.
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
@@ -187,23 +189,23 @@ spec:
 ```
 
 :::note
-As for retain policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](../guide/resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
+As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
-## Static Provisioning {#static-provisioning}
+## Static provisioning {#static-provisioning}
 
 Read [Usage](../introduction.md#usage) to learn about static provisioning.
 
 Static provisioning means you are in charge of creating and managing PV/PVC, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/).
 
-Although dynamic provisioning saves you from manually creating PVs, static provisioning is still helpful when you already have loads of data stored in JuiceFS, and wants to directly expose to Kubernetes pods.
+Although dynamic provisioning saves you from manually creating PVs, static provisioning is still helpful when you already have lots of data stored in JuiceFS, and wants to directly expose to Kubernetes pods.
 
 ### Deploy
 
 Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
 
 :::note
-PV volumeHandle needs to be unique within the cluster, simply using the PV name is recommended
+The PV `volumeHandle` needs to be unique within the cluster, simply using the PV name is recommended.
 :::
 
 ```yaml
@@ -305,14 +307,14 @@ spec:
 
 Mount options are different between Community Edition and Cloud Service:
 
-- [Community edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+- [Community edition](https://juicefs.com/docs/community/command_reference#juicefs-mount)
+- [Cloud service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
 
 ## Common PV settings
 
 ### PV storage capacity {#storage-capacity}
 
-For now, storage capacity isn't really supported in JuiceFS CSI Driver. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
+For now, JuiceFS CSI Driver doesn't support setting storage capacity. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
 
 ```yaml
 resources:
@@ -322,4 +324,4 @@ resources:
 
 ### Access modes {#access-modes}
 
-JuiceFS PV supports ReadWriteMany and ReadOnlyMany as access modes, change the `accessModes` field accordingly in above PV/PVC (or volumeClaimTemplate) definitions.
+JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.

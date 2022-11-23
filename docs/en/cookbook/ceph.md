@@ -145,11 +145,11 @@ As we want the `ceph-conf` secret we created before to be mounted under `/etc/ce
 
 ### Dynamic provisioning
 
-Please refer ["Dynamic Provisioning"](../examples/dynamic-provisioning.md) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
+Please refer ["Dynamic Provisioning"](../guide/pv.md#dynamic-provisioning) for how to access JuiceFS using storage class. Replace `$(SECRET_NAME)` with `juicefs-secret` and `$(SECRET_NAMESPACE)` with `kube-system`.
 
 ### Static provisioning
 
-Please refer ["Static Provisioning"](../examples/static-provisioning.md) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
+Please refer ["Static Provisioning"](../guide/pv.md#static-provisioning) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
 
 ## Other Ceph versions
 

@@ -8,10 +8,9 @@ JuiceFS supports ReadWriteMany and ReadOnlyMany access method.
 
 ## ReadWriteMany
 
-You can use [static provision](static-provisioning.md) or [dynamic provision](dynamic-provisioning.md) . We take static
-provision as example:
+You can use [static provision](../guide/pv.md#static-provisioning) or [dynamic provision](../guide/pv.md#dynamic-provisioning). We take static provision as example.
 
-The process of creating a secret is the same as the [static provision](static-provisioning.md) document.
+The process of creating a secret is the same as the [static provision](../guide/pv.md#static-provisioning) document.
 
 Set `ReadWriteMany` in both PersistentVolume and PersistentVolumeClaim:
 
@@ -82,7 +81,7 @@ spec:
 
 ## ReadOnlyMany
 
-The process of creating a secret is the same as the [static provision](static-provisioning.md) document.
+The process of creating a secret is the same as the [static provision](../guide/pv.md#static-provisioning) document.
 
 Set `ReadOnlyMany` in both PersistentVolume and PersistentVolumeClaim:
 

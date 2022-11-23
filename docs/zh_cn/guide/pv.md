@@ -45,7 +45,7 @@ stringData:
   # format-options: trash-days=1,block-size=4096
 ```
 
-其中：
+字段说明：
 
 - `name`：JuiceFS 文件系统名称
 - `metaurl`：元数据服务的访问 URL。更多信息参考[「如何设置元数据引擎」](https://juicefs.com/docs/zh/community/databases_for_metadata) 。
@@ -59,7 +59,7 @@ stringData:
 
 ### 云服务
 
-操作之前，请先[在 JuiceFS 云服务中创建文件系统](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)。
+操作之前，请先在 JuiceFS 云服务中[创建文件系统](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)。
 
 创建 Kubernetes Secret：
 
@@ -80,13 +80,13 @@ stringData:
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
 
-其中：
+字段说明：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/cloud/acl#access-token)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
-- `format-options`：云服务 [`juicefs auth` 命令](https://juicefs.com/docs/zh/cloud/commands_reference#auth)所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用。
+- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用。
 
 如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
@@ -312,7 +312,7 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 ### PV 容量分配 {#storage-capacity}
 
-目前而言，JuiceFS CSI 驱动不支持设置存储配额。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
+目前而言，JuiceFS CSI 驱动不支持设置存储容量。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
 
 ```yaml
 resources:
