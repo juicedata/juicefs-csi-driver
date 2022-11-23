@@ -37,7 +37,7 @@ spec:
       namespace: default
 ```
 
-PVC 和示例 pod 可参考 [这篇文档](./static-provisioning.md)。
+PVC 和示例 pod 可参考 [这篇文档](../guide/pv.md#static-provisioning)。
 
 #### 检查缓存路径
 
@@ -110,7 +110,7 @@ mountOptions:
   - cache-dir=/dev/vdb1
 ```
 
-PVC 和示例 pod 可参考 [这篇文档](./dynamic-provisioning.md)。
+PVC 和示例 pod 可参考 [这篇文档](../guide/pv.md#dynamic-provisioning)。
 
 #### 检查缓存路径
 

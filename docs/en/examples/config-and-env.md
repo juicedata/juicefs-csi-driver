@@ -67,7 +67,7 @@ stringData:
 
 ## Apply
 
-You can use [static provisioning](static-provisioning.md) or [dynamic provisioning](dynamic-provisioning.md). Here take dynamic provisioning as example:
+You can use [static provisioning](../guide/pv.md#static-provisioning) or [dynamic provisioning](../guide/pv.md#dynamic-provisioning). Here take dynamic provisioning as example:
 
 ```yaml
 apiVersion: storage.k8s.io/v1
