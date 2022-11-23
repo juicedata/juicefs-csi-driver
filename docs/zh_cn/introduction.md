@@ -62,4 +62,4 @@ kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
 
 在 Kubernetes 中，容器挂载模式无疑是更加推荐的 CSI 驱动用法，但脱离 Kubernetes 的某些场景，则可能需要选用进程挂载模式，比如[「在 Nomad 中使用 JuiceFS CSI 驱动」](./cookbook/csi-in-nomad.md)。
 
-在 v0.10 之前，JuiceFS CSI 驱动仅支持进程挂载模式。而 v0.10 及之后版本则默认为容器挂载模式。如果你需要升级到 v0.10，请参考[「升级至 v0.10」](./administration/upgrade-csi-driver.md#upgrade-from-legacy)。
+在 v0.10 之前，JuiceFS CSI 驱动仅支持进程挂载模式。而 v0.10 及之后版本则默认为容器挂载模式。如果你需要升级到 v0.10，请参考[「进程挂载模式下升级」](./administration/upgrade-csi-driver.md#mount-by-process-upgrade)。

@@ -22,7 +22,7 @@ The architecture of the JuiceFS CSI Driver is shown in the figure:
 As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated mount pod, CSI Node Service will manage mount pod lifecycle. This architecture proves several advantages:
 
 * When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
-* Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](upgrade/upgrade-csi-driver.md).
+* Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](./administration/upgrade-csi-driver.md).
 
 ## Usage {#usage}
 
@@ -58,4 +58,4 @@ When all JuiceFS Client run inside CSI Node Service pod, it's not hard to imagin
 
 In Kubernetes, mount by pod is no doubt the more recommended way to use JuiceFS CSI Driver. But outside the Kubernetes world, there'll be scenarios requiring the mount by process mode, for example, [Use JuiceFS CSI Driver in Nomad](./cookbook/csi-in-nomad.md).
 
-For versions before v0.10.0, JuiceFS CSI Driver only supports mount by process. For v0.10.0 and above, mount by pod is the default behavior. To upgrade from v0.9 to v0.10, refer to [Upgrade JuiceFS CSI Driver from v0.9.0 to v0.10.0 and above](./upgrade/upgrade-csi-driver-from-0.9-to-0.10.md).
+For versions before v0.10.0, JuiceFS CSI Driver only supports mount by process. For v0.10.0 and above, mount by pod is the default behavior. To upgrade from v0.9 to v0.10, refer to [Upgrade under mount by process mode](./administration/upgrade-csi-driver.md#mount-by-process-upgrade).

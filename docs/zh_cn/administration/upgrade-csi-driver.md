@@ -24,9 +24,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### 通过 kubectl 升级
 
-下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后重新安装 JuiceFS CSI 驱动。或者如果你的团队有着自行维护的 `k8s.yaml`，也可以直接修改其中的 JuiceFS CSI 驱动组件的镜像标签（例如 `image: juicedata/juicefs-csi-driver:v0.17.2`）。
-
-运行以下命令执行升级：
+下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后重新安装 JuiceFS CSI 驱动。或者如果你的团队有着自行维护的 `k8s.yaml`，也可以直接修改其中的 JuiceFS CSI 驱动组件的镜像标签（例如 `image: juicedata/juicefs-csi-driver:v0.17.2`）。然后运行以下命令：
 
 ```shell
 kubectl apply -f ./k8s.yaml
@@ -42,13 +40,13 @@ v0.10 之前的 JuiceFS CSI 驱动，仅支持进程挂载模式，因此如果�
 
 如果使用 JuiceFS 的应用不可被中断，可以采用此方案。
 
-由于是滚动升级，因此目标版本如果引入了新资源，你需要提前梳理出来，并单独安装。本小节中包含的各种 YAML 内容，仅适用于 v0.9 -> v0.10 的情况。视目标版本不同，你需要自行梳理。
+由于是滚动升级，因此目标版本如果引入了新资源，你需要提前梳理出来，并单独安装。本小节中包含的各种 YAML 内容，仅适用于自 v0.9 升级至 v0.10 的情况。视目标版本不同，你可能需要比较不同版本的 `k8s.yaml` 文件，提取出有差异的 Kubernetes 资源，并手动安装。
 
 #### 1. 创建新增资源
 
 将以下内容保存成 `csi_new_resource.yaml`，然后执行 `kubectl apply -f csi_new_resource.yaml`。
 
-```yaml
+```yaml title="csi_new_resource.yaml"
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -99,17 +97,17 @@ metadata:
     app.kubernetes.io/version: "v0.10.6"
 ```
 
-#### 2. 将 node service DaemonSet 的升级策略改成 OnDelete
+#### 2. 将 CSI Node Service 的升级策略改成 `OnDelete`
 
 ```shell
 kubectl -n kube-system patch ds <ds_name> -p '{"spec": {"updateStrategy": {"type": "OnDelete"}}}'
 ```
 
-#### 3. 升级 CSI 驱动的 node service DaemonSet
+#### 3. 升级 CSI Node Service
 
 将以下内容保存成 `ds_patch.yaml`，然后执行 `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`。
 
-```yaml
+```yaml title="ds_patch.yaml"
 spec:
   template:
     spec:
@@ -164,28 +162,28 @@ spec:
 
 在每台节点上执行以下操作：
 
-1. 删除当前节点上的 Node Service DaemonSet pod：
+1. 删除当前节点上的 CSI Node Service pod：
 
-```shell
-kubectl -n kube-system delete po juicefs-csi-node-df7m7
-```
+   ```shell
+   kubectl -n kube-system delete po juicefs-csi-node-df7m7
+   ```
 
-2. 确认新的 Node Service DaemonSet pod 已经 ready：
+2. 确认新的 CSI Node Service pod 已经 ready：
 
-```shell
-$ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
-juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
-```
+   ```shell
+   $ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
+   juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
+   ```
 
 3. 在当前节点上，删除使用 JuiceFS 的业务 pod 并重新创建。
 
 4. 确认使用 JuiceFS 的业务 pod 已经 ready，并检查是否正常工作。
 
-#### 5. 升级 CSI Driver controller 服务及其 role
+#### 5. 升级 CSI Controller 及其 role
 
 将以下内容保存成 `sts_patch.yaml`，然后执行 `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`。
 
-```yaml
+```yaml title="sts_patch.yaml"
 spec:
   template:
     spec:
@@ -229,7 +227,7 @@ spec:
 
 将以下内容保存成 `clusterrole_patch.yaml`，然后执行 `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`。
 
-```yaml
+```yaml title="clusterrole_patch.yaml"
 rules:
   - apiGroups:
       - ""
@@ -310,7 +308,7 @@ rules:
 
 如果你能接受服务中断，这将是更为简单的升级手段。
 
-此法需要卸载所有正在使用 JuiceFS CSI 驱动的应用，按照上方的[正常升级流程](#upgrade)操作，然后重新创建受影响的应用即可。
+此法需要卸载所有正在使用 JuiceFS PV 的应用，按照上方的[正常升级流程](#upgrade)操作，然后重新创建受影响的应用即可。
 
 ## 独立升级 JuiceFS 客户端 {#upgrade-juicefs-client}
 

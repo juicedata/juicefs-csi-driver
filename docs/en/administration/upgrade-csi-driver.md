@@ -40,13 +40,13 @@ Before v0.10.0, JuiceFS CSI Driver only supports mount by process, so if you're 
 
 Use this option if applications using JuiceFS cannot be interrupted.
 
-If new resources are introduced in the target version, you'll need to manually create them. All YAML examples listed in this section are written for the v0.9 -> v0.10 upgrade process, depending on your destination version, you might need to compare the `k8s.yaml`, extract the differences, and manually install them yourself.
+If new resources are introduced in the target version, you'll need to manually create them. All YAML examples listed in this section are only applicable when upgrading from v0.9 to v0.10. Depending on the target version, you might need to compare different versions of `k8s.yaml` files, extract the different Kuberenetes resources, and manually install them yourself.
 
 #### 1. Create resources added in new version
 
 Save below content as `csi_new_resource.yaml`, and then run `kubectl apply -f csi_new_resource.yaml`.
 
-```yaml
+```yaml title="csi_new_resource.yaml"
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -97,17 +97,17 @@ metadata:
     app.kubernetes.io/version: "v0.10.6"
 ```
 
-#### 2. Update node service DaemonSet `updateStrategy` to `OnDelete`
+#### 2. Change the upgrade strategy of CSI Node Service to `OnDelete`
 
 ```shell
 kubectl -n kube-system patch ds <ds_name> -p '{"spec": {"updateStrategy": {"type": "OnDelete"}}}'
 ```
 
-#### 3. Update CSI Driver node service DaemonSet
+#### 3. Upgrade the CSI Node Service
 
 Save below content as `ds_patch.yaml`, and then run `kubectl -n kube-system patch ds <ds_name> --patch "$(cat ds_patch.yaml)"`.
 
-```yaml
+```yaml title="ds_patch.yaml"
 spec:
   template:
     spec:
@@ -160,30 +160,30 @@ spec:
 
 #### 4. Execute rolling upgrade
 
-On every node:
+Do the following on each node:
 
-1. Delete Node Service DaemonSet pod:
+1. Delete the CSI Node Service pod on the current node:
 
-```shell
-kubectl -n kube-system delete po juicefs-csi-node-df7m7
-```
+   ```shell
+   kubectl -n kube-system delete po juicefs-csi-node-df7m7
+   ```
 
-2. Verify the re-created Node Service DaemonSet pod is ready:
+2. Verify the re-created CSI Node Service pod is ready:
 
-```shell
-$ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
-juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
-```
+   ```shell
+   $ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
+   juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
+   ```
 
 3. Delete pods using JuiceFS PV and recreate them.
 
 4. Verify that the application pods are re-created and working correctly.
 
-#### 5. Upgrade CSI Driver controller service and its role
+#### 5. Upgrade CSI Controller and its role
 
 Save below content as `sts_patch.yaml`, and run `kubectl -n kube-system patch sts <sts_name> --patch "$(cat sts_patch.yaml)"`.
 
-```yaml
+```yaml title="sts_patch.yaml"
 spec:
   template:
     spec:
@@ -227,7 +227,7 @@ spec:
 
 Save below content as `clusterrole_patch.yaml`, and then run `kubectl patch clusterrole <role_name> --patch "$(cat clusterrole_patch.yaml)"`.
 
-```yaml
+```yaml title="clusterrole_patch.yaml"
 rules:
   - apiGroups:
       - ""
