@@ -12,6 +12,8 @@ sidebar_position: 2
 
 你可以在[镜像仓库](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v)找到最新版的 Mount Pod 镜像。在 `juicefs/mount-image` 字段下填入容器镜像，在不同的使用方式下，需要在不同地方书写该字段。
 
+如果 JuiceFS 客户端的新版尚未构建，发布新镜像，你也可以自行构建 Mount 镜像，参考[「定制 Mount Pod 镜像」](../examples/mount-image.md)。
+
 ### 动态配置
 
 [「动态配置」](../guide/pv.md#dynamic-provisioning)模式下，你需要在 StorageClass 中定义配置容器镜像：
