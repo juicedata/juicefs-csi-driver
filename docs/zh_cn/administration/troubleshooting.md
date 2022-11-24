@@ -41,8 +41,6 @@ juicefs-csi-controller-0   3/3     Running   0          8d
 $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 ```
 
-# TODO: 真的就结束了吗？
-
 ### Pod 创建失败
 
 CSI Node 的职责是挂载 JuiceFS，将客户端运行在 Mount Pod 中，并将挂载点 bind 到应用 pod 内。
