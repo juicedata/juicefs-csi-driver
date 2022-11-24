@@ -130,8 +130,7 @@ func nodeRun() {
 	// enable pod manager in csi node
 	if !process && podManager && config.KubeletPort != "" && config.HostIp != "" {
 		if err := controller.StartReconciler(); err != nil {
-			klog.V(5).Infof("Could not Start Reconciler: %v", err)
-			os.Exit(1)
+			klog.Fatalf("Could not Start Reconciler: %v", err)
 		}
 		klog.V(5).Infof("Pod Reconciler Started")
 	}
