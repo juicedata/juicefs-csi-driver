@@ -8,13 +8,13 @@ sidebar_position: -1
 
 ## CSI 驱动未安装 / 安装失败
 
-如果 JuiceFS CSI 驱动压根没安装，或者关键组件安装失败，那么试图使用 JuiceFS CSI 驱动时，便会有下方报错：
+如果 JuiceFS CSI 驱动压根没安装，或者配置错误导致安装失败，那么试图使用 JuiceFS CSI 驱动时，便会有下方报错：
 
 ```
 driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
 
-请回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)，确认正确安装。
+请回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)，尤其注意确认 kubelet 根目录正确设置。
 
 ## PVC 配置互相冲突，创建失败
 
