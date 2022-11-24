@@ -507,7 +507,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
 
-## Running CSI Node Service on select nodes
+## Running CSI Node Service on select nodes {#daemonset-node-selector}
 
 JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md) for details.
 

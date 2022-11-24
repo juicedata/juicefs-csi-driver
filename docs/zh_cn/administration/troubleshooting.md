@@ -1,11 +1,12 @@
 ---
 title: 问题排查方法
 slug: /troubleshooting
+sidebar_position: -2
 ---
 
 阅读本章以了解如何对 JuiceFS CSI Driver 进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI Driver 的各组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI Driver 架构](../introduction.md)。
 
-## 基础问题排查思路
+## 基础问题排查思路 {#troubleshooting}
 
 在 JuiceFS CSI Driver 中，常见错误有两种：一种是 PVC 创建失败，属于 CSI Controller 的职责；另一种是 Pod 创建失败，属于 CSI Node 的职责。
 
@@ -91,7 +92,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -ojsonpath={..metada
 ```
 # 提前将应用 pod 信息存为环境变量
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
-APP_POD_NAME=live2d-celery-5867558cc9-pvp4x
+APP_POD_NAME=example-app-xxx-xxx
 
 # 通过应用 pod 找到 PV name
 kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get pod $APP_POD_NAME -ojsonpath={..persistentVolumeClaim.claimName}) -n $APP_NS -ojsonpath={.spec.volumeName}

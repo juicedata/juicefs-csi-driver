@@ -508,7 +508,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
 
-## 仅在某些节点上运行 CSI Node Service
+## 仅在某些节点上运行 CSI Node Service {#daemonset-node-selector}
 
 JuiceFS CSI 驱动的组件分为 CSI Controller、CSI Node Service 及 Mount Pod，详细可参考 [JuiceFS CSI 驱动架构](../introduction.md)。
 
