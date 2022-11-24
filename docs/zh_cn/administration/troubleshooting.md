@@ -68,7 +68,7 @@ Events:
 
 ```
 # 提前将应用 pod 信息存为环境变量
-APP_NS=default  # Kubernetes 命名空间
+APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=example-app-xxx-xxx
 
 # 打印出所有 CSI Node pods
@@ -92,7 +92,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -ojsonpath={..metada
 
 ```
 # 提前将应用 pod 信息存为环境变量
-APP_NS=default  # Kubernetes 命名空间
+APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=live2d-celery-5867558cc9-pvp4x
 
 # 通过应用 pod 找到 PV name
