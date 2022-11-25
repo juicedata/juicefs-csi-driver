@@ -90,9 +90,16 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -ojsonpath={..metada
 由于 CSI 驱动的分离架构，每个应用 pod 都对应着 mount pod（可复用），通过应用 pod 定位到 mount pod 的步骤稍显繁琐，因此我们准备了一系列快捷命令，帮你方便地获取信息：
 
 ```
-# 提前将应用 pod 信息存为环境变量
+# 下方命令或多或少都需要反复引用应用信息，因此请提前存为环境变量
+
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
+# 如果需要从 PVC 查找 mount pod，请提前将 PVC name 存为环境变量
+PVC_NAME=dynamic-ce
+# 如果需要从 pod 信息查找 mount pod，请提前将应用 pod 信息存为环境变量
 APP_POD_NAME=example-app-xxx-xxx
+
+# 从 PVC 查找 mount pod
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $(kubectl -n $APP_NS get pvc $PVC_NAME -n $APP_NS -ojsonpath={.spec.volumeName})
 
 # 通过应用 pod 找到 PV name
 kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get pod $APP_POD_NAME -ojsonpath={..persistentVolumeClaim.claimName}) -n $APP_NS -ojsonpath={.spec.volumeName}
