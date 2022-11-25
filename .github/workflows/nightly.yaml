@@ -174,3 +174,12 @@ jobs:
         docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
         docker buildx create --use --name mybuilder
         make image-nightly-buildx
+    - name: Buildx and Push juicefs nightly image
+      env:
+        PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+      run: |
+        docker login --username chnliyong --password ${PASSWORD}
+        export DOCKER_CLI_EXPERIMENTAL=enabled
+        docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
+        docker buildx create --use --name mybuilder
+        make juicefs-image-nightly
