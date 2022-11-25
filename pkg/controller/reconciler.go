@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -52,29 +53,26 @@ func StartReconciler() error {
 		return err
 	}
 
-	mounter := mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      k8sexec.New(),
-	}
-
-	podDriver := NewPodDriver(k8sClient, mounter)
-
-	go doReconcile(kc, podDriver)
+	go doReconcile(k8sClient, kc)
 	return nil
 }
 
-func doReconcile(kc *kubeletClient, driver *PodDriver) {
+func doReconcile(ks *k8sclient.K8sClient, kc *kubeletClient) {
 	for {
+		ctx := context.TODO()
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
+		g, ctx := errgroup.WithContext(timeoutCtx)
+
+		mit := newMountInfoTable()
 		podList, err := kc.GetNodeRunningPods()
 		if err != nil {
 			klog.Errorf("doReconcile GetNodeRunningPods: %v", err)
 			goto finish
 		}
-		if err := driver.mit.parse(); err != nil {
+		if err := mit.parse(); err != nil {
 			klog.Errorf("doReconcile ParseMountInfo: %v", err)
 			goto finish
 		}
-		driver.mit.setPodsStatus(podList)
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]
@@ -85,17 +83,34 @@ func doReconcile(kc *kubeletClient, driver *PodDriver) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			err := func() error {
-				ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
-				defer cancel()
-				return driver.Run(ctx, pod)
-			}()
-			if err != nil {
-				klog.Errorf("Check pod %s: %s", pod.Name, err)
-			}
-		}
+			g.Go(func() error {
+				mounter := mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				}
 
+				podDriver := NewPodDriver(ks, mounter)
+				podDriver.SetMountInfo(*mit)
+				podDriver.mit.setPodsStatus(podList)
+
+				select {
+				case <-ctx.Done():
+					klog.Infof("goroutine of pod %s cancel", pod.Name)
+					return nil
+				default:
+					err := podDriver.Run(ctx, pod)
+					if err != nil {
+						klog.Errorf("Check pod %s: %s", pod.Name, err)
+					}
+					return err
+				}
+			})
+		}
+		if err = g.Wait(); err != nil {
+			klog.Errorf("get error: %v", err)
+		}
 	finish:
+		cancel()
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)
 	}
 }
