@@ -75,10 +75,10 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volCtx[k] = v
 	}
 	// create volume
-	err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
-	}
+	//err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
+	//if err != nil {
+	//	return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
+	//}
 
 	volCtx["subPath"] = subPath
 	volume := csi.Volume{

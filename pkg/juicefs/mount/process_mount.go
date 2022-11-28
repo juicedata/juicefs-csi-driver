@@ -48,7 +48,8 @@ func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 
 func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
-	err := p.JMount(ctx, jfsSetting)
+	options := util.StripReadonlyOption(jfsSetting.Options)
+	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, options, jfsSetting.Envs)
 	if err != nil {
 		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
@@ -98,7 +99,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	// 1. mount juicefs
-	err := p.JMount(ctx, jfsSetting)
+	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
 	if err != nil {
 		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
@@ -129,58 +130,72 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 }
 
 func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
-	if !strings.Contains(jfsSetting.Source, "://") {
-		klog.V(5).Infof("eeMount: mount %v at %v", jfsSetting.Source, jfsSetting.MountPath)
-		err := p.Mount(jfsSetting.Source, jfsSetting.MountPath, jfsConfig.FsType, jfsSetting.Options)
+	// create subpath if readonly mount
+	if jfsSetting.SubPath != "" {
+		if util.ContainsString(jfsSetting.Options, "read-only") || util.ContainsString(jfsSetting.Options, "ro") {
+			// generate mount command
+			if err := p.JCreateVolume(ctx, jfsSetting); err != nil {
+				return err
+			}
+		}
+	}
+
+	return p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
+}
+
+func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage string, options []string, extraEnvs map[string]string) error {
+	if !strings.Contains(source, "://") {
+		klog.V(5).Infof("eeMount: mount %v at %v", source, mountPath)
+		err := p.Mount(source, mountPath, jfsConfig.FsType, options)
 		if err != nil {
-			return fmt.Errorf("could not mount %q at %q: %v", jfsSetting.Source, jfsSetting.MountPath, err)
+			return fmt.Errorf("could not mount %q at %q: %v", source, mountPath, err)
 		}
 		klog.V(5).Infof("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
-	mountArgs := []string{jfsSetting.Source, jfsSetting.MountPath}
+	klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(source), mountPath)
+	mountArgs := []string{source, mountPath}
 
-	if len(jfsSetting.Options) > 0 {
-		mountArgs = append(mountArgs, "-o", strings.Join(jfsSetting.Options, ","))
+	if len(options) > 0 {
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 	}
 
 	var exist bool
 
 	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
-		exist, err = k8sMount.PathExists(jfsSetting.MountPath)
+		exist, err = k8sMount.PathExists(mountPath)
 		return
 	}); err != nil {
-		return fmt.Errorf("could not check existence of dir %q: %v", jfsSetting.MountPath, err)
+		return fmt.Errorf("could not check existence of dir %q: %v", mountPath, err)
 	} else if !exist {
-		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
+		klog.V(5).Infof("jmount: volume not existed, create %s", mountPath)
 		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
-			return os.MkdirAll(jfsSetting.MountPath, os.FileMode(0755))
+			return os.MkdirAll(mountPath, os.FileMode(0755))
 		}); err != nil {
-			return fmt.Errorf("could not create dir %q: %v", jfsSetting.MountPath, err)
+			return fmt.Errorf("could not create dir %q: %v", mountPath, err)
 		}
 	}
 
 	var notMounted bool
 	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
-		notMounted, err = p.IsLikelyNotMountPoint(jfsSetting.MountPath)
+		notMounted, err = p.IsLikelyNotMountPoint(mountPath)
 		return
 	}); err != nil {
-		return fmt.Errorf("could not check existence of dir %q: %v", jfsSetting.MountPath, err)
+		return fmt.Errorf("could not check existence of dir %q: %v", mountPath, err)
 	} else if !notMounted {
-		err = p.Unmount(jfsSetting.MountPath)
+		err = p.Unmount(mountPath)
 		if err != nil {
 			klog.V(5).Infof("Unmount before mount failed: %v", err)
 			return err
 		}
-		klog.V(5).Infof("Unmount %v", jfsSetting.MountPath)
+		klog.V(5).Infof("Unmount %v", mountPath)
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	if jfsSetting.Storage == "ceph" || jfsSetting.Storage == "gs" {
+	if storage == "ceph" || storage == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	}
-	for key, val := range jfsSetting.Envs {
+	for key, val := range extraEnvs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	mntCmd := exec.Command(jfsConfig.CeMountPath, mountArgs...)
@@ -195,13 +210,13 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 	for {
 		var finfo os.FileInfo
 		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func() (err error) {
-			finfo, err = os.Stat(jfsSetting.MountPath)
+			finfo, err = os.Stat(mountPath)
 			return err
 		}); err != nil {
-			if err == context.DeadlineExceeded {
+			if err == context.DeadlineExceeded || err == context.Canceled {
 				break
 			}
-			klog.V(5).Infof("Stat mount path %v failed: %v", jfsSetting.MountPath, err)
+			klog.V(5).Infof("Stat mount path %v failed: %v", mountPath, err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
@@ -209,13 +224,13 @@ func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSett
 			if st.Ino == 1 {
 				return nil
 			}
-			klog.V(5).Infof("Mount point %v is not ready", jfsSetting.MountPath)
+			klog.V(5).Infof("Mount point %v is not ready", mountPath)
 		} else {
 			klog.V(5).Info("Cannot reach here")
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
-	return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+	return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(source), mountPath)
 }
 
 func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
