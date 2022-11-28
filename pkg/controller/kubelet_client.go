@@ -161,6 +161,10 @@ func (kc *kubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GetNodeRunningPods with unexpected status code: %v", resp.StatusCode)
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
