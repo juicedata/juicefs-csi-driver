@@ -81,6 +81,6 @@ func run() {
 	}
 	if strings.Contains(podName, "csi-node") {
 		klog.Info("Run CSI node")
-		controllerRun()
+		nodeRun()
 	}
 }

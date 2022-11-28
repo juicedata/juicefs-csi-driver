@@ -31,11 +31,6 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-var ()
-
-func init() {
-}
-
 func parseNodeConfig() {
 	config.ByProcess = process
 	if process {
