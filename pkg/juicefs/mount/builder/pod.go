@@ -183,20 +183,16 @@ func (r *Builder) getInitContainer() corev1.Container {
 		}
 	}
 
-	container.Command = []string{"sh", "-c", formatCmd}
-
 	// create subpath if readonly mount
 	if r.jfsSetting.SubPath != "" {
 		if util.ContainsString(r.jfsSetting.Options, "read-only") || util.ContainsString(r.jfsSetting.Options, "ro") {
 			// generate mount command
 			cmd := r.getJobCommand()
-			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
-			container.Command = append(container.Command, initCmd)
-			container.Lifecycle.PreStop = &corev1.Handler{
-				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs"}},
-			}
+			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi; umount /mnt/jfs", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
+			formatCmd = fmt.Sprintf("%s && %s", formatCmd, initCmd)
 		}
 	}
+	container.Command = []string{"sh", "-c", formatCmd}
 
 	container.EnvFrom = append(container.EnvFrom, corev1.EnvFromSource{
 		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
