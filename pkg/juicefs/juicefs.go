@@ -518,7 +518,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		if secrets["bucket"] == "" {
 			return "", fmt.Errorf("bucket argument is required when --no-update option is provided")
 		}
-		if !!config.ByProcess && secrets["initconfig"] != "" {
+		if config.ByProcess && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
 			confPath := filepath.Join("/root/.juicefs", conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
