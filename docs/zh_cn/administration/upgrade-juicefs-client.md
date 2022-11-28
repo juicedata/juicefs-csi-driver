@@ -1,6 +1,6 @@
 ---
 title: 升级 JuiceFS 客户端
-slug: /upgrade-csi-client
+slug: /upgrade-juicefs-client
 sidebar_position: 2
 ---
 
@@ -16,7 +16,7 @@ sidebar_position: 2
 
 ### 动态配置
 
-[「动态配置」](../guide/pv.md#dynamic-provisioning)模式下，你需要在 StorageClass 中定义配置容器镜像：
+[「动态配置」](../guide/pv.md#dynamic-provisioning)模式下，你需要在 `StorageClass` 中定义配置容器镜像：
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1

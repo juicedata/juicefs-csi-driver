@@ -1,10 +1,10 @@
 ---
 title: Upgrade JuiceFS Client
-slug: /upgrade-csi-client
+slug: /upgrade-juicefs-client
 sidebar_position: 2
 ---
 
-Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release/) to learn more. Note that if you[upgrade JuiceFS CSI Driver](./upgrade-csi-driver.md), JuiceFS Client is upgraded along the way. However, if you would like to upgrade JuiceFS Client without changes to the CSI Driver itself, read this chapter.
+Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release/) to learn more. Note that if you [upgrade JuiceFS CSI Driver](./upgrade-csi-driver.md), JuiceFS Client is upgraded along the way. However, if you would like to upgrade JuiceFS Client without changes to the CSI Driver itself, read this chapter.
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 
@@ -16,7 +16,7 @@ If the desired JuiceFS Client isn't yet released, or the latest mount pod image 
 
 ### Dynamic provisioning
 
-When using [dynamic provisioning](../guide/pv.md#dynamic-provisioning), define mount pod image in StorageClass definition:
+When using [dynamic provisioning](../guide/pv.md#dynamic-provisioning), define mount pod image in `StorageClass` definition:
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -71,7 +71,7 @@ You are strongly encouraged to upgrade JuiceFS CSI Driver to v0.10 and later ver
 
 If you're using [Mount by process mode](../introduction.md#by-process), or using CSI Driver prior to v0.10.0, and cannot easily upgrade to v0.10, you can choose to upgrade JuiceFS Client independently, inside the CSI Node Service pod.
 
-This is only a temporary solution, if DaemonSet pods are recreated, or new nodes are added to Kubernetes cluster, you'll need to run this script again.
+This is only a temporary solution, if CSI Node Service pods are recreated, or new nodes are added to Kubernetes cluster, you'll need to run this script again.
 
 1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` pod with the new built one:
 
