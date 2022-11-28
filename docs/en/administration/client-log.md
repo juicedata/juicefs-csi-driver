@@ -1,6 +1,7 @@
 ---
 slug: /collect-mount-pod-logs
 sidebar_label: Collect Mount Pod Logs
+sidebar_position: 4
 ---
 
 # How to collect Mount Pod logs in Kubernetes

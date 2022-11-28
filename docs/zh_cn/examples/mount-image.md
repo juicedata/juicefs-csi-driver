@@ -1,8 +1,6 @@
 ---
-sidebar_label: 自定义 Mount Pod 的容器镜像
+title: 定制 Mount Pod 容器镜像
 ---
-
-# 如何自定义 Mount Pod 的容器镜像
 
 :::note 注意
 此特性需使用 0.17.1 及以上版本的 JuiceFS CSI 驱动，且在[进程挂载](../introduction.md#by-process)模式下不支持。

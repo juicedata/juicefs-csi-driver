@@ -1,5 +1,6 @@
 ---
 slug: /recover-failed-mountpoint
+sidebar_position: 3
 ---
 
 # Automatic Mount Point Recovery

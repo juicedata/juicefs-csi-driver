@@ -1,6 +1,7 @@
 ---
 slug: /collect-mount-pod-logs
 sidebar_label: 收集 Mount Pod 日志
+sidebar_position: 4
 ---
 
 # 如何在 Kubernetes 中收集 Mount Pod 日志
