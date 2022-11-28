@@ -310,6 +310,38 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 ## 常用 PV 设置
 
+### 挂载点自动恢复
+
+JuiceFS CSI Driver v0.10.7 开始支持挂载点自动恢复：即使 Mount Pod 遭遇故障，重启或重新创建以后，应用容器便能继续工作。
+
+需要在应用 pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将 host 的挂载信息传播给 pod：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-app-static-deploy
+spec:
+  ...
+  template:
+    ...
+    spec:
+      containers:
+      - name: app
+        # 如果设置为 Bidirectional，则需要启用 privileged
+        # securityContext:
+        #   privileged: true
+        volumeMounts:
+        - mountPath: /data
+          name: data
+          mountPropagation: HostToContainer
+        ...
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: juicefs-pvc-static
+```
+
 ### PV 容量分配 {#storage-capacity}
 
 目前而言，JuiceFS CSI 驱动不支持设置存储容量。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：

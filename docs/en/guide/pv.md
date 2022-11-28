@@ -312,6 +312,38 @@ Mount options are different between Community Edition and Cloud Service:
 
 ## Common PV settings
 
+### Automatic Mount Point Recovery
+
+JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mountpoint, and application pods can continue to work.
+
+Applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-app-static-deploy
+spec:
+  ...
+  template:
+    ...
+    spec:
+      containers:
+        - name: app
+          # Required when using Bidirectional
+          # securityContext:
+          #   privileged: true
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              mountPropagation: HostToContainer
+          ...
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: juicefs-pvc-static
+```
+
 ### PV storage capacity {#storage-capacity}
 
 For now, JuiceFS CSI Driver doesn't support setting storage capacity. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
