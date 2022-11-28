@@ -66,8 +66,16 @@ func doReconcile(ks *k8sclient.K8sClient, kc *kubeletClient) {
 		mit := newMountInfoTable()
 		podList, err := kc.GetNodeRunningPods()
 		if err != nil {
-			klog.Errorf("doReconcile GetNodeRunningPods: %v", err)
-			goto finish
+			klog.Warningf(`failed to GetNodeRunningPods from kubelet("%s"), fallback to apiserver`, err.Error())
+			if config.CSIPod.Spec.NodeName != "" {
+				podList, err = ks.ListPodsOnNode(ctx, config.CSIPod.Spec.NodeName)
+			} else {
+				podList, err = ks.ListPodsOnNodeIP(ctx, config.CSIPod.Status.HostIP)
+			}
+			if err != nil {
+				klog.Errorf("failed to ListPodsOnNode: %v", err)
+				goto finish
+			}
 		}
 		if err := mit.parse(); err != nil {
 			klog.Errorf("doReconcile ParseMountInfo: %v", err)

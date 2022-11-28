@@ -259,3 +259,27 @@ func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*co
 	}
 	return mntPod, nil
 }
+
+func (k *K8sClient) ListPodsOnNode(ctx context.Context, nodeName string) (*corev1.PodList, error) {
+	klog.V(6).Infof("List pods on node %s", nodeName)
+	podList, err := k.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
+	})
+	if err != nil {
+		klog.V(6).Infof("Can't list pods on node %s : %v", nodeName, err)
+		return nil, err
+	}
+	return podList, nil
+}
+
+func (k *K8sClient) ListPodsOnNodeIP(ctx context.Context, nodeIP string) (*corev1.PodList, error) {
+	klog.V(6).Infof("List pods on node IP %s", nodeIP)
+	podList, err := k.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"status.hostIP": nodeIP}).String(),
+	})
+	if err != nil {
+		klog.V(6).Infof("Can't list pods on node IP %s : %v", nodeIP, err)
+		return nil, err
+	}
+	return podList, nil
+}
