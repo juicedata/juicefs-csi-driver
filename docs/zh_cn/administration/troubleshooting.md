@@ -102,7 +102,6 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 ```shell
 # 下方命令或多或少都需要反复引用应用信息，因此请提前存为环境变量
-
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=example-app-xxx-xxx
 
@@ -136,7 +135,7 @@ kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV
 kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
 ```
 
-以上命令会有类似 `juicedata/juicefs-csi-driver:v0.13.2` 这样的输出，最后的 `v0.13.2` 即为 JuiceFS CSI 驱动的版本。
+以上命令会有类似 `juicedata/juicefs-csi-driver:v0.17.1` 这样的输出，最后的 `v0.17.1` 即为 JuiceFS CSI 驱动的版本。
 
 ### 诊断脚本
 
