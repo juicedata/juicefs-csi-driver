@@ -309,33 +309,3 @@ rules:
 If applications using JuiceFS are allowed to be suspended, this no doubt is the simpler way to upgrade.
 
 To recreate and upgrade, first stop all applications using JuiceFS PV, and carry out [normal upgrade steps](#upgrade), and recreate all affected applications.
-
-## Upgrade JuiceFS Client Independently
-
-If you're using [Mount by process mode](../introduction.md#by-process), or using CSI Driver prior to v0.10.0, and cannot easily upgrade to v0.10, you can choose to upgrade JuiceFS Client independently, inside the CSI Node Service pod.
-
-This is only a temporary solution, if DaemonSet pods are recreated, or new nodes are added to Kubernetes cluster, you'll need to run this script again.
-
-1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` pod with the new built one:
-
-   ```bash
-   #!/bin/bash
-
-   KUBECTL=/path/to/kubectl
-   JUICEFS_BIN=/path/to/new/juicefs
-
-   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
-       xargs -L 1 -P 10 -I'{}' \
-       $KUBECTL -n kube-system cp $JUICEFS_BIN '{}':/tmp/juicefs -c juicefs-plugin
-
-   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
-       xargs -L 1 -P 10 -I'{}' \
-       $KUBECTL -n kube-system exec -i '{}' -c juicefs-plugin -- \
-       chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
-   ```
-
-   :::note
-   Replace `/path/to/kubectl` and `/path/to/new/juicefs` in the script with the actual values, then execute the script.
-   :::
-
-2. Restart the applications one by one, or kill the existing pods.
