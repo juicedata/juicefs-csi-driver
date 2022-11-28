@@ -3,7 +3,7 @@ title: Upgrade JuiceFS CSI Driver
 slug: /upgrade-csi-driver
 ---
 
-Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver.
+Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md).
 
 :::note
 If you are using CSI Driver in [Mount by process mode](../introduction.md#by-process), or still using versions before v0.10, refer to [Upgrade under mount by process mode](#mount-by-process-upgrade) for upgrade steps.
