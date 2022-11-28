@@ -39,7 +39,7 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-  # 若有需要，可以在 StorageClass 中调整挂载参数
+  # 若有需要，可以在此调整挂载参数
   # mountOptions:
   #   - enable-xattr
   #   - max-uploads=50
@@ -63,7 +63,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-# 若有需要，可以在 StorageClass 中调整挂载参数
+# 若有需要，可以在此调整挂载参数
 # mountOptions:
 #   - enable-xattr
 #   - max-uploads=50
@@ -90,8 +90,6 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 :::
 
 ### 社区版
-
-然后创建 Kubernetes Secret：
 
 ```yaml {7-16}
 apiVersion: v1

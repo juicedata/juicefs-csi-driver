@@ -3,6 +3,84 @@ title: Create and Use PV
 sidebar_position: 1
 ---
 
+## Create a StorageClass {#create-storage-class}
+
+If you decide to use JuiceFS CSI Driver via [dynamic provisioning](./guide/pv.md#dynamic-provisioning), you'll need to create a StorageClass in advance.
+
+Learn about dynamic provisioning and static provisioning in [Usage](./introduction.md#usage).
+
+### Create via Helm {#helm-sc}
+
+Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
+
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121).
+
+```yaml title="values.yaml"
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  reclaimPolicy: Retain
+  # JuiceFS volume related configuration
+  # If volume is already created in advance, then only name and metaurl is needed
+  backend:
+    name: "<name>"               # JuiceFS volume name
+    metaurl: "<meta-url>"        # URL of metadata engine
+    storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
+    accessKey: "<access-key>"    # Access Key for object storage
+    secretKey: "<secret-key>"    # Secret Key for object storage
+    bucket: "<bucket>"           # A bucket URL to store data
+    # Adjust mount pod timezone, defaults to UTC
+    # envs: "{TZ: Asia/Shanghai}"
+  mountPod:
+    resources:                   # Resource limit/request for mount pod
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - enable-xattr
+  #   - max-uploads=50
+  #   - cache-size=2048
+  #   - cache-dir=/var/foo
+  #   - allow_other
+```
+
+When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
+
+### Create via kubectl
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - enable-xattr
+  #   - max-uploads=50
+  #   - cache-size=2048
+  #   - cache-dir=/var/foo
+  #   - allow_other
+```
+
+### Adjust mount options
+
+You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple StorageClass, each with different mount options.
+
+Mount options are different between Community Edition and Cloud Service, see:
+
+- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
 ## Create mount configuration {#create-mount-config}
 
 With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
@@ -12,19 +90,6 @@ If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc
 :::
 
 ### Community edition
-
-Before using PV, you should [create a file system](https://juicefs.com/docs/community/quick_start_guide/#creating-a-file-system), for example:
-
-```shell
-juicefs format \
-    --storage=s3 \
-    --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
-    <META_URL> \
-    <NAME>
-```
-
-And then create Kubernetes secret:
 
 ```yaml {7-16}
 apiVersion: v1
