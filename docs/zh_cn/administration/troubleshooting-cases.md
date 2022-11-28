@@ -1,10 +1,10 @@
 ---
 title: 问题排查案例
 slug: /troubleshooting-cases
-sidebar_position: -1
+sidebar_position: 6
 ---
 
-这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先学习[「基础问题排查思路」](./troubleshooting.md#troubleshooting)。
+这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先学习[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
 
 ## CSI 驱动未安装 / 安装失败
 
@@ -22,7 +22,7 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。您可以通过以下命令检查 `volumeHandle`：
 
-```yaml
+```yaml {12}
 $ kubectl get pv -o yaml juicefs-pv
 apiVersion: v1
 kind: PersistentVolume
@@ -38,9 +38,9 @@ spec:
     ...
 ```
 
-## （社区版）文件系统创建错误
+## 文件系统创建错误（社区版）
 
-如果你选择在 mount pod 中动态地创建文件系统，也就是 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
+如果你选择在 mount pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
 
 ```
 format: ERR illegal address: xxxx
@@ -54,4 +54,4 @@ format: ERR illegal address: xxxx
 format: NOAUTH Authentication requested.
 ```
 
-你需要确认 `Meta-URL` 是否正确填写了密码，具体格式请参考 [Redis](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。
+你需要确认元数据引擎 URL 是否正确填写了密码，具体格式请参考 [Redis 元数据引擎](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。

@@ -1,5 +1,5 @@
 ---
-slug: faq
+slug: /faq
 ---
 
 # FAQ

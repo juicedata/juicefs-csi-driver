@@ -507,7 +507,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
 
-## Running CSI Node Service on select nodes {#daemonset-node-selector}
+## Running CSI Node Service on select nodes {#csi-node-node-selector}
 
 JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md) for details.
 
@@ -518,7 +518,7 @@ By default, CSI Node Service (DaemonSet) will run on all nodes, users may want t
 Add label for nodes that actually need to use JuiceFS, for example, mark nodes that need to run model training:
 
 ```shell
-# adjust nodes and label accordingly
+# Adjust nodes and label accordingly
 kubectl label node [node-1] [node-2] app=model-training
 ```
 
