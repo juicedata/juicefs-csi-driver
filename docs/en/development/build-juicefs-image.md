@@ -17,7 +17,7 @@ The container image contains the latest version of JuiceFS Community Edition and
 IMAGE=foo/juicefs-csi-driver make image-dev
 ```
 
-## Build the container image of JuiceFS Mount Pod
+## Build the container image of JuiceFS Mount Pod {#build-mount-pod-image}
 
 The default container image used by JuiceFS Mount Pod is [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and the corresponding Dockerfile is [`docker/juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile).
 
@@ -36,4 +36,4 @@ If you want to build your own image, you can follow these steps:
    docker build -t foo/mount:latest -f ../docker/dev.juicefs.Dockerfile .
    ```
 
-After the image is built, you can refer to [this document](../examples/mount-image.md) to specify the image of the Mount Pod in PV/StorageClass.
+After the image is built, you can refer to [this document](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image) to specify the image of the Mount Pod in PV/StorageClass.

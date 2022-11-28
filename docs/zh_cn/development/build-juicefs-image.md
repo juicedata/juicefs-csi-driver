@@ -17,7 +17,7 @@ JuiceFS CSI Controller 及 JuiceFS CSI Node 默认使用的容器镜像是 [`jui
 IMAGE=foo/juicefs-csi-driver make image-dev
 ```
 
-## 构建 JuiceFS Mount Pod 的容器镜像
+## 构建 JuiceFS Mount Pod 的容器镜像 {#build-mount-pod-image}
 
 JuiceFS Mount Pod 默认使用的容器镜像是 [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount)，对应的 Dockerfile 是 [`docker/juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile)。
 
@@ -36,4 +36,4 @@ JuiceFS Mount Pod 默认使用的容器镜像是 [`juicedata/mount`](https://hub
    docker build -t foo/mount:latest -f ../docker/dev.juicefs.Dockerfile .
    ```
 
-镜像构建完后，可以参照[这篇文档](../examples/mount-image.md)在 PV/StorageClass 中指定 Mount Pod 的镜像。
+镜像构建完后，可以参照[这篇文档](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image)在 PV/StorageClass 中指定 Mount Pod 的镜像。
