@@ -1,155 +1,174 @@
-# Troubleshooting
+---
+title: Troubleshooting Methods
+slug: /troubleshooting
+sidebar_position: 5
+---
 
-When the application pod fails to start normally or has an exception, it is usually necessary to check the logs of the JuiceFS CSI Driver to troubleshoot the problem. Different versions of CSI Driver view logs in different ways, which are described below.
+Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md), i.e. have a basic understanding of the roles of each CSI Driver component.
 
+## Basic principles for troubleshooting
 
-## Check JuiceFS CSI Driver version
+In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and pod creation failures (managed by CSI Node / Mount Pod).
 
-First, you need to check the version of the JuiceFS CSI Driver installed in the current Kubernetes cluster, which can be obtained with the following command:
+### PV creation failure
 
-```sh
-kubectl -n kube-system get pod -l app=juicefs-csi-controller -o jsonpath="{.items[*].spec.containers[*].image}"
+Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`]).
+
+#### Check PVC events
+
+Usually, CSI Controller will pass error information to PVC event:
+
+```shell
+$ kubectl describe pvc dynamic-ce
+...
+Events:
+  Type     Reason       Age                From               Message
+  ----     ------       ----               ----               -------
+  Normal   Scheduled    27s                default-scheduler  Successfully assigned default/juicefs-app to cluster-0003
+  Warning  FailedMount  11s (x6 over 27s)  kubelet            MountVolume.SetUp failed for volume "juicefs-pv" : rpc error: code = Internal desc = Could not mount juicefs: juicefs auth error: Failed to fetch configuration for volume 'juicefs-pv', the token or volume is invalid.
 ```
 
-The above command will output something like `juicedata/juicefs-csi-driver:v0.13.2`, the last `v0.13.2` is the version of JuiceFS CSI Driver.
+#### Check CSI Controller
 
+If no error appears in PVC events, we'll need to check if CSI Controller is alive and working correctly:
 
-## View JuiceFS CSI Driver logs
+```shell
+# Check CSI Controller aliveness
+$ kubectl -n kube-system get po -l app=juicefs-csi-controller
+NAME                       READY   STATUS    RESTARTS   AGE
+juicefs-csi-controller-0   3/3     Running   0          8d
 
-### v0.10 and above
+# Check CSI Controller logs
+$ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
+```
 
-:::tip
-It is recommended to collect the logs of the JuiceFS Mount Pod to facilitate troubleshooting, refer to ["Collect Mount Pod Logs"](administration/client-log.md).
-:::
+#### Application pod failure
 
-#### Find mount pod
+Due to the decoupled architecture of the CSI Driver, JuiceFS Client runs in a dedicated mount pod, thus, every application pod is accompanied by a mount pod.
 
-1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
+CSI Node will create the mount pod, mount the JuiceFS file system within the pod, and finally bind the mountpoint to the application pod. If application pod fails to start, we shall look for issues in CSI Node, or mount pod.
 
-   ```sh {3}
-   $ kubectl get pod juicefs-app -o wide
-   NAME          READY   STATUS              RESTARTS   AGE   IP       NODE          NOMINATED NODE   READINESS GATES
-   juicefs-app   0/1     ContainerCreating   0          9s    <none>   172.16.2.87   <none>           <none>
-   ```
+#### Check pod events
 
-   From above output, the node is `172.16.2.87`.
+If error occurs during the mount, look for clues in the pod events:
 
-2. Find the volume ID of the PersistentVolume (PV) used by your pod.
+```shell {9}
+$ kubectl describe po dynamic-ce-1
 
-   For example, the PersistentVolumeClaim (PVC) used by your pod is named `juicefs-pvc`:
+Name:         dynamic-ce
+…
+Events:
+  Type     Reason       Age               From               Message
+  ----     ------       ----              ----               -------
+  Normal   Scheduled    53s               default-scheduler  Successfully assigned default/ce-static-1 to ubuntu-node-2
+  Warning  FailedMount  4s (x3 over 37s)  kubelet            MountVolume.SetUp failed for volume "ce-static" : rpc error: code = Internal desc = Could not mount juicefs: juicefs status 16s timed out
+```
 
-   ```sh {3}
-   $ kubectl get pvc juicefs-pvc
-   NAME          STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-   juicefs-pvc   Bound    juicefs-pv   10Pi       RWX                           42d
-   ```
+If error event indicates problems within the JuiceFS space, follow below guide to further troubleshoot:
 
-   From above output, the name of PV is `juicefs-pv`, then get the YAML of this PV:
+#### Check CSI Node
 
-   ```yaml {12}
-   $ kubectl get pv -o yaml juicefs-pv
-   apiVersion: v1
-   kind: PersistentVolume
-   metadata:
-     name: juicefs-pv
-     ...
-   spec:
-     ...
-     csi:
-       driver: csi.juicefs.com
-       fsType: juicefs
-       volumeHandle: juicefs-volume-abc
-       ...
-   ```
+Verify CSI Node is alive and working correctly:
 
-   From above output, the `spec.csi.volumeHandle` is the volume ID, i.e. `juicefs-volume-abc`.
+```shell
+# App pod information will be used in below commands, save them as env
+APP_NS=default  # application pod namespace
+APP_POD_NAME=example-app-xxx-xxx
 
-3. Find JuiceFS mount pod by node name and volume ID. For example:
+# Locate worker node via app pod name
+NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 
-   ```sh {2}
-   $ kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-mount -o wide | grep 172.16.2.87 | grep juicefs-volume-abc
-   juicefs-172.16.2.87-juicefs-volume-abc   1/1     Running   0          20h    172.16.2.100   172.16.2.87   <none>           <none>
-   ```
+# Print all CSI Node pods
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver
 
-   From above output, the name of JuiceFS mount pod is `juicefs-172.16.2.87-juicefs-volume-abc`.
+# Print CSI Node pod closest to the app pod
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$NODE_NAME
 
-#### Get logs of mount pod
+# Substitute $CSI_NODE_POD with actual CSI Node pod name acquired above
+kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
+```
 
-1. Get JuiceFS mount pod logs. For example:
+Or simply use this one-liner to print logs of the relevant CSI Node pod:
 
-   ```sh
-   kubectl -n kube-system logs juicefs-172.16.2.87-juicefs-volume-abc
-   ```
+```shell
+kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
+```
 
-2. Find any log contains `WARNING`, `ERROR` or `FATAL`.
+#### Check mount pod
 
-### Before v0.10
+If no errors are shown in the CSI Node logs, check if mount pod is working correctly.
 
-1. Find the node where the pod is deployed. For example, your pod name is `juicefs-app`:
+Finding corresponding mount pod via given app pod can be tedious, here's a series of commands to help you with this process:
 
-   ```sh {3}
-   $ kubectl get pod juicefs-app -o wide
-   NAME          READY   STATUS              RESTARTS   AGE   IP       NODE          NOMINATED NODE   READINESS GATES
-   juicefs-app   0/1     ContainerCreating   0          9s    <none>   172.16.2.87   <none>           <none>
-   ```
+```shell
+# App pod information will be used in below commands, save them as env
+APP_NS=default  # application pod namespace
+APP_POD_NAME=example-app-xxx-xxx
 
-   From above output, the node is `172.16.2.87`.
+# Find Node / PVC / PV name via app pod
+NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
+PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}')
+PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 
-2. Find the JuiceFS CSI driver pod in the same node. For example:
+# Find mount pod via app pod
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{..metadata.name}' | grep $PV_NAME)
 
-   ```sh {2}
-   $ kubectl describe node 172.16.2.87 | grep juicefs-csi-node
-   kube-system                 juicefs-csi-node-hzczw                  1 (0%)        2 (1%)      1Gi (0%)         5Gi (0%)       61m
-   ```
+# Check mount pod
+kubectl -n kube-system get po $MOUNT_POD_NAME
 
-   From above output, the JuiceFS CSI driver pod name is `juicefs-csi-node-hzczw`.
+# Print mount pod logs, which contain JuiceFS Client logs
+kubectl -n kube-system logs $MOUNT_POD_NAME
 
-3. Get JuiceFS CSI driver logs. For example:
+# Find all mount pod for give PV
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV_NAME
+```
 
-   ```sh
-   kubectl -n kube-system logs juicefs-csi-node-hzczw -c juicefs-plugin
-   ```
+## Seeking support
 
-4. Find any log contains `WARNING`, `ERROR` or `FATAL`.
+If you are not able to troubleshoot, seek help from the JuiceFS community or the Juicedata team. You should collect some information so others can further diagnose.
 
+### Check JuiceFS CSI Driver version
 
-## Diagnosis script
+Obtain CSI Driver version:
+
+```shell
+kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
+```
+
+Image tag will contain the CSI Driver version string.
+
+### Diagnosis script
 
 You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh) to collect logs and related information.
 
-1. Download the diagnosis script to the node which can exec `kubectl`.
+First, install the script to any node with `kubectl` access:
 
-   ```shell
-   wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
-   ```
+```shell
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
+chmod a+x diagnose.sh
+```
 
-2. Add execute permission to script.
+Collect diagnose information using the script. For example, assuming CSI Driver is deployed in the `kube-system` namespace, and the problem occurs in worker node `kube-node-2`.
 
-   ```shell
-   chmod a+x diagnose.sh
-   ```
+```shell
+$ ./diagnose.sh
+Usage:
+      ./diagnose.sh COMMAND [OPTIONS]
+COMMAND:
+      help
+         Display this help message.
+      collect
+         Collect pods logs of juicefs.
+OPTIONS:
+      -no, --node name
+         Set the name of node.
+      -n, --namespace name
+         Set the namespace of juicefs csi driver.
 
-3. Collect diagnose information using the script. For example, your JuiceFS CSI Driver is deployed in `kube-system` namespace, and you want to see information in node named `kube-node-2`.
+$ ./diagnose.sh -n kube-system -no kube-node-2 collect
+Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
+...
+please get diagnose_juicefs_1628069696.tar.gz for diagnostics
+```
 
-   ```shell
-   $ ./diagnose.sh
-   Usage:
-       ./diagnose.sh COMMAND [OPTIONS]
-   COMMAND:
-       help
-           Display this help message.
-       collect
-           Collect pods logs of juicefs.
-   OPTIONS:
-       -no, --node name
-           Set the name of node.
-       -n, --namespace name
-           Set the namespace of juicefs csi driver.
-
-   $ ./diagnose.sh -n kube-system -no kube-node-2 collect
-   Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
-   ...
-   please get diagnose_juicefs_1628069696.tar.gz for diagnostics
-   ```
-
-   All relevant information is collected and packaged in a ZIP archive under the execution path.
+All relevant information is collected and packaged in an archive under the execution path.

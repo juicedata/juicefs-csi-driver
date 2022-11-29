@@ -20,19 +20,17 @@ sidebar_position: 5
 
 ```shell {9}
 $ kubectl describe pvc dynamic-ce
-
-Name:          dynamic-ce
-…
+...
 Events:
   Type     Reason       Age                From               Message
   ----     ------       ----               ----               -------
-  Normal   Scheduled    27s                default-scheduler  Successfully assigned default/juicefs-app to node-01
-  Warning  FailedMount  11s (x6 over 27s)  kubelet            MountVolume.SetUp failed for volume "juicefs-pv" : rpc error: code = Internal desc = Could not mount juicefs: ...
+  Normal   Scheduled    27s                default-scheduler  Successfully assigned default/juicefs-app to cluster-0003
+  Warning  FailedMount  11s (x6 over 27s)  kubelet            MountVolume.SetUp failed for volume "juicefs-pv" : rpc error: code = Internal desc = Could not mount juicefs: juicefs auth error: Failed to fetch configuration for volume 'juicefs-pv', the token or volume is invalid.
 ```
 
 #### 检查 CSI Controller
 
-若上一步没有明显报错，我们需要检查 CSI Controller 容器是否存活，以及是否存在异常日志：
+若 PVC 事件中并无错误信息，我们需要检查 CSI Controller 容器是否存活，以及是否存在异常日志：
 
 ```shell
 # 检查 CSI Controller 是否存活
@@ -46,11 +44,13 @@ $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 
 ### 应用 Pod 创建失败
 
-应用 pod 在创建时会由 CSI Node 创建 Mount Pod，在 Mount Pod 中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 pod 内。因此如果应用 pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
+在 CSI Driver 的解耦架构下，JuiceFS Client 运行在 mount pod 中。因此每一个应用 pod 伴随着对应的 mount pod。
+
+CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 pod 内。因此如果应用 pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
 
 #### 查看应用 Pod 事件
 
-同样，若挂载期间有报错，报错信息往往出现在应用 pod 事件中：
+若挂载期间有报错，报错信息往往出现在应用 pod 事件中：
 
 ```shell {9}
 $ kubectl describe po dynamic-ce-1
@@ -96,12 +96,12 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 #### 检查 Mount Pod
 
-如果 CSI Node 一切正常，则需要检查 Mount Pod 是否存在异常。例如 Mount Pod 是否已经创建，状态是否正常，是否存在异常日志等。
+如果 CSI Node 一切正常，则需要检查 Mount Pod 是否存在异常。
 
-由于 CSI 驱动的分离架构，每个应用 pod 都对应着一个 mount pod（多个应用 pod 可能会复用同一个 mount pod），通过应用 pod 定位到 mount pod 的步骤稍显繁琐，因此我们准备了一系列快捷命令，帮你方便地获取信息：
+通过应用 pod 定位到 mount pod 的步骤稍显繁琐，因此我们准备了一系列快捷命令，帮你方便地获取信息：
 
 ```shell
-# 下方命令或多或少都需要反复引用应用信息，因此请提前存为环境变量
+# 提前将应用 pod 信息存为环境变量
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=example-app-xxx-xxx
 
@@ -141,39 +141,34 @@ kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items
 
 你可以使用[诊断脚本](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh)来收集日志及相关信息。
 
-1. 在你的集群中任意一台可以执行 `kubectl` 的节点上，下载诊断脚本：
+在集群中任意一台可以执行 `kubectl` 的节点上，安装诊断脚本：
 
-   ```shell
-   wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
-   ```
+```shell
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
+chmod a+x diagnose.sh
+```
 
-2. 给脚本添加执行权限：
+使用诊断脚本来收集信息。假设 JuiceFS CSI 驱动部署在 `kube-system` 命名空间，问题出现在 `kube-node-2` 这台节点。
 
-   ```shell
-   chmod a+x diagnose.sh
-   ```
+```shell
+$ ./diagnose.sh
+Usage:
+    ./diagnose.sh COMMAND [OPTIONS]
+COMMAND:
+    help
+        Display this help message.
+    collect
+        Collect pods logs of juicefs.
+OPTIONS:
+    -no, --node name
+        Set the name of node.
+    -n, --namespace name
+        Set the namespace of juicefs csi driver.
 
-3. 使用诊断脚本来收集信息。比如，你的 JuiceFS CSI 驱动部署在 `kube-system` 这个命名空间下，并且你想收集 `kube-node-2` 这台节点上的信息。
+$ ./diagnose.sh -n kube-system -no kube-node-2 collect
+Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
+...
+please get diagnose_juicefs_1628069696.tar.gz for diagnostics
+```
 
-   ```shell
-   $ ./diagnose.sh
-   Usage:
-       ./diagnose.sh COMMAND [OPTIONS]
-   COMMAND:
-       help
-           Display this help message.
-       collect
-           Collect pods logs of juicefs.
-   OPTIONS:
-       -no, --node name
-           Set the name of node.
-       -n, --namespace name
-           Set the namespace of juicefs csi driver.
-
-   $ ./diagnose.sh -n kube-system -no kube-node-2 collect
-   Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
-   ...
-   please get diagnose_juicefs_1628069696.tar.gz for diagnostics
-   ```
-
-   所有相关的信息都被收集和打包在了一个压缩包里。
+所有相关的信息都被收集和打包在了一个压缩包里。
