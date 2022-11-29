@@ -92,7 +92,7 @@ kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
 ```
 
-#### 检查 Mount Pod
+#### 检查 Mount Pod {#check-mount-pod}
 
 如果 CSI Node 一切正常，则需要检查 Mount Pod 是否存在异常。
 

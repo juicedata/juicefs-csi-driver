@@ -92,7 +92,7 @@ Or simply use this one-liner to print logs of the relevant CSI Node pod:
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
 ```
 
-#### Check mount pod
+#### Check mount pod {#check-mount-pod}
 
 If no errors are shown in the CSI Node logs, check if mount pod is working correctly.
 

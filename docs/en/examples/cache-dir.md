@@ -48,7 +48,7 @@ kubectl get pods juicefs-app
 ```
 
 You can also verify that the JuiceFS client has the expected cache path set. Refer
-to [this document](../troubleshooting.md#find-mount-pod) to find mount pod and run this command as follows:
+to [this document](../administration/troubleshooting.md#check-mount-pod) to find mount pod and run this command as follows:
 
 ```sh
 kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
@@ -125,7 +125,7 @@ kubectl get pods juicefs-app
 ```
 
 You can also verify that the JuiceFS client has the expected cache path set. Refer
-to [this document](../troubleshooting.md#find-mount-pod) to find mount pod and run this command as follows:
+to [this document](../administration/troubleshooting.md#check-mount-pod) to find mount pod and run this command as follows:
 
 ```sh
 kubectl -n kube-system get po juicefs-172.16.2.87-pvc-5916988b-71a0-4494-8315-877d2dbb8709 -oyaml | grep mount.juicefs
