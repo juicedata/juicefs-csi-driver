@@ -68,7 +68,7 @@ parameters:
 
 你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
 
-另请注意，如果要额外添加 FUSE 相关选项，请直接在 YAML 列表中追加，每行一个选项：
+另请注意，如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
 
 ```yaml
 mountOptions:
