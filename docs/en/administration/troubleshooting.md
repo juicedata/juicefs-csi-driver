@@ -6,7 +6,7 @@ sidebar_position: 5
 
 Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md), i.e. have a basic understanding of the roles of each CSI Driver component.
 
-## Basic principles for troubleshooting
+## Basic principles for troubleshooting {#basic-principles}
 
 In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and pod creation failures (managed by CSI Node / Mount Pod).
 

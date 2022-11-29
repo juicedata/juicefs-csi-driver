@@ -4,7 +4,7 @@ slug: /troubleshooting-cases
 sidebar_position: 6
 ---
 
-这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先学习[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
+这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先掌握[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
 
 ## CSI 驱动未安装 / 安装失败
 
@@ -20,7 +20,7 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 常见情况比如：两个 pod 分别使用各自的 PVC，但只有一个能创建成功。
 
-请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。您可以通过以下命令检查 `volumeHandle`：
+请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。可以通过以下命令检查 `volumeHandle`：
 
 ```yaml {12}
 $ kubectl get pv -o yaml juicefs-pv
