@@ -45,7 +45,6 @@ storageClasses:
   #   - max-uploads=50
   #   - cache-size=2048
   #   - cache-dir=/var/foo
-  #   - allow_other
 ```
 
 When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
@@ -69,7 +68,6 @@ parameters:
   #   - max-uploads=50
   #   - cache-size=2048
   #   - cache-dir=/var/foo
-  #   - allow_other
 ```
 
 ### Adjust mount options
@@ -366,7 +364,6 @@ spec:
     - max-uploads=50
     - cache-size=2048
     - cache-dir=/var/foo
-    - allow_other
   ...
 ```
 

@@ -45,7 +45,6 @@ storageClasses:
   #   - max-uploads=50
   #   - cache-size=2048
   #   - cache-dir=/var/foo
-  #   - allow_other
 ```
 
 用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](./pv.md#create-mount-config)。
@@ -69,7 +68,6 @@ parameters:
 #   - max-uploads=50
 #   - cache-size=2048
 #   - cache-dir=/var/foo
-#   - allow_other
 ```
 
 ### 调整挂载参数
@@ -364,7 +362,6 @@ spec:
     - max-uploads=50
     - cache-size=2048
     - cache-dir=/var/foo
-    - allow_other
   ...
 ```
 
