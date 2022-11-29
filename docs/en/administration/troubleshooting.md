@@ -12,13 +12,13 @@ In JuiceFS CSI Driver, most frequently encountered problems are PV creation fail
 
 ### PV creation failure
 
-Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`]).
+Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`](../examples/subpath.md#using-path-pattern)).
 
 #### Check PVC events
 
 Usually, CSI Controller will pass error information to PVC event:
 
-```shell
+```shell {7}
 $ kubectl describe pvc dynamic-ce
 ...
 Events:
@@ -42,21 +42,19 @@ juicefs-csi-controller-0   3/3     Running   0          8d
 $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 ```
 
-#### Application pod failure
+### Application pod failure
 
-Due to the decoupled architecture of the CSI Driver, JuiceFS Client runs in a dedicated mount pod, thus, every application pod is accompanied by a mount pod.
+Due to the architecture of the CSI Driver, JuiceFS Client runs in a dedicated mount pod, thus, every application pod is accompanied by a mount pod.
 
-CSI Node will create the mount pod, mount the JuiceFS file system within the pod, and finally bind the mountpoint to the application pod. If application pod fails to start, we shall look for issues in CSI Node, or mount pod.
+CSI Node will create the mount pod, mount the JuiceFS file system within the pod, and finally bind the mount point to the application pod. If application pod fails to start, we shall look for issues in CSI Node, or mount pod.
 
-#### Check pod events
+#### Check application pod events
 
-If error occurs during the mount, look for clues in the pod events:
+If error occurs during the mount, look for clues in the application pod events:
 
-```shell {9}
+```shell {7}
 $ kubectl describe po dynamic-ce-1
-
-Name:         dynamic-ce
-…
+...
 Events:
   Type     Reason       Age               From               Message
   ----     ------       ----              ----               -------
@@ -64,24 +62,24 @@ Events:
   Warning  FailedMount  4s (x3 over 37s)  kubelet            MountVolume.SetUp failed for volume "ce-static" : rpc error: code = Internal desc = Could not mount juicefs: juicefs status 16s timed out
 ```
 
-If error event indicates problems within the JuiceFS space, follow below guide to further troubleshoot:
+If error event indicates problems within the JuiceFS space, follow below guide to further troubleshoot.
 
 #### Check CSI Node
 
 Verify CSI Node is alive and working correctly:
 
 ```shell
-# App pod information will be used in below commands, save them as env
+# Application pod information will be used in below commands, save them as environment variables.
 APP_NS=default  # application pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Locate worker node via app pod name
+# Locate worker node via application pod name
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 
 # Print all CSI Node pods
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver
 
-# Print CSI Node pod closest to the app pod
+# Print CSI Node pod closest to the application pod
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$NODE_NAME
 
 # Substitute $CSI_NODE_POD with actual CSI Node pod name acquired above
@@ -98,25 +96,25 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 If no errors are shown in the CSI Node logs, check if mount pod is working correctly.
 
-Finding corresponding mount pod via given app pod can be tedious, here's a series of commands to help you with this process:
+Finding corresponding mount pod via given application pod can be tedious, here's a series of commands to help you with this process:
 
 ```shell
-# App pod information will be used in below commands, save them as env
+# Application pod information will be used in below commands, save them as environment variables.
 APP_NS=default  # application pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Find Node / PVC / PV name via app pod
+# Find Node / PVC / PV name via application pod
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 
-# Find mount pod via app pod
+# Find mount pod via application pod
 MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{..metadata.name}' | grep $PV_NAME)
 
 # Check mount pod
 kubectl -n kube-system get po $MOUNT_POD_NAME
 
-# Print mount pod logs, which contain JuiceFS Client logs
+# Print mount pod logs, which contain JuiceFS Client logs.
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
 # Find all mount pod for give PV

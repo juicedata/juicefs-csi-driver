@@ -18,7 +18,7 @@ sidebar_position: 5
 
 一般而言，如果创建子目录失败，CSI Controller 会将错误结果存在 PVC 事件中：
 
-```shell {9}
+```shell {7}
 $ kubectl describe pvc dynamic-ce
 ...
 Events:
@@ -44,7 +44,7 @@ $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 
 ### 应用 Pod 创建失败
 
-在 CSI Driver 的解耦架构下，JuiceFS Client 运行在 mount pod 中。因此每一个应用 pod 伴随着对应的 mount pod。
+在 CSI 驱动的架构下，JuiceFS 客户端运行在 Mount Pod 中。因此每一个应用 pod 都伴随着一个对应的 Mount Pod。
 
 CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 pod 内。因此如果应用 pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
 
@@ -52,11 +52,9 @@ CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最
 
 若挂载期间有报错，报错信息往往出现在应用 pod 事件中：
 
-```shell {9}
+```shell {7}
 $ kubectl describe po dynamic-ce-1
-
-Name:         dynamic-ce
-…
+...
 Events:
   Type     Reason       Age               From               Message
   ----     ------       ----              ----               -------

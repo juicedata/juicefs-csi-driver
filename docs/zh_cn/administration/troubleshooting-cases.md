@@ -54,4 +54,4 @@ format: ERR illegal address: xxxx
 format: NOAUTH Authentication requested.
 ```
 
-你需要确认元数据引擎 URL 是否正确填写了密码，具体格式请参考 [Redis 元数据引擎](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。
+你需要确认元数据引擎 URL 是否正确填写了密码，具体格式请参考[「使用 Redis 作为元数据引擎」](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。
