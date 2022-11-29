@@ -185,7 +185,7 @@ Also you can verify that data is written onto JuiceFS file system:
 kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
 
-## Using `pathPattern`
+## Using `pathPattern` {#using-path-pattern}
 
 :::note
 This feature requires JuiceFS CSI Driver version 0.13.3 and above.

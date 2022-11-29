@@ -36,19 +36,6 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-3. 检查部署状态
-
-   用下方命令确认 CSI 驱动组件正常运行：
-
-   ```shell
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
-
-   阅读[「架构」](./introduction.md)了解 CSI 驱动的架构，以及各组件功能。
-
 ### 通过 kubectl 安装
 
 1. 检查 kubelet 根目录
@@ -83,18 +70,20 @@ Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-3. 检查部署状态
+### 检查部署状态
 
-   用下方命令确认 CSI 驱动组件正常运行：
+不论你用何种方法，安装完毕以后，请用下方命令确认 CSI 驱动组件正常运行：
 
-   ```shell
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
+```shell
+$ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+NAME                       READY   STATUS    RESTARTS   AGE
+juicefs-csi-controller-0   3/3     Running   0          22m
+juicefs-csi-node-v9tzb     3/3     Running   0          14m
+```
 
-   阅读[「架构」](./introduction.md)了解 CSI 驱动的架构，以及各组件功能。
+CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在上方命令的输出中，CSI Node pod 数量应该与 worker 节点数相同。如果你注意到数量不一致，请检查是否有节点被打上了污点。视情况删除污点，或给 CSI Node Service 打上对应的容忍，来修复此问题。如果你有需要，也可以[仅在某些节点上运行 CSI Node Service](./guide/resource-optimization.md#csi-node-node-selector)。
+
+如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md)。
 
 ## 创建 StorageClass {#create-storage-class}
 

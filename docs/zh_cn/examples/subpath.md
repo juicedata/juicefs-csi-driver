@@ -184,7 +184,8 @@ kubectl get pods juicefs-app-subpath
 ```sh
 kubectl exec -ti juicefs-app-subpath -- tail -f /data/out.txt
 ```
-## 使用 `pathPattern`
+
+## 使用 `pathPattern` {#using-path-pattern}
 
 :::note 注意
 此特性需使用 0.13.3 及以上版本的 JuiceFS CSI 驱动
