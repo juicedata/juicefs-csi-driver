@@ -41,10 +41,7 @@ storageClasses:
         memory: "5Gi"
   # Declare mount options here if in need
   # mountOptions:
-  #   - enable-xattr
-  #   - max-uploads=50
   #   - cache-size=2048
-  #   - cache-dir=/var/foo
 ```
 
 When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
@@ -64,15 +61,22 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   # Declare mount options here if in need
   # mountOptions:
-  #   - enable-xattr
-  #   - max-uploads=50
   #   - cache-size=2048
-  #   - cache-dir=/var/foo
 ```
 
 ### Adjust mount options
 
 You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple StorageClass, each with different mount options.
+
+If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # Extra FUSE options
+  - writeback_cache
+  - debug
+```
 
 Mount options are different between Community Edition and Cloud Service, see:
 

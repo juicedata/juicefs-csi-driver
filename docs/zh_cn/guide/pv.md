@@ -39,12 +39,9 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-  # 若有需要，可以在此调整挂载参数
+  # 若有需要，可以在此调整挂载参数，详见下方"调整挂载参数"小节
   # mountOptions:
-  #   - enable-xattr
-  #   - max-uploads=50
   #   - cache-size=2048
-  #   - cache-dir=/var/foo
 ```
 
 用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](./pv.md#create-mount-config)。
@@ -62,17 +59,24 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-# 若有需要，可以在此调整挂载参数
+# 若有需要，可以在此调整挂载参数，详见下方"调整挂载参数"小节
 # mountOptions:
-#   - enable-xattr
-#   - max-uploads=50
 #   - cache-size=2048
-#   - cache-dir=/var/foo
 ```
 
 ### 调整挂载参数
 
 你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
+
+另请注意，如果要额外添加 FUSE 相关选项，请直接在 YAML 列表中追加，每行一个选项：
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # 额外的 FUSE 相关选项
+  - writeback_cache
+  - debug
+```
 
 JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
