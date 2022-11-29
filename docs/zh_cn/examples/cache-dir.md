@@ -47,7 +47,7 @@ PVC 和示例 pod 可参考 [这篇文档](../guide/pv.md#static-provisioning)�
 kubectl get pods juicefs-app
 ```
 
-您还可以验证 JuiceFS 客户端是否设置了预期的缓存路径，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
+您还可以验证 JuiceFS 客户端是否设置了预期的缓存路径，参考 [这篇文档](../administration/troubleshooting.md#check-mount-pod) 找到对应的 mount pod：
 
 ```sh
 kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount.juicefs
@@ -120,7 +120,7 @@ PVC 和示例 pod 可参考 [这篇文档](../guide/pv.md#dynamic-provisioning)�
 kubectl get pods juicefs-app
 ```
 
-您还可以验证 JuiceFS 客户端是否设置了预期的缓存路径，参考 [这篇文档](../troubleshooting.md#找到-mount-pod) 找到对应的 mount pod：
+您还可以验证 JuiceFS 客户端是否设置了预期的缓存路径，参考 [这篇文档](../administration/troubleshooting.md#check-mount-pod) 找到对应的 mount pod：
 
 ```sh
 kubectl -n kube-system get po juicefs-172.16.2.87-pvc-5916988b-71a0-4494-8315-877d2dbb8709 -oyaml | grep mount.juicefs
