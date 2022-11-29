@@ -46,7 +46,7 @@ When you choose to dynamically create file system inside mount pod, i.e. running
 format: ERR illegal address: xxxx
 ```
 
-The `format` in the error message stands for the `juicefs format` command. Above error usually indicates problems accessing the metadata engine, check security group configurations to ensure all Kubernetes worker nodes could access to the metadata engine.
+The `format` in the error message stands for the `juicefs format` command. Above error usually indicates problems accessing the metadata engine, check security group configurations to ensure all Kubernetes worker nodes could access the metadata engine.
 
 If you use a password protected Redis instance as metadata engine, you may encounter the following error:
 
