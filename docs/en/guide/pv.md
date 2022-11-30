@@ -3,6 +3,86 @@ title: Create and Use PV
 sidebar_position: 1
 ---
 
+## Create a StorageClass {#create-storage-class}
+
+If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
+
+Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
+
+### Create via Helm {#helm-sc}
+
+Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
+
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).
+
+```yaml title="values.yaml"
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  reclaimPolicy: Retain
+  # JuiceFS volume related configuration
+  # If volume is already created in advance, then only name and metaurl is needed
+  backend:
+    name: "<name>"               # JuiceFS volume name
+    metaurl: "<meta-url>"        # URL of metadata engine
+    storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
+    accessKey: "<access-key>"    # Access Key for object storage
+    secretKey: "<secret-key>"    # Secret Key for object storage
+    bucket: "<bucket>"           # A bucket URL to store data
+    # Adjust mount pod timezone, defaults to UTC
+    # envs: "{TZ: Asia/Shanghai}"
+  mountPod:
+    resources:                   # Resource limit/request for mount pod
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - cache-size=2048
+```
+
+When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](#create-mount-config).
+
+### Create via kubectl
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - cache-size=2048
+```
+
+### Adjust mount options {#mount-options}
+
+You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
+
+If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # Extra FUSE options
+  - writeback_cache
+  - debug
+```
+
+Mount options are different between Community Edition and Cloud Service, see:
+
+- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
 ## Create mount configuration {#create-mount-config}
 
 With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
@@ -13,18 +93,7 @@ If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc
 
 ### Community edition
 
-Before using PV, you should [create a file system](https://juicefs.com/docs/community/quick_start_guide/#creating-a-file-system), for example:
-
-```shell
-juicefs format \
-    --storage=s3 \
-    --bucket=https://<BUCKET>.s3.<REGION>.amazonaws.com \
-    --access-key=<ACCESS_KEY> --secret-key=<SECRET_KEY> \
-    <META_URL> \
-    <NAME>
-```
-
-And then create Kubernetes secret:
+Create Kubernetes Secret:
 
 ```yaml {7-16}
 apiVersion: v1
@@ -96,7 +165,7 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
-Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](../getting_started.md#create-storage-class) in advance.
+Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
 ### Deploy
 
@@ -151,7 +220,7 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 [Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods are in need of large volume ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
-Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](../getting_started.md#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for you.
+Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for you.
 
 Declare generic ephemeral volume directly in pod definition:
 
@@ -286,9 +355,9 @@ kubectl get pods
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
-You can customize mount options by appending `mountOptions` to above PV definition:
+You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
 
-```yaml {8-13}
+```yaml {8}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -297,20 +366,43 @@ metadata:
     juicefs-name: ten-pb-fs
 spec:
   mountOptions:
-    - enable-xattr
-    - max-uploads=50
     - cache-size=2048
-    - cache-dir=/var/foo
-    - allow_other
   ...
 ```
 
-Mount options are different between Community Edition and Cloud Service:
-
-- [Community edition](https://juicefs.com/docs/community/command_reference#juicefs-mount)
-- [Cloud service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
-
 ## Common PV settings
+
+### Automatic Mount Point Recovery {#automatic-mount-point-recovery}
+
+JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
+
+Applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod:
+
+```yaml {12-18}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-app-static-deploy
+spec:
+  ...
+  template:
+    ...
+    spec:
+      containers:
+        - name: app
+          # Required when using Bidirectional
+          # securityContext:
+          #   privileged: true
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              mountPropagation: HostToContainer
+          ...
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: juicefs-pvc-static
+```
 
 ### PV storage capacity {#storage-capacity}
 
