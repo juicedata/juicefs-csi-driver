@@ -5,15 +5,15 @@ sidebar_position: 1
 
 ## Create a StorageClass {#create-storage-class}
 
-If you decide to use JuiceFS CSI Driver via [dynamic provisioning](./guide/pv.md#dynamic-provisioning), you'll need to create a StorageClass in advance.
+If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
-Learn about dynamic provisioning and static provisioning in [Usage](./introduction.md#usage).
+Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
 
 ### Create via Helm {#helm-sc}
 
 Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
 
-Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121).
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -44,7 +44,7 @@ storageClasses:
   #   - cache-size=2048
 ```
 
-When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](./guide/pv.md#create-mount-config).
+When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](#create-mount-config).
 
 ### Create via kubectl
 
@@ -66,7 +66,7 @@ parameters:
 
 ### Adjust mount options {#mount-options}
 
-You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple StorageClass, each with different mount options.
+You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
 
 If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
 
@@ -92,6 +92,8 @@ If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc
 :::
 
 ### Community edition
+
+Create Kubernetes Secret:
 
 ```yaml {7-16}
 apiVersion: v1
@@ -163,7 +165,7 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
-Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](../getting_started.md#create-storage-class) in advance.
+Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
 ### Deploy
 
@@ -218,7 +220,7 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 [Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods are in need of large volume ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
-Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](../getting_started.md#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for you.
+Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for you.
 
 Declare generic ephemeral volume directly in pod definition:
 
@@ -370,13 +372,13 @@ spec:
 
 ## Common PV settings
 
-### Automatic Mount Point Recovery
+### Automatic Mount Point Recovery {#automatic-mount-point-recovery}
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mountpoint, and application pods can continue to work.
+JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
 
 Applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod:
 
-```yaml
+```yaml {12-18}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

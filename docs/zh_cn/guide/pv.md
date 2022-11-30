@@ -5,7 +5,7 @@ sidebar_position: 1
 
 ## 创建 StorageClass {#create-storage-class}
 
-如果你打算以[「动态配置」](./pv.md#dynamic-provisioning)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
+如果你打算以[「动态配置」](#dynamic-provisioning)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
 
 阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
@@ -13,7 +13,7 @@ sidebar_position: 1
 
 创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
 
-JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L121) 中找到全面示范。
+JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122) 中找到全面示范。
 
 ```yaml title="values.yaml"
 storageClasses:
@@ -39,12 +39,12 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-  # 若有需要，可以在此调整挂载参数，详见下方"调整挂载参数"小节
+  # 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
   # mountOptions:
   #   - cache-size=2048
 ```
 
-用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](./pv.md#create-mount-config)。
+用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](#create-mount-config)。
 
 ### 通过 kubectl 创建
 
@@ -59,14 +59,14 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-# 若有需要，可以在此调整挂载参数，详见下方"调整挂载参数"小节
+# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
 # mountOptions:
 #   - cache-size=2048
 ```
 
 ### 调整挂载参数 {#mount-options}
 
-你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
+你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
 另请注意，如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
 
@@ -92,6 +92,8 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 :::
 
 ### 社区版
+
+创建 Kubernetes Secret：
 
 ```yaml {7-16}
 apiVersion: v1
@@ -161,7 +163,7 @@ stringData:
 
 ## 动态配置 {#dynamic-provisioning}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](../getting_started.md#create-storage-class)。
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
 
 ### 部署
 
@@ -216,7 +218,7 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 [通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。当应用容器需要大容量临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
 
-JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](../getting_started.md#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
+JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
 
 在 Pod 定义中声明使用通用临时卷：
 
@@ -368,13 +370,13 @@ spec:
 
 ## 常用 PV 设置
 
-### 挂载点自动恢复
+### 挂载点自动恢复 {#automatic-mount-point-recovery}
 
-JuiceFS CSI Driver v0.10.7 开始支持挂载点自动恢复：即使 Mount Pod 遭遇故障，重启或重新创建以后，应用容器便能继续工作。
+JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 遭遇故障，重启或重新创建 Mount Pod 以后，应用容器也能继续工作。
 
-需要在应用 pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将 host 的挂载信息传播给 pod：
+需要在应用 pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载信息传播给 pod：
 
-```yaml
+```yaml {12-18}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
