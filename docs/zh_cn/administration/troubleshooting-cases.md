@@ -28,7 +28,13 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 ## Mount Pod 异常
 
-常见错误比如 Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态。此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建，Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+常见错误比如 Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态。此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。资源吃紧有时还会体现为 Mount Pod 反复创建、销毁，在 Pod 事件中能看到以下信息：
+
+```
+Preempted in order to admit critical pod
+```
+
+Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
 ## PVC 配置互相冲突，创建失败
 

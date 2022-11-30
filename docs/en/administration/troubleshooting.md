@@ -64,7 +64,7 @@ Events:
 
 If error event indicates problems within the JuiceFS space, follow below guide to further troubleshoot.
 
-#### Check CSI Node
+#### Check CSI Node {#check-csi-node}
 
 Verify CSI Node is alive and working correctly:
 
