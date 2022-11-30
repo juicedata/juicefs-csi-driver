@@ -2,7 +2,7 @@
 
 Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱动中，也有不少方面可以做资源占用优化，甚至带来一定的性能提升。在这里集中罗列介绍。
 
-## 为 Mount Pod 配置资源请求和约束
+## 为 Mount Pod 配置资源请求和约束 {#mount-pod-resources}
 
 每一个使用着 JuiceFS PV 的容器，都对应着一个 mount pod（会智能匹配和复用），因此为 mount pod 配置合理的资源声明，将是最有效的优化资源占用的手段。
 
@@ -86,18 +86,6 @@ spec:
         claimName: juicefs-pvc
 ```
 
-配置完成后，验证 Pod 是否正在运行：
-
-```sh
-kubectl get pods juicefs-app-resources
-```
-
-您可以验证 mount pod 的 resource 设置得是否正确：
-
-```sh
-kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
-```
-
 ### 动态配置
 
 您可以在 `StorageClass` 中配置资源请求和约束：
@@ -119,56 +107,23 @@ parameters:
   juicefs/mount-memory-request: 1Gi
 ```
 
-部署 PVC 和示例 pod：
+如果你使用 Helm 管理 StorageClass，则直接在 `values.yaml` 中定义：
 
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app-resources
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
+```yaml title="values.yaml"
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  ...
+  mountPod:
+    resources:
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
 ```
 
-应用配置后，验证 pod 是否正在运行：
-
-```sh
-kubectl get pods juicefs-app-resources
-```
-
-验证 mount pod 资源：
-
-```sh
-kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -o yaml | grep -A 6 resources
-```
 
 ## 配置 Mount Pod 退出时清理缓存
 

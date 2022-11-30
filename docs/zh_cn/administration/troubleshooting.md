@@ -64,7 +64,7 @@ Events:
 
 通过应用 pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
 
-#### 检查 CSI Node
+#### 检查 CSI Node {#check-csi-node}
 
 首先，我们需要检查应用 pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
 
@@ -113,6 +113,9 @@ MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$N
 
 # 检查 mount pod 状态是否正常
 kubectl -n kube-system get po $MOUNT_POD_NAME
+
+# 打印 mount pod 事件
+kubectl -n kube-system describe $MOUNT_POD_NAME
 
 # 打印 mount pod 日志（其中包含 JuiceFS 客户端日志）
 kubectl -n kube-system logs $MOUNT_POD_NAME

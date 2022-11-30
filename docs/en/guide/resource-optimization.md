@@ -2,7 +2,7 @@
 
 Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI Driver, there's much to be done in this aspect. Methods on resource optimizations are introduced in this chapter.
 
-## Configure resource requests and limits for Mount Pod
+## Configure resource requests and limits for Mount Pod {#mount-pod-resources}
 
 Every application pod that uses JuiceFS PV requires a running mount pod (reused for pods using a same PV), thus configuring proper resource definition for mount pod can effectively optimize resource usage.
 
