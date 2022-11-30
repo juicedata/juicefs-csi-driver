@@ -24,6 +24,8 @@ As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated 
 * When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
 * Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](./administration/upgrade-csi-driver.md).
 
+On the same node, a PVC corresponds to a Mount Pod. The relationship between PVC, PV, and Mount Pod is shown in the following figure:
+
 ![](./images/mount-pod-architecture.svg)
 
 ## Usage {#usage}

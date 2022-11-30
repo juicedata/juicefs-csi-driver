@@ -77,10 +77,10 @@ APP_POD_NAME=example-app-xxx-xxx
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 
 # Print all CSI Node pods
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver
+kubectl -n kube-system get po -l app=juicefs-csi-node
 
 # Print CSI Node pod closest to the application pod
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$NODE_NAME
+kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.nodeName=$NODE_NAME
 
 # Substitute $CSI_NODE_POD with actual CSI Node pod name acquired above
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
@@ -89,7 +89,7 @@ kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 Or simply use this one-liner to print logs of the relevant CSI Node pod:
 
 ```shell
-kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
+kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
 ```
 
 #### Check mount pod {#check-mount-pod}
@@ -107,9 +107,10 @@ APP_POD_NAME=example-app-xxx-xxx
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
 
 # Find mount pod via application pod
-MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{..metadata.name}' | grep $PV_NAME)
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{..metadata.name}' | grep $PV_ID)
 
 # Check mount pod
 kubectl -n kube-system get po $MOUNT_POD_NAME
@@ -118,7 +119,7 @@ kubectl -n kube-system get po $MOUNT_POD_NAME
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
 # Find all mount pod for give PV
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV_NAME
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV_ID
 ```
 
 ## Seeking support
