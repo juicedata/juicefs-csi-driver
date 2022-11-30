@@ -17,12 +17,14 @@ juicefs-csi-node-8rd96     3/3     Running       0          141d
 
 The architecture of the JuiceFS CSI Driver is shown in the figure:
 
-![](./images/csi-driver-architecture.jpg)
+![](./images/csi-driver-architecture.svg)
 
 As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated mount pod, CSI Node Service will manage mount pod lifecycle. This architecture proves several advantages:
 
 * When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
 * Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](./administration/upgrade-csi-driver.md).
+
+![](./images/mount-pod-architecture.svg)
 
 ## Usage {#usage}
 
