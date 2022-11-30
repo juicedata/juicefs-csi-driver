@@ -64,7 +64,7 @@ parameters:
 #   - cache-size=2048
 ```
 
-### 调整挂载参数
+### 调整挂载参数 {#mount-options}
 
 你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 StorageClass，单独添加所需参数。
 
@@ -351,9 +351,9 @@ kubectl get pods juicefs-app
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
-如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置：
+如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
 
-```yaml {8-13}
+```yaml {8}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -362,17 +362,9 @@ metadata:
     juicefs-name: ten-pb-fs
 spec:
   mountOptions:
-    - enable-xattr
-    - max-uploads=50
     - cache-size=2048
-    - cache-dir=/var/foo
   ...
 ```
-
-JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
-
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ## 常用 PV 设置
 

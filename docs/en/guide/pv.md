@@ -64,7 +64,7 @@ parameters:
   #   - cache-size=2048
 ```
 
-### Adjust mount options
+### Adjust mount options {#mount-options}
 
 You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple StorageClass, each with different mount options.
 
@@ -353,9 +353,9 @@ kubectl get pods
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
-You can customize mount options by appending `mountOptions` to above PV definition:
+You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
 
-```yaml {8-13}
+```yaml {8}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -364,17 +364,9 @@ metadata:
     juicefs-name: ten-pb-fs
 spec:
   mountOptions:
-    - enable-xattr
-    - max-uploads=50
     - cache-size=2048
-    - cache-dir=/var/foo
   ...
 ```
-
-Mount options are different between Community Edition and Cloud Service:
-
-- [Community edition](https://juicefs.com/docs/community/command_reference#juicefs-mount)
-- [Cloud service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
 
 ## Common PV settings
 
