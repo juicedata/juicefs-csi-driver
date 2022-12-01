@@ -389,7 +389,7 @@ func (j *juicefs) validTarget(target string) error {
 func (j *juicefs) validOptions(volumeId string, options []string) error {
 	for _, option := range options {
 		if option == "writeback" {
-			klog.Warningf("writeback is not suitable in CSI, please donot use it. volumeId: %s", volumeId)
+			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", volumeId)
 		}
 	}
 	return nil
