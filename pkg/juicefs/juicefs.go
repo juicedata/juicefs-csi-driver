@@ -365,6 +365,10 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 }
 
 func (j *juicefs) validTarget(target string) error {
+	if config.ByProcess {
+		// do not check target when by process, because it may not in kubernetes
+		return nil
+	}
 	kubeletDir := "/var/lib/kubelet"
 	for _, v := range config.CSIPod.Spec.Volumes {
 		if v.Name == "kubelet-dir" {
@@ -385,7 +389,7 @@ func (j *juicefs) validTarget(target string) error {
 func (j *juicefs) validOptions(volumeId string, options []string) error {
 	for _, option := range options {
 		if option == "writeback" {
-			klog.Warningf("writeback is not suitable in Kubernetes, please donot use it. volumeId: %s", volumeId)
+			klog.Warningf("writeback is not suitable in CSI, please donot use it. volumeId: %s", volumeId)
 		}
 	}
 	return nil
