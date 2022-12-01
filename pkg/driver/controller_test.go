@@ -91,7 +91,6 @@ func TestCreateVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				//mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret, volCtx).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
