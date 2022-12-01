@@ -93,10 +93,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	for k, v := range secret.Data {
 		secretData[k] = string(v)
 	}
-	if err := j.juicefs.JfsCreateVol(ctx, options.PVName, subPath, secretData, nil); err != nil {
-		klog.Errorf("[PVCReconciler]: create vol error %v", err)
-		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
-	}
 	// set volume context
 	volCtx := make(map[string]string)
 	volCtx["subPath"] = subPath

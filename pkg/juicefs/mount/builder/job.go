@@ -132,7 +132,7 @@ func (r *Builder) getDeleteVolumeCmd() string {
 
 func (r *Builder) getJobCommand() string {
 	var cmd string
-	options := r.jfsSetting.Options
+	options := util.StripReadonlyOption(r.jfsSetting.Options)
 	if r.jfsSetting.IsCe {
 		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
 		if len(options) != 0 {

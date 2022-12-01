@@ -459,3 +459,50 @@ func TestContainsPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestStripReadonlyOption(t *testing.T) {
+	type args struct {
+		options []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "test-none",
+			args: args{
+				options: []string{},
+			},
+			want: []string{},
+		},
+		{
+			name: "test-ro",
+			args: args{
+				options: []string{"ro"},
+			},
+			want: []string{},
+		},
+		{
+			name: "test-read-only",
+			args: args{
+				options: []string{"read-only"},
+			},
+			want: []string{},
+		},
+		{
+			name: "test-no-ro",
+			args: args{
+				options: []string{"subdir=/metrics"},
+			},
+			want: []string{"subdir=/metrics"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripReadonlyOption(tt.args.options); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("StripReadonlyOption() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

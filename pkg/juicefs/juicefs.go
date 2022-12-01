@@ -201,7 +201,7 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 	}
 	jfsSetting.SubPath = subPath
 	jfsSetting.MountPath = filepath.Join(config.TmpPodMountBase, jfsSetting.VolumeId)
-	if config.FormatInPod {
+	if !config.ByProcess {
 		return j.podMount.JCreateVolume(ctx, jfsSetting)
 	}
 	return j.processMount.JCreateVolume(ctx, jfsSetting)
@@ -216,7 +216,7 @@ func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath str
 	jfsSetting.MountPath = filepath.Join(config.TmpPodMountBase, jfsSetting.VolumeId)
 
 	mnt := j.processMount
-	if config.FormatInPod {
+	if !config.ByProcess {
 		mnt = j.podMount
 	}
 	if err := mnt.JDeleteVolume(ctx, jfsSetting); err != nil {
@@ -266,9 +266,7 @@ func (j *juicefs) getSettings(ctx context.Context, volumeID string, target strin
 			if err != nil {
 				return nil, fmt.Errorf("juicefs auth error: %v", err)
 			}
-			if config.FormatInPod {
-				jfsSetting.FormatCmd = res
-			}
+			jfsSetting.FormatCmd = res
 		}
 		jfsSetting.UUID = secrets["name"]
 	} else {
@@ -277,16 +275,14 @@ func (j *juicefs) getSettings(ctx context.Context, volumeID string, target strin
 			klog.V(5).Infof("JfsMount: storage or bucket is empty, format --no-update.")
 			noUpdate = true
 		}
-		if config.FormatInPod && (secrets["storage"] == "ceph" || secrets["storage"] == "gs") {
+		if !config.ByProcess && (secrets["storage"] == "ceph" || secrets["storage"] == "gs") {
 			jfsSetting.Envs["JFS_NO_CHECK_OBJECT_STORAGE"] = "1"
 		}
 		res, err := j.ceFormat(ctx, secrets, noUpdate, jfsSetting)
 		if err != nil {
 			return nil, fmt.Errorf("juicefs format error: %v", err)
 		}
-		if config.FormatInPod {
-			jfsSetting.FormatCmd = res
-		}
+		jfsSetting.FormatCmd = res
 	}
 
 	uniqueId, err := j.getUniqueId(ctx, volumeID)
@@ -559,7 +555,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		if secrets["bucket"] == "" {
 			return "", fmt.Errorf("bucket argument is required when --no-update option is provided")
 		}
-		if !config.FormatInPod && secrets["initconfig"] != "" {
+		if config.ByProcess && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
 			confPath := filepath.Join("/root/.juicefs", conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
@@ -582,7 +578,8 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	}
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
-	if config.FormatInPod {
+	// only run command when in process mode
+	if !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
@@ -716,7 +713,8 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 
 	klog.V(5).Infof("ceFormat cmd: %v", cmdArgs)
 
-	if config.FormatInPod {
+	// only run command when in process mode
+	if !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}

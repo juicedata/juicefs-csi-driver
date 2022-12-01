@@ -340,6 +340,16 @@ func QuoteForShell(cmd string) string {
 	return cmd
 }
 
+func StripReadonlyOption(options []string) []string {
+	news := make([]string, 0)
+	for _, option := range options {
+		if option != "ro" && option != "read-only" {
+			news = append(news, option)
+		}
+	}
+	return news
+}
+
 func StripPasswd(uri string) string {
 	p := strings.Index(uri, "@")
 	if p < 0 {

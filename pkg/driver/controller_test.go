@@ -91,7 +91,6 @@ func TestCreateVolume(t *testing.T) {
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret, volCtx).Return(nil)
 
 				juicefsDriver := controllerService{
 					juicefs: mockJuicefs,
@@ -208,46 +207,6 @@ func TestCreateVolume(t *testing.T) {
 					t.Fatalf("Could not get error status code from error: %v", srvErr)
 				}
 				if srvErr.Code() != codes.AlreadyExists {
-					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
-				}
-			},
-		},
-		{
-			name: "CreateVol error",
-			testFunc: func(t *testing.T) {
-				volumeId := "vol-test"
-				secret := map[string]string{"a": "b"}
-				volCtx := map[string]string{"c": "d"}
-				req := &csi.CreateVolumeRequest{
-					Name:               volumeId,
-					CapacityRange:      stdCapRange,
-					VolumeCapabilities: stdVolCap,
-					Secrets:            secret,
-					Parameters:         volCtx,
-				}
-
-				ctx := context.Background()
-
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				mockJuicefs.EXPECT().JfsCreateVol(context.TODO(), volumeId, volumeId, secret, volCtx).Return(errors.New("test"))
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    make(map[string]int64),
-				}
-
-				_, err := juicefsDriver.CreateVolume(ctx, req)
-				if err == nil {
-					t.Fatalf("error is nil")
-				}
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.Internal {
 					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
 				}
 			},
