@@ -226,6 +226,12 @@ func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath str
 }
 
 func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error) {
+	if err := j.validTarget(target); err != nil {
+		return nil, err
+	}
+	if err := j.validOptions(volumeID, options); err != nil {
+		return nil, err
+	}
 	jfsSetting, err := j.getSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
@@ -356,6 +362,37 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 	}
 
 	return idStrs[3], nil
+}
+
+func (j *juicefs) validTarget(target string) error {
+	if config.ByProcess {
+		// do not check target when by process, because it may not in kubernetes
+		return nil
+	}
+	kubeletDir := "/var/lib/kubelet"
+	for _, v := range config.CSIPod.Spec.Volumes {
+		if v.Name == "kubelet-dir" {
+			kubeletDir = v.HostPath.Path
+			break
+		}
+	}
+	dirs := strings.Split(target, "/pods/")
+	if len(dirs) == 0 {
+		return fmt.Errorf("can't parse kubelet rootdir from target %s", target)
+	}
+	if kubeletDir != dirs[0] {
+		return fmt.Errorf("target kubelet rootdir %s is not equal csi mounted kubelet root-dir %s", dirs[0], kubeletDir)
+	}
+	return nil
+}
+
+func (j *juicefs) validOptions(volumeId string, options []string) error {
+	for _, option := range options {
+		if option == "writeback" {
+			klog.Warningf("writeback is not suitable in CSI, please donot use it. volumeId: %s", volumeId)
+		}
+	}
+	return nil
 }
 
 func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {

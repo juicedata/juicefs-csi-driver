@@ -30,6 +30,7 @@ import (
 	. "github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -282,7 +283,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 	Convey("Test JfsMount", t, func() {
 		Convey("ee normal", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"name":  "test",
 				"token": "123",
@@ -310,7 +311,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("ce normal", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"name":    "test",
 				"metaurl": "127.0.0.1:6379/1",
@@ -348,7 +349,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("parse err", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"token": "123",
 			}
@@ -361,7 +362,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("ee no token", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"name": "test",
 			}
@@ -383,7 +384,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("mountFs err", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"name": "test",
 			}
@@ -409,7 +410,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("ce no bucket", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"name":    "test",
 				"metaurl": "redis://127.0.0.1:6379/1",
@@ -446,7 +447,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 		})
 		Convey("ce format error", func() {
 			volumeId := "test-volume-id"
-			targetPath := "/target"
+			targetPath := "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount"
 			secret := map[string]string{
 				"metaurl": "redis://127.0.0.1:6379/1",
 			}
@@ -1136,6 +1137,55 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ceFormat() got = %v, \nwant %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_juicefs_validTarget(t *testing.T) {
+	config.ByProcess = false
+	config.CSIPod = corev1.Pod{
+		Spec: corev1.PodSpec{
+			Volumes: []corev1.Volume{
+				{
+					Name: "kubelet-dir",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/var/lib/kubelet",
+						},
+					},
+				},
+			},
+		},
+	}
+	type args struct {
+		target string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "test-right",
+			args: args{
+				target: "/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount",
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-wrong",
+			args: args{
+				target: "/var/snap/microk8s/common/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			j := &juicefs{}
+			if got := j.validTarget(tt.args.target); (got != nil) != tt.wantErr {
+				t.Errorf("validTarget() = %v, wantErr %v", got, tt.wantErr)
 			}
 		})
 	}
