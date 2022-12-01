@@ -28,13 +28,14 @@ If CSI Node pod is not properly running, and the socket file used to communicate
 
 ## Mount pod failure
 
-One of the most seen problems is mount pod stuck at `Pending` state, causing application pod to stuck as well at `ContainerCreating` state. When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Also, `Pending` state usually indicates problem with resource allocation, sometimes can even manifest as repeated creation and destruction of the mount pod, with the mount pod event saying:
+One of the most seen problems is mount pod stuck at `Pending` state, causing application pod to stuck as well at `ContainerCreating` state. When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Also, `Pending` state usually indicates problem with resource allocation.
+In addition, when Kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
 
 ```
 Preempted in order to admit critical pod
 ```
 
-Default resource requests for mount pod is 1 cpu, 1GiB memory, mount pod will refuse to start when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
+Default resource requests for mount pod is 1 cpu, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
 ## PVC creation failures due to configuration conflicts
 
