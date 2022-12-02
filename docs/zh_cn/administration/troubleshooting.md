@@ -4,7 +4,7 @@ slug: /troubleshooting
 sidebar_position: 5
 ---
 
-阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md)。
+阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
 
 ## 基础问题排查原则 {#basic-principles}
 
@@ -64,7 +64,7 @@ Events:
 
 通过应用 pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
 
-#### 检查 CSI Node
+#### 检查 CSI Node {#check-csi-node}
 
 首先，我们需要检查应用 pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
 
@@ -77,19 +77,19 @@ APP_POD_NAME=example-app-xxx-xxx
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 
 # 打印出所有 CSI Node pods
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver
+kubectl -n kube-system get po -l app=juicefs-csi-node
 
 # 打印应用 pod 所在节点的 CSI Node pod
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$NODE_NAME
+kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.nodeName=$NODE_NAME
 
 # 将下方 $CSI_NODE_POD 替换为上一条命令获取到的 CSI Node pod 名称，检查日志，确认有无异常
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-或者直接用一行命令打印出应用 pod 对应的 CSI Node pod 日志：
+或者直接用一行命令打印出应用 pod 对应的 CSI Node pod 日志（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
 
 ```shell
-kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app.kubernetes.io/name=juicefs-csi-driver --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
+kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
 ```
 
 #### 检查 Mount Pod {#check-mount-pod}
@@ -105,20 +105,31 @@ APP_POD_NAME=example-app-xxx-xxx
 
 # 通过应用 pod 找到节点名、PVC 名、PV 名
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
-PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}')
+# 如果应用 pod 挂载了多个 PV，以下命令将只考虑首个，请按需调整。
+PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
 
 # 找到该应用 pod 对应的 mount pod 名
-MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{..metadata.name}' | grep $PV_NAME)
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
 
 # 检查 mount pod 状态是否正常
 kubectl -n kube-system get po $MOUNT_POD_NAME
+
+# 打印 mount pod 事件
+kubectl -n kube-system describe po $MOUNT_POD_NAME
 
 # 打印 mount pod 日志（其中包含 JuiceFS 客户端日志）
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
 # 找到该 PV 对应的所有 mount pod
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV_NAME
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
+```
+
+或者直接用一行命令打印出应用 pod 对应的 Mount Pod 名称（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
+
+```shell
+kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')
 ```
 
 ## 寻求帮助

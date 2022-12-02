@@ -8,7 +8,7 @@ sidebar_position: 2
 
 ## 升级 Mount Pod 容器镜像 {#upgrade-mount-pod-image}
 
-在 v0.17.1 及以上版本，CSI 驱动允许用户自行设置 Mount Pod 容器镜像，你可以修改配置，使用新版的 Mount Pod 容器镜像，来实现升级 JuiceFS 客户端。这也是得益于 CSI 驱动与 JuiceFS 客户端分离的[架构](../introduction.md)。
+在 v0.17.1 及以上版本，CSI 驱动允许用户自行设置 Mount Pod 容器镜像，你可以修改配置，使用新版的 Mount Pod 容器镜像，来实现升级 JuiceFS 客户端。这也是得益于 CSI 驱动与 JuiceFS 客户端分离的[架构](../introduction.md#architecture)。
 
 你可以在[镜像仓库](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v)找到最新版的 Mount Pod 镜像，镜像标签格式为 `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`，其中 `<JUICEFS-CE-VERSION>` 表示 JuiceFS 社区版客户端的版本号，`<JUICEFS-EE-VERSION>` 表示 JuiceFS 云服务客户端的版本号。
 

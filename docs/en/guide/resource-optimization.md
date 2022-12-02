@@ -2,7 +2,7 @@
 
 Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI Driver, there's much to be done in this aspect. Methods on resource optimizations are introduced in this chapter.
 
-## Configure resource requests and limits for Mount Pod
+## Adjust resources for mount pod {#mount-pod-resources}
 
 Every application pod that uses JuiceFS PV requires a running mount pod (reused for pods using a same PV), thus configuring proper resource definition for mount pod can effectively optimize resource usage.
 
@@ -10,7 +10,7 @@ Read the official documentation [Resource Management for Pods and Containers](ht
 
 ### Static provisioning
 
-You can set resource requests and limits in `PersistentVolume`:
+Set resource requests and limits in `PersistentVolume`:
 
 ```yaml {22-25}
 apiVersion: v1
@@ -36,71 +36,13 @@ spec:
     volumeAttributes:
       juicefs/mount-cpu-limit: 5000m
       juicefs/mount-memory-limit: 5Gi
-      juicefs/mount-cpu-request: 1000m
-      juicefs/mount-memory-request: 1Gi
-```
-
-Apply PVC and example pod as follows:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app-resources
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: data
-      resources:
-        requests:
-          cpu: 10m
-  volumes:
-    - name: data
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
-After config change, verify that pod is running:
-
-```sh
-kubectl get pods juicefs-app-resources
-```
-
-Verify mount pod resources:
-
-```sh
-kubectl -n kube-system get po juicefs-kube-node-2-juicefs-pv -o yaml | grep -A 6 resources
+      juicefs/mount-cpu-request: 100m
+      juicefs/mount-memory-request: 500Mi
 ```
 
 ### Dynamic provisioning
 
-You can set resource requests and limits in `StorageClass`:
+Set resource requests and limits in `StorageClass`:
 
 ```yaml {11-14}
 apiVersion: storage.k8s.io/v1
@@ -115,59 +57,25 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/mount-cpu-limit: 5000m
   juicefs/mount-memory-limit: 5Gi
-  juicefs/mount-cpu-request: 1000m
-  juicefs/mount-memory-request: 1Gi
+  juicefs/mount-cpu-request: 100m
+  juicefs/mount-memory-request: 500Mi
 ```
 
-Apply PVC and example pod:
+If StorageClass is managed by Helm, you can define mount pod resources directly in `values.yaml`:
 
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app-resources
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
-After config change, verify that pod is running:
-
-```sh
-kubectl get pods juicefs-app-resources
-```
-
-Verify mount pod resources:
-
-```sh
-kubectl -n kube-system get po juicefs-kube-node-3-pvc-6289b8d8-599b-4106-b5e9-081e7a570469 -o yaml | grep -A 6 resources
+```yaml title="values.yaml" {5-12}
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  ...
+  mountPod:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "500Mi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
 ```
 
 ## Clean cache when mount pod exits
@@ -207,52 +115,6 @@ spec:
       juicefs/clean-cache: "true"
 ```
 
-Deploy PVC and example pod as follows:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: data
-      resources:
-        requests:
-          cpu: 10m
-  volumes:
-    - name: data
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
 ### Dynamic provisioning
 
 Configure `parameters` in StorageClass definition, add `juicefs/clean-cache: "true"`:
@@ -269,45 +131,6 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/clean-cache: "true"
-```
-
-Deploy PVC and example pod:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
 ```
 
 ## Delayed mount pod deletion
@@ -355,52 +178,6 @@ spec:
       juicefs/mount-delete-delay: 1m
 ```
 
-Apply PVC and sample pod:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: data
-      resources:
-        requests:
-          cpu: 10m
-  volumes:
-    - name: data
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
-```
-
 ### Dynamic provisioning
 
 In StorageClass definition, modify the `parameters` field, add `juicefs/mount-delete-delay`:
@@ -417,45 +194,6 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/mount-delete-delay: 1m
-```
-
-Apply PVC and sample pod:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Pi
-  storageClassName: juicefs-sc
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-    - args:
-        - -c
-        - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-      command:
-        - /bin/sh
-      image: centos
-      name: app
-      volumeMounts:
-        - mountPath: /data
-          name: juicefs-pv
-  volumes:
-    - name: juicefs-pv
-      persistentVolumeClaim:
-        claimName: juicefs-pvc
 ```
 
 ## PV Reclaim Policy {#reclaim-policy}
@@ -509,7 +247,7 @@ parameters:
 
 ## Running CSI Node Service on select nodes {#csi-node-node-selector}
 
-JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md) for details.
+JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md#architecture) for details.
 
 By default, CSI Node Service (DaemonSet) will run on all nodes, users may want to run it only on nodes that really need to use JuiceFS, to further reduce resource usage.
 

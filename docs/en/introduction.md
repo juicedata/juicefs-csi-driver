@@ -1,8 +1,8 @@
 ---
-sidebar_label: Introduction
+title: Introduction
 ---
 
-# JuiceFS CSI Driver
+## Architecture {#architecture}
 
 [JuiceFS CSI Driver](https://github.com/juicedata/juicefs-csi-driver) implements the [CSI specification](https://github.com/container-storage-interface/spec/blob/master/spec.md), allowing JuiceFS to be integrated with container orchestration systems. Under Kubernetes, JuiceFS can provide storage service to pods via PersistentVolume.
 
@@ -17,12 +17,16 @@ juicefs-csi-node-8rd96     3/3     Running       0          141d
 
 The architecture of the JuiceFS CSI Driver is shown in the figure:
 
-![](./images/csi-driver-architecture.jpg)
+![](./images/csi-driver-architecture.svg)
 
 As shown in above diagram, JuiceFS CSI Driver run JuiceFS Client in a dedicated mount pod, CSI Node Service will manage mount pod lifecycle. This architecture proves several advantages:
 
 * When multiple pods reference a same PV, mount pod will be reused. There'll be reference counting on mount pod to decide its deletion.
 * Components are decoupled from application pods, allowing CSI Driver to be easily upgraded, see [Upgrade JuiceFS CSI Driver](./administration/upgrade-csi-driver.md).
+
+On the same node, a PVC corresponds to a Mount Pod. The relationship between PVC, PV, and Mount Pod is shown in the following figure:
+
+![](./images/mount-pod-architecture.svg)
 
 ## Usage {#usage}
 

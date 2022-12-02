@@ -2,7 +2,7 @@
 title: 介绍
 ---
 
-## 架构
+## 架构 {#architecture}
 
 [JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口。在 Kubernetes 下，JuiceFS 可以用持久卷（PersistentVolume）的形式提供给 Pod 使用。
 
@@ -17,12 +17,16 @@ juicefs-csi-node-8rd96     3/3     Running       0          141d
 
 JuiceFS CSI 驱动的架构如图所示：
 
-![](./images/csi-driver-architecture.jpg)
+![](./images/csi-driver-architecture.svg)
 
-如架构图所示，JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，并由 CSI Node Service 来管理 Mount Pod 的生命周期。这样的架构提供如下好处：
+JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，并由 CSI Node Service 来管理 Mount Pod 的生命周期。这样的架构提供如下好处：
 
 * 多个 Pod 共用 PV 时，不会新建 Mount Pod，而是对已有的 Mount Pod 做引用计数，计数归零时删除 Mount Pod。
 * CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](./administration/upgrade-csi-driver.md)。
+
+在同一个节点上，一个 PVC 会对应一个 Mount Pod。PVC、PV、Mount Pod 之间的关系如下图所示：
+
+![](./images/mount-pod-architecture.svg)
 
 ## 使用方式 {#usage}
 

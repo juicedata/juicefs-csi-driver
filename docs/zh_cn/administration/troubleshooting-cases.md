@@ -16,6 +16,28 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 请回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)，尤其注意确认 kubelet 根目录正确设置。
 
+## CSI Node pod 异常
+
+如果 CSI Node pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 pod 事件中会看到如下错误日志：
+
+```
+/var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
+```
+
+此时需要[检查 CSI Node](./troubleshooting.md#check-csi-node)，确认其异常原因，并排查修复。
+
+## Mount Pod 异常
+
+常见错误比如 Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态。此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
+
+另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
+
+```
+Preempted in order to admit critical pod
+```
+
+Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+
 ## PVC 配置互相冲突，创建失败
 
 常见情况比如：两个 pod 分别使用各自的 PVC，但只有一个能创建成功。

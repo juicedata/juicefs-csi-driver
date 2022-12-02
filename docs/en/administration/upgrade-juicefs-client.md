@@ -8,7 +8,7 @@ Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements 
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 
-From v0.17.1 and above, CSI Driver supports customizing mount pod image, you can modify config and use the latest mount pod image to upgrade JuiceFS Client. This is all possible due to [the decoupling architecture of JuiceFS CSI Driver](../introduction.md).
+From v0.17.1 and above, CSI Driver supports customizing mount pod image, you can modify config and use the latest mount pod image to upgrade JuiceFS Client. This is all possible due to [the decoupling architecture of JuiceFS CSI Driver](../introduction.md#architecture).
 
 Find the latest mount pod image in [our image registry](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v), image tag format is `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`.
 

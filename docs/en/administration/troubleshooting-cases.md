@@ -16,6 +16,28 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 Thoroughly follow the steps in [Installation](../getting_started.md), pay special attention to kubelet root directory settings.
 
+## CSI Node pod failure
+
+If CSI Node pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application pod events:
+
+```
+/var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
+```
+
+[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot.
+
+## Mount Pod failure
+
+One of the most seen problems is mount pod stuck at `Pending` state, causing application pod to stuck as well at `ContainerCreating` state. When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Also, `Pending` state usually indicates problem with resource allocation.
+
+In addition, when kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
+
+```
+Preempted in order to admit critical pod
+```
+
+Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
+
 ## PVC creation failures due to configuration conflicts
 
 For example, two app pods try to use their own PVC, but only one runs well and the other can't get up.
