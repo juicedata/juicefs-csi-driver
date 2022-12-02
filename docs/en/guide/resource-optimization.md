@@ -39,6 +39,7 @@ spec:
       juicefs/mount-cpu-request: 100m
       juicefs/mount-memory-request: 500Mi
 ```
+
 ### Dynamic provisioning
 
 Set resource requests and limits in `StorageClass`:
@@ -60,9 +61,9 @@ parameters:
   juicefs/mount-memory-request: 500Mi
 ```
 
-If StorageClass is managed by Helm, you can define mount pod resources directly in `values.yaml:
+If StorageClass is managed by Helm, you can define mount pod resources directly in `values.yaml`:
 
-```yaml title="values.yaml"
+```yaml title="values.yaml" {5-12}
 storageClasses:
 - name: juicefs-sc
   enabled: true
@@ -246,7 +247,7 @@ parameters:
 
 ## Running CSI Node Service on select nodes {#csi-node-node-selector}
 
-JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md) for details.
+JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. Refer to [JuiceFS CSI Driver Architecture](../introduction.md#architecture) for details.
 
 By default, CSI Node Service (DaemonSet) will run on all nodes, users may want to run it only on nodes that really need to use JuiceFS, to further reduce resource usage.
 

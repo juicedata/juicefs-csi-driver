@@ -63,7 +63,7 @@ parameters:
 
 如果你使用 Helm 管理 StorageClass，则直接在 `values.yaml` 中定义：
 
-```yaml title="values.yaml"
+```yaml title="values.yaml" {5-12}
 storageClasses:
 - name: juicefs-sc
   enabled: true
@@ -247,7 +247,7 @@ parameters:
 
 ## 仅在某些节点上运行 CSI Node Service {#csi-node-node-selector}
 
-JuiceFS CSI 驱动的组件分为 CSI Controller、CSI Node Service 及 Mount Pod，详细可参考 [JuiceFS CSI 驱动架构](../introduction.md)。
+JuiceFS CSI 驱动的组件分为 CSI Controller、CSI Node Service 及 Mount Pod，详细可参考 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
 
 默认情况下，CSI Node Service（DaemonSet）会在所有 Kubernetes 节点上启动，如果希望进一步减少资源占用，则可按照本节介绍的方式，让 CSI Node 仅在实际需要使用 JuiceFS 的节点上启动。
 

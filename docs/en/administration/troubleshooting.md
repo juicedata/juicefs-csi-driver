@@ -4,7 +4,7 @@ slug: /troubleshooting
 sidebar_position: 5
 ---
 
-Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md), i.e. have a basic understanding of the roles of each CSI Driver component.
+Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md#architecture), i.e. have a basic understanding of the roles of each CSI Driver component.
 
 ## Basic principles for troubleshooting {#basic-principles}
 
@@ -86,7 +86,7 @@ kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.node
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-Or simply use this one-liner to print logs of the relevant CSI Node pod:
+Or simply use this one-liner to print logs of the relevant CSI Node pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
 
 ```shell
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
@@ -105,21 +105,31 @@ APP_POD_NAME=example-app-xxx-xxx
 
 # Find Node / PVC / PV name via application pod
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
-# If application pod uses multiple PV, below command only obtains the first one, adjust accordingly
+# If application pod uses multiple PVs, below command only obtains the first one, adjust accordingly.
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}'|awk '{print $1}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
 
 # Find mount pod via application pod
 MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
-# Check mount pod
+
+# Check mount pod state
 kubectl -n kube-system get po $MOUNT_POD_NAME
+
+# Check mount pod events
+kubectl -n kube-system describe po $MOUNT_POD_NAME
 
 # Print mount pod logs, which contain JuiceFS Client logs.
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
 # Find all mount pod for give PV
-kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount | grep $PV_ID
+kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
+```
+
+Or simply use this one-liner to print name of the relevant Mount Pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
+
+```shell
+kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')
 ```
 
 ## Seeking support

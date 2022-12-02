@@ -94,4 +94,4 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    juicefs-csi-node-v9tzb     3/3     Running   0          14m
    ```
 
-   Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
+   Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).

@@ -374,8 +374,8 @@ spec:
 
 JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 遭遇故障，重启或重新创建 Mount Pod 以后，应用容器也能继续工作。
 
-:::note
-挂载点自动恢复后，已经打开的文件无法访问，请在应用程序中做好重试，避免异常。
+:::note 注意
+挂载点自动恢复后，已经打开的文件无法继续访问，请在应用程序中做好重试，重新打开文件，避免异常。
 :::
 
 启用自动恢复，需要在应用 pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载信息传播给 pod：
