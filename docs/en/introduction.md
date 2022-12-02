@@ -1,8 +1,8 @@
 ---
-sidebar_label: Introduction
+title: Introduction
 ---
 
-# JuiceFS CSI Driver
+## Architecture {#architecture}
 
 [JuiceFS CSI Driver](https://github.com/juicedata/juicefs-csi-driver) implements the [CSI specification](https://github.com/container-storage-interface/spec/blob/master/spec.md), allowing JuiceFS to be integrated with container orchestration systems. Under Kubernetes, JuiceFS can provide storage service to pods via PersistentVolume.
 
