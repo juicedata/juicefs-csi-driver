@@ -99,6 +99,9 @@ If no errors are shown in the CSI Node logs, check if mount pod is working corre
 Finding corresponding mount pod via given application pod can be tedious, here's a series of commands to help you with this process:
 
 ```shell
+# In less complex situations, use below command to print logs for all mount pods
+kubectl -n kube-system logs -l app.kubernetes.io/name=juicefs-mount | grep -v "<WARNING>" | grep -v "<INFO>"
+
 # Application pod information will be used in below commands, save them as environment variables.
 APP_NS=default  # application pod namespace
 APP_POD_NAME=example-app-xxx-xxx

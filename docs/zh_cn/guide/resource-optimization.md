@@ -278,6 +278,7 @@ node:
 ```bash
 helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
+
 #### 通过 kubectl 安装
 
 在 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml) 中新增 `nodeSelector` 配置：
@@ -307,3 +308,20 @@ spec:
 ```shell
 kubectl apply -f k8s.yaml
 ```
+
+## 卸载 JuiceFS CSI Controller
+
+CSI Controller 的作用仅仅是[动态配置](./pv.md#dynamic-provisioning)下的初始化，因此，如果你完全不需要以动态配置方式使用 CSI 驱动，可以卸载 CSI Controller，仅留下 CSI Node Service：
+
+```shell
+kubectl -n kube-system delete sts juicefs-csi-controller
+```
+
+如果你使用 Helm 管理 CSI 驱动：
+
+```yaml title="values.yaml"
+controller:
+  enabled: false
+```
+
+考虑到 CSI Controller 消耗资源并不多，并不建议卸载，该实践仅供参考。
