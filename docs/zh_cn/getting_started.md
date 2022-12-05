@@ -7,7 +7,7 @@ title: 安装
 安装前，请先确认：
 
 * Kubernetes 集群是 1.14 及以上版本
-* 集群能从外网拉取镜像，比如 docker.io 和 quay.io，如果无法从这两个镜像仓库下载资源，考虑先[「搬运镜像」](./administration/offline.md#copy-images)。
+* 集群能从外网拉取镜像，比如 [Docker Hub](https://hub.docker.com) 和 [Quay](https://quay.io)，如果无法从这两个镜像仓库下载资源，考虑先[「搬运镜像」](./administration/offline.md#copy-images)。
 
 ### 通过 Helm 安装
 
