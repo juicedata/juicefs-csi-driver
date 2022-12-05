@@ -301,3 +301,20 @@ spec:
         ...
 ...
 ```
+
+## Uninstall CSI Controller
+
+The CSI Controller component exists for a single purpose: PV provisioning when using [Dynamic Provisioning](./pv.md#dynamic-provisioning). So if you have no use for dynamic provisioning, you can safely uninstall CSI Controller, leaving only CSI Node Service:
+
+```shell
+kubectl -n kube-system delete sts juicefs-csi-controller
+```
+
+If you're using Helm:
+
+```yaml title="values.yaml"
+controller:
+  enabled: false
+```
+
+Considering that CSI Controller doesn't really take up a lot of resources, this practice isn't really recommended, and only kept here as a reference.
