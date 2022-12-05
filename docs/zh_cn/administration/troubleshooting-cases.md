@@ -1,7 +1,7 @@
 ---
 title: 问题排查案例
 slug: /troubleshooting-cases
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先掌握[「基础问题排查思路」](./troubleshooting.md#basic-principles)。

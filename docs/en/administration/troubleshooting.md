@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting Methods
 slug: /troubleshooting
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md#architecture), i.e. have a basic understanding of the roles of each CSI Driver component.

@@ -10,7 +10,7 @@ title: 定制 Mount Pod 容器镜像
 
 本文档展示了如何自定义 Mount Pod 的容器镜像，关于如何构建 Mount Pod 的容器镜像请参考[文档](../development/build-juicefs-image.md#构建-juicefs-mount-pod-的容器镜像)。
 
-## 安装 CSI 驱动时覆盖默认容器镜像
+## 覆盖默认容器镜像 {#overwrite-mount-pod-image}
 
 JuiceFS CSI Node 启动时，在 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量可覆盖默认的 Mount Pod 镜像：
 

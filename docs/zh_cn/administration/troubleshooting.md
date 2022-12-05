@@ -1,7 +1,7 @@
 ---
 title: 问题排查方法
 slug: /troubleshooting
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
