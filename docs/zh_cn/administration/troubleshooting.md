@@ -99,6 +99,9 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 通过应用 pod 定位到 mount pod 的步骤稍显繁琐，因此我们准备了一系列快捷命令，帮你方便地获取信息：
 
 ```shell
+# 如果情况不复杂，可以直接用下方命令打印所有 mount pod 错误日志
+kubectl -n kube-system logs -l app.kubernetes.io/name=juicefs-mount | grep -v "<WARNING>" | grep -v "<INFO>"
+
 # 提前将应用 pod 信息存为环境变量
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=example-app-xxx-xxx
