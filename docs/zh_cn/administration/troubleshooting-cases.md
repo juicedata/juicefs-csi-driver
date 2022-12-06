@@ -124,10 +124,10 @@ JuiceFS 的高性能离不开其缓存设计，因此读性能发生问题时，
 # $APP_POD_NAME 是应用 pod 名称
 $ docker stats $(docker ps | grep $APP_POD_NAME | grep -v "pause" | awk '{print $1}')
 CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   BLOCK I/O   PIDS
-90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       0.00%     0B / 0B   0B / 0B     1
+90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
 ```
 
-注意到内存上限是 2GiB，而 `fio` 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然在 `docker stats` 观察到的内存占用尚未到达 2GiB 天花板，但实际上[页缓存也占用了 cgroup 内存额度](https://engineering.linkedin.com/blog/2016/08/don_t-let-linux-control-groups-uncontrolled)，导致内核已经无法建立页缓存，因此调整 Mount Pod 资源占用，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
+注意到内存上限是 2GiB，而 `fio` 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然在 `docker stats` 观察到的内存占用尚未到达 2GiB 天花板，但实际上[页缓存也占用了 cgroup 内存额度](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)，导致内核已经无法建立页缓存，因此调整 Mount Pod 资源占用，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
 
 此处为了方便，我们反方向调参，降低 `fio` 测试数据集大小，然后测得了理想的结果：
 
