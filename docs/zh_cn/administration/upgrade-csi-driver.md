@@ -1,7 +1,7 @@
 ---
 title: 升级 JuiceFS CSI 驱动
 slug: /upgrade-csi-driver
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。如果你希望仅升级 JuiceFS 客户端，参考[「升级 JuiceFS 客户端」](./upgrade-juicefs-client.md)。
