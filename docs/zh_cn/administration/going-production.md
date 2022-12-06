@@ -1,5 +1,5 @@
 ---
-title: 生产化梳理
+title: 生产环境部署建议
 sidebar_position: 1
 ---
 
@@ -10,7 +10,7 @@ sidebar_position: 1
 在生产环境中，推荐这样设置 PV：
 
 * 启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)
-* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故（详见[「客户端写缓存（云服务）」](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)或[「客户端写缓存（社区版）」](https://juicefs.com/docs/zh/community/cache_management#writeback)）
+* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](https://juicefs.com/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)。
 
 ## 在 EFK 中收集 Mount Pod 日志
 
@@ -22,7 +22,7 @@ CSI 驱动的问题排查，往往涉及到查看 Mount Pod 日志。如果[实�
 
 Mount Pod 均包含固定的 `app.kubernetes.io/name: juicefs-mount` 标签。在 Fluentd 的配置文件中可以配置收集对应标签的日志：
 
-```xml
+```html
 <filter kubernetes.**>
   @id filter_log
   @type grep

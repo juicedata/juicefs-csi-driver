@@ -1,5 +1,5 @@
 ---
-title: Going Production
+title: Production Deployment Recommendations
 sidebar_position: 1
 ---
 
@@ -10,7 +10,7 @@ Best practices and recommended settings when going production.
 Below settings are recommended for a production environment.
 
 * Enable [Automatic Mount Point Recovery](../guide/pv.md#automatic-mount-point-recovery)
-* `--writeback` is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See [Write Cache in Client (Cloud Service)](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache) and [Write Cache in Client (Community Edition)](https://juicefs.com/docs/community/cache_management/#writeback)
+* The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](https://juicefs.com/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache).
 
 ## Collect mount pod logs using EFK
 
@@ -22,7 +22,7 @@ Troubleshooting CSI Driver usually involves reading mount pod logs, if [checking
 
 Mount pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
 
-```xml
+```html
 <filter kubernetes.**>
   @id filter_log
   @type grep
