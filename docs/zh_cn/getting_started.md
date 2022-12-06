@@ -4,11 +4,12 @@ title: 安装
 
 ## 安装 JuiceFS CSI 驱动
 
-JuiceFS CSI 驱动需要 Kubernetes 1.14 及以上版本，通过以下方法进行安装。
+安装前，请先确认：
+
+* Kubernetes 集群是 1.14 及以上版本
+* 集群能从外网拉取镜像，比如 [Docker Hub](https://hub.docker.com) 和 [Quay](https://quay.io)，如果无法从这两个镜像仓库下载资源，考虑先[「搬运镜像」](./administration/offline.md#copy-images)。
 
 ### 通过 Helm 安装
-
-Helm 是 Kubernetes 的包管理器，Chart 则是 Helm 管理的包。你可以把它看作是 Homebrew、APT 或 YUM 在 Kubernetes 中的等价物。
 
 安装 JuiceFS CSI 驱动需要用 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
 
