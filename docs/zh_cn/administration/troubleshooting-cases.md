@@ -127,7 +127,7 @@ CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   B
 90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       0.00%     0B / 0B   0B / 0B     1
 ```
 
-注意到内存上限是 2GiB，而 `fio` 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然内存占用尚未到达 2GiB 天花板，但由于内核、Cgroups 的管理机制，已经无法建立页缓存，因此调整 Mount Pod 资源占用，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
+注意到内存上限是 2GiB，而 `fio` 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然在 `docker stats` 观察到的内存占用尚未到达 2GiB 天花板，但实际上[页缓存也占用了 cgroup 内存额度](https://engineering.linkedin.com/blog/2016/08/don_t-let-linux-control-groups-uncontrolled)，导致内核已经无法建立页缓存，因此调整 Mount Pod 资源占用，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
 
 此处为了方便，我们反方向调参，降低 `fio` 测试数据集大小，然后测得了理想的结果：
 
@@ -147,3 +147,5 @@ $ fio -directory=. \
 ...
    READ: bw=12.4GiB/s (13.3GB/s), 12.4GiB/s-12.4GiB/s (13.3GB/s-13.3GB/s), io=1492GiB (1602GB), run=120007-120007msec
 ```
+
+结论：**在容器内使用 JuiceFS，内存上限应大于所访问的数据集大小，否则将无法建立页缓存，损害读性能。**
