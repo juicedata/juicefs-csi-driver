@@ -139,12 +139,12 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 
 如果使用 CSI 驱动时，各组件均无异常，但却遇到了性能问题，则需要用到本节介绍的排查方法。
 
-#### 查看实时统计数据，以及访问日志 {#accesslog-and-stats}
+#### 查看实时统计数据以及访问日志 {#accesslog-and-stats}
 
 JuiceFS 文件系统的根目录下有一些提供特殊功能的隐藏文件，假设挂载点为 `/jfs`：
 
-* `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（商业版）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)和[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)。
-* `cat /jfs/.stats` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)以及[「JuiceFS Stats（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)。
+* `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)和[「访问日志（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)。
+* `cat /jfs/.stats` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)和[「实时统计数据（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)。
 
 在 CSI 驱动下，Mount Pod 会将 JuiceFS 根目录挂载到形如 `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx` 的目录下，再通过 Kubernetes 的 bind 机制映射到容器内，因此，对于给定应用 Pod，你可以参考下方命令，找到其 PV 的宿主机挂载点，然后查看隐藏文件：
 
@@ -157,8 +157,9 @@ APP_POD_NAME=example-app-xxx-xxx
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 
-# 通过 PV ID 查找宿主机挂载点
+# 通过 PV 名查找宿主机挂载点
 df -h | grep $PV_NAME
+
 # 一行命令进入宿主机挂载点
 cd $(df -h | grep $PV_NAME | awk '{print $NF}')
 
@@ -169,9 +170,9 @@ cat .stats
 
 本节仅介绍如何在 CSI 驱动中定位到隐藏文件，而如何通过隐藏文件进行问题排查，是一个单独的话题，请参考以下内容：
 
-* CSI 驱动问题排查案例：[「读性能差」](./troubleshooting-cases.md#bad-read-performance)
-* [「访问日志（商业版）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)、[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)
-* [「实时统计数据」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)、[「JuiceFS Stats（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)
+* CSI 驱动问题排查案例：[读性能差](./troubleshooting-cases.md#bad-read-performance)
+* 访问日志：[社区版](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)、[云服务](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)
+* 实时统计数据：[社区版](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)、[云服务](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)
 
 ## 寻求帮助
 
