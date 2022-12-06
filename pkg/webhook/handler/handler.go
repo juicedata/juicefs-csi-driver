@@ -92,6 +92,7 @@ func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 	return nil
 }
 
+// GetVolume get juicefs pv & pvc from pod
 func (s *SidecarHandler) GetVolume(pod corev1.Pod) (used bool, pvGot *corev1.PersistentVolume, pvcGot *corev1.PersistentVolumeClaim, err error) {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
