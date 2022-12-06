@@ -12,7 +12,7 @@ By default, the container image of the JuiceFS Mount Pod is `juicedata/mount:v<J
 
 This document shows how to customize the container image of Mount Pod. For how to build the container image of Mount Pod, please refer to [document](../development/build-juicefs-image.md#build-the-container-image-of-juicefs-mount-pod).
 
-## Overwrite default container image when installing CSI Driver
+## Overwrite default container image {#overwrite-mount-pod-image}
 
 When the JuiceFS CSI Node starts, setting the `JUICEFS_MOUNT_IMAGE` environment variable in the `juicefs-plugin` container can override the default Mount Pod image:
 

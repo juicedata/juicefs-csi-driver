@@ -18,6 +18,7 @@ import re
 import string
 import subprocess
 import time
+from pathlib import Path
 
 from kubernetes import client
 
@@ -75,7 +76,7 @@ def mount_on_host(mount_path):
 
 
 def umount(mount_path):
-    subprocess.run(["sudo", "umount", mount_path])
+    subprocess.run(["sudo", "umount", mount_path, "-l"])
 
 
 def check_mount_point(check_path):
@@ -225,7 +226,12 @@ def tear_down():
 
 
 def clean_juicefs_volume():
-    subprocess.run(["sudo", "rm", "-rf", GLOBAL_MOUNTPOINT + "/*"])
+    visible_files = [file for file in Path(GLOBAL_MOUNTPOINT).iterdir() if not file.name.startswith(".")]
+    if len(visible_files) != 0:
+        if IS_CE:
+            subprocess.check_call(["/usr/local/bin/juicefs rmr " + GLOBAL_MOUNTPOINT + "/*"], shell=True)
+        else:
+            subprocess.check_call(["/usr/bin/juicefs rmr " + GLOBAL_MOUNTPOINT + "/*"], shell=True)
 
 
 def gen_random_string(slen=10):

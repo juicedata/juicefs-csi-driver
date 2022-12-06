@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting Cases
 slug: /troubleshooting-cases
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 Debugging process for some frequently encountered problems, you can search for your issue using error keywords. Also, we recommend you to have a firm grasp on [Basic principles for troubleshooting](./troubleshooting.md#basic-principles).
