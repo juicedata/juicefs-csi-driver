@@ -66,6 +66,11 @@ image-nightly:
 		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         -t $(IMAGE):nightly -f docker/Dockerfile .
 
+# push nightly image
+.PHONY: image-nightly-push
+image-nightly-push:
+	docker push $(IMAGE):nightly
+
 # build & push nightly image
 .PHONY: image-nightly-buildx
 image-nightly-buildx:
@@ -217,9 +222,10 @@ juicefs-image-latest:
 # build & push juicefs nightly image
 .PHONY: juicefs-image-nightly
 juicefs-image-nightly:
-	docker buildx build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
+	docker build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         --build-arg JUICEFS_REPO_REF=main \
-		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
+		--build-arg=JFS_AUTO_UPGRADE=disabled .
+	docker push $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE)
 
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
