@@ -1,7 +1,7 @@
 ---
 title: 升级 JuiceFS 客户端
 slug: /upgrade-juicefs-client
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 我们推荐你定期升级 JuiceFS 客户端，以享受到最新特性和问题修复，请参考[「社区版客户端发布说明」](https://github.com/juicedata/juicefs/releases)或[「云服务客户端发布说明」](https://juicefs.com/docs/zh/cloud/release)了解更多版本信息。事实上，[「升级 JuiceFS CSI 驱动」](./upgrade-csi-driver.md)也可能会带来客户端更新，但如果你不希望升级 CSI 驱动，可以用本章介绍的方法单独升级 JuiceFS 客户端。

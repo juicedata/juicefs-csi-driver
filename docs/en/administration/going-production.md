@@ -1,27 +1,28 @@
 ---
-slug: /collect-mount-pod-logs
-sidebar_label: Collect Mount Pod Logs
-sidebar_position: 4
+title: Going Production
+sidebar_position: 1
 ---
 
-# How to collect Mount Pod logs in Kubernetes
+Best practices and recommended settings when going production.
 
-When the application pod fails to start or an exception occurs, it is usually necessary to view the logs of the JuiceFS client (Mount Pod) to troubleshoot.
-This document describes how to collect logs that preserve JuiceFS Mount Pods in a Kubernetes environment.
+## PV settings
 
-## Build EFK stack
+Below settings are recommended for a production environment.
 
-We can build an EFK (Elasticsearch + Fluentd + Kibana) stack in Kubernetes Cluster to collect Pod logs.
+* Enable [Automatic Mount Point Recovery](../guide/pv.md#automatic-mount-point-recovery)
+* `--writeback` is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See [Write Cache in Client (Cloud Service)](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache) and [Write Cache in Client (Community Edition)](https://juicefs.com/docs/community/cache_management/#writeback)
+
+## Collect mount pod logs using EFK
+
+Troubleshooting CSI Driver usually involves reading mount pod logs, if [checking mount pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
 
 - Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, please refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
 - Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, please refer to the [official documentation](https://docs.fluentd.org/installation).
 - Kibana: visual analysis of logs, including log search, processing, and gorgeous dashboard display, etc. For installation, please refer to the [official documentation](https://www.elastic.co/guide/en/kibana/current/install.html).
 
-## Collect logs of Mount Pod
+Mount pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
 
-When the JuiceFS CSI driver creates a Mount Pod, it adds label `app.kubernetes.io/name: juicefs-mount` to Mount Pod. In Fluentd's configuration file, you can add the following config:
-
-```html
+```xml
 <filter kubernetes.**>
   @id filter_log
   @type grep
@@ -32,7 +33,7 @@ When the JuiceFS CSI driver creates a Mount Pod, it adds label `app.kubernetes.i
 </filter>
 ```
 
-At the same time, the following parser plugin can be added to the Fluentd configuration file:
+And add the following parser plugin to the Fluentd configuration file:
 
 ```html
 <filter kubernetes.**>
