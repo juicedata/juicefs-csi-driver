@@ -4,11 +4,9 @@ slug: /ceph
 
 # 使用 librados 访问 Ceph 集群
 
-如果使用 [Ceph](https://ceph.io/) 作为 JucieFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw/)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
+如果使用 [Ceph](https://ceph.io/) 作为 JuiceFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw/)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
 
-JuiceFS CSI Driver 从 v0.10.0 版本开始支持向 JuiceFS 提供配置文件，更多细节可以参考文档[「如何在 Mount Pod 中设置配置文件和环境变量」](../examples/config-and-env.md)。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件传递给运行在 Kubernetes 中的 JuiceFS mount 进程。
-
-这篇文档来描述如何在 Kubernetes 中使用 `librados` 访问 Ceph 集群。
+JuiceFS CSI 驱动支持[「为 Mount Pod 额外添加文件」](../guide/pv.md#mount-pod-extra-files)。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件导入 Mount Pod。
 
 ## 使用 Ceph 存储创建 JuiceFS volume
 
