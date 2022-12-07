@@ -231,7 +231,12 @@ def clean_juicefs_volume():
         if IS_CE:
             subprocess.check_call(["/usr/local/bin/juicefs rmr " + GLOBAL_MOUNTPOINT + "/*"], shell=True)
         else:
-            subprocess.check_call(["/usr/bin/juicefs rmr " + GLOBAL_MOUNTPOINT + "/*"], shell=True)
+            # only delete files out of 3 days
+            for file in visible_files:
+                f_time = file.stat().st_ctime
+                now = time.time()
+                if now - f_time > 3600 * 24 * 3:
+                    subprocess.check_call(["/usr/local/bin/juicefs", "rmr", str(file)], shell=False)
 
 
 def gen_random_string(slen=10):
