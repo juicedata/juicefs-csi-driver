@@ -15,7 +15,7 @@
 import logging
 import os
 
-KUBE_SYSTEM = "default"
+KUBE_SYSTEM = "kube-system"
 META_URL = os.getenv("JUICEFS_META_URL") or ""
 ACCESS_KEY = os.getenv("JUICEFS_ACCESS_KEY") or ""
 SECRET_KEY = os.getenv("JUICEFS_SECRET_KEY") or ""
