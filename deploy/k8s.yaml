@@ -241,7 +241,8 @@ spec:
         app.kubernetes.io/version: master
     spec:
       containers:
-      - args:
+      - name: juicefs-plugin
+        args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_NAME)
@@ -280,7 +281,6 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 3
-        name: juicefs-plugin
         ports:
         - containerPort: 9909
           name: healthz
@@ -306,7 +306,8 @@ spec:
         - mountPath: /root/.juicefs
           mountPropagation: Bidirectional
           name: jfs-root-dir
-      - args:
+      - name: csi-provisioner
+        args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
         - --v=5
@@ -314,11 +315,11 @@ spec:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
         image: quay.io/k8scsi/csi-provisioner:v1.6.0
-        name: csi-provisioner
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
-      - args:
+      - name: liveness-probe
+        args:
         - --csi-address=$(ADDRESS)
         - --health-port=$(HEALTH_PORT)
         env:
@@ -327,7 +328,6 @@ spec:
         - name: HEALTH_PORT
           value: "9909"
         image: quay.io/k8scsi/livenessprobe:v1.1.0
-        name: liveness-probe
         volumeMounts:
         - mountPath: /csi
           name: socket-dir
@@ -375,7 +375,8 @@ spec:
         app.kubernetes.io/version: master
     spec:
       containers:
-      - args:
+      - name: juicefs-plugin
+        args:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_NAME)
@@ -422,7 +423,6 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 3
-        name: juicefs-plugin
         ports:
         - containerPort: 9909
           name: healthz
@@ -450,7 +450,8 @@ spec:
         - mountPath: /root/.juicefs
           mountPropagation: Bidirectional
           name: jfs-root-dir
-      - args:
+      - name: node-driver-registrar
+        args:
         - --csi-address=$(ADDRESS)
         - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
         - --v=5
@@ -460,13 +461,13 @@ spec:
         - name: DRIVER_REG_SOCK_PATH
           value: /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock
         image: quay.io/k8scsi/csi-node-driver-registrar:v2.1.0
-        name: node-driver-registrar
         volumeMounts:
         - mountPath: /csi
           name: plugin-dir
         - mountPath: /registration
           name: registration-dir
-      - args:
+      - name: liveness-probe
+        args:
         - --csi-address=$(ADDRESS)
         - --health-port=$(HEALTH_PORT)
         env:
@@ -475,7 +476,6 @@ spec:
         - name: HEALTH_PORT
           value: "9909"
         image: quay.io/k8scsi/livenessprobe:v1.1.0
-        name: liveness-probe
         volumeMounts:
         - mountPath: /csi
           name: plugin-dir
