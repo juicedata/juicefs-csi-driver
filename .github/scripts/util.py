@@ -37,7 +37,7 @@ def check_do_test():
 
 def die(e):
     csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
-    if csi_node_name != "":
+    if csi_node_name is not None or csi_node_name != "":
         po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
         LOG.info("Get csi node log:")
         LOG.info(po.get_log("juicefs-plugin"))
