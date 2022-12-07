@@ -107,7 +107,7 @@ sidecars:
 
 ### kubectl
 
-对 `k8s.yaml` 中部分镜像进行替换：
+对 `k8s.yaml` 中部分镜像进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
 
 ```shell
 sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.0.2@' k8s.yaml
