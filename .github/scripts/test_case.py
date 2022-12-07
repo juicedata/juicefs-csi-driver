@@ -774,7 +774,7 @@ def test_deployment_dynamic_patch_pv():
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # patch pv
-    subdir = "aaa"
+    subdir = gen_random_string(6)
     pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
@@ -898,7 +898,7 @@ def test_deployment_static_patch_pv():
         raise Exception("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     # patch pv
-    subdir = "aaa"
+    subdir = gen_random_string(6)
     pv_name = pv.name
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options.append("subdir={}".format(subdir))
