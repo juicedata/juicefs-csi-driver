@@ -88,6 +88,12 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
 
+需要替换的镜像如下，请通过下方链接所致的网页，确定各镜像合适的版本：
+
+* quay.io/k8scsi/livenessprobe 替换为 [k8s.gcr.io/sig-storage/livenessprobe](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)
+* quay.io/k8scsi/csi-provisioner 替换为 [k8s.gcr.io/sig-storage/csi-provisioner](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)
+* quay.io/k8scsi/csi-node-driver-registrar 替换为 [k8s.gcr.io/sig-storage/csi-node-driver-registrar](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions)
+
 ### Helm
 
 在 `values.yaml` 中增加 `sidecars` 配置，用于覆盖容器镜像：

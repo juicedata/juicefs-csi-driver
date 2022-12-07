@@ -98,6 +98,12 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 From v0.11.1 and above, JuiceFS CSI Driver supports using container images in the ARM64 environment, if you are faced with an ARM64 cluster, you need to change some image tags before installation. No other steps are required for ARM64 environments.
 
+Images that need to replaced is listed below, find our the suitable version for your cluster via the links:
+
+* replace quay.io/k8scsi/livenessprobe with [k8s.gcr.io/sig-storage/livenessprobe](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)
+* replace quay.io/k8scsi/csi-provisioner with [k8s.gcr.io/sig-storage/csi-provisioner](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)
+* replace quay.io/k8scsi/csi-node-driver-registrar with [k8s.gcr.io/sig-storage/csi-node-driver-registrar](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions)
+
 ### Helm
 
 Add `sidecars` to `values.yaml`, to overwrite selected images:
