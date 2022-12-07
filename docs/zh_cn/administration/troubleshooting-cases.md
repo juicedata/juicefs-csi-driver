@@ -77,3 +77,79 @@ format: NOAUTH Authentication requested.
 ```
 
 你需要确认元数据引擎 URL 是否正确填写了密码，具体格式请参考[「使用 Redis 作为元数据引擎」](https://juicefs.com/docs/zh/community/databases_for_metadata#redis)。
+
+## 性能问题 {#performance-issue}
+
+相比直接在宿主机上挂载 JuiceFS，CSI 驱动功能更为强大，但也无疑额外增加了复杂度。这里仅介绍一些 CSI 驱动下的特定问题，如果你怀疑所遭遇的性能问题与 CSI 驱动无关，请进一步参考[「社区版」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis)和[「云服务」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis)的文档学习相关排查方法。
+
+### 读性能差 {#bad-read-performance}
+
+以一个简单的 fio 测试为例，说明在 CSI 驱动下可能面临着怎样的性能问题，以及排查路径。
+
+测试所用的命令，涉及数据集大小为 5 * 500MB = 2.5GB，测得的结果不尽如人意：
+
+```shell
+$ fio -directory=. \
+  -ioengine=mmap \
+  -rw=randread \
+  -bs=4k \
+  -group_reporting=1 \
+  -fallocate=none \
+  -time_based=1 \
+  -runtime=120 \
+  -name=test_file \
+  -nrfiles=1 \
+  -numjobs=5 \
+  -size=500MB
+...
+  READ: bw=9896KiB/s (10.1MB/s), 9896KiB/s-9896KiB/s (10.1MB/s-10.1MB/s), io=1161MiB (1218MB), run=120167-120167msec
+```
+
+遇到性能问题，首先查看[「实时统计数据」](./troubleshooting.md#accesslog-and-stats)。在测试期间，实时监控数据大体如下：
+
+```shell
+$ juicefs stats /var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx
+------usage------ ----------fuse--------- ----meta--- -blockcache remotecache ---object--
+ cpu   mem   buf | ops   lat   read write| ops   lat | read write| read write| get   put
+ 302%  287M   24M|  34K 0.07   139M    0 |   0     0 |7100M    0 |   0     0 |   0     0
+ 469%  287M   29M|  23K 0.10    92M    0 |   0     0 |4513M    0 |   0     0 |   0     0
+...  # 后续数据与上方相似
+```
+
+JuiceFS 的高性能离不开其缓存设计，因此读性能发生问题时，我们首先关注 `blockcache` 相关指标，也就是磁盘上的数据块缓存文件。注意到上方数据中，`blockcache.read` 一直大于 0，这说明内核没能建立页缓存（Page Cache），所有的读请求都穿透到了位于磁盘的 Block Cache。内核页缓存位于内存，而 Block Cache 位于磁盘，二者的读性能相差极大，读请求持续穿透到磁盘，必定造成较差的性能，因此接下来调查内核缓存为何没能建立。
+
+同样的情况如果发生在宿主机，我们会去看宿主机的内存占用情况，首先确认是否因为内存不足，没有足够空间建立页缓存。在容器中也是类似的，定位到 Mount Pod 对应的 Docker 容器，然后查看其资源占用：
+
+```shell
+# $APP_POD_NAME 是应用 pod 名称
+$ docker stats $(docker ps | grep $APP_POD_NAME | grep -v "pause" | awk '{print $1}')
+CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   BLOCK I/O   PIDS
+90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
+```
+
+注意到内存上限是 2GiB，而 fio 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然在 `docker stats` 观察到的内存占用尚未到达 2GiB 天花板，但实际上[页缓存也占用了 cgroup 内存额度](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)，导致内核已经无法建立页缓存，因此调整 [Mount Pod 资源占用](../guide/resource-optimization.md#mount-pod-resources)，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
+
+:::note
+`docker stats` 在 cgroup v1/v2 下有着不同的统计口径，v1 不包含内核页缓存，v2 则包含。本案例在 cgroup v1 下运行，但不影响排查思路与结论。
+:::
+
+此处为了方便，我们反方向调参，降低 fio 测试数据集大小，然后测得了理想的结果：
+
+```shell
+$ fio -directory=. \
+  -ioengine=mmap \
+  -rw=randread \
+  -bs=4k \
+  -group_reporting=1 \
+  -fallocate=none \
+  -time_based=1 \
+  -runtime=120 \
+  -name=test_file \
+  -nrfiles=1 \
+  -numjobs=5 \
+  -size=100MB
+...
+   READ: bw=12.4GiB/s (13.3GB/s), 12.4GiB/s-12.4GiB/s (13.3GB/s-13.3GB/s), io=1492GiB (1602GB), run=120007-120007msec
+```
+
+结论：**在容器内使用 JuiceFS，内存上限应大于所访问的数据集大小，否则将无法建立页缓存，损害读性能。**
