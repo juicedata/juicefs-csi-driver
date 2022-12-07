@@ -146,7 +146,7 @@ JuiceFS 文件系统的根目录下有一些提供特殊功能的隐藏文件，
 * `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)和[「访问日志（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)。
 * `cat /jfs/.stats` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)和[「实时统计数据（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)。
 
-在 CSI 驱动下，Mount Pod 会将 JuiceFS 根目录挂载到形如 `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx` 的目录下，再通过 Kubernetes 的 bind 机制映射到容器内，因此，对于给定应用 Pod，你可以参考下方命令，找到其 PV 的宿主机挂载点，然后查看隐藏文件：
+Mount Pod 会将 JuiceFS 根目录挂载到形如 `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx` 的目录下，再通过 Kubernetes 的 bind 机制映射到容器内，因此，对于给定应用 Pod，你可以参考下方命令，找到其 PV 的宿主机挂载点，然后查看隐藏文件：
 
 ```shell
 # 提前将应用 pod 信息存为环境变量

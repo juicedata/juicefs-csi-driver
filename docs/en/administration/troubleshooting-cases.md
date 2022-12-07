@@ -77,3 +77,79 @@ format: NOAUTH Authentication requested.
 ```
 
 Make sure you've specified the correct password in the metadata engine URL, as described in [using Redis as metadata engine](https://juicefs.com/docs/community/databases_for_metadata/#redis).
+
+## Performance issues {#performance-issue}
+
+Compared to using JuiceFS directly on a host mount point, CSI Driver provides powerful functionalities but also comes with higher complexities. This section only covers issues that are specific to CSI Driver, if you suspect your problem at hand isn't related to CSI Driver, learn to debug JuiceFS itself in [Community Edition](https://juicefs.com/docs/community/fault_diagnosis_and_analysis) and [Cloud Service](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis).
+
+### Bad read performance {#bad-read-performance}
+
+We'll demonstrate a typical performance issue and troubleshooting path under the CSI Driver, using a simple fio test as example.
+
+The actual fio command involves 5 * 500MB = 2.5GB of data, reaching a not particularly satisfying result:
+
+```shell
+$ fio -directory=. \
+  -ioengine=mmap \
+  -rw=randread \
+  -bs=4k \
+  -group_reporting=1 \
+  -fallocate=none \
+  -time_based=1 \
+  -runtime=120 \
+  -name=test_file \
+  -nrfiles=1 \
+  -numjobs=5 \
+  -size=500MB
+...
+  READ: bw=9896KiB/s (10.1MB/s), 9896KiB/s-9896KiB/s (10.1MB/s-10.1MB/s), io=1161MiB (1218MB), run=120167-120167msec
+```
+
+When encountered with performance issues, take a look at [Real-time statistics](./troubleshooting.md#accesslog-and-stats), the stats during our fio test looks like:
+
+```shell
+$ juicefs stats /var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx
+------usage------ ----------fuse--------- ----meta--- -blockcache remotecache ---object--
+ cpu   mem   buf | ops   lat   read write| ops   lat | read write| read write| get   put
+ 302%  287M   24M|  34K 0.07   139M    0 |   0     0 |7100M    0 |   0     0 |   0     0
+ 469%  287M   29M|  23K 0.10    92M    0 |   0     0 |4513M    0 |   0     0 |   0     0
+...
+```
+
+Read performance really depends on cache, so when read performance isn't ideal, pay special attention to the `blockcache` related metrics, block cache is data blocks cached on disk, notice how `blockcache.read` is always larger than 0 in the above data, this means kernel page cache isn't built, thus all read requests is handled by the slower disk reads. Now we will investigate why page cache won't build.
+
+Similar to what we'll do on a host, let's first check the mount pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the docker container for our mount pod, and see its stats:
+
+```shell
+# change $APP_POD_NAME to actual application pod name
+$ docker stats $(docker ps | grep $APP_POD_NAME | grep -v "pause" | awk '{print $1}')
+CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   BLOCK I/O   PIDS
+90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
+```
+
+Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application pod, and then try again.
+
+:::note
+`docker stats` counts memory usage differently under cgroup v1/v2, v1 does not include kernel page cache while v2 does, the case described here is carried out under cgroup v1, but it doesn't affect the troubleshooting thought process and conclusion.
+:::
+
+For convenience's sake, we'll simply lower the data size for the fio test command, which is then able to achieve the perfect result:
+
+```shell
+$ fio -directory=. \
+  -ioengine=mmap \
+  -rw=randread \
+  -bs=4k \
+  -group_reporting=1 \
+  -fallocate=none \
+  -time_based=1 \
+  -runtime=120 \
+  -name=test_file \
+  -nrfiles=1 \
+  -numjobs=5 \
+  -size=100MB
+...
+   READ: bw=12.4GiB/s (13.3GB/s), 12.4GiB/s-12.4GiB/s (13.3GB/s-13.3GB/s), io=1492GiB (1602GB), run=120007-120007msec
+```
+
+Conclusion: **When using JuiceFS inside containers, memory limit should be larger than the target data set for Linux kernel to fully build the page cache.**

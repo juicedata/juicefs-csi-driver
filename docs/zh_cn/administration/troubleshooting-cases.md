@@ -118,7 +118,7 @@ $ juicefs stats /var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx
 
 JuiceFS 的高性能离不开其缓存设计，因此读性能发生问题时，我们首先关注 `blockcache` 相关指标，也就是磁盘上的数据块缓存文件。注意到上方数据中，`blockcache.read` 一直大于 0，这说明内核没能建立页缓存（Page Cache），所有的读请求都穿透到了位于磁盘的 Block Cache。内核页缓存位于内存，而 Block Cache 位于磁盘，二者的读性能相差极大，读请求持续穿透到磁盘，必定造成较差的性能，因此接下来调查内核缓存为何没能建立。
 
-同样的情况如果发生在宿主机，我们会去看宿主机的内存占用情况，首先确认是否因为内存不足，没有足够空间建立页缓存。在容器中也是类似的，定位到 Kubernetes Pod 对应的 Docker 容器，然后查看其资源占用：
+同样的情况如果发生在宿主机，我们会去看宿主机的内存占用情况，首先确认是否因为内存不足，没有足够空间建立页缓存。在容器中也是类似的，定位到 Mount Pod 对应的 Docker 容器，然后查看其资源占用：
 
 ```shell
 # $APP_POD_NAME 是应用 pod 名称
@@ -128,6 +128,10 @@ CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   B
 ```
 
 注意到内存上限是 2GiB，而 fio 面对的数据集是 2.5G，已经超出了容器内存限制。此时，虽然在 `docker stats` 观察到的内存占用尚未到达 2GiB 天花板，但实际上[页缓存也占用了 cgroup 内存额度](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)，导致内核已经无法建立页缓存，因此调整 [Mount Pod 资源占用](../guide/resource-optimization.md#mount-pod-resources)，增大 Memory Limits，然后重建 PVC、应用 Pod，然后再次运行测试。
+
+:::note
+`docker stats` 在 cgroup v1/v2 下有着不同的统计口径，v1 不包含内核页缓存，v2 则包含。本案例在 cgroup v1 下运行，但不影响排查思路与结论。
+:::
 
 此处为了方便，我们反方向调参，降低 fio 测试数据集大小，然后测得了理想的结果：
 
