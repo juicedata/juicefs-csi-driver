@@ -39,7 +39,8 @@ spec:
         app: juicefs-writer
     spec:
       containers:
-      - args:
+      - name: app
+        args:
         - -o
         - errexit
         - -c
@@ -47,7 +48,6 @@ spec:
         command:
         - /bin/sh
         image: busybox
-        name: app
         volumeMounts:
         - mountPath: /jfs
           name: juicefs-pv
@@ -72,7 +72,8 @@ spec:
         app: juicefs-reader
     spec:
       containers:
-      - args:
+      - name: app
+        args:
         - -o
         - errexit
         - -c
@@ -80,7 +81,6 @@ spec:
         command:
         - /bin/sh
         image: busybox
-        name: app
         volumeMounts:
         - mountPath: /jfs
           name: juicefs-pv

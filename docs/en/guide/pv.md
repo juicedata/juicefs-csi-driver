@@ -193,13 +193,13 @@ metadata:
   namespace: default
 spec:
   containers:
-  - args:
+  - name: app
+    args:
     - -c
     - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
     command:
     - /bin/sh
     image: centos
-    name: app
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
@@ -232,13 +232,13 @@ metadata:
   namespace: default
 spec:
   containers:
-  - args:
+  - name: app
+    args:
     - -c
     - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
     command:
     - /bin/sh
     image: centos
-    name: app
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
@@ -323,13 +323,13 @@ metadata:
   namespace: default
 spec:
   containers:
-  - args:
+  - name: app
+    args:
     - -c
     - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
     command:
     - /bin/sh
     image: centos
-    name: app
     volumeMounts:
     - mountPath: /data
       name: data
