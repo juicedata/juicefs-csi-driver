@@ -2,11 +2,9 @@
 title: Installation
 ---
 
-## Installing JuiceFS CSI Driver
-
 JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to install.
 
-### Install via Helm
+## Helm
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
@@ -49,7 +47,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
-### Install via kubectl
+## kubectl
 
 1. Check kubelet root directory
 
@@ -95,3 +93,34 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    ```
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
+
+## ARM64 caveats
+
+From v0.11.1 and above, JuiceFS CSI Driver supports using container images in the ARM64 environment, if you are faced with an ARM64 cluster, you need to change some image tags before installation. No other steps are required for ARM64 environments.
+
+### Helm
+
+Add `sidecars` to `values.yaml`, to overwrite selected images:
+
+```yaml
+sidecars:
+  livenessProbeImage:
+    repository: k8s.gcr.io/sig-storage/livenessprobe
+    tag: "v2.2.0"
+  nodeDriverRegistrarImage:
+    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
+    tag: "v2.0.1"
+  csiProvisionerImage:
+    repository: k8s.gcr.io/sig-storage/csi-provisioner
+    tag: "v2.0.2"
+```
+
+### kubectl
+
+Replace some container images in `k8s.yaml`:
+
+```shell
+sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.0.2@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.2.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1@' k8s.yaml
+```
