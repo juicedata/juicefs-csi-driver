@@ -11,6 +11,7 @@ function main() {
 }
 
 function deploy_csi() {
+  sudo microk8s.kubectl label ns default juicefs.com/enable-injection=false
   deployMode=$1
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/$deployMode | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
     -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' | sudo microk8s.kubectl apply -f -
@@ -46,6 +47,7 @@ function deploy_csi() {
 }
 
 function deploy_webhook() {
+  sudo microk8s.kubectl label ns default juicefs.com/enable-injection=true
   ds=$(sudo microk8s.kubectl get ds -n kube-system | grep juicefs-csi-node | wc -l)
   if [ $ds -gt 0 ]; then
     sudo microk8s.kubectl -n kube-system delete ds juicefs-csi-node
