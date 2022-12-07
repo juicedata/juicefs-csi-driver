@@ -165,7 +165,7 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 ### Adding extra files into mount pod {#mount-pod-extra-files}
 
-Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to store these files in another Kubernetes Secret, and reference it in `juicefs-secret, so that CSI Driver know how to mount these files into the mount pod, and use it for authentication during mount. Here we'll use Google Cloud Storage as example, but the process is the same for any scenarios that needs to add extra files into the mount pod.
+Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a new Secret to store these files (different from the previously created Secret for JuiceFS), and reference it in `juicefs-secret`, so that CSI Driver know how to mount these files into the mount pod, and use it for authentication during mount. Here we'll use Google Cloud Storage as example, but the process is the same for any scenarios that needs to add extra files into the mount pod.
 
 To obtain the [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account), you need to first learn about [authentication](https://cloud.google.com/docs/authentication) and [authorization](https://cloud.google.com/iam/docs/overview). Assuming you already have the key file `application_default_credentials.json`, create the corresponding Kubernetes Secret:
 
@@ -176,7 +176,7 @@ kubectl create secret generic gc-secret \
 
 Now that the key file is saved in `gc-secret`, we'll reference it in `juicefs-secret`, this tells CSI Driver to mount the files into the mount pod, and set relevant environment variables accordingly:
 
-```yaml {8-9}
+```yaml {8-11}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -190,7 +190,7 @@ stringData:
   envs: "{GOOGLE_APPLICATION_CREDENTIALS: /root/.config/gcloud/application_default_credentials.json}"
 ```
 
-After this is done, newly created PVs will start to use this configuration. You can [enter the mount pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` to ensure the variables are set.
+After this is done, newly created PVs will start to use this configuration. You can [enter the mount pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` command to ensure the variables are set.
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
