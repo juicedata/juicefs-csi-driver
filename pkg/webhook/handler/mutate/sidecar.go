@@ -140,7 +140,7 @@ func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Co
 }
 
 func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume) {
-	hostMount := filepath.Join(config.MountPointPath, s.jfsSetting.VolumeId)
+	hostMount := filepath.Join(config.MountPointPath, s.jfsSetting.VolumeId, s.jfsSetting.SubPath)
 	for i, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == s.PVC.Name {
 			// overwrite original volume and use juicefs volume mountpoint instead

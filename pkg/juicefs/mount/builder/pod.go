@@ -155,6 +155,7 @@ func (r *Builder) getCommand() string {
 
 func (r *Builder) getInitContainer() corev1.Container {
 	isPrivileged := true
+	rootUser := int64(0)
 	secretName := r.jfsSetting.SecretName
 	formatCmd := r.jfsSetting.FormatCmd
 	container := corev1.Container{
@@ -162,6 +163,7 @@ func (r *Builder) getInitContainer() corev1.Container {
 		Image: r.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,
+			RunAsUser:  &rootUser,
 		},
 	}
 	if r.jfsSetting.EncryptRsaKey != "" {
@@ -176,9 +178,9 @@ func (r *Builder) getInitContainer() corev1.Container {
 		}
 	}
 
-	// create subpath if readonly mount
+	// create subpath if readonly mount or in webhook mode
 	if r.jfsSetting.SubPath != "" {
-		if util.ContainsString(r.jfsSetting.Options, "read-only") || util.ContainsString(r.jfsSetting.Options, "ro") {
+		if util.ContainsString(r.jfsSetting.Options, "read-only") || util.ContainsString(r.jfsSetting.Options, "ro") || config.Webhook {
 			// generate mount command
 			cmd := r.getJobCommand()
 			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi; umount /mnt/jfs", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
