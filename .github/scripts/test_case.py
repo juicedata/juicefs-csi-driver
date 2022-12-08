@@ -33,6 +33,12 @@ def test_deployment_using_storage_rw():
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
     # deploy pod
     deployment = Deployment(name="app-dynamic-rw", pvc=pvc.name, replicas=1)
     LOG.info("Deploy deployment {}".format(deployment.name))
@@ -73,6 +79,12 @@ def test_deployment_using_storage_ro():
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
     # deploy pod
     deployment = Deployment(name="app-dynamic-ro", pvc=pvc.name, replicas=1)
     LOG.info("Deploy deployment {}".format(deployment.name))
@@ -108,6 +120,12 @@ def test_deployment_use_pv_rw():
     pvc = PVC(name="pvc-static-rw", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
@@ -153,6 +171,12 @@ def test_deployment_use_pv_ro():
     pvc = PVC(name="pvc-static-ro", access_mode="ReadOnlyMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
@@ -754,6 +778,12 @@ def test_deployment_dynamic_patch_pv():
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
     # deploy pod
     deployment = Deployment(name="app-dynamic-update-pv", pvc=pvc.name, replicas=2)
     LOG.info("Deploy deployment {}".format(deployment.name))
@@ -877,6 +907,12 @@ def test_deployment_static_patch_pv():
     pvc = PVC(name="pvc-static-update-pv", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
@@ -1004,6 +1040,12 @@ def test_dynamic_mount_image():
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
     # deploy pod
     deployment = Deployment(name="app-mount-image-dynamic", pvc=pvc.name, replicas=1)
     LOG.info("Deploy deployment {}".format(deployment.name))
@@ -1062,6 +1104,12 @@ def test_static_mount_image():
     pvc = PVC(name="pvc-mount-image-static", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
 
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
@@ -1291,44 +1339,4 @@ def test_dynamic_pvc_delete_with_path_pattern():
     # delete test resources
     LOG.info("Remove sc {}".format(pvc.name))
     sc.delete()
-    return
-
-
-def test_dynamic_rw_with_webhook():
-    LOG.info("[test case] Deployment using storageClass with rwm begin..")
-    # deploy pvc
-    pvc = PVC(name="pvc-dynamic-rw-webhook", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
-    LOG.info("Deploy pvc {}".format(pvc.name))
-    pvc.create()
-
-    # deploy pod
-    deployment = Deployment(name="app-dynamic-rw-webhook", pvc=pvc.name, replicas=1)
-    LOG.info("Deploy deployment {}".format(deployment.name))
-    deployment.create()
-    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    LOG.info("Watch for pods of {} for success.".format(deployment.name))
-    result = pod.watch_for_success()
-    if not result:
-        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
-
-    # check mount point
-    LOG.info("Check mount point..")
-    volume_id = pvc.get_volume_id()
-    LOG.info("Get volume_id {}".format(volume_id))
-    check_path = volume_id + "/out.txt"
-    result = check_mount_point(check_path)
-    if not result:
-        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    LOG.info("Test pass.")
-
-    # delete test resources
-    LOG.info("Remove deployment {}".format(deployment.name))
-    deployment.delete()
-    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
-    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
-    result = pod.watch_for_delete(deployment.replicas)
-    if not result:
-        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    LOG.info("Remove pvc {}".format(pvc.name))
-    pvc.delete()
     return

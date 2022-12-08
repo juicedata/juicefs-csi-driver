@@ -151,6 +151,13 @@ class PVC:
         pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
         return pv.spec.csi.volume_handle
 
+    def check_is_bound(self):
+        p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+        pv_name = p.spec.volume_name
+        if pv_name is not None and pv_name != "":
+            return True
+        return False
+
 
 class PV:
     def __init__(self, *, name, access_mode, volume_handle, secret_name,

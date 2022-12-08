@@ -7,18 +7,10 @@ from test_case import (
     test_deployment_using_storage_ro,
     test_deployment_use_pv_rw,
     test_deployment_use_pv_ro,
-    test_delete_all,
-    test_delete_one,
-    test_delete_pvc,
     test_deployment_dynamic_patch_pv,
-    test_dynamic_delete_pod,
-    test_static_delete_pod,
     test_deployment_static_patch_pv,
-    test_dynamic_cache_clean_upon_umount,
-    test_static_cache_clean_upon_umount,
     test_dynamic_mount_image,
     test_static_mount_image,
-    test_pod_resource_err,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
 
