@@ -44,12 +44,13 @@ var (
 		Limits:   podLimit,
 		Requests: podRequest,
 	}
-	isPrivileged   = true
-	mp             = corev1.MountPropagationBidirectional
-	dir            = corev1.HostPathDirectoryOrCreate
-	file           = corev1.HostPathFileOrCreate
-	gracePeriod    = int64(10)
-	podDefaultTest = corev1.Pod{
+	isPrivileged         = true
+	rootUser       int64 = 0
+	mp                   = corev1.MountPropagationBidirectional
+	dir                  = corev1.HostPathDirectoryOrCreate
+	file                 = corev1.HostPathFileOrCreate
+	gracePeriod          = int64(10)
+	podDefaultTest       = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
@@ -112,6 +113,7 @@ var (
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
+					RunAsUser:  &rootUser,
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
