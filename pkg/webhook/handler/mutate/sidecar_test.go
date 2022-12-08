@@ -106,6 +106,49 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				Name: "mount-volume",
 			}},
 		},
+		{
+			name: "test-inject-volume-subpath",
+			fields: fields{
+				PVC: &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pvc-3",
+					},
+				},
+				jfsSetting: &config.JfsSetting{VolumeId: "volume-id", SubPath: "subpath"},
+			},
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "app-volume",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "pvc-3",
+									},
+								},
+							},
+						},
+					},
+				},
+				volumes: []corev1.Volume{{
+					Name: "mount-volume",
+				}},
+			},
+			wantPodVolume: []corev1.Volume{
+				{
+					Name: "mount-volume",
+				},
+				{
+					Name: "app-volume",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: filepath.Join(config.MountPointPath, "volume-id", "subpath"),
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

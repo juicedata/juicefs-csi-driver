@@ -19,9 +19,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -104,9 +106,29 @@ func (s *SidecarHandler) GetVolume(pod corev1.Pod) (used bool, pvGot *corev1.Per
 			if err != nil {
 				return
 			}
+
+			// get storageclass
+			if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
+				var sc *storagev1.StorageClass
+				sc, err = s.Client.GetStorageClass(context.TODO(), *pvc.Spec.StorageClassName)
+				if err != nil {
+					return
+				}
+				// if storageclass is juicefs
+				if sc.Provisioner == config.DriverName {
+					used = true
+					pvcGot = pvc
+				}
+			}
+
 			// get PV
 			var pv *corev1.PersistentVolume
 			if pvc.Spec.VolumeName == "" {
+				if used {
+					// used juicefs volume, but pvc is not bound
+					err = fmt.Errorf("pvc %s is not bound", pvc.Name)
+					return
+				}
 				continue
 			}
 			pv, err = s.Client.GetPersistentVolume(context.TODO(), pvc.Spec.VolumeName)
