@@ -14,7 +14,7 @@ CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，�
 
 修改 JuiceFS CSI Node 以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
 
-在 CSI 驱动的 DaemonSet 组件中，为 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量：
+修改 CSI Node Service（一个 DaemonSet 组件），为 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量：
 
 ```shell
 kubectl -n kube-system edit daemonset juicefs-csi-node
