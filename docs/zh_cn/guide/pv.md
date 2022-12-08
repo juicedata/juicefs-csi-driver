@@ -3,6 +3,111 @@ title: 创建和使用 PV
 sidebar_position: 1
 ---
 
+## 静态配置 {#static-provisioning}
+
+静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
+
+### 部署
+
+创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
+
+:::note 注意
+PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
+:::
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+```
+
+当所有的资源创建好之后，可以用以下命令确认一切符合预期：
+
+```shell
+# 确认 PV 正常创建
+kubectl get pv juicefs-pv
+
+# 确认 pod 正常运行
+kubectl get pods juicefs-app
+
+# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
+kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+```
+
+如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
+
+```yaml {8}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=2048
+  ...
+```
+
 ## 创建 StorageClass {#create-storage-class}
 
 如果你打算以[「动态配置」](#dynamic-provisioning)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
@@ -288,114 +393,73 @@ spec:
 在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
-## 静态配置 {#static-provisioning}
+## 配置更加易读的 PV 名称 {#using-path-pattern}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「静态配置」。
-
-所谓「静态配置」，指的是自行创建 PV 和 PVC，流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。
-
-动态配置免除了手动创建和管理 PV 的麻烦，但如果你在 JuiceFS 中已经有了大量数据，希望能在 Kubernetes 中直接挂载到容器中使用，则需要选用静态配置的方式来使用。
-
-### 部署
-
-创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
-
-:::note 注意
-PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
-:::
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-  - args:
-    - -c
-    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-    command:
-    - /bin/sh
-    image: centos
-    name: app
-    volumeMounts:
-    - mountPath: /data
-      name: data
-    resources:
-      requests:
-        cpu: 10m
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: juicefs-pvc
-```
-
-当所有的资源创建好之后，可以用以下命令确认一切符合预期：
+在「动态配置」方式下，PV 名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
 
 ```shell
-# 确认 PV 正常创建
-kubectl get pv juicefs-pv
-
-# 确认 pod 正常运行
-kubectl get pods juicefs-app
-
-# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
-kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+$ ls /jfs
+pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
+...
 ```
 
-如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
+在 JuiceFS CSI 驱动 0.13.3 及以上版本，支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
 
-```yaml {8}
-apiVersion: v1
-kind: PersistentVolume
+```shell
+$ ls /jfs
+default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
+```
+
+此特性默认关闭，需要手动开启。
+
+### Helm
+
+在 `values.yaml` 中添加如下配置：
+
+```yaml title="values.yaml"
+controller:
+  provisioner: true
+```
+
+再重新部署 JuiceFS CSI 驱动：
+
+```bash
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### Kubectl
+
+可以通过 `kubectl patch` 命令添加所需的启动参数：
+
+```shell
+kubectl -n kube-system patch sts juicefs-csi-controller \
+  --type='json' \
+  -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
+```
+
+### 使用方式
+
+在 `StorageClass` 中这样使用 `pathPattern`：
+
+```yaml {11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=2048
-  ...
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
+
+命名模板中可以引用任意 PVC 元数据，例如标签、注释、名称或命名空间，比如：
+
+1. `${.PVC.namespace}-${.PVC.name}`，则 PV 名为 `<pvc-namespace>-<pvc-name>`
+1. `${.PVC.labels.foo}`，则 PV 名为 PVC 中 `foo` 标签值
+1. `${.PVC.annotations.bar}`，则 PV 名为 PVC 中 `bar` 注释（annotations）的值
 
 ## 常用 PV 设置
 
