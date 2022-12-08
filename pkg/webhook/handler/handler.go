@@ -41,6 +41,7 @@ type SidecarHandler struct {
 func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	pod := &corev1.Pod{}
 	raw := request.Object.Raw
+	klog.V(6).Infof("[SidecarHandler] get pod: %s", string(raw))
 	err := s.decoder.Decode(request, pod)
 	if err != nil {
 		klog.Error(err, "unable to decoder pod from req")
@@ -49,29 +50,29 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 
 	// check if pod has done label
 	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDone, config.True) {
-		klog.Infof("skip mutating the pod because injection is done. Pod %s namespace %s", pod.Name, pod.Namespace)
+		klog.Infof("[SidecarHandler] skip mutating the pod because injection is done. Pod %s namespace %s", pod.Name, pod.Namespace)
 		return admission.Allowed("skip mutating the pod because injection is done")
 	}
 
 	// check if pod has disable label
 	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {
-		klog.Infof("skip mutating the pod because injection is disabled. Pod %s namespace %s", pod.Name, pod.Namespace)
+		klog.Infof("[SidecarHandler] skip mutating the pod because injection is disabled. Pod %s namespace %s", pod.Name, pod.Namespace)
 		return admission.Allowed("skip mutating the pod because injection is done")
 	}
 
 	// check if pod use JuiceFS Volume
 	used, pv, pvc, err := s.GetVolume(*pod)
 	if err != nil {
-		klog.Infof("get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
+		klog.Infof("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
 	} else if !used {
-		klog.Infof("skip mutating the pod because it doesn't use JuiceFS Volume. Pod %s namespace %s", pod.Name, pod.Namespace)
+		klog.Infof("[SidecarHandler] skip mutating the pod because it doesn't use JuiceFS Volume. Pod %s namespace %s", pod.Name, pod.Namespace)
 		return admission.Allowed("skip mutating the pod because it doesn't use JuiceFS Volume")
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
 	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvc, pv)
-	klog.Infof("start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
+	klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
 	out, err := sidecarMutate.Mutate(pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)

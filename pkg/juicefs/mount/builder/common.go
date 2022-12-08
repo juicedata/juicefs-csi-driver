@@ -252,11 +252,13 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 
 func (r *Builder) genCommonContainer() corev1.Container {
 	isPrivileged := true
+	rootUser := int64(0)
 	return corev1.Container{
 		Name:  "jfs-mount",
 		Image: r.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,
+			RunAsUser:  &rootUser,
 		},
 		Env: []corev1.EnvVar{},
 	}
