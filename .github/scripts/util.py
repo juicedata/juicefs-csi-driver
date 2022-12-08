@@ -77,7 +77,7 @@ def mount_on_host(mount_path):
 
 
 def umount(mount_path):
-    subprocess.run(["sudo", "umount", mount_path, "-l"])
+    subprocess.check_call(["sudo", "umount", mount_path, "-l"])
 
 
 def check_mount_point(check_path):

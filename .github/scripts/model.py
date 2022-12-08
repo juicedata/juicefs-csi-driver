@@ -88,6 +88,10 @@ class StorageClass:
                 "csi.storage.k8s.io/node-publish-secret-namespace": self.secret_namespace,
                 "csi.storage.k8s.io/provisioner-secret-name": self.secret_name,
                 "csi.storage.k8s.io/provisioner-secret-namespace": self.secret_namespace,
+                "juicefs/mount-cpu-limit": "5",
+                "juicefs/mount-memory-limit": "5Gi",
+                "juicefs/mount-cpu-request": "100m",
+                "juicefs/mount-memory-request": "500Mi",
             }
         )
         if self.parameters:
@@ -174,6 +178,15 @@ class PV:
             self.mount_options.extend(options)
 
     def create(self):
+        parameters = {
+            "juicefs/mount-cpu-limit": "5",
+            "juicefs/mount-memory-limit": "5Gi",
+            "juicefs/mount-cpu-request": "100m",
+            "juicefs/mount-memory-request": "500Mi",
+        }
+        if self.parameters is not None:
+            for k, v in self.parameters.items():
+                parameters[k] = v
         spec = client.V1PersistentVolumeSpec(
             access_modes=[self.access_mode],
             capacity={"storage": "10Pi"},
@@ -188,7 +201,7 @@ class PV:
                     name=self.secret_name,
                     namespace=self.secret_namespace
                 ),
-                volume_attributes=self.parameters,
+                volume_attributes=parameters,
             )
         )
         pv = client.V1PersistentVolume(
@@ -360,6 +373,12 @@ class Pod:
                 else:
                     return True
         return False
+
+    def get_name(self):
+        v1 = client.CoreV1Api()
+        pods = v1.list_namespaced_pod(namespace=self.namespace, label_selector="deployment=" + self.deployment)
+        if len(pods.items) != 0:
+            return pods.items[0].metadata.name
 
     def is_deleted(self):
         try:
