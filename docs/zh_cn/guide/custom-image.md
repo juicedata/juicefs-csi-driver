@@ -1,8 +1,8 @@
 ---
-title: 定制镜像
+title: 定制容器镜像
 ---
 
-本章介绍如何设置 Mount Pod 镜像，以及自行构建 Mount Pod 以及 CSI 驱动组件镜像。
+本章介绍如何设置 Mount Pod 镜像，以及自行构建 CSI 驱动组件镜像。
 
 ## 修改 Mount Pod 容器镜像 {#overwrite-mount-pod-image}
 
@@ -12,7 +12,7 @@ CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，�
 
 ### 修改 CSI Node，全局覆盖 Mount Pod 镜像
 
-修改 JuiceFS CSI Node 以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
+修改 CSI Node 配置以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
 
 修改 CSI Node Service（一个 DaemonSet 组件），为 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量：
 
@@ -39,7 +39,7 @@ spec:
 
 ### 修改 StorageClass，指定 Mount Pod 镜像
 
-如果你的集群需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
+如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -59,7 +59,7 @@ parameters:
 
 ### 静态配置
 
-对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 `PersistentVolume` 中配置 Mount Pod 镜像：
+对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 PV 定义中配置 Mount Pod 镜像：
 
 ```yaml {22}
 apiVersion: v1
@@ -110,7 +110,7 @@ docker build -t registry.example.com/juicefs-csi-mount:latest -f dev.juicefs.Doc
 docker push registry.example.com/juicefs-csi-mount:latest
 ```
 
-镜像构建完后，参照[覆盖默认容器镜像](#overwrite-mount-pod-image)来指定刚刚构建好的 Mount Pod 的镜像。
+参照[覆盖默认容器镜像](#overwrite-mount-pod-image)来指定刚刚构建好的 Mount Pod 的镜像。
 
 ### 构建 CSI 驱动组件镜像
 
