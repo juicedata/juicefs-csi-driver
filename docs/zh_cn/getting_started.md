@@ -88,11 +88,13 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
 
-需要替换的镜像如下，请通过下方链接所致的网页，确定各镜像合适的版本：
+需要替换的镜像如下，请通过下方链接的网页，确定各镜像合适的版本（如果无法正常访问 `k8s.gcr.io`，请考虑先[「搬运镜像」](./administration/offline.md#copy-images)）：
 
-* quay.io/k8scsi/livenessprobe 替换为 [k8s.gcr.io/sig-storage/livenessprobe](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)
-* quay.io/k8scsi/csi-provisioner 替换为 [k8s.gcr.io/sig-storage/csi-provisioner](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)
-* quay.io/k8scsi/csi-node-driver-registrar 替换为 [k8s.gcr.io/sig-storage/csi-node-driver-registrar](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions)
+| 原镜像名称                                 | 新镜像名称                                                                                                                                |
+|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `quay.io/k8scsi/livenessprobe`             | [`k8s.gcr.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
+| `quay.io/k8scsi/csi-provisioner`           | [`k8s.gcr.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
+| `quay.io/k8scsi/csi-node-driver-registrar` | [`k8s.gcr.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
 
 ### Helm
 
@@ -102,13 +104,13 @@ CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果
 sidecars:
   livenessProbeImage:
     repository: k8s.gcr.io/sig-storage/livenessprobe
-    tag: "v2.2.0"
-  nodeDriverRegistrarImage:
-    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
-    tag: "v2.0.1"
+    tag: "v2.6.0"
   csiProvisionerImage:
     repository: k8s.gcr.io/sig-storage/csi-provisioner
-    tag: "v2.0.2"
+    tag: "v2.2.2"
+  nodeDriverRegistrarImage:
+    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
+    tag: "v2.5.0"
 ```
 
 ### kubectl
@@ -116,7 +118,7 @@ sidecars:
 对 `k8s.yaml` 中部分镜像进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
 
 ```shell
-sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.0.2@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.2.0@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.0.1@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
 ```
