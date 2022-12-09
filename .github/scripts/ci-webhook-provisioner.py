@@ -5,12 +5,14 @@ from test_case import (
     test_static_delete_policy,
     test_deployment_using_storage_rw,
     test_deployment_using_storage_ro,
-    test_dynamic_mount_image,
-    test_static_mount_image,
+    test_deployment_use_pv_rw,
+    test_deployment_use_pv_ro,
     test_dynamic_mount_image_with_webhook,
     test_static_mount_image_with_webhook,
     test_deployment_dynamic_patch_pv_with_webhook,
     test_deployment_static_patch_pv_with_webhook,
+    test_path_pattern_in_storage_class,
+    test_dynamic_pvc_delete_with_path_pattern,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
 
@@ -26,12 +28,14 @@ if __name__ == "__main__":
             test_static_delete_policy()
             test_deployment_using_storage_rw()
             test_deployment_using_storage_ro()
-            test_dynamic_mount_image_with_webhook()
-            test_static_mount_image_with_webhook()
+            test_deployment_use_pv_rw()
+            test_deployment_use_pv_ro()
             test_deployment_dynamic_patch_pv_with_webhook()
             test_deployment_static_patch_pv_with_webhook()
-            test_dynamic_mount_image()
-            test_static_mount_image()
+            test_dynamic_mount_image_with_webhook()
+            test_static_mount_image_with_webhook()
+            test_path_pattern_in_storage_class()
+            test_dynamic_pvc_delete_with_path_pattern()
         except Exception as e:
             die(e)
         finally:
