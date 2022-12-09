@@ -7,10 +7,10 @@ from test_case import (
     test_deployment_using_storage_ro,
     test_deployment_use_pv_rw,
     test_deployment_use_pv_ro,
-    test_deployment_dynamic_patch_pv,
-    test_deployment_static_patch_pv,
     test_dynamic_mount_image,
     test_static_mount_image,
+    test_deployment_dynamic_patch_pv_with_webhook,
+    test_deployment_static_patch_pv_with_webhook,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
 
@@ -28,8 +28,8 @@ if __name__ == "__main__":
             test_deployment_using_storage_ro()
             test_deployment_use_pv_rw()
             test_deployment_use_pv_ro()
-            test_deployment_dynamic_patch_pv()
-            test_deployment_static_patch_pv()
+            test_deployment_dynamic_patch_pv_with_webhook()
+            test_deployment_static_patch_pv_with_webhook()
             test_dynamic_mount_image()
             test_static_mount_image()
         except Exception as e:
