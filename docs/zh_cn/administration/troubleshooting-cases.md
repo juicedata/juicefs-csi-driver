@@ -26,9 +26,13 @@ driver name csi.juicefs.com not found in the list of registered CSI drivers
 
 此时需要[检查 CSI Node](./troubleshooting.md#check-csi-node)，确认其异常原因，并排查修复。
 
-## Mount Pod 异常
+## Mount Pod 异常 {#mount-pod-error}
 
-常见错误比如 Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态。此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
+Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在这里罗列常见错误，指导排查。
+
+**Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态**
+
+此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
 
 另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
 
@@ -37,6 +41,31 @@ Preempted in order to admit critical pod
 ```
 
 Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+
+**Mount Pod 正常退出（exit code 为 0），应用容器卡在 `ContainerCreateError` 状态**
+
+Mount Pod 是一个常驻进程，如果他退出了（变为 Completed 状态），即便退出状态码为 0，也明显属于异常状态。此时应用容器由于挂载点不复存在，会伴随着以下错误事件：
+
+```shell
+$ kubectl describe pod juicefs-app
+...
+  Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
+  Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
+```
+
+错误日志里的 `transport endpoint is not connected`，其含义就是创建容器所需的 JuiceFS 挂载点不存在，因此应用容器无法创建。但是，Mount Pod 为什么会退出呢？这时需要检查 Mount Pod 的启动命令：
+
+```shell
+APP_NS=default  # 应用所在的 Kubernetes 命名空间
+APP_POD_NAME=example-app-xxx-xxx
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+
+# 获取 Mount Pod 启动命令
+# 形如 ["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
+kubectl get pod -ojsonpath={..containers[0].command} $MOUNT_POD_NAME
+```
+
+仔细检查 Mount Pod 的启动命令，确保没有错误的成分，让 `-o foreground` 这个设置失效，`foreground` 控制着 JuiceFS 客户端运行在前台。错误示范比如 `-o debug foreground`，缺少逗号连接两个 FUSE 选项。正确应该是 `-o debug,foreground`，也就是用 `,` 连接 FUSE 选项。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/pv.md#mount-options)，确保格式正确。
 
 ## PVC 配置互相冲突，创建失败
 
