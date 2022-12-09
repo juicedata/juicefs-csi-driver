@@ -31,6 +31,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type SidecarMutate struct {
@@ -67,7 +68,8 @@ func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
 	if err != nil {
 		return
 	}
-	jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.VolumeId)
+	mountPath := util.RandStringRunes(6)
+	jfsSetting.MountPath = filepath.Join(config.PodMountBase, mountPath)
 
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = s.PVC.Name + "-jfs-secret"
@@ -90,7 +92,7 @@ func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
 	// inject initContainer
 	s.injectInitContainer(out, mountPod.Spec.InitContainers[0])
 	// inject volume
-	s.injectVolume(out, mountPod.Spec.Volumes)
+	s.injectVolume(out, mountPod.Spec.Volumes, mountPath)
 
 	return
 }
@@ -139,8 +141,8 @@ func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Co
 	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 }
 
-func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume) {
-	hostMount := filepath.Join(config.MountPointPath, s.jfsSetting.VolumeId, s.jfsSetting.SubPath)
+func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, mountPath string) {
+	hostMount := filepath.Join(config.MountPointPath, mountPath, s.jfsSetting.SubPath)
 	for i, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == s.PVC.Name {
 			// overwrite original volume and use juicefs volume mountpoint instead

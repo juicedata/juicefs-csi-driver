@@ -32,8 +32,9 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 		jfsSetting *config.JfsSetting
 	}
 	type args struct {
-		pod     *corev1.Pod
-		volumes []corev1.Volume
+		pod       *corev1.Pod
+		volumes   []corev1.Volume
+		mountPath string
 	}
 	tests := []struct {
 		name          string
@@ -69,6 +70,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				volumes: []corev1.Volume{{
 					Name: "mount-volume",
 				}},
+				mountPath: "data",
 			},
 			wantPodVolume: []corev1.Volume{
 				{
@@ -78,7 +80,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 					Name: "app-volume",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: filepath.Join(config.MountPointPath, "volume-id"),
+							Path: filepath.Join(config.MountPointPath, "data"),
 						},
 					},
 				},
@@ -101,6 +103,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				volumes: []corev1.Volume{{
 					Name: "mount-volume",
 				}},
+				mountPath: "data",
 			},
 			wantPodVolume: []corev1.Volume{{
 				Name: "mount-volume",
@@ -134,6 +137,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				volumes: []corev1.Volume{{
 					Name: "mount-volume",
 				}},
+				mountPath: "data",
 			},
 			wantPodVolume: []corev1.Volume{
 				{
@@ -143,7 +147,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 					Name: "app-volume",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: filepath.Join(config.MountPointPath, "volume-id", "subpath"),
+							Path: filepath.Join(config.MountPointPath, "data", "subpath"),
 						},
 					},
 				},
@@ -156,7 +160,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				PVC:        tt.fields.PVC,
 				jfsSetting: tt.fields.jfsSetting,
 			}
-			s.injectVolume(tt.args.pod, tt.args.volumes)
+			s.injectVolume(tt.args.pod, tt.args.volumes, tt.args.mountPath)
 			if len(tt.args.pod.Spec.Volumes) != len(tt.wantPodVolume) {
 				t.Errorf("injectVolume() = %v, want %v", tt.args.pod.Spec.Volumes, tt.wantPodVolume)
 			}
