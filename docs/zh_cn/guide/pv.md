@@ -3,191 +3,6 @@ title: 创建和使用 PV
 sidebar_position: 1
 ---
 
-## 静态配置 {#static-provisioning}
-
-静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
-
-### 部署
-
-创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
-
-:::note 注意
-PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
-:::
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-  - args:
-    - -c
-    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-    command:
-    - /bin/sh
-    image: centos
-    name: app
-    volumeMounts:
-    - mountPath: /data
-      name: data
-    resources:
-      requests:
-        cpu: 10m
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: juicefs-pvc
-```
-
-当所有的资源创建好之后，可以用以下命令确认一切符合预期：
-
-```shell
-# 确认 PV 正常创建
-kubectl get pv juicefs-pv
-
-# 确认 pod 正常运行
-kubectl get pods juicefs-app
-
-# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
-kubectl exec -ti juicefs-app -- tail -f /data/out.txt
-```
-
-如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
-
-```yaml {8}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=2048
-  ...
-```
-
-## 创建 StorageClass {#create-storage-class}
-
-如果你打算以[「动态配置」](#dynamic-provisioning)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
-
-阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
-
-### 通过 Helm 创建 {#helm-sc}
-
-创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
-
-JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122) 中找到全面示范。
-
-```yaml title="values.yaml"
-storageClasses:
-- name: juicefs-sc
-  enabled: true
-  reclaimPolicy: Retain
-  # JuiceFS 文件系统相关配置
-  # 如果已经提前创建好文件系统，则只需填写 `name` 和 `metaurl` 这两项
-  backend:
-    name: "<name>"                # JuiceFS 文件系统名
-    metaurl: "<meta-url>"         # 元数据引擎的 URL
-    storage: "<storage-type>"     # 对象存储类型 (例如 s3、gcs、oss、cos)
-    accessKey: "<access-key>"     # 对象存储的 Access Key
-    secretKey: "<secret-key>"     # 对象存储的 Secret Key
-    bucket: "<bucket>"            # 存储数据的桶路径
-    # 设置 Mount Pod 时区，默认为 UTC。
-    # envs: "{TZ: Asia/Shanghai}"
-  mountPod:
-    resources:                    # Mount pod 的资源配置
-      requests:
-        cpu: "1"
-        memory: "1Gi"
-      limits:
-        cpu: "5"
-        memory: "5Gi"
-  # 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
-  # mountOptions:
-  #   - cache-size=2048
-```
-
-用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](#create-mount-config)。
-
-### 通过 kubectl 创建
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
-# mountOptions:
-#   - cache-size=2048
-```
-
-### 调整挂载参数 {#mount-options}
-
-你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
-
-另请注意，如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
-
-```yaml
-mountOptions:
-  - cache-size=2048
-  # 额外的 FUSE 相关选项
-  - writeback_cache
-  - debug
-```
-
-JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
-
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
-
 ## 创建挂载配置 {#create-mount-config}
 
 在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息以及挂载参数，均存在 Kubernetes Secret 中。所以为了使用 JuiceFS 文件系统，首先需要创建 Kubernetes Secret。
@@ -295,15 +110,196 @@ stringData:
 
 添加完毕以后，新创建的 PV 便会使用此配置了，你可以[进入 Mount Pod 里](../administration/troubleshooting.md#check-mount-pod)，确认配置文件挂载正确，然后用 `env` 命令确认环境变量也设置成功。
 
+## 静态配置 {#static-provisioning}
+
+静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
+
+### 部署
+
+创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
+
+:::note 注意
+PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
+:::
+
+```yaml {14-20}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+```
+
+当所有的资源创建好之后，可以用以下命令确认一切符合预期：
+
+```shell
+# 确认 PV 正常创建
+kubectl get pv juicefs-pv
+
+# 确认 pod 正常运行
+kubectl get pods juicefs-app
+
+# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
+kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+```
+
+如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=2048
+  ...
+```
+
 ## 动态配置 {#dynamic-provisioning}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行创建 StorageClass。
+
+### 创建 StorageClass {#create-storage-class}
+
+#### 通过 Helm 创建 {#helm-sc}
+
+创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
+
+JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122) 中找到全面示范。
+
+```yaml title="values.yaml"
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  reclaimPolicy: Retain
+  # JuiceFS 文件系统相关配置
+  # 如果已经提前创建好文件系统，则只需填写 `name` 和 `metaurl` 这两项
+  backend:
+    name: "<name>"                # JuiceFS 文件系统名
+    metaurl: "<meta-url>"         # 元数据引擎的 URL
+    storage: "<storage-type>"     # 对象存储类型 (例如 s3、gcs、oss、cos)
+    accessKey: "<access-key>"     # 对象存储的 Access Key
+    secretKey: "<secret-key>"     # 对象存储的 Secret Key
+    bucket: "<bucket>"            # 存储数据的桶路径
+    # 设置 Mount Pod 时区，默认为 UTC。
+    # envs: "{TZ: Asia/Shanghai}"
+  mountPod:
+    resources:                    # Mount pod 的资源配置
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+  # 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
+  # mountOptions:
+  #   - cache-size=2048
+```
+
+用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](#create-mount-config)。
+
+#### 通过 kubectl 创建
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
+# mountOptions:
+#   - cache-size=2048
+```
+
+#### 调整挂载参数 {#mount-options}
+
+你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
+
+另请注意，如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # 额外的 FUSE 相关选项
+  - writeback_cache
+  - debug
+```
+
+JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
+
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ### 部署
 
 创建 PersistentVolumeClaim（PVC）和示例 pod：
 
-```yaml
+```yaml {13}
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -395,7 +391,7 @@ spec:
 
 ## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
-在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的目录形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
+在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
 
 ```shell
 $ ls /jfs
@@ -427,9 +423,9 @@ controller:
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-### Kubectl
+### kubectl
 
-可以通过 `kubectl patch` 命令添加所需的启动参数：
+可以通过 `kubectl patch` 命令添加所需的启动参数（`--provisioner=true`）：
 
 ```shell
 kubectl -n kube-system patch sts juicefs-csi-controller \
@@ -455,11 +451,11 @@ parameters:
   pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
 
-命名模板中可以引用任意 PVC 元数据，例如标签、注释、名称或命名空间，比如：
+命名模板中可以引用任意 PVC 元数据，例如标签、注解、名称或命名空间，比如：
 
-1. `${.PVC.namespace}-${.PVC.name}`，则 PV 目录为 `<pvc-namespace>-<pvc-name>`
-1. `${.PVC.labels.foo}`，则 PV 目录为 PVC 中 `foo` 标签值
-1. `${.PVC.annotations.bar}`，则 PV 目录为 PVC 中 `bar` 注释（annotations）的值
+1. `${.PVC.namespace}-${.PVC.name}`，则 PV 目录为 `<PVC 命名空间>-<PVC 名称>`。
+1. `${.PVC.labels.foo}`，则 PV 目录为 PVC 中 `foo` 标签的值。
+1. `${.PVC.annotations.bar}`，则 PV 目录为 PVC 中 `bar` 注解（annotation）的值。
 
 ## 常用 PV 设置
 

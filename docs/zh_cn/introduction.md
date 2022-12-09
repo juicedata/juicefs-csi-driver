@@ -30,12 +30,12 @@ JuiceFS CSI 驱动采用单独的 Mount Pod 来运行 JuiceFS 客户端，并由
 
 ## 使用方式 {#usage}
 
-你可以用[「静态配置」](./guide/pv.md#static-provisioning)和[「动态配置」](./guide/pv.md#dynamic-provisioning)的方式来使用 JuiceFS CSI 驱动。「静态配置」最为简单直接，需要你自行创建 PersistentVolume（PV）以及 PersistentVolumeClaim（PVC），流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。创建完毕以后，手动在 Pod 定义中引用该 PVC，就可以在容器中使用 JuiceFS 了。一般在以下场景使用静态配置：
+你可以用[「静态配置」](./guide/pv.md#static-provisioning)和[「动态配置」](./guide/pv.md#dynamic-provisioning)的方式来使用 JuiceFS CSI 驱动。「静态配置」最为简单直接，需要你自行创建 PersistentVolume（PV）以及 PersistentVolumeClaim（PVC），流程类似[「配置 Pod 以使用 PersistentVolume 作为存储」](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-persistent-volume-storage)。创建完毕以后，手动在 Pod 定义中引用该 PVC，就可以在容器中使用 JuiceFS 了。一般在以下场景使用静态配置：
 
 * 你在 JuiceFS 中已经存储了大量数据，想要直接在 Kubernetes 容器中访问。
-* 对 JuiceFS CSI 驱动功能做简单验证。
+* 对 JuiceFS CSI 驱动功能做简单验证
 
-考虑到静态配置的管理更加复杂，规模化使用 CSI 驱动时，一般会以[「动态配置」](./guide/pv.md#dynamic-provisioning)方式使用。这种模式下，你只需要创建 PVC，并且在 Pod 中引用该 PVC，JuiceFS CSI 驱动会为你自动创建 PV。其流程大致如下：
+考虑到静态配置的管理更加复杂，规模化使用 CSI 驱动时，一般会以「动态配置」方式使用。这种模式下，你只需要创建 PVC，并且在 Pod 中引用该 PVC，JuiceFS CSI 驱动会为你自动创建 PV。其流程大致如下：
 
 * 用户创建 PVC，使用 JuiceFS 作为 StorageClass；
 * CSI Controller 负责在 JuiceFS 文件系统中做初始化，默认以 PV ID 为名字创建子目录，同时创建对应的 PV；
