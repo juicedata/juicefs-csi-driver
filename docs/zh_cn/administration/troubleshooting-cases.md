@@ -80,7 +80,7 @@ format: NOAUTH Authentication requested.
 
 ## 性能问题 {#performance-issue}
 
-相比直接在宿主机上挂载 JuiceFS，CSI 驱动功能更为强大，但也无疑额外增加了复杂度。这里仅介绍一些 CSI 驱动下的特定问题，如果你怀疑所遭遇的性能问题与 CSI 驱动无关，请进一步参考[「社区版」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis)和[「云服务」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis)的文档学习相关排查方法。
+相比直接在宿主机上挂载 JuiceFS，CSI 驱动功能更为强大，但也无疑额外增加了复杂度。这里仅介绍一些 CSI 驱动下的特定问题，如果你怀疑所遭遇的性能问题与 CSI 驱动无关，请进一步参考[「社区版」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis)和[「云服务」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis)文档学习相关排查方法。
 
 ### 读性能差 {#bad-read-performance}
 

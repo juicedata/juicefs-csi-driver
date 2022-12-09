@@ -80,7 +80,7 @@ Make sure you've specified the correct password in the metadata engine URL, as d
 
 ## Performance issues {#performance-issue}
 
-Compared to using JuiceFS directly on a host mount point, CSI Driver provides powerful functionalities but also comes with higher complexities. This section only covers issues that are specific to CSI Driver, if you suspect your problem at hand isn't related to CSI Driver, learn to debug JuiceFS itself in [Community Edition](https://juicefs.com/docs/community/fault_diagnosis_and_analysis) and [Cloud Service](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis).
+Compared to using JuiceFS directly on a host mount point, CSI Driver provides powerful functionalities but also comes with higher complexities. This section only covers issues that are specific to CSI Driver, if you suspect your problem at hand isn't related to CSI Driver, learn to debug JuiceFS itself in [Community Edition](https://juicefs.com/docs/community/fault_diagnosis_and_analysis) and [Cloud Service](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis) documentations.
 
 ### Bad read performance {#bad-read-performance}
 
