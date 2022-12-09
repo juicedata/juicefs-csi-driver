@@ -229,10 +229,11 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err := j.validTarget(target); err != nil {
 		return nil, err
 	}
-	if err := j.validOptions(volumeID, options); err != nil {
+	mountOptions, err := j.validOptions(volumeID, options)
+	if err != nil {
 		return nil, err
 	}
-	jfsSetting, err := j.getSettings(ctx, volumeID, target, secrets, volCtx, options)
+	jfsSetting, err := j.getSettings(ctx, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -382,13 +383,23 @@ func (j *juicefs) validTarget(target string) error {
 	return nil
 }
 
-func (j *juicefs) validOptions(volumeId string, options []string) error {
+func (j *juicefs) validOptions(volumeId string, options []string) ([]string, error) {
+	mountOptions := []string{}
 	for _, option := range options {
-		if option == "writeback" {
+		mountOption := strings.TrimSpace(option)
+		ops := strings.Split(mountOption, "=")
+		if len(ops) > 2 {
+			return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
+		}
+		if len(ops) == 2 {
+			mountOption = fmt.Sprintf("%s=%s", strings.TrimSpace(ops[0]), strings.TrimSpace(ops[1]))
+		}
+		if mountOption == "writeback" {
 			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", volumeId)
 		}
+		mountOptions = append(mountOptions, mountOption)
 	}
-	return nil
+	return mountOptions, nil
 }
 
 func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
