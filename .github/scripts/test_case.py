@@ -829,7 +829,7 @@ def test_deployment_dynamic_patch_pv():
 
     # delete one app pod
     pods = client.CoreV1Api().list_namespaced_pod(
-        namespace=KUBE_SYSTEM,
+        namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
     pod = pods.items[0]
@@ -856,7 +856,7 @@ def test_deployment_dynamic_patch_pv():
     pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
-            namespace=KUBE_SYSTEM,
+            namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
@@ -889,7 +889,7 @@ def test_deployment_dynamic_patch_pv():
     # check target
     LOG.info("Check target path is ok..")
     pods = client.CoreV1Api().list_namespaced_pod(
-        namespace=KUBE_SYSTEM,
+        namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
     for pod in pods.items:
@@ -965,7 +965,7 @@ def test_deployment_static_patch_pv():
 
     # delete one app pod
     pods = client.CoreV1Api().list_namespaced_pod(
-        namespace=KUBE_SYSTEM,
+        namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
     pod = pods.items[0]
@@ -992,7 +992,7 @@ def test_deployment_static_patch_pv():
     pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
-            namespace=KUBE_SYSTEM,
+            namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
@@ -1025,7 +1025,7 @@ def test_deployment_static_patch_pv():
     # check target
     LOG.info("Check target path is ok..")
     pods = client.CoreV1Api().list_namespaced_pod(
-        namespace=KUBE_SYSTEM,
+        namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
     for pod in pods.items:
@@ -1278,7 +1278,7 @@ def test_path_pattern_in_storage_class():
 
     # check mount point
     LOG.info("Check mount point..")
-    check_path = "{}-{}-{}-{}/{}".format(KUBE_SYSTEM, pvc.name, label_value, anno_value, out_put)
+    check_path = "{}-{}-{}-{}/{}".format("default", pvc.name, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
@@ -1330,7 +1330,7 @@ def test_dynamic_pvc_delete_with_path_pattern():
 
     # check mount point
     LOG.info("Check mount point..")
-    check_path = "{}-{}-{}-{}/{}".format(KUBE_SYSTEM, pvc.name, label_value, anno_value, out_put)
+    check_path = "{}-{}-{}-{}/{}".format("default", pvc.name, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
