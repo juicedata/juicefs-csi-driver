@@ -5,8 +5,6 @@ from test_case import (
     test_static_delete_policy,
     test_deployment_using_storage_rw,
     test_deployment_using_storage_ro,
-    test_dynamic_mount_image,
-    test_static_mount_image,
     test_dynamic_mount_image_with_webhook,
     test_static_mount_image_with_webhook,
     test_deployment_dynamic_patch_pv_with_webhook,
@@ -30,8 +28,6 @@ if __name__ == "__main__":
             test_static_mount_image_with_webhook()
             test_deployment_dynamic_patch_pv_with_webhook()
             test_deployment_static_patch_pv_with_webhook()
-            test_dynamic_mount_image()
-            test_static_mount_image()
         except Exception as e:
             die(e)
         finally:
