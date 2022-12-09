@@ -423,7 +423,7 @@ controller:
 
 再重新部署 JuiceFS CSI 驱动：
 
-```bash
+```shell
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
