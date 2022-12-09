@@ -1526,13 +1526,6 @@ def test_deployment_dynamic_patch_pv_with_webhook():
         namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
-    for pod in pods.items:
-        source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
-            pod.metadata.uid, volume_id)
-        try:
-            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            raise Exception(e)
 
     LOG.info("Test pass.")
 
@@ -1666,13 +1659,6 @@ def test_deployment_static_patch_pv_with_webhook():
         namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
-    for pod in pods.items:
-        source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
-            pod.metadata.uid, pv_name)
-        try:
-            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            raise Exception(e)
 
     LOG.info("Test pass.")
 
