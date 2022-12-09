@@ -2,14 +2,12 @@
 title: 安装
 ---
 
-## 安装 JuiceFS CSI 驱动
-
 安装前，请先确认：
 
 * Kubernetes 集群是 1.14 及以上版本
 * 集群能从外网拉取镜像，比如 [Docker Hub](https://hub.docker.com) 和 [Quay](https://quay.io)，如果无法从这两个镜像仓库下载资源，考虑先[「搬运镜像」](./administration/offline.md#copy-images)。
 
-### 通过 Helm 安装
+## Helm
 
 安装 JuiceFS CSI 驱动需要用 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
 
@@ -37,7 +35,7 @@ title: 安装
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-### 通过 kubectl 安装
+## kubectl
 
 1. 检查 kubelet 根目录
 
@@ -71,7 +69,7 @@ title: 安装
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-### 检查部署状态
+## 检查部署状态
 
 不论你用何种方法，安装完毕以后，请用下方命令确认 CSI 驱动组件正常运行：
 
@@ -85,3 +83,42 @@ juicefs-csi-node-v9tzb     3/3     Running   0          14m
 CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在上方命令的输出中，CSI Node pod 数量应该与 worker 节点数相同。如果你注意到数量不一致，请检查是否有节点被打上了污点。视情况删除污点，或给 CSI Node Service 打上对应的容忍，来修复此问题。如果你有需要，也可以[仅在某些节点上运行 CSI Node Service](./guide/resource-optimization.md#csi-node-node-selector)。
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
+
+## ARM64 注意事项
+
+CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
+
+需要替换的镜像如下，请通过下方链接的网页，确定各镜像合适的版本（如果无法正常访问 `k8s.gcr.io`，请考虑先[「搬运镜像」](./administration/offline.md#copy-images)）：
+
+| 原镜像名称                                 | 新镜像名称                                                                                                                                |
+|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `quay.io/k8scsi/livenessprobe`             | [`k8s.gcr.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
+| `quay.io/k8scsi/csi-provisioner`           | [`k8s.gcr.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
+| `quay.io/k8scsi/csi-node-driver-registrar` | [`k8s.gcr.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
+
+### Helm
+
+在 `values.yaml` 中增加 `sidecars` 配置，用于覆盖容器镜像：
+
+```yaml title="values.yaml"
+sidecars:
+  livenessProbeImage:
+    repository: k8s.gcr.io/sig-storage/livenessprobe
+    tag: "v2.6.0"
+  csiProvisionerImage:
+    repository: k8s.gcr.io/sig-storage/csi-provisioner
+    tag: "v2.2.2"
+  nodeDriverRegistrarImage:
+    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
+    tag: "v2.5.0"
+```
+
+### kubectl
+
+对 `k8s.yaml` 中部分镜像进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
+
+```shell
+sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+```

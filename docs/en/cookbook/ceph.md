@@ -4,11 +4,9 @@ slug: /ceph
 
 # Access Ceph Cluster with librados
 
-If you use [Ceph](https://ceph.io/) as the underlying storage for JucieFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
+If you use [Ceph](https://ceph.io/) as the underlying storage for JuiceFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
 
-Since version v0.10.0, JuiceFS CSI Driver supports supplying configuration files to JuiceFS, read the ["How to set config files and environment in mount pod"](../examples/config-and-env.md) example for more details. With this mechanism, we can transfer Ceph client configuration files under `/etc/ceph` JuiceFS mount process running in Kubernetes.
-
-Here we demonstrate how to access Ceph cluster with `librados` in Kubernetes.
+JuiceFS CSI Driver supports [adding extra files to mount pod](../guide/pv.md#mount-pod-extra-files), with this mechanism, we can add Ceph client configuration files (obtained from the host path `/etc/ceph`) into the mount pod.
 
 ## Create JuiceFS volume using Ceph storage
 
@@ -149,7 +147,7 @@ Please refer ["Dynamic Provisioning"](../guide/pv.md#dynamic-provisioning) for h
 
 ### Static provisioning
 
-Please refer ["Static Provisioning"](../guide/pv.md#static-provisioning) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-sceret` and `kube-system`.
+Please refer ["Static Provisioning"](../guide/pv.md#static-provisioning) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-secret` and `kube-system`.
 
 ## Other Ceph versions
 

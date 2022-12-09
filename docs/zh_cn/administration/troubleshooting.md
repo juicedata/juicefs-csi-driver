@@ -28,7 +28,7 @@ Events:
   Warning  FailedMount  11s (x6 over 27s)  kubelet            MountVolume.SetUp failed for volume "juicefs-pv" : rpc error: code = Internal desc = Could not mount juicefs: juicefs auth error: Failed to fetch configuration for volume 'juicefs-pv', the token or volume is invalid.
 ```
 
-#### 检查 CSI Controller
+#### 检查 CSI Controller {#check-csi-controller}
 
 若 PVC 事件中并无错误信息，我们需要检查 CSI Controller 容器是否存活，以及是否存在异常日志：
 
