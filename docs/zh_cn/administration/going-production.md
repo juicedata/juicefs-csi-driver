@@ -9,7 +9,7 @@ sidebar_position: 1
 
 在生产环境中，推荐这样设置 PV：
 
-* [「配置更加易读的 PV 名称」](../guide/pv.md#using-path-pattern)
+* [「配置更加易读的 PV 目录名称」](../guide/pv.md#using-path-pattern)
 * 启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](https://juicefs.com/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优

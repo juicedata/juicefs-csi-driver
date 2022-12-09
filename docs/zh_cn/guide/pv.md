@@ -393,9 +393,9 @@ spec:
 在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
-## 配置更加易读的 PV 名称 {#using-path-pattern}
+## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
-在「动态配置」方式下，PV 名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
+在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的目录形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
 
 ```shell
 $ ls /jfs
@@ -457,9 +457,9 @@ parameters:
 
 命名模板中可以引用任意 PVC 元数据，例如标签、注释、名称或命名空间，比如：
 
-1. `${.PVC.namespace}-${.PVC.name}`，则 PV 名为 `<pvc-namespace>-<pvc-name>`
-1. `${.PVC.labels.foo}`，则 PV 名为 PVC 中 `foo` 标签值
-1. `${.PVC.annotations.bar}`，则 PV 名为 PVC 中 `bar` 注释（annotations）的值
+1. `${.PVC.namespace}-${.PVC.name}`，则 PV 目录为 `<pvc-namespace>-<pvc-name>`
+1. `${.PVC.labels.foo}`，则 PV 目录为 PVC 中 `foo` 标签值
+1. `${.PVC.annotations.bar}`，则 PV 目录为 PVC 中 `bar` 注释（annotations）的值
 
 ## 常用 PV 设置
 
