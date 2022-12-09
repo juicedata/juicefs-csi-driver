@@ -48,8 +48,14 @@ def test_deployment_using_storage_rw():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
@@ -97,8 +103,14 @@ def test_deployment_using_storage_ro():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # delete test resources
@@ -143,8 +155,14 @@ def test_deployment_use_pv_rw():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
@@ -197,8 +215,14 @@ def test_deployment_use_pv_ro():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # delete test resources
@@ -850,14 +874,12 @@ def test_deployment_dynamic_patch_pv():
     # wait for app pod ready again
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     pod_ready = True
-    pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
             namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
-            pod_name = po.metadata.name
             pod_ready = True
             if not check_pod_ready(po):
                 pod_ready = False
@@ -868,7 +890,14 @@ def test_deployment_dynamic_patch_pv():
 
     if not pod_ready:
         if MOUNT_MODE == "webhook":
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check mount pod
@@ -983,14 +1012,12 @@ def test_deployment_static_patch_pv():
     # wait for app pod ready again
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     pod_ready = True
-    pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
             namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
-            pod_name = po.metadata.name
             pod_ready = True
             if not check_pod_ready(po):
                 pod_ready = False
@@ -1001,7 +1028,14 @@ def test_deployment_static_patch_pv():
 
     if not pod_ready:
         if MOUNT_MODE == "webhook":
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check mount pod
@@ -1075,8 +1109,14 @@ def test_dynamic_mount_image():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
@@ -1144,8 +1184,14 @@ def test_static_mount_image():
     result = pod.watch_for_success()
     if not result:
         if MOUNT_MODE == "webhook":
-            pod_name = pod.get_name()
-            subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
@@ -1389,8 +1435,14 @@ def test_deployment_dynamic_patch_pv_with_webhook():
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
-        pod_name = pod.get_name()
-        subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            if not check_pod_ready(po):
+                subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
@@ -1437,14 +1489,12 @@ def test_deployment_dynamic_patch_pv_with_webhook():
     # wait for app pod ready again
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     pod_ready = True
-    pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
             namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
-            pod_name = po.metadata.name
             pod_ready = True
             if not check_pod_ready(po):
                 pod_ready = False
@@ -1454,7 +1504,14 @@ def test_deployment_dynamic_patch_pv_with_webhook():
             break
 
     if not pod_ready:
-        subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            if not check_pod_ready(po):
+                subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check subdir
@@ -1520,8 +1577,14 @@ def test_deployment_static_patch_pv_with_webhook():
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     result = pod.watch_for_success()
     if not result:
-        pod_name = pod.get_name()
-        subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            if not check_pod_ready(po):
+                subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     # check mount point
@@ -1566,14 +1629,12 @@ def test_deployment_static_patch_pv_with_webhook():
     # wait for app pod ready again
     LOG.info("Watch for pods of {} for success.".format(deployment.name))
     pod_ready = True
-    pod_name = ""
     for i in range(0, 60):
         pods = client.CoreV1Api().list_namespaced_pod(
             namespace="default",
             label_selector="deployment={}".format(deployment.name)
         )
         for po in pods.items:
-            pod_name = po.metadata.name
             pod_ready = True
             if not check_pod_ready(po):
                 pod_ready = False
@@ -1583,7 +1644,14 @@ def test_deployment_static_patch_pv_with_webhook():
             break
 
     if not pod_ready:
-        subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            if not check_pod_ready(po):
+                subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
         raise Exception("Pods of deployment {} are not ready within 2 min.".format(deployment.name))
 
     # check subdir
