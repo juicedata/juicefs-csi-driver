@@ -215,13 +215,13 @@ spec:
   ...
 ```
 
-## 动态配置 {#dynamic-provisioning}
+## 创建 StorageClass {#create-storage-class}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行创建 StorageClass。
+如果你打算以[「动态配置」](#dynamic-provisioning)或[「通用临时卷」](#general-ephemeral-storage)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
 
-### 创建 StorageClass {#create-storage-class}
+阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
-#### 通过 Helm 创建 {#helm-sc}
+### 通过 Helm 创建 {#helm-sc}
 
 创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
 
@@ -258,7 +258,7 @@ storageClasses:
 
 用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](#create-mount-config)。
 
-#### 通过 kubectl 创建
+### 通过 kubectl 创建
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -276,7 +276,7 @@ parameters:
 #   - cache-size=2048
 ```
 
-#### 调整挂载参数 {#mount-options}
+### 调整挂载参数 {#mount-options}
 
 你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
@@ -294,6 +294,10 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
+## 动态配置 {#dynamic-provisioning}
+
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
 
 ### 部署
 
