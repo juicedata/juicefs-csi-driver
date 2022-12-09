@@ -420,7 +420,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				mountPath: "/jfs/test-volume",
 				options:   []string{"debug"},
 			},
-			want: "/sbin/mount.juicefs test /jfs/test-volume -o debug,foreground",
+			want: "/sbin/mount.juicefs test /jfs/test-volume -o foreground,debug",
 		},
 	}
 	for _, tt := range tests {
