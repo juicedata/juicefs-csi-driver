@@ -385,7 +385,68 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 // podPendingHandler handles mount pod that is pending
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) error {
-	// do nothing
+	if pod == nil {
+		return nil
+	}
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// check resource err
+	if util.IsPodResourceError(pod) {
+		klog.V(5).Infof("waitUtilMount: Pod %s failed because of resource.", pod.Name)
+		if util.IsPodHasResource(*pod) {
+			// if pod is failed because of resource, delete resource and deploy pod again.
+			_ = util.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
+			klog.V(5).Infof("Delete it and deploy again with no resource.")
+			if err := p.Client.DeletePod(ctx, pod); err != nil {
+				klog.Errorf("delete po:%s err:%v", pod.Name, err)
+				return nil
+			}
+			isDeleted := false
+			// wait pod delete for 1min
+			for {
+				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+				if err == nil {
+					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
+					time.Sleep(time.Microsecond * 500)
+					continue
+				}
+				if apierrors.IsNotFound(err) {
+					isDeleted = true
+					break
+				}
+				if apierrors.IsTimeout(err) {
+					break
+				}
+				if ctx.Err() == context.Canceled || ctx.Err() == context.DeadlineExceeded {
+					break
+				}
+				klog.Errorf("get mountPod err:%v", err)
+			}
+			if !isDeleted {
+				klog.Errorf("Old pod %s %s deleting timeout", pod.Name, config.Namespace)
+				return nil
+			}
+			var newPod = &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        pod.Name,
+					Namespace:   pod.Namespace,
+					Labels:      pod.Labels,
+					Annotations: pod.Annotations,
+				},
+				Spec: pod.Spec,
+			}
+			controllerutil.AddFinalizer(newPod, config.Finalizer)
+			util.DeleteResourceOfPod(newPod)
+			_, err := p.Client.CreatePod(ctx, newPod)
+			if err != nil {
+				klog.Errorf("create pod:%s err:%v", pod.Name, err)
+			}
+		} else {
+			klog.V(5).Infof("mountPod PodResourceError, but pod no resource, do nothing.")
+		}
+	}
 	return nil
 }
 
