@@ -125,6 +125,10 @@ kubectl -n kube-system describe po $MOUNT_POD_NAME
 # Print mount pod logs, which contain JuiceFS Client logs.
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
+# Print mount pod command, an easily ignored troubleshooting step
+# If you define mount options in an erroneous format, the resulting mount pod start-up command will not work correctly
+kubectl get pod -ojsonpath={..containers[0].command} $MOUNT_POD_NAME
+
 # Find all mount pod for give PV
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
 ```

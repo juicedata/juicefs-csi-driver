@@ -26,9 +26,13 @@ If CSI Node pod is not properly running, and the socket file used to communicate
 
 [Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot.
 
-## Mount Pod failure
+## Mount Pod failure {#mount-pod-error}
 
-One of the most seen problems is mount pod stuck at `Pending` state, causing application pod to stuck as well at `ContainerCreating` state. When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Also, `Pending` state usually indicates problem with resource allocation.
+JuiceFS Client runs inside the mount pod and there's a variety of possible causes for error, this section covers some of the more frequently seen problems.
+
+**Mount pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**
+
+When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
 
 In addition, when kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
 
@@ -37,6 +41,30 @@ Preempted in order to admit critical pod
 ```
 
 Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
+
+**Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**
+
+Mount pod should always be up and running, if it exits and becomes `Completed` state, even with a 0 exit code, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
+
+```shell
+$ kubectl describe pod juicefs-app
+...
+  Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
+  Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
+```
+
+The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. We should inspect the mount pod start-up command to identify the cause for this:
+
+```shell
+APP_NS=default  # application pod namespace
+APP_POD_NAME=example-app-xxx-xxx
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+
+# Obtain mount pod start-up command
+# Should look like ["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
+kubectl get pod -ojsonpath={..containers[0].command} $MOUNT_POD_NAME
+```
+Carefully examine the start-up command to ensure that the `-o foreground` options is taking effect. `foreground` is the option that makes JuiceFS Client run at foreground, a malformatted command like `-o debug` (missing `,` between two FUSE options) will render these options useless, and JuiceFS Client will instead run in background, causing main process to exit with 0. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
 
 ## PVC creation failures due to configuration conflicts
 
