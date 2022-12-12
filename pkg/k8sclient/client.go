@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -265,6 +266,26 @@ func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*co
 	mntPod, err := k.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get pv %s : %v", pvName, err)
+		return nil, err
+	}
+	return mntPod, nil
+}
+
+func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, namespace string) (*corev1.PersistentVolumeClaim, error) {
+	klog.V(6).Infof("Get pvc %s in namespace %s", pvcName, namespace)
+	mntPod, err := k.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get pvc %s in namespace %s : %v", pvcName, namespace, err)
+		return nil, err
+	}
+	return mntPod, nil
+}
+
+func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
+	klog.V(6).Infof("Get sc %s", scName)
+	mntPod, err := k.StorageV1().StorageClasses().Get(ctx, scName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get sc %s : %v", scName, err)
 		return nil, err
 	}
 	return mntPod, nil

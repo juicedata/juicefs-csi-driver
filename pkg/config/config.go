@@ -26,10 +26,10 @@ import (
 
 var (
 	ByProcess    = false // csi driver runs juicefs in process or not
-	PodManager   = false // enable pod manager or not (only in k8s)
 	FormatInPod  = false // put format/auth in pod (only in k8s)
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
+	Webhook      = false // inject juicefs client as sidecar in pod (only in k8s)
 
 	NodeName           = ""
 	Namespace          = ""
@@ -76,6 +76,15 @@ const (
 	ProvisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
 	PublishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
 	PublishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
+
+	// webhook
+	WebhookName          = "juicefs-admission-webhook"
+	True                 = "true"
+	False                = "false"
+	inject               = "juicefs.com/inject"
+	injectSidecar        = ".sidecar" + inject
+	InjectSidecarDone    = "done" + injectSidecar
+	InjectSidecarDisable = "disable" + injectSidecar
 
 	// config in pv
 	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"

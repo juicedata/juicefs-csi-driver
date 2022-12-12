@@ -17,153 +17,70 @@ limitations under the License.
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"net/http"
+	goflag "flag"
 	_ "net/http/pprof"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/spf13/cobra"
 	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/juicedata/juicefs-csi-driver/cmd/app"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
-	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var (
-	endpoint           = flag.String("endpoint", "unix://tmp/csi.sock", "CSI Endpoint")
-	version            = flag.Bool("version", false, "Print the version and exit.")
-	nodeID             = flag.String("nodeid", "", "Node ID")
-	podManager         = flag.Bool("enable-manager", false, "Enable pod manager or not.")
-	reconcilerInterval = flag.Int("reconciler-interval", 5, "interval (default 5s) for reconciler")
-	formatInPod        = flag.Bool("format-in-pod", false, "Put format/auth in pod")
-	process            = flag.Bool("by-process", false, "CSI Driver run juicefs in process or not. default false.")
-	provisioner        = flag.Bool("provisioner", false, "Enable provisioner in controller. default false.")
-	mountManager       = flag.Bool("mount-manager", true, "Enable mount manager in csi controller. default false.")
+	endpoint    string
+	version     bool
+	nodeID      string
+	formatInPod bool
+	process     bool
+
+	provisioner bool
+	webhook     bool
+	certDir     string
+
+	podManager         bool
+	reconcilerInterval int
 )
 
-func init() {
-	klog.InitFlags(nil)
-	flag.Parse()
-	config.ByProcess = *process
-	config.Provisioner = *provisioner
-	if *process {
-		// if run in process, does not need pod info
-		config.PodManager = false
-		config.FormatInPod = false
-		config.MountManager = false
-		return
+func main() {
+	var cmd = &cobra.Command{
+		Use:   "juicefs-csi",
+		Short: "juicefs csi driver",
+		Run: func(cmd *cobra.Command, args []string) {
+			run()
+		},
 	}
-	config.FormatInPod = *formatInPod
-	config.NodeName = os.Getenv("NODE_NAME")
-	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
-	config.PodName = os.Getenv("POD_NAME")
-	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
-	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
-	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
-	config.HostIp = os.Getenv("HOST_IP")
-	config.KubeletPort = os.Getenv("KUBELET_PORT")
-	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
-	if timeout := os.Getenv("JUICEFS_RECONCILE_TIMEOUT"); timeout != "" {
-		duration, _ := time.ParseDuration(timeout)
-		if duration > config.ReconcileTimeout {
-			config.ReconcileTimeout = duration
-		}
-	}
+	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "unix://tmp/csi.sock", "CSI endpoint")
+	cmd.PersistentFlags().BoolVar(&version, "version", false, "Print the version and exit.")
+	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "Node ID")
+	cmd.PersistentFlags().BoolVar(&formatInPod, "format-in-pod", false, "Put format/auth in pod")
+	cmd.PersistentFlags().BoolVar(&process, "by-process", false, "CSI Driver run juicefs in process or not. default false.")
 
-	if jfsMountPriorityName != "" {
-		config.JFSMountPriorityName = jfsMountPriorityName
-	}
+	// controller flags
+	cmd.Flags().BoolVar(&provisioner, "provisioner", false, "Enable provisioner in controller. default false.")
+	cmd.Flags().BoolVar(&webhook, "webhook", false, "Enable webhook in controller. default false.")
+	cmd.Flags().StringVar(&certDir, "webhook-cert-dir", "/etc/webhook/certs", "Admission webhook cert/key dir.")
 
-	if mountPodImage := os.Getenv("JUICEFS_MOUNT_IMAGE"); mountPodImage != "" {
-		config.MountImage = mountPodImage
-	}
+	// node flags
+	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")
+	cmd.Flags().IntVar(&reconcilerInterval, "reconciler-interval", 5, "interval (default 5s) for reconciler")
 
-	if config.PodName == "" || config.Namespace == "" {
-		klog.Fatalln("Pod name & namespace can't be null.")
-		os.Exit(0)
-	}
-	if strings.Contains(config.PodName, "csi-controller") && *mountManager {
-		config.MountManager = true
-	}
-	if strings.Contains(config.PodName, "csi-node") && *podManager {
-		config.PodManager = true
-	}
+	goFlag := goflag.CommandLine
+	klog.InitFlags(goFlag)
+	cmd.PersistentFlags().AddGoFlagSet(goFlag)
 
-	config.ReconcilerInterval = *reconcilerInterval
-	if config.ReconcilerInterval < 5 {
-		config.ReconcilerInterval = 5
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
 	}
-
-	k8sclient, err := k8s.NewClient()
-	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		os.Exit(0)
-	}
-	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
-	if err != nil {
-		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
-		os.Exit(0)
-	}
-	config.CSIPod = *pod
 }
 
-func main() {
-	if *version {
-		info, err := driver.GetVersionJSON()
-		if err != nil {
-			klog.Fatalln(err)
-		}
-		fmt.Println(info)
-		os.Exit(0)
+func run() {
+	podName := os.Getenv("POD_NAME")
+	if strings.Contains(podName, "csi-controller") {
+		klog.Info("Run CSI controller")
+		controllerRun()
 	}
-	if *nodeID == "" {
-		klog.Fatalln("nodeID must be provided")
-	}
-
-	go func() {
-		port := 6060
-		for {
-			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
-			port++
-		}
-	}()
-	// enable pod manager in csi node
-	if config.PodManager && config.KubeletPort != "" && config.HostIp != "" {
-		if err := controller.StartReconciler(); err != nil {
-			klog.V(5).Infof("Could not Start Reconciler: %v", err)
-			os.Exit(1)
-		}
-		klog.V(5).Infof("Pod Reconciler Started")
-	}
-
-	// enable mount manager in csi controller
-	if config.MountManager {
-		go func() {
-			mgr, err := app.NewMountManager()
-			if err != nil {
-				klog.Error(err)
-				return
-			}
-			klog.V(5).Infof("Mount Manager Started")
-			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-				klog.Error(err, "fail to run mount controller")
-				return
-			}
-		}()
-	}
-
-	drv, err := driver.NewDriver(*endpoint, *nodeID)
-	if err != nil {
-		klog.Fatalln(err)
-	}
-	if err := drv.Run(); err != nil {
-		klog.Fatalln(err)
+	if strings.Contains(podName, "csi-node") {
+		klog.Info("Run CSI node")
+		controllerRun()
 	}
 }

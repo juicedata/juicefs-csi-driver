@@ -57,7 +57,7 @@ RUN yum install -y librados2 curl fuse && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs
 
-COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
+COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
@@ -65,4 +65,4 @@ COPY ../THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 
-ENTRYPOINT ["/bin/juicefs-csi-driver"]
+ENTRYPOINT ["juicefs-csi-driver"]

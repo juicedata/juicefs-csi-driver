@@ -248,6 +248,9 @@ spec:
             - mountPath: /root/.juicefs
               mountPropagation: Bidirectional
               name: jfs-root-dir
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
           ports:
             - name: healthz
               containerPort: 9909
@@ -303,6 +306,9 @@ spec:
             path: /var/lib/juicefs/config
             type: DirectoryOrCreate
           name: jfs-root-dir
+        - name: webhook-certs
+          secret:
+            secretName: juicefs-webhook-certs
 ---
 # Node Service
 kind: DaemonSet
@@ -450,3 +456,55 @@ spec:
             path: /var/lib/juicefs/config
             type: DirectoryOrCreate
           name: jfs-root-dir
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: juicefs-admission-webhook
+webhooks:
+  - name: sidecar.inject.juicefs.com
+    rules:
+      - apiGroups:   [""]
+        apiVersions: ["v1"]
+        operations:  ["CREATE"]
+        resources:   ["pods"]
+    clientConfig:
+      service:
+        namespace: kube-system
+        name: juicefs-admission-webhook
+        path: "/juicefs/mutate"
+        port: 9443
+      caBundle: ${CA_BUNDLE}
+    timeoutSeconds: 20
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: ["v1","v1beta1"]
+    namespaceSelector:
+      matchLabels:
+        juicefs.com/enable-injection: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juicefs-admission-webhook
+  namespace: kube-system
+spec:
+  ports:
+    - name: https-rest
+      port: 9443
+      targetPort: 9443
+  selector:
+    app: juicefs-csi-controller
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: juicefs-webhook-certs
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/component: webhook-secret
+type: Opaque
+data:
+  ca.crt: "${CA_BUNDLE}"
+  tls.crt: "${TLS_CRT}"
+  tls.key: "${TLS_KEY}"
