@@ -139,9 +139,9 @@ subjects:
 ---
 apiVersion: v1
 data:
-  ca.crt: ${CA_BUNDLE}
-  tls.crt: ${TLS_CRT}
-  tls.key: ${TLS_KEY}
+  ca.crt: CA_BUNDLE
+  tls.crt: TLS_CRT
+  tls.key: TLS_KEY
 kind: Secret
 metadata:
   labels:
@@ -165,8 +165,8 @@ metadata:
 spec:
   ports:
   - name: https-rest
-    port: 9443
-    targetPort: 9443
+    port: 443
+    targetPort: 9444
   selector:
     app: juicefs-csi-controller
     app.kubernetes.io/instance: juicefs-csi-driver
@@ -233,7 +233,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.17.1
+        image: juicedata/juicefs-csi-driver:v0.17.3
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -342,12 +342,11 @@ webhooks:
   - v1
   - v1beta1
   clientConfig:
-    caBundle: ${CA_BUNDLE}
+    caBundle: CA_BUNDLE
     service:
       name: juicefs-admission-webhook
       namespace: kube-system
-      path: /juicefs/mutate
-      port: 9443
+      path: /juicefs/inject-v1-pod
   failurePolicy: Fail
   name: sidecar.inject.juicefs.com
   namespaceSelector:

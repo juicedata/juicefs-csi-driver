@@ -36,6 +36,7 @@ var (
 	provisioner bool
 	webhook     bool
 	certDir     string
+	webhookPort int
 
 	podManager         bool
 	reconcilerInterval int
@@ -59,6 +60,7 @@ func main() {
 	cmd.Flags().BoolVar(&provisioner, "provisioner", false, "Enable provisioner in controller. default false.")
 	cmd.Flags().BoolVar(&webhook, "webhook", false, "Enable webhook in controller. default false.")
 	cmd.Flags().StringVar(&certDir, "webhook-cert-dir", "/etc/webhook/certs", "Admission webhook cert/key dir.")
+	cmd.Flags().IntVar(&webhookPort, "webhook-port", 9444, "Admission webhook cert/key dir.")
 
 	// node flags
 	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")

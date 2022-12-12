@@ -60,7 +60,6 @@ func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
 		klog.Infof("get settings from pv %s of pod %s namespace %s err: %v", s.PV.Name, pod.Name, pod.Namespace, err)
 		return
 	}
-	klog.V(6).Infof("secrets: %v, volumeContext: %v, mountOptions: %v", secrets, volCtx, options)
 
 	out = pod.DeepCopy()
 	// gen jfs settings
@@ -127,6 +126,7 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 		mountOptions = strings.Split(opts, ",")
 	}
 	options = append(options, mountOptions...)
+	klog.V(5).Infof("volume options of pv %s: %v", pv.Name, options)
 
 	return
 }

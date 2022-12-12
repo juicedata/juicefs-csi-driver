@@ -71,6 +71,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
 	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvc, pv)
+	klog.Infof("start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
 	out, err := sidecarMutate.Mutate(pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)

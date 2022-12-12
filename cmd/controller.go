@@ -104,7 +104,7 @@ func controllerRun() {
 	if config.Webhook {
 		go func() {
 			klog.V(5).Infof("Webhook Started")
-			if err := app.StartWebhook(certDir); err != nil {
+			if err := app.StartWebhook(certDir, webhookPort); err != nil {
 				klog.Error(err, "fail to run webhook")
 				return
 			}

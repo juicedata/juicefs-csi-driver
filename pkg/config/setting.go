@@ -250,7 +250,6 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	// set default resource limit & request
 	jfsSetting.Resources = getDefaultResource()
 	if volCtx != nil {
-		klog.V(5).Infof("VolCtx got in config: %v", volCtx)
 		// subPath
 		if volCtx["subPath"] != "" {
 			jfsSetting.SubPath = volCtx["subPath"]

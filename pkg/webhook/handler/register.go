@@ -24,7 +24,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-const HandlerPath = "/juicefs/mutate"
+const HandlerPath = "/juicefs/inject-v1-pod"
 
 // Register registers the handlers to the manager
 func Register(mgr manager.Manager, client *k8sclient.K8sClient) {

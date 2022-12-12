@@ -472,9 +472,8 @@ webhooks:
       service:
         namespace: kube-system
         name: juicefs-admission-webhook
-        path: "/juicefs/mutate"
-        port: 9443
-      caBundle: ${CA_BUNDLE}
+        path: "/juicefs/inject-v1-pod"
+      caBundle: CA_BUNDLE
     timeoutSeconds: 20
     failurePolicy: Fail
     sideEffects: None
@@ -491,8 +490,8 @@ metadata:
 spec:
   ports:
     - name: https-rest
-      port: 9443
-      targetPort: 9443
+      port: 443
+      targetPort: 9444
   selector:
     app: juicefs-csi-controller
 ---
@@ -505,6 +504,6 @@ metadata:
     app.kubernetes.io/component: webhook-secret
 type: Opaque
 data:
-  ca.crt: "${CA_BUNDLE}"
-  tls.crt: "${TLS_CRT}"
-  tls.key: "${TLS_KEY}"
+  ca.crt: CA_BUNDLE
+  tls.crt: TLS_CRT
+  tls.key: TLS_KEY

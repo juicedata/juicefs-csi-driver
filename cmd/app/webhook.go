@@ -29,7 +29,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler"
 )
 
-func StartWebhook(certDir string) error {
+func StartWebhook(certDir string, webhookPort int) error {
 	_ = clientgoscheme.AddToScheme(scheme)
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -39,7 +39,7 @@ func StartWebhook(certDir string) error {
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:           scheme,
-		Port:             9444,
+		Port:             webhookPort,
 		CertDir:          certDir,
 		LeaderElection:   false,
 		LeaderElectionID: "webhook.juicefs.com",
