@@ -457,7 +457,7 @@ parameters:
   pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
 
-You can reference any PVC metadata in the pattern, for examples:
+You can reference any PVC metadata in the pattern, for example:
 
 1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`.
 1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value.
