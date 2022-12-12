@@ -1190,3 +1190,66 @@ func Test_juicefs_validTarget(t *testing.T) {
 		})
 	}
 }
+
+func Test_juicefs_validOptions(t *testing.T) {
+	type args struct {
+		volumeId string
+		options  []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "test-normal",
+			args: args{
+				volumeId: "test",
+				options:  []string{"cache-dir=xxx"},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-space1",
+			args: args{
+				volumeId: "test",
+				options:  []string{" cache-dir=xxx "},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-space2",
+			args: args{
+				volumeId: "test",
+				options:  []string{" cache-dir = xxx "},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-error",
+			args: args{
+				volumeId: "test",
+				options:  []string{"cache-dir=xxx cache-size=1024"},
+			},
+			want:    []string{},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			j := &juicefs{}
+			got, err := j.validOptions(tt.args.volumeId, tt.args.options)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("validOptions() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
