@@ -124,7 +124,7 @@ Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
 The PV `volumeHandle` needs to be unique within the cluster, simply using the PV name is recommended.
 :::
 
-```yaml
+```yaml {14-20}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -204,7 +204,7 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
 
-```yaml {8}
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -405,7 +405,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about.
+From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
 
 ```shell
 $ ls /jfs
@@ -431,7 +431,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-Change the startup options via `kubectl patch`:
+Add the required startup options (`--provisioner=true`) via `kubectl patch` command:
 
 ```shell
 kubectl -n kube-system patch sts juicefs-csi-controller \
@@ -457,7 +457,7 @@ parameters:
   pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
 
-You can reference any PVC metadata in the pattern, For examples:
+You can reference any PVC metadata in the pattern, for examples:
 
 1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`.
 1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value.
