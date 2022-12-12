@@ -12,7 +12,7 @@ sidebar_position: 3
 
 你可以在[镜像仓库](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v)找到最新版的 Mount Pod 镜像，镜像标签格式为 `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`，其中 `<JUICEFS-CE-VERSION>` 表示 JuiceFS 社区版客户端的版本号，`<JUICEFS-EE-VERSION>` 表示 JuiceFS 云服务客户端的版本号。
 
-如果 JuiceFS 客户端的新版尚未正式发布，或新版本的 Mount Pod 容器镜像尚未构建，你也可以自行构建 Mount Pod 容器镜像，参考[「构建 Mount Pod 的容器镜像」](../development/build-juicefs-image.md#build-mount-pod-image)。
+如果 JuiceFS 客户端的新版尚未正式发布，或新版本的 Mount Pod 容器镜像尚未构建，你也可以自行构建 Mount Pod 容器镜像，参考[「构建 Mount Pod 的容器镜像」](../guide/custom-image.md#build-mount-pod-image)。
 
 ### 动态配置
 

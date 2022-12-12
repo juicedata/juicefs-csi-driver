@@ -12,7 +12,7 @@ From v0.17.1 and above, CSI Driver supports customizing mount pod image, you can
 
 Find the latest mount pod image in [our image registry](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v), image tag format is `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`.
 
-If the desired JuiceFS Client isn't yet released, or the latest mount pod image hasn't been built, you can also [build your own mount pod image](../development/build-juicefs-image.md#build-mount-pod-image).
+If the desired JuiceFS Client isn't yet released, or the latest mount pod image hasn't been built, you can also [build your own mount pod image](../guide/custom-image.md#build-mount-pod-image).
 
 ### Dynamic provisioning
 

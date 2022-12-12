@@ -116,7 +116,7 @@ sidebar_position: 5
    ```
 
    :::note 注意
-   由于修改了 Mount Pod 容器镜像的 tag，因此你需要一并更改 CSI 驱动设置，让 CSI 驱动从内网镜像仓库下载 Mount Pod 容器镜像。详见[覆盖默认容器镜像](../examples/mount-image.md#overwrite-mount-pod-image)。
+   由于修改了 Mount Pod 容器镜像的 tag，因此你需要一并更改 CSI 驱动设置，让 CSI 驱动从内网镜像仓库下载 Mount Pod 容器镜像。详见[覆盖默认容器镜像](../guide/custom-image.md#overwrite-mount-pod-image)。
    :::
 
 至此，镜像搬运已经完成，请继续 CSI 驱动的安装。
