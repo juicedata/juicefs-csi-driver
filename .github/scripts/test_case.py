@@ -72,8 +72,8 @@ def test_deployment_using_storage_rw():
             )
             for po in pods.items:
                 pod_name = po.metadata.name
-                subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-                subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
     LOG.info("Test pass.")
 
@@ -187,8 +187,8 @@ def test_deployment_use_pv_rw():
             )
             for po in pods.items:
                 pod_name = po.metadata.name
-                subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-                subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     # delete test resources
@@ -1488,8 +1488,8 @@ def test_deployment_dynamic_patch_pv_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # patch pv
@@ -1562,8 +1562,8 @@ def test_deployment_dynamic_patch_pv_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
 
     LOG.info("Test pass.")
@@ -1631,8 +1631,8 @@ def test_deployment_static_patch_pv_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("Mount point of /mnt/jfs/{} are not ready within 5 min.".format(out_put))
 
     # patch pv
@@ -1704,8 +1704,8 @@ def test_deployment_static_patch_pv_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
 
     LOG.info("Test pass.")
@@ -1775,8 +1775,8 @@ def test_dynamic_mount_image_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # check sidecar image
@@ -1865,8 +1865,8 @@ def test_static_mount_image_with_webhook():
         )
         for po in pods.items:
             pod_name = po.metadata.name
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
-            subprocess.check_call(["kubectl", "get", "logs", pod_name, "-c", "app", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     # check sidecar image
