@@ -30,13 +30,14 @@ On the same node, a PVC corresponds to a Mount Pod. The relationship between PVC
 
 ## Usage {#usage}
 
-To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via ["Static Provisioning"](./guide/pv.md#static-provisioning) or ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning). Under static provisioning, you're required to create the PersistentVolume (PV) and PersistentVolumeClaim (PVC), and reference that PVC in pod definition, this is the recommended way if you already have large amount of data stored in JuiceFS, and wish to access directly inside Kubernetes pods.
+To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via ["Static Provisioning"](./guide/pv.md#static-provisioning) or ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning). Under static provisioning, you're in charge of creating the PersistentVolume (PV) and PersistentVolumeClaim (PVC), and reference that PVC in pod definition, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/). Use static provisioning when:
 
-You can also choose to create PV dynamically via dynamic provisioning: create a PVC and reference it in pod definition, JuiceFS CSI Driver will create the corresponding PV for you.
+* You already have large amount of data stored in JuiceFS, and wish to access directly inside Kubernetes pods.
+* You are evaluating JuiceFS CSI Driver functionalities.
 
-Take ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning) as an example, this is the process of creating and using a PV:
+Managing PVs can be wearisome, when using CSI Driver at scale, it's recommended to create PV dynamically via ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning): create a PVC and reference it in pod definition, JuiceFS CSI Driver will create the corresponding PV for you. The overall process:
 
-* User creates a PVC (PersistentVolumeClaim) using the JuiceFS StorageClass;
+* User creates a PVC using the JuiceFS StorageClass;
 * PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root;
 * Kubernetes PV Controller binds user-created PVC with the PV created by CSI Controller, PVC and PV both enter "Bound" state;
 * User creates application pod, referencing PVC previously created;

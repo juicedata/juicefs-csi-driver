@@ -9,8 +9,10 @@ Best practices and recommended settings when going production.
 
 Below settings are recommended for a production environment.
 
+* [Configure more readable names for PV directory](../guide/pv.md#using-path-pattern)
 * Enable [Automatic Mount Point Recovery](../guide/pv.md#automatic-mount-point-recovery)
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](https://juicefs.com/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache).
+* When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md).
 
 ## Collect mount pod logs using EFK
 

@@ -3,86 +3,6 @@ title: Create and Use PV
 sidebar_position: 1
 ---
 
-## Create a StorageClass {#create-storage-class}
-
-If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
-
-Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
-
-### Create via Helm {#helm-sc}
-
-Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
-
-Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).
-
-```yaml title="values.yaml"
-storageClasses:
-- name: juicefs-sc
-  enabled: true
-  reclaimPolicy: Retain
-  # JuiceFS volume related configuration
-  # If volume is already created in advance, then only name and metaurl is needed
-  backend:
-    name: "<name>"               # JuiceFS volume name
-    metaurl: "<meta-url>"        # URL of metadata engine
-    storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
-    accessKey: "<access-key>"    # Access Key for object storage
-    secretKey: "<secret-key>"    # Secret Key for object storage
-    bucket: "<bucket>"           # A bucket URL to store data
-    # Adjust mount pod timezone, defaults to UTC
-    # envs: "{TZ: Asia/Shanghai}"
-  mountPod:
-    resources:                   # Resource limit/request for mount pod
-      requests:
-        cpu: "1"
-        memory: "1Gi"
-      limits:
-        cpu: "5"
-        memory: "5Gi"
-  # Declare mount options here if in need
-  # mountOptions:
-  #   - cache-size=2048
-```
-
-When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](#create-mount-config).
-
-### Create via kubectl
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  # Declare mount options here if in need
-  # mountOptions:
-  #   - cache-size=2048
-```
-
-### Adjust mount options {#mount-options}
-
-You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
-
-If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
-
-```yaml
-mountOptions:
-  - cache-size=2048
-  # Extra FUSE options
-  - writeback_cache
-  - debug
-```
-
-Mount options are different between Community Edition and Cloud Service, see:
-
-- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
-
 ## Create mount configuration {#create-mount-config}
 
 With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
@@ -192,6 +112,191 @@ stringData:
 
 After this is done, newly created PVs will start to use this configuration. You can [enter the mount pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` command to ensure the variables are set.
 
+## Static provisioning {#static-provisioning}
+
+Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
+
+### Deploy
+
+Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
+
+:::note
+The PV `volumeHandle` needs to be unique within the cluster, simply using the PV name is recommended.
+:::
+
+```yaml {14-20}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 10Pi
+  selector:
+    matchLabels:
+      juicefs-name: ten-pb-fs
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: juicefs-app
+  namespace: default
+spec:
+  containers:
+  - args:
+    - -c
+    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
+    command:
+    - /bin/sh
+    image: centos
+    name: app
+    volumeMounts:
+    - mountPath: /data
+      name: data
+    resources:
+      requests:
+        cpu: 10m
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: juicefs-pvc
+```
+
+After all resources are created, verify that all is working well:
+
+```shell
+# Verify PV is created
+kubectl get pv
+
+# Verify the pod is running
+kubectl get pods
+
+# Verify that data is written into JuiceFS
+kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+```
+
+You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=2048
+  ...
+```
+
+## Create a StorageClass {#create-storage-class}
+
+If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
+
+Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
+
+### Create via Helm {#helm-sc}
+
+Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
+
+Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).
+
+```yaml title="values.yaml"
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  reclaimPolicy: Retain
+  # JuiceFS volume related configuration
+  # If volume is already created in advance, then only name and metaurl is needed
+  backend:
+    name: "<name>"               # JuiceFS volume name
+    metaurl: "<meta-url>"        # URL of metadata engine
+    storage: "<storage-type>"    # Object storage type (e.g. s3, gcs, oss, cos)
+    accessKey: "<access-key>"    # Access Key for object storage
+    secretKey: "<secret-key>"    # Secret Key for object storage
+    bucket: "<bucket>"           # A bucket URL to store data
+    # Adjust mount pod timezone, defaults to UTC
+    # envs: "{TZ: Asia/Shanghai}"
+  mountPod:
+    resources:                   # Resource limit/request for mount pod
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - cache-size=2048
+```
+
+When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](#create-mount-config).
+
+### Create via kubectl
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  # Declare mount options here if in need
+  # mountOptions:
+  #   - cache-size=2048
+```
+
+### Adjust mount options {#mount-options}
+
+You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
+
+If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # Extra FUSE options
+  - writeback_cache
+  - debug
+```
+
+Mount options are different between Community Edition and Cloud Service, see:
+
+- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
 ## Dynamic provisioning {#dynamic-provisioning}
 
 Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
@@ -200,7 +305,7 @@ Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dyna
 
 Create PersistentVolumeClaim (PVC) and example pod:
 
-```yaml
+```yaml {13}
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -290,114 +395,73 @@ spec:
 As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
-## Static provisioning {#static-provisioning}
+## Configure more readable names for PV directory {#using-path-pattern}
 
-Read [Usage](../introduction.md#usage) to learn about static provisioning.
-
-Static provisioning means you are in charge of creating and managing PV/PVC, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/).
-
-Although dynamic provisioning saves you from manually creating PVs, static provisioning is still helpful when you already have lots of data stored in JuiceFS, and wants to directly expose to Kubernetes pods.
-
-### Deploy
-
-Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
-
-:::note
-The PV `volumeHandle` needs to be unique within the cluster, simply using the PV name is recommended.
-:::
-
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: juicefs-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: ""
-  resources:
-    requests:
-      storage: 10Pi
-  selector:
-    matchLabels:
-      juicefs-name: ten-pb-fs
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: juicefs-app
-  namespace: default
-spec:
-  containers:
-  - args:
-    - -c
-    - while true; do echo $(date -u) >> /data/out.txt; sleep 5; done
-    command:
-    - /bin/sh
-    image: centos
-    name: app
-    volumeMounts:
-    - mountPath: /data
-      name: data
-    resources:
-      requests:
-        cpu: 10m
-  volumes:
-  - name: data
-    persistentVolumeClaim:
-      claimName: juicefs-pvc
-```
-
-After all resources are created, verify that all is working well:
+Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
 
 ```shell
-# Verify PV is created
-kubectl get pv
-
-# Verify the pod is running
-kubectl get pods
-
-# Verify that data is written into JuiceFS
-kubectl exec -ti juicefs-app -- tail -f /data/out.txt
+$ ls /jfs
+pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
+...
 ```
 
-You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
+From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
 
-```yaml {8}
-apiVersion: v1
-kind: PersistentVolume
+```shell
+$ ls /jfs
+default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
+```
+
+This feature is disabled by default, continue reading to enable.
+
+### Helm
+
+Add below content to `values.yaml`:
+
+```yaml title="values.yaml"
+controller:
+  provisioner: true
+```
+
+Then reinstall JuiceFS CSI Driver:
+
+```shell
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+Add the required startup options (`--provisioner=true`) via `kubectl patch` command:
+
+```shell
+kubectl -n kube-system patch sts juicefs-csi-controller \
+  --type='json' \
+  -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
+```
+
+### Usage
+
+Define `pathPattern` in StorageClass:
+
+```yaml {11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=2048
-  ...
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  pathPattern: "${.PVC.namespace}-${.PVC.name}"
 ```
+
+You can reference any PVC metadata in the pattern, for example:
+
+1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`.
+1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value.
+1. `${.PVC.annotations.bar}` results in the PV directory name being the `bar` annotation value.
 
 ## Common PV settings
 
