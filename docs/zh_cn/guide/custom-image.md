@@ -90,7 +90,7 @@ spec:
 
 ### 构建 Mount Pod 的容器镜像 {#build-mount-pod-image}
 
-JuiceFS CSI 驱动采用[「分离架构」](../introduction.md#architecture)，Mount Pod 默认使用的容器镜像是 [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount)，对应的 Dockerfile 是 [`docker/juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/juicefs.Dockerfile)。
+JuiceFS CSI 驱动采用[「分离架构」](../introduction.md#architecture)，Mount Pod 默认使用的容器镜像是 [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount)，对应的 Dockerfile 是 [`docker/dev.juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/dev.juicefs.Dockerfile)。
 
 因此，如果要自行构建挂载镜像，可以参考下方命令克隆 JuiceFS 社区版仓库，然后直接用内置的 Dockerfile 执行构建：
 
