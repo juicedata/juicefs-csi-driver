@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -121,6 +122,18 @@ func (r *Builder) getVolumes() []corev1.Volume {
 			},
 		})
 	}
+	if config.Webhook {
+		var mode int32 = 0755
+		volumes = append(volumes, corev1.Volume{
+			Name: "juicefs-check-mount",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  secretName,
+					DefaultMode: utilpointer.Int32Ptr(mode),
+				},
+			},
+		})
+	}
 	if r.jfsSetting.InitConfig != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "init-config",
@@ -172,6 +185,13 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 				MountPath: "/root/.juicefs",
 			},
 		)
+	}
+	if config.Webhook {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "juicefs-check-mount",
+			MountPath: checkMountScriptPath,
+			SubPath:   checkMountScriptName,
+		})
 	}
 	return volumeMounts
 }

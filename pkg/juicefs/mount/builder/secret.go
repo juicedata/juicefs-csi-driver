@@ -17,9 +17,34 @@ limitations under the License.
 package builder
 
 import (
+	"strings"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	checkMountScriptName = "check_mount.sh"
+	checkMountScriptPath = "/" + checkMountScriptName
+)
+
+var (
+	checkMountScriptContent = `ConditionPathIsMountPoint="$1"
+count=0
+while ! mount | grep $ConditionPathIsMountPoint | grep JuiceFS
+do
+    sleep 3
+    count=¬expr $count + 1¬
+    if test $count -eq 10
+    then
+        echo "timed out!"
+        exit 1
+    fi
+done
+echo "$(date "+%Y-%m-%d %H:%M:%S")"
+echo "succeed in checking mount point $ConditionPathIsMountPoint"
+`
 )
 
 func (r *Builder) NewSecret() corev1.Secret {
@@ -45,6 +70,8 @@ func (r *Builder) NewSecret() corev1.Secret {
 	if r.jfsSetting.InitConfig != "" {
 		data["init_config"] = r.jfsSetting.InitConfig
 	}
+	replacer := strings.NewReplacer("¬", "`")
+	data[checkMountScriptName] = replacer.Replace(checkMountScriptContent)
 	if options, err := r.jfsSetting.ParseFormatOptions(); err == nil {
 		for _, pair := range options {
 			if pair[0] == "session-token" {

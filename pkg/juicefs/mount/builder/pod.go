@@ -56,6 +56,12 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
+	if config.Webhook {
+		pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
+			Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
+				fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
+		}
+	}
 	gracePeriod := int64(10)
 	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
 
