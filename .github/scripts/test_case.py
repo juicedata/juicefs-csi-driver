@@ -1336,6 +1336,14 @@ def test_path_pattern_in_storage_class():
     check_path = "{}-{}-{}-{}/{}".format("default", pvc.name, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
     LOG.info("Test pass.")
 
@@ -1403,6 +1411,14 @@ def test_dynamic_pvc_delete_with_path_pattern():
     check_path = "{}-{}-{}-{}/{}".format("default", pvc.name, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
 
     LOG.info("Development delete..")
