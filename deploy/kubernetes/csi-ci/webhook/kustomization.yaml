@@ -5,4 +5,4 @@ namespace: kube-system
 patches:
 - webhook.yaml
 resources:
-- ../base
+- ../../base
