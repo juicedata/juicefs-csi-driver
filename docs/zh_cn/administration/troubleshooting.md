@@ -125,6 +125,10 @@ kubectl -n kube-system describe po $MOUNT_POD_NAME
 # 打印 mount pod 日志（其中包含 JuiceFS 客户端日志）
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
+# 打印 mount pod 的启动命令，这是一个较容易忽视的排查要点。
+# 如果挂载选项（mountOptions）填写格式有误，则可能造成启动命令参数错误。
+kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
+
 # 找到该 PV 对应的所有 mount pod
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
 ```
