@@ -5,6 +5,8 @@ function main() {
   echo "deployMode: " $deployMode
   if [ $deployMode == "webhook" ]; then
     deploy_webhook
+  elif [ $deployMode == "webhook-provisioner" ]; then
+    deploy_webhook_provisioner
   else
     deploy_csi $deployMode
   fi
