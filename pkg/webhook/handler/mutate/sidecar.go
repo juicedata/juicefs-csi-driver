@@ -93,6 +93,8 @@ func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
 	s.injectInitContainer(out, mountPod.Spec.InitContainers[0])
 	// inject volume
 	s.injectVolume(out, mountPod.Spec.Volumes, mountPath)
+	// inject label
+	s.injectLabel(out)
 
 	return
 }
@@ -157,6 +159,17 @@ func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, m
 	}
 	// inject volume
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
+}
+
+func (s *SidecarMutate) injectLabel(pod *corev1.Pod) {
+	metaObj := pod.ObjectMeta
+
+	if metaObj.Labels == nil {
+		metaObj.Labels = map[string]string{}
+	}
+
+	metaObj.Labels[config.InjectSidecarDone] = config.True
+	metaObj.DeepCopyInto(&pod.ObjectMeta)
 }
 
 func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1.Secret) error {

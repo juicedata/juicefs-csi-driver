@@ -125,7 +125,7 @@ func (r *Builder) getVolumes() []corev1.Volume {
 	if config.Webhook {
 		var mode int32 = 0755
 		volumes = append(volumes, corev1.Volume{
-			Name: "juicefs-check-mount",
+			Name: "jfs-check-mount",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  secretName,
@@ -188,7 +188,7 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	}
 	if config.Webhook {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "juicefs-check-mount",
+			Name:      "jfs-check-mount",
 			MountPath: checkMountScriptPath,
 			SubPath:   checkMountScriptName,
 		})

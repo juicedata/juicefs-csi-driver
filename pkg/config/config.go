@@ -81,7 +81,7 @@ const (
 	WebhookName          = "juicefs-admission-webhook"
 	True                 = "true"
 	False                = "false"
-	inject               = "juicefs.com/inject"
+	inject               = ".juicefs.com/inject"
 	injectSidecar        = ".sidecar" + inject
 	InjectSidecarDone    = "done" + injectSidecar
 	InjectSidecarDisable = "disable" + injectSidecar

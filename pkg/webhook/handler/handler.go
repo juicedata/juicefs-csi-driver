@@ -59,7 +59,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	// check if pod has disable label
 	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {
 		klog.Infof("[SidecarHandler] skip mutating the pod because injection is disabled. Pod %s namespace %s", pod.Name, pod.Namespace)
-		return admission.Allowed("skip mutating the pod because injection is done")
+		return admission.Allowed("skip mutating the pod because injection is disabled")
 	}
 
 	// check if pod use JuiceFS Volume
