@@ -11,7 +11,7 @@ sidebar_position: 1
 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
 :::
 
-### 社区版
+### 社区版 {#community-edition}
 
 创建 Kubernetes Secret：
 
@@ -46,7 +46,7 @@ stringData:
 
 如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
-### 云服务
+### 云服务 {#cloud-service}
 
 操作之前，请先在 JuiceFS 云服务中[创建文件系统](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)。
 
@@ -81,11 +81,11 @@ stringData:
 
 云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此字段名依然叫做 `format-options`。
 
-### 私有部署
+### 企业版（私有部署） {#enterprise-edition}
 
-JuiceFS Web 控制台负责着客户端的挂载认证，配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 https://juicefs.com/console/，因此需要在挂在配置中额外指定控制台地址。
+JuiceFS Web 控制台负责着客户端的挂载认证、配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 [https://juicefs.com/console](https://juicefs.com/console)，因此需要在挂载配置中通过 `envs` 字段额外指定控制台地址。
 
-```YAML
+```yaml {12-13}
 apiVersion: v1
 metadata:
   name: juicefs-secret
@@ -108,7 +108,7 @@ stringData:
 - `name`：JuiceFS 文件系统名称
 - `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
 - `access-key`/`secret-key`：对象存储的认证信息
-- `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`，`CFG_URL`，指向实际控制台地址
+- `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
 
 ### 为 Mount Pod 额外添加文件 {#mount-pod-extra-files}

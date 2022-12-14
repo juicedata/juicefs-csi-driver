@@ -11,7 +11,7 @@ With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Sec
 If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
 :::
 
-### Community edition
+### Community edition {#community-edition}
 
 Create Kubernetes Secret:
 
@@ -46,7 +46,7 @@ Fields description:
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
-### Cloud service
+### Cloud service {#cloud-service}
 
 Before continue, you should have already [created a file system](https://juicefs.com/docs/cloud/getting_started#create-file-system).
 
@@ -83,11 +83,11 @@ Information like `access-key` can be specified both as a Secret `stringData` fie
 
 For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicefs format` in JuiceFS Community Edition, thus CSI Driver uses `format-options` for both scenarios.
 
-### On-premise
+### Enterprise edition (on-premises) {#enterprise-edition}
 
-The JuiceFS Web Console is in charge of client authentication, and distributing configuration files. In an on-premise deployment, the console address won't be https://juicefs.com/console/, so it's required to specify the address for JuiceFS Web Console inside mount options.
+The JuiceFS Web Console is in charge of client authentication and distributing configuration files. In an on-premises deployment, the console address won't be [https://juicefs.com/console](https://juicefs.com/console), so it's required to specify the address for JuiceFS Web Console through `envs` field in mount options.
 
-```YAML
+```yaml {12-13}
 apiVersion: v1
 metadata:
   name: juicefs-secret
@@ -99,7 +99,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Leave the %s placeholder as-is, it'll be replaced with the actual file system name during runtime
+  # Leave the `%s` placeholder as-is, it'll be replaced with the actual file system name during runtime
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
   # You can also choose to run juicefs auth within the mount pod fill in auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
@@ -110,7 +110,7 @@ Fields description:
 - `name`: The JuiceFS file system name
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
 - `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount pod environment variables, in an on-premise environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
+- `envs`：Mount pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
 
 ### Adding extra files into mount pod {#mount-pod-extra-files}
