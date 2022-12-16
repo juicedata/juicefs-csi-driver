@@ -13,7 +13,7 @@ sidebar_label: 挂载子目录
 - **JuiceFS 社区版及云服务版**
   - 需要在应用 pod 中进行[缓存预热](https://juicefs.com/docs/zh/community/cache_management#%E7%BC%93%E5%AD%98%E9%A2%84%E7%83%AD)
 - **JuiceFS 云服务版**
-  - 所用 [token](https://juicefs.com/docs/zh/cloud/metadata) 只有子目录的访问权限
+  - 所用 token 只有子目录的访问权限
 
 您只需要在 PV 的 `mountOptions` 中指定 `subdir=xxx` 即可：
 
