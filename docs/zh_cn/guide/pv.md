@@ -144,15 +144,9 @@ stringData:
 
 静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
-### 部署
+创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC），字段含义请参考注释：
 
-创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC）和示例 pod：
-
-:::note 注意
-PV 的 `volumeHandle` 需要保证集群内唯一，因此一般直接用 PV name 即可。
-:::
-
-```yaml {14-20}
+```yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -160,6 +154,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
+  # 目前 JuiceFS CSI 驱动尚未实现 capacity，填写任意有效值即可
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -167,9 +162,13 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   csi:
+    # 在先前的安装步骤中，已经创建了名为 csi.juicefs.com 的 CSIDriver
     driver: csi.juicefs.com
+    # volumeHandle 需要保证集群内唯一，因此一般直接用 PV name 即可
     volumeHandle: juicefs-pv
     fsType: juicefs
+    # 在先前的步骤中已经创建好挂载配置，在这里引用
+    # 如果要在静态配置下使用不同的挂载配置，或者文件系统，则需要创建不同的挂载配置
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
@@ -183,14 +182,22 @@ spec:
   accessModes:
     - ReadWriteMany
   volumeMode: Filesystem
+  # 静态配置下必须指定 storageClassName 为空字符串
+  # 代表该 PV 不采用任何 StorageClass，而是直接使用 selector 所指定的 PV
   storageClassName: ""
+  # 由于目前 JuiceFS CSI 驱动并未实现 capacity
+  # 此处 storage requests 填写任意小于 PVC capacity 的有效值即可
   resources:
     requests:
       storage: 10Pi
   selector:
     matchLabels:
       juicefs-name: ten-pb-fs
----
+```
+
+创建应用 Pod，并在其中引用 PVC，示范：
+
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
