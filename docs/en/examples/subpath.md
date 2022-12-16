@@ -13,7 +13,7 @@ This document shows how to mount with subdirectory in Kubernetes.
 - **JuiceFS Community Edition and Cloud Service Edition**
   - Requires [cache warm-up](https://juicefs.com/docs/community/cache_management#cache-warm-up) in the application pod
 - **JuiceFS Cloud Service Edition**
-  - The [token](https://juicefs.com/docs/cloud/metadata) used has only subdirectory access
+  - The token used has only subdirectory access
 
 Only need to specify `subdir=xxx` in `mountOptions` of PV as follows:
 
