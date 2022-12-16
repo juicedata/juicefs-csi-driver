@@ -203,27 +203,69 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x diagnose.sh
 ```
 
-使用诊断脚本来收集信息。假设 JuiceFS CSI 驱动部署在 `kube-system` 命名空间，问题出现在 `kube-node-2` 这台节点。
+使用诊断脚本获取应用 pod 使用的 mount pod。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`。
 
 ```shell
 $ ./diagnose.sh
 Usage:
     ./diagnose.sh COMMAND [OPTIONS]
+ENV:
+    JUICEFS_NAMESPACE: namespace of JuiceFS CSI Driver, default is kube-system.
 COMMAND:
     help
         Display this help message.
+    get-mount
+        Print mount pod used by specified app pod.
+    get-app
+        Print app pods using specified mount pod.
     collect
-        Collect pods logs of juicefs.
+        Collect csi & mount pods logs of juicefs.
 OPTIONS:
-    -no, --node name
-        Set the name of node.
+    -po, --pod name
+        Set the name of app pod.
     -n, --namespace name
-        Set the namespace of juicefs csi driver.
+        Set the namespace of app pod, default is default.
+    -m, --mount pod name
+        Set the name of mount pod.
+        
+# 设置 juicefs csi driver 组件所在 namespace，默认为 kube-system
+$ export JUICEFS_NAMESPACE=kube-system
+# 获取指定 pod 所用的 mount pod
+$ ./diagnose.sh get-mount -po dynamic-ce-1
+Mount Pod which app dynamic-ce-1 using is:
+namespace:
+  kube-system
+name:
+  juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+```
 
-$ ./diagnose.sh -n kube-system -no kube-node-2 collect
-Start collecting, node-name=kube-node-2, juicefs-namespace=kube-system
+也可以使用诊断脚本来收集信息。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`。
+
+```shell
+# 设置 juicefs csi driver 组件所在 namespace，默认为 kube-system
+$ export JUICEFS_NAMESPACE=kube-system
+# 收集诊断信息
+$ ./diagnose.sh collect -po dynamic-ce-1 -n default
+Start collecting, pod=dynamic-ce-1, namespace=default
 ...
-please get diagnose_juicefs_1628069696.tar.gz for diagnostics
+please get diagnose_juicefs_1671073110.tar.gz for diagnostics
 ```
 
 所有相关的信息都被收集和打包在了一个压缩包里。
+
+如果已知 Mount pod name，也可以使用诊断脚本获取所有使用该 mount pod 的所有应用 pod。假设已知 Mount pod 名为 `juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc`，JuiceFS CSI 驱动的组件所在 namespace 为 `kube-system`。
+
+```shell
+# 设置 juicefs csi driver 组件所在 namespace，默认为 kube-system
+$ export JUICEFS_NAMESPACE=kube-system
+# 获取使用指定 mount pod 的所有应用 pod
+$ ./diagnose.sh get-app -m juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
+App pods using mount pod [juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc]:
+namespace:
+  default
+apps:
+  dynamic-ce-5
+  dynamic-ce-2
+  dynamic-ce-3
+  dynamic-ce-4
+```
