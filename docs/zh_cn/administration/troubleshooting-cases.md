@@ -86,9 +86,9 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
     Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
   ```
 
-* **PVC 配置互相冲突，创建失败**
+* **`volumeHandle` 冲突，导致 PVC 创建失败**
 
-  常见情况比如：两个 pod 分别使用各自的 PVC，但只有一个能创建成功，此时 PVC 将伴随着以下错误事件：
+  两个 pod 分别使用各自的 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
 
   ```shell
   $ kubectl describe pvc jfs-static
