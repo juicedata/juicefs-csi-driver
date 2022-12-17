@@ -61,7 +61,7 @@ kubectl -n kube-system get po juicefs-172.16.2.87-juicefs-pv -oyaml | grep mount
 
 我们也可以为 JuiceFS 的客户端配置专门的云盘作为缓存路径，比如使用 EBS 作为客户端的缓存。
 
-首先需要准备一个给 mount pod 用的 PVC，需要与 mount pod 在同一个 namespace 下， 即 csi 驱动的组件所在 namespace（默认为 kube-system）。
+首先需要准备一个给 mount pod 用的 PVC，需要与 mount pod 在同一个 namespace 下，即 CSI 驱动的组件所在 namespace（默认为 kube-system）。
 您可以在 PV 中配置给 mount pod 用的 PVC，在 `volumeAttributes` 中设置 `juicefs/mount-cache-pvc`，值为 PVC 名，假设 PVC 名为 `ebs-pvc`：
 
 ```yaml {22}

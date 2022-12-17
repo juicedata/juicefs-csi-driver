@@ -4,7 +4,7 @@ sidebar_label: Set Cache Directory
 
 # How to set cache directory in Kubernetes
 
-The JuiceFS CSI driver supports mounting local disks or cloud disks to the mount pod. This document describes how to set the cache path of JuiceFS in Kubernetes.
+The JuiceFS CSI Driver supports mounting local disks or cloud disks to the mount pod. This document describes how to set the cache path of JuiceFS in Kubernetes.
 
 ## Static provisioning
 
@@ -63,7 +63,7 @@ This feature requires JuiceFS CSI Driver version 0.15.1 and above.
 We can also configure a dedicated cloud disk as a cache path for JuiceFS clients, such as using EBS as a client cache.
 
 First, you need to prepare a PVC for mount pod, which needs to be in the same namespace as the mount pod, that is,
-the namespace where the components of the csi driver are located (the default is kube-system).
+the namespace where the components of the CSI Driver are located (the default is kube-system).
 
 You can configure the PVC for the mount pod in the PV, set `juicefs/mount-cache-pvc` in `volumeAttributes`, the value is
 the PVC name, assuming the PVC name is `ebs-pvc`:

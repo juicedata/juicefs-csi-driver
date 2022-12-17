@@ -12,7 +12,7 @@ sidebar_position: 6
 
 ### PV 创建失败
 
-在[「动态配置」](../guide/pv.md#dynamic-provisioning)下，PVC 创建之后，CSI Controller 会同时配合 kubelet 自动创建 PV。在此期间，CSI Controller 会在 JuiceFS 文件系统中创建以 PV ID 为名的子目录（如果不希望以 PV ID 命名子目录，可以通过 [`pathPattern`](../examples/subpath.md#using-path-pattern) 来调整）。
+在[「动态配置」](../guide/pv.md#dynamic-provisioning)下，PVC 创建之后，CSI Controller 会同时配合 kubelet 自动创建 PV。在此期间，CSI Controller 会在 JuiceFS 文件系统中创建以 PV ID 为名的子目录（如果不希望以 PV ID 命名子目录，可以通过 [`pathPattern`](../guide/pv.md#using-path-pattern) 来调整）。
 
 #### 查看 PVC 事件
 
@@ -227,7 +227,7 @@ OPTIONS:
         Set the namespace of app pod, default is default.
     -m, --mount pod name
         Set the name of mount pod.
-        
+
 # 设置 juicefs csi driver 组件所在 namespace，默认为 kube-system
 $ export JUICEFS_NAMESPACE=kube-system
 # 获取指定 pod 所用的 mount pod
