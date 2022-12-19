@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'Makefile'
+      - 'docker/*'
       - '**.go'
       - '**.py'
       - '**.sh'
@@ -14,6 +15,7 @@ on:
       - master
     paths:
       - 'Makefile'
+      - 'docker/*'
       - '**.go'
       - '**.py'
       - '**.sh'
