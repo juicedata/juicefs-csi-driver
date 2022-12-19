@@ -1,7 +1,7 @@
 name: Check document
 
 on:
-  pull_request:
+  push:
     branches: [master]
     paths:
       - 'docs/**'
@@ -9,7 +9,7 @@ on:
       - '.autocorrectrc'
       - '.markdownlint-cli2.jsonc'
       - '.github/workflows/check-doc.yaml'
-  push:
+  pull_request:
     branches: [master]
     paths:
       - 'docs/**'
