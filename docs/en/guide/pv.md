@@ -8,7 +8,7 @@ sidebar_position: 1
 With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
 
 :::note
-If you're already [managing StorageClass via Helm](../getting_started.md#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
 :::
 
 ### Community edition {#community-edition}

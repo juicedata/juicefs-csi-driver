@@ -210,6 +210,7 @@ secrets {
 ```
 
 其中：
+
 - `name`：JuiceFS 文件系统名称
 - `metaurl`：元数据引擎的访问 URL（比如 Redis）。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/databases_for_metadata)。
 - `storage`：对象存储类型，比如 `s3`、`gs`、`oss`。更多信息参考[这篇文档](https://juicefs.com/docs/zh/community/how_to_setup_object_storage)。
@@ -246,6 +247,7 @@ secrets {
 ```
 
 其中：
+
 - `name`：JuiceFS 文件系统名称
 - `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
 

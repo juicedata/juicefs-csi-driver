@@ -1,18 +1,25 @@
-name: Github Actions
+name: CI
 
 on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
+    paths:
+      - 'Makefile'
+      - 'docker/*'
+      - '**.go'
+      - '**.py'
+      - '**.sh'
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
+    paths:
+      - 'Makefile'
+      - 'docker/*'
+      - '**.go'
+      - '**.py'
+      - '**.sh'
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -40,7 +47,6 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           files: ./coverage.txt
-
 
   k8s-ci:
     runs-on: ubuntu-latest
