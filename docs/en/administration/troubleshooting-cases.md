@@ -69,13 +69,13 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
   Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
 
-## PVC error
+## PVC error {#pvc-error}
 
-* **Under static provisioning, PV uses the wrong storageClassName, causing provisioning error and PVC is stuck at Pending state**
+* **Under static provisioning, PV uses the wrong `storageClassName`, causing provisioning error and PVC is stuck at `Pending` state**
 
-  StorageClass exists to provide provisioning parameters for [Dynamic provisioning](../guide/pv.md#dynamic-provisioning), but but [Static provisioning](../guide/pv.md#static-provisioning), `storageClassName` must be an empty string, or you'll find errors like:
+  StorageClass exists to provide provisioning parameters for [Dynamic provisioning](../guide/pv.md#dynamic-provisioning) when creating a PV. For [Static provisioning](../guide/pv.md#static-provisioning), `storageClassName` must be an empty string, or you'll find errors like:
 
-  ```shell
+  ```shell {7}
   $ kubectl describe pvc juicefs-pv
   ...
   Events:
@@ -90,7 +90,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
   This happens when two application pods try to use their own PVC, but referenced PV uses a same `volumeHandle`, you'll see errors like:
 
-  ```shell
+  ```shell {6}
   $ kubectl describe pvc jfs-static
   ...
   Events:

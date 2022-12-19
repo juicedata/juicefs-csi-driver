@@ -156,8 +156,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  # Storage capacity isn't implemented in JuiceFS CSI Driver
-  # Fill in any valid string is fine
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string is fine.
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -170,8 +169,8 @@ spec:
     # volumeHandle needs to be unique within the cluster, simply using the PV name is recommended
     volumeHandle: juicefs-pv
     fsType: juicefs
-    # Reference the mount options created in previous steps
-    # If you need to use different mount options, or different JuiceFS volumes, you'll need to create different mount options
+    # Reference the mount configuration created in previous step
+    # If you need to use different mount options, or different JuiceFS volumes, you'll need to create different mount configuration
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
@@ -188,8 +187,7 @@ spec:
   # Must use an empty string as storageClassName
   # Meaning that this PV will not use any StorageClass, instead will use the PV specified by selector
   storageClassName: ""
-  # Due to capacity not being implemented in CSI Driver
-  # Fill in any valid string that's lower than the PVC capacity
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string that's lower than the PV capacity.
   resources:
     requests:
       storage: 10Pi

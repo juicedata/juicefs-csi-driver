@@ -69,13 +69,13 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 
   仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/pv.md#mount-options)，确保格式正确。
 
-## PVC 异常
+## PVC 异常 {#pvc-error}
 
-* **静态配置中，PV 错误填写了 storageClassName，导致初始化异常，PVC 卡在 Pending 状态**
+* **静态配置中，PV 错误填写了 `storageClassName`，导致初始化异常，PVC 卡在 `Pending` 状态**
 
-  StorageClass 的存在是为了给「动态配置」创建 PV 时提供初始化参数。对于[「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
+  StorageClass 的存在是为了给[「动态配置」](../guide/pv.md#dynamic-provisioning)创建 PV 时提供初始化参数。对于[「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
 
-  ```shell
+  ```shell {7}
   $ kubectl describe pvc juicefs-pv
   ...
   Events:
@@ -90,7 +90,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 
   两个 pod 分别使用各自的 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
 
-  ```shell
+  ```shell {6}
   $ kubectl describe pvc jfs-static
   ...
   Events:
