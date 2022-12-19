@@ -69,27 +69,53 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
   Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
 
-## PVC creation failures due to configuration conflicts
+## PVC error {#pvc-error}
 
-For example, two app pods try to use their own PVC, but only one runs well and the other can't get up.
+* **Under static provisioning, PV uses the wrong `storageClassName`, causing provisioning error and PVC is stuck at `Pending` state**
 
-Check `volumeHandle` of all relevant PV, ensure `volumeHandle` is unique :
+  StorageClass exists to provide provisioning parameters for [Dynamic provisioning](../guide/pv.md#dynamic-provisioning) when creating a PV. For [Static provisioning](../guide/pv.md#static-provisioning), `storageClassName` must be an empty string, or you'll find errors like:
 
-```yaml {12}
-$ kubectl get pv -o yaml juicefs-pv
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
+  ```shell {7}
+  $ kubectl describe pvc juicefs-pv
   ...
-spec:
+  Events:
+    Type     Reason                Age               From                                                                           Message
+    ----     ------                ----              ----                                                                           -------
+    Normal   Provisioning          9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  External provisioner is provisioning volume for claim "default/juicefs-pvc"
+    Warning  ProvisioningFailed    9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  failed to provision volume with StorageClass "juicefs": claim Selector is not supported
+    Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
+  ```
+
+* **PVC creation failures due to `volumeHandle` conflicts**
+
+  This happens when two application pods try to use their own PVC, but referenced PV uses a same `volumeHandle`, you'll see errors like:
+
+  ```shell {6}
+  $ kubectl describe pvc jfs-static
   ...
-  csi:
-    driver: csi.juicefs.com
-    fsType: juicefs
-    volumeHandle: juicefs-volume-abc
+  Events:
+    Type     Reason         Age               From                         Message
+    ----     ------         ----              ----                         -------
+    Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
+  ```
+
+  Check `volumeHandle` of all relevant PV, ensure `volumeHandle` is unique :
+
+  ```yaml {12}
+  $ kubectl get pv -o yaml juicefs-pv
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: juicefs-pv
     ...
-```
+  spec:
+    ...
+    csi:
+      driver: csi.juicefs.com
+      fsType: juicefs
+      volumeHandle: juicefs-volume-abc
+      ...
+  ```
 
 ## File system creation failure (Community Edition)
 

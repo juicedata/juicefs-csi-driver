@@ -146,15 +146,9 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
-### Deploy
+Create PersistentVolume (PV), PersistentVolumeClaim (PVC), refer to YAML comments for field descriptions:
 
-Create PersistentVolume (PV), PersistentVolumeClaim (PVC) and example pod:
-
-:::note
-The PV `volumeHandle` needs to be unique within the cluster, simply using the PV name is recommended.
-:::
-
-```yaml {14-20}
+```yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -162,6 +156,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string is fine.
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -169,9 +164,13 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   csi:
+    # A CSIDriver named csi.juicefs.com is created during installation
     driver: csi.juicefs.com
+    # volumeHandle needs to be unique within the cluster, simply using the PV name is recommended
     volumeHandle: juicefs-pv
     fsType: juicefs
+    # Reference the mount configuration created in previous step
+    # If you need to use different mount options, or different JuiceFS volumes, you'll need to create different mount configuration
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
@@ -185,14 +184,21 @@ spec:
   accessModes:
     - ReadWriteMany
   volumeMode: Filesystem
+  # Must use an empty string as storageClassName
+  # Meaning that this PV will not use any StorageClass, instead will use the PV specified by selector
   storageClassName: ""
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string that's lower than the PV capacity.
   resources:
     requests:
       storage: 10Pi
   selector:
     matchLabels:
       juicefs-name: ten-pb-fs
----
+```
+
+And then create an application pod, using the PVC created above:
+
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
