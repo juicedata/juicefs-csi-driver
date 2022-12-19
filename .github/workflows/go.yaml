@@ -4,23 +4,19 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'package.json'
-      - '.autocorrectrc'
-      - '.markdownlint-cli2.jsonc'
-      - '.github/workflows/check-doc.yaml'
+    paths:
+      - 'Makefile'
+      - '**.go'
+      - '**.py'
+      - '**.sh'
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'package.json'
-      - '.autocorrectrc'
-      - '.markdownlint-cli2.jsonc'
-      - '.github/workflows/check-doc.yaml'
+    paths:
+      - 'Makefile'
+      - '**.go'
+      - '**.py'
+      - '**.sh'
 
 jobs:
   test:
