@@ -16,3 +16,4 @@ cov1.out
 cov2.out
 juicefs/
 juicefs-ee
+/node_modules

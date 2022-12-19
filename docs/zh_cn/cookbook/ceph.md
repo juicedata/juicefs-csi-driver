@@ -155,7 +155,7 @@ JuiceFS 目前支持到 Ceph 12，如果你使用的 Ceph 版本高于 12，请�
 
 ### 如何构建镜像
 
-使用官方的 [ceph/ceph](https://hub.docker.com/r/ceph/ceph) 作为基础镜像，根据 Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) 构建 JuiceFS CSI Driver 镜像，例如：
+使用官方的 [`ceph/ceph`](https://hub.docker.com/r/ceph/ceph) 作为基础镜像，根据 Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) 构建 JuiceFS CSI Driver 镜像，例如：
 
 ```bash
 docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f docker/ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .

@@ -67,7 +67,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
   kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
   ```
 
-  Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb `). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
+  Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
 
 ## PVC creation failures due to configuration conflicts
 
@@ -149,7 +149,7 @@ $ juicefs stats /var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx
 
 Read performance really depends on cache, so when read performance isn't ideal, pay special attention to the `blockcache` related metrics, block cache is data blocks cached on disk, notice how `blockcache.read` is always larger than 0 in the above data, this means kernel page cache isn't built, thus all read requests is handled by the slower disk reads. Now we will investigate why page cache won't build.
 
-Similar to what we'll do on a host, let's first check the mount pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the docker container for our mount pod, and see its stats:
+Similar to what we'll do on a host, let's first check the mount pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the Docker container for our mount pod, and see its stats:
 
 ```shell
 # change $APP_POD_NAME to actual application pod name

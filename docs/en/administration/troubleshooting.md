@@ -12,7 +12,7 @@ In JuiceFS CSI Driver, most frequently encountered problems are PV creation fail
 
 ### PV creation failure
 
-Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`](../examples/subpath.md#using-path-pattern)).
+Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`](../guide/pv.md#using-path-pattern)).
 
 #### Check PVC events
 
@@ -227,7 +227,7 @@ OPTIONS:
         Set the namespace of app pod, default is default.
     -m, --mount pod name
         Set the name of mount pod.
-        
+
 # Set the namespace where the juicefs csi driver component deployed in, the default is kube-system
 $ export JUICEFS_NAMESPACE=kube-system
 # Get the mount pod used by the specified pod
@@ -253,9 +253,9 @@ please get diagnose_juicefs_1671073110.tar.gz for diagnostics
 
 All relevant information is collected and packaged in an archive under the execution path.
 
-If the mount pod name is known, the diagnostic script can also be used to get all application pods using that mount pod. 
-For example, assuming that the mount pod name is `juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc`, 
-and the namespace where the juicefs csi driver component deployed in is `kube-system`.
+If the mount pod name is known, the diagnostic script can also be used to get all application pods using that mount pod.
+For example, assuming that the mount pod name is `juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc`,
+and the namespace where the JuiceFS CSI Driver component deployed in is `kube-system`.
 
 ```shell
 # Set the namespace where the juicefs csi driver component deployed in, the default is kube-system
