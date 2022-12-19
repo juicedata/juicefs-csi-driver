@@ -3,12 +3,17 @@ title: 缓存
 sidebar_position: 2
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 ## 设置缓存路径 {#cache-dir}
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
-:::note
-与 JuiceFS 客户端的 `--cache-dir` 参数不同，在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[商业版](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
+设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此需要依照 Kubernetes 宿主机上磁盘的特征对缓存相关的[挂载选项](./pv.md#mount-options)进行调整（如缓存大小）。
+
+:::note 注意
+与 JuiceFS 客户端的 `--cache-dir` 参数不同，在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
 :::
 
 ### 静态配置
@@ -69,10 +74,10 @@ mountOptions:
 
 首先，按照所使用的托管 Kubernetes 集群的云服务商的说明，创建 PVC，比如：
 
+* [Amazon EKS 中使用 EBS](https://docs.aws.amazon.com/zh_cn/eks/latest/userguide/ebs-csi.html)
 * [阿里云 ACK 云盘存储卷](https://help.aliyun.com/document_detail/134767.html)
-* [AWS EKS 的持久性存储](https://aws.amazon.com/cn/premiumsupport/knowledge-center/eks-persistent-storage/)
 
-假设 PVC `ebs-pvc` 创建完毕，与 Mount Pod 在同一个命名空间下（默认 kube-system），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
+假设 PVC `ebs-pvc` 创建完毕，与 Mount Pod 在同一个命名空间下（默认 `kube-system`），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
 
 ### 静态配置
 
@@ -123,26 +128,41 @@ parameters:
 
 ## 缓存预热
 
-JuiceFS 客户端运行在 Mount Pod 中，也正因此，缓存预热也同样需要在 Mount Pod 中进行，参考下方的命令钻进 Mount Pod 中，然后运行预热命令：
+JuiceFS 客户端运行在 Mount Pod 中，也正因此，缓存预热也同样需要在 Mount Pod 中进行，参考下方的命令进入 Mount Pod 中，然后运行预热命令：
 
 ```shell
 # 提前将应用 pod 信息存为环境变量
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
 APP_POD_NAME=example-app-xxx-xxx
 
-# 一行命令钻进 Mount Pod
+# 一行命令进入 Mount Pod
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 
 # 确定 JuiceFS 在容器内的挂载点
-df -h
-
-# 社区版和商业版 JuiceFS 客户端路径不同，注意甄别
-/usr/local/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data  # 社区版
-/usr/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data  # 商业版
+df -h | grep JuiceFS
 ```
 
-特别地，如果你的应用容器中也安装有 JuiceFS 客户端，也完全可以直接在应用容器中运行预热命令，操作甚至更加便捷。
+社区版和云服务 JuiceFS 客户端在 Mount Pod 中的路径不同，注意甄别：
 
-## 独立缓存集群（商业版）
+<Tabs>
+  <TabItem value="community-edition" label="社区版">
 
-Kubernetes 容器往往是“转瞬即逝”的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 商业版还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
+```shell
+/usr/local/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
+```
+
+  </TabItem>
+  <TabItem value="cloud-service" label="云服务">
+
+```shell
+/usr/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
+```
+
+  </TabItem>
+</Tabs>
+
+特别地，如果你的应用容器中也安装有 JuiceFS 客户端，那么也可以直接在应用容器中运行预热命令。
+
+## 独立缓存集群（云服务）
+
+Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
