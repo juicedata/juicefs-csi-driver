@@ -14,9 +14,23 @@ name: "CodeQL"
 on:
   push:
     branches: [ master ]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'package.json'
+      - '.autocorrectrc'
+      - '.markdownlint-cli2.jsonc'
+      - '.github/workflows/check-doc.yaml'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ master ]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'package.json'
+      - '.autocorrectrc'
+      - '.markdownlint-cli2.jsonc'
+      - '.github/workflows/check-doc.yaml'
   schedule:
     - cron: "28 20 * * 0"
 
