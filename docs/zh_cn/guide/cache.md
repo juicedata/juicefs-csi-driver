@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
-设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此需要依照 Kubernetes 宿主机上磁盘的特征对缓存相关的[挂载选项](./pv.md#mount-options)进行调整（如缓存大小）。
+设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载选项](./pv.md#mount-options)进行调整（如缓存大小）。
 
 :::note 注意
 与 JuiceFS 客户端的 `--cache-dir` 参数不同，在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
@@ -70,7 +70,7 @@ mountOptions:
 
 ## 使用 PVC 作为缓存路径
 
-如有需要，JuiceFS CSI 驱动 0.15.1 及以上版本支持使用 PVC 作为缓存路径，该实践多用于托管 Kubernetes 集群的云服务商，让你可以使用单独的云盘来作为 JuiceFS CSI 驱动的缓存存储设备。
+JuiceFS CSI 驱动 0.15.1 及以上版本支持使用 PVC 作为缓存路径，该实践多用于托管 Kubernetes 集群的云服务商，让你可以使用单独的云盘来作为 CSI 驱动的缓存存储设备。
 
 首先，按照所使用的托管 Kubernetes 集群的云服务商的说明，创建 PVC，比如：
 
@@ -217,7 +217,3 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/clean-cache: "true"
 ```
-
-## 独立缓存集群（云服务）
-
-Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
