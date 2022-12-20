@@ -163,6 +163,61 @@ df -h | grep JuiceFS
 
 特别地，如果你的应用容器中也安装有 JuiceFS 客户端，那么也可以直接在应用容器中运行预热命令。
 
+## Mount Pod 退出时清理缓存 {#mount-pod-clean-cache}
+
+在不少大规模场景下，已建立的缓存是宝贵的，因此 JuiceFS CSI 驱动默认并不会在 Mount Pod 退出时清理缓存。如果这对你的场景不适用，可以对 PV 进行配置，令 Mount Pod 退出时直接清理自己的缓存。
+
+:::note 注意
+此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
+:::
+
+### 静态配置
+
+在 PV 的资源定义中修改 `volumeAttributes`，添加 `juicefs/clean-cache: "true"`：
+
+```yaml {22}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/clean-cache: "true"
+```
+
+### 动态配置
+
+在 StorageClass 中配置 `parameters`，添加 `juicefs/clean-cache: "true"`：
+
+```yaml {11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/clean-cache: "true"
+```
+
 ## 独立缓存集群（云服务）
 
 Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。

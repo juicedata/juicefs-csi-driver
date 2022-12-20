@@ -80,58 +80,7 @@ storageClasses:
 
 ## 配置 Mount Pod 退出时清理缓存
 
-在不少大规模场景下，已建立的缓存是宝贵的，因此 JuiceFS CSI 驱动默认并不会在 Mount Pod 退出时清理缓存。如果这对你的场景不适用，可以对 PV 进行配置，令 Mount Pod 退出时直接清理自己的缓存。
-
-:::note 注意
-此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
-:::
-
-### 静态配置
-
-在 PV 的资源定义中修改 `volumeAttributes`，添加 `juicefs/clean-cache: "true"`：
-
-```yaml {22}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-    volumeAttributes:
-      juicefs/clean-cache: "true"
-```
-
-### 动态配置
-
-在 StorageClass 中配置 `parameters`，添加 `juicefs/clean-cache: "true"`：
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/clean-cache: "true"
-```
+详见[「缓存相关章节」](./cache.md#mount-pod-clean-cache)。
 
 ## 延迟删除 Mount Pod
 
