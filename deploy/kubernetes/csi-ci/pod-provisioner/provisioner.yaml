@@ -13,7 +13,6 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=6
-            - --format-in-pod=true
             - --provisioner=true
         - name: csi-provisioner
           $patch: delete
@@ -33,5 +32,4 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=6
-            - --format-in-pod=true
             - --enable-manager=true
