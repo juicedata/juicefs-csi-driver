@@ -4,7 +4,7 @@ slug: /ceph
 
 # 使用 librados 访问 Ceph 集群
 
-如果使用 [Ceph](https://ceph.io/) 作为 JuiceFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw/)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/) 访问 Ceph 存储。
+如果使用 [Ceph](https://ceph.io) 作为 JuiceFS 的底层存储，既可以使用标准的 [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3) 来访问 [Ceph Object Gateway（RGW）](https://docs.ceph.com/en/latest/radosgw)，也可以使用效率更高的 [`librados`](https://docs.ceph.com/en/latest/rados/api/librados) 访问 Ceph 存储。
 
 JuiceFS CSI 驱动支持[「为 Mount Pod 额外添加文件」](../guide/pv.md#mount-pod-extra-files)。利用这种机制，可以将主机 `/etc/ceph` 路径下的 Ceph Client 配置文件导入 Mount Pod。
 
@@ -155,7 +155,7 @@ JuiceFS 目前支持到 Ceph 12，如果你使用的 Ceph 版本高于 12，请�
 
 ### 如何构建镜像
 
-使用官方的 [`ceph/ceph`](https://hub.docker.com/r/ceph/ceph) 作为基础镜像，根据 Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/) 构建 JuiceFS CSI Driver 镜像，例如：
+使用官方的 [`ceph/ceph`](https://hub.docker.com/r/ceph/ceph) 作为基础镜像，根据 Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus) 构建 JuiceFS CSI Driver 镜像，例如：
 
 ```bash
 docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f docker/ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .

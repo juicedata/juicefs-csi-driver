@@ -74,7 +74,9 @@ JuiceFS CSI 驱动 0.15.1 及以上版本支持使用 PVC 作为缓存路径，�
 
 首先，按照所使用的托管 Kubernetes 集群的云服务商的说明，创建 PVC，比如：
 
-* [Amazon EKS 中使用 EBS](https://docs.aws.amazon.com/zh_cn/eks/latest/userguide/ebs-csi.html)
+* [Amazon EBS CSI 驱动](https://docs.aws.amazon.com/zh_cn/eks/latest/userguide/ebs-csi.html)
+* [在 Azure Kubernetes 服务（AKS）中使用 Azure 磁盘 CSI 驱动](https://learn.microsoft.com/zh-cn/azure/aks/azure-disk-csi)
+* [使用 Google Compute Engine 永久性磁盘 CSI 驱动](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [阿里云 ACK 云盘存储卷](https://help.aliyun.com/document_detail/134767.html)
 
 假设 PVC `ebs-pvc` 创建完毕，与 Mount Pod 在同一个命名空间下（默认 `kube-system`），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
@@ -142,7 +144,7 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 df -h | grep JuiceFS
 ```
 
-社区版和云服务 JuiceFS 客户端在 Mount Pod 中的路径不同，注意甄别：
+Mount Pod 中社区版和云服务 JuiceFS 客户端的路径不同，注意分辨：
 
 <Tabs>
   <TabItem value="community-edition" label="社区版">

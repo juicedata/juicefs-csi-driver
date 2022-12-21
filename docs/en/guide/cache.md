@@ -10,13 +10,13 @@ import TabItem from '@theme/TabItem';
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
-After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you'll also need to configure other cache related options (like `--cache-size`) according to [Adjust mount options](./pv.md#mount-options).
+After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you'll also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
 
 :::note
 Different from the `--cache-dir` parameter in the JuiceFS Client, the `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
 :::
 
-## Static provisioning
+### Static provisioning
 
 Set cache directory using `spec.mountOptions` in PV:
 
@@ -45,7 +45,7 @@ spec:
       namespace: default
 ```
 
-After PV is created and mounted, [Check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
+After PV is created and mounted, [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
 
 ### Dynamic provisioning
 
@@ -66,7 +66,7 @@ mountOptions:
   - cache-dir=/dev/vdb1
 ```
 
-After PV is created and mounted, [Check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
+After PV is created and mounted, [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
 
 ## Use PVC as cache path
 
@@ -74,8 +74,10 @@ From 0.15.1 and above, JuiceFS CSI Driver supports using a PVC as cache director
 
 First, create a PVC according to your cloud service provider's manual, for example:
 
-* [Amazon EBS CSI driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)
-* [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes/)
+* [Amazon EBS CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)
+* [Use the Azure Disks CSI Driver in Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/azure/aks/azure-disk-csi)
+* [Using the Google Compute Engine persistent disk CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
+* [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
 Assuming a PVC named `ebs-pvc` is already created under the same namespace as the mount pod (default to `kube-system`), use below example to use this PVC as cache directory for JuiceFS CSI Driver.
 
@@ -142,7 +144,7 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 df -h | grep JuiceFS
 ```
 
-JuiceFS Client binary path is different across Community Edition and Cloud Service:
+The path of the Community Edition and Cloud Service JuiceFS client in the Mount Pod are different, pay attention to distinguish:
 
 <Tabs>
   <TabItem value="community-edition" label="Community Edition">

@@ -80,7 +80,7 @@ storageClasses:
 
 ## Clean cache when mount pod exits
 
-Refer to [relevant section in Cache](../guide/cache.md#mount-pod-clean-cache).
+Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
 ## Delayed mount pod deletion
 

@@ -4,7 +4,7 @@ slug: /upgrade-juicefs-client
 sidebar_position: 3
 ---
 
-Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release/) to learn more. Note that if you [upgrade JuiceFS CSI Driver](./upgrade-csi-driver.md), JuiceFS Client is upgraded along the way. However, if you would like to upgrade JuiceFS Client without changes to the CSI Driver itself, read this chapter.
+Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release) to learn more. Note that if you [upgrade JuiceFS CSI Driver](./upgrade-csi-driver.md), JuiceFS Client is upgraded along the way. However, if you would like to upgrade JuiceFS Client without changes to the CSI Driver itself, read this chapter.
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 

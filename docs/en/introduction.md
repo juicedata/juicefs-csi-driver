@@ -30,7 +30,7 @@ On the same node, a PVC corresponds to a Mount Pod. The relationship between PVC
 
 ## Usage {#usage}
 
-To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via ["Static Provisioning"](./guide/pv.md#static-provisioning) or ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning). Under static provisioning, you're in charge of creating the PersistentVolume (PV) and PersistentVolumeClaim (PVC), and reference that PVC in pod definition, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/). Use static provisioning when:
+To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via ["Static Provisioning"](./guide/pv.md#static-provisioning) or ["Dynamic Provisioning"](./guide/pv.md#dynamic-provisioning). Under static provisioning, you're in charge of creating the PersistentVolume (PV) and PersistentVolumeClaim (PVC), and reference that PVC in pod definition, similar to [Configure a Pod to Use a PersistentVolume for Storage](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage). Use static provisioning when:
 
 * You already have large amount of data stored in JuiceFS, and wish to access directly inside Kubernetes pods.
 * You are evaluating JuiceFS CSI Driver functionalities.
