@@ -1,6 +1,7 @@
 {
   "customRules": [
-    "markdownlint-rule-enhanced-proper-names/src/enhanced-proper-names.js"
+    "markdownlint-rule-enhanced-proper-names/src/enhanced-proper-names.js",
+    "markdownlint-rule-no-trailing-slash-in-links/src/no-trailing-slash-in-links.js"
   ],
   "config": {
     "default": true,
@@ -38,6 +39,7 @@
       "style": "backtick"
     },
     "link-fragments": false,
+    "no-trailing-slash-in-links": true,
     "enhanced-proper-names": {
       "code_blocks": false,
       "html_elements": false,

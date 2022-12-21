@@ -4,7 +4,7 @@ slug: /ceph
 
 # Access Ceph Cluster with librados
 
-If you use [Ceph](https://ceph.io/) as the underlying storage for JuiceFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3/) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw/), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados/ ) to access Ceph storage.
+If you use [Ceph](https://ceph.io) as the underlying storage for JuiceFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados) to access Ceph storage.
 
 JuiceFS CSI Driver supports [adding extra files to mount pod](../guide/pv.md#mount-pod-extra-files), with this mechanism, we can add Ceph client configuration files (obtained from the host path `/etc/ceph`) into the mount pod.
 
@@ -155,7 +155,7 @@ JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph hig
 
 ### How to build Docker image
 
-We use the official [`ceph/ceph`](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus/):
+We use the official [`ceph/ceph`](https://hub.docker.com/r/ceph/ceph) as the base image. If we want to build JuiceFS CSI from Ceph [Nautilus](https://docs.ceph.com/en/latest/releases/nautilus):
 
 ```bash
 docker build --build-arg BASE_IMAGE=ceph/ceph:v14 --build-arg JUICEFS_REPO_TAG=v0.16.2 -f docker/ceph.Dockerfile -t juicefs-csi-driver:ceph-nautilus .

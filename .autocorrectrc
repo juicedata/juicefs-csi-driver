@@ -20,3 +20,4 @@ spellcheck:
     - JucieFS = JuiceFS
     - JueicFS = JuiceFS
     - JuiecFS = JuiceFS
+    - mountpoint = mount point

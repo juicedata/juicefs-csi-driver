@@ -80,58 +80,7 @@ storageClasses:
 
 ## Clean cache when mount pod exits
 
-Local cache can be a precious resource, especially when dealing with large scale data. JuiceFS CSI Driver does not delete cache by default when mount pod exits. If this behavior doesn't suit you, make adjustment so that local cache is cleaned when mount pod exits.
-
-:::note
-This feature requires JuiceFS CSI Driver 0.14.1 and above.
-:::
-
-### Static provisioning
-
-Modify `volumeAttributes` in PV definition, add `juicefs/clean-cache: "true"`:
-
-```yaml {22}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-    volumeAttributes:
-      juicefs/clean-cache: "true"
-```
-
-### Dynamic provisioning
-
-Configure `parameters` in StorageClass definition, add `juicefs/clean-cache: "true"`:
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/clean-cache: "true"
-```
+Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
 ## Delayed mount pod deletion
 

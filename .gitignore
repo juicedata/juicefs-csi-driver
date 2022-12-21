@@ -17,3 +17,5 @@ cov2.out
 juicefs/
 juicefs-ee
 /node_modules
+.yalc/
+yalc.lock
