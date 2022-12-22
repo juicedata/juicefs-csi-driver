@@ -128,7 +128,7 @@ parameters:
   juicefs/mount-cache-pvc: "ebs-pvc"
 ```
 
-## 缓存预热
+## 缓存预热 {#warmup}
 
 JuiceFS 客户端运行在 Mount Pod 中，也正因此，缓存预热也同样需要在 Mount Pod 中进行，参考下方的命令进入 Mount Pod 中，然后运行预热命令：
 

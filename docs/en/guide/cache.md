@@ -128,7 +128,7 @@ parameters:
   juicefs/mount-cache-pvc: "ebs-pvc"
 ```
 
-## Cache warm-up
+## Cache warm-up {#warmup}
 
 JuiceFS Client runs inside the mount pod, so cache warm-up has to happen inside the mount pod, use below commands to enter the mount pod and carry out the warm-up:
 
