@@ -302,14 +302,14 @@ kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
+# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
+# mountOptions:
+#   - cache-size=2048
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
-# mountOptions:
-#   - cache-size=2048
 ```
 
 ### 调整挂载参数 {#mount-options}
