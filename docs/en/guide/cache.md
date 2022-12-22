@@ -219,3 +219,150 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/clean-cache: "true"
 ```
+
+## Dedicated cache cluster
+
+:::note
+Dedicated cluster is only supported in JuiceFS Cloud Service & Enterprise, Community Edition is not supported.
+:::
+
+Kubernetes containers are usually ephemeral, a [distributed cache cluster](https://juicefs.com/docs/cloud/guide/cache#client-cache-sharing) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/cache#dedicated-cache-cluster) to achieve a stable cache service.
+
+Use below example to deploy a StatefulSet of JuiceFS clients, together they form a stable JuiceFS cache group.
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # name and namespace are customizable
+  name: juicefs-cache-group
+  namespace: kube-system
+spec:
+  # cache group peer amount
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: juicefs-cache-group
+      juicefs-role: cache
+  serviceName: juicefs-cache-group
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: juicefs-cache-group
+        juicefs-role: cache
+    spec:
+      # Run a single cache group peer on each node
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: jfs-role
+                operator: In
+                values:
+                - cache
+            topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      # Run juicefs auth command inside the initContainers
+      # ref: https://juicefs.com/docs/cloud/reference/commands_reference#auth
+      initContainers:
+      - name: jfs-format
+        command:
+        - sh
+        - -c
+        # Change $VOL_NAME to the actual JuiceFS Volume name
+        # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
+        - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
+        env:
+        # The Secret that contains mount options, must reside in same namespace as this StatefulSet
+        # ref: https://juicefs.com/docs/csi/guide/pv#cloud-service
+        - name: ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: access-key
+              name: jfs-secret-ee
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: secret-key
+              name: jfs-secret-ee
+        - name: TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: jfs-secret-ee
+        image: juicedata/mount:v1.0.2-4.8.2
+        volumeMounts:
+        - mountPath: /root/.juicefs
+          name: jfs-root-dir
+      # Containers running the JuiceFS Client and forming the cache group
+      # ref: https://juicefs.com/docs/cloud/guide/cache#dedicated-cache-cluster
+      containers:
+      - name: juicefs-cache
+        command:
+        - sh
+        - -c
+        # Change $VOL_NAME to the actual JuiceFS Volume name
+        # Must use --foreground to make JuiceFS Client process run in foreground, adjust other mount options to your need (especially --cache-group)
+        # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
+        - /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        # Use the mount pod container image
+        # ref: https://juicefs.com/docs/csi/guide/custom-image
+        image: juicedata/mount:v1.0.2-4.8.2
+        lifecycle:
+          # Unmount file system when exiting
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - umount /mnt/jfs
+        # Adjust resource accordingly
+        # ref: https://juicefs.com/docs/csi/guide/resource-optimization#mount-pod-resources
+        resources:
+          requests:
+            memory: 500Mi
+        # Mounting file system requires system privilege
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: cache-dir
+        - mountPath: /root/.juicefs
+          name: jfs-root-dir
+      volumes:
+      # Adjust cache directory, define multiple volumes if need to use multiple cache directories
+      # ref: https://juicefs.com/docs/cloud/guide/cache#client-read-cache
+      - name: cache-dir
+        hostPath:
+          path: /dev/shm
+          type: DirectoryOrCreate
+      - name: jfs-root-dir
+        emptyDir: {}
+```
+
+A JuiceFS cache cluster is deployed with the cache group name `jfscache`, in order to use this cache cluster in application JuiceFS clients, you'll need to join them into the same cache group, and additionally add the `--no-sharing` option, so that these application clients doesn't really involve in building the cache data, this is what prevents a instable cache group.
+
+Under dynamic provisioning, modify mount options according to below examples, see full description in [creating StorageClass](../guide/pv.md#create-storage-class).
+
+```yaml {13-14}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+mountOptions:
+  ...
+  - cache-group=jfscache
+  - no-sharing
+```

@@ -304,14 +304,14 @@ kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
+# Declare mount options here if in need
+# mountOptions:
+#   - cache-size=2048
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  # Declare mount options here if in need
-  # mountOptions:
-  #   - cache-size=2048
 ```
 
 ### Adjust mount options {#mount-options}
