@@ -238,7 +238,7 @@ metadata:
   name: juicefs-cache-group
   namespace: kube-system
 spec:
-  # 分布式缓存客户端数量
+  # 缓存组客户端数量
   replicas: 1
   podManagementPolicy: Parallel
   selector:
@@ -256,7 +256,7 @@ spec:
         app: juicefs-cache-group
         juicefs-role: cache
     spec:
-      # 一个 Kubernetes 节点上只运行一个 JuiceFS 客户端
+      # 一个 Kubernetes 节点上只运行一个缓存组客户端
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
