@@ -14,8 +14,8 @@ secret*
 .vscode
 cov1.out
 cov2.out
-juicefs/
-juicefs-ee
+/juicefs/
+/juicefs-ee
 /node_modules
 .yalc/
 yalc.lock

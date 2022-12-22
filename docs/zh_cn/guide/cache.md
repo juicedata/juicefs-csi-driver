@@ -220,7 +220,11 @@ parameters:
   juicefs/clean-cache: "true"
 ```
 
-## 独立缓存集群（云服务）
+## 独立缓存集群
+
+:::note 注意
+独立缓存集群功能目前仅在 JuiceFS 云服务和企业版中提供，社区版暂不支持。
+:::
 
 Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
 
@@ -231,23 +235,28 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   # 名称、命名空间可自定义
-  name: jfs-cache-group
+  name: juicefs-cache-group
   namespace: kube-system
 spec:
-  podManagementPolicy: Parallel
   # 分布式缓存客户端数量
   replicas: 1
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
-      app: jfs-cache-group
+      app: juicefs-cache-group
       juicefs-role: cache
-  serviceName: jfs-cache-group
+  serviceName: juicefs-cache-group
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
   template:
     metadata:
       labels:
-        app: jfs-cache-group
+        app: juicefs-cache-group
         juicefs-role: cache
     spec:
+      # 一个 Kubernetes 节点上只运行一个 JuiceFS 客户端
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -259,40 +268,19 @@ spec:
                 - cache
             topologyKey: kubernetes.io/hostname
       hostNetwork: true
-      containers:
-      - name: juicefs-cache
-        command:
-        - sh
-        - -c
-        # VOL_NAME 换成控制台上创建的文件系统名
-        # 由于在容器中常驻，必须用 --foreground 模式运行
-        - /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
-        image: juicedata/mount:v1.0.2-4.8.2
-        lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - umount /mnt/jfs
-        resources:
-          requests:
-            memory: 500Mi
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /dev/shm
-          name: cache-dir
-        - mountPath: /root/.juicefs
-          name: jfs-root-dir
+      # 初始化容器负责执行 juicefs auth 命令
+      # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#auth
       initContainers:
       - name: jfs-format
         command:
         - sh
         - -c
-        - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME       # VOL_NAME 换成控制台上创建的文件系统名
+        # 请将 $VOL_NAME 换成控制台上创建的文件系统名
+        # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
+        - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
         env:
-        # 存放挂载配置的 secret，必须和该 statefulSet 在同一个命名空间下
+        # 存放挂载配置的 Secret，必须和该 StatefulSet 在同一个命名空间下
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/pv#cloud-service
         - name: ACCESS_KEY
           valueFrom:
             secretKeyRef:
@@ -312,24 +300,57 @@ spec:
         volumeMounts:
         - mountPath: /root/.juicefs
           name: jfs-root-dir
+      # 负责挂载 JuiceFS 文件系统并组建独立缓存集群的容器
+      # 参考文档：https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster
+      containers:
+      - name: juicefs-cache
+        command:
+        - sh
+        - -c
+        # 请将 $VOL_NAME 换成控制台上创建的文件系统名
+        # 由于在容器中常驻，必须用 --foreground 模式运行，其它挂载选项（特别是 --cache-group）请适当调整
+        # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#mount
+        - /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        # 使用 Mount Pod 的容器镜像
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
+        image: juicedata/mount:v1.0.2-4.8.2
+        lifecycle:
+          # 容器退出时卸载文件系统
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - umount /mnt/jfs
+        # 请适当调整资源请求和约束
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/resource-optimization#mount-pod-resources
+        resources:
+          requests:
+            memory: 500Mi
+        # 挂载文件系统必须启用的权限
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: cache-dir
+        - mountPath: /root/.juicefs
+          name: jfs-root-dir
       volumes:
+      # 请适当调整缓存目录的路径，如有多个缓存目录需要定义多个 volume
+      # 参考文档：https://juicefs.com/docs/zh/cloud/guide/cache#client-read-cache
       - name: cache-dir
         hostPath:
           path: /dev/shm
           type: DirectoryOrCreate
       - name: jfs-root-dir
         emptyDir: {}
-  updateStrategy:
-    rollingUpdate:
-      partition: 0
-    type: RollingUpdate
 ```
 
-上方示范便是在集群中启动了 JuiceFS 缓存集群，其缓存组名为 `jfscache`，那么为了让应用程序的 JuiceFS 客户端使用该缓存集群，需要让他们一并加入这个缓存组，并额外地添加 `--no-sharing` 这个挂载参数，这样一来，应用程序的 JuiceFS 客户端虽然加入了缓存组，但却不参与缓存数据的构建，避免了客户端频繁创建、销毁所导致的缓存数据不稳定。
+上方示范便是在集群中启动了 JuiceFS 缓存集群，其缓存组名为 `jfscache`，那么为了让应用程序的 JuiceFS 客户端使用该缓存集群，需要让他们一并加入这个缓存组，并额外添加 `--no-sharing` 这个挂载参数，这样一来，应用程序的 JuiceFS 客户端虽然加入了缓存组，但却不参与缓存数据的构建，避免了客户端频繁创建、销毁所导致的缓存数据不稳定。
 
 以动态配置为例，按照下方示范修改挂载参数即可，挂载配置详见[「创建 StorageClass」](../guide/pv.md#create-storage-class)。
 
-```yaml
+```yaml {13-14}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -345,4 +366,3 @@ mountOptions:
   - cache-group=jfscache
   - no-sharing
 ```
-
