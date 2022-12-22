@@ -51,6 +51,17 @@ type PatchMapValue struct {
 	Value map[string]string `json:"value"`
 }
 
+type PatchStringValue struct {
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
+
+type PatchDelValue struct {
+	Op   string `json:"op"`
+	Path string `json:"path"`
+}
+
 type K8sClient struct {
 	kubernetes.Interface
 }
@@ -139,14 +150,13 @@ func (k *K8sClient) GetPodLog(ctx context.Context, podName, namespace, container
 	return str, nil
 }
 
-func (k *K8sClient) PatchPod(ctx context.Context, pod *corev1.Pod, data []byte) error {
+func (k *K8sClient) PatchPod(ctx context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 	if pod == nil {
 		klog.V(5).Info("Patch pod: pod is nil")
 		return nil
 	}
 	klog.V(6).Infof("Patch pod %v", pod.Name)
-	_, err := k.CoreV1().Pods(pod.Namespace).Patch(ctx,
-		pod.Name, types.JSONPatchType, data, metav1.PatchOptions{})
+	_, err := k.CoreV1().Pods(pod.Namespace).Patch(ctx, pod.Name, pt, data, metav1.PatchOptions{})
 	return err
 }
 

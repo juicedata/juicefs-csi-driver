@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -221,7 +222,7 @@ func TestK8sClient_PatchPod(t *testing.T) {
 				t.Errorf("Parse json error: %v", err)
 				return
 			}
-			err = k.PatchPod(context.TODO(), tt.args.pod, data)
+			err = k.PatchPod(context.TODO(), tt.args.pod, data, types.JSONPatchType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PatchPod() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -32,6 +32,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -673,7 +674,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -713,7 +714,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -790,7 +791,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			k := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch1.Reset()
@@ -919,7 +920,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				}
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()

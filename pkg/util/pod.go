@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -123,8 +124,69 @@ func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *core
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
-	if err := client.PatchPod(ctx, pod, payloadBytes); err != nil {
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
 		klog.Errorf("Patch pod err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addAnnotations map[string]string) error {
+	payloads := []k8sclient.PatchStringValue{}
+	for k, v := range addAnnotations {
+		payloads = append(payloads, k8sclient.PatchStringValue{
+			Op:    "add",
+			Path:  fmt.Sprintf("/metadata/annotations/%s", k),
+			Value: v,
+		})
+	}
+	payloadBytes, err := json.Marshal(payloads)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	klog.Infof("AddPodAnnotation: %s", string(payloadBytes))
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
+		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		return err
+	}
+	return nil
+}
+
+func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, delAnnotations []string) error {
+	payloads := []k8sclient.PatchDelValue{}
+	for _, k := range delAnnotations {
+		payloads = append(payloads, k8sclient.PatchDelValue{
+			Op:   "remove",
+			Path: fmt.Sprintf("/metadata/annotations/%s", k),
+		})
+	}
+	payloadBytes, err := json.Marshal(payloads)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	klog.Infof("DelPodAnnotation: %s", string(payloadBytes))
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
+		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		return err
+	}
+	return nil
+}
+
+func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, annotation map[string]string) error {
+	payload := []k8sclient.PatchMapValue{{
+		Op:    "replace",
+		Path:  "/metadata/annotations",
+		Value: annotation,
+	}}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
+		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
 	}
 	return nil
