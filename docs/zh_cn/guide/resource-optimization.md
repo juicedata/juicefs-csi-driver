@@ -80,9 +80,9 @@ storageClasses:
 
 ## 为相同的 StorageClass 复用 Mount Pod
 
-默认情况下，仅在多个应用 Pod 使用相同 PV 时，Mount Pod 才会被复用。如果你希望进一步降低开销，可以更加激进地复用 Mount Pod，让使用相同 StorageClass 创建出来的所有 PV，都复用同一个 Mount Pod（当然了，复用只能发生在同一个节点），不同的应用 Pod，将会绑定挂载点下不同的路径，实现一个挂载点，为多个应用容器提供服务。
+默认情况下，仅在多个应用 Pod 使用相同 PV 时，Mount Pod 才会被复用。如果你希望进一步降低开销，可以更加激进地复用 Mount Pod，让使用相同 StorageClass 创建出来的所有 PV，都复用同一个 Mount Pod（当然了，复用只能发生在同一个节点）。不同的应用 Pod，将会绑定挂载点下不同的路径，实现一个挂载点为多个应用容器提供服务。
 
-为相同 StorageClass PV 复用 Mount Pod，需要为 CSI Controller 添加以下环境变量：
+为相同 StorageClass PV 复用 Mount Pod，需要为 CSI Controller 添加以下环境变量（`STORAGE_CLASS_SHARE_MOUNT`）：
 
 ```shell
 kubectl -n kube-system set env daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
