@@ -448,7 +448,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-This feature is disabled by default, continue reading to enable.
+This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning. Follow below steps to enable `pathPattern`.
 
 ### Helm
 
@@ -501,7 +501,7 @@ You can reference any PVC metadata in the pattern, for example:
 
 ## Common PV settings
 
-### Automatic Mount Point Recovery {#automatic-mount-point-recovery}
+### Automatic mount point recovery {#automatic-mount-point-recovery}
 
 JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
 

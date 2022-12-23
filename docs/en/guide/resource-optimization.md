@@ -78,6 +78,18 @@ storageClasses:
         memory: "5Gi"
 ```
 
+## Share mount pod for the same StorageClass
+
+By default, mount pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share mount pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one mount pod is serving multiple application pods.
+
+To enable mount pod sharing for the same StorageClass, add the following environment variable (`STORAGE_CLASS_SHARE_MOUNT`) to CSI Controller:
+
+```shell
+kubectl -n kube-system set env daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
+```
+
+Evidently, more aggressive sharing policy means lower isolation level, mount pod crashes will bring worse consequences, so if you do decide to use mount pod sharing, make sure to enable [automatic mount point recovery](./pv.md#automatic-mount-point-recovery) as well, and [increase mount pod resources](#mount-pod-resources).
+
 ## Clean cache when mount pod exits
 
 Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).

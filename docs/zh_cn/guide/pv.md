@@ -446,7 +446,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-此特性默认关闭，需要手动开启。
+此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
 ### Helm
 
