@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
-After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you'll also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
+After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
 
 :::note
 Different from the `--cache-dir` parameter in the JuiceFS Client, the `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
@@ -279,7 +279,7 @@ spec:
         # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
         - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
         env:
-        # The Secret that contains mount options, must reside in same namespace as this StatefulSet
+        # The Secret that contains volume credentials, must reside in same namespace as this StatefulSet
         # ref: https://juicefs.com/docs/csi/guide/pv#cloud-service
         - name: ACCESS_KEY
           valueFrom:
@@ -348,7 +348,7 @@ spec:
 
 A JuiceFS cache cluster is deployed with the cache group name `jfscache`, in order to use this cache cluster in application JuiceFS clients, you'll need to join them into the same cache group, and additionally add the `--no-sharing` option, so that these application clients doesn't really involve in building the cache data, this is what prevents a instable cache group.
 
-Under dynamic provisioning, modify mount options according to below examples, see full description in [creating StorageClass](../guide/pv.md#create-storage-class).
+Under dynamic provisioning, modify mount options according to below examples, see full description in [mount options](../guide/pv.md#mount-options).
 
 ```yaml {13-14}
 apiVersion: storage.k8s.io/v1

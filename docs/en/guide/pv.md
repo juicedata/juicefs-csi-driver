@@ -3,9 +3,12 @@ title: Create and Use PV
 sidebar_position: 1
 ---
 
-## Create mount configuration {#create-mount-config}
+## Volume credentials {#volume-credentials}
 
-With JuiceFS CSI Driver, mount configurations are stored inside a Kubernetes Secret, create it before use.
+In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentials are stored inside a Kubernetes Secret, note that for JuiceFS Community Edition and JuiceFS Cloud Service, meaning of volume credentials are different:
+
+* For Community Edition, volume credentials include META-URL, object storage keys, and other options supported by the [`juicefs format`](https://juicefs.com/docs/community/command_reference#format) command.
+* For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
 :::note
 If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
@@ -30,7 +33,7 @@ stringData:
   secret-key: <SECRET_KEY>
   # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # You can also choose to format a volume within the mount pod fill in format options below.
+  # If you need to format a volume within the mount pod, fill in format options below.
   # format-options: trash-days=1,block-size=4096
 ```
 
@@ -67,7 +70,7 @@ stringData:
   secret-key: <SECRET_KEY>
   # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # You can also choose to run juicefs auth within the mount pod fill in auth parameters below.
+  # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
 
@@ -85,7 +88,7 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 ### Enterprise edition (on-premises) {#enterprise-edition}
 
-The JuiceFS Web Console is in charge of client authentication and distributing configuration files. In an on-premises deployment, the console address won't be [https://juicefs.com/console](https://juicefs.com/console), so it's required to specify the address for JuiceFS Web Console through `envs` field in mount options.
+The JuiceFS Web Console is in charge of client authentication and distributing configuration files. In an on-premises deployment, the console address won't be [https://juicefs.com/console](https://juicefs.com/console), so it's required to specify the address for JuiceFS Web Console through `envs` field in volume credentials.
 
 ```yaml {12-13}
 apiVersion: v1
@@ -101,7 +104,7 @@ stringData:
   secret-key: ${SECRET_KEY}
   # Leave the `%s` placeholder as-is, it'll be replaced with the actual file system name during runtime
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
-  # You can also choose to run juicefs auth within the mount pod fill in auth parameters below.
+  # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
 
@@ -169,8 +172,8 @@ spec:
     # volumeHandle needs to be unique within the cluster, simply using the PV name is recommended
     volumeHandle: juicefs-pv
     fsType: juicefs
-    # Reference the mount configuration created in previous step
-    # If you need to use different mount options, or different JuiceFS volumes, you'll need to create different mount configuration
+    # Reference the volume credentials (Secret) created in previous step
+    # If you need to use different credentials, or even use different JuiceFS volumes, you'll need to create different volume credentials
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
@@ -225,34 +228,6 @@ spec:
       claimName: juicefs-pvc
 ```
 
-After all resources are created, verify that all is working well:
-
-```shell
-# Verify PV is created
-kubectl get pv
-
-# Verify the pod is running
-kubectl get pods
-
-# Verify that data is written into JuiceFS
-kubectl exec -ti juicefs-app -- tail -f /data/out.txt
-```
-
-You can customize mount options by appending `mountOptions` to above PV definition, using format described in [Adjust mount options](#mount-options):
-
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=2048
-  ...
-```
-
 ## Create a StorageClass {#create-storage-class}
 
 If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
@@ -270,7 +245,7 @@ storageClasses:
 - name: juicefs-sc
   enabled: true
   reclaimPolicy: Retain
-  # JuiceFS volume related configuration
+  # JuiceFS Volume credentials
   # If volume is already created in advance, then only name and metaurl is needed
   backend:
     name: "<name>"               # JuiceFS volume name
@@ -289,12 +264,9 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-  # Declare mount options here if in need
-  # mountOptions:
-  #   - cache-size=2048
 ```
 
-When StorageClass is created by Helm, mount configuration is created along the way, you should manage mount config directly in Helm, rather than [creating mount configuration separately](#create-mount-config).
+As is demonstrated with the `backend` field, when StorageClass is created by Helm, volume credentials is created along the way, you should manage directly in Helm, rather than [creating volume credentials separately](#volume-credentials).
 
 ### Create via kubectl
 
@@ -304,34 +276,12 @@ kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
-# Declare mount options here if in need
-# mountOptions:
-#   - cache-size=2048
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
-
-### Adjust mount options {#mount-options}
-
-You can customize mount options in `StorageClass` definition, as shown in above code examples. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
-
-If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
-
-```yaml
-mountOptions:
-  - cache-size=2048
-  # Extra FUSE options
-  - writeback_cache
-  - debug
-```
-
-Mount options are different between Community Edition and Cloud Service, see:
-
-- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
@@ -431,11 +381,13 @@ spec:
 As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
-## Mount subdirectory {#subdir}
+### Mount options {#mount-options}
 
-Similar to `juicefs mount --subdir=/my/sub/dir`, you can use the `subdir` option to mount a subdirectory. Simply specify `subdir=xxx` inside `mountOptions`, and if the subdirectory doesn't exist, CSI Controller will automatically create it.
+Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between dynamic provisioning and static provisioning, see below examples:
 
-```yaml {21-22}
+#### Static provisioning
+
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -443,21 +395,44 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
   mountOptions:
-    - subdir=/test
+    - cache-size=204800
+    - subdir=/my/sub/dir
+  ...
+```
+
+#### Dynamic provisioning
+
+Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+mountOptions:
+  - cache-size=204800
+  - subdir=/my/sub/dir
+parameters:
+  ...
+```
+
+#### Parameter descriptions
+
+Mount options are different between Community Edition and Cloud Service, see:
+
+- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
+If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
+
+```yaml
+mountOptions:
+  - cache-size=2048
+  # Extra FUSE options
+  - writeback_cache
+  - debug
 ```
 
 ## Configure more readable names for PV directory {#using-path-pattern}
