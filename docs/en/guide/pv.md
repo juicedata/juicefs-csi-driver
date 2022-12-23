@@ -460,7 +460,6 @@ spec:
     - subdir=/test
 ```
 
-
 ## Configure more readable names for PV directory {#using-path-pattern}
 
 Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
