@@ -2,9 +2,19 @@
 title: 介绍
 ---
 
+import BilibiliEmbedRenderer from 'react-bilibili-embed-renderer';
+
 ## 架构 {#architecture}
 
 [JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口。在 Kubernetes 下，JuiceFS 可以用持久卷（PersistentVolume）的形式提供给 Pod 使用。
+
+<div className="video-container">
+  <BilibiliEmbedRenderer
+    aid="898153616"
+    width="100%"
+    height="360"
+  />
+</div>
 
 JuiceFS CSI 驱动包含以下组件：JuiceFS CSI Controller（StatefulSet）以及 JuiceFS CSI Node Service（DaemonSet），你可以方便地用 `kubectl` 查看：
 
