@@ -76,10 +76,7 @@ var (
 				}, {
 					Name: JfsRootDirName,
 					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: config.JFSConfigPath,
-							Type: &dir,
-						},
+						EmptyDir: nil,
 					},
 				}, {
 					Name: "updatedb",
