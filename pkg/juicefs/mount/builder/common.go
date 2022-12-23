@@ -90,10 +90,6 @@ func (r *Builder) getVolumes() []corev1.Volume {
 				Type: &dir,
 			},
 		}}, {
-		Name: JfsRootDirName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: nil,
-		}}, {
 		Name: "updatedb",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
@@ -102,6 +98,15 @@ func (r *Builder) getVolumes() []corev1.Volume {
 			},
 		},
 	}}
+	if r.jfsSetting.FormatCmd != "" {
+		// initContainer will generate xx.conf to share with mount container
+		volumes = append(volumes, corev1.Volume{
+			Name: JfsRootDirName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: nil,
+			},
+		})
+	}
 	if r.jfsSetting.EncryptRsaKey != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "rsa-key",
@@ -118,7 +123,7 @@ func (r *Builder) getVolumes() []corev1.Volume {
 	}
 	if r.jfsSetting.InitConfig != "" {
 		volumes = append(volumes, corev1.Volume{
-			Name: "init_config",
+			Name: "init-config",
 			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
 				SecretName: secretName,
 				Items: []corev1.KeyToPath{{
@@ -138,14 +143,18 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
-		Name:             JfsRootDirName,
-		MountPath:        "/root/.juicefs",
-		MountPropagation: &mp,
-	}, {
 		Name:             "updatedb",
 		MountPath:        "/etc/updatedb.conf",
 		MountPropagation: &mp,
 	}}
+	if r.jfsSetting.FormatCmd != "" {
+		// initContainer will generate xx.conf to share with mount container
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:             JfsRootDirName,
+			MountPath:        "/root/.juicefs",
+			MountPropagation: &mp,
+		})
+	}
 	if r.jfsSetting.EncryptRsaKey != "" {
 		if !r.jfsSetting.IsCe {
 			volumeMounts = append(volumeMounts,
@@ -159,7 +168,7 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	if r.jfsSetting.InitConfig != "" {
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
-				Name:      "init_config",
+				Name:      "init-config",
 				MountPath: "/root/.juicefs",
 			},
 		)

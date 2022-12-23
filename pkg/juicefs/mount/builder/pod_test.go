@@ -74,11 +74,6 @@ var (
 						},
 					},
 				}, {
-					Name: JfsRootDirName,
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: nil,
-					},
-				}, {
 					Name: "updatedb",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -107,10 +102,6 @@ var (
 					{
 						Name:             JfsDirName,
 						MountPath:        config.PodMountBase,
-						MountPropagation: &mp,
-					}, {
-						Name:             JfsRootDirName,
-						MountPath:        "/root/.juicefs",
 						MountPropagation: &mp,
 					}, {
 

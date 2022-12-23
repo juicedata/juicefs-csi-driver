@@ -164,14 +164,6 @@ func (r *Builder) getInitContainer() corev1.Container {
 			Privileged: &isPrivileged,
 		},
 	}
-	if r.jfsSetting.InitConfig != "" {
-		container.VolumeMounts = append(container.VolumeMounts,
-			corev1.VolumeMount{
-				Name:      "init_config",
-				MountPath: "/root/.juicefs",
-			},
-		)
-	}
 	if r.jfsSetting.EncryptRsaKey != "" {
 		if r.jfsSetting.IsCe {
 			container.VolumeMounts = append(container.VolumeMounts,
