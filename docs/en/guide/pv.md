@@ -429,7 +429,7 @@ If you need to pass extra FUSE options (specified in command line using `-o`), a
 
 ```yaml
 mountOptions:
-  - cache-size=2048
+  - cache-size=204800
   # Extra FUSE options
   - writeback_cache
   - debug
