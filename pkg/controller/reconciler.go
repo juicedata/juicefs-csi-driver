@@ -100,15 +100,13 @@ func doReconcile(ks *k8sclient.K8sClient, kc *kubeletClient) {
 				default:
 					err := podDriver.Run(ctx, pod)
 					if err != nil {
-						klog.Errorf("Check pod %s: %s", pod.Name, err)
+						klog.Errorf("Driver check pod %s error: %v", pod.Name, err)
 					}
 					return err
 				}
 			})
 		}
-		if err = g.Wait(); err != nil {
-			klog.Errorf("get error: %v", err)
-		}
+		g.Wait()
 	finish:
 		cancel()
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)

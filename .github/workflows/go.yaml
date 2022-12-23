@@ -19,6 +19,13 @@ on:
       - '**.go'
       - '**.py'
       - '**.sh'
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        description: "Run the build with tmate debugging enabled"
+        required: false
+        default: false
 
 jobs:
   test:
@@ -197,3 +204,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-process.py
+      - name: Setup upterm session
+        if: ${{ failure() && github.event_name == 'workflow_dispatch' && github.event.inputs.debug }}
+        timeout-minutes: 1
+        uses: lhotari/action-upterm@v1

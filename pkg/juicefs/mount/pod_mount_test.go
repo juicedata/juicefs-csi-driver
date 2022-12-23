@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -498,7 +499,7 @@ func TestUmountTarget(t *testing.T) {
 		})
 		Convey("pod update error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte) error {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return errors.New("test")
 			})
 			defer patch1.Reset()

@@ -137,8 +137,7 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 			klog.V(5).Infof("JUmount: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
 			return nil
 		}
-		delete(annotation, key)
-		return util.PatchPodAnnotation(ctx, p.K8sClient, pod, annotation)
+		return util.DelPodAnnotation(ctx, p.K8sClient, pod, []string{key})
 	})
 	if err != nil {
 		klog.Errorf("JUmount: Remove ref of target %s err: %v", target, err)
@@ -428,7 +427,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, jfsConfig.DeleteDelayAtKey)
-		return util.PatchPodAnnotation(ctx, p.K8sClient, exist, annotation)
+		return util.ReplacePodAnnotation(ctx, p.K8sClient, exist, annotation)
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)

@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -79,13 +80,6 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
-	if apierrors.IsConflict(err) {
-		current, err = p.Client.GetPod(ctx, current.Name, current.Namespace)
-		if err != nil {
-			return err // temporary
-		}
-		err = p.checkAnnotations(ctx, current)
-	}
 	if err != nil {
 		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
 		return err
@@ -133,26 +127,36 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	lock.Lock()
 	defer lock.Unlock()
 
-	annotation := make(map[string]string)
+	delAnnotations := []string{}
 	var existTargets int
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			deleted, exists := p.mit.deletedPods[getPodUid(target)]
 			if deleted || !exists {
 				// target pod is deleted
+				delAnnotations = append(delAnnotations, k)
 				continue
 			}
 			existTargets++
 		}
-		annotation[k] = target
 	}
 
-	if existTargets != 0 {
-		delete(annotation, config.DeleteDelayAtKey)
+	if existTargets != 0 && pod.Annotations[config.DeleteDelayAtKey] != "" {
+		delAnnotations = append(delAnnotations, config.DeleteDelayAtKey)
 	}
-	if len(pod.Annotations) != len(annotation) {
-		if err := util.PatchPodAnnotation(ctx, p.Client, pod, annotation); err != nil {
-			klog.Errorf("Update pod %s error: %v", pod.Name, err)
+	if len(delAnnotations) != 0 {
+		// check mount pod resourceVersion, if it is not the latest, return conflict
+		newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+		if err != nil {
+			return err
+		}
+		if newPod.ResourceVersion != pod.ResourceVersion {
+			return apierrors.NewConflict(schema.GroupResource{
+				Group:    pod.GroupVersionKind().Group,
+				Resource: pod.GroupVersionKind().Kind,
+			}, pod.Name, fmt.Errorf("can not patch pod"))
+		}
+		if err := util.DelPodAnnotation(ctx, p.Client, pod, delAnnotations); err != nil {
 			return err
 		}
 	}
@@ -163,6 +167,17 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			return err
 		}
 		if !shouldDelay {
+			// check mount pod resourceVersion, if it is not the latest, return conflict
+			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+			if err != nil {
+				return err
+			}
+			if newPod.ResourceVersion != pod.ResourceVersion {
+				return apierrors.NewConflict(schema.GroupResource{
+					Group:    pod.GroupVersionKind().Group,
+					Resource: pod.GroupVersionKind().Kind,
+				}, pod.Name, fmt.Errorf("can not delete pod"))
+			}
 			// if there are no refs or after delay time, delete it
 			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
@@ -373,7 +388,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			// add exist target in annotation
 			po.Annotations[k] = v
 		}
-		if err := util.PatchPodAnnotation(ctx, p.Client, pod, annotation); err != nil {
+		if err := util.ReplacePodAnnotation(ctx, p.Client, pod, po.Annotations); err != nil {
 			klog.Errorf("Update pod %s %s error: %v", po.Name, po.Namespace, err)
 		}
 		return err
