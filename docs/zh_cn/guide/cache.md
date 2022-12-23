@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
-设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载选项](./pv.md#mount-options)进行调整（如缓存大小）。
+设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载参数](./pv.md#mount-options)进行调整（如缓存大小）。
 
 :::note 注意
 与 JuiceFS 客户端的 `--cache-dir` 参数不同，在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
@@ -279,7 +279,7 @@ spec:
         # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
         - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
         env:
-        # 存放挂载配置的 Secret，必须和该 StatefulSet 在同一个命名空间下
+        # 存放文件系统认证信息的 Secret，必须和该 StatefulSet 在同一个命名空间下
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/pv#cloud-service
         - name: ACCESS_KEY
           valueFrom:
@@ -348,7 +348,7 @@ spec:
 
 上方示范便是在集群中启动了 JuiceFS 缓存集群，其缓存组名为 `jfscache`，那么为了让应用程序的 JuiceFS 客户端使用该缓存集群，需要让他们一并加入这个缓存组，并额外添加 `--no-sharing` 这个挂载参数，这样一来，应用程序的 JuiceFS 客户端虽然加入了缓存组，但却不参与缓存数据的构建，避免了客户端频繁创建、销毁所导致的缓存数据不稳定。
 
-以动态配置为例，按照下方示范修改挂载参数即可，挂载配置详见[「创建 StorageClass」](../guide/pv.md#create-storage-class)。
+以动态配置为例，按照下方示范修改挂载参数即可，关于在 `mountOptions` 调整挂载配置，请详见[「挂载参数」](../guide/pv.md#mount-options)。
 
 ```yaml {13-14}
 apiVersion: storage.k8s.io/v1

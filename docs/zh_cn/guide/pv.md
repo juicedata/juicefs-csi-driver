@@ -3,9 +3,12 @@ title: 创建和使用 PV
 sidebar_position: 1
 ---
 
-## 创建挂载配置 {#create-mount-config}
+## 文件系统认证信息 {#volume-credentials}
 
-在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息以及挂载参数，均存在 Kubernetes Secret 中。所以为了使用 JuiceFS 文件系统，首先需要创建 Kubernetes Secret。
+在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息，均存在 Kubernetes Secret 中。所谓「认证信息」，在 JuiceFS 社区版和云服务有着不同的含义：
+
+* 对于社区版而言，「认证信息」包含 META-URL、对象存储密钥，以及 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 命令所支持的其他参数。
+* 对于云服务而言，「认证信息」包含 Token、对象存储密钥，以及 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#auth) 命令所支持的其他参数。
 
 :::note
 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
@@ -30,7 +33,7 @@ stringData:
   secret-key: <SECRET_KEY>
   # 设置 Mount Pod 时区，默认为 UTC。
   # envs: "{TZ: Asia/Shanghai}"
-  # 如需在 Mount Pod 中创建文件系统，也可以直接填入 format-options。
+  # 如需在 Mount Pod 中创建文件系统，也可以将更多 juicefs format 参数填入 format-options。
   # format-options: trash-days=1,block-size=4096
 ```
 
@@ -65,7 +68,7 @@ stringData:
   secret-key: ${SECRET_KEY}
   # 设置 Mount Pod 时区，默认为 UTC。
   # envs: "{TZ: Asia/Shanghai}"
-  # 如需在 Mount Pod 中运行 juicefs auth 命令以调整挂载配置，可以将 auth 命令参数填写至 format-options。
+  # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options。
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
 
@@ -83,7 +86,7 @@ stringData:
 
 ### 企业版（私有部署） {#enterprise-edition}
 
-JuiceFS Web 控制台负责着客户端的挂载认证、配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 [https://juicefs.com/console](https://juicefs.com/console)，因此需要在挂载配置中通过 `envs` 字段额外指定控制台地址。
+JuiceFS Web 控制台负责着客户端的挂载认证、配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 [https://juicefs.com/console](https://juicefs.com/console)，因此需要在文件系统认证信息中通过 `envs` 字段额外指定控制台地址。
 
 ```yaml {12-13}
 apiVersion: v1
@@ -99,7 +102,7 @@ stringData:
   secret-key: ${SECRET_KEY}
   # 不需要对 `%s` 进行任何替换更改，在执行文件系统挂载时，客户端会用实际文件系统名来替换该占位符
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
-  # 如需在 Mount Pod 中运行 juicefs auth 命令以调整挂载配置，可以将 auth 命令参数填写至 format-options。
+  # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
 
@@ -167,8 +170,8 @@ spec:
     # volumeHandle 需要保证集群内唯一，因此一般直接用 PV 名即可
     volumeHandle: juicefs-pv
     fsType: juicefs
-    # 在先前的步骤中已经创建好挂载配置，在这里引用
-    # 如果要在静态配置下使用不同的挂载配置，或者文件系统，则需要创建不同的挂载配置
+    # 在先前的步骤中已经创建好文件系统认证信息（Secret），在这里引用
+    # 如果要在静态配置下使用不同的认证信息，甚至使用不同的 JuiceFS 文件系统，则需要创建不同的 Secret
     nodePublishSecretRef:
       name: juicefs-secret
       namespace: default
@@ -223,34 +226,6 @@ spec:
       claimName: juicefs-pvc
 ```
 
-当所有的资源创建好之后，可以用以下命令确认一切符合预期：
-
-```shell
-# 确认 PV 正常创建
-kubectl get pv juicefs-pv
-
-# 确认 pod 正常运行
-kubectl get pods juicefs-app
-
-# 确认数据被正确地写入 JuiceFS 文件系统中（也可以直接在宿主机挂载 JuiceFS，确认 PV 对应的子目录已经在文件系统中创建）
-kubectl exec -ti juicefs-app -- tail -f /data/out.txt
-```
-
-如果需要调整挂载参数，可以在上方的 PV 定义中追加 `mountOptions` 配置，格式参考[「调整挂载参数」](#mount-options)：
-
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=2048
-  ...
-```
-
 ## 创建 StorageClass {#create-storage-class}
 
 如果你打算以[「动态配置」](#dynamic-provisioning)或[「通用临时卷」](#general-ephemeral-storage)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
@@ -268,7 +243,7 @@ storageClasses:
 - name: juicefs-sc
   enabled: true
   reclaimPolicy: Retain
-  # JuiceFS 文件系统相关配置
+  # JuiceFS 文件系统认证信息
   # 如果已经提前创建好文件系统，则只需填写 `name` 和 `metaurl` 这两项
   backend:
     name: "<name>"                # JuiceFS 文件系统名
@@ -287,12 +262,9 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-  # 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
-  # mountOptions:
-  #   - cache-size=2048
 ```
 
-用 Helm 创建 StorageClass 时，挂载配置也会一并创建，请在 Helm 里直接管理，无需再[单独创建挂载配置](#create-mount-config)。
+如上方示范中 `backend` 字段所示，用 Helm 创建 StorageClass 时，文件系统认证信息也会一并创建，请在 Helm 里直接管理，无需再[单独创建文件系统认证信息](#volume-credentials)。
 
 ### 通过 kubectl 创建
 
@@ -302,34 +274,12 @@ kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
-# 若有需要，可以在此调整挂载参数，详见下方「调整挂载参数」小节
-# mountOptions:
-#   - cache-size=2048
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
-
-### 调整挂载参数 {#mount-options}
-
-你可以在 `StorageClass` 定义中调整挂载参数，上方的代码示范中均示范了 `mountOptions` 的写法。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
-
-另请注意，如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
-
-```yaml
-mountOptions:
-  - cache-size=2048
-  # 额外的 FUSE 相关选项
-  - writeback_cache
-  - debug
-```
-
-JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
-
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 ## 动态配置 {#dynamic-provisioning}
 
@@ -429,6 +379,60 @@ spec:
 在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
+## 挂载参数 {#mount-options}
+
+「挂载参数」，也就是 `juicefs mount` 命令所接受的参数，可以用于调整挂载配置。你需要通过 `mountOptions` 填写需要调整的挂载配置，在动态配置和静态配置下填写的位置不同，见下方示范：
+
+### 静态配置
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=204800
+    - subdir=/my/sub/dir
+  ...
+```
+
+### 动态配置
+
+在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+mountOptions:
+  - cache-size=204800
+  - subdir=/my/sub/dir
+parameters:
+  ...
+```
+
+### 参数详解
+
+JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
+
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
+如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
+
+```yaml
+mountOptions:
+  - cache-size=204800
+  # 额外的 FUSE 相关选项
+  - writeback_cache
+  - debug
+```
+
 ## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
 在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
@@ -507,7 +511,7 @@ JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 
 挂载点自动恢复后，已经打开的文件无法继续访问，请在应用程序中做好重试，重新打开文件，避免异常。
 :::
 
-启用自动恢复，需要在应用 pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载信息传播给 pod：
+启用自动恢复，需要在应用 Pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载传播给 Pod：
 
 ```yaml {12-18}
 apiVersion: apps/v1

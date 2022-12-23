@@ -431,6 +431,36 @@ spec:
 As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
+## Mount subdirectory {#subdir}
+
+Similar to `juicefs mount --subdir=/my/sub/dir`, you can use the `subdir` option to mount a subdirectory. Simply specify `subdir=xxx` inside `mountOptions`, and if the subdirectory doesn't exist, CSI Controller will automatically create it.
+
+```yaml {21-22}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  mountOptions:
+    - subdir=/test
+```
+
+
 ## Configure more readable names for PV directory {#using-path-pattern}
 
 Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
