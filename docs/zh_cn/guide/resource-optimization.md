@@ -85,7 +85,7 @@ storageClasses:
 为相同 StorageClass PV 复用 Mount Pod，需要为 CSI Controller 添加以下环境变量：
 
 ```shell
-kubectl -n kube-system set env sts/juicefs-csi-controller STORAGE_CLASS_SHARE_MOUNT=true
+kubectl -n kube-system set env daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
 ```
 
 可想而知，高度复用意味着更低的隔离程度，如果 Mount Pod 发生意外，挂载点异常，影响面也会更大，因此如果你决定启用该复用策略，请务必同时启用[「挂载点自动恢复」](./pv.md#automatic-mount-point-recovery)，以及合理增加 [「Mount Pod 的资源请求」](#mount-pod-resources)。
