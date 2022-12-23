@@ -501,7 +501,7 @@ You can reference any PVC metadata in the pattern, for example:
 
 ## Common PV settings
 
-### Automatic Mount Point Recovery {#automatic-mount-point-recovery}
+### Automatic mount point recovery {#automatic-mount-point-recovery}
 
 JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
 
