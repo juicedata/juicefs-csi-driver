@@ -7,10 +7,10 @@ sidebar_position: 1
 
 在 JuiceFS CSI 驱动中，挂载文件系统所需的认证信息，均存在 Kubernetes Secret 中。所谓「认证信息」，在 JuiceFS 社区版和云服务有着不同的含义：
 
-* 对于社区版而言，「认证信息」包含 META-URL、对象存储密钥，以及 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 命令所支持的其他参数。
-* 对于云服务而言，「认证信息」包含 Token、对象存储密钥，以及 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#auth) 命令所支持的其他参数。
+* 对于社区版而言，「认证信息」包含元数据引擎 URL、对象存储密钥，以及 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 命令所支持的其他参数。
+* 对于云服务而言，「认证信息」包含文件系统名称、Token、对象存储密钥，以及 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#auth) 命令所支持的其他参数。
 
-:::note
+:::note 注意
 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
 :::
 
@@ -381,11 +381,11 @@ spec:
 
 ## 挂载参数 {#mount-options}
 
-「挂载参数」，也就是 `juicefs mount` 命令所接受的参数，可以用于调整挂载配置。你需要通过 `mountOptions` 填写需要调整的挂载配置，在动态配置和静态配置下填写的位置不同，见下方示范：
+「挂载参数」，也就是 `juicefs mount` 命令所接受的参数，可以用于调整挂载配置。你需要通过 `mountOptions` 字段填写需要调整的挂载配置，在静态配置和动态配置下填写的位置不同，见下方示范。
 
 ### 静态配置
 
-```yaml {8-9}
+```yaml {8-10}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -403,7 +403,7 @@ spec:
 
 在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
-```yaml
+```yaml {6-8}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
