@@ -56,6 +56,9 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
+	pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{Name: "prometheus", ContainerPort: 9567},
+	}
 	gracePeriod := int64(10)
 	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
 
