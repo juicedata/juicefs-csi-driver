@@ -257,14 +257,6 @@ spec:
               add:
               - SYS_ADMIN
             privileged: true
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: healthz
-            initialDelaySeconds: 10
-            timeoutSeconds: 3
-            periodSeconds: 10
-            failureThreshold: 5
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.6.0
           args:
@@ -289,6 +281,14 @@ spec:
               value: /csi/csi.sock
             - name: HEALTH_PORT
               value: "9909"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

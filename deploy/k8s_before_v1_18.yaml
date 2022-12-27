@@ -272,14 +272,6 @@ spec:
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
         image: juicedata/juicefs-csi-driver:v0.17.4
-        livenessProbe:
-          failureThreshold: 5
-          httpGet:
-            path: /healthz
-            port: healthz
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 3
         name: juicefs-plugin
         ports:
         - containerPort: 9909
@@ -327,6 +319,14 @@ spec:
         - name: HEALTH_PORT
           value: "9909"
         image: quay.io/k8scsi/livenessprobe:v1.1.0
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
         name: liveness-probe
         volumeMounts:
         - mountPath: /csi
