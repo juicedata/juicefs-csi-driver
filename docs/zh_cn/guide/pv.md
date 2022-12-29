@@ -420,7 +420,7 @@ parameters:
 
 JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
 如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：

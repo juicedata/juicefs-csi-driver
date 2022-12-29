@@ -7,7 +7,7 @@ sidebar_position: 1
 
 In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentials are stored inside a Kubernetes Secret, note that for JuiceFS Community Edition and JuiceFS Cloud Service, meaning of volume credentials are different:
 
-* For Community Edition, volume credentials include META-URL, object storage keys, and other options supported by the [`juicefs format`](https://juicefs.com/docs/community/command_reference#format) command.
+* For Community Edition, volume credentials include metadata engine URL, object storage keys, and other options supported by the [`juicefs format`](https://juicefs.com/docs/community/command_reference#format) command.
 * For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
 :::note
@@ -381,13 +381,13 @@ spec:
 As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
-### Mount options {#mount-options}
+## Mount options {#mount-options}
 
-Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between dynamic provisioning and static provisioning, see below examples:
+Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.
 
-#### Static provisioning
+### Static provisioning
 
-```yaml {8-9}
+```yaml {8-10}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -401,11 +401,11 @@ spec:
   ...
 ```
 
-#### Dynamic provisioning
+### Dynamic provisioning
 
 Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
 
-```yaml
+```yaml {6-8}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -418,12 +418,12 @@ parameters:
   ...
 ```
 
-#### Parameter descriptions
+### Parameter descriptions
 
 Mount options are different between Community Edition and Cloud Service, see:
 
-- [Community Edition](https://juicefs.com/docs/zh/community/command_reference#juicefs-mount)
-- [Cloud Service](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+- [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
+- [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
 
 If you need to pass extra FUSE options (specified in command line using `-o`), append directly in the YAML list, one option in each line, as demonstrated below:
 
