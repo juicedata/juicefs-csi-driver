@@ -81,7 +81,6 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
 	if err != nil {
-		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
 		return err
 	}
 
@@ -131,8 +130,8 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	var existTargets int
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			deleted, exists := p.mit.deletedPods[getPodUid(target)]
-			if deleted || !exists {
+			_, exists := p.mit.deletedPods[getPodUid(target)]
+			if !exists { // only it is not in pod lists can be seen as deleted
 				// target pod is deleted
 				delAnnotations = append(delAnnotations, k)
 				continue
