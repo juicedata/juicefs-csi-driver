@@ -469,7 +469,64 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-可以通过 `kubectl patch` 命令添加所需的启动参数（`--provisioner=true`）：
+手动编辑 CSI Controller：
+
+```shell
+kubectl edit sts -n kube-system juicefs-csi-controller
+```
+
+需要修改的部分，已经在下方示范中进行高亮和注释，请参考：
+
+```yaml {18,21-32}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: juicefs-csi-controller
+  ...
+spec:
+  ...
+  template:
+    ...
+    spec:
+      containers:
+      - args:
+        - --endpoint=$(CSI_ENDPOINT)
+        - --logtostderr
+        - --nodeid=$(NODE_NAME)
+        - --v=5
+        # 令 `juicefs-plugin` 自行监听资源变动，执行初始化流程
+        - --provisioner=true
+      ...
+      # 删除默认的 csi-provisioner，不再通过该容器监听资源变动，执行初始化流程
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --timeout=60s
+        - --v=5
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: quay.io/k8scsi/csi-provisioner:v1.6.0
+        name: csi-provisioner
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --health-port=$(HEALTH_PORT)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: HEALTH_PORT
+          value: "9909"
+        image: quay.io/k8scsi/livenessprobe:v1.1.0
+        name: liveness-probe
+        volumeMounts:
+        - mountPath: /csi
+          name: socket-dir
+      ...
+```
+
+上述操作也可以用下方的一行命令达成，但请注意，**该命令并非幂等，不能重复执行**：
 
 ```shell
 kubectl -n kube-system patch sts juicefs-csi-controller \

@@ -6,6 +6,8 @@ JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to ins
 
 ## Helm
 
+In comparison to kubectl, Helm allows you to manage CSI driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl.
+
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
 Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` environment variable.
@@ -48,6 +50,8 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
 ## kubectl
+
+If installed using kubectl, any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
 
 1. Check kubelet root directory
 
