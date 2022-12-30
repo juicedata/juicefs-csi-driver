@@ -6,6 +6,53 @@ sidebar_position: 6
 
 阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
 
+## 诊断脚本 {#csi-doctor}
+
+你可以使用诊断脚本 [`csi-doctor`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息。
+
+在集群中任意一台可以执行 `kubectl` 的节点上，安装诊断脚本：
+
+```shell
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/csi-doctor.sh
+chmod a+x csi-doctor.sh
+```
+
+使用诊断脚本获取应用 pod 使用的 mount pod。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`。
+
+```shell
+$ ./diagnose.sh
+Usage:
+    ./diagnose.sh COMMAND [OPTIONS]
+ENV:
+    JUICEFS_NAMESPACE: namespace of JuiceFS CSI Driver, default is kube-system.
+COMMAND:
+    help
+        Display this help message.
+    get-mount
+        Print mount pod used by specified app pod.
+    get-app
+        Print app pods using specified mount pod.
+    collect
+        Collect csi & mount pods logs of juicefs.
+OPTIONS:
+    -po, --pod name
+        Set the name of app pod.
+    -n, --namespace name
+        Set the namespace of app pod, default is default.
+    -m, --mount pod name
+        Set the name of mount pod.
+
+# 设置 juicefs csi driver 组件所在 namespace，默认为 kube-system
+$ export JUICEFS_NAMESPACE=kube-system
+# 获取指定 pod 所用的 mount pod
+$ ./diagnose.sh get-mount -po dynamic-ce-1
+Mount Pod which app dynamic-ce-1 using is:
+namespace:
+  kube-system
+name:
+  juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+```
+
 ## 基础问题排查原则 {#basic-principles}
 
 在 JuiceFS CSI 驱动中，常见错误有两种：一种是 PV 创建失败，属于 CSI Controller 的职责；另一种是应用 Pod 创建失败，属于 CSI Node 和 Mount Pod 的职责。

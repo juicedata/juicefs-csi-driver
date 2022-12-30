@@ -7,23 +7,20 @@ print_usage() {
   echo "Usage:"
   echo "    $0 COMMAND [OPTIONS]"
   echo "ENV:"
-  echo "    JUICEFS_NAMESPACE: namespace of JuiceFS CSI Driver, default is kube-system."
+  echo "    JFS_NS: namespace of JuiceFS CSI Driver, default is kube-system."
+  echo "    APP_NS: namespace of the application pod, default is default."
   echo "COMMAND:"
   echo "    help"
   echo "        Display this help message."
   echo "    get-mount"
-  echo "        Print mount pod used by specified app pod."
+  echo "        Print mount pod used by specified application pod."
   echo "    get-app"
-  echo "        Print app pods using specified mount pod."
+  echo "        Print application pods using specified mount pod."
   echo "    collect"
   echo "        Collect csi & mount pods logs of juicefs."
   echo "OPTIONS:"
-  echo "    -po, --pod name"
-  echo "        Set the name of app pod."
   echo "    -n, --namespace name"
-  echo "        Set the namespace of app pod, default is default."
-  echo "    -m, --mount pod name"
-  echo "        Set the name of mount pod."
+  echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
 }
 
 run() {
@@ -36,9 +33,12 @@ run() {
   echo "------------End of ${1}----------------"
 }
 
+DEFAULT_APP_NS="${APP_NS:-default}"
+ORIGINAL_ARGS=( "$@" )
+
 juicefs_resources() {
   local app=${pod}
-  local namespace="${namespace:-default}"
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
 
   mkdir -p "$diagnose_dir/app"
   kubectl describe po "$app" -n $namespace &>"$diagnose_dir/app/$app-describe.log" 2>&1
@@ -58,25 +58,27 @@ juicefs_resources() {
 }
 
 get_mount_pod() {
-  local app=${pod}
-  local namespace="${namespace:-default}"
-  juicefs_namespace=${JUICEFS_NAMESPACE:-"kube-system"}
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh get-mount $APP_POD_NAME"
+    exit 1
+  fi
+  local app=${ORIGINAL_ARGS[1]}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
 
+  set -e
   NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
   PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
   PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
   PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
   MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
-  echo "Mount Pod which app $app using is:"
-  echo "namespace:"
-  echo "  $juicefs_namespace"
-  echo "name: "
-  echo "  $MOUNT_POD_NAME"
+  printf "$juicefs_namespace\t$MOUNT_POD_NAME\n"
 }
 
 get_app_pod() {
   local mountpod=${mountpod}
-  juicefs_namespace=${JUICEFS_NAMESPACE:-"kube-system"}
+  juicefs_namespace=${JFS_NS:-"kube-system"}
 
   pv_id=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{if eq $k "juicefs-uniqueid"}}{{$v}}{{end}}{{end}}')
   pvs=$(kubectl get pv | awk '{print $1}' | grep -v NAME)
@@ -114,7 +116,7 @@ get_app_pod() {
     fi
   done
 
-  echo "App pods using mount pod [$mountpod]:"
+  echo "Application pods using mount pod [$mountpod]:"
   echo "namespace:"
   echo "  $namespace"
   echo "apps: "
@@ -126,8 +128,8 @@ get_app_pod() {
 
 collect_mount_pod_msg() {
   local app=${pod}
-  local namespace="${namespace:-default}"
-  juicefs_namespace=${JUICEFS_NAMESPACE:-"kube-system"}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
 
   NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
@@ -144,8 +146,8 @@ collect_mount_pod_msg() {
 
 collect_juicefs_csi_msg() {
   local app=${pod}
-  local namespace="${namespace:-default}"
-  juicefs_namespace=${JUICEFS_NAMESPACE:-"kube-system"}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-csi-node"
   mkdir -p "$diagnose_dir/juicefs-csi-controller"
 
@@ -178,7 +180,7 @@ pd_collect() {
 collect() {
   # ensure params
   pod_name=${pod:?"the name of pod using juicefs must be set"}
-  namespace=${namespace:-"default"}
+  namespace=${namespace:-"$DEFAULT_APP_NS"}
 
   juicefs_namespace=${juicefs_namespace:-"kube-system"}
 
@@ -213,22 +215,9 @@ main() {
       get-app|help)
         action=$1
         ;;
-      -po|--pod)
-        pod=$2
-        shift
-        ;;
       -n|--namespace)
         namespace=$2
         shift
-        ;;
-      -m|--mount)
-        mountpod=$2
-        shift
-        ;;
-      *)
-        echo  "Error: unsupported option $1" >&2
-        print_usage
-        exit 1
         ;;
     esac
     shift
