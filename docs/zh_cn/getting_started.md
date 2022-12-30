@@ -75,7 +75,7 @@ kubectl 安装方式下，对 CSI 驱动的任何配置修改都需要手动操�
 
 ## 检查部署状态
 
-不论你用何种方法，安装完毕以后，请用下方命令确认 CSI 驱动组件正常运行：
+用下方命令确认 CSI 驱动组件正常运行：
 
 ```shell
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
