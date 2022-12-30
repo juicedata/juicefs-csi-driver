@@ -166,7 +166,6 @@ func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
-	klog.Infof("DelPodAnnotation: %s", string(payloadBytes))
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
@@ -190,4 +189,14 @@ func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod 
 		return err
 	}
 	return nil
+}
+
+func GetAllRefKeys(pod corev1.Pod) map[string]string {
+	annos := make(map[string]string)
+	for k, v := range pod.Annotations {
+		if k == GetReferenceKey(v) {
+			annos[k] = v
+		}
+	}
+	return annos
 }

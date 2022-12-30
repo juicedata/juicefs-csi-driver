@@ -580,3 +580,67 @@ func TestGetMountPathOfPod(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAllRefKeys(t *testing.T) {
+	type args struct {
+		pod corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "test-1",
+			args: args{
+				pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+						},
+					},
+				},
+			},
+			want: map[string]string{"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount"},
+		},
+		{
+			name: "test-1",
+			args: args{
+				pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+							"juicefs-abc": "abc",
+						},
+					},
+				},
+			},
+			want: map[string]string{"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount"},
+		},
+		{
+			name: "test-2",
+			args: args{
+				pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+							"juicefs-633ac2eb9e3f1a969cd64e240c09a84cf23e727745f63ba67c93ccc": "/var/lib/kubelet/pods/6468b90b-c255-4dc9-9dd7-1ddcc1b9bc66/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+							"juicefs-abc": "abc",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"juicefs-8d156faf0f66234b8d78c5efa19acaec04d40fdf9629fad3f975d9a": "/var/lib/kubelet/pods/147fef36-241a-4148-b5f8-8ac41f1719e5/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+				"juicefs-633ac2eb9e3f1a969cd64e240c09a84cf23e727745f63ba67c93ccc": "/var/lib/kubelet/pods/6468b90b-c255-4dc9-9dd7-1ddcc1b9bc66/volumes/kubernetes.io~csi/pvc-4256b212-6581-4873-8d4c-d1481bcbd305/mount",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetAllRefKeys(tt.args.pod); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetAllRefKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

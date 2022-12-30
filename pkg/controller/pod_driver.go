@@ -81,7 +81,6 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
 	if err != nil {
-		klog.Errorf("check pod %s annotations err: %v", current.Name, err)
 		return err
 	}
 
@@ -145,12 +144,12 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 		delAnnotations = append(delAnnotations, config.DeleteDelayAtKey)
 	}
 	if len(delAnnotations) != 0 {
-		// check mount pod resourceVersion, if it is not the latest, return conflict
+		// check mount pod reference key, if it is not the latest, return conflict
 		newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err != nil {
 			return err
 		}
-		if newPod.ResourceVersion != pod.ResourceVersion {
+		if len(util.GetAllRefKeys(*newPod)) != len(util.GetAllRefKeys(*pod)) {
 			return apierrors.NewConflict(schema.GroupResource{
 				Group:    pod.GroupVersionKind().Group,
 				Resource: pod.GroupVersionKind().Kind,
@@ -172,7 +171,8 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			if err != nil {
 				return err
 			}
-			if newPod.ResourceVersion != pod.ResourceVersion {
+			// check mount pod reference key, if it is not none, return conflict
+			if len(util.GetAllRefKeys(*newPod)) != 0 {
 				return apierrors.NewConflict(schema.GroupResource{
 					Group:    pod.GroupVersionKind().Group,
 					Resource: pod.GroupVersionKind().Kind,
