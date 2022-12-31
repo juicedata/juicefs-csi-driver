@@ -25,7 +25,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### Upgrade via kubectl
 
-Reinstall JuiceFS CSI Driver using the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), if you maintain your own fork of `k8s.yaml`, simply modify the image label to the latest version (like `image: juicedata/juicefs-csi-driver:v0.17.2`), and then run:
+Reinstall JuiceFS CSI Driver using the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), if you maintain your own fork of `k8s.yaml`, simply modify the image label to the latest version (like `image: juicedata/juicefs-csi-driver:v0.17.4`), and then run:
 
 ```shell
 kubectl apply -f ./k8s.yaml

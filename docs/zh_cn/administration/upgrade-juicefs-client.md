@@ -4,64 +4,15 @@ slug: /upgrade-juicefs-client
 sidebar_position: 3
 ---
 
-我们推荐你定期升级 JuiceFS 客户端，以享受到最新特性和问题修复，请参考[「社区版客户端发布说明」](https://github.com/juicedata/juicefs/releases)或[「云服务客户端发布说明」](https://juicefs.com/docs/zh/cloud/release)了解更多版本信息。事实上，[「升级 JuiceFS CSI 驱动」](./upgrade-csi-driver.md)也可能会带来客户端更新，但如果你不希望升级 CSI 驱动，可以用本章介绍的方法单独升级 JuiceFS 客户端。
+我们推荐你定期升级 JuiceFS 客户端，以享受到最新特性和问题修复，请参考[「社区版客户端发布说明」](https://github.com/juicedata/juicefs/releases)或[「云服务客户端发布说明」](https://juicefs.com/docs/zh/cloud/release)了解更多版本信息。
+
+事实上，[「升级 JuiceFS CSI 驱动」](./upgrade-csi-driver.md)也会带来客户端更新，这是因为每次 CSI 驱动更新发版，都会例行在配置中采用最新版的 [Mount Pod 镜像](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v)，但如果你希望提前采纳最新版的 Mount Pod，可以用本章介绍的方法单独升级 JuiceFS 客户端。
 
 ## 升级 Mount Pod 容器镜像 {#upgrade-mount-pod-image}
 
-在 v0.17.1 及以上版本，CSI 驱动允许用户自行设置 Mount Pod 容器镜像，你可以修改配置，使用新版的 Mount Pod 容器镜像，来实现升级 JuiceFS 客户端。这也是得益于 CSI 驱动与 JuiceFS 客户端分离的[架构](../introduction.md#architecture)。
+在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到新版 Mount Pod 容器镜像，然后[「修改 Mount Pod 容器镜像」](../guide/custom-image.md#overwrite-mount-pod-image)即可。
 
-你可以在[镜像仓库](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v)找到最新版的 Mount Pod 镜像，镜像标签格式为 `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`，其中 `<JUICEFS-CE-VERSION>` 表示 JuiceFS 社区版客户端的版本号，`<JUICEFS-EE-VERSION>` 表示 JuiceFS 云服务客户端的版本号。
-
-如果 JuiceFS 客户端的新版尚未正式发布，或新版本的 Mount Pod 容器镜像尚未构建，你也可以自行构建 Mount Pod 容器镜像，参考[「构建 Mount Pod 的容器镜像」](../guide/custom-image.md#build-mount-pod-image)。
-
-### 动态配置
-
-[「动态配置」](../guide/pv.md#dynamic-provisioning)模式下，你需要在 `StorageClass` 中定义配置容器镜像：
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:v1.0.2-4.8.1
-```
-
-修改配置后，新创建的 PV 便会使用新版镜像运行 Mount Pod。
-
-### 静态配置
-
-[「静态配置」](../guide/pv.md#static-provisioning)模式下，需要在 `PersistentVolume` 定义中配置 Mount Pod 镜像：
-
-```yaml {22}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-    volumeAttributes:
-      juicefs/mount-image: juicedata/mount:v1.0.2-4.8.1
-```
+注意，超载 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](./upgrade-csi-driver.md)而升级。你需要删除重建 PVC，才能令新的 Mount Pod 容器镜像生效。
 
 ## 临时升级 JuiceFS 客户端
 
