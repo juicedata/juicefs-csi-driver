@@ -94,7 +94,7 @@ get_app_pod() {
       break
     fi
   done
-  namespace=$(kubectl get pvc -A --field-selector=metadata.name=$pvc_name | grep -v NAME | awk '{print $1}')
+  namespace=$(kubectl get pvc -A --field-selector=metadata.name=$pvc_name -ojsonpath={..namespace})
 
   annos=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
   i=0
@@ -109,7 +109,7 @@ get_app_pod() {
   set -e
 
   declare -A app_maps
-  alls=$(kubectl get po -n $namespace | grep -v NAME | awk '{print $1}')
+  alls=$(kubectl get po -n $namespace --no-headers | awk '{print $1}')
   for po in ${alls[@]}; do
     pod_id=$(kubectl -n $namespace get po $po -o jsonpath='{.metadata.uid}')
     app_maps[$pod_id]=$po
