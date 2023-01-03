@@ -47,7 +47,9 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
   If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
 
   ```
-  transport endpoint is not connected
+  Transport endpoint is not connected
+
+  df: /jfs: Socket not connected
   ```
 
   In this case, you'll need to enable [automatic mount point recovery](../guide/pv.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.

@@ -47,7 +47,9 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
   如果 Mount Pod 发生异常重启，或者经历了手动删除，那么应用 Pod 内访问挂载点（比如 `df`）会产生如下报错，提示挂载点已经不存在：
 
   ```
-  transport endpoint is not connected
+  Transport endpoint is not connected
+
+  df: /jfs: Socket not connected
   ```
 
   你需要启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
