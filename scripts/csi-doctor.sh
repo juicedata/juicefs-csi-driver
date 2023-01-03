@@ -13,11 +13,11 @@ print_usage() {
   echo "    help"
   echo "        Display this help message."
   echo "    get-mount"
-  echo "        Print mount pod used by specified application pod."
+  echo "        Get mount pod used by specified application pod."
   echo "    get-app"
-  echo "        Print application pods using specified mount pod."
+  echo "        Get application pods using specified mount pod."
   echo "    collect"
-  echo "        Collect csi & mount pods logs of juicefs."
+  echo "        Collect logs for CSI Driver troubleshooting."
   echo "OPTIONS:"
   echo "    -n, --namespace name"
   echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
@@ -37,7 +37,6 @@ DEFAULT_APP_NS="${APP_NS:-default}"
 ORIGINAL_ARGS=( "$@" )
 
 juicefs_resources() {
-  local app=${pod}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
 
   mkdir -p "$diagnose_dir/app"
@@ -60,10 +59,10 @@ juicefs_resources() {
 get_mount_pod() {
   if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
     echo "EXAMPLES:"
-    echo "    csi-doctor.sh get-mount $APP_POD_NAME"
+    echo "    csi-doctor.sh get-mount APP_POD_NAME"
     exit 1
   fi
-  local app=${ORIGINAL_ARGS[1]}
+  app=${ORIGINAL_ARGS[1]}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
 
@@ -77,15 +76,21 @@ get_mount_pod() {
 }
 
 get_app_pod() {
-  local mountpod=${mountpod}
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh get-app MOUNT_POD_NAME"
+    exit 1
+  fi
+  local mountpod=${ORIGINAL_ARGS[1]}
   juicefs_namespace=${JFS_NS:-"kube-system"}
 
+  set -e
   pv_id=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{if eq $k "juicefs-uniqueid"}}{{$v}}{{end}}{{end}}')
-  pvs=$(kubectl get pv | awk '{print $1}' | grep -v NAME)
+  pvs=$(kubectl get pv --no-headers | awk '{print $1}')
   for pv in $pvs; do
-    volumeHandle=$(kubectl get pv $pv -oyaml |grep volumeHandle | awk '{print $2}')
+    volumeHandle=$(kubectl get pv $pv -ojsonpath={..volumeHandle})
     if [ "$pv_id" == "$volumeHandle" ]; then
-      pvc_name=$(kubectl get pv $pv -o yaml | grep claimRef -A 6 | grep name: | awk '{print $2}')
+      pvc_name=$(kubectl get pv $pv -ojsonpath={..claimRef.name})
       break
     fi
   done
@@ -94,12 +99,14 @@ get_app_pod() {
   annos=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
   i=0
   pod_ids=()
+  set +e
   for anno in ${annos[@]}; do
     pod_id=$(echo $anno | grep -oP '(?<=pods/).+(?=/volumes)')
     if [[ $pod_id != "" ]]; then
       pod_ids+=($pod_id)
     fi
   done
+  set -e
 
   declare -A app_maps
   alls=$(kubectl get po -n $namespace | grep -v NAME | awk '{print $1}')
@@ -116,18 +123,13 @@ get_app_pod() {
     fi
   done
 
-  echo "Application pods using mount pod [$mountpod]:"
-  echo "namespace:"
-  echo "  $namespace"
-  echo "apps: "
   for element in ${apps[@]}
   do
-    echo "  $element"
+    printf "$namespace\t$element\n"
   done
 }
 
 collect_mount_pod_msg() {
-  local app=${pod}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
@@ -145,7 +147,6 @@ collect_mount_pod_msg() {
 }
 
 collect_juicefs_csi_msg() {
-  local app=${pod}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-csi-node"
@@ -165,12 +166,13 @@ collect_juicefs_csi_msg() {
 }
 
 archive() {
-  tar -zcvf "${current_dir}/diagnose_juicefs_${timestamp}.tar.gz" "${diagnose_dir}"
-  echo "please get diagnose_juicefs_${timestamp}.tar.gz for diagnostics"
+  set -e
+  tar -zcf "${current_dir}/diagnose_juicefs_${timestamp}.tar.gz" -C /tmp $(basename $diagnose_dir)
+  echo "Results have been saved to $(basename $diagnose_dir).tar.gz"
 }
 
 pd_collect() {
-  echo "Start collecting, pod=${pod}, namespace=${namespace}"
+  echo "Start collecting logs for ${namespace} ${app}"
   collect_mount_pod_msg
   collect_juicefs_csi_msg
   juicefs_resources
@@ -178,18 +180,23 @@ pd_collect() {
 }
 
 collect() {
-  # ensure params
-  pod_name=${pod:?"the name of pod using juicefs must be set"}
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh collect APP_POD_NAME"
+    exit 1
+  fi
+  app=${ORIGINAL_ARGS[1]}
   namespace=${namespace:-"$DEFAULT_APP_NS"}
-
   juicefs_namespace=${juicefs_namespace:-"kube-system"}
-
   current_dir=$(pwd)
   timestamp=$(date +%s)
-  diagnose_dir="/tmp/diagnose_juicefs_${timestamp}"
+  # debug information was collected in folder /root/beiye-ci.beiyealiyun.diagnose (compressed as /root/beiye-ci.beiyealiyun.diagnose.tar.gz)
+  diagnose_result="${app}.diagnose.tar.gz"
+  diagnose_dir="/tmp/${app}.diagnose"
   mkdir -p "$diagnose_dir"
 
   pd_collect
+  rm -rf $diagnose_dir
 }
 
 main() {
