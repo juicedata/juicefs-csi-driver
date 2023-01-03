@@ -130,8 +130,8 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	var existTargets int
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			deleted, exists := p.mit.deletedPods[getPodUid(target)]
-			if deleted || !exists {
+			_, exists := p.mit.deletedPods[getPodUid(target)]
+			if !exists { // only it is not in pod lists can be seen as deleted
 				// target pod is deleted
 				delAnnotations = append(delAnnotations, k)
 				continue
