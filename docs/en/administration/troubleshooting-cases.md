@@ -42,6 +42,16 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
   Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
+* **After mount pod is restarted or recreated, application pods cannot access JuiceFS**
+
+  If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
+
+  ```
+  transport endpoint is not connected
+  ```
+
+  In this case, you'll need to enable [automatic mount point recovery](../guide/pv.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
+
 * **Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**
 
   Mount pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:

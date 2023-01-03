@@ -42,6 +42,16 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 
   Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
+* **Mount Pod 重启或者重新创建后，应用容器无法访问 JuiceFS**
+
+  如果 Mount Pod 发生异常重启，或者经历了手动删除，那么应用 Pod 内访问挂载点（比如 `df`）会产生如下报错，提示挂载点已经不存在：
+
+  ```
+  transport endpoint is not connected
+  ```
+
+  你需要启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
+
 * **Mount Pod 正常退出（exit code 为 0），应用容器卡在 `ContainerCreateError` 状态**
 
   Mount Pod 是一个常驻进程，如果它退出了（变为 `Completed` 状态），即便退出状态码为 0，也明显属于异常状态。此时应用容器由于挂载点不复存在，会伴随着以下错误事件：
