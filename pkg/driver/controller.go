@@ -80,6 +80,11 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	//	return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
 	//}
 
+	// check if use pathpattern
+	if req.Parameters["pathPattern"] != "" {
+		klog.Warningf("CreateVolume: volume %s uses pathPattern, please enable provisioner in CSI Controller, not works in default mode.", volumeId)
+	}
+
 	volCtx["subPath"] = subPath
 	volume := csi.Volume{
 		VolumeId:      volumeId,
