@@ -139,11 +139,21 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		klog.V(6).Infof("Provisioner: Volume %s retain, return.", volume.Name)
 		return nil
 	}
+	// check all pvs of the same storageClass, if multiple pv using the same subPath, do not delete the subPath
+	shouldDeleted, err := util.CheckForSubPath(ctx, j.K8sClient, volume, volume.Spec.CSI.VolumeAttributes["pathPattern"])
+	if err != nil {
+		klog.Errorf("Provisioner: CheckForSubPath error: %v", err)
+		return err
+	}
+	if !shouldDeleted {
+		klog.Infof("Provisioner: there are other pvs using the same subPath retained, volume %s should not be deleted, return.", volume.Name)
+		return nil
+	}
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretName], volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
-		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
+		klog.Errorf("Provisioner: Get Secret error: %v", err)
 		return err
 	}
 	secretData := make(map[string]string)
@@ -152,7 +162,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 
 	klog.V(5).Infof("Provisioner Delete: Deleting volume subpath %q", subPath)
-	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, nil); err != nil {
+	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, volume.Spec.CSI.VolumeAttributes); err != nil {
 		klog.Errorf("provisioner: delete vol error %v", err)
 		return errors.New("unable to provision delete volume: " + err.Error())
 	}

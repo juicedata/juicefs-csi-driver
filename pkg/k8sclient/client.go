@@ -262,10 +262,31 @@ func (k *K8sClient) DeleteJob(ctx context.Context, jobName string, namespace str
 
 func (k *K8sClient) GetPersistentVolume(ctx context.Context, pvName string) (*corev1.PersistentVolume, error) {
 	klog.V(6).Infof("Get pv %s", pvName)
-	mntPod, err := k.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+	pv, err := k.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		klog.V(6).Infof("Can't get pv %s : %v", pvName, err)
 		return nil, err
 	}
-	return mntPod, nil
+	return pv, nil
+}
+
+func (k *K8sClient) ListPersistentVolumes(ctx context.Context, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.PersistentVolume, error) {
+	klog.V(6).Infof("List pvs by labelSelector %v, fieldSelector %v", labelSelector, filedSelector)
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		labelMap, err := metav1.LabelSelectorAsMap(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labels.SelectorFromSet(labelMap).String()
+	}
+	if filedSelector != nil {
+		listOptions.FieldSelector = fields.SelectorFromSet(*filedSelector).String()
+	}
+	pvList, err := k.CoreV1().PersistentVolumes().List(ctx, listOptions)
+	if err != nil {
+		klog.V(6).Infof("Can't list pv: %v", err)
+		return nil, err
+	}
+	return pvList.Items, nil
 }
