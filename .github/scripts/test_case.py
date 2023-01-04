@@ -14,8 +14,8 @@
 import os
 import pathlib
 import subprocess
-import time
 
+import time
 from kubernetes import client
 
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
@@ -1289,6 +1289,90 @@ def test_dynamic_pvc_delete_with_path_pattern():
 
     LOG.info("Test pass.")
     # delete test resources
-    LOG.info("Remove sc {}".format(pvc.name))
+    LOG.info("Remove sc {}".format(sc.name))
     sc.delete()
+    return
+
+
+def test_dynamic_pvc_delete_not_last_with_path_pattern():
+    LOG.info("[test case] delete pvc with path pattern not last in storageClass begin..")
+    label_value = "def"
+    anno_value = "xyz"
+    # deploy sc
+    sc_name = "delete-pvc-path-pattern-dynamic-not-last"
+    sc = StorageClass(
+        name=sc_name, secret_name=SECRET_NAME,
+        parameters={"pathPattern": "${.PVC.namespace}-${.PVC.labels.abc}-${.PVC.annotations.abc}"})
+    LOG.info("Deploy storageClass {}".format(sc.name))
+    sc.create()
+
+    # deploy pvc
+    pvc = PVC(name="delete-pvc-path-pattern-not-last", access_mode="ReadWriteMany",
+              storage_name=sc.name, pv="", labels={"abc": label_value}, annotations={"abc": anno_value})
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy the other pvc
+    other_pvc = PVC(name="other-delete-pvc-path-pattern-not-last", access_mode="ReadWriteMany",
+                    storage_name=sc.name, pv="", labels={"abc": label_value}, annotations={"abc": anno_value})
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    other_pvc.create()
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    deployment = Deployment(name="app-delete-pvc-path-pattern-not-last", pvc=pvc.name, replicas=1, out_put=out_put)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    check_path = "{}-{}-{}/{}".format(KUBE_SYSTEM, label_value, anno_value, out_put)
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
+
+    LOG.info("Development delete..")
+    deployment.delete()
+    LOG.info("Watch deployment deleted..")
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
+    LOG.info("PVC delete..")
+    pvc.delete()
+    for i in range(0, 60):
+        if pvc.check_is_deleted():
+            LOG.info("PVC is deleted.")
+            break
+        LOG.info("PVC is not deleted.")
+        time.sleep(5)
+
+    LOG.info("Check dir is deleted or not..")
+    file_exist = True
+    for i in range(0, 60):
+        f = pathlib.Path(GLOBAL_MOUNTPOINT + "/" + check_path)
+        if f.exists() is False:
+            file_exist = False
+            break
+        time.sleep(5)
+
+    if not file_exist:
+        LOG.info("Mount point dir: ")
+        LOG.info(os.listdir(GLOBAL_MOUNTPOINT))
+        raise Exception(
+            "SubPath of volume_id {} not exists, it should not be deleted because not the last".format(check_path))
+
+    LOG.info("Test pass.")
+    # delete test resources
+    LOG.info("Remove sc {}".format(sc.name))
+    sc.delete()
+    LOG.info("Remove pvc {}".format(other_pvc.name))
+    other_pvc.delete()
     return
