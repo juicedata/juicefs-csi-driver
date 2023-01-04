@@ -6,13 +6,13 @@ sidebar_position: 2
 
 Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md).
 
-:::note
-If you are using CSI Driver in [Mount by process mode](../introduction.md#by-process), or still using versions before v0.10, refer to [Upgrade under mount by process mode](#mount-by-process-upgrade) for upgrade steps.
-:::
-
-## Upgrade CSI Driver {#upgrade}
+## Upgrade CSI Driver (mount by pod mode) {#upgrade}
 
 Since v0.10.0, JuiceFS Client is separated from CSI Driver, upgrading CSI Driver will no longer affect existing PVs, allowing a much easier upgrade process, which doesn't interrupt running applications.
+
+But on the other hand, this also means **upgrading CSI Driver will not automatically apply update to JuiceFS Client for application pods**. You'll have to re-create application pods, so that CSI Node makes mount pods using the newer version of mount pod image.
+
+Another thing to keep in mind, if you have [overwritten mount pod image](../guide/custom-image.md#overwrite-mount-pod-image), then upgrading CSI Driver will not affect JuiceFS Client version at all, you should just continue manage mount pod image according to the [docs](../guide/custom-image.md#overwrite-mount-pod-image).
 
 ### Upgrade via Helm
 
@@ -31,7 +31,7 @@ Reinstall JuiceFS CSI Driver using the latest [`k8s.yaml`](https://github.com/ju
 kubectl apply -f ./k8s.yaml
 ```
 
-## Upgrade under mount by process mode {#mount-by-process-upgrade}
+## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 
 [Mount by process](../introduction.md#by-process) means that JuiceFS Client runs inside CSI Node Service Pod, under this mode, upgrading CSI Driver will inevitably interrupt existing mounts, use one of below methods to carry out the upgrade.
 
@@ -41,7 +41,7 @@ Before v0.10.0, JuiceFS CSI Driver only supports mount by process, so if you're 
 
 Use this option if applications using JuiceFS cannot be interrupted.
 
-If new resources are introduced in the target version, you'll need to manually create them. All YAML examples listed in this section are only applicable when upgrading from v0.9 to v0.10. Depending on the target version, you might need to compare different versions of `k8s.yaml` files, extract the different Kuberenetes resources, and manually install them yourself.
+If new resources are introduced in the target version, you'll need to manually create them. All YAML examples listed in this section are only applicable when upgrading from v0.9 to v0.10. Depending on the target version, you might need to compare different versions of `k8s.yaml` files, extract the different Kubernetes resources, and manually install them yourself.
 
 #### 1. Create resources added in new version
 

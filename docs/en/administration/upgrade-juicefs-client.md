@@ -4,64 +4,15 @@ slug: /upgrade-juicefs-client
 sidebar_position: 3
 ---
 
-Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release) to learn more. Note that if you [upgrade JuiceFS CSI Driver](./upgrade-csi-driver.md), JuiceFS Client is upgraded along the way. However, if you would like to upgrade JuiceFS Client without changes to the CSI Driver itself, read this chapter.
+Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release) to learn more.
+
+As a matter of fact, [upgrading JuiceFS CSI Driver](./upgrade-csi-driver.md) will bring upgrade to JuiceFS Client along the way, because every release includes the current latest [mount pod image](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), but if you'd like to use the latest JuiceFS Client before CSI Driver release, or even before mount pod image release, refer to methods introduced in this chapter.
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 
-From v0.17.1 and above, CSI Driver supports customizing mount pod image, you can modify config and use the latest mount pod image to upgrade JuiceFS Client. This is all possible due to [the decoupling architecture of JuiceFS CSI Driver](../introduction.md#architecture).
+Find the latest mount pod image in [docker hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), and then [overwrite mount pod image](../guide/custom-image.md#overwrite-mount-pod-image).
 
-Find the latest mount pod image in [our image registry](https://hub.docker.com/r/juicedata/mount/tags?page=1&ordering=last_updated&name=v), image tag format is `v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`.
-
-If the desired JuiceFS Client isn't yet released, or the latest mount pod image hasn't been built, you can also [build your own mount pod image](../guide/custom-image.md#build-mount-pod-image).
-
-### Dynamic provisioning
-
-When using [dynamic provisioning](../guide/pv.md#dynamic-provisioning), define mount pod image in `StorageClass` definition:
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:v1.0.2-4.8.1
-```
-
-Once edit is saved, newly created PV will use specified image to create mount pods.
-
-### Static provisioning
-
-When using [static provisioning](../guide/pv.md#static-provisioning), define mount pod image in `PersistentVolume` definition:
-
-```yaml {22}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-    volumeAttributes:
-      juicefs/mount-image: juicedata/mount:v1.0.2-4.8.1
-```
+Pay attention that, with mount pod image overwritten, [upgrading CSI Driver](./upgrade-csi-driver.md) will no longer affect mount pod image.
 
 ## Upgrade JuiceFS Client temporarily
 

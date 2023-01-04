@@ -7,38 +7,32 @@ This chapter describes how to overwrite the mount pod image and how to build the
 
 ## Overwrite mount pod image {#overwrite-mount-pod-image}
 
-From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. You can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag format is `juicedata/mount:v<JUICEFS-CE-VERSION>-<JUICEFS-EE-VERSION>`, where `<JUICEFS-CE-VERSION>` stands for the JuiceFS Community Edition client version (e.g. `1.0.0`), and `<JUICEFS-EE-VERSION>` stands for JuiceFS Cloud Service client version (e.g. `4.8.0`).
+From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. You can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
+
+```
+# tag contains version string for JuiceFS Community Edition, and JuiceFS Cloud Service
+juicedata/mount:v1.0.3-4.8.3
+```
 
 When changing mount pod image, CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
-### Configure CSI Node to overwrite mount pod image globally
+:::tip
+Once mount pod image is overwritten, [upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
+:::
+
+### Configure CSI Node to overwrite mount pod image globally {#override-in-csi-node}
 
 Change CSI Node settings so that mount pod image is overwritten globally, choose this method if you wish to change the image for all applications.
 
-Edit CSI Node Service (a DaemonSet), add the `JUICEFS_MOUNT_IMAGE` environment variable to the `juicefs-plugin` container:
+Edit CSI Node Service, add the `JUICEFS_MOUNT_IMAGE` environment variable to the `juicefs-plugin` container:
 
 ```shell
-kubectl -n kube-system edit daemonset juicefs-csi-node
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_MOUNT_IMAGE=juicedata/mount:v1.0.3-4.8.3
 ```
 
-Modify the YAML:
+When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#override-in-sc), since it has higher precedence over CSI Node environment settings.
 
-```yaml {11-12}
-apiVersion: apps/v1
-kind: DaemonSet
-...
-spec:
-  template:
-    spec:
-      containers:
-      - name: juicefs-plugin
-        image: juicedata/juicefs-csi-driver:nightly
-        env:
-        - name: JUICEFS_MOUNT_IMAGE
-          value: juicedata/mount:patch-some-bug
-```
-
-### Configure StorageClass to specify mount pod image
+### Configure StorageClass to specify mount pod image {#override-in-sc}
 
 If you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
 
@@ -53,7 +47,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:patch-some-bug
+  juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
 ```
 
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
@@ -84,7 +78,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:patch-some-bug
+      juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
 ```
 
 ## Build image

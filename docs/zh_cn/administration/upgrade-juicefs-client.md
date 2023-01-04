@@ -12,7 +12,7 @@ sidebar_position: 3
 
 在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到新版 Mount Pod 容器镜像，然后[「修改 Mount Pod 容器镜像」](../guide/custom-image.md#overwrite-mount-pod-image)即可。
 
-注意，覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](./upgrade-csi-driver.md)而升级。你需要删除重建 PVC，才能令新的 Mount Pod 容器镜像生效。
+注意，覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](./upgrade-csi-driver.md)而升级。
 
 ## 临时升级 JuiceFS 客户端
 

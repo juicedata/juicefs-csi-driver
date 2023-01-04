@@ -17,10 +17,10 @@ juicedata/mount:v1.0.3-4.8.3
 CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，请根据实际情况选择合适的手段。
 
 :::tip
-覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。你需要删除重建 PVC，才能令新的 Mount Pod 容器镜像生效。
+覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。
 :::
 
-### 修改 CSI Node，全局覆盖 Mount Pod 镜像
+### 修改 CSI Node，全局覆盖 Mount Pod 镜像 {#override-in-csi-node}
 
 修改 CSI Node 配置以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
 
@@ -32,7 +32,7 @@ kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUIC
 
 在全局覆盖的情况下，如果还希望为部分应用单独指定 Mount Pod 镜像，还可以参考下方小节的做法，额外地在 StorageClass 中进行覆盖，优先级更高。
 
-### 修改 StorageClass，指定 Mount Pod 镜像
+### 修改 StorageClass，指定 Mount Pod 镜像 {#override-in-sc}
 
 如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
