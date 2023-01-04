@@ -10,7 +10,7 @@ As a matter of fact, [upgrading JuiceFS CSI Driver](./upgrade-csi-driver.md) wil
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 
-Find the latest mount pod image in [docker hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), and then [overwrite mount pod image](../guide/custom-image.md#overwrite-mount-pod-image).
+Find the latest mount pod image in [Docker hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), and then [overwrite mount pod image](../guide/custom-image.md#overwrite-mount-pod-image).
 
 Pay attention that, with mount pod image overwritten, [upgrading CSI Driver](./upgrade-csi-driver.md) will no longer affect mount pod image.
 
