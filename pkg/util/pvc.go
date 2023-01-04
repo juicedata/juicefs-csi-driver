@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
 
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -75,15 +74,12 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 	}
 
 	// get all pvs
-	fieldSelector := fields.Set{
-		"spec.storageClassName": sc,
-	}
-	pvs, err := client.ListPersistentVolumes(ctx, nil, &fieldSelector)
+	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
 	if err != nil {
 		return false, err
 	}
 	for _, pv := range pvs {
-		if pv.Name == volume.Name || pv.DeletionTimestamp != nil {
+		if pv.Name == volume.Name || pv.DeletionTimestamp != nil || pv.Spec.StorageClassName != sc {
 			continue
 		}
 		subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
