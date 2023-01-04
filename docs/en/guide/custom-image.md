@@ -17,7 +17,10 @@ juicedata/mount:v1.0.3-4.8.3
 When changing mount pod image, CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
 :::tip
-Once mount pod image is overwritten, [upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
+With mount pod image overwritten, note that:
+
+* [upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
+* PVCs need to be recreated for changes to take effect.
 :::
 
 ### Configure CSI Node to overwrite mount pod image globally {#override-in-csi-node}

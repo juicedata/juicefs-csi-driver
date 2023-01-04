@@ -5,7 +5,7 @@ sidebar_position: 4
 
 本章介绍如何设置 Mount Pod 镜像，以及自行构建 CSI 驱动组件镜像。
 
-## 修改 Mount Pod 容器镜像 {#overwrite-mount-pod-image}
+## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
 
 JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
 
@@ -17,7 +17,10 @@ juicedata/mount:v1.0.3-4.8.3
 CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，请根据实际情况选择合适的手段。
 
 :::tip
-覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。
+覆盖 Mount Pod 镜像后，注意：
+
+* JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。
+* 需要重新创建 PVC，方可令新配置生效。
 :::
 
 ### 修改 CSI Node，全局覆盖 Mount Pod 镜像 {#override-in-csi-node}
