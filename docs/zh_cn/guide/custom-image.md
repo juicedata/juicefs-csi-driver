@@ -17,7 +17,7 @@ juicedata/mount:v1.0.3-4.8.3
 CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，请根据实际情况选择合适的手段。
 
 :::tip
-超载 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。你需要删除重建 PVC，才能令新的 Mount Pod 容器镜像生效。
+覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。你需要删除重建 PVC，才能令新的 Mount Pod 容器镜像生效。
 :::
 
 ### 修改 CSI Node，全局覆盖 Mount Pod 镜像
@@ -30,7 +30,7 @@ CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，�
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_MOUNT_IMAGE=juicedata/mount:v1.0.3-4.8.3
 ```
 
-在全局覆盖的情况下，如果还希望为部分应用单独指定 Mount Pod 镜像，还可以额外地在 StorageClass 中进行超载，优先级更高。
+在全局覆盖的情况下，如果还希望为部分应用单独指定 Mount Pod 镜像，还可以参考下方小节的做法，额外地在 StorageClass 中进行覆盖，优先级更高。
 
 ### 修改 StorageClass，指定 Mount Pod 镜像
 
