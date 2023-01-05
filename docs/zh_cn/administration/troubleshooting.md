@@ -25,7 +25,7 @@ $ ./csi-doctor.sh get-mount dynamic-ce-1
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 
 # 获取使用指定 mount pod 的所有应用 pod
-$ ./diagnose.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
+$ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
 default dynamic-ce-5
 default dynamic-ce-2
 ```
@@ -229,7 +229,7 @@ kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items
 假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`，用下方命令收集排查信息：
 
 ```shell
-./diagnose.sh collect dynamic-ce-1 -n default
+./csi-doctor.sh collect dynamic-ce-1 -n default
 ```
 
 所有相关的日志、事件都被收集和打包在了一个压缩包里，将压缩包发送给 Juicedata 进行后续支持。

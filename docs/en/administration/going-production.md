@@ -1,5 +1,5 @@
 ---
-title: Production Deployment Recommendations
+title: Production Recommendations
 sidebar_position: 1
 ---
 
