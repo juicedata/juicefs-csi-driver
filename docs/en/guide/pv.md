@@ -479,53 +479,55 @@ kubectl edit sts -n kube-system juicefs-csi-controller
 
 Sections that require modification have been highlighted and annotated below:
 
-```yaml {18,21-32}
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: juicefs-csi-controller
-  ...
-spec:
-  ...
-  template:
-    ...
-    spec:
-      containers:
-      - args:
-        - --endpoint=$(CSI_ENDPOINT)
-        - --logtostderr
-        - --nodeid=$(NODE_NAME)
-        - --v=5
-        # Make `juicefs-plugin` listen for resource changes, and execute provisioning steps
-        - --provisioner=true
-      ...
-      # Delete the default csi-provisioner, do not use it to listen for resource changes and provisioning
-      - args:
-        - --csi-address=$(ADDRESS)
-        - --timeout=60s
-        - --v=5
-        env:
-        - name: ADDRESS
-          value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: quay.io/k8scsi/csi-provisioner:v1.6.0
-        name: csi-provisioner
-        volumeMounts:
-        - mountPath: /var/lib/csi/sockets/pluginproxy/
-          name: socket-dir
-      - args:
-        - --csi-address=$(ADDRESS)
-        - --health-port=$(HEALTH_PORT)
-        env:
-        - name: ADDRESS
-          value: /csi/csi.sock
-        - name: HEALTH_PORT
-          value: "9909"
-        image: quay.io/k8scsi/livenessprobe:v1.1.0
-        name: liveness-probe
-        volumeMounts:
-        - mountPath: /csi
-          name: socket-dir
-      ...
+```diff
+ apiVersion: apps/v1
+ kind: StatefulSet
+ metadata:
+   name: juicefs-csi-controller
+   ...
+ spec:
+   ...
+   template:
+     ...
+     spec:
+       containers:
+         - name: juicefs-plugin
+           image: juicedata/juicefs-csi-driver:v0.17.4
+           args:
+             - --endpoint=$(CSI_ENDPOINT)
+             - --logtostderr
+             - --nodeid=$(NODE_NAME)
+             - --v=5
++            # Make juicefs-plugin listen for resource changes, and execute provisioning steps
++            - --provisioner=true
+         ...
+-        # Delete the default csi-provisioner, do not use it to listen for resource changes and provisioning
+-        - name: csi-provisioner
+-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+-          args:
+-            - --csi-address=$(ADDRESS)
+-            - --timeout=60s
+-            - --v=5
+-          env:
+-            - name: ADDRESS
+-              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+-          volumeMounts:
+-            - mountPath: /var/lib/csi/sockets/pluginproxy/
+-              name: socket-dir
+         - name: liveness-probe
+           image: quay.io/k8scsi/livenessprobe:v1.1.0
+           args:
+             - --csi-address=$(ADDRESS)
+             - --health-port=$(HEALTH_PORT)
+           env:
+             - name: ADDRESS
+               value: /csi/csi.sock
+             - name: HEALTH_PORT
+               value: "9909"
+           volumeMounts:
+             - mountPath: /csi
+               name: socket-dir
+         ...
 ```
 
 You can also use a one-liner to achieve above modifications, but note that **this command isn't idempotent and cannot be executed multiple times**:
