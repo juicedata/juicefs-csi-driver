@@ -6,6 +6,8 @@ JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to ins
 
 ## Helm
 
+In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl.
+
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
 Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` environment variable.
@@ -49,6 +51,8 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 ## kubectl
 
+If installed using kubectl, any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
+
 1. Check kubelet root directory
 
    Execute the following command on any non-Master node in the Kubernetes cluster.
@@ -81,18 +85,20 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-3. Verify installation
+## Verify installation
 
-   Verify all CSI Driver components are running:
+Verify all CSI components are up and running:
 
-   ```shell
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
+```shell
+$ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+NAME                       READY   STATUS    RESTARTS   AGE
+juicefs-csi-controller-0   3/3     Running   0          22m
+juicefs-csi-node-v9tzb     3/3     Running   0          14m
+```
 
-   Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
+CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker nodes, so CSI Node pod amount should match node count. If the numbers don't match, check if any of the nodes are tainted, and resolve them according to the actual situation. You can also [run CSI Node Service on selected nodes](./guide/resource-optimization.md#csi-node-node-selector).
+
+Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
 ## ARM64 caveats
 

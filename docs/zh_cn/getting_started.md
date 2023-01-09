@@ -9,7 +9,9 @@ title: 安装
 
 ## Helm
 
-安装 JuiceFS CSI 驱动需要用 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
+相比 kubectl，Helm 允许你将 CSI 驱动作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。
+
+安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
 
 1. 检查 kubelet 根目录
 
@@ -36,6 +38,8 @@ title: 安装
    ```
 
 ## kubectl
+
+kubectl 安装方式下，对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者仅仅是想要更加体系化地管理资源，请优先选用 Helm 安装方式。
 
 1. 检查 kubelet 根目录
 
@@ -71,7 +75,7 @@ title: 安装
 
 ## 检查部署状态
 
-不论你用何种方法，安装完毕以后，请用下方命令确认 CSI 驱动组件正常运行：
+用下方命令确认 CSI 驱动组件正常运行：
 
 ```shell
 $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver

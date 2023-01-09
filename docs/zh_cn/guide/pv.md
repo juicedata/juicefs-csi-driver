@@ -336,9 +336,9 @@ kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 
 ## 使用通用临时卷 {#general-ephemeral-storage}
 
-[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为 pod 提供临时数据存放目录。当应用容器需要大容量临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
+[通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为每个 Pod 单独提供临时数据存放目录。当应用容器需要大容量，并且是每个 Pod 单独的临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
 
-JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，能直接为你自动创建 PVC。
+JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此也需要先行[创建 StorageClass](#create-storage-class)。不过与「动态配置」不同，临时卷使用 `volumeClaimTemplate`，为每个 Pod 自动创建 PVC。
 
 在 Pod 定义中声明使用通用临时卷：
 
@@ -469,7 +469,66 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-可以通过 `kubectl patch` 命令添加所需的启动参数（`--provisioner=true`）：
+手动编辑 CSI Controller：
+
+```shell
+kubectl edit sts -n kube-system juicefs-csi-controller
+```
+
+需要修改的部分，已经在下方示范中进行高亮和注释，请参考：
+
+```diff
+ apiVersion: apps/v1
+ kind: StatefulSet
+ metadata:
+   name: juicefs-csi-controller
+   ...
+ spec:
+   ...
+   template:
+     ...
+     spec:
+       containers:
+         - name: juicefs-plugin
+           image: juicedata/juicefs-csi-driver:v0.17.4
+           args:
+             - --endpoint=$(CSI_ENDPOINT)
+             - --logtostderr
+             - --nodeid=$(NODE_NAME)
+             - --v=5
++            # 令 juicefs-plugin 自行监听资源变动，执行初始化流程
++            - --provisioner=true
+         ...
+-        # 删除默认的 csi-provisioner，不再通过该容器监听资源变动，执行初始化流程
+-        - name: csi-provisioner
+-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+-          args:
+-            - --csi-address=$(ADDRESS)
+-            - --timeout=60s
+-            - --v=5
+-          env:
+-            - name: ADDRESS
+-              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+-          volumeMounts:
+-            - mountPath: /var/lib/csi/sockets/pluginproxy/
+-              name: socket-dir
+         - name: liveness-probe
+           image: quay.io/k8scsi/livenessprobe:v1.1.0
+           args:
+             - --csi-address=$(ADDRESS)
+             - --health-port=$(HEALTH_PORT)
+           env:
+             - name: ADDRESS
+               value: /csi/csi.sock
+             - name: HEALTH_PORT
+               value: "9909"
+           volumeMounts:
+             - mountPath: /csi
+               name: socket-dir
+         ...
+```
+
+上述操作也可以用下方的一行命令达成，但请注意，**该命令并非幂等，不能重复执行**：
 
 ```shell
 kubectl -n kube-system patch sts juicefs-csi-controller \
