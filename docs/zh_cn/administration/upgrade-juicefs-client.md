@@ -6,7 +6,7 @@ sidebar_position: 3
 
 我们推荐你定期升级 JuiceFS 客户端，以享受到最新特性和问题修复，请参考[「社区版客户端发布说明」](https://github.com/juicedata/juicefs/releases)或[「云服务客户端发布说明」](https://juicefs.com/docs/zh/cloud/release)了解更多版本信息。
 
-事实上，[「升级 JuiceFS CSI 驱动」](./upgrade-csi-driver.md)也会带来客户端更新，这是因为每次 CSI 驱动更新发版，都会例行在配置中采用最新版的 [Mount Pod 镜像](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v)，但如果你希望提前采纳最新版的 Mount Pod，可以用本章介绍的方法单独升级 JuiceFS 客户端。
+事实上，[「升级 JuiceFS CSI 驱动」](./upgrade-csi-driver.md)也会带来客户端更新，这是因为每次 CSI 驱动更新发版，都会例行在配置中采用最新版的 [Mount Pod 镜像](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v)，但如果你希望提前使用最新版的 Mount Pod，可以用本章介绍的方法单独升级 JuiceFS 客户端。
 
 ## 升级 Mount Pod 容器镜像 {#upgrade-mount-pod-image}
 

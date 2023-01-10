@@ -9,8 +9,8 @@ This chapter describes how to overwrite the mount pod image and how to build the
 
 From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. You can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
 
-```
-# tag contains version string for JuiceFS Community Edition, and JuiceFS Cloud Service
+```shell
+# Container tag contains version string for JuiceFS Community Edition, and JuiceFS Cloud Service
 juicedata/mount:v1.0.3-4.8.3
 ```
 
@@ -19,11 +19,11 @@ When changing mount pod image, CSI Driver offers flexible control over the scope
 :::tip
 With mount pod image overwritten, note that:
 
-* [upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
+* [Upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
 * PVCs need to be recreated for changes to take effect.
 :::
 
-### Configure CSI Node to overwrite mount pod image globally {#override-in-csi-node}
+### Configure CSI Node to overwrite mount pod image globally {#overwrite-in-csi-node}
 
 Change CSI Node settings so that mount pod image is overwritten globally, choose this method if you wish to change the image for all applications.
 
@@ -33,9 +33,9 @@ Edit CSI Node Service, add the `JUICEFS_MOUNT_IMAGE` environment variable to the
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_MOUNT_IMAGE=juicedata/mount:v1.0.3-4.8.3
 ```
 
-When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#override-in-sc), since it has higher precedence over CSI Node environment settings.
+When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), since it has higher precedence over CSI Node environment settings.
 
-### Configure StorageClass to specify mount pod image {#override-in-sc}
+### Configure StorageClass to specify mount pod image {#overwrite-in-sc}
 
 If you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
 
