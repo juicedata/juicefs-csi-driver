@@ -30,7 +30,7 @@ sidebar_position: 5
    编写该文档时执行结果如下，随着迭代，结果可能有别：
 
    ```
-   juicedata/juicefs-csi-driver:v0.17.3
+   juicedata/juicefs-csi-driver:v0.17.5
    quay.io/k8scsi/csi-node-driver-registrar:v2.1.0
    quay.io/k8scsi/csi-provisioner:v1.6.0
    quay.io/k8scsi/livenessprobe:v1.1.0
