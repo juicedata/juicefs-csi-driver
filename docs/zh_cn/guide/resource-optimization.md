@@ -97,7 +97,7 @@ kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STOR
 
 详见[「缓存相关章节」](./cache.md#mount-pod-clean-cache)。
 
-## 延迟删除 Mount Pod
+## 延迟删除 Mount Pod {#delayed-mount-pod-deletion}
 
 :::note 注意
 此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动

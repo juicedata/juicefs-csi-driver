@@ -97,7 +97,7 @@ Evidently, more aggressive sharing policy means lower isolation level, mount pod
 
 Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
-## Delayed mount pod deletion
+## Delayed mount pod deletion {#delayed-mount-pod-deletion}
 
 :::note
 This feature requires JuiceFS CSI Driver 0.13.0 and above.
