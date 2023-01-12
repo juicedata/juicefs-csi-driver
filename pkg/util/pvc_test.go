@@ -16,7 +16,16 @@
 
 package util
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
 
 func TestPVCMetadata_StringParser(t *testing.T) {
 	type fields struct {
@@ -114,6 +123,147 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			}
 			if got := meta.StringParser(tt.args.str); got != tt.want {
 				t.Errorf("StringParser() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckForSubPath(t *testing.T) {
+	type args struct {
+		volume      *v1.PersistentVolume
+		pathPattern string
+	}
+	tests := []struct {
+		name              string
+		args              args
+		pvs               []v1.PersistentVolume
+		wantShouldDeleted bool
+		wantErr           bool
+	}{
+		{
+			name: "test",
+			args: args{
+				volume: &v1.PersistentVolume{
+					ObjectMeta: metav1.ObjectMeta{Name: "test11"},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath":     "test",
+									"pathPattern": "test",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+				pathPattern: "test",
+			},
+			pvs: []v1.PersistentVolume{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "test12"},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath":     "test",
+									"pathPattern": "test",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+			},
+			wantShouldDeleted: false,
+			wantErr:           false,
+		},
+		{
+			name: "test-no-pathPattern",
+			args: args{
+				volume: &v1.PersistentVolume{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test21",
+					},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath": "test-1",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+			},
+			pvs: []v1.PersistentVolume{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test22",
+					},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath": "test-2",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+			},
+			wantShouldDeleted: true,
+			wantErr:           false,
+		},
+		{
+			name: "test-no-other-pv",
+			args: args{
+				volume: &v1.PersistentVolume{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test31",
+					},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath":     "test",
+									"pathPattern": "test",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+				pathPattern: "test",
+			},
+			pvs:               []v1.PersistentVolume{},
+			wantShouldDeleted: true,
+			wantErr:           false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClientSet := fake.NewSimpleClientset()
+			client := &k8s.K8sClient{Interface: fakeClientSet}
+			for _, pv := range tt.pvs {
+				if _, err := fakeClientSet.CoreV1().PersistentVolumes().Create(context.Background(), &pv, metav1.CreateOptions{}); err != nil {
+					t.Errorf("CheckForSubPath() create pv err %v", err)
+				}
+			}
+			gotShouldDeleted, err := CheckForSubPath(context.TODO(), client, tt.args.volume, tt.args.pathPattern)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckForSubPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotShouldDeleted != tt.wantShouldDeleted {
+				t.Errorf("CheckForSubPath() gotShouldDeleted = %v, want %v", gotShouldDeleted, tt.wantShouldDeleted)
 			}
 		})
 	}

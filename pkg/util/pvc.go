@@ -17,10 +17,13 @@
 package util
 
 import (
+	"context"
 	"regexp"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var (
@@ -57,4 +60,32 @@ func (meta *PVCMetadata) StringParser(str string) string {
 		}
 	}
 	return str
+}
+
+func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.PersistentVolume, pathPattern string) (shouldDeleted bool, err error) {
+	if pathPattern == "" {
+		return true, nil
+	}
+	nowSubPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
+	sc := volume.Spec.StorageClassName
+
+	if sc == "" {
+		return false, nil
+	}
+
+	// get all pvs
+	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	for _, pv := range pvs {
+		if pv.Name == volume.Name || pv.DeletionTimestamp != nil || pv.Spec.StorageClassName != sc {
+			continue
+		}
+		subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
+		if subPath == nowSubPath {
+			return false, nil
+		}
+	}
+	return true, nil
 }
