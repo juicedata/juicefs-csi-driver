@@ -1750,6 +1750,10 @@ def test_dynamic_pvc_delete_not_last_with_path_pattern():
     sc = StorageClass(
         name=sc_name, secret_name=SECRET_NAME,
         parameters={"pathPattern": "${.PVC.namespace}-${.PVC.labels.abc}-${.PVC.annotations.abc}"})
+    LOG.info("Deploy storageClass {}".format(sc.name))
+    sc.create()
+
+    # deploy pvc
     pvc = PVC(name="delete-pvc-path-pattern-not-last", access_mode="ReadWriteMany",
               storage_name=sc.name, pv="", labels={"abc": label_value}, annotations={"abc": anno_value})
     LOG.info("Deploy pvc {}".format(pvc.name))
@@ -1764,6 +1768,16 @@ def test_dynamic_pvc_delete_not_last_with_path_pattern():
     # deploy pod
     out_put = gen_random_string(6) + ".txt"
     deployment = Deployment(name="app-delete-pvc-path-pattern-not-last", pvc=pvc.name, replicas=1, out_put=out_put)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
     check_path = "{}-{}-{}/{}".format(KUBE_SYSTEM, label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
