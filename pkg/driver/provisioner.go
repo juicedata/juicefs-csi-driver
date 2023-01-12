@@ -149,6 +149,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		klog.Infof("Provisioner: there are other pvs using the same subPath retained, volume %s should not be deleted, return.", volume.Name)
 		return nil
 	}
+	klog.V(6).Infof("Provisioner: there are no other pvs using the same subPath, volume %s can be deleted.", volume.Name)
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretName], volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
