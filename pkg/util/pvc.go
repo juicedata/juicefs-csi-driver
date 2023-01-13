@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -84,6 +85,7 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		}
 		subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 		if subPath == nowSubPath {
+			klog.V(6).Infof("PV %s uses the same subPath %s", pv.Name, subPath)
 			return false, nil
 		}
 	}
