@@ -16,8 +16,12 @@
 
 package mutate
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"context"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 type Mutate interface {
-	Mutate(pod *corev1.Pod) (out *corev1.Pod, err error)
+	Mutate(ctx context.Context, pod *corev1.Pod) (out *corev1.Pod, err error)
 }

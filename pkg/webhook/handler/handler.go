@@ -63,9 +63,9 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pv, pvc, err := s.GetVolume(*pod)
+	used, pv, pvc, err := s.GetVolume(ctx, *pod)
 	if err != nil {
-		klog.Infof("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
+		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
 	} else if !used {
 		klog.Infof("[SidecarHandler] skip mutating the pod because it doesn't use JuiceFS Volume. Pod %s namespace %s", pod.Name, pod.Namespace)
@@ -75,7 +75,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
 	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvc, pv)
 	klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
-	out, err := sidecarMutate.Mutate(pod)
+	out, err := sidecarMutate.Mutate(ctx, pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -97,12 +97,13 @@ func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 }
 
 // GetVolume get juicefs pv & pvc from pod
-func (s *SidecarHandler) GetVolume(pod corev1.Pod) (used bool, pvGot *corev1.PersistentVolume, pvcGot *corev1.PersistentVolumeClaim, err error) {
+func (s *SidecarHandler) GetVolume(ctx context.Context, pod corev1.Pod) (used bool, pvGot *corev1.PersistentVolume, pvcGot *corev1.PersistentVolumeClaim, err error) {
+	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
 			// get PVC
 			var pvc *corev1.PersistentVolumeClaim
-			pvc, err = s.Client.GetPersistentVolumeClaim(context.TODO(), volume.PersistentVolumeClaim.ClaimName, pod.Namespace)
+			pvc, err = s.Client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, pod.Namespace)
 			if err != nil {
 				return
 			}
@@ -110,7 +111,7 @@ func (s *SidecarHandler) GetVolume(pod corev1.Pod) (used bool, pvGot *corev1.Per
 			// get storageclass
 			if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
 				var sc *storagev1.StorageClass
-				sc, err = s.Client.GetStorageClass(context.TODO(), *pvc.Spec.StorageClassName)
+				sc, err = s.Client.GetStorageClass(ctx, *pvc.Spec.StorageClassName)
 				if err != nil {
 					return
 				}
@@ -131,7 +132,7 @@ func (s *SidecarHandler) GetVolume(pod corev1.Pod) (used bool, pvGot *corev1.Per
 				}
 				continue
 			}
-			pv, err = s.Client.GetPersistentVolume(context.TODO(), pvc.Spec.VolumeName)
+			pv, err = s.Client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
 			if err != nil {
 				return
 			}

@@ -54,17 +54,17 @@ func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, pvc *c
 	}
 }
 
-func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
+func (s *SidecarMutate) Mutate(ctx context.Context, pod *corev1.Pod) (out *corev1.Pod, err error) {
 	// get secret, volumeContext and mountOptions from PV
 	secrets, volCtx, options, err := s.GetSettings(*s.PV)
 	if err != nil {
-		klog.Infof("get settings from pv %s of pod %s namespace %s err: %v", s.PV.Name, pod.Name, pod.Namespace, err)
+		klog.Errorf("get settings from pv %s of pod %s namespace %s err: %v", s.PV.Name, pod.Name, pod.Namespace, err)
 		return
 	}
 
 	out = pod.DeepCopy()
 	// gen jfs settings
-	jfsSetting, err := s.juicefs.Settings(context.TODO(), s.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
+	jfsSetting, err := s.juicefs.Settings(ctx, s.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
 	if err != nil {
 		return
 	}
@@ -79,7 +79,7 @@ func (s *SidecarMutate) Mutate(pod *corev1.Pod) (out *corev1.Pod, err error) {
 	// create secret per PVC
 	secret := r.NewSecret()
 	builder.SetPVCAsOwner(&secret, s.PVC)
-	if err = s.createOrUpdateSecret(context.TODO(), &secret); err != nil {
+	if err = s.createOrUpdateSecret(ctx, &secret); err != nil {
 		return
 	}
 
