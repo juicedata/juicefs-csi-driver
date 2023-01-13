@@ -12,11 +12,11 @@ slug: /faq
 
 ## 如何平滑重新挂载 JuiceFS 客户端？
 
-特定情况下会需要重新挂载 JuiceFS 客户端，比方说在商业版 JuiceFS 私有部署中，控制台的地址发生迁移。此时需要重新运行 `juicefs auth` 命令，方可获得最新的元数据服务配置。在 Kubernetes 中，我们往往希望重新挂载的过程不影响业务，尽可能平滑。
+某些情况下会需要重新挂载 JuiceFS 客户端，比方说修改挂载参数、文件系统认证信息。在 Kubernetes 中，我们往往希望重新挂载的过程不影响业务，尽可能平滑。
 
-不过注意，如果你修改了[「文件系统认证信息」](./guide/pv.md#volume-credentials)或者[「挂载参数」](./guide/pv.md#mount-options)，这种情况是无法用平滑重新挂载的方式令配置变更生效的，必须删除 PVC，重建应用 Pod。
+* [升级](./administration/upgrade-csi-driver.md)或降级 CSI 驱动，并且需要伴随着 Mount Pod 镜像的变更，那么对应用进行滚动升级（或重启）时，CSI 驱动便会为其创建新的 Mount Pod。
+* 对[「挂载参数」](./guide/pv.md#mount-options)进行调整，然后滚动重启或升级应用 Pod。
+* 对[「文件系统认证信息」]进行修改，然后滚动重启或升级应用 Pod。
+* 如果并没有修改任何配置，那么滚动重启或升级应用 Pod 时，CSI 驱动是不会重新挂载的。这种情况下如果也希望触发重新挂载的效果，可以对挂载参数进行一些无关紧要的微调（比如稍稍修改 `cache-size`），然后滚动重启或升级应用 Pod。
 
-目前而言，由于 Mount Pod 复用的设计，CSI 驱动并不支持真正的平滑重新挂载，但在以下情况，可以达成平滑重新挂载的效果：
-
-* CSI 驱动进行了[升级](./administration/upgrade-csi-driver.md)，并且此次升级伴随着 Mount Pod 镜像更新，那么对应用进行滚动升级（或重启）时，CSI 驱动便会为其创建新的 Mount Pod。
-* Mount Pod 并未被复用（并且未启用[「延迟删除」](./guide/resource-optimization.md#delayed-mount-pod-deletion)），也就是在每个节点上，Mount Pod 仅服务一个应用 Pod。这时如果对应用 Pod 进行滚动升级，CSI 驱动便会为其创建新的 Mount Pod，达到重新挂载的效果。删除重建此应用 Pod，也会触发重新创建 Mount Pod，虽然这样操作并不「平滑」。
+欲了解 CSI 驱动什么情况下会为应用 Pod 创建新的 Mount Pod，达到平滑重新挂载的效果，请参考 [`pkg/juicefs/mount/pod_mount.go`](https://github.com/juicedata/juicefs-csi-driver/blob/master/pkg/juicefs/mount/pod_mount.go)中的 `GenHashOfSetting` 方法，正是该方法的计算结果决定着是否创建新的 Mount Pod。
