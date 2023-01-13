@@ -1331,7 +1331,7 @@ def test_dynamic_pvc_delete_not_last_with_path_pattern():
 
     # check mount point
     LOG.info("Check mount point..")
-    check_path = "{}-{}-{}/{}".format(KUBE_SYSTEM, label_value, anno_value, out_put)
+    check_path = "{}-{}-{}/{}".format("default", label_value, anno_value, out_put)
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of {} are not ready within 5 min.".format(check_path))
