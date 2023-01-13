@@ -144,7 +144,7 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 			s := &SidecarHandler{
 				Client: k8sClient,
 			}
-			gotUsed, gotPvGot, gotPvcGot, err := s.GetVolume(tt.args.pod)
+			gotUsed, gotPvGot, gotPvcGot, err := s.GetVolume(context.TODO(), tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetVolume() error = %v, wantErr %v", err, tt.wantErr)
 				return
