@@ -167,12 +167,13 @@ collect_juicefs_csi_msg() {
 
 archive() {
   set -e
-  tar -zcf "${current_dir}/diagnose_juicefs_${timestamp}.tar.gz" -C /tmp $(basename $diagnose_dir)
-  echo "Results have been saved to $(basename $diagnose_dir).tar.gz"
+  archive_file_path="${current_dir}/diagnose_juicefs_${timestamp}.tar.gz"
+  tar -zcf "${archive_file_path}" -C /tmp $(basename $diagnose_dir)
+  echo "Results have been saved to ${archive_file_path}"
 }
 
 pd_collect() {
-  echo "Start collecting logs for ${namespace} ${app}"
+  echo "Start collecting logs for ${namespace}/${app}"
   collect_mount_pod_msg
   collect_juicefs_csi_msg
   juicefs_resources
@@ -190,7 +191,6 @@ collect() {
   juicefs_namespace=${juicefs_namespace:-"kube-system"}
   current_dir=$(pwd)
   timestamp=$(date +%s)
-  # debug information was collected in folder /root/beiye-ci.beiyealiyun.diagnose (compressed as /root/beiye-ci.beiyealiyun.diagnose.tar.gz)
   diagnose_result="${app}.diagnose.tar.gz"
   diagnose_dir="/tmp/${app}.diagnose"
   mkdir -p "$diagnose_dir"
