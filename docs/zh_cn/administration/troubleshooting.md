@@ -8,7 +8,7 @@ sidebar_position: 6
 
 ## 诊断脚本 {#csi-doctor}
 
-你可以使用诊断脚本 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息。
+我们推荐使用诊断脚本 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息，本章所介绍的排查手段中，大部分采集信息的命令，都在脚本中进行了集成，使用起来更为便捷。
 
 在集群中任意一台可以执行 `kubectl` 的节点上，安装诊断脚本：
 
@@ -17,14 +17,14 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
-使用诊断脚本获取应用 pod 使用的 mount pod。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`。
+脚本可用来方便地获取 Mount Pod 相关信息。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`：
 
 ```shell
-# 获取指定 pod 所用的 mount pod
+# 获取指定应用 Pod 所用的 Mount Pod
 $ ./csi-doctor.sh get-mount dynamic-ce-1
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 
-# 获取使用指定 mount pod 的所有应用 pod
+# 获取使用指定 Mount Pod 的所有应用 Pod
 $ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
 default dynamic-ce-5
 default dynamic-ce-2
@@ -224,12 +224,13 @@ kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items
 
 ### 诊断脚本
 
-对于 JuiceFS 云服务和企业版用户，可以使用[诊断脚本](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh)来收集日志及相关信息，发送给 Juicedata 团队进行排查支持。
+对于 JuiceFS 云服务和企业版用户，可以使用 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息，发送给 Juicedata 团队进行排查支持。
 
 假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`，用下方命令收集排查信息：
 
 ```shell
-./csi-doctor.sh collect dynamic-ce-1 -n default
+$ ./csi-doctor.sh collect dynamic-ce-1 -n default
+Results have been compressed to dynamic-ce-1.diagnose.tar.gz
 ```
 
-所有相关的日志、事件都被收集和打包在了一个压缩包里，将压缩包发送给 Juicedata 进行后续支持。
+所有相关的 Kubernetes 资源、日志、事件都被收集和打包在了一个压缩包里，将此压缩包发送给 Juicedata 团队进行后续支持。
