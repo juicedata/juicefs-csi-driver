@@ -6,6 +6,30 @@ sidebar_position: 6
 
 Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md#architecture), i.e. have a basic understanding of the roles of each CSI Driver component.
 
+## Diagnostic script {#csi-doctor}
+
+It is recommended to use the diagnostic script [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) to collect logs and related information, without this script, you'll have to manually execute a series of commands (introduced in other sections in this chapter) to obtain information.
+
+To install this script, choose any node in the cluster that can execute `kubectl`, run:
+
+```shell
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/csi-doctor.sh
+chmod a+x csi-doctor.sh
+```
+
+Assuming application pod being `dynamic-ce-1`, in namespace `default`, to acquire the mount pod name that accompanies the application pod:
+
+```shell
+# Get mount pod for specified application pod
+$ ./csi-doctor.sh get-mount dynamic-ce-1
+kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+
+# Get all application pods that's sharing the specified mount pod
+$ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
+default dynamic-ce-5
+default dynamic-ce-2
+```
+
 ## Basic principles for troubleshooting {#basic-principles}
 
 In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and pod creation failures (managed by CSI Node / Mount Pod).
@@ -198,82 +222,15 @@ kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items
 
 Image tag will contain the CSI Driver version string.
 
-### Diagnosis script
+### Gather information through diagnostic script {#gather-information-through-diagnostic-script}
 
-You can also use the [diagnosis script](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/diagnose.sh) to collect logs and related information.
+You can use [diagnostic script](#csi-doctor) to collect logs and related information, and send them to the community or the Juicedata team for troubleshooting support.
 
-First, install the script to any node with `kubectl` access:
-
-```shell
-wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/diagnose.sh
-chmod a+x diagnose.sh
-```
-
-Get the mount pod used by the application pod using the script. For example, assuming that the application pod name is `dynamic-ce-1`, and the namespace is `default`.
+Assuming the application pod being `dynamic-ce-1`, in namespace `default`, run:
 
 ```shell
-$ ./diagnose.sh
-Usage:
-    ./diagnose.sh COMMAND [OPTIONS]
-ENV:
-    JUICEFS_NAMESPACE: namespace of JuiceFS CSI Driver, default is kube-system.
-COMMAND:
-    help
-        Display this help message.
-    get-mount
-        Print mount pod used by specified app pod.
-    get-app
-        Print app pods using specified mount pod.
-    collect
-        Collect csi & mount pods logs of juicefs.
-OPTIONS:
-    -po, --pod name
-        Set the name of app pod.
-    -n, --namespace name
-        Set the namespace of app pod, default is default.
-    -m, --mount pod name
-        Set the name of mount pod.
-
-# Set the namespace where the juicefs csi driver component deployed in, the default is kube-system
-$ export JUICEFS_NAMESPACE=kube-system
-# Get the mount pod used by the specified pod
-$ ./diagnose.sh get-mount -po dynamic-ce-1
-Mount Pod which app dynamic-ce-1 using is:
-namespace:
-  kube-system
-name:
-  juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+$ ./csi-doctor.sh collect dynamic-ce-1 -n default
+Results have been compressed to dynamic-ce-1.diagnose.tar.gz
 ```
 
-Collect diagnose information using the script. For example, assuming that the application pod name is `dynamic-ce-1`, and the namespace is `default`.
-
-```shell
-# Set the namespace where the juicefs csi driver component deployed in, the default is kube-system
-$ export JUICEFS_NAMESPACE=kube-system
-# collect diagnostics information
-$ ./diagnose.sh collect -po dynamic-ce-1 -n default
-Start collecting, pod=dynamic-ce-1, namespace=default
-...
-please get diagnose_juicefs_1671073110.tar.gz for diagnostics
-```
-
-All relevant information is collected and packaged in an archive under the execution path.
-
-If the mount pod name is known, the diagnostic script can also be used to get all application pods using that mount pod.
-For example, assuming that the mount pod name is `juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc`,
-and the namespace where the JuiceFS CSI Driver component deployed in is `kube-system`.
-
-```shell
-# Set the namespace where the juicefs csi driver component deployed in, the default is kube-system
-$ export JUICEFS_NAMESPACE=kube-system
-# Get all application pods using the specified mount pod
-$ ./diagnose.sh get-app -m juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
-App pods using mount pod [juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc]:
-namespace:
-  default
-apps:
-  dynamic-ce-5
-  dynamic-ce-2
-  dynamic-ce-3
-  dynamic-ce-4
-```
+All related Kubernetes resources, logs, and events are collected and packaged into a tar file, send this file to relevant people for further support.
