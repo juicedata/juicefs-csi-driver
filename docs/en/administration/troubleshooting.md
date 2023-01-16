@@ -8,9 +8,9 @@ Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, 
 
 ## Diagnostic script {#csi-doctor}
 
-Our diagnostic script [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) is recommended for CSI Driver debugging, without this script, you'll have to manually execute a series of commands (introduced in other sections in this chapter) to obtain information.
+It is recommended to use the diagnostic script [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) to collect logs and related information, without this script, you'll have to manually execute a series of commands (introduced in other sections in this chapter) to obtain information.
 
-To install this script, choose any node with `kubectl` permission, run:
+To install this script, choose any node in the cluster that can execute `kubectl`, run:
 
 ```shell
 wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/csi-doctor.sh
@@ -23,6 +23,7 @@ Assuming application pod being `dynamic-ce-1`, in namespace `default`, to acquir
 # Get mount pod for specified application pod
 $ ./csi-doctor.sh get-mount dynamic-ce-1
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+
 # Get all application pods that's sharing the specified mount pod
 $ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
 default dynamic-ce-5
@@ -221,15 +222,15 @@ kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items
 
 Image tag will contain the CSI Driver version string.
 
-### Diagnosis script
+### Gather information through diagnostic script {#gather-information-through-diagnostic-script}
 
-For JuiceFS Cloud Services and Enterprise users, use the [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) to collect relevant information, and send it to Juicedata team for support.
+You can use [diagnostic script](#csi-doctor) to collect logs and related information, and send them to the community or the Juicedata team for troubleshooting support.
 
 Assuming the application pod being `dynamic-ce-1`, in namespace `default`, run:
 
 ```shell
-./csi-doctor.sh collect dynamic-ce-1 -n default
+$ ./csi-doctor.sh collect dynamic-ce-1 -n default
 Results have been compressed to dynamic-ce-1.diagnose.tar.gz
 ```
 
-All relevant Kubernetes manifests, logs, events are packed into a tar file, send this file to Juicedata team for further support.
+All related Kubernetes resources, logs, and events are collected and packaged into a tar file, send this file to relevant people for further support.
