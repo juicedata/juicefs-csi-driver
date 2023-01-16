@@ -60,7 +60,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
-1. We recommend that you include the CSI Driver Helm chart in the Git repository, so that any changes to `values.yaml` can be restored.
+1. We recommend that you include the CSI Driver Helm chart in the Git repository, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
 
 ## kubectl
 

@@ -44,7 +44,7 @@ title: 安装
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-1. 我们推荐将 CSI 驱动的 Helm chart 纳入 Git 仓库，进行源码管理。这样一来，就算 `values.yaml` 中的配置不断变化，也能对其进行追溯和回滚。
+1. 我们推荐将 CSI 驱动的 Helm chart 纳入 Git 仓库，进行源码管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
 
 ## kubectl
 
