@@ -267,6 +267,7 @@ spec:
                 values:
                 - cache
             topologyKey: kubernetes.io/hostname
+      # Using hostNetwork allows pod to run with a static IP, when pod is recreated, IP will not change so that cache data persists
       hostNetwork: true
       # Run juicefs auth command inside the initContainers
       # ref: https://juicefs.com/docs/cloud/reference/commands_reference#auth

@@ -267,6 +267,7 @@ spec:
                 values:
                 - cache
             topologyKey: kubernetes.io/hostname
+      # 使用 hostNetwork，让 Pod 以固定 IP 运行，避免容器重建更换 IP，导致缓存数据失效
       hostNetwork: true
       # 初始化容器负责执行 juicefs auth 命令
       # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#auth
