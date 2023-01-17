@@ -220,7 +220,7 @@ parameters:
   juicefs/clean-cache: "true"
 ```
 
-## 独立缓存集群
+## 独立缓存集群 {#dedicated-cache-cluster}
 
 :::note 注意
 独立缓存集群功能目前仅在 JuiceFS 云服务和企业版中提供，社区版暂不支持。

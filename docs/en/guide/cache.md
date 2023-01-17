@@ -220,7 +220,7 @@ parameters:
   juicefs/clean-cache: "true"
 ```
 
-## Dedicated cache cluster
+## Dedicated cache cluster {#dedicated-cache-cluster}
 
 :::note
 Dedicated cluster is only supported in JuiceFS Cloud Service & Enterprise, Community Edition is not supported.
