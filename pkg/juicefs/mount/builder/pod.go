@@ -18,6 +18,8 @@ package builder
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,9 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	cmd := r.getCommand()
 
 	pod := r.generateJuicePod()
+
+	metricsPort := r.getMetricsPort()
+
 	// add cache-dir host path volume
 	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
@@ -56,6 +61,11 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
+
+	pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{Name: "metrics", ContainerPort: metricsPort},
+	}
+
 	gracePeriod := int64(10)
 	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
 
@@ -193,4 +203,21 @@ func (r *Builder) getInitContainer() corev1.Container {
 		}},
 	})
 	return container
+}
+
+func (r *Builder) getMetricsPort() int32 {
+	port := 9567
+	options := r.jfsSetting.Options
+
+	for _, option := range options {
+		if strings.HasPrefix(option, "metrics=") {
+			re := regexp.MustCompile(`metrics=.*:([0-9]{1,6})`)
+			match := re.FindStringSubmatch(option)
+			if len(match) > 0 {
+				port, _ = strconv.Atoi(match[1])
+			}
+		}
+	}
+
+	return int32(port)
 }
