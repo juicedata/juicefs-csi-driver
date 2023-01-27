@@ -272,7 +272,7 @@ func TestNewMountPod(t *testing.T) {
 	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
 	podMetricTest := corev1.Pod{}
-	cmdWithMetrics := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0:9999`
+	cmdWithMetrics := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9999`
 	deepcopyPodFromDefault(&podMetricTest)
 	podMetricTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithMetrics}
 	podMetricTest.Spec.Containers[0].Ports = []corev1.ContainerPort{
@@ -363,7 +363,7 @@ func TestNewMountPod(t *testing.T) {
 				name:      "test",
 				cmd:       defaultCmd,
 				mountPath: defaultMountPath,
-				options:   []string{"metrics=0.0.0:9999"},
+				options:   []string{"metrics=0.0.0.0:9999"},
 			},
 			want: podMetricTest,
 		},
