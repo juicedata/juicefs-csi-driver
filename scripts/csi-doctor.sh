@@ -19,7 +19,7 @@ print_usage() {
   echo "    collect"
   echo "        Collect logs for CSI Driver troubleshooting."
   echo "OPTIONS:"
-  echo "    -n, --namespace name"
+  echo "    -n, --namespace NS"
   echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
 }
 
@@ -54,6 +54,38 @@ juicefs_resources() {
   mkdir -p "$diagnose_dir/pvc"
   kubectl get pvc "$PVC_NAME" -n $namespace -oyaml &>"$diagnose_dir/pvc/$PVC_NAME.yaml" 2>&1
   kubectl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
+}
+
+debug_app_pod() {
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh debug APP_POD_NAME --namespace NS"
+    exit 1
+  fi
+  app=${ORIGINAL_ARGS[1]}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
+  set -x
+  kubectl get event -n $namespace --field-selector involvedObject.name=$app,type!=Normal
+  set +x
+  PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  pvc_phase=$(kubectl -n $namespace get pvc -ojsonpath={..phase})
+  if [ "$pvc_phase" != "Bound" ]; then
+    set -x
+    kubectl get event -n $namespace --field-selector involvedObject.name=$PVC_NAME,type!=Normal
+    kubectl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 1000 -c juicefs-plugin | grep -v "^I" | tail -n 50
+    set +x
+  fi
+  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  CSI_NODE_POD_NAME=$(kubectl get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+  PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+  PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
+  set -x
+  MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  kubectl get event -n $namespace --field-selector involvedObject.name=$MOUNT_POD_NAME,type!=Normal
+  kubectl -n $juicefs_namespace logs $MOUNT_POD_NAME --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
+  kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME --tail 1000 | grep -v "^I" | tail -n 50
+  set +x
 }
 
 get_mount_pod() {
@@ -213,6 +245,9 @@ main() {
         print_usage
         exit 0;
         ;;
+      debug|help)
+        action=$1
+        ;;
       collect|help)
         action=$1
         ;;
@@ -231,6 +266,9 @@ main() {
   done
 
   case ${action} in
+    debug)
+      debug_app_pod
+      ;;
     collect)
       collect
       ;;
