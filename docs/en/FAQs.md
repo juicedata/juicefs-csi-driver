@@ -10,7 +10,7 @@ Try searching for your problems in the top right corner, using different keyword
 * For JuiceFS Community Edition users, join [the JuiceFS Community](https://juicefs.com/en/community) and seek for help.
 * For JuiceFS Cloud Service users, reach the Juicedata team using Intercom by clicking the bottom right button in [the JuiceFS Web Console](https://juicefs.com/console).
 
-## How to seamlessly remount JuiceFS Client?
+## How to seamlessly remount JuiceFS Client? {#seamless-remount}
 
 JuiceFS needs to be remounted for some configuration changes to take effect. In Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
 

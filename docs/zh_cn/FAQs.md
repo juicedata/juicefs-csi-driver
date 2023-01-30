@@ -10,7 +10,7 @@ slug: /faq
 * 如果你使用 JuiceFS 社区版，加入 [JuiceFS 开源社区](https://juicefs.com/zh-cn/community)以寻求帮助。
 * 如果你使用 JuiceFS 云服务，请通过[控制台](https://juicefs.com/console)右下角的 Intercom 会话联系 Juicedata 团队。
 
-## 如何平滑重新挂载 JuiceFS 客户端？
+## 如何平滑重新挂载 JuiceFS 客户端？ {#seamless-remount}
 
 某些情况下会需要重新挂载 JuiceFS 客户端，比方说修改挂载参数、文件系统认证信息。在 Kubernetes 中，我们往往希望重新挂载的过程不影响业务，尽可能平滑。比如以下操作，均能实现平滑重新挂载的效果：
 
