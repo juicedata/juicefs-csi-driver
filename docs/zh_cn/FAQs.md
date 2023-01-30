@@ -12,7 +12,7 @@ slug: /faq
 
 ## 如何平滑重新挂载 JuiceFS 客户端？ {#seamless-remount}
 
-某些情况下会需要重新挂载 JuiceFS 客户端，比方说修改挂载参数、文件系统认证信息。在 Kubernetes 中，我们往往希望重新挂载的过程不影响业务，尽可能平滑。比如以下操作，均能实现平滑重新挂载的效果：
+某些情况下会需要重新挂载 JuiceFS 客户端，比方说修改挂载参数、文件系统认证信息。如果你并不关心服务中断，那么删除 Mount Pod 令其自动重建，就能达到重新挂载的效果（注意，如果没有启用[「挂载点自动恢复」](./guide/pv.md#automatic-mount-point-recovery)，则应用容器也需要重启或重建，才能恢复容器中的挂载点）。不过在 Kubernetes 中，我们往往希望重新挂载的过程不影响业务，尽可能平滑。比如以下操作，均能实现平滑重新挂载的效果：
 
 * [升级或降级](./administration/upgrade-csi-driver.md) CSI 驱动，并且需要伴随着 Mount Pod 镜像的变更，那么对应用进行滚动升级（或重启）时，CSI 驱动便会为其创建新的 Mount Pod。
 * 对[「挂载参数」](./guide/pv.md#mount-options)进行调整，然后滚动重启或升级应用 Pod。
