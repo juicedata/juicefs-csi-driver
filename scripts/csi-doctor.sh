@@ -18,6 +18,8 @@ print_usage() {
   echo "        Get application pods using specified mount pod."
   echo "    collect"
   echo "        Collect logs for CSI Driver troubleshooting."
+  echo "    exec"
+  echo "        Execute command in all mount pods."
   echo "OPTIONS:"
   echo "    -n, --namespace NS"
   echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
@@ -161,6 +163,16 @@ get_app_pod() {
   done
 }
 
+mount_exec() {
+  juicefs_namespace=${JFS_NS:-"kube-system"}
+  mount_pods=$(kubectl get pods -n $juicefs_namespace -l app.kubernetes.io/name=juicefs-mount --no-headers -o custom-columns=":metadata.name")
+  set -x
+  for mount_pod in $mount_pods
+  do
+    echo kubectl -n $juicefs_namespace exec -it ${ORIGINAL_ARGS}:1
+  done
+}
+
 collect_mount_pod_msg() {
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
@@ -257,6 +269,9 @@ main() {
       get-app|help)
         action=$1
         ;;
+      exec|help)
+        action=$1
+        ;;
       -n|--namespace)
         namespace=$2
         shift
@@ -277,6 +292,9 @@ main() {
       ;;
     get-app)
       get_app_pod
+      ;;
+    exec)
+      mount_exec
       ;;
     help)
       print_usage
