@@ -164,13 +164,20 @@ get_app_pod() {
 }
 
 mount_exec() {
+  cmd=${ORIGINAL_ARGS[@]:1}
+  if [ "${cmd}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh exec -- grep -nr master /root/.juicefs"
+    exit 1
+  fi
   juicefs_namespace=${JFS_NS:-"kube-system"}
   mount_pods=$(kubectl get pods -n $juicefs_namespace -l app.kubernetes.io/name=juicefs-mount --no-headers -o custom-columns=":metadata.name")
   set -x
   for mount_pod in $mount_pods
   do
-    echo kubectl -n $juicefs_namespace exec -it ${ORIGINAL_ARGS}:1
+    kubectl -n $juicefs_namespace exec -it $mount_pod $cmd
   done
+  set +x
 }
 
 collect_mount_pod_msg() {
