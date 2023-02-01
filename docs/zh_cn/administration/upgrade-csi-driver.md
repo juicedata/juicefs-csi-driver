@@ -16,16 +16,18 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
 ### 通过 Helm 升级
 
-请依次运行以下命令以升级 JuiceFS CSI 驱动：
+用 Helm 安装 CSI 驱动时，所有的安装配置都汇集于 `values.yaml`，你需要自行管理该文件。升级的步骤也很简单，直接用新版的 Helm chart 重装 CSI 驱动即可：
 
 ```shell
 helm repo update
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
+如果你已经将整个 Helm chart 纳入版本控制系统管理，则需要用 `helm pull --untar juicefs/juicefs-csi-driver` 下载最新版本的 CSI 驱动 Helm chart，覆盖当前版本。注意，`values.yaml` 的维护是你的责任，升级过程中请注意不要覆盖该文件，否则安装配置将会被重置为默认状态。
+
 ### 通过 kubectl 升级
 
-下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后重新安装 JuiceFS CSI 驱动。或者如果你的团队有着自行维护的 `k8s.yaml`，也可以直接修改其中的 JuiceFS CSI 驱动组件的镜像标签（例如 `image: juicedata/juicefs-csi-driver:v0.17.5`）。然后运行以下命令：
+下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后重新安装 JuiceFS CSI 驱动。或者如果你的团队有着自行维护的 `k8s.yaml`，也可以直接修改其中的 JuiceFS CSI 驱动组件的镜像标签（例如 `image: juicedata/juicefs-csi-driver:v0.17.5`）。然后运行：
 
 ```shell
 kubectl apply -f ./k8s.yaml

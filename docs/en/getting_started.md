@@ -10,7 +10,18 @@ In comparison to kubectl, Helm allows you to manage CSI Driver resources as a wh
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
-Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` environment variable.
+Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install).
+
+1. Download the Helm chart for JuiceFS CSI Driver
+
+   ```shell
+   helm repo add juicefs https://juicedata.github.io/charts/
+   helm repo update
+   helm fetch --untar juicefs/juicefs-csi-driver
+   cd juicefs-csi-driver
+   # Installation configurations is included in values.yaml, review this file and modify to your needs
+   cat values.yaml
+   ```
 
 1. Check kubelet root directory
 
@@ -26,7 +37,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    kubeletDir: <kubelet-dir>
    ```
 
-2. Deploy
+1. Deploy
 
    Execute below commands to deploy JuiceFS CSI Driver:
 
@@ -36,7 +47,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-3. Verify installation
+1. Verify installation
 
    Verify all CSI Driver components are running:
 
@@ -48,6 +59,8 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    ```
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
+
+It's recommended that you include the CSI Driver Helm chart in the version control system, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
 
 ## kubectl
 
