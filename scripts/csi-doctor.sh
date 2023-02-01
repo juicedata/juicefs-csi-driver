@@ -68,7 +68,8 @@ debug_app_pod() {
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
   set -x
-  kubectl get event -n $namespace --field-selector involvedObject.name=$app,type!=Normal
+  kubectl -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
+  kubectl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
   set +x
   PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
   pvc_phase=$(kubectl -n $namespace get pvc -ojsonpath={..phase})
@@ -84,6 +85,7 @@ debug_app_pod() {
   PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
   set -x
   MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  kubectl -n $juicefs_namespace get po $MOUNT_POD_NAME -o jsonpath='{..containers[*].image}'
   kubectl get event -n $namespace --field-selector involvedObject.name=$MOUNT_POD_NAME,type!=Normal
   kubectl -n $juicefs_namespace logs $MOUNT_POD_NAME --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
   kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME --tail 1000 | grep -v "^I" | tail -n 50
