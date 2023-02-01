@@ -23,7 +23,7 @@ helm repo update
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-如果你已经将整个 Helm chart 纳入源码管理，则需要用 `helm fetch --untar juicefs/juicefs-csi-driver` 下载最新版本的 CSI Helm chart，覆盖当前版本。注意，`values.yaml` 的维护是你的责任，升级过程中请注意不要覆盖该文件，否则安装配置将会被重置为默认状态。
+如果你已经将整个 Helm chart 纳入版本控制系统管理，则需要用 `helm pull --untar juicefs/juicefs-csi-driver` 下载最新版本的 CSI 驱动 Helm chart，覆盖当前版本。注意，`values.yaml` 的维护是你的责任，升级过程中请注意不要覆盖该文件，否则安装配置将会被重置为默认状态。
 
 ### 通过 kubectl 升级
 

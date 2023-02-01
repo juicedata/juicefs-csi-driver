@@ -11,7 +11,10 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 * For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
 :::note
-If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+
+* If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+
 :::
 
 ### Community edition {#community-edition}
@@ -384,6 +387,10 @@ As for reclaim policy, generic ephemeral volume works the same as dynamic provis
 ## Mount options {#mount-options}
 
 Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.
+
+:::note
+After modifying the mount options, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+:::
 
 ### Static provisioning
 

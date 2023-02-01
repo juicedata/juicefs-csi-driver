@@ -11,18 +11,18 @@ title: 安装
 
 相比 kubectl，Helm 允许你将 CSI 驱动作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。
 
-安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/zh/docs/intro/install) 进行安装。
+安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/zh/docs/intro/install)进行安装。
 
 1. 下载 JuiceFS CSI 驱动的 Helm chart
 
-  ```shell
-  helm repo add juicefs https://juicedata.github.io/charts/
-  helm repo update
-  helm fetch --untar juicefs/juicefs-csi-driver
-  cd juicefs-csi-driver
-  # values.yaml 中包含安装 CSI 驱动的所有配置，安装前可以进行梳理，并按需修改
-  cat values.yaml
-  ```
+   ```shell
+   helm repo add juicefs https://juicedata.github.io/charts/
+   helm repo update
+   helm fetch --untar juicefs/juicefs-csi-driver
+   cd juicefs-csi-driver
+   # values.yaml 中包含安装 CSI 驱动的所有配置，安装前可以进行梳理，并按需修改
+   cat values.yaml
+   ```
 
 1. 检查 kubelet 根目录
 
@@ -44,7 +44,7 @@ title: 安装
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-1. 我们推荐将 CSI 驱动的 Helm chart 纳入 Git 仓库，进行源码管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
+我们推荐将 CSI 驱动的 Helm chart 纳入版本控制系统管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
 
 ## kubectl
 

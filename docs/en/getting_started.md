@@ -14,14 +14,14 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 1. Download the Helm chart for JuiceFS CSI Driver
 
-  ```shell
-  helm repo add juicefs https://juicedata.github.io/charts/
-  helm repo update
-  helm fetch --untar juicefs/juicefs-csi-driver
-  cd juicefs-csi-driver
-  # Installation configurations is included in values.yaml, review this file and modify to your needs
-  cat values.yaml
-  ```
+   ```shell
+   helm repo add juicefs https://juicedata.github.io/charts/
+   helm repo update
+   helm fetch --untar juicefs/juicefs-csi-driver
+   cd juicefs-csi-driver
+   # Installation configurations is included in values.yaml, review this file and modify to your needs
+   cat values.yaml
+   ```
 
 1. Check kubelet root directory
 
@@ -60,7 +60,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
-1. We recommend that you include the CSI Driver Helm chart in the Git repository, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
+It's recommended that you include the CSI Driver Helm chart in the version control system, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
 
 ## kubectl
 
