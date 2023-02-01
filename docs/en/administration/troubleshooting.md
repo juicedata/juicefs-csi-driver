@@ -17,18 +17,25 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
-Assuming application pod being `dynamic-ce-1`, in namespace `default`, to acquire the mount pod name that accompanies the application pod:
+A commonly used feature is obtaining mount pod information. Assuming application pod being `my-app-pod` in namespace `default`, to obtain the mount pod that accompanies the application pod:
 
 ```shell
 # Get mount pod for specified application pod
-$ ./csi-doctor.sh get-mount dynamic-ce-1
+$ ./csi-doctor.sh get-mount my-app-pod
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 
 # Get all application pods that's sharing the specified mount pod
-$ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
-default dynamic-ce-5
-default dynamic-ce-2
+$ ./csi-doctor.sh get-app juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+default my-app-pod
 ```
+
+Once you become familiar with [Basic principles for troubleshooting](#basic-principles), there's a handy `csi-doctor.sh debug` command that can quickly print important information like components' version and logs. You can easily find troubleshooting clues within the command output:
+
+```shell
+./csi-doctor.sh debug my-app-pod -n default
+```
+
+Run above command and thoroughly check its output, try to debug using the troubleshooting principles introduced below. Also, this command consciously controls output sizes so that you can easily copy the content and send to our open source community or Juicedata team.
 
 ## Basic principles for troubleshooting {#basic-principles}
 
@@ -120,7 +127,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 If no errors are shown in the CSI Node logs, check if mount pod is working correctly.
 
-Finding corresponding mount pod via given application pod can be tedious, here's a series of commands to help you with this process:
+You can easily acquire mount pod name using the [diagnostic script](#csi-doctor), but if you need to debug without the script, here's a series of commands to help you with this process:
 
 ```shell
 # In less complex situations, use below command to print logs for all mount pods
@@ -169,6 +176,11 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
+If you need to run JuiceFS Client inside mount pod, note that JuiceFS Community Edition and JuiceFS Cloud Service Clients are both included in the container image:
+
+* `/usr/local/bin/juicefs` JuiceFS Community Edition
+* `/usr/bin/juicefs` JuiceFS Cloud Service
+
 ### Performance issue
 
 When performance issues are encountered when using CSI Driver, with all components running normally, refer to the troubleshooting methods in this section.
@@ -212,25 +224,11 @@ This sections only covers finding pseudo files in JuiceFS CSI Driver, troublesho
 
 If you are not able to troubleshoot, seek help from the JuiceFS community or the Juicedata team. You should collect some information so others can further diagnose.
 
-### Check JuiceFS CSI Driver version
-
-Obtain CSI Driver version:
+Use the [diagnostic script](#csi-doctor) to collect related information, assuming the application pod being `my-app-pod`, in namespace `default`, run:
 
 ```shell
-kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
-```
-
-Image tag will contain the CSI Driver version string.
-
-### Gather information through diagnostic script {#gather-information-through-diagnostic-script}
-
-You can use [diagnostic script](#csi-doctor) to collect logs and related information, and send them to the community or the Juicedata team for troubleshooting support.
-
-Assuming the application pod being `dynamic-ce-1`, in namespace `default`, run:
-
-```shell
-$ ./csi-doctor.sh collect dynamic-ce-1 -n default
-Results have been compressed to dynamic-ce-1.diagnose.tar.gz
+$ ./csi-doctor.sh collect my-app-pod -n default
+Results have been compressed to my-app-pod.diagnose.tar.gz
 ```
 
 All related Kubernetes resources, logs, and events are collected and packaged into a tar file, send this file to relevant people for further support.
