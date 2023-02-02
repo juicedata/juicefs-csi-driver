@@ -74,13 +74,13 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
-			Namespace: config.Namespace,
+			Namespace: r.jfsSetting.Attr.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
-					Namespace: config.Namespace,
+					Namespace: r.jfsSetting.Attr.Namespace,
 				},
 				Spec: podTemplate.Spec,
 			},
@@ -98,13 +98,13 @@ func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
-			Namespace: config.Namespace,
+			Namespace: r.jfsSetting.Attr.Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
-					Namespace: config.Namespace,
+					Namespace: r.jfsSetting.Attr.Namespace,
 				},
 				Spec: podTemplate.Spec,
 			},

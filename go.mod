@@ -10,6 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	github.com/spf13/cobra v1.1.3
 	google.golang.org/grpc v1.38.0
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
@@ -36,6 +37,7 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect

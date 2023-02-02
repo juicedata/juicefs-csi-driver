@@ -411,3 +411,14 @@ func UmountPath(ctx context.Context, sourcePath string) {
 		}
 	}
 }
+
+// CheckExpectValue Check if the key has the expected value
+func CheckExpectValue(m map[string]string, key string, targetValue string) bool {
+	if len(m) == 0 {
+		return false
+	}
+	if v, ok := m[key]; ok {
+		return v == targetValue
+	}
+	return false
+}

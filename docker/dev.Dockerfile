@@ -14,6 +14,6 @@
 
 FROM juicedata/juicefs-csi-driver:nightly
 
-COPY juicefs-csi-driver /bin/juicefs-csi-driver
+COPY juicefs-csi-driver /usr/local/bin/juicefs-csi-driver
 
-ENTRYPOINT ["/bin/juicefs-csi-driver"]
+ENTRYPOINT ["juicefs-csi-driver"]

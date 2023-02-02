@@ -37,9 +37,10 @@ def check_do_test():
 
 def die(e):
     csi_node_name = os.getenv("JUICEFS_CSI_NODE_POD")
-    po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
-    LOG.info("Get csi node log:")
-    LOG.info(po.get_log("juicefs-plugin"))
+    if csi_node_name is not None:
+        po = Pod(name=csi_node_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+        LOG.info("Get csi node log:")
+        LOG.info(po.get_log("juicefs-plugin"))
     LOG.info("Get csi controller log:")
     controller_po = Pod(name="juicefs-csi-controller-0", deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     LOG.info(controller_po.get_log("juicefs-plugin"))
@@ -76,7 +77,7 @@ def mount_on_host(mount_path):
 
 
 def umount(mount_path):
-    subprocess.run(["sudo", "umount", mount_path, "-l"])
+    subprocess.check_call(["sudo", "umount", mount_path, "-l"])
 
 
 def check_mount_point(check_path):

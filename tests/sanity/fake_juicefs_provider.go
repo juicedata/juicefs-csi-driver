@@ -18,6 +18,7 @@ package sanity
 
 import (
 	"context"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -32,6 +33,10 @@ type fakeJfs struct {
 type fakeJfsProvider struct {
 	mount.FakeMounter
 	fs map[string]fakeJfs
+}
+
+func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+	return nil, nil
 }
 
 func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (string, error) {

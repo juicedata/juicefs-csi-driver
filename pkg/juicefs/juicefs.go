@@ -62,6 +62,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
+	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 }
 
 type juicefs struct {
@@ -195,7 +196,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 }
 
 func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
-	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, volCtx, []string{})
+	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
 		return err
 	}
@@ -208,7 +209,7 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 }
 
 func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
-	jfsSetting, err := j.getSettings(ctx, volumeID, "", secrets, volCtx, []string{})
+	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
 		return err
 	}
@@ -229,11 +230,7 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err := j.validTarget(target); err != nil {
 		return nil, err
 	}
-	mountOptions, err := j.validOptions(volumeID, options)
-	if err != nil {
-		return nil, err
-	}
-	jfsSetting, err := j.getSettings(ctx, volumeID, target, secrets, volCtx, mountOptions)
+	jfsSetting, err := j.genJfsSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -250,15 +247,18 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	}, nil
 }
 
-// JfsMount auths and mounts JuiceFS
-func (j *juicefs) getSettings(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess)
+// Settings get all jfs settings and generate format/auth command
+func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+	mountOptions, err := j.validOptions(volumeID, options)
+	if err != nil {
+		return nil, err
+	}
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, mountOptions, !config.ByProcess)
 	if err != nil {
 		klog.V(5).Infof("Parse config error: %v", err)
 		return nil, err
 	}
 	jfsSetting.VolumeId = volumeID
-	jfsSetting.TargetPath = target
 	if !jfsSetting.IsCe {
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
@@ -285,7 +285,18 @@ func (j *juicefs) getSettings(ctx context.Context, volumeID string, target strin
 		}
 		jfsSetting.FormatCmd = res
 	}
+	return jfsSetting, nil
+}
 
+// genJfsSettings get jfs settings and unique id
+func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+	// get settings
+	jfsSetting, err := j.Settings(ctx, volumeID, secrets, volCtx, options)
+	if err != nil {
+		return nil, err
+	}
+	jfsSetting.TargetPath = target
+	// get unique id
 	uniqueId, err := j.getUniqueId(ctx, volumeID)
 	if err != nil {
 		klog.Errorf("Get volume name by volume id %s error: %v", volumeID, err)

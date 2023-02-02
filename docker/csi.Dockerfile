@@ -35,9 +35,9 @@ FROM alpine:3.15.5
 ARG JUICEFS_MOUNT_IMAGE
 ENV JUICEFS_MOUNT_IMAGE=${JUICEFS_MOUNT_IMAGE}
 
-COPY --from=builder /workspace/bin/juicefs-csi-driver /bin/juicefs-csi-driver
+COPY --from=builder /workspace/bin/juicefs-csi-driver /usr/local/bin/juicefs-csi-driver
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 RUN apk add --no-cache tini
 
-ENTRYPOINT ["/sbin/tini", "--", "/bin/juicefs-csi-driver"]
+ENTRYPOINT ["/sbin/tini", "--", "juicefs-csi-driver"]
