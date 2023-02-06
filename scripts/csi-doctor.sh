@@ -12,15 +12,19 @@ print_usage() {
   echo "COMMAND:"
   echo "    help"
   echo "        Display this help message."
+  echo "    debug"
+  echo "        Print various debug information for specified application pod."
   echo "    get-mount"
   echo "        Get mount pod used by specified application pod."
   echo "    get-app"
   echo "        Get application pods using specified mount pod."
   echo "    collect"
   echo "        Collect logs for CSI Driver troubleshooting."
+  echo "    exec"
+  echo "        Execute command in all mount pods."
   echo "OPTIONS:"
-  echo "    -n, --namespace name"
-  echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
+  echo "    -n, --namespace NS"
+  echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is \"default\"."
 }
 
 run() {
@@ -54,6 +58,40 @@ juicefs_resources() {
   mkdir -p "$diagnose_dir/pvc"
   kubectl get pvc "$PVC_NAME" -n $namespace -oyaml &>"$diagnose_dir/pvc/$PVC_NAME.yaml" 2>&1
   kubectl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
+}
+
+debug_app_pod() {
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh debug APP_POD_NAME --namespace NS"
+    exit 1
+  fi
+  app=${ORIGINAL_ARGS[1]}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
+  set -x
+  kubectl -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
+  kubectl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
+  set +x
+  PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  pvc_phase=$(kubectl -n $namespace get pvc -ojsonpath={..phase})
+  if [ "$pvc_phase" != "Bound" ]; then
+    set -x
+    kubectl get event -n $namespace --field-selector involvedObject.name=$PVC_NAME,type!=Normal
+    kubectl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 1000 -c juicefs-plugin | grep -v "^I" | tail -n 50
+    set +x
+  fi
+  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  CSI_NODE_POD_NAME=$(kubectl get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+  PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+  PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
+  set -x
+  MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  kubectl -n $juicefs_namespace get po $MOUNT_POD_NAME -o jsonpath='{..containers[*].image}'
+  kubectl get event -n $namespace --field-selector involvedObject.name=$MOUNT_POD_NAME,type!=Normal
+  kubectl -n $juicefs_namespace logs $MOUNT_POD_NAME --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
+  kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME --tail 1000 | grep -v "^I" | tail -n 50
+  set +x
 }
 
 get_mount_pod() {
@@ -127,6 +165,23 @@ get_app_pod() {
   do
     printf "$namespace\t$element\n"
   done
+}
+
+mount_exec() {
+  cmd=${ORIGINAL_ARGS[@]:1}
+  if [ "${cmd}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh exec -- grep -nr master /root/.juicefs"
+    exit 1
+  fi
+  juicefs_namespace=${JFS_NS:-"kube-system"}
+  mount_pods=$(kubectl get pods -n $juicefs_namespace -l app.kubernetes.io/name=juicefs-mount --no-headers -o custom-columns=":metadata.name")
+  set -x
+  for mount_pod in $mount_pods
+  do
+    kubectl -n $juicefs_namespace exec -it $mount_pod $cmd
+  done
+  set +x
 }
 
 collect_mount_pod_msg() {
@@ -213,6 +268,9 @@ main() {
         print_usage
         exit 0;
         ;;
+      debug|help)
+        action=$1
+        ;;
       collect|help)
         action=$1
         ;;
@@ -220,6 +278,9 @@ main() {
         action=$1
         ;;
       get-app|help)
+        action=$1
+        ;;
+      exec|help)
         action=$1
         ;;
       -n|--namespace)
@@ -231,6 +292,9 @@ main() {
   done
 
   case ${action} in
+    debug)
+      debug_app_pod
+      ;;
     collect)
       collect
       ;;
@@ -239,6 +303,9 @@ main() {
       ;;
     get-app)
       get_app_pod
+      ;;
+    exec)
+      mount_exec
       ;;
     help)
       print_usage
