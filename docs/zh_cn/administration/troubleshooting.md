@@ -35,7 +35,7 @@ default my-app-pod
 ./csi-doctor.sh debug my-app-pod -n default
 ```
 
-运行上方命令，检查印出来的丰富排查信息，用下方介绍的排查原则来进行诊断。同时，该命令控制输出内容的规模，你可以根据所使用的 JuiceFS 版本，方便地拷贝并发送给开源社区，或者 Juicedata 团队，进行后续排查。
+运行上方命令，检查打印出来的丰富排查信息，用下方介绍的排查原则来进行诊断。同时，该命令控制输出内容的规模，你可以根据所使用的 JuiceFS 版本，方便地拷贝并发送给开源社区，或者 Juicedata 团队，进行后续排查。
 
 ## 基础问题排查原则 {#basic-principles}
 
@@ -176,10 +176,10 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
-如果你需要在 Mount Pod 中使用 JuiceFS 客户端，请注意容器中同时含有社区版和云服务客户端：
+如果你需要在 Mount Pod 中使用 JuiceFS 客户端，请注意容器中同时含有社区版和云服务客户端，需要通过绝对路径来选择特定的客户端：
 
-* `/usr/local/bin/juicefs` 社区版
-* `/usr/bin/juicefs` 云服务
+* `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
+* `/usr/bin/juicefs`：云服务 JuiceFS 客户端
 
 ### 性能问题
 

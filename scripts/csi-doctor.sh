@@ -24,7 +24,7 @@ print_usage() {
   echo "        Execute command in all mount pods."
   echo "OPTIONS:"
   echo "    -n, --namespace NS"
-  echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is default."
+  echo "        Namespace of application pod, this option takes percedence over the APP_NS environment variable, default is \"default\"."
 }
 
 run() {
