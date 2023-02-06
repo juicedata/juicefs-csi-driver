@@ -12,6 +12,8 @@ print_usage() {
   echo "COMMAND:"
   echo "    help"
   echo "        Display this help message."
+  echo "    debug"
+  echo "        Print various debug information for specified application pod."
   echo "    get-mount"
   echo "        Get mount pod used by specified application pod."
   echo "    get-app"
