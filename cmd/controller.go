@@ -109,6 +109,18 @@ func controllerRun() {
 				return
 			}
 		}()
+		go func() {
+			mgr, err := app.NewAppManager()
+			if err != nil {
+				klog.Error(err)
+				return
+			}
+			klog.V(5).Infof("App Manager Started")
+			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+				klog.Error(err, "fail to run app controller")
+				return
+			}
+		}()
 	}
 
 	drv, err := driver.NewDriver(endpoint, nodeID)

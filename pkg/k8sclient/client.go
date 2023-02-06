@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/url"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -32,7 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 )
 
@@ -310,4 +315,47 @@ func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storag
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) ExecuteInContainer(podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+	klog.V(6).Infof("Execute command %v in container %s in pod %s in namespace %s", cmd, containerName, podName, namespace)
+	const tty = false
+
+	req := k.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		Param("container", containerName)
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: containerName,
+		Command:   cmd,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       tty,
+	}, scheme.ParameterCodec)
+
+	var sout, serr bytes.Buffer
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return "", "", err
+	}
+	config.Timeout = timeout
+	err = execute("POST", req.URL(), config, nil, &sout, &serr, tty)
+
+	return strings.TrimSpace(sout.String()), strings.TrimSpace(serr.String()), err
+}
+
+func execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
+	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
+	if err != nil {
+		return err
+	}
+	return exec.Stream(remotecommand.StreamOptions{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+		Tty:    tty,
+	})
 }
