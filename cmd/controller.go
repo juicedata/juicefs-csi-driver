@@ -102,9 +102,10 @@ func controllerRun() {
 
 	// enable webhook in csi controller
 	if config.Webhook {
+		ctx := ctrl.SetupSignalHandler()
 		go func() {
 			klog.V(5).Infof("Webhook Started")
-			if err := app.StartWebhook(certDir, webhookPort); err != nil {
+			if err := app.StartWebhook(ctx, certDir, webhookPort); err != nil {
 				klog.Error(err, "fail to run webhook")
 				return
 			}
@@ -116,7 +117,7 @@ func controllerRun() {
 				return
 			}
 			klog.V(5).Infof("App Manager Started")
-			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			if err := mgr.Start(ctx); err != nil {
 				klog.Error(err, "fail to run app controller")
 				return
 			}

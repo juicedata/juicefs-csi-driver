@@ -190,6 +190,12 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - '*'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -303,7 +309,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.17.3
+        image: juicedata/juicefs-csi-driver:v0.17.5
         livenessProbe:
           failureThreshold: 5
           httpGet:

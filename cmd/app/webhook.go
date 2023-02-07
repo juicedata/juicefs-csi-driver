@@ -17,6 +17,8 @@
 package app
 
 import (
+	"context"
+
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -29,7 +31,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler"
 )
 
-func StartWebhook(certDir string, webhookPort int) error {
+func StartWebhook(ctx context.Context, certDir string, webhookPort int) error {
 	_ = clientgoscheme.AddToScheme(scheme)
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -38,11 +40,12 @@ func StartWebhook(certDir string, webhookPort int) error {
 	}
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:           scheme,
-		Port:             webhookPort,
-		CertDir:          certDir,
-		LeaderElection:   false,
-		LeaderElectionID: "webhook.juicefs.com",
+		Scheme:             scheme,
+		Port:               webhookPort,
+		CertDir:            certDir,
+		MetricsBindAddress: "0.0.0.0:8084",
+		LeaderElection:     false,
+		LeaderElectionID:   "webhook.juicefs.com",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
@@ -70,7 +73,7 @@ func StartWebhook(certDir string, webhookPort int) error {
 	klog.Info("Register Handler")
 
 	klog.Info("starting webhook-manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err = mgr.Start(ctx); err != nil {
 		klog.Error(err, "start webhook handler failed")
 		return err
 	}

@@ -32,8 +32,9 @@ import (
 
 func NewAppManager() (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Port:   9444,
+		Scheme:             scheme,
+		Port:               9445,
+		MetricsBindAddress: "0.0.0.0:8085",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{

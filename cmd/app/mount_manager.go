@@ -44,8 +44,9 @@ func NewMountManager() (ctrl.Manager, error) {
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme: scheme,
-		Port:   9443,
+		Scheme:             scheme,
+		Port:               9443,
+		MetricsBindAddress: "0.0.0.0:8083",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
