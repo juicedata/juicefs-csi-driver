@@ -30,6 +30,7 @@ If you haven't made any modifications to the default CSI installation, you can j
 ```shell
 kubectl apply -f ./k8s.yaml
 ```
+
 But if you maintain your own fork of `k8s.yaml`, with your own configuration changes, you'll need to compare the differences between the old and new `k8s.yaml`, apply the newly introduced changes, and then install.
 
 ```shell
