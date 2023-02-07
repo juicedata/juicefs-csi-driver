@@ -25,11 +25,28 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### Upgrade via kubectl
 
-Reinstall JuiceFS CSI Driver using the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), if you maintain your own fork of `k8s.yaml`, simply modify the image label to the latest version (like `image: juicedata/juicefs-csi-driver:v0.17.5`), and then run:
+If you haven't made any modifications to the default CSI installation, you can just download the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), and then perform the upgrade by running:
 
 ```shell
 kubectl apply -f ./k8s.yaml
 ```
+But if you maintain your own fork of `k8s.yaml`, with your own configuration changes, you'll need to compare the differences between the old and new `k8s.yaml`, apply the newly introduced changes, and then install.
+
+```shell
+curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml > k8s-new.yaml
+
+# Backup the old YAML file
+cp k8s.yaml k8s.yaml.bak
+
+# Compare the differences between old and new YAML files, apply the newly introduced changes while maintaining your own modifications
+# For example, the CSI component image is usually updated, e.g. image: juicedata/juicefs-csi-driver:v0.17.5
+vimdiff k8s.yaml k8s-new.yaml
+
+# After changes have been applied, reinstall
+kubectl apply -f ./k8s.yaml
+```
+
+Comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
 
 ## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 
