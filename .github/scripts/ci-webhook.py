@@ -9,6 +9,7 @@ from test_case import (
     test_static_mount_image_with_webhook,
     test_deployment_dynamic_patch_pv_with_webhook,
     test_deployment_static_patch_pv_with_webhook,
+    test_job_complete_using_storage,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
 
@@ -28,6 +29,7 @@ if __name__ == "__main__":
             test_static_mount_image_with_webhook()
             test_deployment_dynamic_patch_pv_with_webhook()
             test_deployment_static_patch_pv_with_webhook()
+            test_job_complete_using_storage()
         except Exception as e:
             die(e)
         finally:
