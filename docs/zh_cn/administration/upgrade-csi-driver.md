@@ -27,11 +27,29 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### 通过 kubectl 升级
 
-下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后重新安装 JuiceFS CSI 驱动。或者如果你的团队有着自行维护的 `k8s.yaml`，也可以直接修改其中的 JuiceFS CSI 驱动组件的镜像标签（例如 `image: juicedata/juicefs-csi-driver:v0.17.5`）。然后运行：
+如果你并未对 CSI 驱动配置做任何改动，那么直接下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后用下边的命令进行覆盖安装即可。
 
 ```shell
 kubectl apply -f ./k8s.yaml
 ```
+
+但如果你的团队有着自行维护的 `k8s.yaml`，并且已经对其中的配置做了变更，那就需要对新老版本的 `k8s.yaml` 进行内容比对，将新版引入的变动追加进来，然后再进行覆盖安装：
+
+```shell
+curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml > k8s-new.yaml
+
+# 梳理配置前，对老版本安装文件进行备份
+cp k8s.yaml k8s.yaml.bak
+
+# 对比新老版本的内容差异，在保留配置变更的基础上，将新版引入的变动进行追加
+# 比方说，新版的 CSI 驱动组件镜像往往会更新，例如 image: juicedata/juicefs-csi-driver:v0.17.5
+vimdiff k8s.yaml k8s-new.yaml
+
+# 配置梳理完毕，进行覆盖安装
+kubectl apply -f ./k8s.yaml
+```
+
+正因为梳理配置的步骤相对复杂，因此面对生产集群，我们更推荐[使用 Helm 安装和升级 CSI 驱动](../getting_started.md#helm)。
 
 ## 升级 CSI 驱动（进程挂载模式） {#mount-by-process-upgrade}
 
