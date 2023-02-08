@@ -72,7 +72,7 @@ func (a *AppController) umountFuseSidecars(pod *corev1.Pod) (err error) {
 	for _, cn := range pod.Spec.Containers {
 		if strings.Contains(cn.Name, config.MountContainerName) {
 			if e := a.umountFuseSidecar(pod, cn); e != nil {
-				return
+				return e
 			}
 		}
 	}
