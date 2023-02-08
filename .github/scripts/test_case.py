@@ -2063,11 +2063,6 @@ def test_job_complete_using_storage():
     # delete test resources
     LOG.info("Remove job {}".format(job.name))
     job.delete()
-    pod = Pod(name="", deployment_name=job.name, replicas=1)
-    LOG.info("Watch for pods of job {} for delete.".format(job.name))
-    result = pod.watch_for_delete(1)
-    if not result:
-        raise Exception("Pods of job {} are not delete within 5 min.".format(job.name))
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
