@@ -21,6 +21,9 @@ import (
 	"net/http"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -29,6 +32,13 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 )
 
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(corev1.AddToScheme(scheme))
+}
 func parseControllerConfig() {
 	config.ByProcess = process
 	config.Webhook = webhook
@@ -87,39 +97,27 @@ func controllerRun() {
 	// enable mount manager in csi controller
 	if config.MountManager {
 		go func() {
+			ctx := ctrl.SetupSignalHandler()
 			mgr, err := app.NewMountManager()
 			if err != nil {
 				klog.Error(err)
 				return
 			}
-			klog.V(5).Infof("Mount Manager Started")
-			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-				klog.Error(err, "fail to run mount controller")
-				return
-			}
+			mgr.Start(ctx)
 		}()
 	}
 
 	// enable webhook in csi controller
 	if config.Webhook {
-		ctx := ctrl.SetupSignalHandler()
 		go func() {
-			klog.V(5).Infof("Webhook Started")
-			if err := app.StartWebhook(ctx, certDir, webhookPort); err != nil {
-				klog.Error(err, "fail to run webhook")
-				return
-			}
-		}()
-		go func() {
-			mgr, err := app.NewAppManager()
+			ctx := ctrl.SetupSignalHandler()
+			mgr, err := app.NewWebhookManager(certDir, webhookPort)
 			if err != nil {
-				klog.Error(err)
-				return
+				klog.Fatalln(err)
 			}
-			klog.V(5).Infof("App Manager Started")
+
 			if err := mgr.Start(ctx); err != nil {
-				klog.Error(err, "fail to run app controller")
-				return
+				klog.Fatalln(err)
 			}
 		}()
 	}
