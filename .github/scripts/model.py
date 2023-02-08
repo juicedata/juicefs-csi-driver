@@ -339,7 +339,6 @@ class Job:
         )
         job_spec = client.V1JobSpec(
             template=template,
-            selector={"matchLabels": {"deployment": self.name}}
         )
         job = client.V1Job(
             api_version="batch/v1",
