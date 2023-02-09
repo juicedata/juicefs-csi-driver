@@ -86,8 +86,8 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 
 	cmd := []string{}
 	// get prestop
-	if fuseContainer.Lifecycle != nil && fuseContainer.Lifecycle.PreStop != nil && fuseContainer.Lifecycle.PreStop.Exec != nil {
-		cmd = fuseContainer.Lifecycle.PreStop.Exec.Command
+	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
+		return nil
 	}
 
 	klog.Infof("[AppController] exec cmd [%s] in container %s of pod [%s] in [%s]", cmd, config.MountContainerName, pod.Name, pod.Namespace)
@@ -104,9 +104,8 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 			return nil
 		}
 		klog.Errorf("[AppController] error: %v; exec stdout: %s; exec stderr: %s", err, stdout, stderr)
-		return err
 	}
-	return err
+	return
 }
 func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New("app", mgr, controller.Options{Reconciler: a})
@@ -130,22 +129,22 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 			klog.V(6).Infof("[pod.onCreate] pod [%s] in [%s] requeue", pod.Name, pod.Namespace)
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) (needUpdate bool) {
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
 			if !ok {
 				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectNew)
-				return needUpdate
+				return false
 			}
 
 			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
 			if !ok {
 				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectOld)
-				return needUpdate
+				return false
 			}
 
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				klog.V(6).Infof("[pod.onUpdate] Skip due to resourceVersion not changed, pod: [%s] in [%s]", podNew.Name, podNew.Namespace)
-				return needUpdate
+				return false
 			}
 
 			// ignore if it's not fluid label pod
