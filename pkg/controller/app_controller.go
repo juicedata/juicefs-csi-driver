@@ -84,11 +84,12 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 		return
 	}
 
-	cmd := []string{}
 	// get prestop
 	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
+		klog.Infof("[AppController] no prestop in container %s of pod [%s] in [%s]", config.MountContainerName, pod.Name, pod.Namespace)
 		return nil
 	}
+	cmd := fuseContainer.Lifecycle.PreStop.Exec.Command
 
 	klog.Infof("[AppController] exec cmd [%s] in container %s of pod [%s] in [%s]", cmd, config.MountContainerName, pod.Name, pod.Namespace)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
