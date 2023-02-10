@@ -12,12 +12,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import base64
+import time
 
 from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
 from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, LOG, \
-    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs
+    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -302,6 +303,70 @@ class Deployment:
         deploy = client.AppsV1Api().read_namespaced_deployment(name=self.name, namespace=self.namespace)
         self.replicas = deploy.spec.replicas
         return self
+
+
+class Job:
+    def __init__(self, *, name, pvc, out_put=""):
+        self.name = RESOURCE_PREFIX + name
+        self.namespace = "default"
+        self.image = "centos"
+        self.pvc = pvc
+        self.out_put = out_put
+
+    def create(self):
+        cmd = "echo $(date -u) >> /data/out.txt; sleep 10;"
+        if self.out_put != "":
+            cmd = "echo $(date -u) >> /data/{}; sleep 10;".format(self.out_put)
+        container = client.V1Container(
+            name="app",
+            image="centos",
+            command=["/bin/sh"],
+            args=["-c", cmd],
+            volume_mounts=[client.V1VolumeMount(
+                name="juicefs-pv",
+                mount_path="/data",
+            )]
+        )
+        template = client.V1PodTemplateSpec(
+            metadata=client.V1ObjectMeta(labels={"deployment": self.name}),
+            spec=client.V1PodSpec(
+                restart_policy="Never",
+                containers=[container],
+                volumes=[client.V1Volume(
+                    name="juicefs-pv",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
+                )]),
+        )
+        job_spec = client.V1JobSpec(
+            template=template,
+        )
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
+            metadata=client.V1ObjectMeta(name=self.name),
+            spec=job_spec,
+        )
+        client.BatchV1Api().create_namespaced_job(namespace=self.namespace, body=job)
+        JOBs.append(self)
+
+    def watch_for_complete(self):
+        v1 = client.BatchV1Api()
+        for i in range(0, 60):
+            try:
+                job = v1.read_namespaced_job_status(self.name, self.namespace)
+                if job.status.succeeded == 1:
+                    LOG.info("Job {} completed.".format(self.name))
+                    return True
+                if job.status.failed == 1:
+                    raise Exception("Job {} failed.".format(self.name))
+                time.sleep(1)
+            except Exception as e:
+                raise e
+        return False
+
+    def delete(self):
+        client.BatchV1Api().delete_namespaced_job(name=self.name, namespace=self.namespace)
+        JOBs.remove(self)
 
 
 class Pod:

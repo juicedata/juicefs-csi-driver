@@ -274,7 +274,7 @@ func (r *Builder) genCommonContainer() corev1.Container {
 	isPrivileged := true
 	rootUser := int64(0)
 	return corev1.Container{
-		Name:  "jfs-mount",
+		Name:  config.MountContainerName,
 		Image: r.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,

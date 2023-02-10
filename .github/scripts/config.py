@@ -39,6 +39,7 @@ STORAGECLASS_NAME = "ce-juicefs-sc" if IS_CE else "ee-juicefs-sc"
 SECRETs = []
 STORAGECLASSs = []
 DEPLOYMENTs = []
+JOBs = []
 PODS = []
 PVCs = []
 PVs = []
