@@ -82,11 +82,11 @@ Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 Daemonset 组
 kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 
 # Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
-wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/webhook.sh
-chmod +x ./webhook.sh
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
+chmod +x ./juicefs-csi-webhook-install.sh
 
 # 用脚本生成安装文件
-./webhook.sh > juicefs-csi-sidecar.yaml
+./juicefs-csi-webhook-install.sh > juicefs-csi-sidecar.yaml
 
 # 对该文件配置进行梳理，然后安装
 kubectl apply -f ./juicefs-csi-sidecar.yaml

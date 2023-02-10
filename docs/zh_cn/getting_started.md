@@ -9,7 +9,7 @@ title: 安装
 
 ## Helm
 
-相比 kubectl，Helm 允许你将 CSI 驱动作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。
+相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
 
 安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/zh/docs/intro/install)进行安装。
 
@@ -48,7 +48,7 @@ title: 安装
 
 ## kubectl
 
-kubectl 安装方式下，对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者仅仅是想要更加体系化地管理资源，请优先选用 Helm 安装方式。
+kubectl 是较为简单直接的安装方式，如果你只是希望体验和评估 CSI 驱动，推荐这种安装方式，**但在生产环境则不推荐这样安装**：用 kubectl 直接安装的话，意味着后续对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者想要更加体系化地管理资源，请优先选用 [Helm 安装方式](#helm)。
 
 1. 检查 kubelet 根目录
 
