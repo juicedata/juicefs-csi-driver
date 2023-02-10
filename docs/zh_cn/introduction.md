@@ -67,9 +67,41 @@ kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
 
 * [JuiceFS CSI Driver 架构设计详解](https://juicefs.com/zh-cn/blog/engineering/juicefs-csi-driver-arch-design)
 
+## Sidecar 模式 {#sidecar}
+
+Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 Daemonset 组件，如果你的 Kubernetes 集群不支持部署 Daemonset（比如一些云服务商提供的 Kubernetes Serverless 服务），那么 CSI Node 将无法部署，也就与容器挂载模式无缘。
+
+对于这种情况，可以选择使用 JuiceFS CSI 驱动的 Sidecar 模式，让 JuiceFS 客户端运行在 Sidecar 容器中。以 Sidecar 模式安装 CSI 驱动，所部署的组件只有 CSI Controller，不再需要 CSI Node。对于需要使用 CSI 驱动的命名空间，CSI Controller 会监听容器变动，检查是否使用了 JuiceFS PVC，并根据情况为其注入 Sidecar。
+
+![](./images/sidecar-architecture.svg)
+
+以 Sidecar 模式安装 CSI 驱动，步骤稍有不同：
+
+```shell
+# 需要对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+
+# Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/webhook.sh
+chmod +x ./webhook.sh
+
+# 用脚本生成安装文件
+./webhook.sh > juicefs-csi-sidecar.yaml
+
+# 对该文件配置进行梳理，然后安装
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
+
+安装完成之后，我们推荐对生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
+
+使用 Sidecar 模式需要注意：
+
+* 不同于 Mount Pod 的容器挂载方式，Sidecar 容器注入进了应用 Pod，因此将无法进行任何复用，大规模场景下，请尤其注意资源规划和分配。
+* 对于启用了 Sidecar 注入的命名空间，CSI Controller 会监听该命名空间下创建的所有容器，检查 PVC 的使用并查询获取相关信息。如果希望最大程度地减小开销，可以在该命名空间下，对不使用 JuiceFS PV 的应用 Pod 打上 `disable.sidecar.juicefs.com/inject: true` 标签，让 CSI Controller 忽略这些不相关的容器。
+
 ## 进程挂载模式 {#by-process}
 
-相较于采用独立 mount pod 的容器挂载方式，JuiceFS CSI 驱动还提供无需 mount pod 的进程挂载模式，在这种模式下，CSI Node Service 容器中将会负责运行一个或多个 JuiceFS 客户端，该节点上所有需要挂载的 JuiceFS PV，均在 CSI Node Service 容器中以进程模式执行挂载。
+相较于采用独立 Mount Pod 的容器挂载方式，JuiceFS CSI 驱动还提供无需 Mount Pod 的进程挂载模式，在这种模式下，CSI Node Service 容器中将会负责运行一个或多个 JuiceFS 客户端，该节点上所有需要挂载的 JuiceFS PV，均在 CSI Node Service 容器中以进程模式执行挂载。
 
 在 CSI Node Service 和 CSI Controller 的启动参数中添加 `--by-process=true`，就能启用进程挂载模式。
 
