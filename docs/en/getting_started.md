@@ -146,6 +146,9 @@ chmod +x ./juicefs-csi-webhook-install.sh
 
 # Thoroughly check this YAML file, and install
 kubectl apply -f ./juicefs-csi-sidecar.yaml
+
+# Directly install using this command
+./juicefs-csi-webhook-install.sh install
 ```
 
 If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.

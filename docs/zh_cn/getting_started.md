@@ -130,6 +130,9 @@ chmod +x ./juicefs-csi-webhook-install.sh
 
 # 对该文件配置进行梳理，然后安装
 kubectl apply -f ./juicefs-csi-sidecar.yaml
+
+# 也可以用一行命令进行更快速的直接安装
+./juicefs-csi-webhook-install.sh install
 ```
 
 如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
