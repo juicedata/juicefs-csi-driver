@@ -97,9 +97,21 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
 
-## 以 Sidecar 模式安装
+## 以 Sidecar 模式安装 {#sidecar}
 
 ### Helm
+
+在 `values.yaml` 中修改配置：
+
+```YAML title='values.yaml'
+mountMode: sidecar
+```
+
+重新安装，令配置生效：
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
 
 ### kubectl
 
@@ -121,6 +133,26 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 ```
 
 如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
+
+## 以进程挂载模式安装 {#by-process}
+
+### Helm
+
+在 `values.yaml` 中修改配置：
+
+```YAML title='values.yaml'
+mountMode: process
+```
+
+重新安装，令配置生效：
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+在 CSI Node Service 和 CSI Controller 的启动参数中添加 `--by-process=true`，就能启用进程挂载模式。
 
 ## 安装在 ARM64 环境
 

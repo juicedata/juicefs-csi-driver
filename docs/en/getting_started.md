@@ -113,7 +113,62 @@ CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker no
 
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
-## Installing in sidecar mode
+## Installing in sidecar mode {#sidecar}
+
+### Helm
+
+Modify `values.yaml`:
+
+```YAML title='values.yaml'
+mountMode: sidecar
+```
+
+Reinstall to apply:
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+The files used for installation are generated using a script, which isn't ideal for source code management, while making it difficult to upgrade CSI Driver. Please don't install via kubectl in a production environment.
+
+```shell
+# Label all namespaces that need to use JuiceFS CSI Driver
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+
+# Sidecar mode uses local generated certificates, rendered into the YAML files, this is all handled in the installation script
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
+chmod +x ./juicefs-csi-webhook-install.sh
+
+# Generate installation files
+./juicefs-csi-webhook-install.sh > juicefs-csi-sidecar.yaml
+
+# Thoroughly check this YAML file, and install
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
+
+If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.
+
+## Install in by-process mode {#by-process}
+
+### Helm
+
+Modify `values.yaml`:
+
+```YAML title='values.yaml'
+mountMode: process
+```
+
+Reinstall to apply:
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+To enable mount by process, add `--by-process=true` to CSI Node Service and CSI Controller startup command.
 
 ## Installing in ARM64
 
