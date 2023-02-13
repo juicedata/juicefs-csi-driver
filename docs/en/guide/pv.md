@@ -404,7 +404,6 @@ metadata:
 spec:
   mountOptions:
     - cache-size=204800
-    - subdir=/my/sub/dir
   ...
 ```
 
@@ -420,7 +419,6 @@ metadata:
 provisioner: csi.juicefs.com
 mountOptions:
   - cache-size=204800
-  - subdir=/my/sub/dir
 parameters:
   ...
 ```
@@ -441,6 +439,50 @@ mountOptions:
   - writeback_cache
   - debug
 ```
+
+## Mount existing directory in JuiceFS {#mount-existing-dir}
+
+If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
+
+### Static provisioning
+
+Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - subdir=/my/sub/dir
+  ...
+```
+
+Apart from this, you can also achieve this by specifying the directory name using `csi.volumeAttributes.subPath`:
+
+```yaml {9-10}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    volumeAttributes:
+      # Does not support multi-level directory, use only a single root directory name
+      subPath: my-sub-dir
+  ...
+```
+
+Note that `subPath` is considered inflexible and harmful, it doesn't support multi-level directory, and will not work when running cache warmups, or faced with subdirectory permission restrictions. Hence, `subdir` is the more recommended way, and `subPath` should only be used for debugging.
+
+### Dynamic provisioning
+
+Strictly speaking, dynamic provisioning doesn't inherently support mounting a existing directory. But you can [configure subdirectory naming pattern (path pattern)](#using-path-pattern), and align the pattern to match with the existing directory name, to achieve the same result.
 
 ## Use more readable names for PV directory {#using-path-pattern}
 
