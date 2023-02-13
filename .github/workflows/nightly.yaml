@@ -21,6 +21,68 @@ jobs:
         docker image save -o juicefs-csi-driver-nightly.tar juicedata/juicefs-csi-driver:nightly
         sudo microk8s.ctr image import juicefs-csi-driver-nightly.tar
         rm -f juicefs-csi-driver-nightly.tar
+    - name: webhook mode - Deploy JuiceFS CSI
+      run: |
+        export dev_tag=nightly
+        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh webhook
+    - name: webhook mode - Run ce test
+      env:
+        JUICEFS_STORAGE: s3
+        JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+        JUICEFS_ACCESS_KEY: "minioadmin"
+        JUICEFS_SECRET_KEY: "minioadmin"
+        JUICEFS_NAME: "ce-secret"
+        JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+        JUICEFS_MODE: ce
+        MOUNT_MODE: webhook
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-webhook.py
+    - name: webhook mode - Run ee test
+      env:
+        JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+        JUICEFS_STORAGE: s3
+        JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+        JUICEFS_ACCESS_KEY: "minioadmin"
+        JUICEFS_SECRET_KEY: "minioadmin"
+        JUICEFS_NAME: "csi-ci"
+        JUICEFS_META_URL: ""
+        JUICEFS_MODE: "ee"
+        MOUNT_MODE: "webhook"
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-webhook.py
+    - name: webhook provisioner mode - Deploy JuiceFS CSI
+      run: |
+        export dev_tag=nightly
+        ${GITHUB_WORKSPACE}/.github/scripts/deploy-csi-in-k8s.sh webhook-provisioner
+    - name: webhook provisioner mode - Run ce test
+      env:
+        JUICEFS_STORAGE: s3
+        JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+        JUICEFS_ACCESS_KEY: "minioadmin"
+        JUICEFS_SECRET_KEY: "minioadmin"
+        JUICEFS_NAME: "ce-secret"
+        JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+        JUICEFS_MODE: ce
+        MOUNT_MODE: webhook
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-webhook-provisioner.py
+    - name: webhook provisioner mode - Run ee test
+      env:
+        JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+        JUICEFS_STORAGE: s3
+        JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+        JUICEFS_ACCESS_KEY: "minioadmin"
+        JUICEFS_SECRET_KEY: "minioadmin"
+        JUICEFS_NAME: "csi-ci"
+        JUICEFS_META_URL: ""
+        JUICEFS_MODE: "ee"
+        MOUNT_MODE: "webhook"
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        python3 ci-webhook-provisioner.py
     - name: pod mode - Deploy JuiceFS CSI
       run: |
         export dev_tag=nightly
