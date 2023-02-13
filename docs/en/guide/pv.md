@@ -394,7 +394,7 @@ After modifying the mount options, you need to perform a rolling upgrade or rest
 
 ### Static provisioning
 
-```yaml {8-10}
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -411,7 +411,7 @@ spec:
 
 Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
 
-```yaml {6-8}
+```yaml {6-7}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -463,7 +463,7 @@ spec:
 
 Apart from this, you can also achieve this by specifying the directory name using `csi.volumeAttributes.subPath`:
 
-```yaml {9-10}
+```yaml {10-11}
 apiVersion: v1
 kind: PersistentVolume
 metadata:

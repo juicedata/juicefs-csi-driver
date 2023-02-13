@@ -82,7 +82,7 @@ kubectl 是较为简单直接的安装方式，如果你只是希望体验和评
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## 检查部署状态
+## 检查部署状态 {#vefiry-installation}
 
 用下方命令确认 CSI 驱动组件正常运行：
 
@@ -103,7 +103,7 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 在 `values.yaml` 中修改配置：
 
-```YAML title='values.yaml'
+```yaml title='values.yaml'
 mountMode: sidecar
 ```
 
@@ -118,7 +118,7 @@ helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-sys
 考虑到安装文件需要用脚本生成，不便于源码管理、以及未来升级 CSI 驱动时的配置梳理，生产环境不建议用 kubectl 进行安装。
 
 ```shell
-# 需要对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
+# 对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
 kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 
 # Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
@@ -130,8 +130,11 @@ chmod +x ./juicefs-csi-webhook-install.sh
 
 # 对该文件配置进行梳理，然后安装
 kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
 
-# 也可以用一行命令进行更快速的直接安装
+也可以用一行命令进行更快速的直接安装：
+
+```shell
 ./juicefs-csi-webhook-install.sh install
 ```
 
@@ -157,7 +160,7 @@ helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-sys
 
 在 CSI Node Service 和 CSI Controller 的启动参数中添加 `--by-process=true`，就能启用进程挂载模式。
 
-## 安装在 ARM64 环境
+## 安装在 ARM64 环境 {#arm64}
 
 CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
 

@@ -98,7 +98,7 @@ kubectl is the simpler installation method compared to Helm, if you are simply t
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## Verify installation
+## Verify installation {#vefiry-installation}
 
 Verify all CSI components are up and running:
 
@@ -119,7 +119,7 @@ Learn about JuiceFS CSI Driver architecture, and components functionality in [In
 
 Modify `values.yaml`:
 
-```YAML title='values.yaml'
+```yaml title='values.yaml'
 mountMode: sidecar
 ```
 
@@ -146,8 +146,11 @@ chmod +x ./juicefs-csi-webhook-install.sh
 
 # Thoroughly check this YAML file, and install
 kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
 
-# Directly install using this command
+Or directly install using this command:
+
+```shell
 ./juicefs-csi-webhook-install.sh install
 ```
 
@@ -173,7 +176,7 @@ helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-sys
 
 To enable mount by process, add `--by-process=true` to CSI Node Service and CSI Controller startup command.
 
-## Installing in ARM64
+## Installing in ARM64 {#arm64}
 
 From v0.11.1 and above, JuiceFS CSI Driver supports using container images in the ARM64 environment, if you are faced with an ARM64 cluster, you need to change some image tags before installation. No other steps are required for ARM64 environments.
 

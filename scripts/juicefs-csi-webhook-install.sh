@@ -23,9 +23,9 @@ print_usage() {
   echo "    help"
   echo "        Display this help message."
   echo "    install"
-  echo "        Install juicefs csi driver in webhook mode."
+  echo "        Install JuiceFS CSI Driver in webhook mode."
   echo "    print"
-  echo "        Print yamls of juicefs csi driver in webhook mode."
+  echo "        Print YAMLs of JuiceFS CSI Driver in webhook mode."
 }
 
 function gen_webhook_manifests() {

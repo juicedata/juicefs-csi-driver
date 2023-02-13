@@ -69,9 +69,9 @@ kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
 
 ## Sidecar 模式 {#sidecar}
 
-Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组件，如果你的 Kubernetes 集群不支持部署 Daemonset（比如一些云服务商提供的 Kubernetes Serverless 服务），那么 CSI Node 将无法部署，也就与容器挂载模式无缘。
+Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组件，如果你的 Kubernetes 集群不支持部署 DaemonSet（比如一些云服务商提供的 Serverless Kubernetes 服务），那么 CSI Node 将无法部署，也就无法正常使用 JuiceFS CSI 驱动。
 
-对于这种情况，可以选择使用 JuiceFS CSI 驱动的 Sidecar 模式，让 JuiceFS 客户端运行在 Sidecar 容器中。以 Sidecar 模式安装 CSI 驱动，所部署的组件只有 CSI Controller，不再需要 CSI Node。对于需要使用 CSI 驱动的 Kubernetes 命名空间，CSI Controller 会监听容器变动，检查是否使用了 JuiceFS PVC，并根据情况为其注入 Sidecar。
+对于这种情况，可以选择使用 JuiceFS CSI 驱动的 Sidecar 模式，让 JuiceFS 客户端运行在 Sidecar 容器中。以 Sidecar 模式安装 CSI 驱动，所部署的组件只有 CSI Controller，不再需要 CSI Node。对于需要使用 CSI 驱动的 Kubernetes 命名空间，CSI Controller 会监听容器变动，检查是否使用了 JuiceFS PVC，并根据情况为其注入 Sidecar 容器。
 
 ![](./images/sidecar-architecture.svg)
 

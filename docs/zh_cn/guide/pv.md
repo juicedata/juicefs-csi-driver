@@ -461,7 +461,7 @@ spec:
 
 除此外，还可以使用 `csi.volumeAttributes.subPath` 来指定 PV 在 JuiceFS 上的目录名称，例如：
 
-```yaml {9-10}
+```yaml {10-11}
 apiVersion: v1
 kind: PersistentVolume
 metadata:

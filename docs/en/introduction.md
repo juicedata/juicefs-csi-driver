@@ -55,9 +55,9 @@ kube-system   juicefs-host-pvc-xxx   1/1     Running        0            1d
 
 ## Sidecar mode {#sidecar}
 
-Mount pod is created by CSI Node, due to CSI Node being a DaemonSet component, if your Kubernetes cluster does not allow DaemonSets (like some Kubernetes Serverless platform), CSI Node will not be able to install, then mount pod will not be available.
+Mount pod is created by CSI Node, due to CSI Node being a DaemonSet component, if your Kubernetes cluster does not allow DaemonSets (like some Serverless Kubernetes platform), CSI Node will not be able to install, and JuiceFS CSI Driver cannot be used properly.
 
-For situations like this, you can choose to run CSI Driver in Sidecar mode, which runs JuiceFS Client in Sidecar containers. In this mode, CSI Node is no longer needed, only CSI Controller is installed. For Kubernetes namespaces that need to use CSI Driver, CSI Controller will listen for pod changes, check if JuiceFS PVC is used, and inject Sidecar accordingly.
+For situations like this, you can choose to run CSI Driver in Sidecar mode, which runs JuiceFS Client in Sidecar containers. In this mode, CSI Node is no longer needed, only CSI Controller is installed. For Kubernetes namespaces that need to use CSI Driver, CSI Controller will listen for pod changes, check if JuiceFS PVC is used, and inject Sidecar container accordingly.
 
 ![](./images/sidecar-architecture.svg)
 
