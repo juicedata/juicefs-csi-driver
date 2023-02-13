@@ -16,8 +16,8 @@
 #
 
 tmp_file="webhook.yaml"
-tmp_install_script="webhook.sh.bak"
-install_script="scripts/webhook.sh"
+tmp_install_script="juicefs-csi-webhook-install.sh.bak"
+install_script="scripts/juicefs-csi-webhook-install.sh"
 
 cat deploy/webhook.yaml >> $tmp_file
 

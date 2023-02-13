@@ -392,7 +392,7 @@ spec:
 
 ### 静态配置
 
-```yaml {8-10}
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -402,7 +402,6 @@ metadata:
 spec:
   mountOptions:
     - cache-size=204800
-    - subdir=/my/sub/dir
   ...
 ```
 
@@ -410,7 +409,7 @@ spec:
 
 在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
-```yaml {6-8}
+```yaml {6-7}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -418,7 +417,6 @@ metadata:
 provisioner: csi.juicefs.com
 mountOptions:
   - cache-size=204800
-  - subdir=/my/sub/dir
 parameters:
   ...
 ```
@@ -440,6 +438,50 @@ mountOptions:
   - debug
 ```
 
+## 挂载 JuiceFS 中已经存在的目录 {#mount-existing-dir}
+
+如果你在 JuiceFS 文件系统已经存储了大量数据，希望挂载进容器使用，或者希望让多个应用共享同一个 JuiceFS 目录，有以下做法：
+
+### 静态配置
+
+修改[「挂载参数」](#mount-options)，用 `subdir` 参数挂载子目录。如果子目录尚不存在，CSI Controller 会在挂载前自动创建。
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - subdir=/my/sub/dir
+  ...
+```
+
+除此外，还可以使用 `csi.volumeAttributes.subPath` 来指定 PV 在 JuiceFS 上的目录名称，例如：
+
+```yaml {10-11}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    volumeAttributes:
+      # 不支持多级目录，只能填写一个根目录名称
+      subPath: my-sub-dir
+  ...
+```
+
+需要指出的是，调整 `subdir` 挂载参数，是更为推荐的方式。`subPath` 方式灵活性较差，除了不支持多级目录外，在缓存预热场景中，或者子目录存在权限限制，`subPath` 方式均会遭遇错误，此参数多用于 CSI 内部调试，请勿用于生产环境。
+
+### 动态配置
+
+严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
+
 ## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
 在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
@@ -457,7 +499,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#static-provisioning)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#mount-existing-dir)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
