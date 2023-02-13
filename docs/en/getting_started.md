@@ -142,7 +142,7 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod +x ./juicefs-csi-webhook-install.sh
 
 # Generate installation files
-./juicefs-csi-webhook-install.sh > juicefs-csi-sidecar.yaml
+./juicefs-csi-webhook-install.sh print > juicefs-csi-sidecar.yaml
 
 # Thoroughly check this YAML file, and install
 kubectl apply -f ./juicefs-csi-sidecar.yaml
