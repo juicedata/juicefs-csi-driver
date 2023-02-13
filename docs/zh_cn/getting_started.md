@@ -97,7 +97,32 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
 
-## ARM64 注意事项
+## 以 Sidecar 模式安装
+
+### Helm
+
+### kubectl
+
+考虑到安装文件需要用脚本生成，不便于源码管理、以及未来升级 CSI 驱动时的配置梳理，生产环境不建议用 kubectl 进行安装。
+
+```shell
+# 需要对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+
+# Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
+chmod +x ./juicefs-csi-webhook-install.sh
+
+# 用脚本生成安装文件
+./juicefs-csi-webhook-install.sh > juicefs-csi-sidecar.yaml
+
+# 对该文件配置进行梳理，然后安装
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
+
+如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
+
+## 安装在 ARM64 环境
 
 CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
 

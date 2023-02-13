@@ -6,7 +6,7 @@ JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to ins
 
 ## Helm
 
-In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl.
+In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl, but if you are not familiar with Helm, and are simply trying to evaluate CSI Driver, it's OK to [install using kubectl](#kubectl).
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
@@ -64,7 +64,7 @@ It's recommended that you include the CSI Driver Helm chart in the version contr
 
 ## kubectl
 
-If installed using kubectl, any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
+kubectl is the simpler installation method compared to Helm, if you are simply trying to evaluate CSI Driver, this is recommended, **but in a production environment, installing via kubectl is strongly advised against**, because any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
 
 1. Check kubelet root directory
 
@@ -113,7 +113,9 @@ CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker no
 
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
-## ARM64 caveats
+## Installing in sidecar mode
+
+## Installing in ARM64
 
 From v0.11.1 and above, JuiceFS CSI Driver supports using container images in the ARM64 environment, if you are faced with an ARM64 cluster, you need to change some image tags before installation. No other steps are required for ARM64 environments.
 
