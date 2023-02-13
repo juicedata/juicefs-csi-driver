@@ -299,17 +299,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: HOST_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
-        - name: KUBELET_PORT
-          value: "10250"
         - name: JUICEFS_MOUNT_PATH
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.17.5
+        image: juicedata/juicefs-csi-driver:v0.18.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
