@@ -30,22 +30,22 @@ jobs:
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
-            echo "Build juicefs latest image"
+            echo "Build JuiceFS latest image"
             make juicefs-image-latest
           else
-            echo "Juicefs latest image already exist"
+            echo "JuiceFS latest image already exists"
           fi
       - name: Buildx and Push juicefs image
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
-            echo "Build juicefs new version image"
+            echo "Build JuiceFS new version image"
             export DOCKER_CLI_EXPERIMENTAL=enabled
             docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
             docker buildx create --use --name mybuilder
             make juicefs-image-version
           else
-            echo "Juicefs mount version image already exist"
+            echo "JuiceFS mount version image already exists"
           fi
   publish-fuse-image:
     runs-on: ubuntu-latest
@@ -71,11 +71,11 @@ jobs:
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
-            echo "Build juicefs version image"
+            echo "Build JuiceFS version image"
             export DOCKER_CLI_EXPERIMENTAL=enabled
             docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
             docker buildx create --use --name mybuilder
             make fuse-image-version
           else
-            echo "Juicefs fuse version image already exist"
+            echo "JuiceFS FUSE version image already exists"
           fi
