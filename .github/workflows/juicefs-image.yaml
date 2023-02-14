@@ -2,6 +2,8 @@ name: build juicefs image
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
   publish-image:
@@ -12,12 +14,30 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
         run: docker login --username chnliyong --password ${PASSWORD}
+      - name: check latest tag
+        run: |
+          juicefs-image-version
+          JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+          JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
+          docker pull juicedata/mount:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION
+          rst=$?
+          if [ $rst -eq 0 ]; then
+            echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+          else
+            echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
+          fi
       - name: Build and Push juicefs latest image
         run: |
-          make juicefs-image-latest
+          image_exist=${{ env.MOUNT_IMAGE_EXIST }}
+          if [ $image_exist == "false" ]; then
+            make juicefs-image-latest
+          fi
       - name: Buildx and Push juicefs image
         run: |
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
-          docker buildx create --use --name mybuilder
-          make juicefs-image-version
+          image_exist=${{ env.MOUNT_IMAGE_EXIST }}
+          if [ $image_exist == "false" ]; then
+            export DOCKER_CLI_EXPERIMENTAL=enabled
+            docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
+            docker buildx create --use --name mybuilder
+            make juicefs-image-version
+          fi
