@@ -20,12 +20,11 @@ jobs:
           JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
           JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
           echo "mount image is juicedata/mount:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION"
+          echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/mount:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION
           rst=$?
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
-          else
-            echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           fi
       - name: Build and Push juicefs latest image
         run: |
@@ -61,13 +60,12 @@ jobs:
         run: |
           JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
           JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
-          docker pull juicedata/fuse:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION
+          echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           echo "mount image is juicedata/fuse:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION"
+          docker pull juicedata/fuse:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION
           rst=$?
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
-          else
-            echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           fi
       - name: Buildx and Push docker image
         run: |
