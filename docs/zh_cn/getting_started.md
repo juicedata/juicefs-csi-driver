@@ -82,7 +82,7 @@ kubectl 是较为简单直接的安装方式，如果你只是希望体验和评
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## 检查部署状态 {#vefiry-installation}
+## 检查部署状态 {#verify-installation}
 
 用下方命令确认 CSI 驱动组件正常运行：
 

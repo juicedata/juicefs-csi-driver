@@ -98,7 +98,7 @@ kubectl is the simpler installation method compared to Helm, if you are simply t
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## Verify installation {#vefiry-installation}
+## Verify installation {#verify-installation}
 
 Verify all CSI components are up and running:
 
