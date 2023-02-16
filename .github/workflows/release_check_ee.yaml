@@ -21,6 +21,7 @@ jobs:
         env:
           DEV_K8S: microk8s
           JFSCHAN: beta
+          JUICEFS_VERSION: main
         run: |
           cd ${GITHUB_WORKSPACE}
           make juicefs-image-release-check
