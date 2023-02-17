@@ -151,7 +151,11 @@ stringData:
 
 静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
-创建 PersistentVolume（PV）、PersistentVolumeClaim（PVC），字段含义请参考注释：
+静态配置需要用户创建 PV、PVC，在多租户的 Kubernetes 集群中，PV 一般由管理员创建。下图展示了静态配置的使用方式里，各资源之间的关系：
+
+![](../images/static-provisioning.svg)
+
+创建所需的资源定义示范如下，字段含义请参考注释：
 
 ```yaml
 apiVersion: v1
@@ -287,11 +291,11 @@ parameters:
 
 ## 动态配置 {#dynamic-provisioning}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。在多租户 Kubernetes 集群中，StorageClass 一般由管理员创建。下图展示了动态配置下，各资源之间的关系：
 
-### 部署
+![](../images/dynamic-provisioning.svg)
 
-创建 PersistentVolumeClaim（PVC）和示例 pod：
+创建 PVC 和应用 Pod，示范如下：
 
 ```yaml {13}
 kubectl apply -f - <<EOF
