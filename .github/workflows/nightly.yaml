@@ -1,6 +1,7 @@
 name: nightly
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -214,3 +215,4 @@ jobs:
         docker login --username chnliyong --password ${PASSWORD}
         make image-nightly-push
         make juicefs-image-nightly
+        make juicefs-fuse-image-nightly
