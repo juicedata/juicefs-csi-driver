@@ -234,6 +234,14 @@ juicefs-image-nightly:
 		--build-arg=JFS_AUTO_UPGRADE=disabled .
 	docker push $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE)
 
+# build & push juicefs fuse nightly image
+.PHONY: juicefs-fuse-image-nightly
+juicefs-fuse-image-nightly:
+	docker build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):nightly \
+        --build-arg JUICEFS_REPO_REF=main \
+		--build-arg=JFS_AUTO_UPGRADE=disabled .
+	docker push $(REGISTRY)/$(FUSE_IMAGE):nightly
+
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
 	mkdir -p $(@D)
