@@ -12,12 +12,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import base64
+import time
 
 from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
 from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, LOG, \
-    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs
+    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -88,6 +89,10 @@ class StorageClass:
                 "csi.storage.k8s.io/node-publish-secret-namespace": self.secret_namespace,
                 "csi.storage.k8s.io/provisioner-secret-name": self.secret_name,
                 "csi.storage.k8s.io/provisioner-secret-namespace": self.secret_namespace,
+                "juicefs/mount-cpu-limit": "5",
+                "juicefs/mount-memory-limit": "5Gi",
+                "juicefs/mount-cpu-request": "100m",
+                "juicefs/mount-memory-request": "500Mi",
             }
         )
         if self.parameters:
@@ -151,6 +156,13 @@ class PVC:
         pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
         return pv.spec.csi.volume_handle
 
+    def check_is_bound(self):
+        p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+        pv_name = p.spec.volume_name
+        if pv_name is not None and pv_name != "":
+            return True
+        return False
+
 
 class PV:
     def __init__(self, *, name, access_mode, volume_handle, secret_name,
@@ -167,6 +179,15 @@ class PV:
             self.mount_options.extend(options)
 
     def create(self):
+        parameters = {
+            "juicefs/mount-cpu-limit": "5",
+            "juicefs/mount-memory-limit": "5Gi",
+            "juicefs/mount-cpu-request": "100m",
+            "juicefs/mount-memory-request": "500Mi",
+        }
+        if self.parameters is not None:
+            for k, v in self.parameters.items():
+                parameters[k] = v
         spec = client.V1PersistentVolumeSpec(
             access_modes=[self.access_mode],
             capacity={"storage": "10Pi"},
@@ -181,7 +202,7 @@ class PV:
                     name=self.secret_name,
                     namespace=self.secret_namespace
                 ),
-                volume_attributes=self.parameters,
+                volume_attributes=parameters,
             )
         )
         pv = client.V1PersistentVolume(
@@ -284,6 +305,70 @@ class Deployment:
         return self
 
 
+class Job:
+    def __init__(self, *, name, pvc, out_put=""):
+        self.name = RESOURCE_PREFIX + name
+        self.namespace = "default"
+        self.image = "centos"
+        self.pvc = pvc
+        self.out_put = out_put
+
+    def create(self):
+        cmd = "echo $(date -u) >> /data/out.txt; sleep 10;"
+        if self.out_put != "":
+            cmd = "echo $(date -u) >> /data/{}; sleep 10;".format(self.out_put)
+        container = client.V1Container(
+            name="app",
+            image="centos",
+            command=["/bin/sh"],
+            args=["-c", cmd],
+            volume_mounts=[client.V1VolumeMount(
+                name="juicefs-pv",
+                mount_path="/data",
+            )]
+        )
+        template = client.V1PodTemplateSpec(
+            metadata=client.V1ObjectMeta(labels={"deployment": self.name}),
+            spec=client.V1PodSpec(
+                restart_policy="Never",
+                containers=[container],
+                volumes=[client.V1Volume(
+                    name="juicefs-pv",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
+                )]),
+        )
+        job_spec = client.V1JobSpec(
+            template=template,
+        )
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
+            metadata=client.V1ObjectMeta(name=self.name),
+            spec=job_spec,
+        )
+        client.BatchV1Api().create_namespaced_job(namespace=self.namespace, body=job)
+        JOBs.append(self)
+
+    def watch_for_complete(self):
+        v1 = client.BatchV1Api()
+        for i in range(0, 60):
+            try:
+                job = v1.read_namespaced_job_status(self.name, self.namespace)
+                if job.status.succeeded == 1:
+                    LOG.info("Job {} completed.".format(self.name))
+                    return True
+                if job.status.failed == 1:
+                    raise Exception("Job {} failed.".format(self.name))
+                time.sleep(1)
+            except Exception as e:
+                raise e
+        return False
+
+    def delete(self):
+        client.BatchV1Api().delete_namespaced_job(name=self.name, namespace=self.namespace)
+        JOBs.remove(self)
+
+
 class Pod:
     def __init__(self, name, deployment_name, replicas, namespace="default", pvc="", out_put=""):
         self.name = name
@@ -353,6 +438,12 @@ class Pod:
                 else:
                     return True
         return False
+
+    def get_name(self):
+        v1 = client.CoreV1Api()
+        pods = v1.list_namespaced_pod(namespace=self.namespace, label_selector="deployment=" + self.deployment)
+        if len(pods.items) != 0:
+            return pods.items[0].metadata.name
 
     def is_deleted(self):
         try:

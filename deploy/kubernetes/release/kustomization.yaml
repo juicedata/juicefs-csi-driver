@@ -3,4 +3,6 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: kube-system
 resources:
-  - ../base
+- ../base
+patches:
+- webhook-delete.yaml

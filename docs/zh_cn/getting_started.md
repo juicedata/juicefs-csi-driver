@@ -9,9 +9,20 @@ title: 安装
 
 ## Helm
 
-相比 kubectl，Helm 允许你将 CSI 驱动作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。
+相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
 
-安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/docs/intro/install) 进行安装，并确保 `helm` 二进制能在 `PATH` 环境变量中找到。
+安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/zh/docs/intro/install)进行安装。
+
+1. 下载 JuiceFS CSI 驱动的 Helm chart
+
+   ```shell
+   helm repo add juicefs https://juicedata.github.io/charts/
+   helm repo update
+   helm fetch --untar juicefs/juicefs-csi-driver
+   cd juicefs-csi-driver
+   # values.yaml 中包含安装 CSI 驱动的所有配置，安装前可以进行梳理，并按需修改
+   cat values.yaml
+   ```
 
 1. 检查 kubelet 根目录
 
@@ -27,19 +38,17 @@ title: 安装
    kubeletDir: <kubelet-dir>
    ```
 
-2. 部署
-
-   执行以下命令部署 JuiceFS CSI 驱动：
+1. 安装 CSI 驱动：
 
    ```shell
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
+我们推荐将 CSI 驱动的 Helm chart 纳入版本控制系统管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
+
 ## kubectl
 
-kubectl 安装方式下，对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者仅仅是想要更加体系化地管理资源，请优先选用 Helm 安装方式。
+kubectl 是较为简单直接的安装方式，如果你只是希望体验和评估 CSI 驱动，推荐这种安装方式，**但在生产环境则不推荐这样安装**：用 kubectl 直接安装的话，意味着后续对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者想要更加体系化地管理资源，请优先选用 [Helm 安装方式](#helm)。
 
 1. 检查 kubelet 根目录
 
@@ -73,7 +82,7 @@ kubectl 安装方式下，对 CSI 驱动的任何配置修改都需要手动操�
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## 检查部署状态
+## 检查部署状态 {#vefiry-installation}
 
 用下方命令确认 CSI 驱动组件正常运行：
 
@@ -88,7 +97,70 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
 
-## ARM64 注意事项
+## 以 Sidecar 模式安装 {#sidecar}
+
+### Helm
+
+在 `values.yaml` 中修改配置：
+
+```yaml title='values.yaml'
+mountMode: sidecar
+```
+
+重新安装，令配置生效：
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+考虑到安装文件需要用脚本生成，不便于源码管理、以及未来升级 CSI 驱动时的配置梳理，生产环境不建议用 kubectl 进行安装。
+
+```shell
+# 对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+
+# Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
+chmod +x ./juicefs-csi-webhook-install.sh
+
+# 用脚本生成安装文件
+./juicefs-csi-webhook-install.sh print > juicefs-csi-sidecar.yaml
+
+# 对该文件配置进行梳理，然后安装
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
+
+也可以用一行命令进行更快速的直接安装：
+
+```shell
+./juicefs-csi-webhook-install.sh install
+```
+
+如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
+
+## 以进程挂载模式安装 {#by-process}
+
+### Helm
+
+在 `values.yaml` 中修改配置：
+
+```YAML title='values.yaml'
+mountMode: process
+```
+
+重新安装，令配置生效：
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+在 CSI Node Service 和 CSI Controller 的启动参数中添加 `--by-process=true`，就能启用进程挂载模式。
+
+## 安装在 ARM64 环境 {#arm64}
 
 CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果你的集群是 ARM64 架构，需要在执行安装前，更换部分容器镜像，其他安装步骤都相同。
 

@@ -20,18 +20,24 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/url"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 )
 
@@ -289,4 +295,67 @@ func (k *K8sClient) ListPersistentVolumes(ctx context.Context, labelSelector *me
 		return nil, err
 	}
 	return pvList.Items, nil
+}
+
+func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, namespace string) (*corev1.PersistentVolumeClaim, error) {
+	klog.V(6).Infof("Get pvc %s in namespace %s", pvcName, namespace)
+	mntPod, err := k.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get pvc %s in namespace %s : %v", pvcName, namespace, err)
+		return nil, err
+	}
+	return mntPod, nil
+}
+
+func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
+	klog.V(6).Infof("Get sc %s", scName)
+	mntPod, err := k.StorageV1().StorageClasses().Get(ctx, scName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get sc %s : %v", scName, err)
+		return nil, err
+	}
+	return mntPod, nil
+}
+
+func (k *K8sClient) ExecuteInContainer(podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+	klog.V(6).Infof("Execute command %v in container %s in pod %s in namespace %s", cmd, containerName, podName, namespace)
+	const tty = false
+
+	req := k.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		Param("container", containerName)
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: containerName,
+		Command:   cmd,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       tty,
+	}, scheme.ParameterCodec)
+
+	var sout, serr bytes.Buffer
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return "", "", err
+	}
+	config.Timeout = timeout
+	err = execute("POST", req.URL(), config, nil, &sout, &serr, tty)
+
+	return strings.TrimSpace(sout.String()), strings.TrimSpace(serr.String()), err
+}
+
+func execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
+	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
+	if err != nil {
+		return err
+	}
+	return exec.Stream(remotecommand.StreamOptions{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+		Tty:    tty,
+	})
 }

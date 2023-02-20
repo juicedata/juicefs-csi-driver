@@ -506,3 +506,48 @@ func TestStripReadonlyOption(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckExpectValue(t *testing.T) {
+	type args struct {
+		m           map[string]string
+		key         string
+		targetValue string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-true",
+			args: args{
+				m: map[string]string{
+					"a": "b",
+					"c": "d",
+				},
+				key:         "a",
+				targetValue: "b",
+			},
+			want: true,
+		},
+		{
+			name: "test-false",
+			args: args{
+				m: map[string]string{
+					"a": "b",
+					"c": "d",
+				},
+				key:         "a",
+				targetValue: "c",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CheckExpectValue(tt.args.m, tt.args.key, tt.args.targetValue); got != tt.want {
+				t.Errorf("CheckExpectValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

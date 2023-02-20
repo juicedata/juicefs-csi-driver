@@ -11,7 +11,10 @@ sidebar_position: 1
 * 对于云服务而言，「认证信息」包含文件系统名称、Token、对象存储密钥，以及 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#auth) 命令所支持的其他参数。
 
 :::note 注意
-如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
+
+* 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
+* 修改了文件系统认证信息后，还需要滚动升级或重启应用 Pod，CSI 驱动重新创建 Mount Pod，配置变更方能生效。
+
 :::
 
 ### 社区版 {#community-edition}
@@ -383,9 +386,13 @@ spec:
 
 「挂载参数」，也就是 `juicefs mount` 命令所接受的参数，可以用于调整挂载配置。你需要通过 `mountOptions` 字段填写需要调整的挂载配置，在静态配置和动态配置下填写的位置不同，见下方示范。
 
+:::note 注意
+修改了挂载参数后，还需要滚动升级或重启应用 Pod，CSI 驱动重新创建 Mount Pod，配置变更方能生效。
+:::
+
 ### 静态配置
 
-```yaml {8-10}
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -395,7 +402,6 @@ metadata:
 spec:
   mountOptions:
     - cache-size=204800
-    - subdir=/my/sub/dir
   ...
 ```
 
@@ -403,7 +409,7 @@ spec:
 
 在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
-```yaml {6-8}
+```yaml {6-7}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -411,7 +417,6 @@ metadata:
 provisioner: csi.juicefs.com
 mountOptions:
   - cache-size=204800
-  - subdir=/my/sub/dir
 parameters:
   ...
 ```
@@ -433,6 +438,50 @@ mountOptions:
   - debug
 ```
 
+## 挂载 JuiceFS 中已经存在的目录 {#mount-existing-dir}
+
+如果你在 JuiceFS 文件系统已经存储了大量数据，希望挂载进容器使用，或者希望让多个应用共享同一个 JuiceFS 目录，有以下做法：
+
+### 静态配置
+
+修改[「挂载参数」](#mount-options)，用 `subdir` 参数挂载子目录。如果子目录尚不存在，CSI Controller 会在挂载前自动创建。
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - subdir=/my/sub/dir
+  ...
+```
+
+除此外，还可以使用 `csi.volumeAttributes.subPath` 来指定 PV 在 JuiceFS 上的目录名称，例如：
+
+```yaml {10-11}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    volumeAttributes:
+      # 不支持多级目录，只能填写一个根目录名称
+      subPath: my-sub-dir
+  ...
+```
+
+需要指出的是，调整 `subdir` 挂载参数，是更为推荐的方式。`subPath` 方式灵活性较差，除了不支持多级目录外，在缓存预热场景中，或者子目录存在权限限制，`subPath` 方式均会遭遇错误，此参数多用于 CSI 内部调试，请勿用于生产环境。
+
+### 动态配置
+
+严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
+
 ## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
 在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
@@ -449,6 +498,8 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
+
+如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#mount-existing-dir)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
@@ -570,7 +621,7 @@ JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 
 挂载点自动恢复后，已经打开的文件无法继续访问，请在应用程序中做好重试，重新打开文件，避免异常。
 :::
 
-启用自动恢复，需要在应用 Pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载传播给 Pod：
+启用自动恢复，需要在应用 Pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载传播给 Pod。这样一来，Mount Pod 重启后，宿主机上的挂载点被重新挂载，然后 CSI 驱动将会在容器挂载路径上重新执行一次 mount bind。
 
 ```yaml {12-18}
 apiVersion: apps/v1

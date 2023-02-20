@@ -19,3 +19,4 @@ cov2.out
 /node_modules
 .yalc/
 yalc.lock
+.ropeproject

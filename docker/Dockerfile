@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
-COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /bin/
+COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
@@ -61,4 +61,4 @@ COPY THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 
-ENTRYPOINT ["/tini", "--", "/bin/juicefs-csi-driver"]
+ENTRYPOINT ["/tini", "--", "juicefs-csi-driver"]

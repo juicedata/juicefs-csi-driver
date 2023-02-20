@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -121,6 +122,18 @@ func (r *Builder) getVolumes() []corev1.Volume {
 			},
 		})
 	}
+	if config.Webhook {
+		var mode int32 = 0755
+		volumes = append(volumes, corev1.Volume{
+			Name: "jfs-check-mount",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  secretName,
+					DefaultMode: utilpointer.Int32Ptr(mode),
+				},
+			},
+		})
+	}
 	if r.jfsSetting.InitConfig != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "init-config",
@@ -173,6 +186,13 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 			},
 		)
 	}
+	if config.Webhook {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "jfs-check-mount",
+			MountPath: checkMountScriptPath,
+			SubPath:   checkMountScriptName,
+		})
+	}
 	return volumeMounts
 }
 
@@ -204,7 +224,7 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: config.Namespace,
+			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
 				config.PodTypeKey: config.PodTypeValue,
 			},
@@ -224,7 +244,6 @@ func (r *Builder) generateCleanCachePod() *corev1.Pod {
 }
 
 func (r *Builder) generatePodTemplate() *corev1.Pod {
-	isPrivileged := true
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: r.jfsSetting.Attr.Namespace,
@@ -235,14 +254,7 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:  "jfs-mount",
-				Image: r.jfsSetting.Attr.Image,
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &isPrivileged,
-				},
-				Env: []corev1.EnvVar{},
-			}},
+			Containers:         []corev1.Container{r.genCommonContainer()},
 			NodeName:           config.NodeName,
 			HostNetwork:        r.jfsSetting.Attr.HostNetwork,
 			HostAliases:        r.jfsSetting.Attr.HostAliases,
@@ -255,5 +267,19 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 			PreemptionPolicy:   r.jfsSetting.Attr.PreemptionPolicy,
 			Tolerations:        r.jfsSetting.Attr.Tolerations,
 		},
+	}
+}
+
+func (r *Builder) genCommonContainer() corev1.Container {
+	isPrivileged := true
+	rootUser := int64(0)
+	return corev1.Container{
+		Name:  config.MountContainerName,
+		Image: r.jfsSetting.Attr.Image,
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &isPrivileged,
+			RunAsUser:  &rootUser,
+		},
+		Env: []corev1.EnvVar{},
 	}
 }

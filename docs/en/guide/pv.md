@@ -11,7 +11,10 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 * For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
 :::note
-If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+
+* If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+
 :::
 
 ### Community edition {#community-edition}
@@ -385,9 +388,13 @@ As for reclaim policy, generic ephemeral volume works the same as dynamic provis
 
 Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.
 
+:::note
+After modifying the mount options, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+:::
+
 ### Static provisioning
 
-```yaml {8-10}
+```yaml {8-9}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -397,7 +404,6 @@ metadata:
 spec:
   mountOptions:
     - cache-size=204800
-    - subdir=/my/sub/dir
   ...
 ```
 
@@ -405,7 +411,7 @@ spec:
 
 Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
 
-```yaml {6-8}
+```yaml {6-7}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -413,7 +419,6 @@ metadata:
 provisioner: csi.juicefs.com
 mountOptions:
   - cache-size=204800
-  - subdir=/my/sub/dir
 parameters:
   ...
 ```
@@ -435,6 +440,50 @@ mountOptions:
   - debug
 ```
 
+## Mount existing directory in JuiceFS {#mount-existing-dir}
+
+If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
+
+### Static provisioning
+
+Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - subdir=/my/sub/dir
+  ...
+```
+
+Apart from this, you can also achieve this by specifying the directory name using `csi.volumeAttributes.subPath`:
+
+```yaml {10-11}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    volumeAttributes:
+      # Does not support multi-level directory, use only a single root directory name
+      subPath: my-sub-dir
+  ...
+```
+
+Note that `subPath` is considered inflexible and harmful, it doesn't support multi-level directory, and will not work when running cache warmups, or faced with subdirectory permission restrictions. Hence, `subdir` is the more recommended way, and `subPath` should only be used for debugging.
+
+### Dynamic provisioning
+
+Strictly speaking, dynamic provisioning doesn't inherently support mounting a existing directory. But you can [configure subdirectory naming pattern (path pattern)](#using-path-pattern), and align the pattern to match with the existing directory name, to achieve the same result.
+
 ## Use more readable names for PV directory {#using-path-pattern}
 
 Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
@@ -451,6 +500,8 @@ From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the
 $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
+
+Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#static-provisioning) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
 
 This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning. Follow below steps to enable `pathPattern`.
 
@@ -572,7 +623,7 @@ JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when m
 Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
 :::
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod:
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when mount pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1

@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	config "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	juicefs "github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	mount "k8s.io/utils/mount"
 )
@@ -193,6 +194,21 @@ func (m *MockInterface) MountSensitive(arg0, arg1, arg2 string, arg3, arg4 []str
 func (mr *MockInterfaceMockRecorder) MountSensitive(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MountSensitive", reflect.TypeOf((*MockInterface)(nil).MountSensitive), arg0, arg1, arg2, arg3, arg4)
+}
+
+// Settings mocks base method.
+func (m *MockInterface) Settings(arg0 context.Context, arg1 string, arg2, arg3 map[string]string, arg4 []string) (*config.JfsSetting, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Settings", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(*config.JfsSetting)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Settings indicates an expected call of Settings.
+func (mr *MockInterfaceMockRecorder) Settings(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Settings", reflect.TypeOf((*MockInterface)(nil).Settings), arg0, arg1, arg2, arg3, arg4)
 }
 
 // Unmount mocks base method.

@@ -6,11 +6,22 @@ JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to ins
 
 ## Helm
 
-In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl.
+In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl, but if you are not familiar with Helm, and are simply trying to evaluate CSI Driver, it's OK to [install using kubectl](#kubectl).
 
 Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources.
 
-Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install) and ensure that the `helm` binary is in the `PATH` environment variable.
+Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install).
+
+1. Download the Helm chart for JuiceFS CSI Driver
+
+   ```shell
+   helm repo add juicefs https://juicedata.github.io/charts/
+   helm repo update
+   helm fetch --untar juicefs/juicefs-csi-driver
+   cd juicefs-csi-driver
+   # Installation configurations is included in values.yaml, review this file and modify to your needs
+   cat values.yaml
+   ```
 
 1. Check kubelet root directory
 
@@ -26,7 +37,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    kubeletDir: <kubelet-dir>
    ```
 
-2. Deploy
+1. Deploy
 
    Execute below commands to deploy JuiceFS CSI Driver:
 
@@ -36,7 +47,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
    ```
 
-3. Verify installation
+1. Verify installation
 
    Verify all CSI Driver components are running:
 
@@ -49,9 +60,11 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
    Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
 
+It's recommended that you include the CSI Driver Helm chart in the version control system, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
+
 ## kubectl
 
-If installed using kubectl, any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
+kubectl is the simpler installation method compared to Helm, if you are simply trying to evaluate CSI Driver, this is recommended, **but in a production environment, installing via kubectl is strongly advised against**, because any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
 
 1. Check kubelet root directory
 
@@ -85,7 +98,7 @@ If installed using kubectl, any configuration changes require manual editing, an
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## Verify installation
+## Verify installation {#vefiry-installation}
 
 Verify all CSI components are up and running:
 
@@ -100,7 +113,70 @@ CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker no
 
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
-## ARM64 caveats
+## Installing in sidecar mode {#sidecar}
+
+### Helm
+
+Modify `values.yaml`:
+
+```yaml title='values.yaml'
+mountMode: sidecar
+```
+
+Reinstall to apply:
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+The files used for installation are generated using a script, which isn't ideal for source code management, while making it difficult to upgrade CSI Driver. Please don't install via kubectl in a production environment.
+
+```shell
+# Label all namespaces that need to use JuiceFS CSI Driver
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+
+# Sidecar mode uses local generated certificates, rendered into the YAML files, this is all handled in the installation script
+wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
+chmod +x ./juicefs-csi-webhook-install.sh
+
+# Generate installation files
+./juicefs-csi-webhook-install.sh print > juicefs-csi-sidecar.yaml
+
+# Thoroughly check this YAML file, and install
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+```
+
+Or directly install using this command:
+
+```shell
+./juicefs-csi-webhook-install.sh install
+```
+
+If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.
+
+## Install in by-process mode {#by-process}
+
+### Helm
+
+Modify `values.yaml`:
+
+```YAML title='values.yaml'
+mountMode: process
+```
+
+Reinstall to apply:
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+### kubectl
+
+To enable mount by process, add `--by-process=true` to CSI Node Service and CSI Controller startup command.
+
+## Installing in ARM64 {#arm64}
 
 From v0.11.1 and above, JuiceFS CSI Driver supports using container images in the ARM64 environment, if you are faced with an ARM64 cluster, you need to change some image tags before installation. No other steps are required for ARM64 environments.
 

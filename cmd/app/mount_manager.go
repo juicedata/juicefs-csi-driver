@@ -17,6 +17,8 @@
 package app
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,14 +40,20 @@ func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 }
 
-func NewMountManager() (ctrl.Manager, error) {
+type MountManager struct {
+	mgr    ctrl.Manager
+	client *k8sclient.K8sClient
+}
+
+func NewMountManager() (*MountManager, error) {
 	conf, err := ctrl.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme: scheme,
-		Port:   9443,
+		Scheme:             scheme,
+		Port:               9443,
+		MetricsBindAddress: "0.0.0.0:8083",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
@@ -67,10 +75,21 @@ func NewMountManager() (ctrl.Manager, error) {
 		return nil, err
 	}
 
+	return &MountManager{
+		mgr:    mgr,
+		client: k8sClient,
+	}, err
+}
+
+func (m *MountManager) Start(ctx context.Context) {
 	// init Reconciler（Controller）
-	if err = (mountctrl.NewMountController(k8sClient)).SetupWithManager(mgr); err != nil {
-		klog.Errorf("Setup mount controller error: %v", err)
-		return nil, err
+	if err := (mountctrl.NewMountController(m.client)).SetupWithManager(m.mgr); err != nil {
+		klog.Errorf("Register mount controller error: %v", err)
+		return
 	}
-	return mgr, err
+	klog.Info("Mount manager started.")
+	if err := m.mgr.Start(ctx); err != nil {
+		klog.Errorf("Mount manager start error: %v", err)
+		return
+	}
 }

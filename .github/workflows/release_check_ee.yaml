@@ -21,11 +21,54 @@ jobs:
         env:
           DEV_K8S: microk8s
           JFSCHAN: beta
+          JUICEFS_VERSION: main
         run: |
           cd ${GITHUB_WORKSPACE}
           make juicefs-image-release-check
           make image-release-check
           make image-release-check-push
+      - name: webhook mode - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh webhook
+      - name: webhook mode - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "webhook"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook.py
+      - name: webhook provisioner mode - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh webhook-provisioner
+      - name: webhook provisioner mode - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "webhook"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook-provisioner.py
       - name: pod mode - Deploy JuiceFS CSI for pod mode
         run: |
           cd ${GITHUB_WORKSPACE}

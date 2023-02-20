@@ -17,18 +17,25 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
-脚本可用来方便地获取 Mount Pod 相关信息。假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`：
+诊断脚本中最为常用的功能，就是方便地获取 Mount Pod 相关信息。假设应用 Pod 为 `default` 命名空间下的 `my-app-pod`：
 
 ```shell
 # 获取指定应用 Pod 所用的 Mount Pod
-$ ./csi-doctor.sh get-mount dynamic-ce-1
+$ ./csi-doctor.sh get-mount my-app-pod
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 
 # 获取使用指定 Mount Pod 的所有应用 Pod
-$ ./csi-doctor.sh get-app juicefs-ubuntu-node-3-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-octdjc
-default dynamic-ce-5
-default dynamic-ce-2
+$ ./csi-doctor.sh get-app juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
+default my-app-pod
 ```
+
+在你熟读了[「基础问题排查原则」](#basic-principles)后，还可以使用 `csi-doctor.sh debug` 命令，来快速收集组件版本和日志信息。各类常见问题，均能在命令输出中找到排查线索：
+
+```shell
+./csi-doctor.sh debug my-app-pod -n default
+```
+
+运行上方命令，检查打印出来的丰富排查信息，用下方介绍的排查原则来进行诊断。同时，该命令控制输出内容的规模，你可以根据所使用的 JuiceFS 版本，方便地拷贝并发送给开源社区，或者 Juicedata 团队，进行后续排查。
 
 ## 基础问题排查原则 {#basic-principles}
 
@@ -120,7 +127,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 如果 CSI Node 一切正常，则需要检查 Mount Pod 是否存在异常。
 
-通过应用 pod 定位到 mount pod 的步骤稍显繁琐，因此我们准备了一系列快捷命令，帮你方便地获取信息：
+你可以方便地通过[诊断脚本](#csi-doctor)来定位到 Mount Pod，如果你需要脱离脚本、直接用 kubectl 进行排查，我们也准备了一系列快捷命令，帮你方便地获取信息：
 
 ```shell
 # 如果情况不复杂，可以直接用下方命令打印所有 mount pod 错误日志
@@ -169,6 +176,11 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
+如果你需要在 Mount Pod 中使用 JuiceFS 客户端，请注意容器中同时含有社区版和云服务客户端，需要通过绝对路径来选择特定的客户端：
+
+* `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
+* `/usr/bin/juicefs`：云服务 JuiceFS 客户端
+
 ### 性能问题
 
 如果使用 CSI 驱动时，各组件均无异常，但却遇到了性能问题，则需要用到本节介绍的排查方法。
@@ -212,25 +224,11 @@ cat .stats
 
 如果自行排查无果，可能需要寻求社区，或者 Juicedata 团队帮助，这时需要你先行采集一些信息，帮助后续的分析排查。
 
-### 查看 JuiceFS CSI 驱动版本
-
-通过以下命令获取当前版本：
+使用[诊断脚本](#csi-doctor)的 `collect` 来打包收集信息，假设应用 Pod 为 `default` 命名空间下的 `my-app-pod`：
 
 ```shell
-kubectl -n kube-system get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
-```
-
-以上命令会有类似 `juicedata/juicefs-csi-driver:v0.17.1` 这样的输出，最后的 `v0.17.1` 即为 JuiceFS CSI 驱动的版本。
-
-### 通过诊断脚本收集信息 {#gather-information-through-diagnostic-script}
-
-可以使用[诊断脚本](#csi-doctor)来收集日志及相关信息，发送给开源社区或者 Juicedata 团队进行排查支持。
-
-假设应用 pod 名为 `dynamic-ce-1`，所在 namespace 为 `default`，用下方命令收集排查信息：
-
-```shell
-$ ./csi-doctor.sh collect dynamic-ce-1 -n default
-Results have been compressed to dynamic-ce-1.diagnose.tar.gz
+$ ./csi-doctor.sh collect my-app-pod -n default
+Results have been compressed to my-app-pod.diagnose.tar.gz
 ```
 
 所有相关的 Kubernetes 资源、日志、事件都被收集和打包在了一个压缩包里，然后将此压缩包发送给相关人员。

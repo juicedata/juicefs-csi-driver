@@ -10,6 +10,8 @@ on:
       - '**.go'
       - '**.py'
       - '**.sh'
+      - '**.mod'
+      - '**.sum'
   pull_request:
     branches:
       - master
@@ -19,6 +21,8 @@ on:
       - '**.go'
       - '**.py'
       - '**.sh'
+      - '**.mod'
+      - '**.sum'
   workflow_dispatch:
     inputs:
       debug:
@@ -68,6 +72,74 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           make image-dev
           make push-dev
+      - name: webhook mode - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh webhook
+      - name: webhook mode - Run ce test
+        env:
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: ce
+          MOUNT_MODE: webhook
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook.py
+      - name: webhook mode - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "webhook"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook.py
+      - name: webhook provisioner mode - Deploy JuiceFS CSI
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh webhook-provisioner
+      - name: webhook provisioner mode - Run ce test
+        env:
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: ce
+          MOUNT_MODE: webhook
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook-provisioner.py
+      - name: webhook provisioner mode - Run ee test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          MOUNT_MODE: "webhook"
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 ci-webhook-provisioner.py
       - name: pod mode - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -205,6 +277,6 @@ jobs:
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-process.py
       - name: Setup upterm session
-        if: ${{ failure() && github.event_name == 'workflow_dispatch' && github.event.inputs.debug }}
-        timeout-minutes: 1
+        if: ${{ failure() }}
+        timeout-minutes: 60
         uses: lhotari/action-upterm@v1
