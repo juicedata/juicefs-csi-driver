@@ -215,7 +215,7 @@ func (r *Builder) getInitContainer() corev1.Container {
 }
 
 func (r *Builder) getMetricsPort() int32 {
-	port := 9567
+	port := int64(9567)
 	options := r.jfsSetting.Options
 
 	for _, option := range options {
@@ -223,7 +223,7 @@ func (r *Builder) getMetricsPort() int32 {
 			re := regexp.MustCompile(`metrics=.*:([0-9]{1,6})`)
 			match := re.FindStringSubmatch(option)
 			if len(match) > 0 {
-				port, _ = strconv.Atoi(match[1])
+				port, _ = strconv.ParseInt(match[1], 10, 32)
 			}
 		}
 	}

@@ -454,3 +454,46 @@ func TestPodMount_getCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestPodMount_getMetricsPort(t *testing.T) {
+	type args struct {
+		options []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int32
+	}{
+		{
+			name: "test-metrics",
+			args: args{},
+			want: int32(9567),
+		},
+		{
+			name: "test-metrics-port",
+			args: args{
+				options: []string{"metrics=0.0.0.0:9999"},
+			},
+			want: int32(9999),
+		},
+		{
+			name: "test-metrics-port-string",
+			args: args{
+				options: []string{"metrics=0.0.0.0:foo"},
+			},
+			want: int32(9567),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jfsSetting := &config.JfsSetting{
+				Name:    tt.name,
+				Options: tt.args.options,
+			}
+			r := Builder{jfsSetting}
+			if got := r.getMetricsPort(); got != tt.want {
+				t.Errorf("getMetricsPort() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
