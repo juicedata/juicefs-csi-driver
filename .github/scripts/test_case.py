@@ -1289,8 +1289,8 @@ def test_share_mount():
 
 def test_path_pattern_in_storage_class():
     LOG.info("[test case] Path pattern in storageClass begin..")
-    label_value = "def"
-    anno_value = "xyz"
+    label_value = gen_random_string(3)
+    anno_value = gen_random_string(3)
     # deploy sc
     sc_name = "path-pattern-dynamic"
     sc = StorageClass(
@@ -1366,8 +1366,8 @@ def test_path_pattern_in_storage_class():
 
 def test_dynamic_pvc_delete_with_path_pattern():
     LOG.info("[test case] delete pvc with path pattern in storageClass begin..")
-    label_value = "def"
-    anno_value = "xyz"
+    label_value = gen_random_string(3)
+    anno_value = gen_random_string(3)
     # deploy sc
     sc_name = "delete-pvc-path-pattern-dynamic"
     sc = StorageClass(
@@ -1743,8 +1743,8 @@ def test_deployment_static_patch_pv_with_webhook():
 
 def test_dynamic_pvc_delete_not_last_with_path_pattern():
     LOG.info("[test case] delete pvc with path pattern not last in storageClass begin..")
-    label_value = "def"
-    anno_value = "xyz"
+    label_value = gen_random_string(3)
+    anno_value = gen_random_string(3)
     # deploy sc
     sc_name = "delete-pvc-path-pattern-dynamic-not-last"
     sc = StorageClass(
