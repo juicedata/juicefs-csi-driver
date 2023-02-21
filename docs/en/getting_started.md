@@ -113,6 +113,10 @@ CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker no
 
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
+## On-premise
+
+No special steps is required to install CSI Driver in an on-premise environment, however, you'll need to specify the Web Console address in [volume credentials](./guide/pv.md#volume-credentials), within the `envs` field.
+
 ## Installing in sidecar mode {#sidecar}
 
 ### Helm

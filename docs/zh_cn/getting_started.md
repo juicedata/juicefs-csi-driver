@@ -97,6 +97,10 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
 
+## 私有部署
+
+在私有部署下，CSI 驱动的安装并没有特殊步骤。不过请注意，由于使用私有部署控制台，你需要在[「文件系统认证信息」](./guide/pv.md#enterprise-edition)中需要填写 `envs` 字段，指定私有部署的控制台地址。
+
 ## 以 Sidecar 模式安装 {#sidecar}
 
 ### Helm
