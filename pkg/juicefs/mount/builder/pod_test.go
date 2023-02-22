@@ -120,6 +120,12 @@ var (
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s && rmdir %s", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
 					},
 				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "metrics",
+						ContainerPort: 9567,
+					},
+				},
 			}},
 			TerminationGracePeriodSeconds: &gracePeriod,
 			RestartPolicy:                 corev1.RestartPolicyAlways,
@@ -266,6 +272,15 @@ func TestNewMountPod(t *testing.T) {
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
 	podCacheTest.Spec.Volumes = append(podCacheTest.Spec.Volumes, cacheVolumes...)
 	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
+
+	podMetricTest := corev1.Pod{}
+	cmdWithMetrics := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9999`
+	deepcopyPodFromDefault(&podMetricTest)
+	podMetricTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithMetrics}
+	podMetricTest.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{Name: "metrics", ContainerPort: 9999},
+	}
+
 	type args struct {
 		name           string
 		cmd            string
@@ -343,6 +358,16 @@ func TestNewMountPod(t *testing.T) {
 				env:       map[string]string{"a": "b"},
 			},
 			want: podEnvTest,
+		},
+		{
+			name: "test-metrics",
+			args: args{
+				name:      "test",
+				cmd:       defaultCmd,
+				mountPath: defaultMountPath,
+				options:   []string{"metrics=0.0.0.0:9999"},
+			},
+			want: podMetricTest,
 		},
 	}
 	for _, tt := range tests {
@@ -425,6 +450,49 @@ func TestPodMount_getCommand(t *testing.T) {
 			r := Builder{jfsSetting}
 			if got := r.getCommand(); got != tt.want {
 				t.Errorf("getCommand() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPodMount_getMetricsPort(t *testing.T) {
+	type args struct {
+		options []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want int32
+	}{
+		{
+			name: "test-metrics",
+			args: args{},
+			want: int32(9567),
+		},
+		{
+			name: "test-metrics-port",
+			args: args{
+				options: []string{"metrics=0.0.0.0:9999"},
+			},
+			want: int32(9999),
+		},
+		{
+			name: "test-metrics-port-string",
+			args: args{
+				options: []string{"metrics=0.0.0.0:foo"},
+			},
+			want: int32(9567),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jfsSetting := &config.JfsSetting{
+				Name:    tt.name,
+				Options: tt.args.options,
+			}
+			r := Builder{jfsSetting}
+			if got := r.getMetricsPort(); got != tt.want {
+				t.Errorf("getMetricsPort() = %v, want %v", got, tt.want)
 			}
 		})
 	}
