@@ -58,19 +58,17 @@ Before continue, you should have already [created a file system](https://juicefs
 
 Create Kubernetes Secret:
 
-```yaml {7-16}
+```yaml {7-14}
 apiVersion: v1
 kind: Secret
 metadata:
   name: juicefs-secret
 type: Opaque
 stringData:
-  name: <JUICEFS_NAME>
-  metaurl: <META_URL>
-  storage: s3
-  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
-  access-key: <ACCESS_KEY>
-  secret-key: <SECRET_KEY>
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
   # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
