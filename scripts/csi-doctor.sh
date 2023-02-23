@@ -60,6 +60,8 @@ juicefs_resources() {
   kubectl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
 }
 
+SHOULD_CHECK_CSI_CONRTROLLER=''
+
 debug_app_pod() {
   if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
     echo "EXAMPLES:"
@@ -102,11 +104,16 @@ debug_app_pod() {
       done
     fi
   done
+  if [ "$SHOULD_CHECK_CSI_CONRTROLLER" == "true" ]; then
+    echo "## CSI Controller Log: $SHOULD_CHECK_CSI_CONRTROLLER"
+    kubectl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 20 -c juicefs-plugin
+  fi
   if [ "$NODE_NAME" != "" ]; then
     CSI_NODE_POD_NAME=$(kubectl get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
-  fi
-  if [ "$CSI_NODE_POD_NAME" != "" ]; then
-    kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME -c juicefs-plugin --tail 1000 | grep -v "^I" | tail -n 30
+    if [ "$CSI_NODE_POD_NAME" != "" ]; then
+      echo "## CSI Node Log: $CSI_NODE_POD_NAME"
+      kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME -c juicefs-plugin --tail 20
+    fi
   fi
 }
 
@@ -115,6 +122,7 @@ debug_pvc() {
   pvc_phase=$(kubectl -n $namespace get pvc $pvc_name -ojsonpath={..phase})
   if [ "$pvc_phase" != "Bound" ]; then
     echo "## PVC Event: $pvc_name"
+    SHOULD_CHECK_CSI_CONRTROLLER=true
     kubectl get event -n $namespace --field-selector involvedObject.name=$pvc_name
   fi
 }
