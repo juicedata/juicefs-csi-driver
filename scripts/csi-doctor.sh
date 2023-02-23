@@ -76,24 +76,30 @@ debug_app_pod() {
   kubectl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
   PVC_NAMES=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
   NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  set -x
+  app_pod_uid=$(kubectl -n $namespace get po $app -o jsonpath='{.metadata.uid}')
   for pvc_name in $PVC_NAMES
   do
     debug_pvc $pvc_name
     pv_name=$(kubectl -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
     pv_id=$(kubectl get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
     if [ "$NODE_NAME" != "" ]; then
-      mount_pod_name=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
-      if [ "$mount_pod_name" != "" ]; then
-        echo "## Mount Pod Image: $mount_pod_name"
-        kubectl -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}'
-        echo ''
-        echo "## Mount Pod Event: $mount_pod_name"
-        kubectl get event -n $namespace --field-selector involvedObject.name=$mount_pod_name,type!=Normal
-        # TODO: handle multiple mount_pod_name
-        echo "## Mount Pod Log: $mount_pod_name"
-        kubectl -n $juicefs_namespace logs $mount_pod_name --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
-      fi
+      mount_pod_names=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
+      for mount_pod_name in $mount_pod_names
+      do
+        annos=$(kubectl -n $juicefs_namespace get po $mount_pod_name -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
+        for anno in ${annos[@]}; do
+          pod_uid=$(echo $anno | grep -oP '(?<=pods/).+(?=/volumes)')
+          if [ "$pod_uid" == "$app_pod_uid" ]; then
+            echo "## Mount Pod Image: $mount_pod_name"
+            kubectl -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}'
+            echo ''
+            echo "## Mount Pod Event: $mount_pod_name"
+            kubectl get event -n $namespace --field-selector involvedObject.name=$mount_pod_name,type!=Normal
+            echo "## Mount Pod Log: $mount_pod_name"
+            kubectl -n $juicefs_namespace logs $mount_pod_name --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
+          fi
+        done
+      done
     fi
   done
   if [ "$NODE_NAME" != "" ]; then
