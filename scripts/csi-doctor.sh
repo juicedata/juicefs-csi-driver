@@ -71,9 +71,7 @@ debug_app_pod() {
   app=${ORIGINAL_ARGS[1]}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
-  echo '## CSI Controller Image'
-  kubectl -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}'
-  echo ''
+  echo "## CSI Controller Image: $(kubectl -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}')"
   echo '## Application Pod Event'
   kubectl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
   PVC_NAMES=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
@@ -92,10 +90,8 @@ debug_app_pod() {
         for anno in ${annos[@]}; do
           pod_uid=$(echo $anno | grep -oP '(?<=pods/).+(?=/volumes)')
           if [ "$pod_uid" == "$app_pod_uid" ]; then
-            echo "## Mount Pod Image: $mount_pod_name"
-            kubectl -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}'
-            echo ''
-            echo "## Mount Pod Event: $mount_pod_name"
+            echo "## Mount Pod Image for $mount_pod_name: $(kubectl -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}')"
+            echo "## Mount Pod Event for $mount_pod_name"
             kubectl get event -n $namespace --field-selector involvedObject.name=$mount_pod_name,type!=Normal
             echo "## Mount Pod Log: $mount_pod_name"
             kubectl -n $juicefs_namespace logs $mount_pod_name --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
@@ -105,7 +101,7 @@ debug_app_pod() {
     fi
   done
   if [ "$SHOULD_CHECK_CSI_CONRTROLLER" == "true" ]; then
-    echo "## CSI Controller Log: $SHOULD_CHECK_CSI_CONRTROLLER"
+    echo "## CSI Controller Log"
     kubectl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 20 -c juicefs-plugin
   fi
   if [ "$NODE_NAME" != "" ]; then
