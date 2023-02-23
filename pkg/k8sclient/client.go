@@ -21,6 +21,7 @@ import (
 	"context"
 	"io"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -69,6 +70,7 @@ type PatchDelValue struct {
 }
 
 type K8sClient struct {
+	enableAPIServerListCache bool
 	kubernetes.Interface
 }
 
@@ -85,7 +87,11 @@ func NewClient() (*K8sClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &K8sClient{client}, nil
+	var enableAPIServerListCache bool
+	if os.Getenv("ENABLE_APISERVER_LIST_CACHE") == "true" {
+		enableAPIServerListCache = true
+	}
+	return &K8sClient{enableAPIServerListCache, client}, nil
 }
 
 func (k *K8sClient) CreatePod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
@@ -115,6 +121,10 @@ func (k *K8sClient) GetPod(ctx context.Context, podName, namespace string) (*cor
 func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.Pod, error) {
 	klog.V(6).Infof("List pod by labelSelector %v, fieldSelector %v", labelSelector, filedSelector)
 	listOptions := metav1.ListOptions{}
+	if k.enableAPIServerListCache {
+		// set ResourceVersion="0" means the list response is returned from apiserver cache instead of etcd
+		listOptions.ResourceVersion = "0"
+	}
 	if labelSelector != nil {
 		labelMap, err := metav1.LabelSelectorAsMap(labelSelector)
 		if err != nil {
