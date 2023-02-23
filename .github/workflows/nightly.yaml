@@ -14,6 +14,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build docker image nightly
+      env:
+        JFSCHAN: beta
       run: |
         make image-nightly
     - name: Prepare microk8s environment
@@ -211,6 +213,7 @@ jobs:
     - name: Buildx and Push docker image nightly
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+        JFSCHAN: beta
       run: |
         docker login --username chnliyong --password ${PASSWORD}
         make image-nightly-push
