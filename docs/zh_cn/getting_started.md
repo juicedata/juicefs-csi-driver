@@ -7,6 +7,10 @@ title: 安装
 * Kubernetes 集群是 1.14 及以上版本
 * 集群能从外网拉取镜像，比如 [Docker Hub](https://hub.docker.com) 和 [Quay](https://quay.io)，如果无法从这两个镜像仓库下载资源，考虑先[「搬运镜像」](./administration/offline.md#copy-images)。
 
+:::note 注意
+在 JuiceFS 企业版私有部署环境下，CSI 驱动的安装并没有特殊步骤。不过请注意，由于使用私有部署控制台，你需要在[「文件系统认证信息」](./guide/pv.md#enterprise-edition)中需要填写 `envs` 字段，指定私有部署的控制台地址。
+:::
+
 ## Helm
 
 相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
@@ -96,10 +100,6 @@ juicefs-csi-node-v9tzb     3/3     Running   0          14m
 CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在上方命令的输出中，CSI Node pod 数量应该与 worker 节点数相同。如果你注意到数量不一致，请检查是否有节点被打上了污点。视情况删除污点，或给 CSI Node Service 打上对应的容忍，来修复此问题。如果你有需要，也可以[仅在某些节点上运行 CSI Node Service](./guide/resource-optimization.md#csi-node-node-selector)。
 
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
-
-## 私有部署
-
-在私有部署下，CSI 驱动的安装并没有特殊步骤。不过请注意，由于使用私有部署控制台，你需要在[「文件系统认证信息」](./guide/pv.md#enterprise-edition)中需要填写 `envs` 字段，指定私有部署的控制台地址。
 
 ## 以 Sidecar 模式安装 {#sidecar}
 

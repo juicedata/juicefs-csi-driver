@@ -14,6 +14,7 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 
 * If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
 * After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+* Secret only stores the volume credentials (that is, the options required by the `juicefs format` command (community version) and the `juicefs auth` command (cloud service)), and does not support filling in the mount options. If you want to modify the mount options, refer to ["Mount options"](#mount-options).
 
 :::
 

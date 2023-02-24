@@ -25,7 +25,7 @@ juicefs-csi-controller-0   2/2     Running       0          141d
 juicefs-csi-node-8rd96     3/3     Running       0          141d
 ```
 
-CSI 默认采用 Mount Pod 运行模式，也就是让 JuiceFS 客户端运行在独立的 Pod 中，其架构如图所示：
+CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户端运行在独立的 Pod 中，其架构如图所示：
 
 ![](./images/csi-driver-architecture.svg)
 
@@ -98,25 +98,25 @@ Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组
 
 创建和使用的流程大致如下：
 
-* CSI Controller 启动时，向 ApiServer 注册 Webhook；
+* CSI Controller 启动时，向 API Server 注册 Webhook；
 * 应用 Pod 指定使用 JuiceFS PVC；
-* ApiServer 在创建应用 Pod 前调用 CSI Controller 的 Webhook 接口；
+* API Server 在创建应用 Pod 前调用 CSI Controller 的 Webhook 接口；
 * CSI Controller 向应用 Pod 中注入 Sidecar 容器，容器中运行着 JuiceFS 客户端；
-* ApiServer 创建应用 Pod，Sidecar 容器启动后运行 JuiceFS 客户端执行挂载，应用容器启动后可直接访问文件系统；
+* API Server 创建应用 Pod，Sidecar 容器启动后运行 JuiceFS 客户端执行挂载，应用容器启动后可直接访问文件系统。
 
 使用 Sidecar 模式需要注意：
 
 * 运行环境需要支持 FUSE，也就是支持以特权容器（Privileged）运行；
 * 不同于 Mount Pod 的容器挂载方式，Sidecar 容器注入进了应用 Pod，因此将无法进行任何复用，大规模场景下，请尤其注意资源规划和分配；
 * Sidecar 容器和应用容器的挂载点共享是通过 hostPath 实现的，是一个有状态服务，如果 Sidecar 容器发生意外重启，应用容器中的挂载点不会自行恢复，需要整个 Pod 重新创建；
-* 不要直接从 Mount Pod 模式升级成 Sidecar 模式。已有的 Mount Pod 在 Sidecar 模式下将无法回收。并且一般而言，考虑到 Sidecar 不支持复用，我们不推荐从 Mount Pod 迁移为 Sidecar 模式；
-* 对于启用了 Sidecar 注入的命名空间，CSI Controller 会监听该命名空间下创建的所有容器，检查 PVC 的使用并查询获取相关信息。如果希望最大程度地减小开销，可以在该命名空间下，对不使用 JuiceFS PV 的应用 Pod 打上 `disable.sidecar.juicefs.com/inject: true` 标签，让 CSI Controller 忽略这些不相关的容器；
+* 不要直接从 Mount Pod 模式升级成 Sidecar 模式。已有的 Mount Pod 在 Sidecar 模式下将无法回收。并且一般而言，考虑到 Sidecar 不支持复用，我们不推荐从 Mount Pod 模式迁移为 Sidecar 模式；
+* 对于启用了 Sidecar 注入的命名空间，CSI Controller 会监听该命名空间下创建的所有容器，检查 PVC 的使用并查询获取相关信息。如果希望最大程度地减小开销，可以在该命名空间下，对不使用 JuiceFS PV 的应用 Pod 打上 `disable.sidecar.juicefs.com/inject: true` 标签，让 CSI Controller 忽略这些不相关的容器。
 
 欲使用 Sidecar 模式，需要[以 Sidecar 模式安装 CSI 驱动](./getting_started.md#sidecar)。
 
 ### 进程挂载模式 {#by-process}
 
-相较于采用独立 Mount Pod 的容器挂载方式，CSI 驱动还提供无需 Mount Pod 的进程挂载模式，在这种模式下，CSI Node Service 容器中将会负责运行一个或多个 JuiceFS 客户端，该节点上所有需要挂载的 JuiceFS PV，均在 CSI Node Service 容器中以进程模式执行挂载。
+相较于采用独立 Mount Pod 的容器挂载方式或 Sidecar 模式，CSI 驱动还提供无需独立 Pod 的进程挂载模式，在这种模式下，CSI Node Service 容器中将会负责运行一个或多个 JuiceFS 客户端，该节点上所有需要挂载的 JuiceFS PV，均在 CSI Node Service 容器中以进程模式执行挂载。
 
 ![](./images/byprocess-architecture.svg)
 
