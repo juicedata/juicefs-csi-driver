@@ -276,9 +276,6 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 			klog.V(5).Infof("JfsMount: storage or bucket is empty, format --no-update.")
 			noUpdate = true
 		}
-		if !config.ByProcess && (secrets["storage"] == "ceph" || secrets["storage"] == "gs") {
-			jfsSetting.Envs["JFS_NO_CHECK_OBJECT_STORAGE"] = "1"
-		}
 		res, err := j.ceFormat(ctx, secrets, noUpdate, jfsSetting)
 		if err != nil {
 			return nil, fmt.Errorf("juicefs format error: %v", err)
