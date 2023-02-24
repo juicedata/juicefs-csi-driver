@@ -233,8 +233,8 @@ juicefs-image-latest:
 juicefs-image-nightly:
 	docker build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         --build-arg JUICEFS_REPO_REF=main \
-		--build-arg=JFS_AUTO_UPGRADE=disabled .
 		--build-arg JFSCHAN=$(JFS_CHAN) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled .
 	docker push $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE)
 
 # build & push juicefs fuse nightly image
