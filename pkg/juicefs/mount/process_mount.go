@@ -192,9 +192,6 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
-	if storage == "ceph" || storage == "gs" {
-		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
-	}
 	for key, val := range extraEnvs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
