@@ -14,12 +14,14 @@ FROM python:3.8-slim-buster
 
 ARG JFS_AUTO_UPGRADE
 ARG TARGETARCH
+ARG JFSCHAN
 
 WORKDIR /app
 
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
+ENV JFSCHAN=${JFSCHAN}
 
 RUN apt-get update && apt-get install -y librados2 curl fuse && \
     rm -rf /var/cache/apt/* && \

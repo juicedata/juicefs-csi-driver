@@ -64,6 +64,7 @@ image-nightly:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker build --build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
+		--build-arg JFSCHAN=$(JFS_CHAN) \
         -t $(IMAGE):nightly -f docker/Dockerfile .
 
 # push nightly image
@@ -77,6 +78,7 @@ image-nightly-buildx:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker buildx build -t $(IMAGE):nightly \
 		--build-arg JUICEFS_MOUNT_IMAGE=$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
+		--build-arg JFSCHAN=$(JFS_CHAN) \
         -f docker/Dockerfile --platform linux/amd64,linux/arm64 . --push
 
 # build latest image
@@ -232,6 +234,7 @@ juicefs-image-nightly:
 	docker build -f docker/juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE) \
         --build-arg JUICEFS_REPO_REF=main \
 		--build-arg=JFS_AUTO_UPGRADE=disabled .
+		--build-arg JFSCHAN=$(JFS_CHAN) \
 	docker push $(REGISTRY)/$(JUICEFS_MOUNT_NIGHTLY_IMAGE)
 
 # build & push juicefs fuse nightly image
@@ -239,6 +242,7 @@ juicefs-image-nightly:
 juicefs-fuse-image-nightly:
 	docker build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):nightly \
         --build-arg JUICEFS_REPO_REF=main \
+		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled .
 	docker push $(REGISTRY)/$(FUSE_IMAGE):nightly
 
