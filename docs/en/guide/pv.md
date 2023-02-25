@@ -151,7 +151,7 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
-Create PersistentVolume (PV), PersistentVolumeClaim (PVC), refer to YAML comments for field descriptions:
+Create the following Kubernetes resources, refer to YAML comments for field descriptions:
 
 ```yaml
 apiVersion: v1
@@ -232,7 +232,7 @@ spec:
 
 ## Create a StorageClass {#create-storage-class}
 
-If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
+[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
 Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
 
@@ -291,7 +291,7 @@ Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dyna
 
 ### Deploy
 
-Create PersistentVolumeClaim (PVC) and example pod:
+Create PVC and example pod:
 
 ```yaml {13}
 kubectl apply -f - <<EOF
