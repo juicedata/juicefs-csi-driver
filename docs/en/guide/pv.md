@@ -232,7 +232,7 @@ spec:
 
 ## Create a StorageClass {#create-storage-class}
 
-[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
+[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
 Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
 

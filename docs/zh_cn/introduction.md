@@ -46,7 +46,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 ### 静态配置
 
-静态配置方式最为简单直接，需要 Kubernetes 管理员创建 PersistentVolume（PV）以及[文件系统认证信息](./guide/pv.md#volume-credentials)（以 Kubernetes Secret 形式保存），然后用户创建 PersistentVolumeClaim（PVC），在定义中绑定该 PV， 最后在 Pod 定义中引用该 PVC。资源间关系如下图所示：
+静态配置方式最为简单直接，需要 Kubernetes 管理员创建 PersistentVolume（PV）以及[文件系统认证信息](./guide/pv.md#volume-credentials)（以 Kubernetes Secret 形式保存），然后用户创建 PersistentVolumeClaim（PVC），在定义中绑定该 PV，最后在 Pod 定义中引用该 PVC。资源间关系如下图所示：
 
 ![](./images/static-provisioning.svg)
 
