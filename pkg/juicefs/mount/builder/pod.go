@@ -62,8 +62,15 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 		},
 	}
 
-	pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
-		{Name: "metrics", ContainerPort: metricsPort},
+	if r.jfsSetting.Attr.HostNetwork {
+		// When using hostNetwork, the MountPod will use a random port for metrics.
+		// Before inducing any auxiliary method to detect that random port, the
+		// best way is to avoid announcing any port about that.
+		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{}
+	} else {
+		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
+			{Name: "metrics", ContainerPort: metricsPort},
+		}
 	}
 
 	if config.Webhook {
@@ -152,7 +159,12 @@ func (r *Builder) getCommand() string {
 		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
 		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
 		if !util.ContainsPrefix(options, "metrics=") {
-			options = append(options, "metrics=0.0.0.0:9567")
+			if r.jfsSetting.Attr.HostNetwork {
+				// Pick up a random (useable) port for hostNetwork MountPods.
+				options = append(options, "metrics=0.0.0.0:0")
+			} else {
+				options = append(options, "metrics=0.0.0.0:9567")
+			}
 		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
 		cmd = strings.Join(mountArgs, " ")
