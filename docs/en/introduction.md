@@ -28,7 +28,7 @@ On the same node, a PVC corresponds to a mount pod, while pods using the same PV
 
 ![](./images/mount-pod-architecture.svg)
 
-If mount pod mode doesn't suit you, check out [other mount modes](#other-mount-modes) provided by JuiceFS CSI Driver also provides [other mount modes](#other-mount-modes).
+If mount pod mode doesn't suit you, check out [other mount modes](#other-mount-modes) provided by JuiceFS CSI Driver.
 
 ## Usage {#usage}
 
@@ -85,8 +85,8 @@ The overall process:
 Some sidecar caveats:
 
 * FUSE must be supported, meaning that container will run in privileged mode;
-* Different from mount by pod, a sidecar container is injected into the application pod, so sharing PV is not possible. Carefully manage resources when use at scale.
-* Mount point is shared between sidecar & application container using hostPath, which means sidecar container is actually stateful, so in the event of a sidecar container crash, mount point cannot automatically restore without re-creating the whole pod (in contrast, mount pod mode supports [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery));
+* Different from mount by pod, a sidecar container is injected into the application pod, so sharing PV is not possible. Carefully manage resources when use at scale;
+* Mount point is shared between sidecar & application container using `hostPath`, which means sidecar container is actually stateful, so in the event of a sidecar container crash, mount point cannot automatically restore without re-creating the whole pod (in contrast, mount pod mode supports [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery));
 * Do not switch to sidecar mode directly from mount pod mode, as existing mount pods won't automatically migrate to sidecar mode, and just simply stagnate;
 * CSI Controller will listen for all pod change events under namespaces with sidecar injections enabled. If you'd like to minimize overhead, you can even ignore pods by labeling them with `disable.sidecar.juicefs.com/inject: true`, so that CSI Controller deliberately ignores them.
 
