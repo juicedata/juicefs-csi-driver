@@ -4,6 +4,10 @@ title: Installation
 
 JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to install.
 
+:::note
+No special steps is required to install CSI Driver in an on-premises environment, however, you'll need to specify the Web Console address in [volume credentials](./guide/pv.md#enterprise-edition), within the `envs` field.
+:::
+
 ## Helm
 
 In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl, but if you are not familiar with Helm, and are simply trying to evaluate CSI Driver, it's OK to [install using kubectl](#kubectl).
@@ -98,7 +102,7 @@ kubectl is the simpler installation method compared to Helm, if you are simply t
      kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s_before_v1_18.yaml
      ```
 
-## Verify installation {#vefiry-installation}
+## Verify installation {#verify-installation}
 
 Verify all CSI components are up and running:
 

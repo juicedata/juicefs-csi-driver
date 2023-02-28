@@ -14,6 +14,7 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 
 * If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
 * After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+* Secret only stores the volume credentials (that is, the options required by the `juicefs format` command (community version) and the `juicefs auth` command (cloud service)), and does not support filling in the mount options. If you want to modify the mount options, refer to ["Mount options"](#mount-options).
 
 :::
 
@@ -58,19 +59,17 @@ Before continue, you should have already [created a file system](https://juicefs
 
 Create Kubernetes Secret:
 
-```yaml {7-16}
+```yaml {7-14}
 apiVersion: v1
 kind: Secret
 metadata:
   name: juicefs-secret
 type: Opaque
 stringData:
-  name: <JUICEFS_NAME>
-  metaurl: <META_URL>
-  storage: s3
-  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
-  access-key: <ACCESS_KEY>
-  secret-key: <SECRET_KEY>
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
   # Adjust mount pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
@@ -152,7 +151,7 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
-Create PersistentVolume (PV), PersistentVolumeClaim (PVC), refer to YAML comments for field descriptions:
+Create the following Kubernetes resources, refer to YAML comments for field descriptions:
 
 ```yaml
 apiVersion: v1
@@ -233,7 +232,7 @@ spec:
 
 ## Create a StorageClass {#create-storage-class}
 
-If you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
+[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
 Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
 
@@ -292,7 +291,7 @@ Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dyna
 
 ### Deploy
 
-Create PersistentVolumeClaim (PVC) and example pod:
+Create PVC and example pod:
 
 ```yaml {13}
 kubectl apply -f - <<EOF
