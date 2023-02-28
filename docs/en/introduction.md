@@ -54,7 +54,7 @@ Managing PVs can be wearisome, when using CSI Driver at scale, it's recommended 
 Taking mount pod mode for example, this is the overall process:
 
 * User creates a PVC using an existing JuiceFS StorageClass;
-* PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root, settings controlling this process is defined (or referenced) in StorageClass definition.
+* PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root, settings controlling this process are defined (or referenced) in StorageClass definition.
 * Kubernetes PV Controller binds user-created PVC with the PV created by CSI Controller, PVC and PV both enter "Bound" state;
 * User creates application pod, referencing PVC previously created;
 * CSI Node Service creates mount pod on the associating node;
