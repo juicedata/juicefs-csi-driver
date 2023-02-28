@@ -60,7 +60,7 @@ Taking mount pod mode for example, this is the overall process:
 * CSI Node Service creates mount pod on the associating node;
 * A JuiceFS Client runs inside the mount pod, and mounts JuiceFS volume to host, path being `/var/lib/juicefs/volume/[pv-name]`;
 * CSI Node Service waits until mount pod is up and running, and binds PV with the associated container, the PV sub-directory is mounted in pod, path defined by `volumeMounts`;
-* Application pod is created by Kubelet.
+* Application pod is started by Kubelet.
 
 ## Other mount modes {#other-mount-modes}
 

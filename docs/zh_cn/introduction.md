@@ -70,7 +70,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 * CSI Node Service 负责在应用 Pod 所在节点创建 Mount Pod；
 * Mount Pod 启动，执行 JuiceFS 客户端挂载，将挂载点暴露给宿主机，路径为 `/var/lib/juicefs/volume/[pv-name]`；
 * CSI Node Service 等待 Mount Pod 启动成功后，将 PV 对应的 JuiceFS 子目录 bind 到容器内，路径为其声明的 VolumeMount 路径；
-* Kubelet 创建应用 Pod。
+* Kubelet 启动应用 Pod。
 
 阅读以下文章深入了解 CSI 驱动的架构设计：
 
