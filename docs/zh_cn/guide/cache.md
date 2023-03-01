@@ -6,67 +6,67 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-## 设置缓存路径 {#cache-dir}
+JuiceFS 有着强大的缓存设计，请阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
+
+## 缓存设置 {#cache-settings}
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
 设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载参数](./pv.md#mount-options)进行调整（如缓存大小）。
 
-:::note 注意
-与 JuiceFS 客户端的 `--cache-dir` 参数不同，在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
+:::tip 注意
+
+* 在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
+* 对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存，但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
 :::
 
-### 静态配置
+缓存相关配置均通过挂载参数进行调整，因此方法如同[「调整挂载参数」](./pv.md#mount-options)，也可以直接参考下方示范。如果你需要验证参数生效，可以创建并挂载了 PV 后，[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
 
-在 PV 的 `spec.mountOptions` 中设置缓存路径：
+* 静态配置：
 
-```yaml {15}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
+  ```yaml {15-16}
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: juicefs-pv
+    labels:
+      juicefs-name: ten-pb-fs
+  spec:
+    capacity:
+      storage: 10Pi
+    volumeMode: Filesystem
+    accessModes:
+      - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    mountOptions:
+      - cache-dir=/dev/vdb1
+      - cache-size=204800
+    csi:
+      driver: csi.juicefs.com
+      volumeHandle: juicefs-pv
+      fsType: juicefs
+      nodePublishSecretRef:
+        name: juicefs-secret
+        namespace: default
+  ```
+
+* 动态配置
+
+  ```yaml {12-13}
+  apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    name: juicefs-sc
+  provisioner: csi.juicefs.com
+  parameters:
+    csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+    csi.storage.k8s.io/provisioner-secret-namespace: default
+    csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+    csi.storage.k8s.io/node-publish-secret-namespace: default
   mountOptions:
     - cache-dir=/dev/vdb1
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-```
-
-创建并挂载了该 PV 后，可以[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
-
-### 动态配置
-
-在 StorageClass 的 `mountOptions` 中配置缓存路径：
-
-```yaml {12}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions:
-  - cache-dir=/dev/vdb1
-```
-
-创建并挂载了 PV 后，可以[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
+    - cache-size=204800
+  ```
 
 ## 使用 PVC 作为缓存路径
 

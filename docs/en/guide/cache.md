@@ -6,67 +6,67 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-## Set cache directory {#cache-dir}
+JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
+
+## Cache settings {#cache-settings}
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
 After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
 
 :::note
-Different from the `--cache-dir` parameter in the JuiceFS Client, the `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
+
+* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
+* For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 :::
 
-### Static provisioning
+Cache related settings is configured in [mount options](./pv.md#mount-options), you can also refer to the straightforward examples below. After PV is created and mounted, you can also [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
 
-Set cache directory using `spec.mountOptions` in PV:
+* Static provisioning
 
-```yaml {15}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  capacity:
-    storage: 10Pi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
+  ```yaml {15-16}
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: juicefs-pv
+    labels:
+      juicefs-name: ten-pb-fs
+  spec:
+    capacity:
+      storage: 10Pi
+    volumeMode: Filesystem
+    accessModes:
+      - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    mountOptions:
+      - cache-dir=/dev/vdb1
+      - cache-size=204800
+    csi:
+      driver: csi.juicefs.com
+      volumeHandle: juicefs-pv
+      fsType: juicefs
+      nodePublishSecretRef:
+        name: juicefs-secret
+        namespace: default
+  ```
+
+* Dynamic provisioning
+
+  ```yaml {12-13}
+  apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    name: juicefs-sc
+  provisioner: csi.juicefs.com
+  parameters:
+    csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+    csi.storage.k8s.io/provisioner-secret-namespace: default
+    csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+    csi.storage.k8s.io/node-publish-secret-namespace: default
   mountOptions:
     - cache-dir=/dev/vdb1
-  csi:
-    driver: csi.juicefs.com
-    volumeHandle: juicefs-pv
-    fsType: juicefs
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-```
-
-After PV is created and mounted, [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
-
-### Dynamic provisioning
-
-Specify `mountOptions` in StorageClass:
-
-```yaml {12}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions:
-  - cache-dir=/dev/vdb1
-```
-
-After PV is created and mounted, [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
+    - cache-size=204800
+  ```
 
 ## Use PVC as cache path
 

@@ -222,3 +222,11 @@ $ fio -directory=. \
 ```
 
 结论：**在容器内使用 JuiceFS，内存上限应大于所访问的数据集大小，否则将无法建立页缓存，损害读性能。**
+
+### 写性能差 {#bad-write-performance}
+
+* **写入大量小文件（比如解压缩），写入速度慢**
+
+  对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存（阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management/#writeback)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)以了解），但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
+
+  因此，在容器场景下，如果需要大量写入小文件，我们建议在宿主机挂载点临时启用客户端写缓存来进行操作，如果不得不在 CSI 驱动中启用客户端写缓存，则需要尤其关注容器稳定性（比如适当[提升资源占用](../guide/resource-optimization.md#mount-pod-resources)）。
