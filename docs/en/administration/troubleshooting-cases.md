@@ -222,3 +222,11 @@ $ fio -directory=. \
 ```
 
 Conclusion: **When using JuiceFS inside containers, memory limit should be larger than the target data set for Linux kernel to fully build the page cache.**
+
+### Bad write performance {#bad-write-performance}
+
+* **Slow write speed for intensive small writes (like untar, unzip)**
+
+  For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+
+  If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
