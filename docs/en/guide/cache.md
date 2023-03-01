@@ -15,6 +15,7 @@ For Kubernetes nodes, a dedicated disk is often used as data and cache storage, 
 After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
 
 :::note
+
 * In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
 * For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 :::
@@ -48,7 +49,6 @@ Cache related settings is configured in [mount options](./pv.md#mount-options), 
         name: juicefs-secret
         namespace: default
   ```
-
 
 * Dynamic provisioning
 
