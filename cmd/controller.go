@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var (
@@ -68,6 +70,24 @@ func parseControllerConfig() {
 
 	if mountPodImage := os.Getenv("JUICEFS_MOUNT_IMAGE"); mountPodImage != "" {
 		config.MountImage = mountPodImage
+	}
+
+	k8sclient, err := k8s.NewClient()
+	if err != nil {
+		klog.V(5).Infof("Can't get k8s client: %v", err)
+		os.Exit(0)
+	}
+	CSINodeDsName := "juicefs-csi-node"
+	if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
+		CSINodeDsName = name
+	}
+	ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
+	if err != nil {
+		klog.V(5).Infof("Can't get DaemonSet %s: %v", CSINodeDsName, err)
+		os.Exit(0)
+	}
+	config.CSIPod = corev1.Pod{
+		Spec: ds.Spec.Template.Spec,
 	}
 }
 

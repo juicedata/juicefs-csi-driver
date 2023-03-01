@@ -27,6 +27,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -325,6 +326,16 @@ func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storag
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) GetDaemonSet(ctx context.Context, dsName, namespace string) (*appsv1.DaemonSet, error) {
+	klog.V(6).Infof("Get ds %s", dsName)
+	ds, err := k.AppsV1().DaemonSets(namespace).Get(ctx, dsName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(5).Infof("Can't get DaemonSet %s: %v", dsName, err)
+		return nil, err
+	}
+	return ds, nil
 }
 
 func (k *K8sClient) ExecuteInContainer(podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
