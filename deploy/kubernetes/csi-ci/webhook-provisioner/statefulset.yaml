@@ -13,23 +13,7 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --v=6
+            - --webhook=true
             - --provisioner=true
         - name: csi-provisioner
           $patch: delete
----
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
-  name: juicefs-csi-node
-  namespace: kube-system
-spec:
-  template:
-    spec:
-      containers:
-        - name: juicefs-plugin
-          args:
-            - --endpoint=$(CSI_ENDPOINT)
-            - --logtostderr
-            - --nodeid=$(NODE_NAME)
-            - --v=6
-            - --enable-manager=true

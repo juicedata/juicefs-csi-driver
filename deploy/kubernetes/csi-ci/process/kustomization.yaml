@@ -5,4 +5,9 @@ namespace: kube-system
 resources:
 - ../../release
 patches:
-- by-process.yaml
+- path: daemonset.yaml
+  target:
+    kind: DaemonSet
+- path: statefulset.yaml
+  target:
+    kind: StatefulSet

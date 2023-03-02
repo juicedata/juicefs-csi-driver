@@ -9,4 +9,9 @@ commonLabels:
   app.kubernetes.io/instance: juicefs-csi-driver
   app.kubernetes.io/version: master
 patches:
-- container-resources.yaml
+- path: daemonset_resource.yaml
+  target:
+    kind: DaemonSet
+- path: statefulset_resource.yaml
+  target:
+    kind: StatefulSet
