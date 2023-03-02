@@ -5,4 +5,40 @@ namespace: kube-system
 resources:
 - ../base
 patches:
-- webhook-delete.yaml
+- path: statefulset.yaml
+  target:
+    kind: StatefulSet
+- patch: |-
+    $patch: delete
+    kind: Service
+    apiVersion: v1
+    metadata:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+  target:
+    kind: Service
+    name: juicefs-admission-webhook
+    namespace: kube-system
+- patch: |-
+    $patch: delete
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: juicefs-webhook-certs
+      namespace: kube-system
+  target:
+    version: v1
+    kind: Secret
+    name: juicefs-webhook-certs
+    namespace: kube-system
+- patch: |-
+    $patch: delete
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    metadata:
+      name: juicefs-admission-webhook
+  target:
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: MutatingWebhookConfiguration
+    name: juicefs-admission-webhook

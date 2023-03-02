@@ -1,0 +1,16 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: juicefs-csi-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: juicefs-plugin
+          args:
+            - --endpoint=$(CSI_ENDPOINT)
+            - --logtostderr
+            - --nodeid=$(NODE_NAME)
+            - --v=6
+            - --by-process=true

@@ -3,13 +3,56 @@ kind: Kustomization
 # MUST be kube-system for pods with system-cluster-critical priorityClass
 namespace: kube-system
 patches:
-- webhook.yaml
-patchesJson6902:
-  - path: rbac.yaml
-    target:
-      group: rbac.authorization.k8s.io
-      version: v1
-      kind: ClusterRole
-      name: juicefs-external-provisioner-role
+- path: statefulset.yaml
+  target:
+    kind: StatefulSet
+- patch: |-
+    $patch: delete
+    kind: DaemonSet
+    apiVersion: apps/v1
+    metadata:
+      name: juicefs-csi-node
+      namespace: kube-system
+  target:
+    kind: DaemonSet
+- patch: |-
+    $patch: delete
+    kind: ServiceAccount
+    apiVersion: v1
+    metadata:
+      name: juicefs-csi-node-sa
+      namespace: kube-system
+  target:
+    kind: ServiceAccount
+    name: juicefs-csi-node-sa
+    namespace: kube-system
+- patch: |-
+    $patch: delete
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: juicefs-csi-node-service-binding
+  target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: ClusterRoleBinding
+    name: juicefs-csi-node-service-binding
+- patch: |-
+    $patch: delete
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: juicefs-csi-external-node-service-role
+  target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: ClusterRole
+    name: juicefs-csi-external-node-service-role
+- path: rbac.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: ClusterRole
+    name: juicefs-external-provisioner-role
 resources:
 - ../../base
