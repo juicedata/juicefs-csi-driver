@@ -230,3 +230,13 @@ $ fio -directory=. \
   对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存（阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management/#writeback)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)以了解），但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
 
   因此，在容器场景下，如果需要大量写入小文件，我们建议在宿主机挂载点临时启用客户端写缓存来进行操作，如果不得不在 CSI 驱动中启用客户端写缓存，则需要尤其关注容器稳定性（比如适当[提升资源占用](../guide/resource-optimization.md#mount-pod-resources)）。
+
+## 卸载失败（Mount Pod 无法退出） {#umount-error}
+
+卸载 JuiceFS 文件系统时，如果某个文件或者目录正在被使用，那么卸载将会报错。发生在 Kubernetes 集群中，则体现为 Mount Pod 卡死在 Terminating 状态，同时 kubelet 产生类似下方的错误日志：
+
+```
+Failed to remove cgroup (will retry)" error="rmdir /sys/fs/cgroup/blkio/kubepods/burstable/podxxx/xxx: device or resource busy
+```
+
+对于卸载错误，请参考[社区版](https://juicefs.com/docs/zh/community/administration/troubleshooting/#unmount-error)、[云服务](https://juicefs.com/docs/zh/cloud/administration/troubleshooting/#umount-error)文档进行排查（处理手段是类似的）。
