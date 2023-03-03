@@ -233,7 +233,7 @@ $ fio -directory=. \
 
 ## 卸载失败（Mount Pod 无法退出） {#umount-error}
 
-卸载 JuiceFS 文件系统时，如果某个文件或者目录正在被使用，那么卸载将会报错。发生在 Kubernetes 集群中，则体现为 Mount Pod 卡死在 Terminating 状态，同时 kubelet 产生类似下方的错误日志：
+卸载 JuiceFS 文件系统时，如果某个文件或者目录正在被使用，那么卸载将会报错。发生在 Kubernetes 集群中，则体现为 Mount Pod 卡死在 Terminating 状态无法删除，进而导致关联的 cgroup 无法删除，在 kubelet 产生类似下方的错误日志：
 
 ```
 Failed to remove cgroup (will retry)" error="rmdir /sys/fs/cgroup/blkio/kubepods/burstable/podxxx/xxx: device or resource busy
