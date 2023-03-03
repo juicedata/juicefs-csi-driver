@@ -83,11 +83,13 @@ func parseControllerConfig() {
 	}
 	ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
 	if err != nil {
-		klog.V(5).Infof("Can't get DaemonSet %s: %v", CSINodeDsName, err)
-		os.Exit(0)
-	}
-	config.CSIPod = corev1.Pod{
-		Spec: ds.Spec.Template.Spec,
+		klog.V(5).Infof("Can't get DaemonSet %s (maybe we are in sidecar mode?): %v", CSINodeDsName, err)
+		// In sidecar mode, there is only controller. So, it can not get juicefs-csi-node
+		// daemonset. Just ignore it.
+	} else {
+		config.CSIPod = corev1.Pod{
+			Spec: ds.Spec.Template.Spec,
+		}
 	}
 }
 
