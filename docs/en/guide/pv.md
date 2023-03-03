@@ -239,6 +239,7 @@ Learn about dynamic provisioning and static provisioning in [Usage](../introduct
 ### Create via Helm {#helm-sc}
 
 :::tip
+
 * Managing StorageClass via Helm requires putting credentials directly in `values.yaml`, thus is usually advised against in production environments.
 * As is demonstrated with the `backend` field in the below examples, when StorageClass is created by Helm, volume credentials is created along the way, you should manage directly in Helm, rather than [creating volume credentials separately](#volume-credentials).
 :::
@@ -270,7 +271,6 @@ storageClasses:
         cpu: "5"
         memory: "5Gi"
 ```
-
 
 ### Create via kubectl
 
