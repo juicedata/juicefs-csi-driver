@@ -10,9 +10,9 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 * For Community Edition, volume credentials include metadata engine URL, object storage keys, and other options supported by the [`juicefs format`](https://juicefs.com/docs/community/command_reference#format) command.
 * For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
-:::note
+:::tip
 
-* If you're already [managing StorageClass via Helm](#helm-sc), then the needed Kubernetes Secret is already created along the way, in this case we recommend you to continue managing StorageClass and Kubernetes Secret by Helm, rather than creating a separate Secret using kubectl.
+* If you're already [managing StorageClass via Helm](#helm-sc), you can skip this step as the Kubernetes Secret is already created along the way.
 * After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
 * Secret only stores the volume credentials (that is, the options required by the `juicefs format` command (community version) and the `juicefs auth` command (cloud service)), and does not support filling in the mount options. If you want to modify the mount options, refer to ["Mount options"](#mount-options).
 
@@ -238,7 +238,11 @@ Learn about dynamic provisioning and static provisioning in [Usage](../introduct
 
 ### Create via Helm {#helm-sc}
 
-Create `values.yaml` using below content, note that it only contains the basic configurations, refer to [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values) for a full description.
+:::tip
+
+* Managing StorageClass via Helm requires putting credentials directly in `values.yaml`, thus is usually advised against in production environments.
+* As is demonstrated with the `backend` field in the below examples, when StorageClass is created by Helm, volume credentials is created along the way, you should manage directly in Helm, rather than [creating volume credentials separately](#volume-credentials).
+:::
 
 Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).
 
@@ -268,9 +272,9 @@ storageClasses:
         memory: "5Gi"
 ```
 
-As is demonstrated with the `backend` field, when StorageClass is created by Helm, volume credentials is created along the way, you should manage directly in Helm, rather than [creating volume credentials separately](#volume-credentials).
-
 ### Create via kubectl
+
+[Volume credentials](#volume-credentials) is referenced in the StorageClass definition, so you'll have to create them in advance, and then fill in its information into the StorageClass definition shown below.
 
 ```yaml
 apiVersion: storage.k8s.io/v1

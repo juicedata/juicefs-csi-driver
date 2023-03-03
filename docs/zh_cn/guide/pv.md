@@ -12,7 +12,7 @@ sidebar_position: 1
 
 :::note 注意
 
-* 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，此时我们推荐你继续直接用 Helm 管理 StorageClass 与 Secret，而不是用 kubectl 再单独创建和管理 Secret。
+* 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，不需要再用 kubectl 单独创建和管理 Secret。
 * 修改了文件系统认证信息后，还需要滚动升级或重启应用 Pod，CSI 驱动重新创建 Mount Pod，配置变更方能生效。
 * Secret 中只存储文件系统认证信息（也就是社区版 `juicefs format` 和云服务 `juicefs auth` 命令所需的参数），并不支持填写挂载参数，如果你希望修改挂载参数，参考[「挂载参数」](#mount-options)。
 
@@ -238,7 +238,11 @@ spec:
 
 ### 通过 Helm 创建 {#helm-sc}
 
-创建 `values.yaml`，复制并完善下列配置信息。当前只列举出较为基础的配置，更多 JuiceFS CSI 驱动的 Helm chart 支持的配置项可以参考 [Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/README.md#values)。
+:::tip
+
+* 通过 Helm 创建 StorageClass，要求用户将认证信息明文填入 `values.yaml`，考虑到安全性，生产环境一般推荐[用 kubectl 创建](#kubectl-sc)。
+* 如下方示范中 `backend` 字段所示，用 Helm 创建 StorageClass 时，文件系统认证信息也会一并创建，请在 Helm 里直接管理，无需再[单独创建文件系统认证信息](#volume-credentials)。
+:::
 
 JuiceFS 社区版和云服务的配置项略有不同，下方示范面向社区版，但你可以在 [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122) 中找到全面示范。
 
@@ -268,9 +272,9 @@ storageClasses:
         memory: "5Gi"
 ```
 
-如上方示范中 `backend` 字段所示，用 Helm 创建 StorageClass 时，文件系统认证信息也会一并创建，请在 Helm 里直接管理，无需再[单独创建文件系统认证信息](#volume-credentials)。
+### 通过 kubectl 创建 {#kubectl-sc}
 
-### 通过 kubectl 创建
+用 kubectl 创建 StorageClass，需要提前创建好[「文件系统认证信息」](#volume-credentials)，创建完毕后，将相关信息按照下方示范填入对应字段。
 
 ```yaml
 apiVersion: storage.k8s.io/v1

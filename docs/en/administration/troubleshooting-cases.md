@@ -230,3 +230,21 @@ Conclusion: **When using JuiceFS inside containers, memory limit should be large
   For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 
   If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
+
+## Umount error (mount pod hangs) {#umount-error}
+
+JuiceFS cannot be unmounted when files or directories are still opened. If this happens within a Kubernetes cluster, mount pod will exit with the mount point not being released:
+
+```
+2m17s       Normal    Started             pod/juicefs-xxx   Started container jfs-mount
+44s         Normal    Killing             pod/juicefs-xxx   Stopping container jfs-mount
+44s         Warning   FailedPreStopHook   pod/juicefs-xxx   PreStopHook failed
+```
+
+A worse case is JuiceFS Client process entering uninterruptible sleep (D) state, mount pod cannot be deleted and will stuck at Terminating state, the attached cgroup cannot be deleted either, causing kubelet to produce the following error:
+
+```
+Failed to remove cgroup (will retry)" error="rmdir /sys/fs/cgroup/blkio/kubepods/burstable/podxxx/xxx: device or resource busy
+```
+
+For such unmount errors, refer to [Community Edition](https://juicefs.com/docs/community/administration/troubleshooting/#unmount-error) and [Cloud Service](https://juicefs.com/docs/cloud/administration/troubleshooting/#umount-error) documentation (handled similarly).
