@@ -233,7 +233,15 @@ Conclusion: **When using JuiceFS inside containers, memory limit should be large
 
 ## Umount error (mount pod hangs) {#umount-error}
 
-JuiceFS cannot be unmounted when files or directories are still opened. If this happens within a Kubernetes cluster, mount pod cannot be deleted and will stuck at Terminating state, the attached cgroup will not be able to deleted as well, causing kubelet to produce the following error:
+JuiceFS cannot be unmounted when files or directories are still opened. If this happens within a Kubernetes cluster, mount pod will exit with the mount point not being released:
+
+```
+2m17s       Normal    Started             pod/juicefs-xxx   Started container jfs-mount
+44s         Normal    Killing             pod/juicefs-xxx   Stopping container jfs-mount
+44s         Warning   FailedPreStopHook   pod/juicefs-xxx   PreStopHook failed
+```
+
+A worse case is JuiceFS Client process entering uninterruptible sleep (D) state, mount pod cannot be deleted and will stuck at Terminating state, the attached cgroup cannot be deleted either, causing kubelet to produce the following error:
 
 ```
 Failed to remove cgroup (will retry)" error="rmdir /sys/fs/cgroup/blkio/kubepods/burstable/podxxx/xxx: device or resource busy
