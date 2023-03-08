@@ -118,9 +118,13 @@ Fields description:
 - `envs`：Mount pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
 
-### Adding extra files into mount pod {#mount-pod-extra-files}
+### Adding extra files / environment variables into mount pod {#mount-pod-extra-files}
 
-Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a new Secret to store these files (different from the previously created Secret for JuiceFS), and reference it in `juicefs-secret`, so that CSI Driver know how to mount these files into the mount pod, and use it for authentication during mount. Here we'll use Google Cloud Storage as example, but the process is the same for any scenarios that needs to add extra files into the mount pod.
+Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a separate Secret to store these files, and reference it in volume credentials (`juicefs-secret` in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+
+If you need to add environment variables for mount pod, use the `envs` field in volume credentials. For example MinIO may require clients to set the `MINIO_REGION` variable.
+
+Here we'll use Google Cloud Storage as example, to demonstrate how to add extra files / environment variables into mount pod.
 
 To obtain the [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account), you need to first learn about [authentication](https://cloud.google.com/docs/authentication) and [authorization](https://cloud.google.com/iam/docs/overview). Assuming you already have the key file `application_default_credentials.json`, create the corresponding Kubernetes Secret:
 

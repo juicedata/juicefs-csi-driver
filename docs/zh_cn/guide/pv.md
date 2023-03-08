@@ -118,9 +118,13 @@ stringData:
 - `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
 
-### 为 Mount Pod 额外添加文件 {#mount-pod-extra-files}
+### 为 Mount Pod 额外添加文件、环境变量 {#mount-pod-extra-files}
 
-部分对象存储服务（比如 Google 云存储）在访问时需要提供额外的认证文件，这就需要你用创建新的 Secret 保存这些文件（区别于前面创建的供 JuiceFS 使用的 Secret），然后在 `juicefs-secret` 中引用。这样一来，CSI 驱动便会将这些文件挂载进 Mount Pod，用于 JuiceFS 挂载时的认证。下方虽然以 Google 云存储为例，但对于任何需要给 Mount Pod 添加额外配置文件的场景，步骤都是一样的。
+部分对象存储服务（比如 Google 云存储）在访问时需要提供额外的认证文件，这就需要你用创建单独的 Secret 保存这些文件，然后在认证信息（下方示范中的 `juicefs-secret`）中引用。这样一来，CSI 驱动便会将这些文件挂载进 Mount Pod，然后在 Mount Pod 中添加对应的环境变量，令 JuiceFS 挂载时使用该文件进行对象存储的认证。
+
+除此外，如果希望单独为 Mount Pod 添加环境变量，也可以在认证信息的 `envs` 中声明。比方说使用 MinIO 时，可能需要为客户端设定 `MINIO_REGION` 环境变量。
+
+下方以 Google 云存储为例，演示如何为 Mount Pod 额外添加文件、环境变量。
 
 获取 Google 云存储所需要的[服务帐号密钥文件](https://cloud.google.com/docs/authentication/production#create_service_account)，需要先了解如何进行[身份验证](https://cloud.google.com/docs/authentication)和[授权](https://cloud.google.com/iam/docs/overview)。假设你已经获取到了密钥文件 `application_default_credentials.json`，用下方命令将该配置文件创建成 Kubernetes Secret：
 
@@ -129,7 +133,7 @@ kubectl create secret generic gc-secret \
   --from-file=application_default_credentials.json=application_default_credentials.json
 ```
 
-经过上方命令，密钥文件就被保存在 `gc-secret` 中了，接下来需要在 `juicefs-secret` 中加以引用，让 CSI 驱动将该文件挂载到 Mount Pod 中，并添加相应的环境变量：
+运行上方命令，密钥文件就被保存在 `gc-secret` 中了，接下来需要在 `juicefs-secret` 中加以引用，让 CSI 驱动将该文件挂载到 Mount Pod 中，并添加相应的环境变量：
 
 ```yaml {8-11}
 apiVersion: v1
