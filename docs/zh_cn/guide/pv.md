@@ -441,6 +441,38 @@ mountOptions:
   - debug
 ```
 
+## 不同 namespace 的应用访问同一文件系统
+
+如果需要在不同的 namespace 中访问同一个 JuiceFS 文件系统的数据，需要使用静态配置。不同 namespace 的应用 Pod 使用的 PVC 对应的 PV，这些 PV 使用同一 Secret（文件系统认证信息）即可，例如：
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv1
+  labels:
+    pv-name: mypv1
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv2
+  labels:
+    pv-name: mypv2
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+```
+
 ## 挂载 JuiceFS 中已经存在的目录 {#mount-existing-dir}
 
 如果你在 JuiceFS 文件系统已经存储了大量数据，希望挂载进容器使用，或者希望让多个应用共享同一个 JuiceFS 目录，有以下做法：

@@ -443,6 +443,39 @@ mountOptions:
   - debug
 ```
 
+## Access same JuiceFS volume in different namespaces
+
+If you need to access the data in the same JuiceFS volume in different namespaces, you need to use static provision. 
+PVs corresponding to PVCs used by application Pods in different namespaces, and these PVs can use the same Secret (file system authentication information), for example:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv1
+  labels:
+    pv-name: mypv1
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv2
+  labels:
+    pv-name: mypv2
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+```
+
 ## Mount existing directory in JuiceFS {#mount-existing-dir}
 
 If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
