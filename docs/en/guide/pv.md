@@ -230,6 +230,8 @@ spec:
       claimName: juicefs-pvc
 ```
 
+After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, without specifying [`--subdir`](#mount-options), the file system root directory will be mounted. Mount a sub-directory or use dynamic provisioning if data isolation is required.
+
 ## Create a StorageClass {#create-storage-class}
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
@@ -443,12 +445,15 @@ mountOptions:
   - debug
 ```
 
-## Access same JuiceFS volume in different namespaces
+## Share directory among applications {#share-directory}
 
-If you need to access the data in the same JuiceFS volume in different namespaces, you need to use static provision. 
-PVs corresponding to PVCs used by application Pods in different namespaces, and these PVs can use the same Secret (file system authentication information), for example:
+If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
 
-```yaml
+### Access the same file system across different namespace
+
+Using static provisioning, if [`--subdir`](#mount-options) isn't specified, the file system root directory will be mounted. If you'd like to use the same JuiceFS Volume across different namespaces, use the same set of volume credentials (Secret) in the PV definition.
+
+```yaml {9-11,22-24}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -475,10 +480,6 @@ spec:
       namespace: default
   ...
 ```
-
-## Mount existing directory in JuiceFS {#mount-existing-dir}
-
-If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
 
 ### Static provisioning
 
@@ -537,7 +538,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#static-provisioning) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
 
 This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning. Follow below steps to enable `pathPattern`.
 
