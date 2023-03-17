@@ -234,6 +234,8 @@ spec:
       claimName: juicefs-pvc
 ```
 
+After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
+
 ## Create a StorageClass {#create-storage-class}
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
@@ -447,11 +449,13 @@ mountOptions:
   - debug
 ```
 
-## Mount existing directory in JuiceFS {#mount-existing-dir}
+## Share directory among applications {#share-directory}
 
 If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
 
 ### Static provisioning
+
+#### Mount subdirectory {#mount-subdirectory}
 
 Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
 
@@ -487,6 +491,40 @@ spec:
 
 Note that `subPath` is considered inflexible and harmful, it doesn't support multi-level directory, and will not work when running cache warmups, or faced with subdirectory permission restrictions. Hence, `subdir` is the more recommended way, and `subPath` should only be used for debugging.
 
+#### Sharing the same file system across different namespaces {#sharing-same-file-system-across-namespaces}
+
+If you'd like to share the same file system across different namespaces, use the same set of volume credentials (Secret) in the PV definition:
+
+```yaml {10-12,24-26}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv1
+  namespace: ns1
+  labels:
+    pv-name: mypv1
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv2
+  namespace: ns2
+  labels:
+    pv-name: mypv2
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+```
+
 ### Dynamic provisioning
 
 Strictly speaking, dynamic provisioning doesn't inherently support mounting a existing directory. But you can [configure subdirectory naming pattern (path pattern)](#using-path-pattern), and align the pattern to match with the existing directory name, to achieve the same result.
@@ -508,7 +546,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#static-provisioning) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
 
 This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning. Follow below steps to enable `pathPattern`.
 
