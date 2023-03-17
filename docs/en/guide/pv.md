@@ -230,7 +230,7 @@ spec:
       claimName: juicefs-pvc
 ```
 
-After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, without specifying [`--subdir`](#mount-options), the file system root directory will be mounted. Mount a sub-directory or use dynamic provisioning if data isolation is required.
+After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
 
 ## Create a StorageClass {#create-storage-class}
 
@@ -449,39 +449,9 @@ mountOptions:
 
 If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
 
-### Access the same file system across different namespace
-
-Using static provisioning, if [`--subdir`](#mount-options) isn't specified, the file system root directory will be mounted. If you'd like to use the same JuiceFS Volume across different namespaces, use the same set of volume credentials (Secret) in the PV definition.
-
-```yaml {9-11,22-24}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: mypv1
-  labels:
-    pv-name: mypv1
-spec:
-  csi:
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-  ...
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: mypv2
-  labels:
-    pv-name: mypv2
-spec:
-  csi:
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-  ...
-```
-
 ### Static provisioning
+
+#### Mount subdirectory {#mount-subdirectory}
 
 Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
 
@@ -516,6 +486,40 @@ spec:
 ```
 
 Note that `subPath` is considered inflexible and harmful, it doesn't support multi-level directory, and will not work when running cache warmups, or faced with subdirectory permission restrictions. Hence, `subdir` is the more recommended way, and `subPath` should only be used for debugging.
+
+#### Sharing the same file system across different namespaces {#sharing-same-file-system-across-namespaces}
+
+If you'd like to share the same file system across different namespaces, use the same set of volume credentials (Secret) in the PV definition:
+
+```yaml {10-12,24-26}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv1
+  namespace: ns1
+  labels:
+    pv-name: mypv1
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv2
+  namespace: ns2
+  labels:
+    pv-name: mypv2
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+```
 
 ### Dynamic provisioning
 

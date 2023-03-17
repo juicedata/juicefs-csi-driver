@@ -230,7 +230,7 @@ spec:
       claimName: juicefs-pvc
 ```
 
-Pod 创建完成后，你就能在 JuiceFS 挂载点看到上方容器写入的 `out.txt` 了，在静态配置下，如果不用 [`--subdir`](#mount-options) 指定子目录，将会将文件系统的根目录挂载进容器，因此如果对应用有数据隔离的要求，请挂载子目录，或者使用动态配置。
+Pod 创建完成后，你就能在 JuiceFS 挂载点看到上方容器写入的 `out.txt` 了。在静态配置下，如果没有显式指定[挂载子目录](#mount-subdirectory)，文件系统的根目录将会被挂载进容器，因此如果对应用有数据隔离的要求，请挂载子目录，或者使用[动态配置](#dynamic-provisioning)。
 
 ## 创建 StorageClass {#create-storage-class}
 
@@ -447,39 +447,9 @@ mountOptions:
 
 如果你在 JuiceFS 文件系统已经存储了大量数据，希望挂载进容器使用，或者希望让多个应用共享同一个 JuiceFS 目录，有以下做法：
 
-### 跨命名空间（namespace）访问同一文件系统
+### 静态配置
 
-使用静态配置，如果不用 [`--subdir`](#mount-options) 指定子目录，将会将文件系统的根目录挂载进容器。因此如果想要想要在不同命名空间中挂载同一文件系统，只需要让不同 PV 使用相同的文件系统认证信息（Secret）即可：
-
-```yaml {9-11,22-24}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: mypv1
-  labels:
-    pv-name: mypv1
-spec:
-  csi:
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-  ...
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: mypv2
-  labels:
-    pv-name: mypv2
-spec:
-  csi:
-    nodePublishSecretRef:
-      name: juicefs-secret
-      namespace: default
-  ...
-```
-
-### 挂载子目录
+#### 挂载子目录 {#mount-subdirectory}
 
 修改[「挂载参数」](#mount-options)，用 `subdir` 参数挂载子目录。如果子目录尚不存在，CSI Controller 会在挂载前自动创建。
 
@@ -514,6 +484,40 @@ spec:
 ```
 
 需要指出的是，调整 `subdir` 挂载参数，是更为推荐的方式。`subPath` 方式灵活性较差，除了不支持多级目录外，在缓存预热场景中，或者子目录存在权限限制，`subPath` 方式均会遭遇错误，此参数多用于 CSI 内部调试，请勿用于生产环境。
+
+#### 跨命名空间（namespace）共享同一个文件系统 {#sharing-same-file-system-across-namespaces}
+
+如果想要在不同命名空间中共享同一个文件系统，只需要让不同 PV 使用相同的文件系统认证信息（Secret）即可：
+
+```yaml {10-12,24-26}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv1
+  namespace: ns1
+  labels:
+    pv-name: mypv1
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mypv2
+  namespace: ns2
+  labels:
+    pv-name: mypv2
+spec:
+  csi:
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+  ...
+```
 
 ### 动态配置
 
