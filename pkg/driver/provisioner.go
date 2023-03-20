@@ -40,6 +40,9 @@ type provisionerService struct {
 }
 
 func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
+	if k8sClient == nil {
+		return provisionerService{}, errors.New("k8sClient is nil")
+	}
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 	return provisionerService{
 		juicefs:   jfs,
