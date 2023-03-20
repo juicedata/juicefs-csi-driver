@@ -40,9 +40,6 @@ type provisionerService struct {
 }
 
 func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
-	if k8sClient == nil {
-		return provisionerService{}, errors.New("k8sClient is nil")
-	}
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 	return provisionerService{
 		juicefs:   jfs,
@@ -51,6 +48,9 @@ func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error)
 }
 
 func (j *provisionerService) Run(ctx context.Context) {
+	if j.K8sClient == nil {
+		klog.Fatalf("K8sClient is nil")
+	}
 	serverVersion, err := j.K8sClient.Discovery().ServerVersion()
 	if err != nil {
 		klog.Fatalf("Error getting server version: %v", err)
