@@ -531,7 +531,7 @@ spec:
 
 :::tip
 
-进程挂载模式不支持该功能
+[进程挂载模式](../introduction.md#by-process)不支持该功能。
 :::
 
 在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
