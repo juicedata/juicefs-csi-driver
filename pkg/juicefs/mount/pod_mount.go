@@ -71,7 +71,7 @@ func (p *PodMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting)
 		if err != nil {
 			return err
 		}
-		err = p.setUUIDLabel(ctx, podName, uuid)
+		err = p.setUUIDAnnotation(ctx, podName, uuid)
 		if err != nil {
 			return err
 		}
@@ -453,13 +453,13 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 	return nil
 }
 
-func (p *PodMount) setUUIDLabel(ctx context.Context, podName string, uuid string) (err error) {
+func (p *PodMount) setUUIDAnnotation(ctx context.Context, podName string, uuid string) (err error) {
 	var pod *corev1.Pod
 	pod, err = p.K8sClient.GetPod(context.Background(), podName, jfsConfig.Namespace)
 	if err != nil {
 		return err
 	}
-	klog.Infof("setUUIDLabel: set pod %s label %s=%s", podName, jfsConfig.JuiceFSUUID, uuid)
+	klog.Infof("setUUIDAnnotation: set pod %s annotation %s=%s", podName, jfsConfig.JuiceFSUUID, uuid)
 	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
 }
 

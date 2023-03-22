@@ -145,7 +145,7 @@ func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
-	klog.Infof("AddPodAnnotation: %s", string(payloadBytes))
+	klog.V(6).Infof("AddPodAnnotation: %v in pod %s", addAnnotations, pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
@@ -166,6 +166,7 @@ func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
+	klog.V(6).Infof("Remove annotations: %v of pod %s", delAnnotations, pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
@@ -184,6 +185,7 @@ func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod 
 		klog.Errorf("Parse json error: %v", err)
 		return err
 	}
+	klog.V(6).Infof("Replace annotations: %v of pod %s", annotation, pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
