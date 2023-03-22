@@ -39,9 +39,6 @@ type FuseDevicePlugin struct {
 	devs   []*pluginapi.Device
 	socket string
 
-	stop   chan interface{}
-	health chan *pluginapi.Device
-
 	server *grpc.Server
 }
 
@@ -49,9 +46,6 @@ func NewFuseDevicePlugin(number int) *FuseDevicePlugin {
 	return &FuseDevicePlugin{
 		devs:   getDevices(number),
 		socket: serverSock,
-
-		stop:   make(chan interface{}),
-		health: make(chan *pluginapi.Device),
 	}
 }
 
@@ -69,9 +63,10 @@ func (m *FuseDevicePlugin) GetPreferredAllocation(ctx context.Context, request *
 
 // dial establishes the gRPC communication with the registered device plugin.
 func dial(unixSocketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
-	c, err := grpc.Dial(unixSocketPath, grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithTimeout(timeout),
-		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	c, err := grpc.DialContext(ctx, unixSocketPath, grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)
 		}),
 	)
@@ -107,8 +102,6 @@ func (m *FuseDevicePlugin) Start() error {
 	}
 	conn.Close()
 
-	go m.healthcheck()
-
 	return nil
 }
 
@@ -120,7 +113,6 @@ func (m *FuseDevicePlugin) Stop() error {
 
 	m.server.Stop()
 	m.server = nil
-	close(m.stop)
 
 	return m.cleanup()
 }
@@ -134,13 +126,13 @@ func (m *FuseDevicePlugin) Register(kubeletEndpoint, resourceName string) error 
 	defer conn.Close()
 
 	client := pluginapi.NewRegistrationClient(conn)
-	reqt := &pluginapi.RegisterRequest{
+	req := &pluginapi.RegisterRequest{
 		Version:      pluginapi.Version,
 		Endpoint:     path.Base(m.socket),
 		ResourceName: resourceName,
 	}
 
-	_, err = client.Register(context.Background(), reqt)
+	_, err = client.Register(context.Background(), req)
 	if err != nil {
 		return err
 	}
@@ -149,17 +141,7 @@ func (m *FuseDevicePlugin) Register(kubeletEndpoint, resourceName string) error 
 
 // ListAndWatch lists devices and update that list according to the health status
 func (m *FuseDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
-	s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs})
-
-	for {
-		select {
-		case <-m.stop:
-			return nil
-		case d := <-m.health:
-			d.Health = pluginapi.Unhealthy
-			s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs})
-		}
-	}
+	return s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs})
 }
 
 // Allocate which return list of devices.
@@ -195,12 +177,6 @@ func (m *FuseDevicePlugin) cleanup() error {
 	}
 
 	return nil
-}
-
-func (m *FuseDevicePlugin) healthcheck() {
-	for range m.stop {
-		return
-	}
 }
 
 // Serve starts the gRPC server and register the device plugin to Kubelet
