@@ -53,6 +53,7 @@ func parseControllerConfig() {
 		config.FormatInPod = false
 		config.MountManager = false
 		config.Webhook = false
+		config.Provisioner = false
 		return
 	}
 	if webhook {
