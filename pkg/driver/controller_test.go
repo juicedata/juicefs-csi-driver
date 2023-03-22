@@ -66,6 +66,16 @@ func TestCreateVolume(t *testing.T) {
 			},
 		},
 	}
+	invalidVolCap := []*csi.VolumeCapability{
+		{
+			AccessType: &csi.VolumeCapability_Block{
+				Block: &csi.VolumeCapability_BlockVolume{},
+			},
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			},
+		},
+	}
 	stdVolSize := int64(5 * 1024 * 1024 * 1024)
 	stdCapRange := &csi.CapacityRange{RequiredBytes: stdVolSize}
 
@@ -207,6 +217,39 @@ func TestCreateVolume(t *testing.T) {
 					t.Fatalf("Could not get error status code from error: %v", srvErr)
 				}
 				if srvErr.Code() != codes.AlreadyExists {
+					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
+				}
+			},
+		},
+		{
+			name: "invalid cap2",
+			testFunc: func(t *testing.T) {
+				volumeId := "vol-test"
+				secret := map[string]string{"a": "b"}
+				volCtx := map[string]string{"c": "d"}
+				req := &csi.CreateVolumeRequest{
+					Name:               volumeId,
+					CapacityRange:      stdCapRange,
+					VolumeCapabilities: invalidVolCap,
+					Secrets:            secret,
+					Parameters:         volCtx,
+				}
+
+				ctx := context.Background()
+				juicefsDriver := controllerService{
+					juicefs: nil,
+					vols:    make(map[string]int64),
+				}
+
+				_, err := juicefsDriver.CreateVolume(ctx, req)
+				if err == nil {
+					t.Fatalf("error is nil")
+				}
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
 					t.Fatalf("error status code is not invalid: %v", srvErr.Code())
 				}
 			},
@@ -427,6 +470,7 @@ func Test_controllerService_ValidateVolumeCapabilities(t *testing.T) {
 				req: &csi.ValidateVolumeCapabilitiesRequest{
 					VolumeId: "test",
 					VolumeCapabilities: []*csi.VolumeCapability{{
+						AccessType: &csi.VolumeCapability_Mount{},
 						AccessMode: &csi.VolumeCapability_AccessMode{
 							Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 						},
@@ -436,6 +480,7 @@ func Test_controllerService_ValidateVolumeCapabilities(t *testing.T) {
 			want: &csi.ValidateVolumeCapabilitiesResponse{
 				Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
 					VolumeCapabilities: []*csi.VolumeCapability{{
+						AccessType: &csi.VolumeCapability_Mount{},
 						AccessMode: &csi.VolumeCapability_AccessMode{
 							Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 						},
@@ -507,6 +552,7 @@ func Test_isValidVolumeCapabilities(t *testing.T) {
 			name: "test",
 			args: args{
 				volCaps: []*csi.VolumeCapability{{
+					AccessType: &csi.VolumeCapability_Mount{},
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 					},
@@ -518,8 +564,21 @@ func Test_isValidVolumeCapabilities(t *testing.T) {
 			name: "test-false",
 			args: args{
 				volCaps: []*csi.VolumeCapability{{
+					AccessType: &csi.VolumeCapability_Mount{},
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
+					},
+				}},
+			},
+			want: false,
+		},
+		{
+			name: "test-false2",
+			args: args{
+				volCaps: []*csi.VolumeCapability{{
+					AccessType: &csi.VolumeCapability_Block{},
+					AccessMode: &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 					},
 				}},
 			},
