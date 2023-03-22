@@ -31,6 +31,8 @@ if __name__ == "__main__":
         clean_juicefs_volume()
         try:
             deploy_secret_and_sc()
+            test_static_cache_clean_upon_umount()
+            test_dynamic_cache_clean_upon_umount()
             test_static_delete_policy()
             test_deployment_using_storage_rw()
             test_deployment_using_storage_ro()
@@ -41,8 +43,6 @@ if __name__ == "__main__":
             test_delete_pvc()
             test_dynamic_delete_pod()
             test_static_delete_pod()
-            test_static_cache_clean_upon_umount()
-            test_dynamic_cache_clean_upon_umount()
             test_deployment_dynamic_patch_pv()
             test_deployment_static_patch_pv()
             test_dynamic_mount_image()

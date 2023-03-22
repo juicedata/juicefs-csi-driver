@@ -20,13 +20,13 @@ if __name__ == "__main__":
         clean_juicefs_volume()
         try:
             deploy_secret_and_sc()
+            test_static_cache_clean_upon_umount()
+            test_dynamic_cache_clean_upon_umount()
             test_deployment_using_storage_rw()
             test_deployment_using_storage_ro()
             test_deployment_use_pv_rw()
             test_deployment_use_pv_ro()
             test_delete_pvc()
-            test_static_cache_clean_upon_umount()
-            test_dynamic_cache_clean_upon_umount()
         except Exception as e:
             die(e)
         finally:

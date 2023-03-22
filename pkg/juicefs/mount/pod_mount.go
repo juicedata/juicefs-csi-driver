@@ -24,10 +24,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -59,7 +61,22 @@ func (p *PodMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting)
 	if err != nil {
 		return err
 	}
-	return p.waitUtilMountReady(ctx, jfsSetting, podName)
+	err = p.waitUtilMountReady(ctx, jfsSetting, podName)
+	if err != nil {
+		return err
+	}
+	if jfsSetting.CleanCache && jfsSetting.UUID == "" {
+		// need set uuid as label in mount pod for clean cache
+		uuid, err := p.GetJfsVolUUID(ctx, jfsSetting.Source)
+		if err != nil {
+			return err
+		}
+		err = p.setUUIDLabel(ctx, podName, uuid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
@@ -434,6 +451,45 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 		return err
 	}
 	return nil
+}
+
+func (p *PodMount) setUUIDLabel(ctx context.Context, podName string, uuid string) (err error) {
+	var pod *corev1.Pod
+	pod, err = p.K8sClient.GetPod(context.Background(), podName, jfsConfig.Namespace)
+	if err != nil {
+		return err
+	}
+	klog.Infof("setUUIDLabel: set pod %s label %s=%s", podName, jfsConfig.JuiceFSUUID, uuid)
+	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
+}
+
+// GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
+	defer cmdCancel()
+	stdout, err := p.Exec.CommandContext(cmdCtx, jfsConfig.CeCliPath, "status", name).CombinedOutput()
+	if err != nil {
+		re := string(stdout)
+		if strings.Contains(re, "database is not formatted") {
+			klog.V(6).Infof("juicefs %s not formatted.", name)
+			return "", nil
+		}
+		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
+		}
+		return "", errors.Wrap(err, re)
+	}
+
+	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
+	idStr := matchExp.FindString(string(stdout))
+	idStrs := strings.Split(idStr, "\"")
+	if len(idStrs) < 4 {
+		return "", fmt.Errorf("get uuid of %s error", name)
+	}
+
+	return idStrs[3], nil
 }
 
 func (p *PodMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
