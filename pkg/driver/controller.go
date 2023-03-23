@@ -57,6 +57,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if req.VolumeCapabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
+	// CSI doesn't provide a capability query for block volumes, so COs will simply pass through
+	// requests for block volume creation to CSI plugins, and plugins are allowed to fail with
+	// the InvalidArgument GRPC error code if they don't support block volumes.
+	if !isValidVolumeCapabilities(req.VolumeCapabilities) {
+		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities not fully supported")
+	}
 
 	volumeId := req.Name
 	subPath := req.Name
@@ -186,6 +192,14 @@ func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req 
 
 func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 	hasSupport := func(cap *csi.VolumeCapability) bool {
+		switch cap.GetAccessType().(type) {
+		case *csi.VolumeCapability_Block:
+			return false
+		case *csi.VolumeCapability_Mount:
+			break
+		default:
+			return false
+		}
 		for _, c := range volumeCaps {
 			if c.GetMode() == cap.AccessMode.GetMode() {
 				return true
