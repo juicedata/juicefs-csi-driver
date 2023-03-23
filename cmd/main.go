@@ -40,6 +40,8 @@ var (
 
 	podManager         bool
 	reconcilerInterval int
+	devicePlugin       bool
+	mountsAllowed      = 5000
 )
 
 func main() {
@@ -65,6 +67,8 @@ func main() {
 	// node flags
 	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")
 	cmd.Flags().IntVar(&reconcilerInterval, "reconciler-interval", 5, "interval (default 5s) for reconciler")
+	cmd.Flags().BoolVar(&devicePlugin, "enable-device", false, "Enable fuse device plugin in csi node. default false.")
+	cmd.Flags().IntVar(&mountsAllowed, "mounts-allowed", 5000, "maximum times the fuse device can be mounted")
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
@@ -82,6 +86,10 @@ func run() {
 		controllerRun()
 	}
 	if strings.Contains(podName, "csi-node") {
+		if devicePlugin {
+			klog.Info("Run fuse device plugin")
+			go deviceRun()
+		}
 		klog.Info("Run CSI node")
 		nodeRun()
 	}
