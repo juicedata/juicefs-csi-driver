@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"testing"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	. "github.com/smartystreets/goconvey/convey"
 	k8sMount "k8s.io/utils/mount"
 )

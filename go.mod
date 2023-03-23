@@ -1,7 +1,7 @@
 module github.com/juicedata/juicefs-csi-driver
 
 require (
-	github.com/agiledragon/gomonkey v2.0.2+incompatible
+	github.com/agiledragon/gomonkey/v2 v2.9.0
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/go-logr/logr v1.2.0
 	github.com/golang/mock v1.6.0

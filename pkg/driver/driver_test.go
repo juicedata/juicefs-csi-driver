@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
