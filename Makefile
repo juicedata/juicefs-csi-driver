@@ -52,7 +52,7 @@ verify:
 
 .PHONY: test
 test:
-	go test -gcflags=all=-l -v -race -cover ./pkg/... -coverprofile=cov1.out -gcflags=all=-l
+	go test -gcflags=all=-l -v -race -cover ./pkg/... -coverprofile=cov1.out
 
 .PHONY: test-sanity
 test-sanity:
