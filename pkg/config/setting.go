@@ -405,14 +405,22 @@ func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 }
 
 func getDefaultResource() corev1.ResourceRequirements {
+	podLimit := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
+		corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+	}
+	podRequest := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
+		corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+	}
+
+	if !DevicePluginDisabled && Unprivileged {
+		// if device plugin is enabled, set default value for fuse
+		podLimit[corev1.ResourceName(DeviceResourceName)] = resource.MustParse("1")
+		podRequest[corev1.ResourceName(DeviceResourceName)] = resource.MustParse("1")
+	}
 	return corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
-		},
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
-		},
+		Limits:   podLimit,
+		Requests: podRequest,
 	}
 }

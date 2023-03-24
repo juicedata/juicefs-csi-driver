@@ -24,6 +24,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var (
@@ -40,8 +42,7 @@ var (
 
 	podManager         bool
 	reconcilerInterval int
-	devicePlugin       bool
-	mountsAllowed      = 5000
+	unprivileged       bool
 )
 
 func main() {
@@ -67,8 +68,7 @@ func main() {
 	// node flags
 	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")
 	cmd.Flags().IntVar(&reconcilerInterval, "reconciler-interval", 5, "interval (default 5s) for reconciler")
-	cmd.Flags().BoolVar(&devicePlugin, "enable-device", false, "Enable fuse device plugin in csi node. default false.")
-	cmd.Flags().IntVar(&mountsAllowed, "mounts-allowed", 5000, "maximum times the fuse device can be mounted")
+	cmd.Flags().BoolVar(&unprivileged, "unprivileged", false, "Make mount pod or mount sidecar unprivileged. default false.")
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
@@ -86,9 +86,14 @@ func run() {
 		controllerRun()
 	}
 	if strings.Contains(podName, "csi-node") {
-		if devicePlugin {
-			klog.Info("Run fuse device plugin")
-			go deviceRun()
+		if unprivileged {
+			disableDevicePlugin := os.Getenv("DISABLE_DEVICE_PLUGIN")
+			if disableDevicePlugin == "true" {
+				config.DevicePluginDisabled = true
+			} else {
+				klog.Info("Run fuse device plugin")
+				go deviceRun()
+			}
 		}
 		klog.Info("Run CSI node")
 		nodeRun()

@@ -48,6 +48,7 @@ func parseControllerConfig() {
 	config.FormatInPod = formatInPod
 	// enable mount manager by default in csi controller
 	config.MountManager = true
+	config.Unprivileged = unprivileged
 	if process {
 		// if run in process, does not need pod info
 		config.FormatInPod = false

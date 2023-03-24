@@ -62,6 +62,22 @@ func (r *Builder) generateJuicePod() *corev1.Pod {
 		i++
 	}
 
+	if config.Unprivileged {
+		// add cgroup volume for juicefs client grant fuse access, see: https://github.com/juicedata/juicefs/pull/3333
+		volumes = append(volumes, corev1.Volume{
+			Name: "cgroup",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "cgroup",
+			MountPath: "/sys/fs/cgroup",
+		})
+	}
+
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
 	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
@@ -271,14 +287,15 @@ func (r *Builder) generatePodTemplate() *corev1.Pod {
 }
 
 func (r *Builder) genCommonContainer() corev1.Container {
-	isPrivileged := true
+	isPrivileged := !config.Unprivileged
 	rootUser := int64(0)
 	return corev1.Container{
 		Name:  config.MountContainerName,
 		Image: r.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: &isPrivileged,
-			RunAsUser:  &rootUser,
+			Privileged:   &isPrivileged,
+			RunAsUser:    &rootUser,
+			Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"SYS_ADMIN", "MKNOD"}},
 		},
 		Env: []corev1.EnvVar{},
 	}

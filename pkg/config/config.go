@@ -22,6 +22,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 var (
@@ -30,6 +31,10 @@ var (
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
 	Webhook      = false // inject juicefs client as sidecar in pod (only in k8s)
+
+	// Unprivileged mount pod runs as non-privileged pod
+	Unprivileged         = false
+	DevicePluginDisabled = false
 
 	NodeName           = ""
 	Namespace          = ""
@@ -55,6 +60,9 @@ var (
 	CeCliPath       = "/usr/local/bin/juicefs"
 	CeMountPath     = "/bin/mount.juicefs"
 	JfsMountPath    = "/sbin/mount.juicefs"
+
+	DeviceResourceName = "juicefs.com/fuse"
+	DeviceServerSock   = pluginapi.DevicePluginPath + "juicefs.sock"
 )
 
 const (

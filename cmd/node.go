@@ -38,6 +38,7 @@ func parseNodeConfig() {
 		config.FormatInPod = false
 		return
 	}
+	config.Unprivileged = unprivileged
 	config.FormatInPod = formatInPod
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")

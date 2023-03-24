@@ -18,6 +18,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
@@ -27,7 +28,17 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/device"
 )
 
+const defaultMountsAllowed = 5000
+
 func deviceRun() {
+	mountsAllowed := defaultMountsAllowed
+	if os.Getenv("MOUNTS_ALLOWED") != "" {
+		var err error
+		if mountsAllowed, err = strconv.Atoi(os.Getenv("MOUNTS_ALLOWED")); err != nil {
+			klog.Errorf("got error when parsing MOUNTS_ALLOWED, use default value 5000, err: %v", err)
+			mountsAllowed = defaultMountsAllowed
+		}
+	}
 	watcher, err := device.NewFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
 		klog.Info("Failed to created FS watcher.")

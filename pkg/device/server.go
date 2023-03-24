@@ -27,11 +27,8 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
-)
 
-const (
-	resourceName = "juicefs.com/fuse"
-	serverSock   = pluginapi.DevicePluginPath + "juicefs.sock"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 // FuseDevicePlugin implements the Kubernetes device plugin API
@@ -45,7 +42,7 @@ type FuseDevicePlugin struct {
 func NewFuseDevicePlugin(number int) *FuseDevicePlugin {
 	return &FuseDevicePlugin{
 		devs:   getDevices(number),
-		socket: serverSock,
+		socket: config.DeviceServerSock,
 	}
 }
 
@@ -188,7 +185,7 @@ func (m *FuseDevicePlugin) Serve() error {
 	}
 	klog.Infof("Starting to serve on %s", m.socket)
 
-	err = m.Register(pluginapi.KubeletSocket, resourceName)
+	err = m.Register(pluginapi.KubeletSocket, config.DeviceResourceName)
 	if err != nil {
 		klog.Infof("Could not register device plugin: %s", err)
 		m.Stop()
