@@ -112,8 +112,9 @@ var (
 					},
 				},
 				SecurityContext: &corev1.SecurityContext{
-					Privileged: &isPrivileged,
-					RunAsUser:  &rootUser,
+					Privileged:   &isPrivileged,
+					RunAsUser:    &rootUser,
+					Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"SYS_ADMIN", "MKNOD"}},
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
