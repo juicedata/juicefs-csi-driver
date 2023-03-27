@@ -470,10 +470,6 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, erro
 	stdout, err := p.Exec.CommandContext(cmdCtx, jfsConfig.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
 		re := string(stdout)
-		if strings.Contains(re, "database is not formatted") {
-			klog.V(6).Infof("juicefs %s not formatted.", name)
-			return "", nil
-		}
 		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
