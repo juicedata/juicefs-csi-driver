@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	k8sexec "k8s.io/utils/exec"
