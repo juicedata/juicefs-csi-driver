@@ -401,7 +401,7 @@ spec:
 
 ### 静态配置 {#static-mount-options}
 
-创建或修改 PV 时，可以指定挂载配置。注意，如果是修改已有 PV 的挂载配置，修改后需要重建应用 Pod，才会触发重新创建 Mount Pod，令变动生效。
+注意，如果是修改已有 PV 的挂载配置，修改后需要重建应用 Pod，才会触发重新创建 Mount Pod，令变动生效。
 
 ```yaml {8-9}
 apiVersion: v1
