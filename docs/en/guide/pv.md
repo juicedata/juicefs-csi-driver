@@ -240,7 +240,7 @@ After pod is up and running, you'll see `out.txt` being created by the container
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
-Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
+Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options, you'll have to delete existing PVCs, or [directly modifying mount options in existing PV](#static-mount-options).
 
 ### Create via Helm {#helm-sc}
 
@@ -401,7 +401,7 @@ Mount options are really just the options supported by the `juicefs mount` comma
 After modifying the mount options, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
 :::
 
-### Static provisioning
+### Static provisioning {#static-mount-options}
 
 ```yaml {8-9}
 apiVersion: v1
@@ -416,7 +416,7 @@ spec:
   ...
 ```
 
-### Dynamic provisioning
+### Dynamic provisioning {#dynamic-mount-options}
 
 Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
 
