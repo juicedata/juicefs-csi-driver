@@ -240,7 +240,7 @@ Pod 创建完成后，你就能在 JuiceFS 挂载点看到上方容器写入的 
 
 [StorageClass](https://kubernetes.io/zh-cn/docs/concepts/storage/storage-classes)（存储类）里指定了创建 PV 所需的各类配置，你可以将其理解为动态配置下的「Profile」：不同的 StorageClass 就是不同的 Profile，可以在其中指定不同的文件系统认证信息、挂载配置，让动态配置下可以同时使用不同的文件系统，或者指定不同的挂载。因此如果你打算以[「动态配置」](#dynamic-provisioning)或[「通用临时卷」](#general-ephemeral-storage)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
 
-阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
+注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV。**如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](#static-mount-options)
 
 ### 通过 Helm 创建 {#helm-sc}
 
@@ -399,7 +399,9 @@ spec:
 修改了挂载参数后，还需要滚动升级或重启应用 Pod，CSI 驱动重新创建 Mount Pod，配置变更方能生效。
 :::
 
-### 静态配置
+### 静态配置 {#static-mount-options}
+
+创建或修改 PV 时，可以指定挂载配置。注意，如果是修改已有 PV 的挂载配置，修改后需要重建应用 Pod，才会触发重新创建 Mount Pod，令变动生效。
 
 ```yaml {8-9}
 apiVersion: v1
@@ -414,7 +416,7 @@ spec:
   ...
 ```
 
-### 动态配置
+### 动态配置 {#dynamic-mount-options}
 
 在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
