@@ -21,7 +21,7 @@ JuiceFS CSI 驱动默认会在 Mount Pod 的 9567 端口提供监控指标，也
 
 ### Prometheus 收集监控指标
 
-若您的 Prometheus 服务是单独部署的，可以新增一个抓取任务到 prometheus.yml 来收集监控指标：
+若您的 Prometheus 服务是单独部署的，可以新增一个抓取任务到 `prometheus.yml` 来收集监控指标：
 
 ```yaml
 scrape_configs:
