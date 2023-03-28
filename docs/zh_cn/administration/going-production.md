@@ -107,7 +107,7 @@ spec:
 
 同时在 `Prometheus` 资源中设置上述的 `PodMonitor`：
 
-```yaml
+```yaml {7-9}
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
