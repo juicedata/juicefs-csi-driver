@@ -239,7 +239,7 @@ kubectl label node [node-1] [node-2] app=model-training
 
 ### Modify JuiceFS CSI Driver installation configuration
 
-Apart from `nodeSelector`, Kubernetes also offer other mechanisms to control pod scheduling, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/).
+Apart from `nodeSelector`, Kubernetes also offer other mechanisms to control pod scheduling, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node).
 
 #### Install via Helm
 

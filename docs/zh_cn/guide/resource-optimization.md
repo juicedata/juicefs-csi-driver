@@ -239,7 +239,7 @@ kubectl label node [node-1] [node-2] app=model-training
 
 ### 修改 JuiceFS CSI 驱动安装配置
 
-除了 `nodeSelector`，Kubernetes 还提供更多方式控制容器调度，参考[将 Pod 指派给节点](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node/)。
+除了 `nodeSelector`，Kubernetes 还提供更多方式控制容器调度，参考[将 Pod 指派给节点](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node)。
 
 #### 通过 Helm 安装
 
