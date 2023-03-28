@@ -6,15 +6,22 @@ sidebar_position: 7
 
 Debugging process for some frequently encountered problems, you can search for your issue using error keywords. Also, we recommend you to have a firm grasp on [Basic principles for troubleshooting](./troubleshooting.md#basic-principles).
 
-## CSI Driver not installed / installation failure
+## CSI Driver installation issue
 
 If JuiceFS CSI Driver isn't installed, or not properly configured, then following error will occur:
 
 ```
-driver name csi.juicefs.com not found in the list of registered CSI drivers
+kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
 
 Thoroughly follow the steps in [Installation](../getting_started.md), pay special attention to kubelet root directory settings.
+
+Above error message shows that the CSI Driver named `csi.juicefs.com` isn't found, follow these steps to troubleshoot:
+
+* Run `kubectl get csidrivers.storage.k8s.io` and check if `csi.juicefs.com` actually missing, if that is indeed the case, CSI Driver isn't installed at all, head to [Installation](../getting_started.md).
+* If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node.
+* [Check if CSI Node is working correctly](./troubleshooting.md#check-csi-node).
+* There should be a CSI Node pod on the exact Kubernetes node where the application pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/), CSI Node may be missing on such worker nodes.
 
 ## CSI Node pod failure
 

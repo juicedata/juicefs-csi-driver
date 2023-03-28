@@ -7,9 +7,22 @@ Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI
 
 ## Adjust resources for mount pod {#mount-pod-resources}
 
-Every application pod that uses JuiceFS PV requires a running mount pod (reused for pods using a same PV), thus configuring proper resource definition for mount pod can effectively optimize resource usage.
+Every application pod that uses JuiceFS PV requires a running mount pod (reused for pods using a same PV), thus configuring proper resource definition for mount pod can effectively optimize resource usage. Read [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits.
 
-Read the official documentation [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits. For a default JuiceFS mount pod, resource requests is 1 CPU and 1GiB memory, resource limits is 2 CPU and 5GiB memory.
+Under the default settings, JuiceFS mount pod resource `requests` is 1 CPU and 1GiB memory, resource `limits` is 2 CPU and 5GiB memory, this might not be the perfect setup for you since JuiceFS is used in so many different scenarios, you should make adjustments to fit the actual resource usage:
+
+* If actual usage is lower, e.g. mount pod uses only 0.1 CPU, 100MiB memory, then you should match the resources `requests` to the actual usage, to avoid wasting resources, or worse, mount pod not being able to schedule to due overly large resource `requests`, this might also cause pod preemptions which should be absolutely avoided in a production environment. For resource `limits`, you should also configure a reasonably larger value, so that the mount pod can deal with temporary load increases.
+* If actual usage is higher, e.g. 2 CPU, 2GiB memory, even though the default `requests` allows for its scheduling, things are risky because mount pod is using more resources than it declares, this is called overcommitment and constant overcommitment can cause all sorts of stability issues like CPU throttling and OOM. So under this circumstance, you should also adjust requests and limits according to the actual usage.
+
+If you already have [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server) installed, use commands like these to conveniently check actual resource usage for CSI Driver components:
+
+```shell
+# Check mount pod resource usage
+kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
+
+# Check resource usage for CSI Controller and CSI Node, you may adjust their resource definition following the same principle
+kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
+```
 
 ### Static provisioning
 
@@ -225,6 +238,8 @@ kubectl label node [node-1] [node-2] app=model-training
 ```
 
 ### Modify JuiceFS CSI Driver installation configuration
+
+Apart from `nodeSelector`, Kubernetes also offer other mechanisms to control pod scheduling, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/).
 
 #### Install via Helm
 

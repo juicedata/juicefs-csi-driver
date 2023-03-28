@@ -6,15 +6,21 @@ sidebar_position: 7
 
 这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先掌握[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
 
-## CSI 驱动未安装 / 安装失败
+## CSI 驱动安装异常
 
 如果 JuiceFS CSI 驱动压根没安装，或者配置错误导致安装失败，那么试图使用 JuiceFS CSI 驱动时，便会有下方报错：
 
 ```
-driver name csi.juicefs.com not found in the list of registered CSI drivers
+kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
 
-请回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)，尤其注意确认 kubelet 根目录正确设置。
+上方的报错信息表示，名为 `csi.juicefs.com` 的驱动没有找到，此时遵循以下步骤进行排查：
+
+* 运行 `kubectl get csidrivers.storage.k8s.io`，如果输出的中确没有 `csi.juicefs.com` 字样，说明 CSI 驱动并未按照，重新回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)。
+* 如果上方的 `csidrivers` 列表中存在 `csi.juicefs.com`，那么说明 CSI 驱动已经安装，问题出在 CSI Node。
+* [检查 CSI Node 是否正常运作](./troubleshooting.md#check-csi-node)。
+* 检查应用 Pod 所在节点，是否正常运行着 CSI Node，如果为 CSI Node 这个 DaemonSet 组件配置了[调度策略](../guide/resource-optimization.md#csi-node-node-selector)，或者节点本身存在[「污点」](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration/)，都有可能造成 CSI Node 容器缺失。
+
 
 ## CSI Node pod 异常
 
