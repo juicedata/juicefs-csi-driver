@@ -11,8 +11,8 @@ Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱�
 
 JuiceFS Mount Pod 的 requests 默认为 1 CPU 和 1GiB Memory，limits 默认为 2 CPU 和 5GiB Memory。考虑到 JuiceFS 的使用场景多种多样，1U1G 的资源请求可能不一定适合你的集群，比方说：
 
-* 实际场景下用量极低，比如 Mount Pod 只使用了 0.1 CPU、100MiB Memory，那么你应该尊重实际监控数据，将资源请求调整为 0.1 CPU，100MiB Memory，避免过大的 requests 造成资源闲置，甚至导致容器拒绝启动，或者抢占其他应用容器（Preemption）。对于 limits，你也可以根据实际监控数据，调整为一个大于 requests 的数值，允许突发瞬时的资源占用上升。
-* 实际场景下用量更高，比方说 2 CPU、2GiB 内存，此时虽然 1U1G 的默认 requests 允许容器调度到节点上，但实际资源占用高于 requests，这便是「资源超售」（Overcommitment），严重的超售会影响集群稳定性，让节点出现各种资源挤占的问题，比如 CPU Throttle、OOM。因此这种情况下，你也应该根据实际用量，调整 requests 和 limits。
+* 实际场景下用量极低，比如 Mount Pod 只使用了 0.1 CPU、100MiB Memory，那么你应该尊重实际监控数据，将资源请求调整为 0.1 CPU，100MiB Memory，避免过大的 `requests` 造成资源闲置，甚至导致容器拒绝启动，或者抢占其他应用容器（Preemption）。对于 `limits`，你也可以根据实际监控数据，调整为一个大于 `requests` 的数值，允许突发瞬时的资源占用上升。
+* 实际场景下用量更高，比方说 2 CPU、2GiB 内存，此时虽然 1U1G 的默认 `requests` 允许容器调度到节点上，但实际资源占用高于 `requests`，这便是「资源超售」（Overcommitment），严重的超售会影响集群稳定性，让节点出现各种资源挤占的问题，比如 CPU Throttle、OOM。因此这种情况下，你也应该根据实际用量，调整 `requests` 和 `limits`。
 
 如果你安装了 [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server)，可以方便地用类似下方命令查看 CSI 驱动组件的实际资源占用：
 
