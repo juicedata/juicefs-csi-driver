@@ -14,7 +14,7 @@ Below settings are recommended for a production environment.
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](https://juicefs.com/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache).
 * When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md).
 
-## Configure mount pod monitoring
+## Configure mount pod monitoring {#monitoring}
 
 By default, mount pod provides the metrics API using port 9567, you can customize this via the `metrics` option within the [`mountOptions`](../guide/pv.md#mount-options). CSI Driver will configure the API port to be a containerPort.
 
@@ -129,7 +129,7 @@ spec:
 Once metrics data is collected, follow our docs to set up Grafana dashboard:
 
 * [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#%E2%85%B2-visualize-prometheus-data-via-grafana)。
-* [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor/)
+* [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor)
 
 ## Collect mount pod logs using EFK
 

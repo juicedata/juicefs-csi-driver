@@ -14,7 +14,7 @@ sidebar_position: 1
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](https://juicefs.com/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优
 
-## 配置 Mount Pod 的监控信息
+## 监控 Mount Pod {#monitoring}
 
 默认设置下，Mount Pod 通过 9567 端口提供监控指标，也可以通过在 [mountOptions](../guide/pv.md#mount-options) 中添加 metrics 选项来进行自定义。同时，CSI 驱动会将 Metrics 接口设置为 containerPort，因此 Prometheus 的监控配置信息可以按如下方式配置。
 
@@ -129,7 +129,7 @@ spec:
 按照上方步骤搭建好容器指标收集后，参考下方文档配置 Grafana 仪表盘：
 
 * [社区版](https://juicefs.com/docs/zh/community/administration/monitoring#%E5%8F%AF%E8%A7%86%E5%8C%96%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87)。
-* [商业版](https://juicefs.com/docs/zh/cloud/administration/monitor/)
+* [商业版](https://juicefs.com/docs/zh/cloud/administration/monitor)
 
 ## 在 EFK 中收集 Mount Pod 日志
 
