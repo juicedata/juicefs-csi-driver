@@ -16,6 +16,8 @@ print_usage() {
   echo "        Print various debug information for specified application pod."
   echo "    get-mount"
   echo "        Get mount pod used by specified application pod."
+  echo "    get-oplog"
+  echo "        Collect access log from mount pods that's being used by specified application pod."
   echo "    get-app"
   echo "        Get application pods using specified mount pod."
   echo "    collect"
@@ -136,11 +138,52 @@ get_mount_pod() {
 
   set -e
   NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
   PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
-  PV_ID=$(${kbctl} get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
-  MOUNT_POD_NAME=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
-  printf "$juicefs_namespace\t$MOUNT_POD_NAME\n"
+
+  for pvc_name in $PVC_NAMES
+  do
+    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+    pv_id=$(${kbctl} get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
+    if [ "$NODE_NAME" != "" ]; then
+      mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
+      for mount_pod_name in $mount_pod_names
+      do
+        printf "$juicefs_namespace\t$mount_pod_name\n"
+      done
+    fi
+  done
+}
+
+get_oplog() {
+  if [ "${ORIGINAL_ARGS[1]}" == "" ]; then
+    echo "EXAMPLES:"
+    echo "    csi-doctor.sh get-oplog APP_POD_NAME"
+    exit 1
+  fi
+  app=${ORIGINAL_ARGS[1]}
+  local namespace="${namespace:-$DEFAULT_APP_NS}"
+  juicefs_namespace=${JFS_NS:-"kube-system"}
+
+  set -e
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
+  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+
+  for pvc_name in $PVC_NAMES
+  do
+    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+    pv_id=$(${kbctl} get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
+    if [ "$NODE_NAME" != "" ]; then
+      mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
+      for mount_pod_name in $mount_pod_names
+      do
+        mp=$(${kbctl} -n ${juicefs_namespace} get po $mount_pod_name -ojsonpath={..preStop.exec.command[-1]} | grep -oP '\S+$')
+        echo ${kbctl} -n ${juicefs_namespace} exec -it -c jfs-mount $mount_pod_name -- cat ${mp}/.accesslog
+        echo ${kbctl} -n ${juicefs_namespace} exec -it -c jfs-mount $mount_pod_name -- cat ${mp}/.ophistory
+      done
+    fi
+  done
 }
 
 get_app_pod() {
@@ -307,6 +350,9 @@ main() {
       get-mount|help)
         action=$1
         ;;
+      get-oplog|help)
+        action=$1
+        ;;
       get-app|help)
         action=$1
         ;;
@@ -330,6 +376,9 @@ main() {
       ;;
     get-mount)
       get_mount_pod
+      ;;
+    get-oplog)
+      get_oplog
       ;;
     get-app)
       get_app_pod
