@@ -171,7 +171,7 @@ func (r *Builder) getCommand() string {
 	} else {
 		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
 		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
-		mountOptions := []string{"foreground"}
+		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {
 			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
