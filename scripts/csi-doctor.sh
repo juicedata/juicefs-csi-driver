@@ -39,25 +39,26 @@ run() {
 
 DEFAULT_APP_NS="${APP_NS:-default}"
 ORIGINAL_ARGS=( "$@" )
+kbctl=kubectl
 
 juicefs_resources() {
   local namespace="${namespace:-$DEFAULT_APP_NS}"
 
   mkdir -p "$diagnose_dir/app"
-  kubectl describe po "$app" -n $namespace &>"$diagnose_dir/app/$app-describe.log" 2>&1
-  kubectl get po "$app" -oyaml -n $namespace &>"$diagnose_dir/app/$app.yaml" 2>&1
+  $kbctl describe po "$app" -n $namespace &>"$diagnose_dir/app/$app-describe.log" 2>&1
+  $kbctl get po "$app" -oyaml -n $namespace &>"$diagnose_dir/app/$app.yaml" 2>&1
 
-  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
-  PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 
   mkdir -p "$diagnose_dir/pv"
-  kubectl get pv "$PV_NAME" -oyaml &>"$diagnose_dir/pv/pv-$PV_NAME.yaml" 2>&1
-  kubectl describe pv "$PV_NAME" &>"$diagnose_dir/pv/pv-$PV_NAME-describe.log" 2>&1
+  $kbctl get pv "$PV_NAME" -oyaml &>"$diagnose_dir/pv/pv-$PV_NAME.yaml" 2>&1
+  $kbctl describe pv "$PV_NAME" &>"$diagnose_dir/pv/pv-$PV_NAME-describe.log" 2>&1
 
   mkdir -p "$diagnose_dir/pvc"
-  kubectl get pvc "$PVC_NAME" -n $namespace -oyaml &>"$diagnose_dir/pvc/$PVC_NAME.yaml" 2>&1
-  kubectl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
+  $kbctl get pvc "$PVC_NAME" -n $namespace -oyaml &>"$diagnose_dir/pvc/$PVC_NAME.yaml" 2>&1
+  $kbctl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
 }
 
 SHOULD_CHECK_CSI_CONRTROLLER=''
@@ -71,30 +72,30 @@ debug_app_pod() {
   app=${ORIGINAL_ARGS[1]}
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
-  echo "## CSI Controller Image: $(kubectl -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}')"
+  echo "## CSI Controller Image: $(${kbctl} -n $juicefs_namespace get po -l app=juicefs-csi-controller -o jsonpath='{.items[*].spec.containers[*].image}')"
   echo '## Application Pod Event'
-  kubectl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
-  PVC_NAMES=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
-  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  app_pod_uid=$(kubectl -n $namespace get po $app -o jsonpath='{.metadata.uid}')
+  $kbctl -n $namespace get event --field-selector involvedObject.name=$app,type!=Normal
+  PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  app_pod_uid=$(${kbctl} -n $namespace get po $app -o jsonpath='{.metadata.uid}')
   for pvc_name in $PVC_NAMES
   do
     debug_pvc $pvc_name
-    pv_name=$(kubectl -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
-    pv_id=$(kubectl get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
+    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+    pv_id=$(${kbctl} get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
     if [ "$NODE_NAME" != "" ]; then
-      mount_pod_names=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
+      mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
       for mount_pod_name in $mount_pod_names
       do
-        annos=$(kubectl -n $juicefs_namespace get po $mount_pod_name -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
+        annos=$(${kbctl} -n $juicefs_namespace get po $mount_pod_name -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
         for anno in ${annos[@]}; do
           pod_uid=$(echo $anno | grep -oP '(?<=pods/).+(?=/volumes)')
           if [ "$pod_uid" == "$app_pod_uid" ]; then
-            echo "## Mount Pod Image for $mount_pod_name: $(kubectl -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}')"
+            echo "## Mount Pod Image for $mount_pod_name: $(${kbctl} -n $juicefs_namespace get po $mount_pod_name -o jsonpath='{..containers[*].image}')"
             echo "## Mount Pod Event for $mount_pod_name"
-            kubectl get event -n $namespace --field-selector involvedObject.name=$mount_pod_name,type!=Normal
+            $kbctl get event -n $namespace --field-selector involvedObject.name=$mount_pod_name,type!=Normal
             echo "## Mount Pod Log: $mount_pod_name"
-            kubectl -n $juicefs_namespace logs $mount_pod_name --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
+            $kbctl -n $juicefs_namespace logs $mount_pod_name --tail 1000 | grep -v "<INFO>" | grep -v "<DEBUG>" | tail -n 50
           fi
         done
       done
@@ -102,24 +103,24 @@ debug_app_pod() {
   done
   if [ "$SHOULD_CHECK_CSI_CONRTROLLER" == "true" ]; then
     echo "## CSI Controller Log"
-    kubectl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 20 -c juicefs-plugin
+    $kbctl -n $juicefs_namespace logs juicefs-csi-controller-0 --tail 20 -c juicefs-plugin
   fi
   if [ "$NODE_NAME" != "" ]; then
-    CSI_NODE_POD_NAME=$(kubectl get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+    CSI_NODE_POD_NAME=$(${kbctl} get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
     if [ "$CSI_NODE_POD_NAME" != "" ]; then
       echo "## CSI Node Log: $CSI_NODE_POD_NAME"
-      kubectl -n $juicefs_namespace logs $CSI_NODE_POD_NAME -c juicefs-plugin --tail 20
+      $kbctl -n $juicefs_namespace logs $CSI_NODE_POD_NAME -c juicefs-plugin --tail 20
     fi
   fi
 }
 
 debug_pvc() {
   pvc_name=$1
-  pvc_phase=$(kubectl -n $namespace get pvc $pvc_name -ojsonpath={..phase})
+  pvc_phase=$(${kbctl} -n $namespace get pvc $pvc_name -ojsonpath={..phase})
   if [ "$pvc_phase" != "Bound" ]; then
     echo "## PVC Event: $pvc_name"
     SHOULD_CHECK_CSI_CONRTROLLER=true
-    kubectl get event -n $namespace --field-selector involvedObject.name=$pvc_name
+    $kbctl get event -n $namespace --field-selector involvedObject.name=$pvc_name
   fi
 }
 
@@ -134,11 +135,11 @@ get_mount_pod() {
   juicefs_namespace=${JFS_NS:-"kube-system"}
 
   set -e
-  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
-  PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
-  PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
-  MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+  PV_ID=$(${kbctl} get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
+  MOUNT_POD_NAME=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
   printf "$juicefs_namespace\t$MOUNT_POD_NAME\n"
 }
 
@@ -152,18 +153,18 @@ get_app_pod() {
   juicefs_namespace=${JFS_NS:-"kube-system"}
 
   set -e
-  pv_id=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{if eq $k "juicefs-uniqueid"}}{{$v}}{{end}}{{end}}')
-  pvs=$(kubectl get pv --no-headers | awk '{print $1}')
+  pv_id=$(${kbctl} -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{if eq $k "juicefs-uniqueid"}}{{$v}}{{end}}{{end}}')
+  pvs=$(${kbctl} get pv --no-headers | awk '{print $1}')
   for pv in $pvs; do
-    volumeHandle=$(kubectl get pv $pv -ojsonpath={..volumeHandle})
+    volumeHandle=$(${kbctl} get pv $pv -ojsonpath={..volumeHandle})
     if [ "$pv_id" == "$volumeHandle" ]; then
-      pvc_name=$(kubectl get pv $pv -ojsonpath={..claimRef.name})
+      pvc_name=$(${kbctl} get pv $pv -ojsonpath={..claimRef.name})
       break
     fi
   done
-  namespace=$(kubectl get pvc -A --field-selector=metadata.name=$pvc_name -ojsonpath={..namespace})
+  namespace=$(${kbctl} get pvc -A --field-selector=metadata.name=$pvc_name -ojsonpath={..namespace})
 
-  annos=$(kubectl -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
+  annos=$(${kbctl} -n $juicefs_namespace get po $mountpod -o go-template='{{range $k,$v := .metadata.annotations}}{{$v}}{{"\n"}}{{end}}')
   i=0
   pod_ids=()
   set +e
@@ -176,9 +177,9 @@ get_app_pod() {
   set -e
 
   declare -A app_maps
-  alls=$(kubectl get po -n $namespace --no-headers | awk '{print $1}')
+  alls=$(${kbctl} get po -n $namespace --no-headers | awk '{print $1}')
   for po in ${alls[@]}; do
-    pod_id=$(kubectl -n $namespace get po $po -o jsonpath='{.metadata.uid}')
+    pod_id=$(${kbctl} -n $namespace get po $po -o jsonpath='{.metadata.uid}')
     app_maps[$pod_id]=$po
   done
 
@@ -204,11 +205,11 @@ mount_exec() {
     exit 1
   fi
   juicefs_namespace=${JFS_NS:-"kube-system"}
-  mount_pods=$(kubectl get pods -n $juicefs_namespace -l app.kubernetes.io/name=juicefs-mount --no-headers -o custom-columns=":metadata.name")
+  mount_pods=$(${kbctl} get pods -n $juicefs_namespace -l app.kubernetes.io/name=juicefs-mount --no-headers -o custom-columns=":metadata.name")
   set -x
   for mount_pod in $mount_pods
   do
-    kubectl -n $juicefs_namespace exec -it $mount_pod $cmd
+    $kbctl -n $juicefs_namespace exec -it $mount_pod $cmd
   done
   set +x
 }
@@ -218,15 +219,15 @@ collect_mount_pod_msg() {
   juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
 
-  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
-  PV_NAME=$(kubectl -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
-  PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
-  MOUNT_POD_NAME=$(kubectl -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
+  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
+  PV_ID=$(${kbctl} get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
+  MOUNT_POD_NAME=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
 
-  kubectl logs "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.log" 2>&1
-  kubectl get po "$MOUNT_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.yaml" 2>&1
-  kubectl describe po "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-describe.log" 2>&1
+  $kbctl logs "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.log" 2>&1
+  $kbctl get po "$MOUNT_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.yaml" 2>&1
+  $kbctl describe po "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-describe.log" 2>&1
 
 }
 
@@ -236,17 +237,17 @@ collect_juicefs_csi_msg() {
   mkdir -p "$diagnose_dir/juicefs-csi-node"
   mkdir -p "$diagnose_dir/juicefs-csi-controller"
 
-  NODE_NAME=$(kubectl -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
 
-  CSI_NODE_POD_NAME=$(kubectl get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
-  kubectl logs "$CSI_NODE_POD_NAME" -c juicefs-plugin -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME-juicefs-plugin.log" 2>&1
-  kubectl get po "$CSI_NODE_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME.yaml" 2>&1
-  kubectl describe po "$CSI_NODE_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME-describe.log" 2>&1
+  CSI_NODE_POD_NAME=$(${kbctl} get po -n $juicefs_namespace --field-selector spec.nodeName=$NODE_NAME -l app=juicefs-csi-node -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
+  $kbctl logs "$CSI_NODE_POD_NAME" -c juicefs-plugin -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME-juicefs-plugin.log" 2>&1
+  $kbctl get po "$CSI_NODE_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME.yaml" 2>&1
+  $kbctl describe po "$CSI_NODE_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-node/$CSI_NODE_POD_NAME-describe.log" 2>&1
 
   CSI_CTRL_POD_NAME="juicefs-csi-controller-0"
-  kubectl logs "$CSI_CTRL_POD_NAME" -c juicefs-plugin -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME-juicefs-plugin.log" 2>&1
-  kubectl get po "$CSI_CTRL_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME.yaml" 2>&1
-  kubectl describe po "$CSI_CTRL_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME-describe.log" 2>&1
+  $kbctl logs "$CSI_CTRL_POD_NAME" -c juicefs-plugin -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME-juicefs-plugin.log" 2>&1
+  $kbctl get po "$CSI_CTRL_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME.yaml" 2>&1
+  $kbctl describe po "$CSI_CTRL_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME-describe.log" 2>&1
 }
 
 archive() {
