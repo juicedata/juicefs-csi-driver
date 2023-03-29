@@ -16,8 +16,7 @@ sidebar_position: 1
 
 ## 配置 Mount Pod 的监控信息
 
-JuiceFS CSI 驱动默认会在 Mount Pod 的 9567 端口提供监控指标，也可以通过在 mountOptions 中添加 metrics 选项自定义（请参考[文档](../guide/pv.md#mount-options)）。
-同时 JuiceFS CSI 驱动会将 Metrics 接口设置为 containerPort，因此 Prometheus 的监控配置信息可以按如下方式配置。
+默认设置下，Mount Pod 通过 9567 端口提供监控指标，也可以通过在 [mountOptions](../guide/pv.md#mount-options) 中添加 metrics 选项来进行自定义。同时，CSI 驱动会将 Metrics 接口设置为 containerPort，因此 Prometheus 的监控配置信息可以按如下方式配置。
 
 ### Prometheus 收集监控指标
 
@@ -95,7 +94,8 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-      - <namespace> # 设置成 CSI 驱动所在的 namespace，默认为 kube-system
+      # 设置成 CSI 驱动所在的 namespace，默认为 kube-system
+      - <namespace>
   selector:
     matchLabels:
       app.kubernetes.io/name: juicefs-mount
