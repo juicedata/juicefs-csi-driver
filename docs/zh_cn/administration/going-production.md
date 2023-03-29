@@ -128,7 +128,7 @@ spec:
 
 按照上方步骤搭建好容器指标收集后，参考下方文档配置 Grafana 仪表盘：
 
-* [社区版](https://juicefs.com/docs/zh/community/administration/monitoring#%E5%8F%AF%E8%A7%86%E5%8C%96%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87)。
+* [社区版](https://juicefs.com/docs/zh/community/administration/monitoring#grafana)。
 * [商业版](https://juicefs.com/docs/zh/cloud/administration/monitor)
 
 ## 在 EFK 中收集 Mount Pod 日志

@@ -124,11 +124,11 @@ spec:
   enableAdminAPI: false
 ```
 
-### Visualize in Grafana
+### Grafana visualization
 
 Once metrics data is collected, follow our docs to set up Grafana dashboard:
 
-* [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#%E2%85%B2-visualize-prometheus-data-via-grafana)。
+* [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#grafana)。
 * [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor)
 
 ## Collect mount pod logs using EFK
