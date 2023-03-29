@@ -44,6 +44,9 @@ type provisionerService struct {
 func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 	leaderElectionNamespace string, leaderElectionLeaseDuration time.Duration) (provisionerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
+	if leaderElectionNamespace == "" {
+		leaderElectionNamespace = config.Namespace
+	}
 	return provisionerService{
 		juicefs:                     jfs,
 		K8sClient:                   k8sClient,
