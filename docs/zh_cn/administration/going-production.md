@@ -21,7 +21,7 @@ JuiceFS CSI 驱动默认会在 Mount Pod 的 9567 端口提供监控指标，也
 
 ### Prometheus 收集监控指标
 
-若您的 Prometheus 服务是单独部署的，可以新增一个抓取任务到 `prometheus.yml` 来收集监控指标：
+在 `prometheus.yml` 添加相应的抓取配置，来收集监控指标：
 
 ```yaml
 scrape_configs:
@@ -63,12 +63,13 @@ scrape_configs:
         action: keep
 ```
 
-这里假设 Prometheus 服务运行在 Kubernetes 集群中，如果你的 Prometheus 服务运行在 Kubernetes 集群之外，请确保 Prometheus 服务可以访问 Kubernetes 节点，请参考[这个 issue](https://github.com/prometheus/prometheus/issues/4633) 添加 api_server 和 tls_config 配置到以上文件：
+上方的示范假定 Prometheus 服务运行在 Kubernetes 集群中，如果运行在集群外，除了确保正确设置安全组，允许 Prometheus 访问 Kubernetes 节点，还需要额外添加 `api_server` 和 `tls_config`：
 
 ```yaml
 scrape_configs:
   - job_name: 'juicefs'
     kubernetes_sd_configs:
+    # 详见 https://github.com/prometheus/prometheus/issues/4633
     - api_server: <Kubernetes API Server>
       role: pod
       tls_config:
@@ -82,7 +83,7 @@ scrape_configs:
 
 ### Prometheus Operator 收集监控指标
 
-若您通过 [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) 来管理监控服务，可以新增一个 PodMonitor 来收集监控指标：
+对于 [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md)，可以新增一个 PodMonitor 来收集监控指标：
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -94,7 +95,7 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-      - <namespace> # 设置成您的 CSI 驱动所在的 namespace，默认为 kube-system
+      - <namespace> # 设置成 CSI 驱动所在的 namespace，默认为 kube-system
   selector:
     matchLabels:
       app.kubernetes.io/name: juicefs-mount
@@ -123,9 +124,12 @@ spec:
   enableAdminAPI: false
 ```
 
-更多关于如果使用 Prometheus Operator 的信息请参考[官方文档](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md)。
+### 在 Grafana 中进行数据可视化
 
-以上是关于如何在您已有的监控服务中配置 Mount Pod 的监控信息，Grafana 仪表盘的配置请参考[文档](https://juicefs.com/docs/zh/community/administration/monitoring#%E5%8F%AF%E8%A7%86%E5%8C%96%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87)。
+按照上方步骤搭建好容器指标收集后，参考下方文档配置 Grafana 仪表盘：
+
+* [社区版](https://juicefs.com/docs/zh/community/administration/monitoring#%E5%8F%AF%E8%A7%86%E5%8C%96%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87)。
+* [商业版](https://juicefs.com/docs/zh/cloud/administration/monitor/)
 
 ## 在 EFK 中收集 Mount Pod 日志
 
