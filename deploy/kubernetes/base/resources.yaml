@@ -45,6 +45,9 @@ rules:
   - apiGroups: [ "apps" ]
     resources: [ "daemonsets" ]
     verbs: [ "get", "list" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
 ---
 
 kind: ClusterRoleBinding

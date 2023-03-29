@@ -117,7 +117,7 @@ func nodeRun() {
 		klog.V(5).Infof("Pod Reconciler Started")
 	}
 
-	drv, err := driver.NewDriver(endpoint, nodeID)
+	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 	if err != nil {
 		klog.Fatalln(err)
 	}
