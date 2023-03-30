@@ -59,7 +59,7 @@ jobs:
         with:
           files: ./coverage.txt
 
-  k8s-ci:
+  webhook-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -106,6 +106,24 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-webhook.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  webhook-provisioner-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
       - name: webhook provisioner mode - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -140,6 +158,24 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-webhook-provisioner.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  pod-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
       - name: pod mode - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -174,6 +210,24 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-pod.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  pod-mount-shared-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
       - name: mount shared - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -208,6 +262,24 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-pod-share-mount.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  pod-provisioner-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
       - name: provisioner - Deploy JuiceFS CSI
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -242,6 +314,24 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 ci-pod-provisioner.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  process-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
       - name: process mode - Deploy JuiceFS CSI for process mode
         run: |
           cd ${GITHUB_WORKSPACE}
@@ -280,3 +370,19 @@ jobs:
         if: ${{ failure() }}
         timeout-minutes: 60
         uses: lhotari/action-upterm@v1
+
+  success-all-test:
+    runs-on: ubuntu-latest
+    needs: [webhook-ci, webhook-provisioner-ci, pod-ci, pod-mount-shared-ci, pod-provisioner-ci, process-ci]
+    if: always()
+    steps:
+      - uses: technote-space/workflow-conclusion-action@v3
+      - uses: actions/checkout@v3
+
+      - name: Check Failure
+        if: env.WORKFLOW_CONCLUSION == 'failure'
+        run: exit 1
+
+      - name: Success
+        if: ${{ success() }}
+        run: echo "All Done"
