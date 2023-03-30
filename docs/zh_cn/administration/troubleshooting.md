@@ -17,6 +17,8 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
+如果在你的运行环境中，kubectl 被重命名（比方说需要管理多个 Kubernetes 集群时，常常用不同 alias 来调用不同集群的 kubectl），或者并未放在 `PATH` 下，你也可以方便地修改脚步，将 `$kbctl` 变量替换为实际需要运行的 kubectl。
+
 诊断脚本中最为常用的功能，就是方便地获取 Mount Pod 相关信息。假设应用 Pod 为 `default` 命名空间下的 `my-app-pod`：
 
 ```shell
@@ -191,6 +193,8 @@ JuiceFS 文件系统的根目录下有一些提供特殊功能的隐藏文件，
 
 * `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)和[「访问日志（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)。
 * `cat /jfs/.stats` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)和[「实时统计数据（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)。
+
+在 CSI 驱动下获取应用的访问日志，步骤稍显繁琐，你需要先找到应用容器对应的 Mount Pod，再进入容器执行打印日志的命令。推荐直接使用 [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) 快速获得相应的命令，避免使用下方繁琐的手动步骤。
 
 Mount Pod 会将 JuiceFS 根目录挂载到形如 `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx` 的目录下，再通过 Kubernetes 的 bind 机制映射到容器内，因此，对于给定应用 Pod，你可以参考下方命令，找到其 PV 的宿主机挂载点，然后查看隐藏文件：
 
