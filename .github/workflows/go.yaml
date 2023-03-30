@@ -69,6 +69,8 @@ jobs:
           value=`printf '%s\n' "${testmode[@]}" | jq -R . | jq -cs .`
           echo "value: $value"
           echo "matrix=$value" >> $GITHUB_OUTPUT
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
 
   e2e-ce-test:
     runs-on: ubuntu-latest
