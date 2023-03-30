@@ -24,7 +24,8 @@ BUCKET = os.getenv("JUICEFS_BUCKET") or ""
 TOKEN = os.getenv("JUICEFS_TOKEN") or ""
 JUICEFS_MODE = os.getenv("JUICEFS_MODE")
 IS_CE = os.getenv("JUICEFS_MODE") == "ce"
-MOUNT_MODE = os.getenv("MOUNT_MODE")
+MOUNT_MODE = "pod" if "pod" in os.getenv("TEST_MODE") else (
+    "process" if "process" in os.getenv("TEST_MODE") else "webhook")
 RESOURCE_PREFIX = "{}-{}-".format(MOUNT_MODE, JUICEFS_MODE)
 
 GLOBAL_MOUNTPOINT = "/mnt/jfs"
