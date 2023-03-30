@@ -65,8 +65,7 @@ jobs:
       - id: set-matrix
         run: |
           sudo apt-get install jq
-            test-mode=("pod" "meta-memory" "pod-mount-share" "pod-provisioner" "webhook" "webhook-provisioner" "process" )
-          fi
+          test-mode=("pod" "meta-memory" "pod-mount-share" "pod-provisioner" "webhook" "webhook-provisioner" "process" )
           value=`printf '%s\n' "${test-mode[@]}" | jq -R . | jq -cs .`
           echo "value: $value"
           echo "matrix=$value" >> $GITHUB_OUTPUT
