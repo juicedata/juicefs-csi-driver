@@ -121,7 +121,6 @@ rules:
   resources:
   - events
   verbs:
-  - get
   - list
   - watch
   - create
@@ -149,7 +148,6 @@ rules:
   - secrets
   verbs:
   - get
-  - list
   - create
   - update
   - patch
@@ -173,8 +171,6 @@ rules:
   - jobs
   verbs:
   - get
-  - list
-  - watch
   - create
   - update
   - patch
@@ -190,6 +186,13 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
 - apiGroups:
   - ""
   resources:
