@@ -48,21 +48,20 @@ FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
-ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 
 RUN yum install -y librados2 curl fuse && \
     rm -rf /var/cache/yum/* && \
-    curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
+    curl -sSL https://juicefs.com/static/juicefs -o /usr/local/bin/juicefs-ee && chmod +x /usr/local/bin/juicefs-ee && \
     mkdir -p /root/.juicefs
 
 COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /usr/local/bin/
-COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
+COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs-ce
 
-RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
+RUN ln -s /usr/local/bin/juicefs-ce /bin/mount.juicefs
 COPY ../THIRD-PARTY /
 
-RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
+RUN /usr/bin/local/juicefs-ee version && /usr/local/bin/juicefs-ce --version
 
 ENTRYPOINT ["juicefs-csi-driver"]

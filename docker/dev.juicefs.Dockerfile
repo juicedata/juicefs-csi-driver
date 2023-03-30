@@ -24,5 +24,5 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
 
 FROM juicedata/mount:nightly
 
-COPY --from=builder /workspace/juicefs /usr/local/bin/
-RUN /usr/local/bin/juicefs --version
+COPY --from=builder /workspace/juicefs /usr/local/bin/juicefs-ce
+RUN /usr/local/bin/juicefs-ce --version

@@ -36,29 +36,28 @@ ARG JUICEFS_MOUNT_IMAGE
 
 WORKDIR /app
 
-ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
 ENV JUICEFS_MOUNT_IMAGE=${JUICEFS_MOUNT_IMAGE}
 
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
-RUN chmod +x /tini
-
+ADD docker/juicefs.sh /usr/local/bin/juicefs
 RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && \
-    curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
+    curl -sSL https://juicefs.com/static/juicefs -o /usr/local/bin/juicefs-ee && \
+    curl -sSL https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini && \
+    chmod +x /tini /usr/local/bin/juicefs* && \
     mkdir -p /root/.juicefs && \
     ln -s /usr/local/bin/python /usr/bin/python && \
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
-    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
+    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group /etc/group
 
 COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /usr/local/bin/
-COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
+COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/juicefs-ce
 
-RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
+RUN ln -s /usr/local/bin/juicefs-ce /bin/mount.juicefs
 COPY THIRD-PARTY /
 
-RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
+RUN /usr/bin/local/juicefs-ee version && /usr/local/bin/juicefs-ce --version
 
 ENTRYPOINT ["/tini", "--", "juicefs-csi-driver"]

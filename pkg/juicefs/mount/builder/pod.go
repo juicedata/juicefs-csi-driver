@@ -167,8 +167,7 @@ func (r *Builder) getCommand() string {
 			}
 		}
 		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		rmcmd := fmt.Sprintf("rm %s; ", config.JfsMountPath)
-		cmd = rmcmd + strings.Join(mountArgs, " ")
+		cmd = strings.Join(mountArgs, " ")
 	} else {
 		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
 		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
@@ -178,8 +177,7 @@ func (r *Builder) getCommand() string {
 		}
 		mountOptions = append(mountOptions, options...)
 		mountArgs = append(mountArgs, "-o", strings.Join(mountOptions, ","))
-		rmcmd := fmt.Sprintf("rm %s; ", config.CeMountPath)
-		cmd = rmcmd + strings.Join(mountArgs, " ")
+		cmd = strings.Join(mountArgs, " ")
 	}
 	return util.QuoteForShell(cmd)
 }
