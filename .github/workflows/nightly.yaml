@@ -127,7 +127,7 @@ jobs:
           JFSCHAN: beta
         run: |
           docker login --username chnliyong --password ${PASSWORD}
-          make image-nightly-push
+          make image-nightly
           make juicefs-image-nightly
           make juicefs-fuse-image-nightly
       - name: Success
