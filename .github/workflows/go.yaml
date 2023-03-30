@@ -97,7 +97,7 @@ jobs:
           dev_tag=dev-$(git describe --always)
           echo "Dev tag is: " $dev_tag
           export dev_tag=$dev_tag
-          .github/scripts/deploy-csi-in-k8s.sh testmode
+          .github/scripts/deploy-csi-in-k8s.sh ${testmode}
       - name: Run e2e test
         env:
           JUICEFS_STORAGE: s3
@@ -141,7 +141,7 @@ jobs:
           dev_tag=dev-$(git describe --always)
           echo "Dev tag is: " $dev_tag
           export dev_tag=$dev_tag
-          .github/scripts/deploy-csi-in-k8s.sh testmode
+          .github/scripts/deploy-csi-in-k8s.sh ${testmode}
       - name: Run e2e test
         env:
           JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
