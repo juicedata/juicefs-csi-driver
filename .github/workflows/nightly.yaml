@@ -45,10 +45,7 @@ jobs:
       - name: Deploy JuiceFS CSI
         run: |
           testmode=${{matrix.testmode}}
-          cd ${GITHUB_WORKSPACE}
-          dev_tag=dev-$(git describe --always)
-          echo "Dev tag is: " $dev_tag
-          export dev_tag=$dev_tag
+          export dev_tag=nightly
           .github/scripts/deploy-csi-in-k8s.sh ${testmode}
       - name: Run e2e test
         env:
@@ -91,10 +88,7 @@ jobs:
       - name: Deploy JuiceFS CSI
         run: |
           testmode=${{matrix.testmode}}
-          cd ${GITHUB_WORKSPACE}
-          dev_tag=dev-$(git describe --always)
-          echo "Dev tag is: " $dev_tag
-          export dev_tag=$dev_tag
+          export dev_tag=nightly
           .github/scripts/deploy-csi-in-k8s.sh ${testmode}
       - name: Run e2e test
         env:
