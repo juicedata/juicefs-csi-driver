@@ -5,7 +5,7 @@ sidebar_position: 1
 
 Best practices and recommended settings when going production.
 
-## PV settings
+## PV settings {#pv-settings}
 
 Below settings are recommended for a production environment.
 
@@ -16,9 +16,9 @@ Below settings are recommended for a production environment.
 
 ## Configure mount pod monitoring {#monitoring}
 
-By default, mount pod provides the metrics API using port 9567, you can customize this via the `metrics` option within the [`mountOptions`](../guide/pv.md#mount-options). CSI Driver will configure the API port to be a containerPort.
+By default (not using `hostNetwork`), the mount pod provides a metrics API through port 9567 (you can also add [`metrics`](https://juicefs.com/docs/community/command_reference#mount) option in [`mountOptions`](../guide/pv.md#mount-options) to customize the port number), the port name is `metrics`, so the monitoring configuration of Prometheus can be configured as follows.
 
-### Collect data in Prometheus
+### Collect data in Prometheus {#collect-metrics}
 
 Add below scraping config into `prometheus.yml`:
 
@@ -40,7 +40,7 @@ scrape_configs:
         action: keep
       - source_labels: [__meta_kubernetes_pod_container_port_name]
         separator: ;
-        regex: metrics
+        regex: metrics  # The metrics API port name of Mount Pod
         replacement: $1
         action: keep
       - separator: ;
@@ -62,13 +62,13 @@ scrape_configs:
         action: keep
 ```
 
-Above example assumes that Prometheus runs within the cluster, if that isn't the case, apart from properly configure your network to allow Prometheus accessing the Kubernetes nodes, you'll also need to add `api_server` 和 `tls_config`:
+Above example assumes that Prometheus runs within the cluster, if that isn't the case, apart from properly configure your network to allow Prometheus accessing the Kubernetes nodes, you'll also need to add `api_server` and `tls_config`:
 
 ```yaml
 scrape_configs:
   - job_name: 'juicefs'
     kubernetes_sd_configs:
-    # ref: https://github.com/prometheus/prometheus/issues/4633
+    # Refer to https://github.com/prometheus/prometheus/issues/4633
     - api_server: <Kubernetes API Server>
       role: pod
       tls_config:
@@ -80,9 +80,9 @@ scrape_configs:
     ...
 ```
 
-### Prometheus Operator
+### Prometheus Operator {#prometheus-operator}
 
-For [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md), add a new PodMonitor:
+For [Prometheus Operator](https://prometheus-operator.dev/docs/user-guides/getting-started), add a new `PodMonitor`:
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -100,7 +100,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: juicefs-mount
   podMetricsEndpoints:
-    - port: metrics
+    - port: metrics  # The metrics API port name of Mount Pod
       path: '/metrics'
       scheme: 'http'
       interval: '5s'
@@ -124,14 +124,14 @@ spec:
   enableAdminAPI: false
 ```
 
-### Grafana visualization
+### Grafana visualization {#grafana}
 
-Once metrics data is collected, follow our docs to set up Grafana dashboard:
+Once metrics data is collected, refer to the following documents to set up Grafana dashboard:
 
-* [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#grafana)。
-* [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor)
+* [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#grafana)
+* [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor/#prometheus-api)
 
-## Collect mount pod logs using EFK
+## Collect mount pod logs using EFK {#collect-mount-pod-logs}
 
 Troubleshooting CSI Driver usually involves reading mount pod logs, if [checking mount pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
 

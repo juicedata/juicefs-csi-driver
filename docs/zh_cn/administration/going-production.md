@@ -5,7 +5,7 @@ sidebar_position: 1
 
 本章介绍在生产环境中使用 CSI 驱动的一系列最佳实践，以及注意事项。
 
-## PV 设置
+## PV 设置 {#pv-settings}
 
 在生产环境中，推荐这样设置 PV：
 
@@ -16,9 +16,9 @@ sidebar_position: 1
 
 ## 监控 Mount Pod {#monitoring}
 
-默认设置下，Mount Pod 通过 9567 端口提供监控指标，也可以通过在 [mountOptions](../guide/pv.md#mount-options) 中添加 metrics 选项来进行自定义。同时，CSI 驱动会将 Metrics 接口设置为 containerPort，因此 Prometheus 的监控配置信息可以按如下方式配置。
+默认设置下（未使用 `hostNetwork`），Mount Pod 通过 9567 端口提供监控 API（也可以通过在 [`mountOptions`](../guide/pv.md#mount-options) 中添加 [`metrics`](https://juicefs.com/docs/zh/community/command_reference#mount) 选项来自定义端口号），端口名为 `metrics`，因此可以按如下方式配置 Prometheus 的监控配置。
 
-### Prometheus 收集监控指标
+### Prometheus 收集监控指标 {#collect-metrics}
 
 在 `prometheus.yml` 添加相应的抓取配置，来收集监控指标：
 
@@ -40,7 +40,7 @@ scrape_configs:
         action: keep
       - source_labels: [__meta_kubernetes_pod_container_port_name]
         separator: ;
-        regex: metrics
+        regex: metrics  # Mount Pod 监控 API 端口名
         replacement: $1
         action: keep
       - separator: ;
@@ -80,9 +80,9 @@ scrape_configs:
     ...
 ```
 
-### Prometheus Operator 收集监控指标
+### Prometheus Operator 收集监控指标 {#prometheus-operator}
 
-对于 [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md)，可以新增一个 PodMonitor 来收集监控指标：
+对于 [Prometheus Operator](https://prometheus-operator.dev/docs/user-guides/getting-started)，可以新增一个 `PodMonitor` 来收集监控指标：
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -100,7 +100,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: juicefs-mount
   podMetricsEndpoints:
-    - port: metrics
+    - port: metrics  # Mount Pod 监控 API 端口名
       path: '/metrics'
       scheme: 'http'
       interval: '5s'
@@ -124,14 +124,14 @@ spec:
   enableAdminAPI: false
 ```
 
-### 在 Grafana 中进行数据可视化
+### 在 Grafana 中进行数据可视化 {#grafana}
 
 按照上方步骤搭建好容器指标收集后，参考下方文档配置 Grafana 仪表盘：
 
-* [社区版](https://juicefs.com/docs/zh/community/administration/monitoring#grafana)。
-* [商业版](https://juicefs.com/docs/zh/cloud/administration/monitor)
+* [JuiceFS 社区版](https://juicefs.com/docs/zh/community/administration/monitoring#grafana)
+* [JuiceFS 云服务](https://juicefs.com/docs/zh/cloud/administration/monitor/#prometheus-api)
 
-## 在 EFK 中收集 Mount Pod 日志
+## 在 EFK 中收集 Mount Pod 日志 {#collect-mount-pod-logs}
 
 CSI 驱动的问题排查，往往涉及到查看 Mount Pod 日志。如果[实时查看 Mount Pod 日志](./troubleshooting.md#check-mount-pod)无法满足你的需要，考虑搭建 EFK（Elasticsearch + Fluentd + Kibana），或者其他合适的容器日志收集系统，用来留存和检索 Pod 日志。以 EFK 为例：
 
