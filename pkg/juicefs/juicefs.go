@@ -62,6 +62,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
+	SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 }
 
@@ -618,6 +619,27 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		klog.Infof("Auth error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs auth %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
+		}
+		return "", errors.Wrap(err, re)
+	}
+	return string(res), nil
+}
+
+func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error) {
+	// TODO: support enterprise edition
+	args := []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(capacity, 10)}
+	cmdArgs := []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(capacity, 10)}
+	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
+	defer cmdCancel()
+	setQuotaCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
+	res, err := setQuotaCmd.CombinedOutput()
+	if err != nil {
+		re := string(res)
+		klog.Infof("SetQuota error: %v", err)
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs set quota %s timed out", 10*defaultCheckTimeout)
 			return "", errors.New(re)
 		}
 		return "", errors.Wrap(err, re)
