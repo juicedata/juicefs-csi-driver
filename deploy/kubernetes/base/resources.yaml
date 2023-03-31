@@ -48,6 +48,9 @@ rules:
   - apiGroups: [ "coordination.k8s.io" ]
     resources: [ "leases" ]
     verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
 ---
 
 kind: ClusterRoleBinding
