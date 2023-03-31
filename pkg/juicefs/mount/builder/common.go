@@ -34,10 +34,11 @@ const (
 
 type Builder struct {
 	jfsSetting *config.JfsSetting
+	capacity   int64
 }
 
-func NewBuilder(setting *config.JfsSetting) *Builder {
-	return &Builder{setting}
+func NewBuilder(setting *config.JfsSetting, capacity int64) *Builder {
+	return &Builder{setting, capacity}
 }
 
 func (r *Builder) generateJuicePod() *corev1.Pod {

@@ -18,6 +18,7 @@ package builder
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -214,6 +215,27 @@ func (r *Builder) getInitContainer() corev1.Container {
 			cmd := r.getJobCommand()
 			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi; umount /mnt/jfs", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
 			formatCmd = fmt.Sprintf("%s && %s", formatCmd, initCmd)
+			if config.Webhook && r.capacity > 0 {
+				quotaPath := r.jfsSetting.SubPath
+				var subdir string
+				for _, o := range r.jfsSetting.Options {
+					pair := strings.Split(o, "=")
+					if len(pair) != 2 {
+						continue
+					}
+					if pair[0] == "subdir" {
+						subdir = path.Join("/", pair[1])
+					}
+				}
+				cmdArgs := []string{
+					config.CeCliPath,
+					"quota", "set", r.jfsSetting.MetaUrl,
+					"--path", path.Join(subdir, quotaPath),
+					"--capacity", strconv.FormatInt(r.capacity, 10),
+				}
+				setQuotaCmd := strings.Join(cmdArgs, " ")
+				formatCmd = fmt.Sprintf("%s && %s", formatCmd, setQuotaCmd)
+			}
 		}
 	}
 	container.Command = []string{"sh", "-c", formatCmd}
