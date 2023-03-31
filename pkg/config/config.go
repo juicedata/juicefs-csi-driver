@@ -51,8 +51,8 @@ var (
 	PodMountBase    = "/jfs"
 	MountBase       = "/var/lib/jfs"
 	FsType          = "juicefs"
-	CliPath         = "/usr/bin/juicefs"
-	CeCliPath       = "/usr/local/bin/juicefs"
+	CliPath         = "/usr/local/bin/juicefs-ee"
+	CeCliPath       = "/usr/local/bin/juicefs-ce"
 	CeMountPath     = "/bin/mount.juicefs"
 	JfsMountPath    = "/sbin/mount.juicefs"
 )
