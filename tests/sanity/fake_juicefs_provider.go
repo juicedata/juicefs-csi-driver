@@ -18,8 +18,9 @@ package sanity
 
 import (
 	"context"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"path/filepath"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"k8s.io/utils/mount"
@@ -74,6 +75,10 @@ func (j *fakeJfsProvider) JfsCleanupMountPoint(ctx context.Context, mountPath st
 
 func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	return nil
+}
+
+func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error) {
+	return "", nil
 }
 
 func newFakeJfsProvider() *fakeJfsProvider {
