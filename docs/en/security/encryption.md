@@ -14,6 +14,14 @@ kubectl -n kube-system patch ds juicefs-csi-node --patch '{"spec": {"template": 
 kubectl -n kube-system get pod -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
+Using Helm to install the CSI driver:
+```
+# values.yaml
+node:
+  additionalArguments:
+  - "--format-in-pod=true"
+```
+
 ## Set private key configuration in Secret
 
 ### Community edition
