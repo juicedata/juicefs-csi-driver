@@ -269,52 +269,59 @@ spec:
             topologyKey: kubernetes.io/hostname
       # Using hostNetwork allows pod to run with a static IP, when pod is recreated, IP will not change so that cache data persists
       hostNetwork: true
-      # Run juicefs auth command inside the initContainers
-      # ref: https://juicefs.com/docs/cloud/reference/commands_reference#auth
-      initContainers:
-      - name: jfs-format
-        command:
-        - sh
-        - -c
-        # Change $VOL_NAME to the actual JuiceFS Volume name
-        # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
-        - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
-        env:
-        # The Secret that contains volume credentials, must reside in same namespace as this StatefulSet
-        # ref: https://juicefs.com/docs/csi/guide/pv#cloud-service
-        - name: ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: access-key
-              name: jfs-secret-ee
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              key: secret-key
-              name: jfs-secret-ee
-        - name: TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: jfs-secret-ee
-        image: juicedata/mount:v1.0.2-4.8.2
-        volumeMounts:
-        - mountPath: /root/.juicefs
-          name: jfs-root-dir
-      # Containers running the JuiceFS Client and forming the cache group
-      # ref: https://juicefs.com/docs/cloud/guide/cache#dedicated-cache-cluster
       containers:
       - name: juicefs-cache
         command:
         - sh
         - -c
-        # Change $VOL_NAME to the actual JuiceFS Volume name
-        # Must use --foreground to make JuiceFS Client process run in foreground, adjust other mount options to your need (especially --cache-group)
-        # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
-        - /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        - |
+          # Below shell code is only needed in on-premise environments, which unpacks JSON and set its key-value pairs as environment variables
+          for keyval in $(echo $ENVS | sed -e 's/": "/=/g' -e 's/{"//g' -e 's/", "/ /g' -e 's/"}//g' ); do
+            echo "export $keyval"
+            eval export $keyval
+          done
+
+          # Authenticate and mount JuiceFS, all environment variables comes from the volume credentials within the Kubernetes Secret
+          # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
+          /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
+
+          # Must use --foreground to make JuiceFS Client process run in foreground, adjust other mount options to your need (especially --cache-group)
+          # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
+          /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        env:
+        # The Secret that contains volume credentials, must reside in same namespace as this StatefulSet
+        # ref: https://juicefs.com/docs/csi/guide/pv#cloud-service
+        - name: VOL_NAME
+          valueFrom:
+            secretKeyRef:
+              key: name
+              name: juicefs-secret
+        - name: ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: access-key
+              name: juicefs-secret
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: secret-key
+              name: juicefs-secret
+        - name: TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: juicefs-secret
+        - name: ENVS
+          valueFrom:
+            secretKeyRef:
+              key: envs
+              name: juicefs-secret
+        volumeMounts:
+        - mountPath: /root/.juicefs
+          name: jfs-root-dir
         # Use the mount pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
-        image: juicedata/mount:v1.0.2-4.8.2
+        image: juicedata/mount:v1.0.3-4.9.0
         lifecycle:
           # Unmount file system when exiting
           preStop:
