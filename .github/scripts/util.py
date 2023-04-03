@@ -237,7 +237,7 @@ def clean_juicefs_volume():
                 f_time = file.stat().st_ctime
                 now = time.time()
                 if now - f_time > 3600 * 24 * 3:
-                    subprocess.check_call(["/usr/bin/juicefs", "rmr", str(file)], shell=False)
+                    subprocess.call(["/usr/bin/juicefs", "rmr", str(file)], shell=False)
 
 
 def gen_random_string(slen=10):
