@@ -447,6 +447,47 @@ mountOptions:
   - debug
 ```
 
+## 为 Mount Pod 配置单独的 ServiceAccount {#mount-pod-service-account}
+
+在一些离线环境中，镜像往往是从私有仓库拉取的，而私有仓库往往需要认证才能访问。这就需要在 Mount Pod 中配置镜像仓库的认证信息，以便 Mount Pod 能够正常拉取镜像。
+
+### 静态配置
+
+需要在 PV 定义中配置 Mount Pod 所需要的 ServiceAccount，修改 `volumeAttributes` 字段，添加 `juicefs/mount-service-account`，设置为 ServiceAccount 的名称：
+
+```yaml {11}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    ...
+    volumeAttributes:
+      juicefs/mount-service-account: juicefs-mount-sa
+  ...
+```
+
+### 动态配置
+
+需要在 StorageClass 定义中配置 Mount Pod 所需要的 ServiceAccount，修改 `parameters` 字段，添加 `juicefs/mount-service-account`，设置为 ServiceAccount 的名称：
+
+```yaml {11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-service-account: juicefs-mount-sa
+```
+
 ## 应用间共享存储 {#share-directory}
 
 如果你在 JuiceFS 文件系统已经存储了大量数据，希望挂载进容器使用，或者希望让多个应用共享同一个 JuiceFS 目录，有以下做法：

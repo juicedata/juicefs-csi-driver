@@ -449,6 +449,48 @@ mountOptions:
   - debug
 ```
 
+## Adding ServiceAccount into mount pod {#mount-pod-service-account}
+
+In offline environments, images are often pulled from private repositories, and private repositories require authentication to access.
+This requires configuring the authentication information of the warehouse in the Mount Pod so that the Mount Pod can pull image normally.
+
+### Static provisioning
+
+Modify the `volumeAttributes` in PV, add `juicefs/mount-service-account`, and set it to the name of the ServiceAccount:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  csi:
+    ...
+    volumeAttributes:
+      juicefs/mount-service-account: juicefs-mount-sa
+  ...
+```
+
+### Dynamic provisioning
+
+Modify the `parameters` in StorageClass, add `juicefs/mount-service-account`, and set it to the name of the ServiceAccount:
+
+```yaml {11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-service-account: juicefs-mount-sa
+```
+
 ## Share directory among applications {#share-directory}
 
 If you have existing data in JuiceFS, and would like to mount into container for application use, or plan to use a shared directory for multiple applications, here's what you can do:
