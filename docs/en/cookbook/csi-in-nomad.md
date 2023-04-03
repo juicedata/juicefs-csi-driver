@@ -60,6 +60,9 @@ job "jfs-controller" {
         cpu    = 100
         memory = 512
       }
+      env {
+        pod_name = "csi-controller"
+      }
     }
   }
 }
@@ -139,6 +142,9 @@ job "jfs-node" {
       resources {
         cpu    = 1000
         memory = 1024
+      }
+      env {
+        POD_NAME = "csi-node"
       }
     }
   }
