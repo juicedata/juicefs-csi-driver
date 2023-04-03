@@ -5,7 +5,7 @@ sidebar_position: 1
 
 本章介绍在生产环境中使用 CSI 驱动的一系列最佳实践，以及注意事项。
 
-## PV 设置
+## PV 设置 {#pv-settings}
 
 在生产环境中，推荐这样设置 PV：
 
@@ -14,7 +14,124 @@ sidebar_position: 1
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](https://juicefs.com/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优
 
-## 在 EFK 中收集 Mount Pod 日志
+## 监控 Mount Pod {#monitoring}
+
+默认设置下（未使用 `hostNetwork`），Mount Pod 通过 9567 端口提供监控 API（也可以通过在 [`mountOptions`](../guide/pv.md#mount-options) 中添加 [`metrics`](https://juicefs.com/docs/zh/community/command_reference#mount) 选项来自定义端口号），端口名为 `metrics`，因此可以按如下方式配置 Prometheus 的监控配置。
+
+### Prometheus 收集监控指标 {#collect-metrics}
+
+在 `prometheus.yml` 添加相应的抓取配置，来收集监控指标：
+
+```yaml
+scrape_configs:
+  - job_name: 'juicefs'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_phase]
+        separator: ;
+        regex: (Failed|Succeeded)
+        replacement: $1
+        action: drop
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_labelpresent_app_kubernetes_io_name]
+        separator: ;
+        regex: (juicefs-mount);true
+        replacement: $1
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        separator: ;
+        regex: metrics  # Mount Pod 监控 API 端口名
+        replacement: $1
+        action: keep
+      - separator: ;
+        regex: (.*)
+        target_label: endpoint
+        replacement: metrics
+        action: replace
+      - source_labels: [__address__]
+        separator: ;
+        regex: (.*)
+        modulus: 1
+        target_label: __tmp_hash
+        replacement: $1
+        action: hashmod
+      - source_labels: [__tmp_hash]
+        separator: ;
+        regex: "0"
+        replacement: $1
+        action: keep
+```
+
+上方的示范假定 Prometheus 服务运行在 Kubernetes 集群中，如果运行在集群外，除了确保正确设置安全组，允许 Prometheus 访问 Kubernetes 节点，还需要额外添加 `api_server` 和 `tls_config`：
+
+```yaml
+scrape_configs:
+  - job_name: 'juicefs'
+    kubernetes_sd_configs:
+    # 详见 https://github.com/prometheus/prometheus/issues/4633
+    - api_server: <Kubernetes API Server>
+      role: pod
+      tls_config:
+        ca_file: <...>
+        cert_file: <...>
+        key_file: <...>
+        insecure_skip_verify: false
+    relabel_configs:
+    ...
+```
+
+### Prometheus Operator 收集监控指标 {#prometheus-operator}
+
+对于 [Prometheus Operator](https://prometheus-operator.dev/docs/user-guides/getting-started)，可以新增一个 `PodMonitor` 来收集监控指标：
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: juicefs-mounts-monitor
+  labels:
+    name: juicefs-mounts-monitor
+spec:
+  namespaceSelector:
+    matchNames:
+      # 设置成 CSI 驱动所在的 namespace，默认为 kube-system
+      - <namespace>
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: juicefs-mount
+  podMetricsEndpoints:
+    - port: metrics  # Mount Pod 监控 API 端口名
+      path: '/metrics'
+      scheme: 'http'
+      interval: '5s'
+```
+
+同时在 `Prometheus` 资源中设置上述的 `PodMonitor`：
+
+```yaml {7-9}
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+spec:
+  serviceAccountName: prometheus
+  podMonitorSelector:
+    matchLabels:
+      name: juicefs-mounts-monitor
+  resources:
+    requests:
+      memory: 400Mi
+  enableAdminAPI: false
+```
+
+### 在 Grafana 中进行数据可视化 {#grafana}
+
+按照上方步骤搭建好容器指标收集后，参考下方文档配置 Grafana 仪表盘：
+
+* [JuiceFS 社区版](https://juicefs.com/docs/zh/community/administration/monitoring#grafana)
+* [JuiceFS 云服务](https://juicefs.com/docs/zh/cloud/administration/monitor/#prometheus-api)
+
+## 在 EFK 中收集 Mount Pod 日志 {#collect-mount-pod-logs}
 
 CSI 驱动的问题排查，往往涉及到查看 Mount Pod 日志。如果[实时查看 Mount Pod 日志](./troubleshooting.md#check-mount-pod)无法满足你的需要，考虑搭建 EFK（Elasticsearch + Fluentd + Kibana），或者其他合适的容器日志收集系统，用来留存和检索 Pod 日志。以 EFK 为例：
 
