@@ -40,7 +40,7 @@ jobs:
           DEV_K8S: microk8s
           CEJUICEFS_VERSION: release-1.0
           CEVERSION: ce-release-check
-          MOUNT_TAG: ce-release-check
+          MOUNTTAG: ce-release-check
         run: |
           cd ${GITHUB_WORKSPACE}
           make ce-image

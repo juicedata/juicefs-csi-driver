@@ -41,7 +41,7 @@ jobs:
           JFSCHAN: beta
           CEJUICEFS_VERSION: main
           EEVERSION: ee-release-check
-          MOUNT_TAG: ee-release-check
+          MOUNTTAG: ee-release-check
         run: |
           cd ${GITHUB_WORKSPACE}
           make ee-image
