@@ -39,7 +39,7 @@ jobs:
         env:
           DEV_K8S: microk8s
           JFSCHAN: beta
-          CE_JUICEFS_VERSION: main
+          CEJUICEFS_VERSION: main
           EEVERSION: ee-release-check
           MOUNT_TAG: ee-release-check
         run: |

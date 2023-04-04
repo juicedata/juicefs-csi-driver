@@ -38,7 +38,7 @@ jobs:
       - name: Build image
         env:
           DEV_K8S: microk8s
-          CE_JUICEFS_VERSION: release-1.0
+          CEJUICEFS_VERSION: release-1.0
           CEVERSION: ce-release-check
           MOUNT_TAG: ce-release-check
         run: |
