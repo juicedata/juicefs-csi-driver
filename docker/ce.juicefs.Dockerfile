@@ -25,6 +25,4 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs
 
-COPY /workspace/juicefs/juicefs /usr/local/bin/
-
-RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
+RUN mv juicefs /usr/local/bin/ && ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
