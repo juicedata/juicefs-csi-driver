@@ -28,7 +28,7 @@ jobs:
           fi
       - name: Build and Push juicefs latest image
         env:
-          CE_VERSION: latest
+          CEVERSION: latest
           CE_JUICEFS_VERSION: main
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
@@ -40,7 +40,7 @@ jobs:
           fi
       - name: Buildx and Push juicefs image
         env:
-          CE_VERSION: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
+          CEVERSION: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
           CE_JUICEFS_VERSION: ${{ env.JUICEFS_CE_LATEST_VERSION }}
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
@@ -75,7 +75,7 @@ jobs:
           fi
       - name: Buildx and Push juicefs image
         env:
-          EE_VERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then

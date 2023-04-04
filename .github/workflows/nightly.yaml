@@ -125,8 +125,8 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
           JFSCHAN: beta
-          CE_VERSION: ce-nightly
-          EE_VERSION: ee-nightly
+          CEVERSION: ce-nightly
+          EEVERSION: ee-nightly
         run: |
           docker login --username chnliyong --password ${PASSWORD}
           make image-nightly
