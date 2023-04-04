@@ -86,7 +86,7 @@ var (
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   config.MountImage,
+				Image:   config.CEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
@@ -391,7 +391,7 @@ func TestNewMountPod(t *testing.T) {
 					Namespace:      config.Namespace,
 					MountPointPath: config.MountPointPath,
 					JFSConfigPath:  config.JFSConfigPath,
-					Image:          config.MountImage,
+					Image:          config.CEMountImage,
 				},
 			}
 			r := Builder{jfsSetting}

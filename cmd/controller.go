@@ -32,6 +32,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -69,8 +70,21 @@ func parseControllerConfig() {
 	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
 
+	if mountPodImage := os.Getenv("JUICEFS_CE_MOUNT_IMAGE"); mountPodImage != "" {
+		config.CEMountImage = mountPodImage
+	}
+	if mountPodImage := os.Getenv("JUICEFS_EE_MOUNT_IMAGE"); mountPodImage != "" {
+		config.EEMountImage = mountPodImage
+	}
 	if mountPodImage := os.Getenv("JUICEFS_MOUNT_IMAGE"); mountPodImage != "" {
-		config.MountImage = mountPodImage
+		// check if it's CE or EE
+		hasCE, hasEE := util.ImageResol(mountPodImage)
+		if hasCE {
+			config.CEMountImage = mountPodImage
+		}
+		if hasEE {
+			config.EEMountImage = mountPodImage
+		}
 	}
 
 	if !config.Webhook {

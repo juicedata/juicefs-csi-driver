@@ -125,11 +125,14 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
           JFSCHAN: beta
+          CE_VERSION: ce-nightly
+          EE_VERSION: ee-nightly
         run: |
           docker login --username chnliyong --password ${PASSWORD}
           make image-nightly
-          make juicefs-image-nightly
-          make juicefs-fuse-image-nightly
+          make image-nightly-push
+          make ce-image
+          make ee-image
       - name: Success
         if: ${{ success() }}
         run: echo "All Done"

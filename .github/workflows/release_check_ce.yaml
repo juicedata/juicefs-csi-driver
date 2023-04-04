@@ -38,10 +38,12 @@ jobs:
       - name: Build image
         env:
           DEV_K8S: microk8s
-          JUICEFS_VERSION: release-1.0
+          CE_JUICEFS_VERSION: release-1.0
+          CE_VERSION: ce-release-check
+          MOUNT_TAG: ce-release-check
         run: |
           cd ${GITHUB_WORKSPACE}
-          make juicefs-image-release-check
+          make ce-image
           make image-release-check
           make image-release-check-push
       - name: Deploy JuiceFS CSI

@@ -423,3 +423,26 @@ func CheckExpectValue(m map[string]string, key string, targetValue string) bool 
 	}
 	return false
 }
+
+// ImageResol check if image contains CE or EE
+// ce image starts with "ce-" (latest image is CE)
+// ee image starts with "ee-"
+// Compatible with previous images: has both ce and ee
+func ImageResol(image string) (hasCE, hasEE bool) {
+	images := strings.Split(image, ":")
+	if len(images) < 2 {
+		// if image has no tag, it is CE
+		return true, false
+	}
+	tag := images[1]
+	if tag == "latest" {
+		return true, false
+	}
+	if strings.HasPrefix(tag, "ee-") {
+		return false, true
+	}
+	if strings.HasPrefix(tag, "ce-") {
+		return true, false
+	}
+	return true, true
+}
