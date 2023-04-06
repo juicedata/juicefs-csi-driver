@@ -6,7 +6,7 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-JuiceFS 有着强大的缓存设计，请阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
+JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
 
 ## 缓存设置 {#cache-settings}
 
@@ -16,7 +16,7 @@ Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 Ju
 
 :::tip 注意
 
-* 在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，请填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
+* 在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
 * 对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存，但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
 :::
 
@@ -269,52 +269,56 @@ spec:
             topologyKey: kubernetes.io/hostname
       # 使用 hostNetwork，让 Pod 以固定 IP 运行，避免容器重建更换 IP，导致缓存数据失效
       hostNetwork: true
-      # 初始化容器负责执行 juicefs auth 命令
-      # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#auth
-      initContainers:
-      - name: jfs-format
-        command:
-        - sh
-        - -c
-        # 请将 $VOL_NAME 换成控制台上创建的文件系统名
-        # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
-        - /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} $VOL_NAME
-        env:
-        # 存放文件系统认证信息的 Secret，必须和该 StatefulSet 在同一个命名空间下
-        # 参考文档：https://juicefs.com/docs/zh/csi/guide/pv#cloud-service
-        - name: ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: access-key
-              name: jfs-secret-ee
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              key: secret-key
-              name: jfs-secret-ee
-        - name: TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: jfs-secret-ee
-        image: juicedata/mount:v1.0.2-4.8.2
-        volumeMounts:
-        - mountPath: /root/.juicefs
-          name: jfs-root-dir
-      # 负责挂载 JuiceFS 文件系统并组建独立缓存集群的容器
-      # 参考文档：https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster
       containers:
       - name: juicefs-cache
         command:
         - sh
         - -c
-        # 请将 $VOL_NAME 换成控制台上创建的文件系统名
-        # 由于在容器中常驻，必须用 --foreground 模式运行，其它挂载选项（特别是 --cache-group）请适当调整
-        # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#mount
-        - /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        - |
+          # 下面的 shell 代码仅在私有部署需要，作用是将 envs 这一 JSON 进行展开，将键值设置为环境变量
+          for keyval in $(echo $ENVS | sed -e 's/": "/=/g' -e 's/{"//g' -e 's/", "/ /g' -e 's/"}//g' ); do
+            echo "export $keyval"
+            eval export $keyval
+          done
+
+          # 认证和挂载，所有环境变量均引用包含着文件系统认证信息的 Kubernetes Secret
+          # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
+          /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
+
+          # 由于在容器中常驻，必须用 --foreground 模式运行，其它挂载选项（特别是 --cache-group）按照实际情况调整
+          # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#mount
+          /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --foreground --cache-dir=/data/jfsCache --cache-size=512000 --cache-group=jfscache
+        env:
+        # 存放文件系统认证信息的 Secret，必须和该 StatefulSet 在同一个命名空间下
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/pv#cloud-service
+        - name: VOL_NAME
+          valueFrom:
+            secretKeyRef:
+              key: name
+              name: juicefs-secret
+        - name: ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: access-key
+              name: juicefs-secret
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: secret-key
+              name: juicefs-secret
+        - name: TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: juicefs-secret
+        - name: ENVS
+          valueFrom:
+            secretKeyRef:
+              key: envs
+              name: juicefs-secret
         # 使用 Mount Pod 的容器镜像
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
-        image: juicedata/mount:v1.0.2-4.8.2
+        image: juicedata/mount:v1.0.3-4.9.0
         lifecycle:
           # 容器退出时卸载文件系统
           preStop:
@@ -323,7 +327,7 @@ spec:
               - sh
               - -c
               - umount /mnt/jfs
-        # 请适当调整资源请求和约束
+        # 按照实际情况调整资源请求和约束
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/resource-optimization#mount-pod-resources
         resources:
           requests:
@@ -337,7 +341,7 @@ spec:
         - mountPath: /root/.juicefs
           name: jfs-root-dir
       volumes:
-      # 请适当调整缓存目录的路径，如有多个缓存目录需要定义多个 volume
+      # 调整缓存目录的路径，如有多个缓存目录需要定义多个 volume
       # 参考文档：https://juicefs.com/docs/zh/cloud/guide/cache#client-read-cache
       - name: cache-dir
         hostPath:
@@ -349,7 +353,7 @@ spec:
 
 上方示范便是在集群中启动了 JuiceFS 缓存集群，其缓存组名为 `jfscache`，那么为了让应用程序的 JuiceFS 客户端使用该缓存集群，需要让他们一并加入这个缓存组，并额外添加 `--no-sharing` 这个挂载参数，这样一来，应用程序的 JuiceFS 客户端虽然加入了缓存组，但却不参与缓存数据的构建，避免了客户端频繁创建、销毁所导致的缓存数据不稳定。
 
-以动态配置为例，按照下方示范修改挂载参数即可，关于在 `mountOptions` 调整挂载配置，请详见[「挂载参数」](../guide/pv.md#mount-options)。
+以动态配置为例，按照下方示范修改挂载参数即可，关于在 `mountOptions` 调整挂载配置，详见[「挂载参数」](../guide/pv.md#mount-options)。
 
 ```yaml {13-14}
 apiVersion: storage.k8s.io/v1
