@@ -1180,6 +1180,20 @@ func Test_juicefs_validTarget(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "test-invalid1",
+			args: args{
+				target: "/.abc",
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-invalid2",
+			args: args{
+				target: "/.",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

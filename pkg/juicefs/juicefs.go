@@ -374,6 +374,15 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 }
 
 func (j *juicefs) validTarget(target string) error {
+	var msg string
+	if strings.Contains(target, "../") || strings.Contains(target, "/..") || strings.Contains(target, "..") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", target)
+		return errors.New(msg)
+	}
+	if strings.Contains(target, "./") || strings.Contains(target, "/.") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", target)
+		return errors.New(msg)
+	}
 	if config.ByProcess {
 		// do not check target when by process, because it may not in kubernetes
 		return nil
