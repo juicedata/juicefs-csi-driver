@@ -13,3 +13,4 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
+            - --v=6
