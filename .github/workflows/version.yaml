@@ -30,9 +30,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Login Docker Hub
-      run: docker login --username juicefs --password ${PASSWORD}
+      run: docker login --username chnliyong --password ${PASSWORD}
       env:
-        PASSWORD: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+        PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
     - name: Build docker image & push
       run: |
         export DOCKER_CLI_EXPERIMENTAL=enabled
