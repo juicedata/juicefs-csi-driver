@@ -207,6 +207,22 @@ ee-image-buildx:
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
 
+# build & push image for fluid fuse
+.PHONY: fuse-image-version
+fuse-image-version:
+	docker buildx build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(JUICEFS_CE_LATEST_VERSION)-$(JUICEFS_EE_LATEST_VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled --platform linux/amd64,linux/arm64 . --push
+
+# build & push juicefs fuse nightly image
+.PHONY: fuse-image-nightly
+fuse-image-nightly:
+	docker build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):nightly \
+        --build-arg JUICEFS_REPO_REF=main \
+		--build-arg JFSCHAN=$(JFS_CHAN) \
+		--build-arg=JFS_AUTO_UPGRADE=disabled .
+	docker push $(REGISTRY)/$(FUSE_IMAGE):nightly
+
 .PHONY: deploy-dev/kustomization.yaml
 deploy-dev/kustomization.yaml:
 	mkdir -p $(@D)
