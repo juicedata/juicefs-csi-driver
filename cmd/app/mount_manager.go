@@ -18,11 +18,13 @@ package app
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -38,6 +40,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 }
 
 type MountManager struct {
@@ -45,15 +48,22 @@ type MountManager struct {
 	client *k8sclient.K8sClient
 }
 
-func NewMountManager() (*MountManager, error) {
+func NewMountManager(
+	leaderElection bool,
+	leaderElectionNamespace string,
+	leaderElectionLeaseDuration time.Duration) (*MountManager, error) {
 	conf, err := ctrl.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme:             scheme,
-		Port:               9443,
-		MetricsBindAddress: "0.0.0.0:8083",
+		Scheme:                  scheme,
+		Port:                    9443,
+		MetricsBindAddress:      "0.0.0.0:8083",
+		LeaderElection:          leaderElection,
+		LeaderElectionNamespace: leaderElectionNamespace,
+		LeaderElectionID:        "mount.juicefs.com",
+		LeaseDuration:           &leaderElectionLeaseDuration,
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{

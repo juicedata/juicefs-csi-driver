@@ -122,7 +122,7 @@ func controllerRun() {
 	if config.MountManager {
 		go func() {
 			ctx := ctrl.SetupSignalHandler()
-			mgr, err := app.NewMountManager()
+			mgr, err := app.NewMountManager(leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
 				klog.Error(err)
 				return
@@ -135,7 +135,7 @@ func controllerRun() {
 	if config.Webhook {
 		go func() {
 			ctx := ctrl.SetupSignalHandler()
-			mgr, err := app.NewWebhookManager(certDir, webhookPort)
+			mgr, err := app.NewWebhookManager(certDir, webhookPort, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
 				klog.Fatalln(err)
 			}
@@ -146,7 +146,7 @@ func controllerRun() {
 		}()
 	}
 
-	drv, err := driver.NewDriver(endpoint, nodeID)
+	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 	if err != nil {
 		klog.Fatalln(err)
 	}

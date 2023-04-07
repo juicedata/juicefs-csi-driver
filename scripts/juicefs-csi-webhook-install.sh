@@ -194,6 +194,28 @@ rules:
   - get
   - list
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - watch
+  - list
+  - delete
+  - update
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - watch
+  - list
+  - delete
+  - update
+  - create
+- apiGroups:
   - ""
   resources:
   - pods/exec
@@ -264,7 +286,7 @@ metadata:
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: juicefs-csi-controller
@@ -285,6 +307,7 @@ spec:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_NAME)
+        - --leader-election
         - --v=5
         - --webhook=true
         env:
@@ -347,6 +370,7 @@ spec:
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
+        - --enable-leader-election
         - --v=5
         env:
         - name: ADDRESS

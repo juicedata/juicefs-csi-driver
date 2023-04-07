@@ -12,5 +12,6 @@ spec:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
+            - --leader-election
             - --v=5
             - --webhook=true

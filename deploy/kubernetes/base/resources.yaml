@@ -45,6 +45,12 @@ rules:
   - apiGroups: [ "apps" ]
     resources: [ "daemonsets" ]
     verbs: [ "get", "list" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
 ---
 
 kind: ClusterRoleBinding
@@ -208,7 +214,7 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-controller
-  replicas: 1
+  replicas: 2
   volumeClaimTemplates: []
   template:
     metadata:
@@ -227,6 +233,7 @@ spec:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
+            - --leader-election
             - --v=5
           env:
             - name: CSI_ENDPOINT
@@ -281,6 +288,7 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --timeout=60s
+            - --enable-leader-election
             - --v=5
             # # NOTE: juicefs is not bound to available zones, kind of topology agnostic
             # - --feature-gates=Topology=true
