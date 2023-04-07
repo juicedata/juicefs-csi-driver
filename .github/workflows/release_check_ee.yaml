@@ -39,10 +39,12 @@ jobs:
         env:
           DEV_K8S: microk8s
           JFSCHAN: beta
-          JUICEFS_VERSION: main
+          CEJUICEFS_VERSION: main
+          EEVERSION: ee-release-check
+          MOUNTTAG: ee-release-check
         run: |
           cd ${GITHUB_WORKSPACE}
-          make juicefs-image-release-check
+          make ee-image
           make image-release-check
           make image-release-check-push
       - name: Deploy JuiceFS CSI

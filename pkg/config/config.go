@@ -34,7 +34,8 @@ var (
 	NodeName           = ""
 	Namespace          = ""
 	PodName            = ""
-	MountImage         = "juicedata/mount:nightly" // mount pod image
+	CEMountImage       = "juicedata/mount:ce-nightly" // mount pod ce image
+	EEMountImage       = "juicedata/mount:ee-nightly" // mount pod ee image
 	MountLabels        = ""
 	HostIp             = ""
 	KubeletPort        = ""
