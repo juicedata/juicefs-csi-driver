@@ -133,6 +133,7 @@ jobs:
           make image-nightly-push
           make ce-image
           make ee-image
+          make fuse-image-nightly
       - name: Success
         if: ${{ success() }}
         run: echo "All Done"
