@@ -121,7 +121,7 @@ if __name__ == "__main__":
         except Exception as e:
             die(e)
         finally:
-            tear_down()
+            # tear_down()
             umount(GLOBAL_MOUNTPOINT)
     else:
         LOG.info("skip test.")
