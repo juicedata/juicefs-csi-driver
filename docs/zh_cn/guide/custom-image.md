@@ -7,7 +7,7 @@ sidebar_position: 4
 
 ## Mount Pod 镜像拆分 {#ce-ee-separation}
 
-Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」](https://juicefs.com/docs/zh/community/introduction/)和[「商业版」](https://juicefs.com/docs/zh/cloud/)客户端，因此在很长一段时间，Mount 镜像中同时包含着两个版本的 JuiceFS 客户端：
+Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」](https://juicefs.com/docs/zh/community/introduction)和[「商业版」](https://juicefs.com/docs/zh/cloud)客户端，因此在很长一段时间，Mount 镜像中同时包含着两个版本的 JuiceFS 客户端：
 
 * `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
 * `/usr/bin/juicefs`：云服务 JuiceFS 客户端
