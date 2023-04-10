@@ -234,14 +234,14 @@ def clean_juicefs_volume():
         else:
             # only delete files out of 3 days
             for file in visible_files:
-                f_time = file.stat().st_ctime
-                now = time.time()
-                if now - f_time > 3600 * 24 * 3:
-                    output = subprocess.run(["/usr/bin/juicefs", "rmr", str(file)],
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE)
-                    if "No such file or directory" in output.stderr.decode("utf-8"):
-                        continue
+                try:
+                    f_time = file.stat().st_ctime
+                    now = time.time()
+                    if now - f_time > 3600 * 24 * 3:
+                        subprocess.run(["/usr/bin/juicefs", "rmr", str(file)],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                except FileNotFoundError:
+                    continue
 
 
 def gen_random_string(slen=10):
