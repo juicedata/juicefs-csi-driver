@@ -270,4 +270,5 @@ npm-install:
 check-docs: npm-install
 	npm ci
 	npm run markdown-lint
+	autocorrect --lint ./docs/
 	npm run check-broken-link
