@@ -266,9 +266,9 @@ mockgen: bin/mockgen
 
 npm-install:
 	npm install
-
-check-docs: npm-install
 	npm ci
+
+check-docs:
 	npm run markdown-lint
-	autocorrect --lint ./docs/
+	autocorrect --fix ./docs/
 	npm run check-broken-link
