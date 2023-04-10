@@ -142,26 +142,9 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 
 # 确定 JuiceFS 在容器内的挂载点
 df -h | grep JuiceFS
+
+juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
-
-Mount Pod 中社区版和云服务 JuiceFS 客户端的路径不同，注意分辨：
-
-<Tabs>
-  <TabItem value="community-edition" label="社区版">
-
-```shell
-/usr/local/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
-```
-
-  </TabItem>
-  <TabItem value="cloud-service" label="云服务">
-
-```shell
-/usr/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
-```
-
-  </TabItem>
-</Tabs>
 
 特别地，如果你的应用容器中也安装有 JuiceFS 客户端，那么也可以直接在应用容器中运行预热命令。
 
@@ -316,9 +299,9 @@ spec:
             secretKeyRef:
               key: envs
               name: juicefs-secret
-        # 使用 Mount Pod 的容器镜像
+        # 使用 Mount Pod 的容器镜像，社区版与商业版 tag 有别
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
-        image: juicedata/mount:v1.0.3-4.9.0
+        image: juicedata/mount:ce-v1.0.4
         lifecycle:
           # 容器退出时卸载文件系统
           preStop:

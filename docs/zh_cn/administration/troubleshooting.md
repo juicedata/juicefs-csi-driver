@@ -178,11 +178,6 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
-如果你需要在 Mount Pod 中使用 JuiceFS 客户端，请注意容器中同时含有社区版和云服务客户端，需要通过绝对路径来选择特定的客户端：
-
-* `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
-* `/usr/bin/juicefs`：云服务 JuiceFS 客户端
-
 ### 性能问题
 
 如果使用 CSI 驱动时，各组件均无异常，但却遇到了性能问题，则需要用到本节介绍的排查方法。

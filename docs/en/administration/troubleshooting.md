@@ -178,11 +178,6 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
-If you need to run JuiceFS Client inside mount pod, note that JuiceFS Community Edition and JuiceFS Cloud Service Clients are both included in the container image, and you need to select a specific client through an absolute path:
-
-* `/usr/local/bin/juicefs`: JuiceFS Community Edition client
-* `/usr/bin/juicefs`: JuiceFS Cloud Service client
-
 ### Performance issue
 
 When performance issues are encountered when using CSI Driver, with all components running normally, refer to the troubleshooting methods in this section.

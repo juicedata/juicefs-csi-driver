@@ -5,19 +5,30 @@ sidebar_position: 4
 
 本章介绍如何设置 Mount Pod 镜像，以及自行构建 CSI 驱动组件镜像。
 
-## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
+## Mount Pod 镜像拆分 {#ce-ee-separation}
 
-JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像。在 0.19.0 及以上版本对社区版和商业版的镜像进行了拆分，
-你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」](https://juicefs.com/docs/zh/community/introduction/)和[「商业版」](https://juicefs.com/docs/zh/cloud/)客户端，因此在很长一段时间，Mount 镜像中同时包含着两个版本的 JuiceFS 客户端：
+
+* `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
+* `/usr/bin/juicefs`：云服务 JuiceFS 客户端
+
+为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
 
 ```shell
 # 社区版镜像标签以 ce- 开头
 juicedata/mount:ce-v1.0.4
+
 # 商业版镜像标签以 ee- 开头
 juicedata/mount:ee-4.9.1
+
+# 在 0.19.0 以前，镜像标签中包含社区版和云服务版客户端的版本号
+# 该系列镜像不再继续更新维护
+juicedata/mount:v1.0.3-4.8.3
 ```
 
-CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，请根据实际情况选择合适的手段。
+## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
+
+JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，根据实际情况选择合适的手段。
 
 :::tip 提示
 覆盖 Mount Pod 镜像后，注意：
