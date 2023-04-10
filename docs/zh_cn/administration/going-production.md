@@ -5,6 +5,44 @@ sidebar_position: 1
 
 本章介绍在生产环境中使用 CSI 驱动的一系列最佳实践，以及注意事项。
 
+## 启用 CSI Controller 的高可用设置 {#leader-election}
+
+JuiceFS CSI Driver 在 0.19.0 及以上版本支持 CSI Controller 高可用。在生产环境中，建议开启 CSI Controller 的高可用设置，以避免单点故障。
+
+### Kubectl 方式
+
+若 CSI Driver 是用 kubectl 方式安装的，已经默认开启了 CSI Controller 的高可用设置。若安装时手动关闭，可以通过给 CSI Controller 添加启动参数重新开启：
+
+```yaml {2, 8-9, 12-13}
+spec:
+  replicas: 2 # 副本数，至少为 2
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        args:
+        - --leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # 可选，副本间竞选 Leader 的间隔，默认为 15s
+        ...
+      - name: csi-provisioner
+        args:
+        - --enable-leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # 可选，副本间竞选 Leader 的间隔，默认为 15s
+        ...
+```
+
+### Helm 方式
+
+若 CSI Driver 是用 Helm 方式安装的，默认也是开启的。若安装时手动关闭，可以通过修改 `values.yaml` 文件中的 `controller.leaderElection` 选项来重新开启 CSI Controller 的高可用设置：
+
+```yaml {3-5}
+controller:
+  leaderElection:
+    enabled: true # 开启 Leader 选举
+    leaseDuration: "15s" # 可选，副本间竞选 Leader 的间隔，默认为 15s
+  replicas: 2 # 副本数，至少为 2
+```
+
 ## PV 设置 {#pv-settings}
 
 在生产环境中，推荐这样设置 PV：
