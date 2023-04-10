@@ -20,8 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,13 +36,23 @@ import (
 type provisionerService struct {
 	juicefs juicefs.Interface
 	*k8s.K8sClient
+	leaderElection              bool
+	leaderElectionNamespace     string
+	leaderElectionLeaseDuration time.Duration
 }
 
-func newProvisionerService(k8sClient *k8s.K8sClient) (provisionerService, error) {
+func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
+	leaderElectionNamespace string, leaderElectionLeaseDuration time.Duration) (provisionerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
+	if leaderElectionNamespace == "" {
+		leaderElectionNamespace = config.Namespace
+	}
 	return provisionerService{
-		juicefs:   jfs,
-		K8sClient: k8sClient,
+		juicefs:                     jfs,
+		K8sClient:                   k8sClient,
+		leaderElection:              leaderElection,
+		leaderElectionNamespace:     leaderElectionNamespace,
+		leaderElectionLeaseDuration: leaderElectionLeaseDuration,
 	}, nil
 }
 
@@ -55,19 +64,13 @@ func (j *provisionerService) Run(ctx context.Context) {
 	if err != nil {
 		klog.Fatalf("Error getting server version: %v", err)
 	}
-	leaderElection := true
-	leaderElectionEnv := os.Getenv("ENABLE_LEADER_ELECTION")
-	if leaderElectionEnv != "" {
-		leaderElection, err = strconv.ParseBool(leaderElectionEnv)
-		if err != nil {
-			klog.Fatalf("Unable to parse ENABLE_LEADER_ELECTION env var: %v", err)
-		}
-	}
 	pc := provisioncontroller.NewProvisionController(j.K8sClient,
 		config.DriverName,
 		j,
 		serverVersion.GitVersion,
-		provisioncontroller.LeaderElection(leaderElection),
+		provisioncontroller.LeaderElection(j.leaderElection),
+		provisioncontroller.LeaseDuration(j.leaderElectionLeaseDuration),
+		provisioncontroller.LeaderElectionNamespace(j.leaderElectionNamespace),
 	)
 	pc.Run(ctx)
 }

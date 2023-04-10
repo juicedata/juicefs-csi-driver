@@ -120,3 +120,42 @@ sidebar_position: 5
    :::
 
 至此，镜像搬运已经完成，请继续 CSI 驱动的安装。
+
+## 修改 SA 以拉取镜像 {#mount-pod-sa}
+
+离线集群往往使用私有镜像仓库，而私有仓库往往需要认证才能访问。Mount Pod 默认的 ServiceAccount（SA）是 `juicefs-csi-node-sa`，这个默认的用户可能没有权限从私有仓库拉取镜像，你可以按照下方步骤，为 Mount Pod 配置特定的 SA，让 Mount Pod 镜像能够正常拉取。
+
+下方的示范中，假定 `juicefs-mount-sa` 这个 SA 已经恰当配置了拉取镜像的认证信息，你也可以将其替换为集群中真正有权限拉取镜像的 SA（参考 [Kubernetes 文档](https://kubernetes.io/zh-cn/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account)）。
+
+### 静态配置
+
+需要在 PV 定义中修改 `volumeAttributes` 字段，添加 `juicefs/mount-service-account`：
+
+```yaml {10}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  ...
+spec:
+  csi:
+    ...
+    volumeAttributes:
+      juicefs/mount-service-account: juicefs-mount-sa
+  ...
+```
+
+### 动态配置
+
+需要在 StorageClass 定义中修改 `parameters` 字段，添加 `juicefs/mount-service-account`：
+
+```yaml {8}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-service-account: juicefs-mount-sa
+```

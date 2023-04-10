@@ -315,6 +315,7 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 			return false, nil
 		}
 		addAnnotation := map[string]string{config.DeleteDelayAtKey: d}
+		klog.Infof("delayDelete: add annotation %v to pod %s", addAnnotation, pod.Name)
 		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
 			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
 			return true, err
@@ -421,4 +422,27 @@ func CheckExpectValue(m map[string]string, key string, targetValue string) bool 
 		return v == targetValue
 	}
 	return false
+}
+
+// ImageResol check if image contains CE or EE
+// ce image starts with "ce-" (latest image is CE)
+// ee image starts with "ee-"
+// Compatible with previous images: has both ce and ee
+func ImageResol(image string) (hasCE, hasEE bool) {
+	images := strings.Split(image, ":")
+	if len(images) < 2 {
+		// if image has no tag, it is CE
+		return true, false
+	}
+	tag := images[1]
+	if tag == "latest" {
+		return true, false
+	}
+	if strings.HasPrefix(tag, "ee-") {
+		return false, true
+	}
+	if strings.HasPrefix(tag, "ce-") {
+		return true, false
+	}
+	return true, true
 }

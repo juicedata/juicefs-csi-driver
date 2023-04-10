@@ -23,7 +23,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["events"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    verbs: ["list", "watch", "create", "update", "patch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
@@ -32,19 +32,25 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "create", "update", "patch", "delete"]
+    verbs: ["get", "create", "update", "patch", "delete"]
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "create", "update", "patch", "delete"]
   - apiGroups: [ "" ]
     resources: [ "endpoints" ]
     verbs: [ "get", "list", "watch", "create", "update", "patch" ]
   - apiGroups: [ "apps" ]
     resources: [ "daemonsets" ]
     verbs: [ "get", "list" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
 ---
 
 kind: ClusterRoleBinding
@@ -126,8 +132,6 @@ rules:
       - ""
     resources:
       - pods
-      - pods/log
-      - secrets
     verbs:
       - get
       - list
@@ -137,17 +141,31 @@ rules:
       - patch
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+      - patch
+  - apiGroups:
       - "batch"
     resources:
       - jobs
     verbs:
       - get
-      - list
       - create
       - update
       - delete
       - patch
-      - watch
   - apiGroups:
       - ""
     resources:
@@ -196,7 +214,7 @@ spec:
   selector:
     matchLabels:
       app: juicefs-csi-controller
-  replicas: 1
+  replicas: 2
   volumeClaimTemplates: []
   template:
     metadata:
@@ -210,11 +228,12 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.18.1
+          image: juicedata/juicefs-csi-driver:v0.19.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
+            - --leader-election
             - --v=5
           env:
             - name: CSI_ENDPOINT
@@ -269,6 +288,7 @@ spec:
           args:
             - --csi-address=$(ADDRESS)
             - --timeout=60s
+            - --enable-leader-election
             - --v=5
             # # NOTE: juicefs is not bound to available zones, kind of topology agnostic
             # - --feature-gates=Topology=true
@@ -333,7 +353,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.18.1
+          image: juicedata/juicefs-csi-driver:v0.19.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr

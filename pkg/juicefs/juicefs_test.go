@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
@@ -1177,6 +1177,20 @@ func Test_juicefs_validTarget(t *testing.T) {
 			name: "test-wrong",
 			args: args{
 				target: "/var/snap/microk8s/common/var/lib/kubelet/pods/a019aa39-cfa9-42fd-9b26-1a4fd796212d/volumes/kubernetes.io~csi/pvc-090cf941-0dcd-4ddc-8099-b86dd6caa5eb/mount",
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-invalid1",
+			args: args{
+				target: "/.abc",
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-invalid2",
+			args: args{
+				target: "/.",
 			},
 			wantErr: true,
 		},

@@ -29,18 +29,18 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
 
 FROM python:3.8-slim-buster
 
-ARG JFS_AUTO_UPGRADE
 ARG TARGETARCH
 ARG JFSCHAN
-ARG JUICEFS_MOUNT_IMAGE
+ARG JUICEFS_CE_MOUNT_IMAGE
+ARG JUICEFS_EE_MOUNT_IMAGE
 
 WORKDIR /app
 
 ENV JUICEFS_CLI=/usr/bin/juicefs
-ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
-ENV JUICEFS_MOUNT_IMAGE=${JUICEFS_MOUNT_IMAGE}
+ENV JUICEFS_CE_MOUNT_IMAGE=${JUICEFS_CE_MOUNT_IMAGE}
+ENV JUICEFS_EE_MOUNT_IMAGE=${JUICEFS_EE_MOUNT_IMAGE}
 
 ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
 RUN chmod +x /tini

@@ -231,7 +231,6 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		MountPointPath:       MountPointPath,
 		JFSConfigPath:        JFSConfigPath,
 		JFSMountPriorityName: JFSMountPriorityName,
-		Image:                MountImage,
 		HostNetwork:          CSIPod.Spec.HostNetwork,
 		HostAliases:          CSIPod.Spec.HostAliases,
 		HostPID:              CSIPod.Spec.HostPID,
@@ -241,6 +240,11 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		ImagePullSecrets:     CSIPod.Spec.ImagePullSecrets,
 		PreemptionPolicy:     CSIPod.Spec.PreemptionPolicy,
 		Tolerations:          CSIPod.Spec.Tolerations,
+	}
+	if jfsSetting.IsCe {
+		jfsSetting.Attr.Image = CEMountImage
+	} else {
+		jfsSetting.Attr.Image = EEMountImage
 	}
 
 	if volCtx != nil && volCtx[mountPodImageKey] != "" {

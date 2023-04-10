@@ -352,6 +352,10 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 	stdout, err := j.Exec.CommandContext(cmdCtx, config.CeCliPath, "status", name).CombinedOutput()
 	if err != nil {
 		re := string(stdout)
+		if strings.Contains(re, "database is not formatted") {
+			klog.V(6).Infof("juicefs %s not formatted.", name)
+			return "", nil
+		}
 		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
@@ -371,6 +375,15 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 }
 
 func (j *juicefs) validTarget(target string) error {
+	var msg string
+	if strings.Contains(target, "../") || strings.Contains(target, "/..") || strings.Contains(target, "..") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", target)
+		return errors.New(msg)
+	}
+	if strings.Contains(target, "./") || strings.Contains(target, "/.") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", target)
+		return errors.New(msg)
+	}
 	if config.ByProcess {
 		// do not check target when by process, because it may not in kubernetes
 		return nil

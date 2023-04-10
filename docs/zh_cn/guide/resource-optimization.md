@@ -5,11 +5,24 @@ sidebar_position: 3
 
 Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱动中，也有不少方面可以做资源占用优化，甚至带来一定的性能提升。在这里集中罗列介绍。
 
-## 为 Mount Pod 配置资源请求和约束 {#mount-pod-resources}
+## 配置资源请求和约束 {#mount-pod-resources}
 
-每一个使用着 JuiceFS PV 的容器，都对应着一个 mount pod（会智能匹配和复用），因此为 mount pod 配置合理的资源声明，将是最有效的优化资源占用的手段。
+每一个使用着 JuiceFS PV 的容器，都对应着一个 Mount Pod（会智能匹配和复用），因此为 Mount Pod 配置合理的资源声明，将是最有效的优化资源占用的手段。关于配置资源请求（`request`）和约束（`limit`），可以详读 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)，此处不赘述。
 
-关于为 Pod 和容器管理资源，配置资源请求（`request`）和约束（`limit`），请详读 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)，此处便不再赘述。JuiceFS Mount Pod 的资源请求默认为 1 CPU 和 1GiB 内存，资源约束默认为 2 CPU 和 5GiB 内存。
+JuiceFS Mount Pod 的 requests 默认为 1 CPU 和 1GiB Memory，limits 默认为 2 CPU 和 5GiB Memory。考虑到 JuiceFS 的使用场景多种多样，1U1G 的资源请求可能不一定适合你的集群，比方说：
+
+* 实际场景下用量极低，比如 Mount Pod 只使用了 0.1 CPU、100MiB Memory，那么你应该尊重实际监控数据，将资源请求调整为 0.1 CPU，100MiB Memory，避免过大的 `requests` 造成资源闲置，甚至导致容器拒绝启动，或者抢占其他应用容器（Preemption）。对于 `limits`，你也可以根据实际监控数据，调整为一个大于 `requests` 的数值，允许突发瞬时的资源占用上升。
+* 实际场景下用量更高，比方说 2 CPU、2GiB 内存，此时虽然 1U1G 的默认 `requests` 允许容器调度到节点上，但实际资源占用高于 `requests`，这便是「资源超售」（Overcommitment），严重的超售会影响集群稳定性，让节点出现各种资源挤占的问题，比如 CPU Throttle、OOM。因此这种情况下，你也应该根据实际用量，调整 `requests` 和 `limits`。
+
+如果你安装了 [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server)，可以方便地用类似下方命令查看 CSI 驱动组件的实际资源占用：
+
+```shell
+# 查看 Mount Pod 实际资源占用
+kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
+
+# 查看 CSI Controller，CSI Node 实际资源占用，依同样的原理调整其资源声明
+kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
+```
 
 ### 静态配置
 
@@ -105,11 +118,11 @@ kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STOR
 
 Mount Pod 是支持复用的，由 JuiceFS CSI Node Service 以引用计数的方式进行管理：当没有任何应用 Pod 在使用该 Mount Pod 创建出来的 PV 时，JuiceFS CSI Node Service 会删除 Mount Pod。
 
-但在 Kubernetes 不少场景中，容器转瞬即逝，调度极其频繁，这时可以为 mount pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，mount pod 能够被继续复用，免除了反复销毁创建的开销。
+但在 Kubernetes 不少场景中，容器转瞬即逝，调度极其频繁，这时可以为 Mount Pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，Mount Pod 能够被继续复用，免除了反复销毁创建的开销。
 
 控制延迟删除 Mount Pod 的配置项形如 `juicefs/mount-delete-delay: 1m`，单位支持 `ns`（纳秒）、`us`（微秒）、`ms`（毫秒）、`s`（秒）、`m`（分钟）、`h`（小时）。
 
-配置好延迟删除后，当引用计数归零，mount pod 会被打上 `juicefs-delete-at` 的注解（annotation），标记好删除时间，到达设置的删除时间后，mount pod 才会被删除。但如果在此期间有新的应用 Pod 欲使用该 PV，注解 `juicefs-delete-at` 就被清空，mount pod 的删除计划随之取消，得以继续复用。
+配置好延迟删除后，当引用计数归零，Mount Pod 会被打上 `juicefs-delete-at` 的注解（annotation），标记好删除时间，到达设置的删除时间后，Mount Pod 才会被删除。但如果在此期间有新的应用 Pod 欲使用该 PV，注解 `juicefs-delete-at` 就被清空，Mount Pod 的删除计划随之取消，得以继续复用。
 
 静态和动态配置方式中，需要在不同的地方填写该配置。
 
@@ -225,6 +238,8 @@ kubectl label node [node-1] [node-2] app=model-training
 ```
 
 ### 修改 JuiceFS CSI 驱动安装配置
+
+除了 `nodeSelector`，Kubernetes 还提供更多方式控制容器调度，参考[将 Pod 指派给节点](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node)。
 
 #### 通过 Helm 安装
 

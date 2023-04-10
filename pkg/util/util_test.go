@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -547,6 +547,62 @@ func TestCheckExpectValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CheckExpectValue(tt.args.m, tt.args.key, tt.args.targetValue); got != tt.want {
 				t.Errorf("CheckExpectValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestImageResol(t *testing.T) {
+	type args struct {
+		image string
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantHasCE bool
+		wantHasEE bool
+	}{
+		{
+			name: "test-latest",
+			args: args{
+				image: "juicedata/mount:latest",
+			},
+			wantHasCE: true,
+			wantHasEE: false,
+		},
+		{
+			name: "test-ce",
+			args: args{
+				image: "juicedata/mount:ce-1.0.0",
+			},
+			wantHasCE: true,
+			wantHasEE: false,
+		},
+		{
+			name: "test-ee",
+			args: args{
+				image: "juicedata/mount:ee-4.9.0",
+			},
+			wantHasCE: false,
+			wantHasEE: true,
+		},
+		{
+			name: "test-both",
+			args: args{
+				image: "juicedata/mount:v1.0.0-4.9.0",
+			},
+			wantHasCE: true,
+			wantHasEE: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotHasCE, gotHasEE := ImageResol(tt.args.image)
+			if gotHasCE != tt.wantHasCE {
+				t.Errorf("ImageResol() gotHasCE = %v, want %v", gotHasCE, tt.wantHasCE)
+			}
+			if gotHasEE != tt.wantHasEE {
+				t.Errorf("ImageResol() gotHasEE = %v, want %v", gotHasEE, tt.wantHasEE)
 			}
 		})
 	}

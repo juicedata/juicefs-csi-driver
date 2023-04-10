@@ -86,7 +86,7 @@ var (
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   config.MountImage,
+				Image:   config.CEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
@@ -391,7 +391,7 @@ func TestNewMountPod(t *testing.T) {
 					Namespace:      config.Namespace,
 					MountPointPath: config.MountPointPath,
 					JFSConfigPath:  config.JFSConfigPath,
-					Image:          config.MountImage,
+					Image:          config.CEMountImage,
 				},
 			}
 			r := Builder{jfsSetting, 0}
@@ -435,7 +435,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				mountPath: "/jfs/test-volume",
 				options:   []string{"debug"},
 			},
-			want: "/sbin/mount.juicefs test /jfs/test-volume -o foreground,debug",
+			want: "/sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,debug",
 		},
 	}
 	for _, tt := range tests {

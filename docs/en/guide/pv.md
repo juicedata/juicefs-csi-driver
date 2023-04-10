@@ -240,7 +240,7 @@ After pod is up and running, you'll see `out.txt` being created by the container
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
-Learn about dynamic provisioning and static provisioning in [Usage](../introduction.md#usage).
+Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
 
 ### Create via Helm {#helm-sc}
 
@@ -397,11 +397,9 @@ As for reclaim policy, generic ephemeral volume works the same as dynamic provis
 
 Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.
 
-:::note
-After modifying the mount options, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
-:::
+### Static provisioning {#static-mount-options}
 
-### Static provisioning
+After modifying the mount options for existing PVs, you need to perform a rolling upgrade or re-create the application pod, so that CSI Driver starts re-create the mount pod for the changes to take effect.
 
 ```yaml {8-9}
 apiVersion: v1
@@ -416,9 +414,11 @@ spec:
   ...
 ```
 
-### Dynamic provisioning
+### Dynamic provisioning {#dynamic-mount-options}
 
 Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
+
+Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options for dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
 
 ```yaml {6-7}
 apiVersion: storage.k8s.io/v1

@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -37,7 +38,9 @@ type WebhookManager struct {
 	client *k8sclient.K8sClient
 }
 
-func NewWebhookManager(certDir string, webhookPort int) (*WebhookManager, error) {
+func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
+	leaderElectionNamespace string,
+	leaderElectionLeaseDuration time.Duration) (*WebhookManager, error) {
 	_ = clientgoscheme.AddToScheme(scheme)
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -46,12 +49,14 @@ func NewWebhookManager(certDir string, webhookPort int) (*WebhookManager, error)
 	}
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme,
-		Port:               webhookPort,
-		CertDir:            certDir,
-		MetricsBindAddress: "0.0.0.0:8084",
-		LeaderElection:     false,
-		LeaderElectionID:   "webhook.juicefs.com",
+		Scheme:                  scheme,
+		Port:                    webhookPort,
+		CertDir:                 certDir,
+		MetricsBindAddress:      "0.0.0.0:8084",
+		LeaderElection:          leaderElection,
+		LeaderElectionID:        "webhook.juicefs.com",
+		LeaderElectionNamespace: leaderElectionNamespace,
+		LeaseDuration:           &leaderElectionLeaseDuration,
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{

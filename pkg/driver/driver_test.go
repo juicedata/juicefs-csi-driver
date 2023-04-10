@@ -21,8 +21,9 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
+	"time"
 
-	. "github.com/agiledragon/gomonkey"
+	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
@@ -61,7 +62,7 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch5.Reset()
 
-			driver, err := NewDriver(endpoint, nodeId)
+			driver, err := NewDriver(endpoint, nodeId, false, "", time.Second)
 			So(err, ShouldBeNil)
 			if driver.endpoint != endpoint {
 				t.Fatalf("expected driver endpoint: %s, got: %s", endpoint, driver.endpoint)
@@ -93,7 +94,7 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			_, err := NewDriver(endpoint, nodeId)
+			_, err := NewDriver(endpoint, nodeId, false, "", time.Second)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("by process", func() {
@@ -113,7 +114,7 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			_, err := NewDriver(endpoint, nodeId)
+			_, err := NewDriver(endpoint, nodeId, false, "", time.Second)
 			So(err, ShouldBeNil)
 		})
 	})

@@ -19,6 +19,7 @@ package driver
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -40,7 +41,10 @@ type Driver struct {
 }
 
 // NewDriver creates a new driver
-func NewDriver(endpoint string, nodeID string) (*Driver, error) {
+func NewDriver(endpoint string, nodeID string,
+	leaderElection bool,
+	leaderElectionNamespace string,
+	leaderElectionLeaseDuration time.Duration) (*Driver, error) {
 	klog.Infof("Driver: %v version %v commit %v date %v", config.DriverName, driverVersion, gitCommit, buildDate)
 
 	var k8sClient *k8sclient.K8sClient
@@ -62,7 +66,7 @@ func NewDriver(endpoint string, nodeID string) (*Driver, error) {
 		return nil, err
 	}
 
-	ps, err := newProvisionerService(k8sClient)
+	ps, err := newProvisionerService(k8sClient, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 	if err != nil {
 		return nil, err
 	}

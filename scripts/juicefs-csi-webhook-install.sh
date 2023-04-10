@@ -121,7 +121,6 @@ rules:
   resources:
   - events
   verbs:
-  - get
   - list
   - watch
   - create
@@ -149,7 +148,6 @@ rules:
   - secrets
   verbs:
   - get
-  - list
   - create
   - update
   - patch
@@ -173,8 +171,6 @@ rules:
   - jobs
   verbs:
   - get
-  - list
-  - watch
   - create
   - update
   - patch
@@ -190,6 +186,35 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - watch
+  - list
+  - delete
+  - update
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - watch
+  - list
+  - delete
+  - update
+  - create
 - apiGroups:
   - ""
   resources:
@@ -261,7 +286,7 @@ metadata:
   name: juicefs-csi-controller
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: juicefs-csi-controller
@@ -282,6 +307,7 @@ spec:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_NAME)
+        - --leader-election
         - --v=5
         - --webhook=true
         env:
@@ -303,7 +329,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.18.1
+        image: juicedata/juicefs-csi-driver:v0.19.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -344,6 +370,7 @@ spec:
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
+        - --enable-leader-election
         - --v=5
         env:
         - name: ADDRESS
