@@ -5,44 +5,6 @@ sidebar_position: 1
 
 Best practices and recommended settings when going production.
 
-## Enable CSI Controller Leader Election {#leader-election}
-
-JuiceFS CSI Driver supports high availability of CSI Controller in 0.19.0 and above. In production, it is recommended to enable the high-availability setting of the CSI Controller to avoid single points of failure.
-
-### Kubectl
-
-If the CSI Driver is installed with kubectl, the high-availability setting of the CSI Controller has been enabled by default. If it is manually closed during installation, it can be restarted by adding startup parameters to CSI Controller:
-
-```yaml {2, 8-9, 12-13}
-spec:
-  replicas: 2 # replicas of pod, at least 2
-  template:
-    spec:
-      containers:
-      - name: juicefs-plugin
-        args:
-        - --leader-election # enable Leader Election
-        - --leader-election-lease-duration=15s # optional, the interval between replicas competing for Leader, default to 15s
-        ...
-      - name: csi-provisioner
-        args:
-        - --enable-leader-election # enable Leader Election
-        - --leader-election-lease-duration=15s # optional, the interval between replicas competing for Leader, default to 15s
-        ...
-```
-
-### Helm
-
-If the CSI Driver is installed using Helm, it is also started by default. If it is manually closed during installation, you can restart the CSI controller by modifying the `controller.leaderElection` option in the `values.yaml` file
-
-```yaml {3-5}
-controller:
-  leaderElection:
-    enabled: true # enable Leader Election
-    leaseDuration: "15s" # optional, the interval between replicas competing for Leader, default to 15s
-  replicas: 2 # replicas of pod, at least 2
-```
-
 ## PV settings {#pv-settings}
 
 Below settings are recommended for a production environment.
@@ -209,4 +171,42 @@ And add the following parser plugin to the Fluentd configuration file:
     </pattern>
   </parse>
 </filter>
+```
+
+## CSI Controller high availability {#leader-election}
+
+From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single points of failure.
+
+### Helm
+
+HA related settings inside `values.yaml`:
+
+```yaml {3-5}
+controller:
+  leaderElection:
+    enabled: true # Enable Leader Election
+    leaseDuration: "15s" # Interval between replicas competing for Leader, default to 15s
+  replicas: 2 # At least 2 is required for HA
+```
+
+### kubectl
+
+HA related settings inside `k8s.yaml`:
+
+```yaml {2, 8-9, 12-13}
+spec:
+  replicas: 2 # At least 2 is required for HA
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        args:
+        - --leader-election # enable Leader Election
+        - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
+        ...
+      - name: csi-provisioner
+        args:
+        - --enable-leader-election # Enable Leader Election
+        - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
+        ...
 ```

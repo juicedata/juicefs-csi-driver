@@ -5,44 +5,6 @@ sidebar_position: 1
 
 本章介绍在生产环境中使用 CSI 驱动的一系列最佳实践，以及注意事项。
 
-## 启用 CSI Controller 的高可用设置 {#leader-election}
-
-JuiceFS CSI Driver 在 0.19.0 及以上版本支持 CSI Controller 高可用。在生产环境中，建议开启 CSI Controller 的高可用设置，以避免单点故障。
-
-### Kubectl 方式
-
-若 CSI Driver 是用 kubectl 方式安装的，已经默认开启了 CSI Controller 的高可用设置。若安装时手动关闭，可以通过给 CSI Controller 添加启动参数重新开启：
-
-```yaml {2, 8-9, 12-13}
-spec:
-  replicas: 2 # 副本数，至少为 2
-  template:
-    spec:
-      containers:
-      - name: juicefs-plugin
-        args:
-        - --leader-election # 开启 Leader 选举
-        - --leader-election-lease-duration=15s # 可选，副本间竞选 Leader 的间隔，默认为 15s
-        ...
-      - name: csi-provisioner
-        args:
-        - --enable-leader-election # 开启 Leader 选举
-        - --leader-election-lease-duration=15s # 可选，副本间竞选 Leader 的间隔，默认为 15s
-        ...
-```
-
-### Helm 方式
-
-若 CSI Driver 是用 Helm 方式安装的，默认也是开启的。若安装时手动关闭，可以通过修改 `values.yaml` 文件中的 `controller.leaderElection` 选项来重新开启 CSI Controller 的高可用设置：
-
-```yaml {3-5}
-controller:
-  leaderElection:
-    enabled: true # 开启 Leader 选举
-    leaseDuration: "15s" # 可选，副本间竞选 Leader 的间隔，默认为 15s
-  replicas: 2 # 副本数，至少为 2
-```
-
 ## PV 设置 {#pv-settings}
 
 在生产环境中，推荐这样设置 PV：
@@ -209,4 +171,42 @@ Mount Pod 均包含固定的 `app.kubernetes.io/name: juicefs-mount` 标签。�
     </pattern>
   </parse>
 </filter>
+```
+
+## CSI Controller 的高可用设置 {#leader-election}
+
+CSI Driver 在 0.19.0 及以上版本支持并默认启用 CSI Controller 高可用模式，能够有效避免单点故障。默认为双副本，竞选间隔（Lease duration）为 15s，这意味着当 CSI Controller 服务节点出现意外后，至多需要 15s 来恢复服务。考虑到 CSI Controller 的异常并不会直接影响已有挂载点继续正常运作，正常情况下无需调整竞选间隔时间。
+
+### Helm
+
+在 `values.yaml` 中，高可用相关设置如下：
+
+```yaml {3-5}
+controller:
+  leaderElection:
+    enabled: true # 开启 Leader 选举
+    leaseDuration: "15s" # Leader 的间隔，默认为 15s
+  replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+```
+
+### kubectl
+
+用 kubectl 直接安装 CSI 驱动时，高可用相关的选项如下：
+
+```yaml {2, 8-9, 12-13}
+spec:
+  replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        args:
+        - --leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # Leader 的间隔，默认为 15s
+        ...
+      - name: csi-provisioner
+        args:
+        - --enable-leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # Leader 的间隔，默认为 15s
+        ...
 ```
