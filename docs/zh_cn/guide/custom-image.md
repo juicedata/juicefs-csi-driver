@@ -10,7 +10,7 @@ sidebar_position: 4
 Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」](https://juicefs.com/docs/zh/community/introduction)和[「商业版」](https://juicefs.com/docs/zh/cloud)客户端，因此在很长一段时间，Mount 镜像中同时包含着两个版本的 JuiceFS 客户端：
 
 * `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
-* `/usr/bin/juicefs`：云服务 JuiceFS 客户端
+* `/usr/bin/juicefs`：商业版 JuiceFS 客户端
 
 为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
 

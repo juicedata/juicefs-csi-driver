@@ -5,19 +5,30 @@ sidebar_position: 4
 
 This chapter describes how to overwrite the mount pod image and how to build the CSI Driver component image by yourself.
 
-## Overwrite mount pod image {#overwrite-mount-pod-image}
+## Mount pod image separation {#ce-ee-separation}
 
-From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. In 0.19.0 and above, the images of community edition and commercial edition are split,
-You can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
+JuiceFS Client runs inside the mount pod, and JuiceFS provides [Community Edition](https://juicefs.com/docs/community/introduction) and [Enterprise Edition](https://juicefs.com/docs/cloud), for a long period of time, mount image contains both versions:
+
+* `/usr/local/bin/juicefs`: JuiceFS Community Edition client
+* `/usr/bin/juicefs`: JuiceFS Enterprise Edition client
+
+To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image is provided for CE/EE, you can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
 
 ```shell
-# Tag of community mount image begin with ce- 
+# Tag of community mount image begin with ce-
 juicedata/mount:ce-v1.0.4
-# Tag of enterprise mount image begin with ee- 
+
+# Tag of enterprise mount image begin with ee-
 juicedata/mount:ee-4.9.1
+
+# Prior to 0.19.0, tag contains both CE and EE version string
+# This won't be maintained and updated in the future
+juicedata/mount:v1.0.3-4.8.3
 ```
 
-When changing mount pod image, CSI Driver offers flexible control over the scope, choose a method that suits your situation.
+## Overwrite mount pod image {#overwrite-mount-pod-image}
+
+From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
 :::tip
 With mount pod image overwritten, note that:
