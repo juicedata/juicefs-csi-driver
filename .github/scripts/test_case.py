@@ -1826,7 +1826,7 @@ def test_dynamic_pvc_delete_not_last_with_path_pattern():
 
 def test_dynamic_mount_image_with_webhook():
     LOG.info("[test case] Deployment set mount image in storageClass with webhook begin..")
-    mount_image = "juicedata/mount:v1.0.0-4.8.0"
+    mount_image = "juicedata/mount:ce-nightly"
     # deploy sc
     sc_name = "mount-image-dynamic-webhook"
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
