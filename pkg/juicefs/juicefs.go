@@ -656,8 +656,14 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
 	defer cmdCancel()
-	setQuotaCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
-	res, err := setQuotaCmd.CombinedOutput()
+
+	var res []byte
+	var err error
+	if isCe {
+		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
+	} else {
+		res, err = j.Exec.CommandContext(cmdCtx, config.JfsMountPath, args...).CombinedOutput()
+	}
 	if err != nil {
 		re := string(res)
 		klog.Infof("SetQuota error: %v", err)
