@@ -77,7 +77,7 @@ func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath st
 	return nil
 }
 
-func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error) {
+func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64, IsCe bool) (string, error) {
 	return "", nil
 }
 

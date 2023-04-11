@@ -62,7 +62,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
-	SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error)
+	SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64, isCe bool) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 }
 
@@ -639,14 +639,20 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	return string(res), nil
 }
 
-func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64) (string, error) {
+func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64, isCe bool) (string, error) {
 	// TODO: support enterprise edition
 	cap := capacity / 1024 / 1024 / 1024
 	if cap <= 0 {
 		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
-	args := []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
-	cmdArgs := []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+	var args, cmdArgs []string
+	if isCe {
+		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+	} else {
+		args = []string{"quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{config.JfsMountPath, "quota", "set", "${name}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
 	defer cmdCancel()

@@ -150,7 +150,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				subdir = path.Join("/", pair[1])
 			}
 		}
-		output, err := d.juicefs.SetQuota(ctx, secrets, path.Join(subdir, quotaPath), capacity)
+		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+		}
+		output, err := d.juicefs.SetQuota(ctx, secrets, path.Join(subdir, quotaPath), capacity, settings.IsCe)
 		if err != nil {
 			klog.Error("set quota: ", err)
 			return nil, status.Errorf(codes.Internal, "set quota: %v", err)
