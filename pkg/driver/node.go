@@ -154,7 +154,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
 		}
-		output, err := d.juicefs.SetQuota(ctx, secrets, path.Join(subdir, quotaPath), capacity, settings.IsCe)
+		var IsCe bool
+		if settings != nil {
+			IsCe = settings.IsCe
+		}
+		output, err := d.juicefs.SetQuota(ctx, secrets, path.Join(subdir, quotaPath), capacity, IsCe)
 		if err != nil {
 			klog.Error("set quota: ", err)
 			return nil, status.Errorf(codes.Internal, "set quota: %v", err)
