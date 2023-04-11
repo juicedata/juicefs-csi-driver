@@ -651,7 +651,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	} else {
 		args = []string{"quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
-		cmdArgs = []string{config.JfsMountPath, "quota", "set", "${name}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{config.JfsMountPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
