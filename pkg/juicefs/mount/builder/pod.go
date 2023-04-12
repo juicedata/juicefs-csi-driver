@@ -227,29 +227,33 @@ func (r *Builder) getInitContainer() corev1.Container {
 						subdir = path.Join("/", pair[1])
 					}
 				}
-				var cmdArgs []string
+				var setQuotaCmd string
 				targetPath := path.Join(subdir, quotaPath)
 				capacity := strconv.FormatInt(r.capacity, 10)
 				if r.jfsSetting.IsCe {
-					cmdArgs = []string{
+					// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
+					cmdArgs := []string{
+						config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
 						config.CeCliPath,
 						"quota", "set", "${metaurl}",
 						"--path", targetPath,
 						"--capacity", capacity,
+						"; fi",
 					}
+					setQuotaCmd = strings.Join(cmdArgs, " ")
 				} else {
 					jfsPath := config.JfsGoBinaryPath
 					if config.JfsChannel != "" {
 						jfsPath += "." + config.JfsChannel
 					}
-					cmdArgs = []string{
+					cmdArgs := []string{
 						jfsPath,
 						"quota", "set", r.jfsSetting.Name,
 						"--path", targetPath,
 						"--capacity", capacity,
 					}
+					setQuotaCmd = strings.Join(cmdArgs, " ")
 				}
-				setQuotaCmd := strings.Join(cmdArgs, " ")
 				formatCmd = fmt.Sprintf("%s && %s", formatCmd, setQuotaCmd)
 			}
 		}
