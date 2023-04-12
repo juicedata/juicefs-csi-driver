@@ -247,10 +247,12 @@ func (r *Builder) getInitContainer() corev1.Container {
 						jfsPath += "." + config.JfsChannel
 					}
 					cmdArgs := []string{
+						jfsPath, "quota; if [ $? -eq 0 ]; then",
 						jfsPath,
 						"quota", "set", r.jfsSetting.Name,
 						"--path", targetPath,
 						"--capacity", capacity,
+						"; fi",
 					}
 					setQuotaCmd = strings.Join(cmdArgs, " ")
 				}

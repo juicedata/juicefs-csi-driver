@@ -710,8 +710,11 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	return string(res), nil
 }
 
-func (j *juicefs) ceVersion(ctx context.Context) (*clientVersion, error) {
+func (j *juicefs) version(ctx context.Context, jfsSetting *config.JfsSetting) (*clientVersion, error) {
 	cmd := j.Exec.CommandContext(ctx, config.CeCliPath, "version")
+	if !jfsSetting.IsCe {
+		cmd = j.Exec.CommandContext(ctx, config.CliPath, "version")
+	}
 	res, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.Wrap(err, string(res))
@@ -720,11 +723,24 @@ func (j *juicefs) ceVersion(ctx context.Context) (*clientVersion, error) {
 }
 
 func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
-	// TODO: support enterprise edition
 	cap := capacity / 1024 / 1024 / 1024
 	if cap <= 0 {
 		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
+
+	version, err := j.version(ctx, jfsSetting)
+	if err != nil {
+		return "", err
+	}
+	if jfsSetting.IsCe && version.LessThan(&clientVersion{1, 1, 0, ""}) {
+		klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
+		return "", nil
+	}
+	if !jfsSetting.IsCe && version.LessThan(&clientVersion{4, 10, 0, ""}) {
+		klog.Infof("juicefs-ee version %s does not support quota, skipped", version)
+		return "", nil
+	}
+
 	var args, cmdArgs []string
 	jfsPath := config.JfsGoBinaryPath
 	if config.JfsChannel != "" {
@@ -742,17 +758,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	defer cmdCancel()
 
 	var res []byte
-	var err error
 	if jfsSetting.IsCe {
-		var version *clientVersion
-		version, err = j.ceVersion(ctx)
-		if err != nil {
-			return "", err
-		}
-		if version.LessThan(&clientVersion{1, 1, 0, ""}) {
-			klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
-			return "", nil
-		}
 		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
 	} else {
 		var authRes string
