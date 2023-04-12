@@ -62,7 +62,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
-	SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64, isCe bool) (string, error)
+	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 }
 
@@ -264,7 +264,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
-			res, err := j.AuthFs(ctx, secrets, jfsSetting)
+			res, err := j.AuthFs(ctx, secrets, jfsSetting, false)
 			if err != nil {
 				return nil, fmt.Errorf("juicefs auth error: %v", err)
 			}
@@ -531,7 +531,7 @@ func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) er
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting) (string, error) {
+func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -612,7 +612,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	// only run command when in process mode
-	if !config.ByProcess {
+	if !force && !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
@@ -639,7 +639,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	return string(res), nil
 }
 
-func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quotaPath string, capacity int64, isCe bool) (string, error) {
+func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
 	// TODO: support enterprise edition
 	cap := capacity / 1024 / 1024 / 1024
 	if cap <= 0 {
@@ -650,7 +650,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 	if config.JfsChannel != "" {
 		jfsPath += "." + config.JfsChannel
 	}
-	if isCe {
+	if jfsSetting.IsCe {
 		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	} else {
@@ -663,9 +663,14 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 
 	var res []byte
 	var err error
-	if isCe {
+	if jfsSetting.IsCe {
 		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
 	} else {
+		var authRes string
+		authRes, err = j.AuthFs(ctx, secrets, jfsSetting, true)
+		if err != nil {
+			return authRes, err
+		}
 		res, err = j.Exec.CommandContext(cmdCtx, jfsPath, args...).CombinedOutput()
 	}
 	if err != nil {

@@ -574,7 +574,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 			}
 			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
-			_, err = jfs.AuthFs(context.TODO(), secrets, setting)
+			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldBeNil)
 		})
 		Convey("secret nil", func() {
@@ -585,7 +585,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(context.TODO(), nil, nil)
+			_, err := jfs.AuthFs(context.TODO(), nil, nil, false)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no name", func() {
@@ -597,7 +597,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			_, err := jfs.AuthFs(context.TODO(), secret, nil)
+			_, err := jfs.AuthFs(context.TODO(), secret, nil, false)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("secret no bucket", func() {
@@ -620,7 +620,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 			}
 			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
 			So(err, ShouldBeNil)
-			_, err = jfs.AuthFs(context.TODO(), secrets, setting)
+			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldNotBeNil)
 		})
 	})
