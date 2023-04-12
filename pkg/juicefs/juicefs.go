@@ -710,6 +710,15 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	return string(res), nil
 }
 
+func (j *juicefs) ceVersion(ctx context.Context) (*clientVersion, error) {
+	cmd := j.Exec.CommandContext(ctx, config.CeCliPath, "version")
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, string(res))
+	}
+	return parseRawVersion(string(res))
+}
+
 func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
 	// TODO: support enterprise edition
 	cap := capacity / 1024 / 1024 / 1024
@@ -735,6 +744,15 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	var res []byte
 	var err error
 	if jfsSetting.IsCe {
+		var version *clientVersion
+		version, err = j.ceVersion(ctx)
+		if err != nil {
+			return "", err
+		}
+		if version.LessThan(&clientVersion{1, 1, 0, ""}) {
+			klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
+			return "", nil
+		}
 		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
 	} else {
 		var authRes string
@@ -746,7 +764,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	}
 	if err != nil {
 		re := string(res)
-		klog.Infof("SetQuota error: %v", err)
+		klog.Errorf("SetQuota error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs set quota %s timed out", 10*defaultCheckTimeout)
 			return "", errors.New(re)
