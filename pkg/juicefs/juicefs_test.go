@@ -1267,3 +1267,151 @@ func Test_juicefs_validOptions(t *testing.T) {
 		})
 	}
 }
+
+func Test_parseRawVersion(t *testing.T) {
+	type parseRawVersionCase struct {
+		name string
+		raw  string
+		want clientVersion
+		fail bool
+	}
+
+	cases := []parseRawVersionCase{
+		{
+			name: "test-normal",
+			raw:  "juicefs version 0.11.0",
+			want: clientVersion{
+				Major: 0,
+				Minor: 11,
+				Patch: 0,
+			},
+			fail: false,
+		},
+		{
+			name: "test-normal2",
+			raw:  "juicefs version 0.11.0-rc1",
+			want: clientVersion{
+				Major: 0,
+				Minor: 11,
+				Patch: 0,
+			},
+			fail: false,
+		},
+		{
+			name: "test-error",
+			raw:  "juicefs version 0.11",
+			want: clientVersion{},
+			fail: true,
+		},
+		{
+			name: "test-error2",
+			raw:  "juicefs version",
+			want: clientVersion{},
+			fail: true,
+		},
+		{
+			name: "test-error3",
+			raw:  "juicefs 0.11",
+			want: clientVersion{},
+			fail: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := parseRawVersion(c.raw)
+			if err != nil && !c.fail {
+				t.Errorf("parseRawVersion() error = %v, wantErr %v", err, c.fail)
+				return
+			}
+			if err == nil && c.fail {
+				t.Errorf("parseRawVersion(\"%s\") wantErr %v", c.raw, c.fail)
+				return
+			}
+			if err != nil && c.fail {
+				return
+			}
+			if !got.Approximate(&c.want) {
+				t.Errorf("parseRawVersion() got = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func Test_clientVersion_LessThan(t *testing.T) {
+	type fields struct {
+		Major int
+		Minor int
+		Patch int
+	}
+	type args struct {
+		other clientVersion
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "test-normal",
+			fields: fields{
+				Major: 0,
+				Minor: 11,
+				Patch: 0,
+			},
+			args: args{
+				other: clientVersion{
+					Major: 0,
+					Minor: 11,
+					Patch: 1,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "test-normal2",
+			fields: fields{
+				Major: 0,
+				Minor: 11,
+				Patch: 0,
+			},
+			args: args{
+				other: clientVersion{
+					Major: 0,
+					Minor: 10,
+					Patch: 1,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "test-normal3",
+			fields: fields{
+				Major: 0,
+				Minor: 11,
+				Patch: 0,
+			},
+			args: args{
+				other: clientVersion{
+					Major: 0,
+					Minor: 11,
+					Patch: 0,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &clientVersion{
+				Major: tt.fields.Major,
+				Minor: tt.fields.Minor,
+				Patch: tt.fields.Patch,
+			}
+			if got := c.LessThan(&tt.args.other); got != tt.want {
+				t.Errorf("clientVersion.LessThan() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

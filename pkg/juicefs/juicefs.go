@@ -86,6 +86,77 @@ type jfs struct {
 	Options   []string
 }
 
+type clientVersion struct {
+	Major, Minor, Patch int
+	Tag                 string
+}
+
+// raw version should be like "JuiceFS version x.x.x"
+func parseRawVersion(rawVersion string) (*clientVersion, error) {
+	slice := strings.Split(rawVersion, " ")
+	if len(slice) < 3 {
+		return nil, fmt.Errorf("invalid version string: %s", rawVersion)
+	}
+	return parseVersion(slice[2])
+}
+
+func parseVersion(version string) (*clientVersion, error) {
+	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(\w+))?$`)
+	matches := re.FindStringSubmatch(version)
+	if matches == nil {
+		return nil, fmt.Errorf("invalid version string: %s", version)
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid major version: %s", matches[1])
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid minor version: %s", matches[2])
+	}
+	patch, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return nil, fmt.Errorf("invalid patch version: %s", matches[3])
+	}
+	return &clientVersion{
+		Major: major,
+		Minor: minor,
+		Patch: patch,
+		Tag:   matches[4],
+	}, nil
+}
+
+func (v *clientVersion) String() string {
+	repr := fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+	if v.Tag != "" {
+		repr += "-" + v.Tag
+	}
+	return repr
+}
+
+func (v *clientVersion) Approximate(other *clientVersion) bool {
+	return v.Major == other.Major && v.Minor == other.Minor && v.Patch == other.Patch
+}
+
+func (v *clientVersion) LessThan(other *clientVersion) bool {
+	if v.Major < other.Major {
+		return true
+	}
+	if v.Major > other.Major {
+		return false
+	}
+	if v.Minor < other.Minor {
+		return true
+	}
+	if v.Minor > other.Minor {
+		return false
+	}
+	if v.Patch < other.Patch {
+		return true
+	}
+	return false
+}
+
 // Jfs is the interface of a mounted file system
 type Jfs interface {
 	GetBasePath() string
