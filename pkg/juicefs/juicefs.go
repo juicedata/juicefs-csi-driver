@@ -646,12 +646,16 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
 	var args, cmdArgs []string
+	jfsPath := config.JfsGoBinaryPath
+	if config.JfsChannel != "" {
+		jfsPath += "." + config.JfsChannel
+	}
 	if isCe {
 		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	} else {
 		args = []string{"quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
-		cmdArgs = []string{config.JfsMountPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{jfsPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
@@ -662,7 +666,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, quota
 	if isCe {
 		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
 	} else {
-		res, err = j.Exec.CommandContext(cmdCtx, config.JfsMountPath, args...).CombinedOutput()
+		res, err = j.Exec.CommandContext(cmdCtx, jfsPath, args...).CombinedOutput()
 	}
 	if err != nil {
 		re := string(res)
