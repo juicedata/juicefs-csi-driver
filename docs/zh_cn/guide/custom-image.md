@@ -5,16 +5,30 @@ sidebar_position: 4
 
 本章介绍如何设置 Mount Pod 镜像，以及自行构建 CSI 驱动组件镜像。
 
-## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
+## Mount Pod 镜像拆分 {#ce-ee-separation}
 
-JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」](https://juicefs.com/docs/zh/community/introduction)和[「商业版」](https://juicefs.com/docs/zh/cloud)客户端，因此在很长一段时间，Mount 镜像中同时包含着两个版本的 JuiceFS 客户端：
+
+* `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
+* `/usr/bin/juicefs`：商业版 JuiceFS 客户端
+
+为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
 
 ```shell
-# 镜像标签中包含社区版和云服务版客户端的版本号
+# 社区版镜像标签以 ce- 开头
+juicedata/mount:ce-v1.0.4
+
+# 商业版镜像标签以 ee- 开头
+juicedata/mount:ee-4.9.1
+
+# 在 0.19.0 以前，镜像标签中包含社区版和商业版客户端的版本号
+# 该系列镜像不再继续更新维护
 juicedata/mount:v1.0.3-4.8.3
 ```
 
-CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，请根据实际情况选择合适的手段。
+## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
+
+JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，根据实际情况选择合适的手段。
 
 :::tip 提示
 覆盖 Mount Pod 镜像后，注意：
@@ -27,10 +41,18 @@ CSI 驱动有着灵活的设计，有多种修改 Mount Pod 镜像的方式，�
 
 修改 CSI Node 配置以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
 
-修改 CSI Node Service，为 `juicefs-plugin` 容器中设置 `JUICEFS_MOUNT_IMAGE` 环境变量：
+如果你使用 JuiceFS 社区版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_CE_MOUNT_IMAGE` 环境变量：
 
 ```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_MOUNT_IMAGE=juicedata/mount:v1.0.3-4.8.3
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
+```
+
+如果你使用 JuiceFS 商业版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_EE_MOUNT_IMAGE` 环境变量：
+
+```shell
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
 ```
 
 在全局覆盖的情况下，如果还希望为部分应用单独指定 Mount Pod 镜像，还可以参考下方小节的做法，额外地[在 StorageClass 中进行覆盖](#overwrite-in-sc)，优先级更高。
@@ -50,7 +72,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
+  juicefs/mount-image: juicedata/mount:ce-v1.0.4
 ```
 
 配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
@@ -81,7 +103,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
+      juicefs/mount-image: juicedata/mount:ce-v1.0.4
 ```
 
 ## 构建镜像

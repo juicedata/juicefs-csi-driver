@@ -5,16 +5,30 @@ sidebar_position: 4
 
 This chapter describes how to overwrite the mount pod image and how to build the CSI Driver component image by yourself.
 
-## Overwrite mount pod image {#overwrite-mount-pod-image}
+## Mount pod image separation {#ce-ee-separation}
 
-From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. You can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
+JuiceFS Client runs inside the mount pod, and JuiceFS provides [Community Edition](https://juicefs.com/docs/community/introduction) and [Enterprise Edition](https://juicefs.com/docs/cloud), for a long period of time, mount image contains both versions:
+
+* `/usr/local/bin/juicefs`: JuiceFS Community Edition client
+* `/usr/bin/juicefs`: JuiceFS Enterprise Edition client
+
+To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image is provided for CE/EE, you can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
 
 ```shell
-# Container tag contains version string for JuiceFS Community Edition, and JuiceFS Cloud Service
+# Tag of community mount image begin with ce-
+juicedata/mount:ce-v1.0.4
+
+# Tag of enterprise mount image begin with ee-
+juicedata/mount:ee-4.9.1
+
+# Prior to 0.19.0, tag contains both CE and EE version string
+# This won't be maintained and updated in the future
 juicedata/mount:v1.0.3-4.8.3
 ```
 
-When changing mount pod image, CSI Driver offers flexible control over the scope, choose a method that suits your situation.
+## Overwrite mount pod image {#overwrite-mount-pod-image}
+
+From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
 :::tip
 With mount pod image overwritten, note that:
@@ -27,10 +41,18 @@ With mount pod image overwritten, note that:
 
 Change CSI Node settings so that mount pod image is overwritten globally, choose this method if you wish to change the image for all applications.
 
-Edit CSI Node Service, add the `JUICEFS_MOUNT_IMAGE` environment variable to the `juicefs-plugin` container:
+If you use JuiceFS community edition, you need to set the `JUICEFS_CE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
 
 ```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_MOUNT_IMAGE=juicedata/mount:v1.0.3-4.8.3
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
+```
+
+If you use JuiceFS enterprise edition, you need to set the `JUICEFS_EE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
+
+```shell
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
 ```
 
 When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), since it has higher precedence over CSI Node environment settings.
@@ -50,7 +72,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
+  juicefs/mount-image: juicedata/mount:ce-v1.0.4
 ```
 
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
@@ -81,7 +103,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:v1.0.3-4.8.3
+      juicefs/mount-image: juicedata/mount:ce-v1.0.4
 ```
 
 ## Build image
