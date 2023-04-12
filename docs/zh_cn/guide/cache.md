@@ -143,6 +143,7 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 # 确定 JuiceFS 在容器内的挂载点
 df -h | grep JuiceFS
 
+# 运行预热命令
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 

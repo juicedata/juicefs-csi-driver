@@ -41,14 +41,14 @@ With mount pod image overwritten, note that:
 
 Change CSI Node settings so that mount pod image is overwritten globally, choose this method if you wish to change the image for all applications.
 
-If you want to override the community image, you need to set the `JUICEFS_CE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
+If you use JuiceFS community edition, you need to set the `JUICEFS_CE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
 
 ```shell
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
 kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
 ```
 
-If you want to override the enterprise image, you need to set the `JUICEFS_EE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
+If you use JuiceFS enterprise edition, you need to set the `JUICEFS_EE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
 
 ```shell
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1

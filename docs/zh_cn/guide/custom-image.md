@@ -41,14 +41,14 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 
 修改 CSI Node 配置以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
 
-若希望覆盖社区版的镜像，需要为 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_CE_MOUNT_IMAGE` 环境变量：
+如果你使用 JuiceFS 社区版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_CE_MOUNT_IMAGE` 环境变量：
 
 ```shell
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
 kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
 ```
 
-若希望覆盖商业版的镜像，需要为 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_EE_MOUNT_IMAGE` 环境变量：
+如果你使用 JuiceFS 商业版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_EE_MOUNT_IMAGE` 环境变量：
 
 ```shell
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1

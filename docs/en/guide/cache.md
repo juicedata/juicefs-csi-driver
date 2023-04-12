@@ -143,6 +143,7 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 # Locate the JuiceFS mount point inside pod
 df -h | grep JuiceFS
 
+# Run warmup command
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
