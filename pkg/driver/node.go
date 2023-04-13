@@ -139,9 +139,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
 		}
-		quotaPath := volCtx["subPath"]
+		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+		}
+		quotaPath := settings.SubPath
 		var subdir string
-		for _, o := range mountOptions {
+		for _, o := range settings.Options {
 			pair := strings.Split(o, "=")
 			if len(pair) != 2 {
 				continue
@@ -150,10 +154,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				subdir = path.Join("/", pair[1])
 			}
 		}
-		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
-		}
+
 		output, err := d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
 		if err != nil {
 			klog.Error("set quota: ", err)
