@@ -135,9 +135,9 @@ Once metrics data is collected, refer to the following documents to set up Grafa
 
 Troubleshooting CSI Driver usually involves reading mount pod logs, if [checking mount pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
 
-- Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, please refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
-- Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, please refer to the [official documentation](https://docs.fluentd.org/installation).
-- Kibana: visual analysis of logs, including log search, processing, and gorgeous dashboard display, etc. For installation, please refer to the [official documentation](https://www.elastic.co/guide/en/kibana/current/install.html).
+- Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
+- Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, refer to the [official documentation](https://docs.fluentd.org/installation).
+- Kibana: visual analysis of logs, including log search, processing, and gorgeous dashboard display, etc. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/kibana/current/install.html).
 
 Mount pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
 
@@ -171,4 +171,42 @@ And add the following parser plugin to the Fluentd configuration file:
     </pattern>
   </parse>
 </filter>
+```
+
+## CSI Controller high availability {#leader-election}
+
+From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single points of failure.
+
+### Helm
+
+HA related settings inside `values.yaml`:
+
+```yaml {3-5}
+controller:
+  leaderElection:
+    enabled: true # Enable Leader Election
+    leaseDuration: "15s" # Interval between replicas competing for Leader, default to 15s
+  replicas: 2 # At least 2 is required for HA
+```
+
+### kubectl
+
+HA related settings inside `k8s.yaml`:
+
+```yaml {2, 8-9, 12-13}
+spec:
+  replicas: 2 # At least 2 is required for HA
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        args:
+        - --leader-election # enable Leader Election
+        - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
+        ...
+      - name: csi-provisioner
+        args:
+        - --enable-leader-election # Enable Leader Election
+        - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
+        ...
 ```

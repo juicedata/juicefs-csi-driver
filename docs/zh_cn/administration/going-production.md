@@ -135,9 +135,9 @@ spec:
 
 CSI 驱动的问题排查，往往涉及到查看 Mount Pod 日志。如果[实时查看 Mount Pod 日志](./troubleshooting.md#check-mount-pod)无法满足你的需要，考虑搭建 EFK（Elasticsearch + Fluentd + Kibana），或者其他合适的容器日志收集系统，用来留存和检索 Pod 日志。以 EFK 为例：
 
-- Elasticsearch：负责对日志进行索引，并提供了一个完整的全文搜索引擎，可以方便用户从日志中检索需要的数据。安装方法请参考[官方文档](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html)。
-- Fluentd：负责获取容器日志文件、过滤和转换日志数据，然后将数据传递到 Elasticsearch 集群。安装方法请参考[官方文档](https://docs.fluentd.org/installation)。
-- Kibana：负责对日志进行可视化分析，包括日志搜索、处理以及绚丽的仪表板展示等。安装方法请参考[官方文档](https://www.elastic.co/guide/en/kibana/current/install.html)。
+- Elasticsearch：负责对日志进行索引，并提供了一个完整的全文搜索引擎，可以方便用户从日志中检索需要的数据。安装方法参考[官方文档](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html)。
+- Fluentd：负责获取容器日志文件、过滤和转换日志数据，然后将数据传递到 Elasticsearch 集群。安装方法参考[官方文档](https://docs.fluentd.org/installation)。
+- Kibana：负责对日志进行可视化分析，包括日志搜索、处理以及绚丽的仪表板展示等。安装方法参考[官方文档](https://www.elastic.co/guide/en/kibana/current/install.html)。
 
 Mount Pod 均包含固定的 `app.kubernetes.io/name: juicefs-mount` 标签。在 Fluentd 的配置文件中可以配置收集对应标签的日志：
 
@@ -171,4 +171,42 @@ Mount Pod 均包含固定的 `app.kubernetes.io/name: juicefs-mount` 标签。�
     </pattern>
   </parse>
 </filter>
+```
+
+## CSI Controller 的高可用设置 {#leader-election}
+
+CSI Driver 在 0.19.0 及以上版本支持并默认启用 CSI Controller 高可用模式，能够有效避免单点故障。默认为双副本，竞选间隔（Lease duration）为 15s，这意味着当 CSI Controller 服务节点出现意外后，至多需要 15s 来恢复服务。考虑到 CSI Controller 的异常并不会直接影响已有挂载点继续正常运作，正常情况下无需调整竞选间隔时间。
+
+### Helm
+
+在 `values.yaml` 中，高可用相关设置如下：
+
+```yaml {3-5}
+controller:
+  leaderElection:
+    enabled: true # 开启 Leader 选举
+    leaseDuration: "15s" # Leader 的间隔，默认为 15s
+  replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+```
+
+### kubectl
+
+用 kubectl 直接安装 CSI 驱动时，高可用相关的选项如下：
+
+```yaml {2, 8-9, 12-13}
+spec:
+  replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+  template:
+    spec:
+      containers:
+      - name: juicefs-plugin
+        args:
+        - --leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # Leader 的间隔，默认为 15s
+        ...
+      - name: csi-provisioner
+        args:
+        - --enable-leader-election # 开启 Leader 选举
+        - --leader-election-lease-duration=15s # Leader 的间隔，默认为 15s
+        ...
 ```

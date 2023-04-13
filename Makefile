@@ -263,3 +263,12 @@ bin/mockgen: | bin
 
 mockgen: bin/mockgen
 	./hack/update-gomock
+
+npm-install:
+	npm install
+	npm ci
+
+check-docs:
+	npm run markdown-lint
+	autocorrect --fix ./docs/
+	npm run check-broken-link
