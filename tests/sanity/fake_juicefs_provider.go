@@ -37,7 +37,7 @@ type fakeJfsProvider struct {
 }
 
 func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	return nil, nil
+	return new(config.JfsSetting), nil
 }
 
 func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
