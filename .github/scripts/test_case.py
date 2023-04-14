@@ -149,6 +149,16 @@ def test_quota_using_storage_rw():
     if process.returncode is not None and process.returncode != 0:
         raise Exception("df -h failed: {}".format(process.stderr))
     LOG.info("df -h result: {}".format(process.stdout))
+    quota = None
+    for line in process.stdout.split("\n"):
+        if line.startswith("JuiceFS:"):
+            items = line.split()
+            if len(items) >= 2:
+                quota = items[1]
+    if quota is None:
+        raise Exception("df -h result does not contain juicefs info:\n{}".format(process.stdout))
+    if quota != "1.0G":
+        raise Exception("quota is not set:\n{}".format(process.stdout))
     LOG.info("Test pass.")
 
     # delete test resources
