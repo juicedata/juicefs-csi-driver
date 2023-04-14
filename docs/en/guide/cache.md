@@ -142,26 +142,10 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 
 # Locate the JuiceFS mount point inside pod
 df -h | grep JuiceFS
+
+# Run warmup command
+juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
-
-The path of the Community Edition and Cloud Service JuiceFS client in the Mount Pod are different, pay attention to distinguish:
-
-<Tabs>
-  <TabItem value="community-edition" label="Community Edition">
-
-```shell
-/usr/local/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
-```
-
-  </TabItem>
-  <TabItem value="cloud-service" label="Cloud Service">
-
-```shell
-/usr/bin/juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
-```
-
-  </TabItem>
-</Tabs>
 
 On the other hand, if you've already install JuiceFS Client in the application pod, it's OK to run the warm-up command directly inside the application pod.
 
@@ -321,7 +305,7 @@ spec:
           name: jfs-root-dir
         # Use the mount pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
-        image: juicedata/mount:v1.0.3-4.9.0
+        image: juicedata/mount:ce-v1.0.4
         lifecycle:
           # Unmount file system when exiting
           preStop:

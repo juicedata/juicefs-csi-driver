@@ -36,10 +36,14 @@ sidebar_position: 5
    quay.io/k8scsi/livenessprobe:v1.1.0
    ```
 
-   除此之外，由于 CSI 驱动的[「分离架构」](../introduction.md#architecture)，你还需要将 Mount Pod 镜像也纳入其中，一并搬运。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 中找到最新版，其版本号命名规则为 `v<社区版最新版本>-<云服务最新版本>`，编写此文档时，社区版最新版本为 1.0.2，云服务最新版本为 4.8.2，则用下方命令添加镜像：
+   除此之外，由于 CSI 驱动的[「分离架构」](../introduction.md#architecture)，你还需要将 Mount Pod 镜像也纳入其中，一并搬运。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 中找到最新版，用下方命令添加镜像：
 
    ```shell
-   echo juicedata/mount:v1.0.2-4.8.2 >> images.txt
+   # 社区版镜像
+   echo juicedata/mount:ce-v1.0.4 >> images.txt
+
+   # 商业版镜像
+   echo juicedata/mount:ee-4.9.1 >> images.txt
    ```
 
 3. 将所有镜像下载到本地，并统一重命名：
@@ -95,7 +99,7 @@ sidebar_position: 5
    registry.example.com:32000/juicedata/csi-provisioner:v1.6.0
    registry.example.com:32000/juicedata/livenessprobe:v1.3.0
    registry.example.com:32000/juicedata/csi-node-driver-registrar:v1.1.0
-   registry.example.com:32000/juicedata/mount:v1.0.0-4.8.0
+   registry.example.com:32000/juicedata/mount:xx-xx
    ```
 
    将镜像推送到私有仓库，请确保 Docker 有权限推送镜像：
