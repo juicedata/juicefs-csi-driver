@@ -89,6 +89,79 @@ def test_deployment_using_storage_rw():
     pvc.delete()
     return
 
+def test_quota_using_storage_rw():
+    LOG.info("[test case] Quota using storageClass with rwm begin..")
+    # deploy pvc
+    pvc = PVC(name="pvc-quota-rw", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    # deploy pod
+    deployment = Deployment(name="app-quota-rw", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        if MOUNT_MODE == "webhook":
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        if MOUNT_MODE == "webhook":
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+                subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace="default",
+        label_selector="deployment={}".format(deployment.name)
+    )
+    process = subprocess.run([
+        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "--", "df", "-h"], 
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+
+    if process.returncode is not None and process.returncode != 0:
+        raise Exception("df -h failed: {}".format(process.stderr))
+    LOG.info("df -h result: {}".format(process.stdout))
+    LOG.info("Test pass.")
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    return
 
 def test_deployment_using_storage_ro():
     LOG.info("[test case] Deployment using storageClass with rom begin..")
