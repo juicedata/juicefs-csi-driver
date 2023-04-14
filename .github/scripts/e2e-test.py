@@ -24,6 +24,7 @@ from test_case import (
     test_job_complete_using_storage,
     test_static_delete_policy,
     test_deployment_using_storage_rw,
+    test_quota_using_storage_rw,
     test_deployment_using_storage_ro,
     test_deployment_use_pv_rw,
     test_deployment_use_pv_ro,
