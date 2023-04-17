@@ -61,7 +61,7 @@ job "jfs-controller" {
         memory = 512
       }
       env {
-        pod_name = "csi-controller"
+        POD_NAME = "csi-controller"
       }
     }
   }
