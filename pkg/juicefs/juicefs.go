@@ -62,6 +62,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
+	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 }
 
@@ -83,6 +84,77 @@ type jfs struct {
 	Name      string
 	MountPath string
 	Options   []string
+}
+
+type clientVersion struct {
+	Major, Minor, Patch int
+	Tag                 string
+}
+
+// raw version should be like "JuiceFS version x.x.x"
+func parseRawVersion(rawVersion string) (*clientVersion, error) {
+	slice := strings.Split(rawVersion, " ")
+	if len(slice) < 3 {
+		return nil, fmt.Errorf("invalid version string: %s", rawVersion)
+	}
+	return parseVersion(slice[2])
+}
+
+func parseVersion(version string) (*clientVersion, error) {
+	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$`)
+	matches := re.FindStringSubmatch(strings.TrimSpace(version))
+	if matches == nil {
+		return nil, fmt.Errorf("invalid version string: %s", version)
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid major version: %s", matches[1])
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid minor version: %s", matches[2])
+	}
+	patch, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return nil, fmt.Errorf("invalid patch version: %s", matches[3])
+	}
+	return &clientVersion{
+		Major: major,
+		Minor: minor,
+		Patch: patch,
+		Tag:   matches[4],
+	}, nil
+}
+
+func (v *clientVersion) String() string {
+	repr := fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+	if v.Tag != "" {
+		repr += "-" + v.Tag
+	}
+	return repr
+}
+
+func (v *clientVersion) Approximate(other *clientVersion) bool {
+	return v.Major == other.Major && v.Minor == other.Minor && v.Patch == other.Patch
+}
+
+func (v *clientVersion) LessThan(other *clientVersion) bool {
+	if v.Major < other.Major {
+		return true
+	}
+	if v.Major > other.Major {
+		return false
+	}
+	if v.Minor < other.Minor {
+		return true
+	}
+	if v.Minor > other.Minor {
+		return false
+	}
+	if v.Patch < other.Patch {
+		return true
+	}
+	return false
 }
 
 // Jfs is the interface of a mounted file system
@@ -263,7 +335,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 		if secrets["token"] == "" {
 			klog.V(5).Infof("token is empty, skip authfs.")
 		} else {
-			res, err := j.AuthFs(ctx, secrets, jfsSetting)
+			res, err := j.AuthFs(ctx, secrets, jfsSetting, false)
 			if err != nil {
 				return nil, fmt.Errorf("juicefs auth error: %v", err)
 			}
@@ -530,7 +602,7 @@ func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) er
 }
 
 // AuthFs authenticates JuiceFS, enterprise edition only
-func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting) (string, error) {
+func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
 	if secrets == nil {
 		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
 	}
@@ -611,7 +683,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	// only run command when in process mode
-	if !config.ByProcess {
+	if !force && !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
@@ -631,6 +703,76 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		klog.Infof("Auth error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs auth %s timed out", 8*defaultCheckTimeout)
+			return "", errors.New(re)
+		}
+		return "", errors.Wrap(err, re)
+	}
+	return string(res), nil
+}
+
+func (j *juicefs) version(ctx context.Context, jfsSetting *config.JfsSetting) (*clientVersion, error) {
+	cmd := j.Exec.CommandContext(ctx, config.CeCliPath, "version")
+	if !jfsSetting.IsCe {
+		cmd = j.Exec.CommandContext(ctx, config.CliPath, "version")
+	}
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, string(res))
+	}
+	return parseRawVersion(string(res))
+}
+
+func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
+	cap := capacity / 1024 / 1024 / 1024
+	if cap <= 0 {
+		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
+	}
+
+	version, err := j.version(ctx, jfsSetting)
+	if err != nil {
+		return "", err
+	}
+	if jfsSetting.IsCe && version.LessThan(&clientVersion{1, 1, 0, ""}) {
+		klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
+		return "", nil
+	}
+	if !jfsSetting.IsCe && version.LessThan(&clientVersion{4, 10, 0, ""}) {
+		klog.Infof("juicefs-ee version %s does not support quota, skipped", version)
+		return "", nil
+	}
+
+	var args, cmdArgs []string
+	jfsPath := config.JfsGoBinaryPath
+	if config.JfsChannel != "" {
+		jfsPath += "." + config.JfsChannel
+	}
+	if jfsSetting.IsCe {
+		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+	} else {
+		args = []string{"quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{jfsPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+	}
+	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
+	defer cmdCancel()
+
+	var res []byte
+	if jfsSetting.IsCe {
+		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
+	} else {
+		var authRes string
+		authRes, err = j.AuthFs(ctx, secrets, jfsSetting, true)
+		if err != nil {
+			return authRes, err
+		}
+		res, err = j.Exec.CommandContext(cmdCtx, jfsPath, args...).CombinedOutput()
+	}
+	if err != nil {
+		re := string(res)
+		klog.Errorf("SetQuota error: %v", err)
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs set quota %s timed out", 10*defaultCheckTimeout)
 			return "", errors.New(re)
 		}
 		return "", errors.Wrap(err, re)

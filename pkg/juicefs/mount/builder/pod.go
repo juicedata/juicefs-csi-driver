@@ -18,6 +18,7 @@ package builder
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -214,6 +215,49 @@ func (r *Builder) getInitContainer() corev1.Container {
 			cmd := r.getJobCommand()
 			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi; umount /mnt/jfs", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
 			formatCmd = fmt.Sprintf("%s && %s", formatCmd, initCmd)
+			if config.Webhook && r.capacity > 0 {
+				quotaPath := r.jfsSetting.SubPath
+				var subdir string
+				for _, o := range r.jfsSetting.Options {
+					pair := strings.Split(o, "=")
+					if len(pair) != 2 {
+						continue
+					}
+					if pair[0] == "subdir" {
+						subdir = path.Join("/", pair[1])
+					}
+				}
+				var setQuotaCmd string
+				targetPath := path.Join(subdir, quotaPath)
+				capacity := strconv.FormatInt(r.capacity, 10)
+				if r.jfsSetting.IsCe {
+					// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
+					cmdArgs := []string{
+						config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
+						config.CeCliPath,
+						"quota", "set", "${metaurl}",
+						"--path", targetPath,
+						"--capacity", capacity,
+						"; fi",
+					}
+					setQuotaCmd = strings.Join(cmdArgs, " ")
+				} else {
+					jfsPath := config.JfsGoBinaryPath
+					if config.JfsChannel != "" {
+						jfsPath += "." + config.JfsChannel
+					}
+					cmdArgs := []string{
+						jfsPath, "quota; if [ $? -eq 0 ]; then",
+						jfsPath,
+						"quota", "set", r.jfsSetting.Name,
+						"--path", targetPath,
+						"--capacity", capacity,
+						"; fi",
+					}
+					setQuotaCmd = strings.Join(cmdArgs, " ")
+				}
+				formatCmd = fmt.Sprintf("%s && %s", formatCmd, setQuotaCmd)
+			}
 		}
 	}
 	container.Command = []string{"sh", "-c", formatCmd}
