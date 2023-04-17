@@ -16,6 +16,7 @@
 #
 
 tmp_file="webhook.yaml"
+tmp_file_with_certmanager="webhook-with-certmanager.yaml"
 tmp_install_script="juicefs-csi-webhook-install.sh.bak"
 install_script="scripts/juicefs-csi-webhook-install.sh"
 
@@ -28,8 +29,17 @@ head -$start_num $install_script >$tmp_install_script
 cat $tmp_file >>$tmp_install_script
 tail -n +$end_num $install_script >>$tmp_install_script
 
+cat deploy/webhook-with-certmanager.yaml >> $tmp_file_with_certmanager
+
+let start_num=$(cat -n $install_script | grep "# webhook-with-certmanager.yaml start" | awk '{print $1}')+1
+let end_num=$(cat -n $install_script | grep "# webhook-with-certmanager.yaml end" | awk '{print $1}')-1
+
+head -$start_num $install_script >$tmp_install_script
+cat $tmp_file_with_certmanager >>$tmp_install_script
+tail -n +$end_num $install_script >>$tmp_install_script
+
 mv $tmp_install_script $install_script
 chmod +x $install_script
 
 rm -rf $tmp_file
-rm -rf $tmp_file.bak
+rm -rf $tmp_file_with_certmanager
