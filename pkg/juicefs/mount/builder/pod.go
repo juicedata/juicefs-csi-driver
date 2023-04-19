@@ -243,8 +243,10 @@ func (r *Builder) getInitContainer() corev1.Container {
 					setQuotaCmd = strings.Join(cmdArgs, " ")
 				} else {
 					jfsPath := config.JfsGoBinaryPath
-					if config.JfsChannel != "" {
-						jfsPath += "." + config.JfsChannel
+					if parts := strings.Split(r.jfsSetting.Attr.Image, ":"); len(parts) != 0 {
+						if parts[len(parts)-1] == "ee-nightly" {
+							jfsPath += "." + "beta"
+						}
 					}
 					cmdArgs := []string{
 						jfsPath, "quota; if [ $? -eq 0 ]; then",
