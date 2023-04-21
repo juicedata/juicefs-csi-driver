@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"reflect"
+	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -92,6 +93,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	volCtx["subPath"] = subPath
+	volCtx["capacity"] = strconv.FormatInt(requiredCap, 10)
 	volume := csi.Volume{
 		VolumeId:      volumeId,
 		CapacityBytes: requiredCap,

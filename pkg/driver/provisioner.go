@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -102,6 +103,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	// set volume context
 	volCtx := make(map[string]string)
 	volCtx["subPath"] = subPath
+	volCtx["capacity"] = strconv.FormatInt(options.PVC.Spec.Resources.Requests.Storage().Value(), 10)
 	for k, v := range sc.Parameters {
 		volCtx[k] = v
 	}

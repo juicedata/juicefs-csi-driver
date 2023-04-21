@@ -19,6 +19,7 @@ package mutate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -74,7 +75,12 @@ func (s *SidecarMutate) Mutate(ctx context.Context, pod *corev1.Pod) (out *corev
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = s.PVC.Name + "-jfs-secret"
 	s.jfsSetting = jfsSetting
-	r := builder.NewBuilder(jfsSetting)
+	capacity := s.PVC.Spec.Resources.Requests.Storage().Value()
+	cap := capacity / 1024 / 1024 / 1024
+	if cap <= 0 {
+		return nil, fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
+	}
+	r := builder.NewBuilder(jfsSetting, cap)
 
 	// create secret per PVC
 	secret := r.NewSecret()

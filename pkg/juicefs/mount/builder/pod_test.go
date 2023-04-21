@@ -169,7 +169,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	optionWithCacheDir2 := []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1"}
 	optionWithCacheDir3 := []string{"cache-dir"}
 
-	r := Builder{nil}
+	r := Builder{nil, 0}
 
 	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
@@ -264,7 +264,7 @@ func TestNewMountPod(t *testing.T) {
 	})
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true)
-	r := Builder{s}
+	r := Builder{s, 0}
 	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
 	podCacheTest := corev1.Pod{}
@@ -394,7 +394,7 @@ func TestNewMountPod(t *testing.T) {
 					Image:          config.CEMountImage,
 				},
 			}
-			r := Builder{jfsSetting}
+			r := Builder{jfsSetting, 0}
 			got := r.NewMountPod(podName)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
@@ -447,7 +447,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				MountPath: tt.args.mountPath,
 				Options:   tt.args.options,
 			}
-			r := Builder{jfsSetting}
+			r := Builder{jfsSetting, 0}
 			if got := r.getCommand(); got != tt.want {
 				t.Errorf("getCommand() = %v, want %v", got, tt.want)
 			}
@@ -490,7 +490,7 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 				Name:    tt.name,
 				Options: tt.args.options,
 			}
-			r := Builder{jfsSetting}
+			r := Builder{jfsSetting, 0}
 			if got := r.getMetricsPort(); got != tt.want {
 				t.Errorf("getMetricsPort() = %v, want %v", got, tt.want)
 			}

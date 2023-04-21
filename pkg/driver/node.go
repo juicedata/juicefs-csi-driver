@@ -19,7 +19,9 @@ package driver
 import (
 	"context"
 	"os"
+	"path"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -127,8 +129,38 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
+
 	if err := jfs.BindTarget(ctx, bindSource, target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
+	}
+
+	if cap, exist := volCtx["capacity"]; exist {
+		capacity, err := strconv.ParseInt(cap, 10, 64)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
+		}
+		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+		}
+		quotaPath := settings.SubPath
+		var subdir string
+		for _, o := range settings.Options {
+			pair := strings.Split(o, "=")
+			if len(pair) != 2 {
+				continue
+			}
+			if pair[0] == "subdir" {
+				subdir = path.Join("/", pair[1])
+			}
+		}
+
+		output, err := d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
+		if err != nil {
+			klog.Error("set quota: ", err)
+			return nil, status.Errorf(codes.Internal, "set quota: %v", err)
+		}
+		klog.V(5).Infof("set quota: %s", output)
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", volumeID, target, mountOptions)
