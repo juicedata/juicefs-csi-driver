@@ -29,6 +29,8 @@ head -$start_num $install_script >$tmp_install_script
 cat $tmp_file >>$tmp_install_script
 tail -n +$end_num $install_script >>$tmp_install_script
 
+mv $tmp_install_script $install_script
+
 cat deploy/webhook-with-certmanager.yaml >> $tmp_file_with_certmanager
 
 let start_num=$(cat -n $install_script | grep "# webhook-with-certmanager.yaml start" | awk '{print $1}')+1
