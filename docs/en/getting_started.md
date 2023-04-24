@@ -133,6 +133,11 @@ Reinstall to apply:
 helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
+Label all namespaces that need to use JuiceFS CSI Driver:
+```shell
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+```
+
 ### kubectl
 
 The files used for installation are generated using a script, which isn't ideal for source code management, while making it difficult to upgrade CSI Driver. Please don't install via kubectl in a production environment.
@@ -156,6 +161,18 @@ Or directly install using this command:
 
 ```shell
 ./juicefs-csi-webhook-install.sh install
+```
+
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster,
+you can use the following command to generate an installation file or install it directly:
+
+```shell
+# Generate installation files
+./juicefs-csi-webhook-install.sh print --with-certmanager > juicefs-csi-sidecar.yaml
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+
+# directly install
+./juicefs-csi-webhook-install.sh install --with-certmanager 
 ```
 
 If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.
