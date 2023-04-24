@@ -127,6 +127,16 @@ Modify `values.yaml`:
 mountMode: sidecar
 ```
 
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster,
+Need to add the following configuration in `values.yaml`:
+
+```yaml title='values.yaml'
+mountMode: sidecar
+webhook:
+   certManager:
+      enabled: true
+```
+
 Reinstall to apply:
 
 ```shell

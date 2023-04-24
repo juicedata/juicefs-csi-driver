@@ -111,6 +111,15 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 mountMode: sidecar
 ```
 
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 `values.yaml` 中添加如下配置：
+
+```yaml title='values.yaml'
+mountMode: sidecar
+webhook:
+   certManager:
+      enabled: true
+```
+
 重新安装，令配置生效：
 
 ```shell
