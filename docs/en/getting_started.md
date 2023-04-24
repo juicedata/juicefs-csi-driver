@@ -134,6 +134,7 @@ helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-sys
 ```
 
 Label all namespaces that need to use JuiceFS CSI Driver:
+
 ```shell
 kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 ```
