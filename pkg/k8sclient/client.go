@@ -318,6 +318,26 @@ func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, names
 	return mntPod, nil
 }
 
+func (k *K8sClient) GetReplicaSet(ctx context.Context, rsName, namespace string) (*appsv1.ReplicaSet, error) {
+	klog.V(6).Infof("Get replicaset %s in namespace %s", rsName, namespace)
+	rs, err := k.AppsV1().ReplicaSets(namespace).Get(ctx, rsName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get replicaset %s in namespace %s : %v", rsName, namespace, err)
+		return nil, err
+	}
+	return rs, nil
+}
+
+func (k *K8sClient) GetStatefulSet(ctx context.Context, stsName, namespace string) (*appsv1.StatefulSet, error) {
+	klog.V(6).Infof("Get statefulset %s in namespace %s", stsName, namespace)
+	sts, err := k.AppsV1().StatefulSets(namespace).Get(ctx, stsName, metav1.GetOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't get statefulset %s in namespace %s : %v", stsName, namespace, err)
+		return nil, err
+	}
+	return sts, nil
+}
+
 func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
 	klog.V(6).Infof("Get sc %s", scName)
 	mntPod, err := k.StorageV1().StorageClasses().Get(ctx, scName, metav1.GetOptions{})

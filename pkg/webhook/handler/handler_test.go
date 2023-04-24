@@ -37,24 +37,25 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 			Name:      "pvc-1",
 			Namespace: "default",
 		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			VolumeName: "pv-1",
-		},
+		Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "pv-1"},
 	}
 	pvc2 := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "pvc-2",
 			Namespace: "default",
 		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			VolumeName: "pv-2",
-		},
+		Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "pv-2"},
 	}
-	pvcs := []corev1.PersistentVolumeClaim{pvc1, pvc2}
-	pv1 := corev1.PersistentVolume{
+	pvc3 := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "pv-1",
+			Name:      "pvc-3",
+			Namespace: "default",
 		},
+		Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "pv-3"},
+	}
+	pvcs := []corev1.PersistentVolumeClaim{pvc1, pvc2, pvc3}
+	pv1 := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{Name: "pv-1"},
 		Spec: corev1.PersistentVolumeSpec{PersistentVolumeSource: corev1.PersistentVolumeSource{
 			CSI: &corev1.CSIPersistentVolumeSource{
 				Driver:       "csi.juicefs.com",
@@ -63,16 +64,23 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 		}},
 	}
 	pv2 := corev1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "pv-2",
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: "pv-2"},
 		Spec: corev1.PersistentVolumeSpec{PersistentVolumeSource: corev1.PersistentVolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/test",
 			},
 		}},
 	}
-	pvs := []corev1.PersistentVolume{pv1, pv2}
+	pv3 := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{Name: "pv-3"},
+		Spec: corev1.PersistentVolumeSpec{PersistentVolumeSource: corev1.PersistentVolumeSource{
+			CSI: &corev1.CSIPersistentVolumeSource{
+				Driver:       "csi.juicefs.com",
+				VolumeHandle: "pv-3",
+			},
+		}},
+	}
+	pvs := []corev1.PersistentVolume{pv1, pv2, pv3}
 	k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 	for _, pvc := range pvcs {
 		k8sClient.Interface.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
@@ -81,12 +89,11 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 		k8sClient.Interface.CoreV1().PersistentVolumes().Create(context.TODO(), &pv, metav1.CreateOptions{})
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantUsed   bool
-		wantPvGot  *corev1.PersistentVolume
-		wantPvcGot *corev1.PersistentVolumeClaim
-		wantErr    bool
+		name     string
+		args     args
+		wantUsed bool
+		wantPair []PVPair
+		wantErr  bool
 	}{
 		{
 			name: "test volume",
@@ -108,10 +115,12 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 					},
 				},
 			},
-			wantUsed:   true,
-			wantPvGot:  &pv1,
-			wantPvcGot: &pvc1,
-			wantErr:    false,
+			wantUsed: true,
+			wantPair: []PVPair{{
+				PV:  &pv1,
+				PVC: &pvc1,
+			}},
+			wantErr: false,
 		},
 		{
 			name: "test no volume",
@@ -133,10 +142,52 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 					},
 				},
 			},
-			wantUsed:   false,
-			wantPvGot:  nil,
-			wantPvcGot: nil,
-			wantErr:    false,
+			wantUsed: false,
+			wantPair: []PVPair{},
+			wantErr:  false,
+		},
+		{
+			name: "test-two-volume",
+			args: args{
+				pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-3",
+						Namespace: "default",
+					},
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "test1",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "pvc-1",
+									},
+								},
+							},
+							{
+								Name: "test3",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+										ClaimName: "pvc-3",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantUsed: true,
+			wantPair: []PVPair{
+				{
+					PV:  &pv1,
+					PVC: &pvc1,
+				},
+				{
+					PV:  &pv3,
+					PVC: &pvc3,
+				},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -144,7 +195,7 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 			s := &SidecarHandler{
 				Client: k8sClient,
 			}
-			gotUsed, gotPvGot, gotPvcGot, err := s.GetVolume(context.TODO(), tt.args.pod)
+			gotUsed, gotPair, err := s.GetVolumes(context.TODO(), tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetVolume() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -152,11 +203,29 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 			if gotUsed != tt.wantUsed {
 				t.Errorf("GetVolume() gotUsed = %v, want %v", gotUsed, tt.wantUsed)
 			}
-			if !reflect.DeepEqual(gotPvGot, tt.wantPvGot) {
-				t.Errorf("GetVolume() gotPvGot = %v, want %v", gotPvGot, tt.wantPvGot)
+			if len(gotPair) != len(tt.wantPair) {
+				t.Errorf("GetVolume() gotPair = %v, want %v", gotPair, tt.wantPair)
 			}
-			if !reflect.DeepEqual(gotPvcGot, tt.wantPvcGot) {
-				t.Errorf("GetVolume() gotPvcGot = %v, want %v", gotPvcGot, tt.wantPvcGot)
+			for _, p := range gotPair {
+				gotPVC := p.PVC
+				gotPV := p.PV
+				var (
+					wantPVC *corev1.PersistentVolumeClaim
+					wantPV  *corev1.PersistentVolume
+				)
+				for _, wp := range tt.wantPair {
+					if p.PV.Name == wp.PV.Name && p.PVC.Name == wp.PVC.Name {
+						wantPVC = wp.PVC
+						wantPV = wp.PV
+					}
+				}
+
+				if !reflect.DeepEqual(gotPV, wantPV) {
+					t.Errorf("GetVolume() gotPvGot = %v, want %v", gotPV, wantPV)
+				}
+				if !reflect.DeepEqual(gotPVC, wantPVC) {
+					t.Errorf("GetVolume() gotPvcGot = %v, want %v", gotPVC, wantPVC)
+				}
 			}
 		})
 	}

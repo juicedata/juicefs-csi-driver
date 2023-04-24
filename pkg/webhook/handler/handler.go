@@ -24,6 +24,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -63,7 +65,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pv, pvc, err := s.GetVolume(ctx, *pod)
+	used, pair, err := s.GetVolumes(ctx, *pod)
 	if err != nil {
 		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
@@ -73,19 +75,21 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
-	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvc, pv)
-	klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
-	out, err := sidecarMutate.Mutate(ctx, pod)
-	if err != nil {
-		return admission.Errored(http.StatusBadRequest, err)
+	for _, pvPair := range pair {
+		sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvPair.PVC, pvPair.PV)
+		klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
+		out, err := sidecarMutate.Mutate(ctx, pod)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		pod = out
 	}
 
-	marshaledPod, err := json.Marshal(out)
+	marshaledPod, err := json.Marshal(pod)
 	if err != nil {
 		klog.Error(err, "unable to marshal pod")
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
-
 	resp := admission.PatchResponseFromRaw(raw, marshaledPod)
 	return resp
 }
@@ -96,14 +100,44 @@ func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 	return nil
 }
 
-// GetVolume get juicefs pv & pvc from pod
-func (s *SidecarHandler) GetVolume(ctx context.Context, pod corev1.Pod) (used bool, pvGot *corev1.PersistentVolume, pvcGot *corev1.PersistentVolumeClaim, err error) {
+type PVPair struct {
+	PV  *corev1.PersistentVolume
+	PVC *corev1.PersistentVolumeClaim
+}
+
+// GetVolumes get juicefs pv & pvc from pod
+func (s *SidecarHandler) GetVolumes(ctx context.Context, pod corev1.Pod) (used bool, pvPairGot []PVPair, err error) {
 	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
+	var (
+		namespace = pod.Namespace
+	)
+	if pod.OwnerReferences == nil && namespace == "" {
+		// if pod is not created by controller, namespace is empty, set default namespace
+		namespace = "default"
+	}
+	pvPairGot = []PVPair{}
+	if namespace == "" {
+		pvPairGot, err = s.getVolWithoutNamespace(ctx, pod)
+		if err != nil {
+			return
+		}
+		used = len(pvPairGot) != 0
+		return
+	}
+	pvPairGot, err = s.getVolWithNamespace(ctx, pod, namespace)
+	used = len(pvPairGot) != 0
+	return
+}
+
+func (s *SidecarHandler) getVolWithNamespace(ctx context.Context, pod corev1.Pod, namespace string) (pvPairGot []PVPair, err error) {
+	used := false
+	pvPairGot = []PVPair{}
+	// if namespace is got from pod
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
 			// get PVC
 			var pvc *corev1.PersistentVolumeClaim
-			pvc, err = s.Client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, pod.Namespace)
+			pvc, err = s.Client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, namespace)
 			if err != nil {
 				return
 			}
@@ -118,7 +152,6 @@ func (s *SidecarHandler) GetVolume(ctx context.Context, pod corev1.Pod) (used bo
 				// if storageclass is juicefs
 				if sc.Provisioner == config.DriverName {
 					used = true
-					pvcGot = pvc
 				}
 			}
 
@@ -139,11 +172,83 @@ func (s *SidecarHandler) GetVolume(ctx context.Context, pod corev1.Pod) (used bo
 			// if PV is JuiceFS PV
 			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
 				used = true
-				pvGot = pv
-				pvcGot = pvc
-				return
+				pvPairGot = append(pvPairGot, PVPair{PV: pv, PVC: pvc})
 			}
 		}
 	}
 	return
+}
+
+// getVolWithoutNamespace get juicefs pv & pvc from pod when pod namespace is empty
+func (s *SidecarHandler) getVolWithoutNamespace(ctx context.Context, pod corev1.Pod) (pair []PVPair, err error) {
+	pair = []PVPair{}
+	pvs, err := s.Client.ListPersistentVolumes(ctx, nil, nil)
+	if err != nil {
+		return
+	}
+	juicePVs := []corev1.PersistentVolume{}
+	for _, pv := range pvs {
+		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+			// skip if PV is not JuiceFS PV
+			continue
+		}
+		juicePVs = append(juicePVs, pv)
+	}
+	pairs := []PVPair{}
+	for _, volume := range pod.Spec.Volumes {
+		if volume.PersistentVolumeClaim != nil {
+			pvcName := volume.PersistentVolumeClaim.ClaimName
+			for _, pv := range juicePVs {
+				if pv.Spec.ClaimRef.Name == pvcName {
+					if pv.Spec.ClaimRef == nil {
+						err = fmt.Errorf("pvc %s is not bound", pvcName)
+						return
+					}
+					// check if pod's owner in the same namespace
+					if e := s.checkOwner(ctx, pod.OwnerReferences, pv.Spec.ClaimRef.Namespace); e != nil {
+						if errors.IsNotFound(e) {
+							// pod's owner is not in the same namespace, skip
+							continue
+						}
+						err = e
+						return
+					}
+					// get PVC
+					var pvc *corev1.PersistentVolumeClaim
+					pvc, err = s.Client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, pv.Spec.ClaimRef.Namespace)
+					if err != nil {
+						return
+					}
+					pairs = append(pairs, PVPair{
+						PV:  &pv,
+						PVC: pvc,
+					})
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (s *SidecarHandler) checkOwner(ctx context.Context, owner []metav1.OwnerReference, namespace string) error {
+	for _, o := range owner {
+		if o.Kind == "ReplicaSet" {
+			_, err := s.Client.GetReplicaSet(ctx, o.Name, namespace)
+			return err
+		}
+		if o.Kind == "StatefulSet" {
+			_, err := s.Client.GetStatefulSet(ctx, o.Name, namespace)
+			return err
+		}
+		if o.Kind == "DaemonSet" {
+			_, err := s.Client.GetDaemonSet(ctx, o.Name, namespace)
+			return err
+		}
+		if o.Kind == "Job" {
+			_, err := s.Client.GetJob(ctx, o.Name, namespace)
+			return err
+		}
+	}
+	return fmt.Errorf("no owner found")
 }
