@@ -122,11 +122,11 @@ yaml:
 	./hack/update_install_script.sh
 
 .PHONY: deploy
-deploy: deploy/k8s.yaml
+deploy: yaml
 	kubectl apply -f $<
 
 .PHONY: deploy-delete
-uninstall: deploy/k8s.yaml
+uninstall: yaml
 	kubectl delete -f $<
 
 # build dev image
