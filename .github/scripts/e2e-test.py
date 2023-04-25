@@ -76,9 +76,9 @@ if __name__ == "__main__":
                 test_dynamic_mount_image()
                 test_static_mount_image()
                 test_pod_resource_err()
-                # if IS_CE:
+                if IS_CE:
                     # ignore ee quota test before 4.10 released
-                test_quota_using_storage_rw()
+                    test_quota_using_storage_rw()
 
             elif test_mode == "pod-mount-share":
                 test_share_mount()
@@ -97,9 +97,9 @@ if __name__ == "__main__":
                 test_static_mount_image_with_webhook()
                 test_deployment_dynamic_patch_pv_with_webhook()
                 test_deployment_static_patch_pv_with_webhook()
-                # if IS_CE:
+                if IS_CE:
                     # ignore ee quota test before 4.10 released
-                test_quota_using_storage_rw()
+                    test_quota_using_storage_rw()
 
             elif test_mode == "webhook-provisioner":
                 test_static_delete_policy()
@@ -123,9 +123,9 @@ if __name__ == "__main__":
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
                 test_delete_pvc()
-                # if IS_CE:
+                if IS_CE:
                     # ignore ee quota test before 4.10 released
-                test_quota_using_storage_rw()
+                    test_quota_using_storage_rw()
             else:
                 raise Exception("unknown test mode: %s" % test_mode)
         except Exception as e:
