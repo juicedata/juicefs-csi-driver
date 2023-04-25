@@ -2171,7 +2171,7 @@ def test_webhook_two_volume():
     pv2.create()
 
     # deploy pvc
-    pvc1 = PVC(name="pvc-two", access_mode="ReadWriteMany", storage_name="", pv=pv_name1)
+    pvc1 = PVC(name="pvc-one", access_mode="ReadWriteMany", storage_name="", pv=pv_name1)
     LOG.info("Deploy pvc {}".format(pvc1.name))
     pvc1.create()
     pvc2 = PVC(name="pvc-two", access_mode="ReadWriteMany", storage_name="", pv=pv_name2)
