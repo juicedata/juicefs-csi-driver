@@ -1,5 +1,5 @@
 /*
- Copyright 2022 Juicedata Inc
+ Copyright 2023 Juicedata Inc
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package handler
+package config
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-func TestSidecarHandler_GetVolume(t *testing.T) {
+func TestGetVolumes(t *testing.T) {
 	type args struct {
 		pod corev1.Pod
 	}
@@ -192,10 +192,7 @@ func TestSidecarHandler_GetVolume(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SidecarHandler{
-				Client: k8sClient,
-			}
-			gotUsed, gotPair, err := s.GetVolumes(context.TODO(), tt.args.pod)
+			gotUsed, gotPair, err := GetVolumes(context.TODO(), k8sClient, tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetVolume() error = %v, wantErr %v", err, tt.wantErr)
 				return
