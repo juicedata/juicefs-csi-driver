@@ -247,11 +247,12 @@ class Deployment:
             self.pvcs = pvcs
 
     def create(self):
-        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
-        if self.out_put != "":
-            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
+        output = "out.txt"
+        if self.out_put:
+            output = self.out_put
         volume_mounts = []
         volumes = []
+        date_cmds = []
         for i, pvc in enumerate(self.pvcs):
             volume_mounts.append(client.V1VolumeMount(
                 name="juicefs-pv-{}".format(i),
@@ -262,6 +263,9 @@ class Deployment:
                 name="juicefs-pv-{}".format(i),
                 persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc)
             ))
+            date_cmds.append("echo $(date -u) >> /data-{}/{};".format(i, output))
+        date_cmd = " ".join(date_cmds)
+        cmd = "while true; do {} sleep 1; done".format(date_cmd)
         container = client.V1Container(
             name="app",
             image="centos",
