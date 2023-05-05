@@ -2161,12 +2161,14 @@ def test_webhook_two_volume():
     LOG.info("[test case] Deployment using two PVC with rwm begin..")
     # deploy pv
     pv_name1 = "pv-one"
-    pv1 = PV(name=pv_name1, access_mode="ReadWriteMany", volume_handle=pv_name1, secret_name=SECRET_NAME)
+    pv1 = PV(name=pv_name1, access_mode="ReadWriteMany", volume_handle=pv_name1, secret_name=SECRET_NAME,
+             options=[f"subdir={pv_name1}"])
     LOG.info("Deploy pv {}".format(pv1.name))
     pv1.create()
 
     pv_name2 = "pv-two"
-    pv2 = PV(name=pv_name2, access_mode="ReadWriteMany", volume_handle=pv_name2, secret_name=SECRET_NAME)
+    pv2 = PV(name=pv_name2, access_mode="ReadWriteMany", volume_handle=pv_name2, secret_name=SECRET_NAME,
+             options=[f"subdir={pv_name2}"])
     LOG.info("Deploy pv {}".format(pv2.name))
     pv2.create()
 
