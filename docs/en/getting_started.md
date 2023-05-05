@@ -173,15 +173,14 @@ Or directly install using this command:
 ./juicefs-csi-webhook-install.sh install
 ```
 
-If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster,
-you can use the following command to generate an installation file or install it directly:
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, use the following command to generate an installation file or install it directly:
 
 ```shell
 # Generate installation files
 ./juicefs-csi-webhook-install.sh print --with-certmanager > juicefs-csi-sidecar.yaml
 kubectl apply -f ./juicefs-csi-sidecar.yaml
 
-# directly install
+# Directly install
 ./juicefs-csi-webhook-install.sh install --with-certmanager
 ```
 
