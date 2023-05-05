@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	JfsDirName     = "jfs-dir"
-	JfsRootDirName = "jfs-root-dir"
+	JfsDirName      = "jfs-dir"
+	JfsRootDirName  = "jfs-root-dir"
+	UpdateDBDirName = "updatedb"
 )
 
 type Builder struct {

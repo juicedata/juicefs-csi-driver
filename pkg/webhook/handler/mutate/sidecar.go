@@ -142,7 +142,7 @@ func (s *SidecarMutate) Deduplicate(pod, mountPod *corev1.Pod, index int) {
 
 	// deduplicate volume name
 	for i, mv := range mountPod.Spec.Volumes {
-		if mv.Name == "updatedb" {
+		if mv.Name == builder.UpdateDBDirName || mv.Name == builder.JfsDirName || mv.Name == builder.JfsRootDirName {
 			continue
 		}
 		mountIndex := 0
@@ -210,8 +210,12 @@ func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, m
 	hostMount := filepath.Join(config.MountPointPath, mountPath, s.jfsSetting.SubPath)
 	mountedVolume := []corev1.Volume{}
 	for _, v := range volumes {
-		if v.Name == "updatedb" {
-			continue
+		if v.Name == builder.UpdateDBDirName || v.Name == builder.JfsDirName || v.Name == builder.JfsRootDirName {
+			for _, volume := range pod.Spec.Volumes {
+				if volume.Name == builder.UpdateDBDirName || v.Name == builder.JfsDirName || v.Name == builder.JfsRootDirName {
+					continue
+				}
+			}
 		}
 		mountedVolume = append(mountedVolume, v)
 	}
