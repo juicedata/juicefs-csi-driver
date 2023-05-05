@@ -127,10 +127,25 @@ Modify `values.yaml`:
 mountMode: sidecar
 ```
 
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, add the following configuration in `values.yaml`:
+
+```yaml title='values.yaml'
+mountMode: sidecar
+webhook:
+   certManager:
+      enabled: true
+```
+
 Reinstall to apply:
 
 ```shell
 helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+Label all namespaces that need to use JuiceFS CSI Driver:
+
+```shell
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 ```
 
 ### kubectl
@@ -156,6 +171,17 @@ Or directly install using this command:
 
 ```shell
 ./juicefs-csi-webhook-install.sh install
+```
+
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, use the following command to generate an installation file or install it directly:
+
+```shell
+# Generate installation files
+./juicefs-csi-webhook-install.sh print --with-certmanager > juicefs-csi-sidecar.yaml
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+
+# Directly install
+./juicefs-csi-webhook-install.sh install --with-certmanager
 ```
 
 If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.

@@ -111,10 +111,25 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 mountMode: sidecar
 ```
 
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 `values.yaml` 中添加如下配置：
+
+```yaml title='values.yaml'
+mountMode: sidecar
+webhook:
+   certManager:
+      enabled: true
+```
+
 重新安装，令配置生效：
 
 ```shell
 helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签：
+
+```shell
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 ```
 
 ### kubectl
@@ -140,6 +155,17 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ```shell
 ./juicefs-csi-webhook-install.sh install
+```
+
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，可以使用下方命令生成安装文件或直接安装：
+
+```shell
+# 生成配置文件
+./juicefs-csi-webhook-install.sh print --with-certmanager > juicefs-csi-sidecar.yaml
+kubectl apply -f ./juicefs-csi-sidecar.yaml
+
+# 一键安装
+./juicefs-csi-webhook-install.sh install --with-certmanager 
 ```
 
 如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
