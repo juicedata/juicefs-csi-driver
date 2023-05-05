@@ -209,12 +209,14 @@ func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Co
 func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, mountPath string, pair volconf.PVPair) {
 	hostMount := filepath.Join(config.MountPointPath, mountPath, s.jfsSetting.SubPath)
 	mountedVolume := []corev1.Volume{}
+	podVolumes := make(map[string]bool)
+	for _, volume := range pod.Spec.Volumes {
+		podVolumes[volume.Name] = true
+	}
 	for _, v := range volumes {
 		if v.Name == builder.UpdateDBDirName || v.Name == builder.JfsDirName || v.Name == builder.JfsRootDirName {
-			for _, volume := range pod.Spec.Volumes {
-				if volume.Name == builder.UpdateDBDirName || v.Name == builder.JfsDirName || v.Name == builder.JfsRootDirName {
-					continue
-				}
+			if _, ok := podVolumes[v.Name]; ok {
+				continue
 			}
 		}
 		mountedVolume = append(mountedVolume, v)
