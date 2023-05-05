@@ -127,8 +127,7 @@ Modify `values.yaml`:
 mountMode: sidecar
 ```
 
-If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster,
-Need to add the following configuration in `values.yaml`:
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, add the following configuration in `values.yaml`:
 
 ```yaml title='values.yaml'
 mountMode: sidecar
@@ -183,7 +182,7 @@ you can use the following command to generate an installation file or install it
 kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 # directly install
-./juicefs-csi-webhook-install.sh install --with-certmanager 
+./juicefs-csi-webhook-install.sh install --with-certmanager
 ```
 
 If you had to use this installation method in a production environment, be sure to include the generated `juicefs-csi-sidecar.yaml` into source code management, so that you can track any future config modifications.
