@@ -85,6 +85,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 		klog.Error(err, "unable to marshal pod")
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
+	klog.V(6).Infof("[SidecarHandler] mutated pod: %s", string(marshaledPod))
 	resp := admission.PatchResponseFromRaw(raw, marshaledPod)
 	return resp
 }
