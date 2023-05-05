@@ -94,7 +94,7 @@ function deploy_webhook_provisioner() {
   if [ $ds -gt 0 ]; then
     sudo microk8s.kubectl -n kube-system delete ds juicefs-csi-node
   fi
-  sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook-provisioner >> ${GITHUB_WORKSPACE}/deploy/webhook.yaml
+  sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook-provisioner > ${GITHUB_WORKSPACE}/deploy/webhook.yaml
   sudo ${GITHUB_WORKSPACE}/hack/update_install_script.sh
   sudo ${GITHUB_WORKSPACE}/scripts/juicefs-csi-webhook-install.sh print | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
     -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' | sudo microk8s.kubectl apply -f -

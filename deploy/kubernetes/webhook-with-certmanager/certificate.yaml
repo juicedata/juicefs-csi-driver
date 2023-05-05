@@ -1,0 +1,23 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: juicefs-selfsigned
+  namespace: kube-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: juicefs-cert
+  namespace: kube-system
+spec:
+  duration: 43800h #5year
+  dnsNames:
+    - juicefs-admission-webhook
+    - juicefs-admission-webhook.kube-system
+    - juicefs-admission-webhook.kube-system.svc
+  secretName: juicefs-webhook-certs
+  issuerRef:
+    name: juicefs-selfsigned

@@ -736,22 +736,18 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
 		return "", nil
 	}
-	if !jfsSetting.IsCe && version.LessThan(&clientVersion{4, 10, 0, ""}) {
+	if !jfsSetting.IsCe && version.LessThan(&clientVersion{4, 9, 2, ""}) {
 		klog.Infof("juicefs-ee version %s does not support quota, skipped", version)
 		return "", nil
 	}
 
 	var args, cmdArgs []string
-	jfsPath := config.JfsGoBinaryPath
-	if config.JfsChannel != "" {
-		jfsPath += "." + config.JfsChannel
-	}
 	if jfsSetting.IsCe {
 		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	} else {
 		args = []string{"quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
-		cmdArgs = []string{jfsPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		cmdArgs = []string{config.CliPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
@@ -766,7 +762,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		if err != nil {
 			return authRes, err
 		}
-		res, err = j.Exec.CommandContext(cmdCtx, jfsPath, args...).CombinedOutput()
+		res, err = j.Exec.CommandContext(cmdCtx, config.CliPath, args...).CombinedOutput()
 	}
 	if err != nil {
 		re := string(res)
