@@ -62,7 +62,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pair, err := volconf.GetVolumes(ctx, s.Client, *pod)
+	used, pair, err := volconf.GetVolumes(ctx, s.Client, pod)
 	if err != nil {
 		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)

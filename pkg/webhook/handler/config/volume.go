@@ -36,30 +36,24 @@ type PVPair struct {
 }
 
 // GetVolumes get juicefs pv & pvc from pod
-func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod) (used bool, pvPairGot []PVPair, err error) {
+func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (used bool, pvPairGot []PVPair, err error) {
 	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
 	var (
 		namespace = pod.Namespace
 	)
-	if pod.OwnerReferences == nil && namespace == "" {
-		// if pod is not created by controller, namespace is empty, set default namespace
-		namespace = "default"
-	}
 	pvPairGot = []PVPair{}
-	if namespace == "" {
-		pvPairGot, err = getVolWithoutNamespace(ctx, client, pod)
-		if err != nil {
-			return
-		}
-		used = len(pvPairGot) != 0
+	namespace, err = GetNamespace(ctx, client, pod)
+	if err != nil {
 		return
 	}
-	pvPairGot, err = getVolWithNamespace(ctx, client, pod, namespace)
+	pod.Namespace = namespace
+	pvPairGot, err = getVol(ctx, client, pod, namespace)
+	klog.V(6).Infof("pvPairGot: %v", pvPairGot)
 	used = len(pvPairGot) != 0
 	return
 }
 
-func getVolWithNamespace(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, namespace string) (pvPairGot []PVPair, err error) {
+func getVol(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, namespace string) (pvPairGot []PVPair, err error) {
 	used := false
 	pvPairGot = []PVPair{}
 	// if namespace is got from pod
@@ -109,31 +103,31 @@ func getVolWithNamespace(ctx context.Context, client *k8sclient.K8sClient, pod c
 	return
 }
 
-// getVolWithoutNamespace get juicefs pv & pvc from pod when pod namespace is empty
-func getVolWithoutNamespace(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod) (pair []PVPair, err error) {
-	pair = []PVPair{}
+// GetNamespace get juicefs pv & pvc from pod when pod namespace is empty
+func GetNamespace(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (namespace string, err error) {
+	namespace = pod.Namespace
+	if pod.OwnerReferences == nil && namespace == "" {
+		// if pod is not created by controller, namespace is empty, set default namespace
+		namespace = "default"
+		return
+	}
 	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
 	if err != nil {
 		return
 	}
 	juicePVs := []corev1.PersistentVolume{}
 	for _, pv := range pvs {
-		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName || pv.Spec.ClaimRef == nil {
 			// skip if PV is not JuiceFS PV
 			continue
 		}
 		juicePVs = append(juicePVs, pv)
 	}
-	pairs := []PVPair{}
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
 			pvcName := volume.PersistentVolumeClaim.ClaimName
 			for _, pv := range juicePVs {
 				if pv.Spec.ClaimRef.Name == pvcName {
-					if pv.Spec.ClaimRef == nil {
-						err = fmt.Errorf("pvc %s is not bound", pvcName)
-						return
-					}
 					// check if pod's owner in the same namespace
 					if e := checkOwner(ctx, client, pod.OwnerReferences, pv.Spec.ClaimRef.Namespace); e != nil {
 						if errors.IsNotFound(e) {
@@ -143,16 +137,9 @@ func getVolWithoutNamespace(ctx context.Context, client *k8sclient.K8sClient, po
 						err = e
 						return
 					}
-					// get PVC
-					var pvc *corev1.PersistentVolumeClaim
-					pvc, err = client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, pv.Spec.ClaimRef.Namespace)
-					if err != nil {
-						return
-					}
-					pairs = append(pairs, PVPair{
-						PV:  &pv,
-						PVC: pvc,
-					})
+					// get it
+					namespace = pv.Spec.ClaimRef.Namespace
+					return
 				}
 			}
 		}

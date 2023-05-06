@@ -30,7 +30,7 @@ import (
 
 func TestGetVolumes(t *testing.T) {
 	type args struct {
-		pod corev1.Pod
+		pod *corev1.Pod
 	}
 	pvc1 := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +98,7 @@ func TestGetVolumes(t *testing.T) {
 		{
 			name: "test volume",
 			args: args{
-				pod: corev1.Pod{
+				pod: &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "pod-1",
 						Namespace: "default",
@@ -125,7 +125,7 @@ func TestGetVolumes(t *testing.T) {
 		{
 			name: "test no volume",
 			args: args{
-				pod: corev1.Pod{
+				pod: &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "pod-2",
 						Namespace: "default",
@@ -149,7 +149,7 @@ func TestGetVolumes(t *testing.T) {
 		{
 			name: "test-two-volume",
 			args: args{
-				pod: corev1.Pod{
+				pod: &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "pod-3",
 						Namespace: "default",
