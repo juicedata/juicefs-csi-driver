@@ -2186,8 +2186,9 @@ def test_webhook_two_volume():
             break
         time.sleep(1)
 
+    output = gen_random_string(6) + ".txt"
     # deploy pod
-    deployment = Deployment(name="deploy-two", pvc="", replicas=1, pvcs=[pvc1.name, pvc2.name])
+    deployment = Deployment(name="deploy-two", pvc="", replicas=1, out_put=output, pvcs=[pvc1.name, pvc2.name])
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
     pod = Pod(name="", deployment_name=deployment.name, replicas=1)
@@ -2208,7 +2209,7 @@ def test_webhook_two_volume():
     LOG.info("Check mount point..")
     volume_id = pvc1.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    check_path = volume_id + "/out.txt"
+    check_path = volume_id + "/" + output
     result = check_mount_point(check_path)
     if not result:
         pods = client.CoreV1Api().list_namespaced_pod(
@@ -2223,7 +2224,7 @@ def test_webhook_two_volume():
 
     volume_id = pvc2.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    check_path = volume_id + "/out.txt"
+    check_path = volume_id + "/" + output
     result = check_mount_point(check_path)
     if not result:
         pods = client.CoreV1Api().list_namespaced_pod(
