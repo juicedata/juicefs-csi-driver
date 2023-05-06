@@ -111,6 +111,11 @@ func GetNamespace(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.
 		namespace = "default"
 		return
 	}
+
+	// if namespace of pod is empty (see issue: https://github.com/juicedata/juicefs-csi-driver/issues/644), should get namespace from pvc which is used by pod
+	// 1. get all juicefs pv
+	// 2. get pvc from pod
+	// 3. check if pod's owner in the same namespace with pvc
 	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
 	if err != nil {
 		return
