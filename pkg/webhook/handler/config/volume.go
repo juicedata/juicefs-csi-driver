@@ -106,6 +106,9 @@ func getVol(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, n
 // GetNamespace get juicefs pv & pvc from pod when pod namespace is empty
 func GetNamespace(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (namespace string, err error) {
 	namespace = pod.Namespace
+	if namespace != "" {
+		return
+	}
 	if pod.OwnerReferences == nil && namespace == "" {
 		// if pod is not created by controller, namespace is empty, set default namespace
 		namespace = "default"
