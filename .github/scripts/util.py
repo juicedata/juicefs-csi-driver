@@ -157,11 +157,18 @@ def get_voldel_job(volume_id):
     hash_object = hashlib.sha256(volume_id.encode('utf-8'))
     hash_value = hash_object.hexdigest()[:16]
     juicefs_hash = f"juicefs-{hash_value}"[:16]
-    job = client.BatchV1Api().read_namespaced_job(
-        namespace=KUBE_SYSTEM,
-        name=f"{juicefs_hash}-delvol"
-    )
-    return job
+    for i in range(0, 300):
+        try:
+            job = client.BatchV1Api().read_namespaced_job(
+                namespace=KUBE_SYSTEM,
+                name=f"{juicefs_hash}-delvol"
+            )
+            return job
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                time.sleep(0.5)
+                continue
+            raise e
 
 
 def check_pod_ready(pod):
