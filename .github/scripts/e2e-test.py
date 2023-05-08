@@ -45,7 +45,7 @@ from test_case import (
     test_dynamic_pvc_delete_with_path_pattern,
     test_dynamic_pvc_delete_not_last_with_path_pattern,
 )
-from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, tear_down, check_do_test
+from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
 if __name__ == "__main__":
     test_mode = os.getenv("TEST_MODE")
@@ -84,6 +84,7 @@ if __name__ == "__main__":
                 test_share_mount()
 
             elif test_mode == "pod-provisioner":
+                test_dynamic_mount_image()
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
                 test_dynamic_pvc_delete_not_last_with_path_pattern()

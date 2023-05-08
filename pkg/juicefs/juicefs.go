@@ -281,6 +281,14 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 }
 
 func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
+	// if not process mode, get pv by volumeId
+	if !config.ByProcess && volCtx == nil {
+		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
+		if err != nil {
+			return err
+		}
+		volCtx = pv.Spec.CSI.VolumeAttributes
+	}
 	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
 		return err
