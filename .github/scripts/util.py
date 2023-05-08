@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import hashlib
 import os
 import random
 import re
@@ -150,6 +151,24 @@ def get_mount_pods(volume_id):
         label_selector="volume-id={}".format(volume_id)
     )
     return pods
+
+
+def get_voldel_job(volume_id):
+    hash_object = hashlib.sha256(volume_id.encode('utf-8'))
+    hash_value = hash_object.hexdigest()[:16]
+    juicefs_hash = f"juicefs-{hash_value}"[:16]
+    for i in range(0, 300):
+        try:
+            job = client.BatchV1Api().read_namespaced_job(
+                namespace=KUBE_SYSTEM,
+                name=f"{juicefs_hash}-delvol"
+            )
+            return job
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                time.sleep(0.5)
+                continue
+            raise e
 
 
 def check_pod_ready(pod):

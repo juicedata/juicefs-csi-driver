@@ -23,7 +23,8 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     LOG, PVs, META_URL, MOUNT_MODE
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
-    get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid
+    get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
+    get_voldel_job
 
 
 def test_deployment_using_storage_rw():
@@ -89,6 +90,7 @@ def test_deployment_using_storage_rw():
     pvc.delete()
     return
 
+
 def test_quota_using_storage_rw():
     LOG.info("[test case] Quota using storageClass with rwm begin..")
     # deploy pvc
@@ -143,7 +145,7 @@ def test_quota_using_storage_rw():
         label_selector="deployment={}".format(deployment.name)
     )
     process = subprocess.run([
-        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "--", "df", "-h"], 
+        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "--", "df", "-h"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
     if process.returncode is not None and process.returncode != 0:
@@ -172,6 +174,7 @@ def test_quota_using_storage_rw():
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
+
 
 def test_deployment_using_storage_ro():
     LOG.info("[test case] Deployment using storageClass with rom begin..")
@@ -1229,7 +1232,6 @@ def test_dynamic_mount_image():
     if mount_pod.spec.containers[0].image != mount_image:
         raise Exception("Image of mount pod is not {}".format(mount_image))
 
-    # delete test resources
     LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -1237,8 +1239,16 @@ def test_dynamic_mount_image():
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
+    LOG.info("Check voldel pod image")
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    job = get_voldel_job(volume_id)
+    # check voldel pod image
+    if job.spec.template.spec.containers[0].image != mount_image:
+        raise Exception("Image of voldel pod is not {}".format(mount_image))
+
+    # delete test resources
     LOG.info("Remove sc {}".format(pvc.name))
     sc.delete()
     LOG.info("Test pass.")
@@ -1983,7 +1993,6 @@ def test_dynamic_mount_image_with_webhook():
     if found_image != mount_image:
         raise Exception("Image of sidecar is not {}".format(mount_image))
 
-    # delete test resources
     LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
     pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
@@ -1991,8 +2000,16 @@ def test_dynamic_mount_image_with_webhook():
     result = pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+
+    LOG.info("Check voldel pod image")
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    job = get_voldel_job(volume_id)
+    # check voldel pod image
+    if job.spec.template.spec.containers[0].image != mount_image:
+        raise Exception("Image of voldel pod is not {}".format(mount_image))
+
+    # delete test resources
     LOG.info("Remove sc {}".format(pvc.name))
     sc.delete()
     LOG.info("Test pass.")
