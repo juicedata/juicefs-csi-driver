@@ -6,7 +6,6 @@ title: 介绍
 
 [JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口。在 Kubernetes 下，JuiceFS 可以用持久卷（PersistentVolume）的形式提供给 Pod 使用。
 
-
 <div className="video-container">
   <iframe src="//player.bilibili.com/player.html?aid=898153616&bvid=BV1qN4y1M7Nk&cid=933003550&page=1&autoplay=0" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
 </div>
