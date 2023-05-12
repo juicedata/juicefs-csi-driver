@@ -7,7 +7,7 @@ title: 介绍
 [JuiceFS CSI 驱动](https://github.com/juicedata/juicefs-csi-driver)遵循 [CSI](https://github.com/container-storage-interface/spec/blob/master/spec.md) 规范，实现了容器编排系统与 JuiceFS 文件系统之间的接口。在 Kubernetes 下，JuiceFS 可以用持久卷（PersistentVolume）的形式提供给 Pod 使用。
 
 <div className="video-container">
-  <iframe src="//player.bilibili.com/player.html?aid=898153616&bvid=BV1qN4y1M7Nk&cid=933003550&page=1&autoplay=0" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+  <iframe src="//player.bilibili.com/player.html?aid=898153616&bvid=BV1qN4y1M7Nk&cid=933003550&page=1&autoplay=0" width="100%" height="360" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
 </div>
 
 JuiceFS CSI 驱动包含以下组件：JuiceFS CSI Controller（StatefulSet）以及 JuiceFS CSI Node Service（DaemonSet），你可以方便地用 `kubectl` 查看：
@@ -79,7 +79,7 @@ CSI 驱动默认以容器挂载（Mount Pod）模式运行，但特定场景下�
 Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组件，如果你的 Kubernetes 集群不支持部署 DaemonSet（比如一些云服务商提供的 Serverless Kubernetes 服务），那么 CSI Node 将无法部署，也就无法正常使用 CSI 驱动。对于这种情况，可以选择使用 CSI 驱动的 Sidecar 模式，让 JuiceFS 客户端运行在 Sidecar 容器中。
 
 <div className="video-container">
-  <iframe src="//player.bilibili.com/player.html?aid=266921439&bvid=BV1YY411e72C&cid=1016796350&page=1&autoplay=0" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+  <iframe src="//player.bilibili.com/player.html?aid=266921439&bvid=BV1YY411e72C&cid=1016796350&page=1&autoplay=0" width="100%" height="360" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
 </div>
 
 以 Sidecar 模式安装 CSI 驱动，所部署的组件只有 CSI Controller，不再需要 CSI Node。对于需要使用 CSI 驱动的 Kubernetes 命名空间，CSI Controller 会监听容器变动，检查是否使用了 JuiceFS PVC，并根据情况为其注入 Sidecar 容器。
