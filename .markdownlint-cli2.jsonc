@@ -24,6 +24,7 @@
         "Tabs",
         "br",
         "div",
+        "iframe",
         "kbd",
         "span",
         "sup"
