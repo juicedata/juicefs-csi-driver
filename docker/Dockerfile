@@ -21,7 +21,7 @@ ARG JUICEFS_CSI_REPO_REF=master
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
