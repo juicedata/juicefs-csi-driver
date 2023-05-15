@@ -25,7 +25,7 @@ COPY . .
 RUN make
 
 ENV STATIC=1
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make && upx juicefs
 RUN upx /workspace/bin/juicefs-csi-driver
