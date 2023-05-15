@@ -6,7 +6,7 @@ ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs
 

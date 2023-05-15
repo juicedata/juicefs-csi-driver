@@ -19,7 +19,7 @@ ARG GOPROXY
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 COPY . .
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
     make juicefs.ceph && mv juicefs.ceph juicefs
 
 FROM juicedata/mount:nightly
