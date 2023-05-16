@@ -50,7 +50,7 @@ ENV JUICEFS_EE_MOUNT_IMAGE=${JUICEFS_EE_MOUNT_IMAGE}
 ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH} /tini
 RUN chmod +x /tini
 
-RUN apt update && apt install -y software-properties-common && apt update && \
+RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 && apt update && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
     apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
     apt update
