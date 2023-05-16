@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - fix/image_build
   schedule:
     - cron: "0 0 * * *"
 
