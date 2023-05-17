@@ -4,6 +4,11 @@ ARG GOPROXY
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
+RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 && apt update && \
+    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
+    apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
+    apt update
+
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
@@ -23,7 +28,11 @@ ENV JFS_AUTO_UPGRADE=${JFS_AUTO_UPGRADE:-enabled}
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
 
-RUN apt-get update && apt-get install -y librados2 curl fuse && \
+RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 && apt update && \
+    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
+    apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
+    apt update
+RUN apt-get update && apt-get install -y librados2 curl fuse librados-dev libcephfs-dev librbd-dev && \
     rm -rf /var/cache/apt/* && \
     curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs && \
