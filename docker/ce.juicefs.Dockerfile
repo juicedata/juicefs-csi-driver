@@ -23,7 +23,7 @@ WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
-    cd juicefs && git checkout $JUICEFS_REPO_REF && go get github.com/ceph/go-ceph@v0.4.0 && \
+    cd juicefs && git checkout $JUICEFS_REPO_REF && go get github.com/ceph/go-ceph@v0.4.0 && go mod tidy && \
     make juicefs.ceph && mv juicefs.ceph juicefs && mv juicefs /usr/local/bin/juicefs
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
