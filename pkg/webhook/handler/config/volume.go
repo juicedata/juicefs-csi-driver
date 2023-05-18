@@ -54,10 +54,10 @@ func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Po
 }
 
 func getVol(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, namespace string) (pvPairGot []PVPair, err error) {
-	used := false
 	pvPairGot = []PVPair{}
 	// if namespace is got from pod
 	for _, volume := range pod.Spec.Volumes {
+		used := false
 		if volume.PersistentVolumeClaim != nil {
 			// get PVC
 			var pvc *corev1.PersistentVolumeClaim
