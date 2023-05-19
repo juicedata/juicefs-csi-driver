@@ -236,37 +236,49 @@ class PV:
 
 
 class Deployment:
-    def __init__(self, *, name, pvc, replicas, out_put=""):
+    def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[]):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
-        self.pvc = pvc
         self.replicas = replicas
         self.out_put = out_put
+        self.pvcs = [pvc]
+        if pvcs:
+            self.pvcs = pvcs
 
     def create(self):
-        cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
-        if self.out_put != "":
-            cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
+        output = "out.txt"
+        if self.out_put:
+            output = self.out_put
+        volume_mounts = []
+        volumes = []
+        date_cmds = []
+        for i, pvc in enumerate(self.pvcs):
+            volume_mounts.append(client.V1VolumeMount(
+                name="juicefs-pv-{}".format(i),
+                mount_path="/data-{}".format(i),
+                mount_propagation="HostToContainer",
+            ))
+            volumes.append(client.V1Volume(
+                name="juicefs-pv-{}".format(i),
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc)
+            ))
+            date_cmds.append("echo $(date -u) >> /data-{}/{};".format(i, output))
+        date_cmd = " ".join(date_cmds)
+        cmd = "while true; do {} sleep 1; done".format(date_cmd)
         container = client.V1Container(
             name="app",
             image="centos",
             command=["/bin/sh"],
             args=["-c", cmd],
-            volume_mounts=[client.V1VolumeMount(
-                name="juicefs-pv",
-                mount_path="/data",
-                mount_propagation="HostToContainer",
-            )]
+            volume_mounts=volume_mounts,
         )
         template = client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels={"deployment": self.name}),
             spec=client.V1PodSpec(
                 containers=[container],
-                volumes=[client.V1Volume(
-                    name="juicefs-pv",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
-                )]),
+                volumes=volumes,
+            )
         )
         deploySpec = client.V1DeploymentSpec(
             replicas=self.replicas,

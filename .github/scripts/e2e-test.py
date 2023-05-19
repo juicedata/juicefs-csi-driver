@@ -44,6 +44,7 @@ from test_case import (
     test_path_pattern_in_storage_class,
     test_dynamic_pvc_delete_with_path_pattern,
     test_dynamic_pvc_delete_not_last_with_path_pattern,
+    test_webhook_two_volume,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -90,6 +91,7 @@ if __name__ == "__main__":
                 test_dynamic_pvc_delete_not_last_with_path_pattern()
 
             elif test_mode == "webhook":
+                test_webhook_two_volume()
                 test_job_complete_using_storage()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
@@ -103,6 +105,7 @@ if __name__ == "__main__":
                     test_quota_using_storage_rw()
 
             elif test_mode == "webhook-provisioner":
+                test_webhook_two_volume()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
                 test_deployment_using_storage_ro()

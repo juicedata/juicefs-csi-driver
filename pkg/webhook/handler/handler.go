@@ -19,11 +19,9 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -31,6 +29,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
 )
 
@@ -63,7 +62,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pv, pvc, err := s.GetVolume(ctx, *pod)
+	used, pair, err := volconf.GetVolumes(ctx, s.Client, pod)
 	if err != nil {
 		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
@@ -73,19 +72,20 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
-	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pvc, pv)
+	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pair)
 	klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
 	out, err := sidecarMutate.Mutate(ctx, pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
+	pod = out
 
-	marshaledPod, err := json.Marshal(out)
+	marshaledPod, err := json.Marshal(pod)
 	if err != nil {
 		klog.Error(err, "unable to marshal pod")
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
-
+	klog.V(6).Infof("[SidecarHandler] mutated pod: %s", string(marshaledPod))
 	resp := admission.PatchResponseFromRaw(raw, marshaledPod)
 	return resp
 }
@@ -94,56 +94,4 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 	s.decoder = d
 	return nil
-}
-
-// GetVolume get juicefs pv & pvc from pod
-func (s *SidecarHandler) GetVolume(ctx context.Context, pod corev1.Pod) (used bool, pvGot *corev1.PersistentVolume, pvcGot *corev1.PersistentVolumeClaim, err error) {
-	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
-	for _, volume := range pod.Spec.Volumes {
-		if volume.PersistentVolumeClaim != nil {
-			// get PVC
-			var pvc *corev1.PersistentVolumeClaim
-			pvc, err = s.Client.GetPersistentVolumeClaim(ctx, volume.PersistentVolumeClaim.ClaimName, pod.Namespace)
-			if err != nil {
-				return
-			}
-
-			// get storageclass
-			if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
-				var sc *storagev1.StorageClass
-				sc, err = s.Client.GetStorageClass(ctx, *pvc.Spec.StorageClassName)
-				if err != nil {
-					return
-				}
-				// if storageclass is juicefs
-				if sc.Provisioner == config.DriverName {
-					used = true
-					pvcGot = pvc
-				}
-			}
-
-			// get PV
-			var pv *corev1.PersistentVolume
-			if pvc.Spec.VolumeName == "" {
-				if used {
-					// used juicefs volume, but pvc is not bound
-					err = fmt.Errorf("pvc %s is not bound", pvc.Name)
-					return
-				}
-				continue
-			}
-			pv, err = s.Client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
-			if err != nil {
-				return
-			}
-			// if PV is JuiceFS PV
-			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
-				used = true
-				pvGot = pv
-				pvcGot = pvc
-				return
-			}
-		}
-	}
-	return
 }

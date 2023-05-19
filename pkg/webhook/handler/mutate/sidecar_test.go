@@ -18,17 +18,19 @@ package mutate
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
 )
 
 func TestSidecarMutate_injectVolume(t *testing.T) {
 	type fields struct {
-		PVC        *corev1.PersistentVolumeClaim
+		pair       volconf.PVPair
 		jfsSetting *config.JfsSetting
 	}
 	type args struct {
@@ -45,10 +47,8 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 		{
 			name: "test-inject-volume",
 			fields: fields{
-				PVC: &corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "pvc-1",
-					},
+				pair: volconf.PVPair{
+					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-1"}},
 				},
 				jfsSetting: &config.JfsSetting{VolumeId: "volume-id"},
 			},
@@ -89,10 +89,8 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 		{
 			name: "test-not-inject-volume",
 			fields: fields{
-				PVC: &corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "pvc-1",
-					},
+				pair: volconf.PVPair{
+					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-1"}},
 				},
 				jfsSetting: &config.JfsSetting{VolumeId: "volume-id"},
 			},
@@ -112,10 +110,8 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 		{
 			name: "test-inject-volume-subpath",
 			fields: fields{
-				PVC: &corev1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "pvc-3",
-					},
+				pair: volconf.PVPair{
+					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-3"}},
 				},
 				jfsSetting: &config.JfsSetting{VolumeId: "volume-id", SubPath: "subpath"},
 			},
@@ -157,10 +153,9 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &SidecarMutate{
-				PVC:        tt.fields.PVC,
 				jfsSetting: tt.fields.jfsSetting,
 			}
-			s.injectVolume(tt.args.pod, tt.args.volumes, tt.args.mountPath)
+			s.injectVolume(tt.args.pod, tt.args.volumes, tt.args.mountPath, tt.fields.pair)
 			if len(tt.args.pod.Spec.Volumes) != len(tt.wantPodVolume) {
 				t.Errorf("injectVolume() = %v, want %v", tt.args.pod.Spec.Volumes, tt.wantPodVolume)
 			}
@@ -246,6 +241,100 @@ func TestSidecarMutate_injectContainer(t *testing.T) {
 			s.injectContainer(tt.args.pod, tt.args.container)
 			if len(tt.args.pod.Spec.Containers) != tt.wantContainerLen {
 				t.Errorf("injectContainer() = %v, want %v", tt.args.pod.Spec.Containers, tt.wantContainerLen)
+			}
+		})
+	}
+}
+
+func TestSidecarMutate_Deduplicate(t *testing.T) {
+	type args struct {
+		pod      *corev1.Pod
+		mountPod *corev1.Pod
+		index    int
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantMountPod *corev1.Pod
+	}{
+		{
+			name: "test-no-duplicate",
+			args: args{
+				pod: &corev1.Pod{},
+				mountPod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "jfs-mount"}},
+					},
+				},
+				index: 0,
+			},
+			wantMountPod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "jfs-mount"}},
+				},
+			},
+		},
+		{
+			name: "test-cn-duplicate",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "jfs-mount"}},
+					},
+				},
+				mountPod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "jfs-mount"}},
+					},
+				},
+				index: 1,
+			},
+			wantMountPod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Name: "jfs-mount-1"}},
+				},
+			},
+		},
+		{
+			name: "test-volume-duplicate",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:         "jfs-mount",
+							VolumeMounts: []corev1.VolumeMount{{Name: "dir"}},
+						}},
+						Volumes: []corev1.Volume{{Name: "dir"}},
+					},
+				},
+				mountPod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:         "jfs-mount",
+							VolumeMounts: []corev1.VolumeMount{{Name: "dir"}},
+						}},
+						Volumes: []corev1.Volume{{Name: "dir"}},
+					},
+				},
+				index: 1,
+			},
+			wantMountPod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:         "jfs-mount-1",
+						VolumeMounts: []corev1.VolumeMount{{Name: "jfs-mount-1-dir"}},
+					}},
+					Volumes: []corev1.Volume{{Name: "jfs-mount-1-dir"}},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SidecarMutate{}
+			s.Deduplicate(tt.args.pod, tt.args.mountPod, tt.args.index)
+			if !reflect.DeepEqual(tt.args.mountPod, tt.wantMountPod) {
+				t.Errorf("Deduplicate() = %v, want %v", tt.args.mountPod, tt.wantMountPod)
 			}
 		})
 	}

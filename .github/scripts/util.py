@@ -86,13 +86,11 @@ def check_mount_point(check_path):
     for i in range(0, 60):
         try:
             LOG.info("Open file {}".format(check_path))
-            f = open(check_path)
-            content = f.read(1)
-            if content is not None and content != "":
-                f.close()
-                return True
-            time.sleep(5)
-            f.close()
+            with open(check_path) as f:
+                content = f.read(1)
+                if content is not None and content != "":
+                    return True
+                time.sleep(5)
         except FileNotFoundError:
             LOG.info(os.listdir(GLOBAL_MOUNTPOINT))
             LOG.info("Can't find file: {}".format(check_path))
