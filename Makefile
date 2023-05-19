@@ -75,28 +75,18 @@ image-nightly:
 image-nightly-push:
 	docker push $(IMAGE):nightly
 
-# build latest image
-# deprecated
-.PHONY: image-latest
-image-latest:
-	# Build image with latest stable juicefs-csi-driver and juicefs
-	docker build --build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_LATEST_VERSION) \
-		--build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
-		--build-arg JFS_AUTO_UPGRADE=disabled \
-		--build-arg TARGETARCH=$(TARGETARCH) \
-		-t $(IMAGE):latest -f docker/Dockerfile .
-
-# push latest image
-# deprecated
-.PHONY: push-latest
-push-latest:
-	docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):latest
-	docker push $(REGISTRY)/$(IMAGE):latest
-
 # build & push csi version image
 .PHONY: image-version
 image-version:
 	docker buildx build -t $(IMAGE):$(VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
+		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ce-$(JUICEFS_CE_LATEST_VERSION) \
+		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ee-$(JUICEFS_EE_LATEST_VERSION) \
+		--platform linux/amd64,linux/arm64 -f docker/Dockerfile . --push
+
+.PHONY: image-latest
+image-latest:
+	docker buildx build -t $(IMAGE):latest \
         --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ce-$(JUICEFS_CE_LATEST_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ee-$(JUICEFS_EE_LATEST_VERSION) \

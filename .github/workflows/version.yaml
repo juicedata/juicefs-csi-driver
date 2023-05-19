@@ -6,36 +6,36 @@ on:
       - created
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go 1.18.x
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.18.x'
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-      - name: Build
-        run: make
-      - name: Verify
-        run: make verify
-      - name: Test
-        run: make test
-      - name: Test sanity
-        run: make test-sanity
-
   publish-version:
     needs: test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Login Docker Hub
-      run: docker login --username chnliyong --password ${PASSWORD}
+      run: docker login --username ${USERNAME} --password ${PASSWORD}
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+        USERNAME: ${{ secrets.DOCKERHUB_FUSE_USERNAME }}
     - name: Build docker image & push
       run: |
         export DOCKER_CLI_EXPERIMENTAL=enabled
         docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
         docker buildx create --use --name mybuilder
         make image-version
+
+  publish-latest:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Docker Hub
+        run: docker login --username ${USERNAME} --password ${PASSWORD}
+        env:
+          PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+          USERNAME: ${{ secrets.DOCKERHUB_FUSE_USERNAME }}
+      - name: Build docker image & push
+        run: |
+          export DOCKER_CLI_EXPERIMENTAL=enabled
+          docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
+          docker buildx create --use --name mybuilder
+          make image-latest

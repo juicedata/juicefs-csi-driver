@@ -124,11 +124,12 @@ jobs:
       - name: Buildx and Push docker image nightly
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+          USERNAME: ${{ secrets.DOCKERHUB_FUSE_USERNAME }}
           JFSCHAN: beta
           CEVERSION: ce-nightly
           EEVERSION: ee-nightly
         run: |
-          docker login --username chnliyong --password ${PASSWORD}
+          docker login --username ${USERNAME} --password ${PASSWORD}
           make image-nightly
           make image-nightly-push
           make ce-image

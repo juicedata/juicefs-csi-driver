@@ -32,9 +32,10 @@ jobs:
       - name: Prepare microk8s environment
         run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
       - name: Login Docker Hub
-        run: docker login --username chnliyong --password ${PASSWORD}
+        run: docker login --username ${USERNAME} --password ${PASSWORD}
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+          USERNAME: ${{ secrets.DOCKERHUB_FUSE_USERNAME }}
       - name: Build image
         env:
           DEV_K8S: microk8s
