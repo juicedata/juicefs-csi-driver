@@ -701,6 +701,8 @@ spec:
             claimName: juicefs-pvc-static
 ```
 
+You can also use tools provided by community users to automatically add `HostToContainer mountPropagation` to application container. For details, please refer to [Project Documentation](https://github.com/breuerfelix/juicefs-volume-hook).
+
 ### PV storage capacity {#storage-capacity}
 
 For now, JuiceFS CSI Driver doesn't support setting storage capacity. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).

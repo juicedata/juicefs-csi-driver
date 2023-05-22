@@ -699,6 +699,8 @@ spec:
           claimName: juicefs-pvc-static
 ```
 
+也可以使用社区用户提供的工具，自动为应用容器添加 `HostToContainer mountPropagation`，具体请参考[项目文档](https://github.com/breuerfelix/juicefs-volume-hook)。
+
 ### PV 容量分配 {#storage-capacity}
 
 目前而言，JuiceFS CSI 驱动不支持设置存储容量。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
