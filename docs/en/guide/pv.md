@@ -701,7 +701,7 @@ spec:
             claimName: juicefs-pvc-static
 ```
 
-You can also use tools provided by community developers to automatically add `mountPropagation: HostToContainer` to application container. For details, please refer to [Project Documentation](https://github.com/breuerfelix/juicefs-volume-hook).
+You can also use tools provided by a community developer to automatically add `mountPropagation: HostToContainer` to application container. For details, please refer to [Project Documentation](https://github.com/breuerfelix/juicefs-volume-hook).
 
 ### PV storage capacity {#storage-capacity}
 
