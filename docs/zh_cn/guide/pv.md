@@ -699,7 +699,7 @@ spec:
           claimName: juicefs-pvc-static
 ```
 
-也可以使用社区用户提供的工具，自动为应用容器添加 `HostToContainer mountPropagation`，具体请参考[项目文档](https://github.com/breuerfelix/juicefs-volume-hook)。
+也可以使用社区开发者提供的工具，自动为应用容器添加 `mountPropagation: HostToContainer`，具体请参考[项目文档](https://github.com/breuerfelix/juicefs-volume-hook)。
 
 ### PV 容量分配 {#storage-capacity}
 
