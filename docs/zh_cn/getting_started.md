@@ -221,10 +221,11 @@ sidecars:
 
 ### kubectl
 
-对 `k8s.yaml` 中部分镜像进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
+对 `k8s.yaml` 中部分镜像以及 `provisioner` sidecar 的启动参数进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
 
 ```shell
 sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 ```

@@ -237,10 +237,11 @@ sidecars:
 
 ### kubectl
 
-Replace some container images in `k8s.yaml` (use [gnu-sed](https://formulae.brew.sh/formula/gnu-sed) instead under macOS):
+Replace some container images and parameters of `provisioner` sidecar in `k8s.yaml` (use [gnu-sed](https://formulae.brew.sh/formula/gnu-sed) instead under macOS):
 
 ```shell
 sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 ```
