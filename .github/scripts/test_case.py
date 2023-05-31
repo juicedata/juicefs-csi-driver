@@ -361,13 +361,14 @@ def test_delete_one():
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
-    mount_pod_name = get_only_mount_pod_name(volume_id)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    mount_pod_name = get_only_mount_pod_name(unique_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
@@ -419,13 +420,14 @@ def test_delete_all():
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
-    mount_pod_name = get_only_mount_pod_name(volume_id)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    mount_pod_name = get_only_mount_pod_name(unique_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
     if not result:
@@ -586,9 +588,6 @@ def test_dynamic_delete_pod():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     check_path = volume_id + "/out.txt"
     result = check_mount_point(check_path)
@@ -596,7 +595,11 @@ def test_dynamic_delete_pod():
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     LOG.info("Mount pod delete..")
-    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
     LOG.info("Wait for a sec..")
     time.sleep(5)
