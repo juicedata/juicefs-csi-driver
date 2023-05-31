@@ -7,7 +7,7 @@ function main() {
   echo "withoutKubelet: " $withoutKubelet
   if [ $withoutKubelet == "withoutkubelet" ]; then
     deploy_csi_without_kubelet $deployMode
-  if [ $deployMode == "webhook" ]; then
+  elif [ $deployMode == "webhook" ]; then
     deploy_webhook
   elif [ $deployMode == "webhook-provisioner" ]; then
     deploy_webhook_provisioner
@@ -166,4 +166,4 @@ function deploy_webhook_provisioner() {
     sleep 5
   done
 }
-main $1
+main $1 $2

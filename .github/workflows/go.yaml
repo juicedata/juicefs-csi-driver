@@ -98,7 +98,7 @@ jobs:
           make push-dev
       - name: Deploy JuiceFS CSI
         run: |
-          testmode=${{matrix.wtestmode}}
+          testmode=${{matrix.testmode}}
           cd ${GITHUB_WORKSPACE}
           dev_tag=dev-$(git describe --always)
           echo "Dev tag is: " $dev_tag
@@ -142,7 +142,7 @@ jobs:
           make push-dev
       - name: Deploy JuiceFS CSI
         run: |
-          testmode=${{matrix.wtestmode}}
+          testmode=${{matrix.testmode}}
           cd ${GITHUB_WORKSPACE}
           dev_tag=dev-$(git describe --always)
           echo "Dev tag is: " $dev_tag
