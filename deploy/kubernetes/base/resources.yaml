@@ -199,7 +199,7 @@ metadata:
   name: csi.juicefs.com
 spec:
   attachRequired: false
-  podInfoOnMount: false
+  podInfoOnMount: true
 ---
 
 kind: StatefulSet

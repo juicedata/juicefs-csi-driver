@@ -131,14 +131,31 @@ func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *core
 	return nil
 }
 
+func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addLabels map[string]string) error {
+	payloads := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"labels": addLabels,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payloads)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	klog.V(6).Infof("AddPodLabel: %v in pod %s", addLabels, pod.Name)
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
+		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		return err
+	}
+	return nil
+}
+
 func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addAnnotations map[string]string) error {
-	payloads := []k8sclient.PatchStringValue{}
-	for k, v := range addAnnotations {
-		payloads = append(payloads, k8sclient.PatchStringValue{
-			Op:    "add",
-			Path:  fmt.Sprintf("/metadata/annotations/%s", k),
-			Value: v,
-		})
+	payloads := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": addAnnotations,
+		},
 	}
 	payloadBytes, err := json.Marshal(payloads)
 	if err != nil {
@@ -146,7 +163,7 @@ func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		return err
 	}
 	klog.V(6).Infof("AddPodAnnotation: %v in pod %s", addAnnotations, pod.Name)
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
+	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
 		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
 		return err
 	}

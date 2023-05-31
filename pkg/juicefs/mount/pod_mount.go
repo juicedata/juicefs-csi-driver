@@ -57,7 +57,20 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
-	podName, err := p.createOrAddRef(ctx, jfsSetting)
+	podName, err := p.genMountPodName(ctx, jfsSetting)
+	if err != nil {
+		return err
+	}
+
+	// set mount pod name in app pod
+	if jfsSetting.AppInfo.Name != "" && jfsSetting.AppInfo.Namespace != "" {
+		err = p.setMountLabel(ctx, jfsSetting.UniqueId, podName, jfsSetting.AppInfo.Name, jfsSetting.AppInfo.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = p.createOrAddRef(ctx, podName, jfsSetting)
 	if err != nil {
 		return err
 	}
@@ -270,7 +283,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	return err
 }
 
-func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
+func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
 		klog.Errorf("Generate hash of jfsSetting error: %v", err)
@@ -293,7 +306,16 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 	} else {
 		podName = GenPodNameByUniqueId(jfsSetting.UniqueId, true)
 	}
+	return
+}
+
+func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
+	hashVal, err := GenHashOfSetting(*jfsSetting)
+	if err != nil {
+		klog.Errorf("Generate hash of jfsSetting error: %v", err)
+		return err
+	}
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 
 	lock := jfsConfig.GetPodLock(podName)
@@ -326,21 +348,21 @@ func (p *PodMount) createOrAddRef(ctx context.Context, jfsSetting *jfsConfig.Jfs
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
 				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
-					return "", err
+					return err
 				}
-				return podName, err
+				return err
 			} else if k8serrors.IsTimeout(err) {
-				return podName, fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
+				return fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			klog.Errorf("createOrAddRef: Get pod %s err: %v", podName, err)
-			return "", err
+			return err
 		}
 		// pod exist, add refs
 		if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
-			return "", err
+			return err
 		}
-		return podName, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
+		return p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
 }
 
@@ -461,6 +483,20 @@ func (p *PodMount) setUUIDAnnotation(ctx context.Context, podName string, uuid s
 	}
 	klog.Infof("setUUIDAnnotation: set pod %s annotation %s=%s", podName, jfsConfig.JuiceFSUUID, uuid)
 	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
+}
+
+func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName string, podName, podNamespace string) (err error) {
+	var pod *corev1.Pod
+	pod, err = p.K8sClient.GetPod(context.Background(), podName, podNamespace)
+	if err != nil {
+		return err
+	}
+	klog.Infof("setMountLabel: set mount info %s in pod %s", jfsConfig.Namespace, uniqueId, podName)
+	if err := util.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: uniqueId}); err != nil {
+		return err
+	}
+	klog.Infof("setMountAnnotation: set mount info %s/%s in pod %s", jfsConfig.Namespace, mountPodName, podName)
+	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSMountPod: fmt.Sprintf("%s/%s", jfsConfig.Namespace, mountPodName)})
 }
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`

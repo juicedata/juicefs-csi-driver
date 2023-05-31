@@ -19,6 +19,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,11 +29,21 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
+
+const (
+	podInfoName      = "csi.storage.k8s.io/pod.name"
+	podInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 )
 
 type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
+
+	// info of app pod
+	AppInfo AppInfo
 
 	UUID          string
 	Name          string     `json:"name"`
@@ -91,6 +102,11 @@ type PodAttr struct {
 	ImagePullSecrets []corev1.LocalObjectReference
 	PreemptionPolicy *corev1.PreemptionPolicy
 	Tolerations      []corev1.Toleration
+}
+
+type AppInfo struct {
+	Name      string
+	Namespace string
 }
 
 type CachePVC struct {
@@ -253,11 +269,32 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 
 	// set default resource limit & request
 	jfsSetting.Resources = getDefaultResource()
+
+	// check kubelet access. If not, should turn `podInfoOnMount` on in csiDriver, and fallback to apiServer
+	if usePod && KubeletPort != "" && HostIp != "" {
+		port, err := strconv.Atoi(KubeletPort)
+		if err != nil {
+			return nil, err
+		}
+		kc, err := k8sclient.NewKubeletClient(HostIp, port)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := kc.GetNodeRunningPods(); err != nil {
+			if volCtx == nil || volCtx[podInfoName] == "" {
+				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
+			}
+		}
+	}
+
 	if volCtx != nil {
 		// subPath
 		if volCtx["subPath"] != "" {
 			jfsSetting.SubPath = volCtx["subPath"]
 		}
+
+		jfsSetting.AppInfo.Name = volCtx[podInfoName]
+		jfsSetting.AppInfo.Namespace = volCtx[podInfoNamespace]
 
 		cpuLimit := volCtx[mountPodCpuLimitKey]
 		memoryLimit := volCtx[mountPodMemLimitKey]
