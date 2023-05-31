@@ -117,6 +117,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 e2e-test.py
+          exit 1
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
@@ -162,6 +163,7 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 e2e-test.py
+          exit 1
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
