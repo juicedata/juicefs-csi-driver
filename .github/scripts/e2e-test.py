@@ -85,7 +85,8 @@ if __name__ == "__main__":
                 test_share_mount()
                 test_delete_one()
                 test_delete_all()
-                test_delete_pvc()
+                test_dynamic_delete_pod()
+                test_static_delete_pod()
 
             elif test_mode == "pod-provisioner":
                 test_dynamic_mount_image()
@@ -94,7 +95,8 @@ if __name__ == "__main__":
                 test_dynamic_pvc_delete_not_last_with_path_pattern()
                 test_delete_one()
                 test_delete_all()
-                test_delete_pvc()
+                test_dynamic_delete_pod()
+                test_static_delete_pod()
 
             elif test_mode == "webhook":
                 test_webhook_two_volume()

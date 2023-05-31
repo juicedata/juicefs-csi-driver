@@ -361,6 +361,9 @@ def test_delete_one():
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
@@ -416,6 +419,9 @@ def test_delete_all():
         raise Exception("Pods of deployment {} are not ready within 5 min.".format(deployment.name))
 
     volume_id = pvc.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
 
     # check mount pod refs
@@ -580,6 +586,9 @@ def test_dynamic_delete_pod():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        volume_id = STORAGECLASS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     check_path = volume_id + "/out.txt"
     result = check_mount_point(check_path)
