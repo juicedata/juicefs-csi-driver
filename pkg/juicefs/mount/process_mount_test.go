@@ -178,7 +178,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				p := &ProcessMount{
 					SafeFormatAndMount: *mounter,
 				}
-				if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+				if err := p.JMount(context.TODO(), nil, &jfsConfig.JfsSetting{
 					Source:    eeSource,
 					VolumeId:  volumeId,
 					MountPath: targetPath,
@@ -208,7 +208,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
-				if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+				if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 					Source:    eeSource,
 					VolumeId:  volumeId,
 					MountPath: targetPath,
@@ -261,7 +261,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						p := &ProcessMount{
 							SafeFormatAndMount: *mounter,
 						}
-						if err := p.JMount(context.TODO(), &jfsConfig.JfsSetting{
+						if err := p.JMount(context.TODO(), nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							Storage:   "ceph",
 							VolumeId:  volumeId,
@@ -304,7 +304,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							Storage:   "ceph",
 							VolumeId:  volumeId,
@@ -347,7 +347,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source: ceSource, Storage: "ceph",
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -366,7 +366,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -388,7 +388,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -415,7 +415,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,
@@ -444,7 +444,7 @@ func TestProcessMount_JMount(t *testing.T) {
 
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 						defer cancel()
-						if err := p.JMount(ctx, &jfsConfig.JfsSetting{
+						if err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{
 							Source:    ceSource,
 							VolumeId:  volumeId,
 							MountPath: targetPath,

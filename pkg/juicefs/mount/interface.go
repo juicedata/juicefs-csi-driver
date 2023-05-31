@@ -26,7 +26,7 @@ import (
 
 type MntInterface interface {
 	k8sMount.Interface
-	JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
+	JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error
 	JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
 	JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error
 	GetMountRef(ctx context.Context, target, podName string) (int, error) // podName is only used by podMount

@@ -56,15 +56,15 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 	return &PodMount{mounter, client}
 }
 
-func (p *PodMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
 	podName, err := p.genMountPodName(ctx, jfsSetting)
 	if err != nil {
 		return err
 	}
 
 	// set mount pod name in app pod
-	if jfsSetting.AppInfo.Name != "" && jfsSetting.AppInfo.Namespace != "" {
-		err = p.setMountLabel(ctx, jfsSetting.UniqueId, podName, jfsSetting.AppInfo.Name, jfsSetting.AppInfo.Namespace)
+	if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
+		err = p.setMountLabel(ctx, jfsSetting.UniqueId, podName, appInfo.Name, appInfo.Namespace)
 		if err != nil {
 			return err
 		}
@@ -491,7 +491,7 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 	if err != nil {
 		return err
 	}
-	klog.Infof("setMountLabel: set mount info %s in pod %s", jfsConfig.Namespace, uniqueId, podName)
+	klog.Infof("setMountLabel: set mount info %s in pod %s", uniqueId, podName)
 	if err := util.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: uniqueId}); err != nil {
 		return err
 	}

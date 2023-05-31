@@ -42,9 +42,6 @@ type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
 
-	// info of app pod
-	AppInfo AppInfo
-
 	UUID          string
 	Name          string     `json:"name"`
 	MetaUrl       string     `json:"metaurl"`
@@ -104,6 +101,7 @@ type PodAttr struct {
 	Tolerations      []corev1.Toleration
 }
 
+// info of app pod
 type AppInfo struct {
 	Name      string
 	Namespace string
@@ -270,31 +268,11 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	// set default resource limit & request
 	jfsSetting.Resources = getDefaultResource()
 
-	// check kubelet access. If not, should turn `podInfoOnMount` on in csiDriver, and fallback to apiServer
-	if usePod && KubeletPort != "" && HostIp != "" {
-		port, err := strconv.Atoi(KubeletPort)
-		if err != nil {
-			return nil, err
-		}
-		kc, err := k8sclient.NewKubeletClient(HostIp, port)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := kc.GetNodeRunningPods(); err != nil {
-			if volCtx == nil || volCtx[podInfoName] == "" {
-				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
-			}
-		}
-	}
-
 	if volCtx != nil {
 		// subPath
 		if volCtx["subPath"] != "" {
 			jfsSetting.SubPath = volCtx["subPath"]
 		}
-
-		jfsSetting.AppInfo.Name = volCtx[podInfoName]
-		jfsSetting.AppInfo.Namespace = volCtx[podInfoNamespace]
 
 		cpuLimit := volCtx[mountPodCpuLimitKey]
 		memoryLimit := volCtx[mountPodMemLimitKey]
@@ -343,6 +321,32 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		jfsSetting.MountPodLabels = labels
 	}
 	return &jfsSetting, nil
+}
+
+func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {
+	// check kubelet access. If not, should turn `podInfoOnMount` on in csiDriver, and fallback to apiServer
+	if !ByProcess && !Webhook && KubeletPort != "" && HostIp != "" {
+		port, err := strconv.Atoi(KubeletPort)
+		if err != nil {
+			return nil, err
+		}
+		kc, err := k8sclient.NewKubeletClient(HostIp, port)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := kc.GetNodeRunningPods(); err != nil {
+			if volCtx == nil || volCtx[podInfoName] == "" {
+				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
+			}
+		}
+	}
+	if volCtx != nil {
+		return &AppInfo{
+			Name:      volCtx[podInfoName],
+			Namespace: volCtx[podInfoNamespace],
+		}, nil
+	}
+	return nil, nil
 }
 
 func (s *JfsSetting) ParseFormatOptions() ([][]string, error) {
