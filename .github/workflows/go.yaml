@@ -113,7 +113,7 @@ jobs:
           JUICEFS_NAME: "ce-secret"
           JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
           JUICEFS_MODE: ce
-          TEST_MODE: ${{matrix.wtestmode}}
+          TEST_MODE: ${{matrix.testmode}}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 e2e-test.py
@@ -158,7 +158,7 @@ jobs:
           JUICEFS_NAME: "csi-ci"
           JUICEFS_META_URL: ""
           JUICEFS_MODE: "ee"
-          TEST_MODE: ${{matrix.wtestmode}}
+          TEST_MODE: ${{matrix.testmode}}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           python3 e2e-test.py
