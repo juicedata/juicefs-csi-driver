@@ -145,7 +145,7 @@ def test_quota_using_storage_rw():
         label_selector="deployment={}".format(deployment.name)
     )
     process = subprocess.run([
-        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "--", "df", "-h"],
+        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "-t", "--", "df", "-h"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
     if process.returncode is not None and process.returncode != 0:

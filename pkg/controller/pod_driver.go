@@ -354,7 +354,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					}
 					return nil
 				})
-				if err != nil {
+				if err == nil {
 					klog.Infof("start to umount: %s", sourcePath)
 					util.UmountPath(ctx, sourcePath)
 				}
