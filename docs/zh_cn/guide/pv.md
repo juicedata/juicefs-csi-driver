@@ -104,7 +104,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # 不需要对 `%s` 进行任何替换更改，在执行文件系统挂载时，客户端会用实际文件系统名来替换该占位符
+  # 将 $JUICEFS_CONSOLE_URL 替换为私有部署控制台访问地址
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
   # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx

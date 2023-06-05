@@ -323,7 +323,7 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-        - mountPath: /dev/shm
+        - mountPath: /data/jfsCache
           name: cache-dir
         - mountPath: /root/.juicefs
           name: jfs-root-dir
@@ -332,7 +332,7 @@ spec:
       # ref: https://juicefs.com/docs/cloud/guide/cache#client-read-cache
       - name: cache-dir
         hostPath:
-          path: /dev/shm
+          path: /data/jfsCache
           type: DirectoryOrCreate
       - name: jfs-root-dir
         emptyDir: {}
