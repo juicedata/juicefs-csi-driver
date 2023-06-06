@@ -400,7 +400,14 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 		}
 		if util.IsJobCompleted(job) {
 			klog.V(5).Infof("waitUtilJobCompleted: Job %s is completed", jobName)
-			return nil
+			if util.IsJobShouldBeRecycled(job) {
+				// try to delete job
+				klog.Infof("job %s completed but not be recycled automatically, delete it", jobName)
+				if err := p.K8sClient.DeleteJob(ctx, jobName, jfsConfig.Namespace); err != nil {
+					klog.Errorf("delete job %s error %v", jobName, err)
+					return err
+				}
+			}
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
