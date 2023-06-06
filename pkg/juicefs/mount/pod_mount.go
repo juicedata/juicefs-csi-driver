@@ -417,7 +417,7 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 			"job-name": jobName,
 		},
 	}, nil)
-	if err != nil || len(pods) != 1 {
+	if err != nil || len(pods) == 0 {
 		return fmt.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
 	log, err := p.getNotCompleteCnLog(ctx, pods[0].Name)
