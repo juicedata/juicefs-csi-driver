@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,6 +71,9 @@ func NewMountManager(
 				&corev1.Pod{}: {
 					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
 				},
+				&batchv1.Job{}: {
+					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.JobTypeValue}),
+				},
 			},
 		}),
 	})
@@ -95,6 +99,10 @@ func (m *MountManager) Start(ctx context.Context) {
 	// init Reconciler（Controller）
 	if err := (mountctrl.NewMountController(m.client)).SetupWithManager(m.mgr); err != nil {
 		klog.Errorf("Register mount controller error: %v", err)
+		return
+	}
+	if err := (mountctrl.NewJobController(m.client)).SetupWithManager(m.mgr); err != nil {
+		klog.Errorf("Register job controller error: %v", err)
 		return
 	}
 	klog.Info("Mount manager started.")

@@ -34,6 +34,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type JobController struct {
@@ -57,16 +58,28 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	// check job deleted
-	if job.DeletionTimestamp == nil {
-		klog.V(6).Infof("job %s is not deleted", job.Name)
+	if job.DeletionTimestamp != nil {
+		klog.V(6).Infof("job %s is deleted", job.Name)
 		return reconcile.Result{}, nil
 	}
 
-	// check csi node exist or not
+	// check if job is set nodeName or not
 	nodeName := job.Spec.Template.Spec.NodeName
 	if nodeName == "" {
-		// todo
+		// when job not set nodeName, don't need to check csi node
+		if util.IsJobShouldBeRecycled(job) {
+			// try to delete job
+			klog.Infof("job %s completed but not be recycled automatically, delete it", job.Name)
+			if err := m.DeleteJob(ctx, job.Name, job.Namespace); err != nil {
+				klog.Errorf("delete job %s error %v", job.Name, err)
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
 	}
+
+	needRecycled := false
+	// check csi node exist or not
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
 	}
@@ -78,19 +91,22 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 		klog.Errorf("list pod by label %s and field %s error: %v", config.CSINodeLabelValue, nodeName, err)
 		return reconcile.Result{}, err
 	}
-	if len(csiPods) > 0 {
-		klog.V(6).Infof("csi node in %s exists.", nodeName)
-		return reconcile.Result{}, nil
+	if len(csiPods) == 0 {
+		klog.Infof("csi node in %s not exists, job %s should be recycled.", nodeName, job.Name)
+		needRecycled = true
 	}
 
-	klog.Infof("csi node in %s did not exist. delete job %s", nodeName, job.Name)
-	err = m.DeleteJob(ctx, job.Name, job.Namespace)
-	if err != nil {
-		klog.Errorf("delete job %s error: %v", job.Name, err)
-		return reconcile.Result{Requeue: true}, err
+	// if csi node not exist, or job should be recycled itself, delete it
+	if needRecycled || util.IsJobShouldBeRecycled(job) {
+		klog.Infof("recycle job %s", job.Name)
+		err = m.DeleteJob(ctx, job.Name, job.Namespace)
+		if err != nil {
+			klog.Errorf("delete job %s error: %v", job.Name, err)
+			return reconcile.Result{Requeue: true}, err
+		}
 	}
 
-	return reconcile.Result{}, err
+	return reconcile.Result{}, nil
 }
 
 func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
@@ -104,8 +120,8 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 			job := event.Object.(*batchv1.Job)
 			klog.V(6).Infof("watch job %s created", job.GetName())
 			// check job deleted
-			if job.DeletionTimestamp == nil {
-				klog.V(6).Infof("job %s is not deleted", job.Name)
+			if job.DeletionTimestamp != nil {
+				klog.V(6).Infof("job %s is deleted", job.Name)
 				return false
 			}
 			return true
@@ -129,8 +145,8 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 				return false
 			}
 			// check job deleted
-			if jobNew.DeletionTimestamp == nil {
-				klog.V(6).Infof("job %s is not deleted", jobNew.Name)
+			if jobNew.DeletionTimestamp != nil {
+				klog.V(6).Infof("job %s is deleted", jobNew.Name)
 				return false
 			}
 			return true
@@ -139,8 +155,8 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 			job := deleteEvent.Object.(*batchv1.Job)
 			klog.V(6).Infof("watch job %s deleted", job.GetName())
 			// check job deleted
-			if job.DeletionTimestamp == nil {
-				klog.V(6).Infof("job %s is not deleted", job.Name)
+			if job.DeletionTimestamp != nil {
+				klog.V(6).Infof("job %s is deleted", job.Name)
 				return false
 			}
 			return true
