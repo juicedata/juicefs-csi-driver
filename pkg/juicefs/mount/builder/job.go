@@ -75,6 +75,9 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.JobTypeValue,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -99,6 +102,9 @@ func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.JobTypeValue,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
