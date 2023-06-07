@@ -17,6 +17,8 @@
 package util
 
 import (
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -35,6 +37,23 @@ func IsJobFailed(job *batchv1.Job) bool {
 		if cond.Status == corev1.ConditionTrue && cond.Type == batchv1.JobFailed {
 			return true
 		}
+	}
+	return false
+}
+
+func IsJobShouldBeRecycled(job *batchv1.Job) bool {
+	// job not completed, should not be recycled
+	if !IsJobCompleted(job) {
+		return false
+	}
+	// job not set ttl, should be recycled
+	if job.Spec.TTLSecondsAfterFinished == nil {
+		return true
+	}
+	// job exits after ttl time, should be recycled (should not happen)
+	ttlTime := job.Status.CompletionTime.Add(time.Duration(*job.Spec.TTLSecondsAfterFinished) * time.Second)
+	if ttlTime.Before(time.Now()) {
+		return true
 	}
 	return false
 }
