@@ -331,7 +331,7 @@ func (p *ProcessMount) AddRefOfMount(ctx context.Context, target string, podName
 	panic("implement me")
 }
 
-func (p *ProcessMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
+func (p *ProcessMount) CleanCache(ctx context.Context, _ bool, id string, _ string, cacheDirs []string) error {
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")

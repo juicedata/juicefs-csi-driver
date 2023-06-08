@@ -617,7 +617,11 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 			cacheDirs = append(cacheDirs, dir.HostPath.Path)
 		}
 	}
-	if err := podMnt.CleanCache(ctx, uuid, uniqueId, cacheDirs); err != nil {
+	isCE := false
+	if strings.Contains(pod.Spec.Containers[0].Command[2], "metaurl") {
+		isCE = true
+	}
+	if err := podMnt.CleanCache(ctx, isCE, uuid, uniqueId, cacheDirs); err != nil {
 		klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s error %v", uniqueId, err)
 	}
 }
