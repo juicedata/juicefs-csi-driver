@@ -42,8 +42,8 @@ func IsJobFailed(job *batchv1.Job) bool {
 }
 
 func IsJobShouldBeRecycled(job *batchv1.Job) bool {
-	// job not completed, should not be recycled
-	if !IsJobCompleted(job) {
+	// job not completed or failed, should not be recycled
+	if !IsJobCompleted(job) && !IsJobFailed(job) {
 		return false
 	}
 	// job not set ttl, should be recycled

@@ -75,6 +75,7 @@ const (
 	UniqueId             = "juicefs-uniqueid"
 	CleanCache           = "juicefs-clean-cache"
 	MountContainerName   = "jfs-mount"
+	JobTypeValue         = "juicefs-job"
 
 	// CSI Secret
 	ProvisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
