@@ -33,5 +33,5 @@ type MntInterface interface {
 	UmountTarget(ctx context.Context, target, podName string) error       // podName is only used by podMount
 	JUmount(ctx context.Context, target, podName string) error            // podName is only used by podMount
 	AddRefOfMount(ctx context.Context, target string, podName string) error
-	CleanCache(ctx context.Context, isCE bool, id string, volumeId string, cacheDirs []string) error
+	CleanCache(ctx context.Context, image string, id string, volumeId string, cacheDirs []string) error
 }

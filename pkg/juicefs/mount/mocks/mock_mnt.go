@@ -51,7 +51,7 @@ func (mr *MockMntInterfaceMockRecorder) AddRefOfMount(arg0, arg1, arg2 interface
 }
 
 // CleanCache mocks base method.
-func (m *MockMntInterface) CleanCache(arg0 context.Context, arg1 bool, arg2, arg3 string, arg4 []string) error {
+func (m *MockMntInterface) CleanCache(arg0 context.Context, arg1, arg2, arg3 string, arg4 []string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CleanCache", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
