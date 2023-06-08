@@ -495,12 +495,13 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, erro
 	return idStrs[3], nil
 }
 
-func (p *PodMount) CleanCache(ctx context.Context, id string, volumeId string, cacheDirs []string) error {
+func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volumeId string, cacheDirs []string) error {
 	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true)
 	if err != nil {
 		klog.Errorf("CleanCache: parse jfs setting err: %v", err)
 		return err
 	}
+	jfsSetting.Attr.Image = image
 	jfsSetting.VolumeId = volumeId
 	jfsSetting.CacheDirs = cacheDirs
 	jfsSetting.UUID = id
