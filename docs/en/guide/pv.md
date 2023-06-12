@@ -315,7 +315,7 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      # request 10GiB storage capacity from SC
+      # request 10GiB storage capacity from StorageClass
       storage: 10Gi
   storageClassName: juicefs-sc
 ---
@@ -706,7 +706,7 @@ You can also use tools provided by a community developer to automatically add `m
 
 ### PV storage capacity {#storage-capacity}
 
-For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PV. the storage specified under static PersistentVolume and its PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
+For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PersistentVolume. the storage specified under static PersistentVolume and its PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
 
 ```yaml
 storageClassName: ""
@@ -715,7 +715,7 @@ resources:
     storage: 100Gi
 ```
 
-However, setting storage capacity works on dynamic PVC referring SC:
+However, setting storage capacity works on dynamic PersistentVolumeClaim referring StorageClass:
 
 ```yaml
 ...

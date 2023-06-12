@@ -313,7 +313,7 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      # 从 SC 中申请 10GiB 存储容量
+      # 从 StorageClass 中申请 10GiB 存储容量
       storage: 10Gi
   storageClassName: juicefs-sc
 ---
@@ -704,7 +704,7 @@ spec:
 
 ### PV 容量分配 {#storage-capacity}
 
-目前而言，JuiceFS CSI 驱动仅支持为动态 PV 设置存储容量。在静态 PersistentVolume 与其 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
+目前而言，JuiceFS CSI 驱动仅支持为动态 PersistentVolume 设置存储容量。在静态 PersistentVolume 与其 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
 
 ```yaml
 ...
@@ -714,7 +714,7 @@ resources:
     storage: 100Gi
 ```
 
-而在使用 SC 的 PersistentVolumeClaim 中指定存储容量是有效的：
+而在使用 StorageClass 的 PersistentVolumeClaim 中指定存储容量是有效的：
 
 ```yaml
 ...
