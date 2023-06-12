@@ -40,7 +40,7 @@ jobs:
 #          fi
       - name: Buildx and Push juicefs image
         env:
-          CEVERSION: v1.1.0-beta1
+          CEVERSION: ce-v1.1.0-beta1
           CEJUICEFS_VERSION: v1.1.0-beta1
         run: |
           image_exist="false"
