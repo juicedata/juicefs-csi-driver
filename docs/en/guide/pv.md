@@ -165,7 +165,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string is fine.
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PV. Fill in any valid string is fine.
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -196,7 +196,7 @@ spec:
   # Must use an empty string as storageClassName
   # Meaning that this PV will not use any StorageClass, instead will use the PV specified by selector
   storageClassName: ""
-  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string that's lower than the PV capacity.
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PV. Fill in any valid string that's lower than the PV capacity.
   resources:
     requests:
       storage: 10Pi
@@ -315,7 +315,8 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      storage: 10Pi
+      # request 10GiB storage capacity from SC
+      storage: 10Gi
   storageClassName: juicefs-sc
 ---
 apiVersion: v1

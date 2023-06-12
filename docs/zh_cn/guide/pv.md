@@ -165,7 +165,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  # 目前 JuiceFS CSI 驱动不支持设置存储容量，填写任意有效值即可
+  # 目前 JuiceFS CSI 驱动不支持给静态 PV 设置存储容量，填写任意有效值即可
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -196,7 +196,7 @@ spec:
   # 静态配置下必须指定 storageClassName 为空字符串
   # 代表该 PV 不采用任何 StorageClass，而是直接使用 selector 所指定的 PV
   storageClassName: ""
-  # 由于目前 JuiceFS CSI 驱动不支持设置存储容量，此处 requests.storage 填写任意小于 PV capacity 的有效值即可
+  # 由于目前 JuiceFS CSI 驱动不支持给静态 PV 设置存储容量，此处 requests.storage 填写任意小于 PV capacity 的有效值即可
   resources:
     requests:
       storage: 10Pi
@@ -313,7 +313,8 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      storage: 10Pi
+      # 从 SC 中申请 10GiB 存储容量
+      storage: 10Gi
   storageClassName: juicefs-sc
 ---
 apiVersion: v1
