@@ -724,8 +724,9 @@ resources:
   requests:
     storage: 100Gi
 ```
+
 :::note
-The storage capacity only takes effects on the subpath used by this PersistentVolumeClaim, 
+The storage capacity only takes effects on the subpath used by this PersistentVolumeClaim,
 it does not affect the quota of the whole JuiceFS volume
 :::
 
