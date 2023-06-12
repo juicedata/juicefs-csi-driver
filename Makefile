@@ -97,9 +97,9 @@ push-latest:
 .PHONY: image-version
 image-version:
 	docker buildx build -t $(IMAGE):$(VERSION) \
-        --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
-		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ce-$(JUICEFS_CE_LATEST_VERSION) \
-		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ee-$(JUICEFS_EE_LATEST_VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
+		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
+		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
 		--platform linux/amd64,linux/arm64 -f docker/Dockerfile . --push
 
 .PHONY: push-version
