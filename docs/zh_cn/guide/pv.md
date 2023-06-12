@@ -724,6 +724,16 @@ resources:
     storage: 100Gi
 ```
 
+我们可以在应用 Pod 中使用 `df` 查看存储容量：
+
+```bash
+$ df -h
+Filesystem         Size  Used Avail Use% Mounted on
+overlay             84G   66G   18G  80% /
+tmpfs               64M     0   64M   0% /dev
+JuiceFS:ce-secret  100G     0  100G   0% /data-0
+```
+
 ### 访问模式 {#access-modes}
 
 JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV/PVC，（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。

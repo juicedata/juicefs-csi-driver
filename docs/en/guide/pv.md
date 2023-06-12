@@ -725,6 +725,16 @@ resources:
     storage: 100Gi
 ```
 
+We can check the storage capacity by executing `df` command in the Pod which uses this PVC:
+
+```bash
+$ df -h
+Filesystem         Size  Used Avail Use% Mounted on
+overlay             84G   66G   18G  80% /
+tmpfs               64M     0   64M   0% /dev
+JuiceFS:ce-secret  100G     0  100G   0% /data-0
+```
+
 ### Access modes {#access-modes}
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
