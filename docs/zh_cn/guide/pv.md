@@ -725,7 +725,7 @@ resources:
 ```
 
 :::note 注意
-存储容量只对该 PersistentVolumeClaim 所使用的子目录（subpath）有效，不会影响整个 JuiceFS volume 的存储配额。
+存储容量只对该 PersistentVolumeClaim 所使用的子目录有效，不会影响整个 JuiceFS volume 的存储配额。
 :::
 
 我们可以在应用 Pod 中使用 `df` 查看存储容量：
