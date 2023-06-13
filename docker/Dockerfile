@@ -30,7 +30,8 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libceph
     git clone https://github.com/juicedata/juicefs-csi-driver && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && git checkout $JUICEFS_REPO_REF && make juicefs.ceph && mv juicefs.ceph juicefs
+    cd juicefs && git checkout $JUICEFS_REPO_REF && go get github.com/ceph/go-ceph@v0.4.0 && go mod tidy && \
+    make juicefs.ceph && mv juicefs.ceph juicefs
 
 FROM python:3.8-slim-buster
 
