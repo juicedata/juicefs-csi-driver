@@ -2,8 +2,10 @@ package driver
 
 import (
 	"context"
+	"path"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -30,6 +32,7 @@ var (
 
 	controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	}
 )
 
@@ -236,7 +239,74 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 
 // ControllerExpandVolume unimplemented
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	klog.V(6).Infof("ControllerExpandVolume request: %+v", *req)
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	// get cap
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return nil, status.Error(codes.InvalidArgument, "Capacity range not provided")
+	}
+
+	newSize := capRange.GetRequiredBytes()
+	maxVolSize := capRange.GetLimitBytes()
+	if maxVolSize > 0 && maxVolSize < newSize {
+		return nil, status.Error(codes.InvalidArgument, "After round-up, volume size exceeds the limit specified")
+	}
+
+	// get mount options
+	volCap := req.GetVolumeCapability()
+	if volCap == nil {
+		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
+	}
+	klog.V(5).Infof("NodePublishVolume: volume_capability is %s", volCap)
+	options := []string{}
+	if m := volCap.GetMount(); m != nil {
+		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
+		options = append(options, m.MountFlags...)
+	}
+
+	capacity, err := strconv.ParseInt(strconv.FormatInt(newSize, 10), 10, 64)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", capacity, err)
+	}
+
+	// get quota path
+	quotaPath, err := d.juicefs.GetSubPath(ctx, volumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get quotaPath error: %v", err)
+	}
+	settings, err := d.juicefs.Settings(ctx, volumeID, req.GetSecrets(), nil, options)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+	}
+
+	var subdir string
+	for _, o := range settings.Options {
+		pair := strings.Split(o, "=")
+		if len(pair) != 2 {
+			continue
+		}
+		if pair[0] == "subdir" {
+			subdir = path.Join("/", pair[1])
+		}
+	}
+
+	output, err := d.juicefs.SetQuota(ctx, req.GetSecrets(), settings, path.Join(subdir, quotaPath), capacity)
+	if err != nil {
+		klog.Error("set quota: ", err)
+		return nil, status.Errorf(codes.Internal, "set quota: %v", err)
+	}
+	klog.V(5).Infof("set quota: %s", output)
+
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         newSize,
+		NodeExpansionRequired: false,
+	}, nil
 }
 
 // ControllerPublishVolume unimplemented

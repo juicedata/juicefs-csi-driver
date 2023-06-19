@@ -64,6 +64,7 @@ type Interface interface {
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
 	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
+	GetSubPath(ctx context.Context, volumeID string) (string, error)
 }
 
 type juicefs struct {
@@ -782,6 +783,17 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
+}
+
+func (j *juicefs) GetSubPath(ctx context.Context, volumeID string) (string, error) {
+	if config.Provisioner {
+		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
+		if err != nil {
+			return "", err
+		}
+		return pv.Spec.CSI.VolumeAttributes["subPath"], nil
+	}
+	return volumeID, nil
 }
 
 // MountFs mounts JuiceFS with idempotency
