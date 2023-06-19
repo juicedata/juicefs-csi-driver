@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +36,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodController struct {
@@ -113,8 +115,21 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	err = podDriver.Run(ctx, mountPod)
 	if err != nil {
 		klog.Errorf("Driver check pod %s error: %v", mountPod.Name, err)
+		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, err
+	if mountPod.Annotations[config.DeleteDelayAtKey] != "" {
+		// if mount pod set delay deleted, requeue after delay time
+		delayAtStr := mountPod.Annotations[config.DeleteDelayAtKey]
+		delayAt, err := util.GetTime(delayAtStr)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: delayAt.Sub(time.Now()),
+		}, nil
+	}
+	return reconcile.Result{}, nil
 }
 
 func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
