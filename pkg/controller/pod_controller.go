@@ -124,9 +124,14 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+		now := time.Now()
+		requeueAfter := delayAt.Sub(now)
+		if delayAt.Before(now) {
+			requeueAfter = 0
+		}
 		return reconcile.Result{
 			Requeue:      true,
-			RequeueAfter: delayAt.Sub(time.Now()),
+			RequeueAfter: requeueAfter,
 		}, nil
 	}
 	return reconcile.Result{}, nil
