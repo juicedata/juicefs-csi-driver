@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job
+    get_voldel_job, check_quota
 
 
 def test_deployment_using_storage_rw():
@@ -144,23 +144,7 @@ def test_quota_using_storage_rw():
         namespace="default",
         label_selector="deployment={}".format(deployment.name)
     )
-    process = subprocess.run([
-        "kubectl", "exec", pods.items[0].metadata.name, "-c", "app", "-n", "default", "--", "df", "-h"],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-
-    if process.returncode is not None and process.returncode != 0:
-        raise Exception("df -h failed: {}".format(process.stderr))
-    LOG.info("df -h result: {}".format(process.stdout))
-    quota = None
-    for line in process.stdout.split("\n"):
-        if line.startswith("JuiceFS:"):
-            items = line.split()
-            if len(items) >= 2:
-                quota = items[1]
-    if quota is None:
-        raise Exception("df -h result does not contain juicefs info:\n{}".format(process.stdout))
-    if quota != "1.0G":
-        raise Exception("quota is not set:\n{}".format(process.stdout))
+    check_quota(pods.items[0].metadata.name, "1.0G")
     LOG.info("Test pass.")
 
     # delete test resources

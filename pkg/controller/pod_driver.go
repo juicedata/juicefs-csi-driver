@@ -354,7 +354,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					}
 					return nil
 				})
-				if err != nil {
+				if err == nil {
 					klog.Infof("start to umount: %s", sourcePath)
 					util.UmountPath(ctx, sourcePath)
 				}
@@ -617,7 +617,8 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 			cacheDirs = append(cacheDirs, dir.HostPath.Path)
 		}
 	}
-	if err := podMnt.CleanCache(ctx, uuid, uniqueId, cacheDirs); err != nil {
+	image := pod.Spec.Containers[0].Image
+	if err := podMnt.CleanCache(ctx, image, uuid, uniqueId, cacheDirs); err != nil {
 		klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s error %v", uniqueId, err)
 	}
 }

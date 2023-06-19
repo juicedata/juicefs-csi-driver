@@ -29,7 +29,7 @@ jobs:
       - name: Build and Push juicefs latest image
         env:
           CEVERSION: latest
-          CEJUICEFS_VERSION: main
+          CEJUICEFS_VERSION: ${{ env.JUICEFS_CE_LATEST_VERSION }}
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then

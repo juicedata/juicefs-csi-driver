@@ -104,7 +104,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # 不需要对 `%s` 进行任何替换更改，在执行文件系统挂载时，客户端会用实际文件系统名来替换该占位符
+  # 将 $JUICEFS_CONSOLE_URL 替换为私有部署控制台访问地址
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
   # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
@@ -165,7 +165,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  # 目前 JuiceFS CSI 驱动不支持设置存储容量，填写任意有效值即可
+  # 目前 JuiceFS CSI 驱动不支持给静态 PV 设置存储容量，填写任意有效值即可
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -196,7 +196,7 @@ spec:
   # 静态配置下必须指定 storageClassName 为空字符串
   # 代表该 PV 不采用任何 StorageClass，而是直接使用 selector 所指定的 PV
   storageClassName: ""
-  # 由于目前 JuiceFS CSI 驱动不支持设置存储容量，此处 requests.storage 填写任意小于 PV capacity 的有效值即可
+  # 由于目前 JuiceFS CSI 驱动不支持给静态 PV 设置存储容量，此处 requests.storage 填写任意小于 PV capacity 的有效值即可
   resources:
     requests:
       storage: 10Pi
@@ -313,7 +313,8 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      storage: 10Pi
+      # 从 StorageClass 中申请 10GiB 存储容量
+      storage: 10Gi
   storageClassName: juicefs-sc
 ---
 apiVersion: v1
@@ -703,12 +704,38 @@ spec:
 
 ### PV 容量分配 {#storage-capacity}
 
-目前而言，JuiceFS CSI 驱动不支持设置存储容量。在 PersistentVolume 和 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
+目前而言，JuiceFS CSI 驱动仅支持为动态 PersistentVolume 设置存储容量。在静态 PersistentVolume 与其 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
 
 ```yaml
+...
+storageClassName: ""
 resources:
   requests:
     storage: 100Gi
+```
+
+而在使用 StorageClass 的 PersistentVolumeClaim 中指定存储容量是有效的：
+
+```yaml
+...
+storageClassName: juicefs-sc
+resources:
+  requests:
+    storage: 100Gi
+```
+
+:::note 注意
+存储容量只对该 PersistentVolumeClaim 所使用的子目录有效，不会影响整个 JuiceFS volume 的存储配额。
+:::
+
+我们可以在应用 Pod 中使用 `df` 查看存储容量：
+
+```bash
+$ df -h
+Filesystem         Size  Used Avail Use% Mounted on
+overlay             84G   66G   18G  80% /
+tmpfs               64M     0   64M   0% /dev
+JuiceFS:ce-secret  100G     0  100G   0% /data-0
 ```
 
 ### 访问模式 {#access-modes}

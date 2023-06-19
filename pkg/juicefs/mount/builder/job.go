@@ -30,6 +30,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
+const DefaultJobTTLSecond = int32(5)
+
 func (r *Builder) NewJobForCreateVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-createvol"
 	job := r.newJob(jobName)
@@ -64,7 +66,7 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 	secretName := jobName + "-secret"
 	r.jfsSetting.SecretName = secretName
 	podTemplate := r.generateJuicePod()
-	ttlSecond := int32(1)
+	ttlSecond := DefaultJobTTLSecond
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs && rmdir /mnt/jfs"}},
@@ -75,6 +77,9 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.JobTypeValue,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -92,13 +97,16 @@ func (r *Builder) newJob(jobName string) *batchv1.Job {
 
 func (r *Builder) newCleanJob(jobName string) *batchv1.Job {
 	podTemplate := r.generateCleanCachePod()
-	ttlSecond := int32(5)
+	ttlSecond := DefaultJobTTLSecond
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyNever
 	podTemplate.Spec.NodeName = config.NodeName
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.JobTypeValue,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{

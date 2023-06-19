@@ -175,6 +175,8 @@ rules:
   - update
   - patch
   - delete
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -341,7 +343,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.19.0
+        image: juicedata/juicefs-csi-driver:v0.20.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -588,6 +590,8 @@ rules:
   - update
   - patch
   - delete
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -726,7 +730,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.19.0
+        image: juicedata/juicefs-csi-driver:v0.20.0
         livenessProbe:
           failureThreshold: 5
           httpGet:

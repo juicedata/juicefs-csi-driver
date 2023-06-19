@@ -104,7 +104,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Leave the `%s` placeholder as-is, it'll be replaced with the actual file system name during runtime
+  # Replace $JUICEFS_CONSOLE_URL with the actual on-premise web console URL
   envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
@@ -165,7 +165,7 @@ metadata:
   labels:
     juicefs-name: ten-pb-fs
 spec:
-  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string is fine.
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PV. Fill in any valid string is fine.
   capacity:
     storage: 10Pi
   volumeMode: Filesystem
@@ -196,7 +196,7 @@ spec:
   # Must use an empty string as storageClassName
   # Meaning that this PV will not use any StorageClass, instead will use the PV specified by selector
   storageClassName: ""
-  # For now, JuiceFS CSI Driver doesn't support setting storage capacity. Fill in any valid string that's lower than the PV capacity.
+  # For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PV. Fill in any valid string that's lower than the PV capacity.
   resources:
     requests:
       storage: 10Pi
@@ -315,7 +315,8 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      storage: 10Pi
+      # request 10GiB storage capacity from StorageClass
+      storage: 10Gi
   storageClassName: juicefs-sc
 ---
 apiVersion: v1
@@ -705,12 +706,38 @@ You can also use tools provided by a community developer to automatically add `m
 
 ### PV storage capacity {#storage-capacity}
 
-For now, JuiceFS CSI Driver doesn't support setting storage capacity. the storage specified under PersistentVolume and PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
+For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PersistentVolume. the storage specified under static PersistentVolume and its PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
 
 ```yaml
+storageClassName: ""
 resources:
   requests:
     storage: 100Gi
+```
+
+However, setting storage capacity works on dynamic PersistentVolumeClaim referring StorageClass:
+
+```yaml
+...
+storageClassName: juicefs-sc
+resources:
+  requests:
+    storage: 100Gi
+```
+
+:::note
+The storage capacity only takes effects on the subpath used by this PersistentVolumeClaim,
+it does not affect the quota of the whole JuiceFS volume
+:::
+
+We can check the storage capacity by executing `df` command in the Pod which uses this PVC:
+
+```bash
+$ df -h
+Filesystem         Size  Used Avail Use% Mounted on
+overlay             84G   66G   18G  80% /
+tmpfs               64M     0   64M   0% /dev
+JuiceFS:ce-secret  100G     0  100G   0% /data-0
 ```
 
 ### Access modes {#access-modes}
