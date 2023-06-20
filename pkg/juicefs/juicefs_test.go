@@ -1314,6 +1314,15 @@ func Test_parseRawVersion(t *testing.T) {
 			},
 		},
 		{
+			name: "test-normal5",
+			raw:  "juicefs version 1.0.4+2023-04-06.f1c475d9",
+			want: clientVersion{
+				Major: 1,
+				Minor: 0,
+				Patch: 4,
+			},
+		},
+		{
 			name: "test-error",
 			raw:  "juicefs version 0.11",
 			want: clientVersion{},
