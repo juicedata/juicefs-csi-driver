@@ -94,6 +94,31 @@ storageClasses:
         memory: "5Gi"
 ```
 
+## 为 Mount Pod 设置非抢占式 PriorityClass
+
+CSI Node 在创建 Mount Pod 时，会默认给其设置 PriorityClass 为 `system-node-critical`，目的是为了在机器资源不足时，Mount Pod 不会被驱逐。
+
+但在 Mount Pod 创建时，若机器资源不足，`system-node-critical` 会使得调度器为 Mount Pod 开启抢占，此时可能会影响到节点上已有的业务。若不希望现有的业务被影响，可以设置 Mount Pod 的 PriorityClass 为非抢占式的，具体方式如下：
+
+在集群中创建一个非抢占式 PriorityClass，更多 PriorityClass 信息参考[官方文档](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption)：
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: juicefs-mount-priority-nonpreempting
+value: 1000000000           # 值越大，优先级越高，范围为 -2,147,483,648 到 1,000,000,000（含）。应尽可能大，确保 Mount Pod 不会被驱逐
+preemptionPolicy: Never     # 非抢占式
+globalDefault: false
+description: "This priority class used by JuiceFS Mount Pod."
+```
+
+然后为 CSI Node Service 添加 `JUICEFS_MOUNT_PRIORITY_NAME` 这个环境变量，值为上述 PriorityClass 名：
+
+```shell
+kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting
+```
+
 ## 为相同的 StorageClass 复用 Mount Pod
 
 默认情况下，仅在多个应用 Pod 使用相同 PV 时，Mount Pod 才会被复用。如果你希望进一步降低开销，可以更加激进地复用 Mount Pod，让使用相同 StorageClass 创建出来的所有 PV，都复用同一个 Mount Pod（当然了，复用只能发生在同一个节点）。不同的应用 Pod，将会绑定挂载点下不同的路径，实现一个挂载点为多个应用容器提供服务。

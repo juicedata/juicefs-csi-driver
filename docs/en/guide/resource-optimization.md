@@ -94,6 +94,31 @@ storageClasses:
         memory: "5Gi"
 ```
 
+## Set Non-preempting PriorityClass for Mount Pod
+
+When CSI Node creates a Mount Pod, it will set PriorityClass to `system-node-critical` by default, so that the Mount Pod will not be evicted when the node resources are insufficient.
+
+However, when the Mount Pod is created, if the node resources are insufficient, `system-node-critical` will cause scheduler to enable preemption for the Mount Pod, which may affect the existing pods on the node. If you do not want the existing pods to be affected, you can set the PriorityClass of the Mount Pod to be Non-preempting, as follows:
+
+Create a Non-preempting PriorityClass in cluster. For more information about PriorityClass, refer to [Official Documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption):
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: juicefs-mount-priority-nonpreempting
+value: 1000000000           # The higher the value, the higher the priority, and the range is -2147483648 to 1000000000 inclusive. Should be as large as possible to ensure Mount Pods are not evicted
+preemptionPolicy: Never     # Non-preempting
+globalDefault: false
+description: "This priority class used by JuiceFS Mount Pod."
+```
+
+Then add the `JUICEFS_MOUNT_PRIORITY_NAME` environment variable to the CSI Node Service, with the value of the PriorityClass name created above.
+
+```shell
+kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting
+```
+
 ## Share mount pod for the same StorageClass
 
 By default, mount pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share mount pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one mount pod is serving multiple application pods.
