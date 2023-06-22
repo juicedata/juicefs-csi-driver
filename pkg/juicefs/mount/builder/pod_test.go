@@ -75,7 +75,7 @@ var (
 						},
 					},
 				}, {
-					Name: "updatedb",
+					Name: UpdateDBDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: "/etc/updatedb.conf",
@@ -106,7 +106,7 @@ var (
 						MountPropagation: &mp,
 					}, {
 
-						Name:             "updatedb",
+						Name:             UpdateDBDirName,
 						MountPath:        "/etc/updatedb.conf",
 						MountPropagation: &mp,
 					},

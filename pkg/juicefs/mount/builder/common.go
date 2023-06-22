@@ -93,7 +93,7 @@ func (r *Builder) getVolumes() []corev1.Volume {
 				Type: &dir,
 			},
 		}}, {
-		Name: "updatedb",
+		Name: UpdateDBDirName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/etc/updatedb.conf",
@@ -158,7 +158,7 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
 	}, {
-		Name:             "updatedb",
+		Name:             UpdateDBDirName,
 		MountPath:        "/etc/updatedb.conf",
 		MountPropagation: &mp,
 	}}
