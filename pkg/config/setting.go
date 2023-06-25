@@ -225,6 +225,12 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	}
 
 	jfsSetting.ServiceAccountName = CSIPod.Spec.ServiceAccountName
+
+	var preemptionPolicy = CSIPod.Spec.PreemptionPolicy
+	if JFSMountPreemptionPolicy != "" {
+		policy := corev1.PreemptionPolicy(JFSMountPreemptionPolicy)
+		preemptionPolicy = &policy
+	}
 	// inherit attr from csi
 	jfsSetting.Attr = PodAttr{
 		Namespace:            Namespace,
@@ -238,7 +244,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		DNSConfig:            CSIPod.Spec.DNSConfig,
 		DNSPolicy:            CSIPod.Spec.DNSPolicy,
 		ImagePullSecrets:     CSIPod.Spec.ImagePullSecrets,
-		PreemptionPolicy:     CSIPod.Spec.PreemptionPolicy,
+		PreemptionPolicy:     preemptionPolicy,
 		Tolerations:          CSIPod.Spec.Tolerations,
 	}
 	if jfsSetting.IsCe {
