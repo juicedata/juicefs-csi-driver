@@ -113,10 +113,11 @@ globalDefault: false
 description: "This priority class used by JuiceFS Mount Pod."
 ```
 
-然后为 CSI Node Service 添加 `JUICEFS_MOUNT_PRIORITY_NAME` 这个环境变量，值为上述 PriorityClass 名：
+然后为 CSI Node Service 和 CSI Controller Service 添加 `JUICEFS_MOUNT_PRIORITY_NAME` 这个环境变量，值为上述 PriorityClass 名，同时添加环境变量 `JUICEFS_MOUNT_PREEMPTION_POLICY` 为 `Never`，设置 Mount Pod 的抢占策略为 Never：
 
 ```shell
-kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting
+kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
+kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
 ```
 
 ## 为相同的 StorageClass 复用 Mount Pod

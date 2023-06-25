@@ -113,10 +113,11 @@ globalDefault: false
 description: "This priority class used by JuiceFS Mount Pod."
 ```
 
-Then add the `JUICEFS_MOUNT_PRIORITY_NAME` environment variable to the CSI Node Service, with the value of the PriorityClass name created above.
+Then add the `JUICEFS_MOUNT_PRIORITY_NAME` environment variable to the CSI Node Service, with the value of the PriorityClass name created above, and add environment variable `JUICEFS_MOUNT_PREEMPTION_POLICY` with value `Never` to set the preemption policy for the Mount Pod to Never.
 
 ```shell
-kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting
+kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
+kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
 ```
 
 ## Share mount pod for the same StorageClass
