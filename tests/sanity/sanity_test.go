@@ -20,10 +20,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/kubernetes-csi/csi-test/pkg/sanity"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	sanity "github.com/kubernetes-csi/csi-test/pkg/sanity"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 )
