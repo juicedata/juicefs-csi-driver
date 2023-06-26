@@ -45,9 +45,10 @@ var (
 
 	CSIPod = corev1.Pod{}
 
-	MountPointPath       = "/var/lib/juicefs/volume"
-	JFSConfigPath        = "/var/lib/juicefs/config"
-	JFSMountPriorityName = "system-node-critical"
+	MountPointPath           = "/var/lib/juicefs/volume"
+	JFSConfigPath            = "/var/lib/juicefs/config"
+	JFSMountPriorityName     = "system-node-critical"
+	JFSMountPreemptionPolicy = ""
 
 	TmpPodMountBase = "/tmp"
 	PodMountBase    = "/jfs"

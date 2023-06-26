@@ -49,6 +49,7 @@ func parseNodeConfig() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	jfsMountPreemptionPolicy := os.Getenv("JUICEFS_MOUNT_PREEMPTION_POLICY")
 	if timeout := os.Getenv("JUICEFS_RECONCILE_TIMEOUT"); timeout != "" {
 		duration, _ := time.ParseDuration(timeout)
 		if duration > config.ReconcileTimeout {
@@ -58,6 +59,10 @@ func parseNodeConfig() {
 
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
+	}
+
+	if jfsMountPreemptionPolicy != "" {
+		config.JFSMountPreemptionPolicy = jfsMountPreemptionPolicy
 	}
 
 	if mountPodImage := os.Getenv("JUICEFS_CE_MOUNT_IMAGE"); mountPodImage != "" {

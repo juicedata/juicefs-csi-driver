@@ -102,7 +102,7 @@ func parseRawVersion(rawVersion string) (*clientVersion, error) {
 }
 
 func parseVersion(version string) (*clientVersion, error) {
-	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$`)
+	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:[+-](.+))?$`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(version))
 	if matches == nil {
 		return nil, fmt.Errorf("invalid version string: %s", version)
