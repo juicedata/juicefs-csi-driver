@@ -22,8 +22,9 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"k8s.io/utils/mount"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 )
 
 type fakeJfs struct {
@@ -79,6 +80,10 @@ func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath st
 
 func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
 	return "", nil
+}
+
+func (j *fakeJfsProvider) GetSubPath(ctx context.Context, volumeID string) (string, error) {
+	return volumeID, nil
 }
 
 func newFakeJfsProvider() *fakeJfsProvider {
