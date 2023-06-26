@@ -94,33 +94,37 @@ storageClasses:
         memory: "5Gi"
 ```
 
-## Set Non-preempting PriorityClass for Mount Pod
+## Set non-preempting PriorityClass for Mount Pod {#set-non-preempting-priorityclass-for-mount-pod}
+
+:::tip
+If the mount mode of CSI Driver is ["Sidecar mode"](../introduction.md#sidecar), the following problems will not be encountered.
+:::
 
 When CSI Node creates a Mount Pod, it will set PriorityClass to `system-node-critical` by default, so that the Mount Pod will not be evicted when the node resources are insufficient.
 
 However, when the Mount Pod is created, if the node resources are insufficient, `system-node-critical` will cause scheduler to enable preemption for the Mount Pod, which may affect the existing pods on the node. If you do not want the existing pods to be affected, you can set the PriorityClass of the Mount Pod to be Non-preempting, as follows:
 
-Create a Non-preempting PriorityClass in cluster. For more information about PriorityClass, refer to [Official Documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption):
+1. Create a Non-preempting PriorityClass in cluster. For more information about PriorityClass, refer to [Official Documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption):
 
-```yaml
-apiVersion: scheduling.k8s.io/v1
-kind: PriorityClass
-metadata:
-  name: juicefs-mount-priority-nonpreempting
-value: 1000000000           # The higher the value, the higher the priority, and the range is -2147483648 to 1000000000 inclusive. Should be as large as possible to ensure Mount Pods are not evicted
-preemptionPolicy: Never     # Non-preempting
-globalDefault: false
-description: "This priority class used by JuiceFS Mount Pod."
-```
+   ```yaml
+   apiVersion: scheduling.k8s.io/v1
+   kind: PriorityClass
+   metadata:
+     name: juicefs-mount-priority-nonpreempting
+   value: 1000000000           # The higher the value, the higher the priority, and the range is -2147483648 to 1000000000 inclusive. Should be as large as possible to ensure Mount Pods are not evicted
+   preemptionPolicy: Never     # Non-preempting
+   globalDefault: false
+   description: "This priority class used by JuiceFS Mount Pod."
+   ```
 
-Then add the `JUICEFS_MOUNT_PRIORITY_NAME` environment variable to the CSI Node Service, with the value of the PriorityClass name created above, and add environment variable `JUICEFS_MOUNT_PREEMPTION_POLICY` with value `Never` to set the preemption policy for the Mount Pod to Never.
+2. Add the `JUICEFS_MOUNT_PRIORITY_NAME` environment variable to the CSI Node Service, with the value of the PriorityClass name created above, and add environment variable `JUICEFS_MOUNT_PREEMPTION_POLICY` with value `Never` to set the preemption policy for the Mount Pod to Never.
 
-```shell
-kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
-kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
-```
+   ```shell
+   kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
+   kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
+   ```
 
-## Share mount pod for the same StorageClass
+## Share mount pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
 
 By default, mount pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share mount pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one mount pod is serving multiple application pods.
 
@@ -132,7 +136,7 @@ kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STOR
 
 Evidently, more aggressive sharing policy means lower isolation level, mount pod crashes will bring worse consequences, so if you do decide to use mount pod sharing, make sure to enable [automatic mount point recovery](./pv.md#automatic-mount-point-recovery) as well, and [increase mount pod resources](#mount-pod-resources).
 
-## Clean cache when mount pod exits
+## Clean cache when mount pod exits {#clean-cache-when-mount-pod-exits}
 
 Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
@@ -254,7 +258,7 @@ JuiceFS CSI Driver consists of CSI Controller, CSI Node Service and Mount Pod. R
 
 By default, CSI Node Service (DaemonSet) will run on all nodes, users may want to run it only on nodes that really need to use JuiceFS, to further reduce resource usage.
 
-### Add node label
+### Add node label {#add-node-label}
 
 Add label for nodes that actually need to use JuiceFS, for example, mark nodes that need to run model training:
 
@@ -263,7 +267,7 @@ Add label for nodes that actually need to use JuiceFS, for example, mark nodes t
 kubectl label node [node-1] [node-2] app=model-training
 ```
 
-### Modify JuiceFS CSI Driver installation configuration
+### Modify JuiceFS CSI Driver installation configuration {#modify-juicefs-csi-driver-installation-configuration}
 
 Apart from `nodeSelector`, Kubernetes also offer other mechanisms to control pod scheduling, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node).
 
@@ -274,6 +278,7 @@ Add `nodeSelector` in `values.yaml`:
 ```yaml title="values.yaml"
 node:
   nodeSelector:
+    # Adjust accordingly
     app: model-training
 ```
 
@@ -285,7 +290,7 @@ helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 #### Install via kubectl
 
-Either edit `juicefs-csi-node.yaml` and run `kubectl apply -f juicefs-csi-node.yaml`, or edit directly using `kubectl -n kube-system edit daemonset juicefs-csi-node`, add the `nodeSelector` part:
+Add `nodeSelector` in [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml):
 
 ```yaml {11-13} title="k8s.yaml"
 apiVersion: apps/v1
@@ -299,7 +304,7 @@ spec:
   template:
     spec:
       nodeSelector:
-        # adjust accordingly
+        # Adjust accordingly
         app: model-training
       containers:
       - name: juicefs-plugin
@@ -307,7 +312,13 @@ spec:
 ...
 ```
 
-## Uninstall CSI Controller
+Install JuiceFS CSI Driver:
+
+```shell
+kubectl apply -f k8s.yaml
+```
+
+## Uninstall JuiceFS CSI Controller {#uninstall-juicefs-csi-controller}
 
 The CSI Controller component exists for a single purpose: PV provisioning when using [Dynamic Provisioning](./pv.md#dynamic-provisioning). So if you have no use for dynamic provisioning, you can safely uninstall CSI Controller, leaving only CSI Node Service:
 
