@@ -272,7 +272,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 
 	capacity, err := strconv.ParseInt(strconv.FormatInt(newSize, 10), 10, 64)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", capacity, err)
+		return nil, status.Errorf(codes.Internal, "invalid capacity %d: %v", capacity, err)
 	}
 
 	// get quota path

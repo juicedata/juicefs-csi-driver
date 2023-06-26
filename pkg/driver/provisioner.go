@@ -126,10 +126,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 						Name:      sc.Parameters[config.PublishSecretName],
 						Namespace: sc.Parameters[config.PublishSecretNamespace],
 					},
-					ControllerExpandSecretRef: &corev1.SecretReference{
-						Name:      sc.Parameters[config.ControllerExpandSecretName],
-						Namespace: sc.Parameters[config.ControllerExpandSecretNamespace],
-					},
 				},
 			},
 			AccessModes:                   options.PVC.Spec.AccessModes,
@@ -138,6 +134,12 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			MountOptions:                  options.StorageClass.MountOptions,
 			VolumeMode:                    options.PVC.Spec.VolumeMode,
 		},
+	}
+	if sc.Parameters[config.ControllerExpandSecretName] != "" && sc.Parameters[config.ControllerExpandSecretNamespace] != "" {
+		pv.Spec.CSI.ControllerExpandSecretRef = &corev1.SecretReference{
+			Name:      sc.Parameters[config.ControllerExpandSecretName],
+			Namespace: sc.Parameters[config.ControllerExpandSecretNamespace],
+		}
 	}
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }

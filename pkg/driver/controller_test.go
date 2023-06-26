@@ -416,13 +416,22 @@ func TestControllerGetCapabilities(t *testing.T) {
 			fields: fields{},
 			args:   args{},
 			want: &csi.ControllerGetCapabilitiesResponse{
-				Capabilities: []*csi.ControllerServiceCapability{{
-					Type: &csi.ControllerServiceCapability_Rpc{
-						Rpc: &csi.ControllerServiceCapability_RPC{
-							Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+				Capabilities: []*csi.ControllerServiceCapability{
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+							},
 						},
 					},
-				}},
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+							},
+						},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -799,48 +808,6 @@ func Test_controllerService_ListSnapshots(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ListSnapshots() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_controllerService_ControllerExpandVolume(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
-	type args struct {
-		ctx context.Context
-		req *csi.ControllerExpandVolumeRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *csi.ControllerExpandVolumeResponse
-		wantErr bool
-	}{
-		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &controllerService{
-				juicefs: tt.fields.juicefs,
-				vols:    tt.fields.vols,
-			}
-			got, err := d.ControllerExpandVolume(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ControllerExpandVolume() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ControllerExpandVolume() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
