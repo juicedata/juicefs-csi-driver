@@ -103,6 +103,7 @@ def check_mount_point(check_path):
             raise e
     return False
 
+
 def check_quota(name, expected):
     output = ""
     for i in range(0, 10):
@@ -126,6 +127,7 @@ def check_quota(name, expected):
         LOG.info("df -h result: {}".format(process.stdout))
         return
     raise Exception("quota is not set:\n{}".format(output))
+
 
 def wait_dir_empty(check_path):
     LOG.info(f"check path {check_path} empty")
