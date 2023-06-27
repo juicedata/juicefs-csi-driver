@@ -141,7 +141,9 @@ class PVC:
 
     def update_capacity(self, capacity):
         pvc = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
-        pvc.spec.resources["requests"]["storage"] = capacity
+        pvc.spec.resources = client.V1ResourceRequirements(
+            requests={"storage": capacity}
+        )
         client.CoreV1Api().replace_namespaced_persistent_volume_claim(
             name=self.name, namespace=self.namespace, body=pvc
         )
