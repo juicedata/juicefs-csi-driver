@@ -303,7 +303,7 @@ spec:
           imagePullPolicy: Always
           args:
             - --csi-address=$(ADDRESS)
-            - --enable-leader-election
+            - --leader-election
             - --v=2
           env:
             - name: ADDRESS
