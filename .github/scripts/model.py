@@ -89,6 +89,8 @@ class StorageClass:
                 "csi.storage.k8s.io/node-publish-secret-namespace": self.secret_namespace,
                 "csi.storage.k8s.io/provisioner-secret-name": self.secret_name,
                 "csi.storage.k8s.io/provisioner-secret-namespace": self.secret_namespace,
+                "csi.storage.k8s.io/controller-expand-secret-name": self.secret_name,
+                "csi.storage.k8s.io/controller-expand-secret-namespace": self.secret_namespace,
                 "juicefs/mount-cpu-limit": "5",
                 "juicefs/mount-memory-limit": "5Gi",
                 "juicefs/mount-cpu-request": "100m",
