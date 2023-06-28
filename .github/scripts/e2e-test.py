@@ -89,6 +89,7 @@ if __name__ == "__main__":
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
                 test_dynamic_pvc_delete_not_last_with_path_pattern()
+                test_quota_using_storage_rw()
                 test_dynamic_expand()
 
             elif test_mode == "webhook":
@@ -118,6 +119,7 @@ if __name__ == "__main__":
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
                 test_job_complete_using_storage()
+                test_quota_using_storage_rw()
                 test_dynamic_expand()
 
             elif test_mode == "process":
