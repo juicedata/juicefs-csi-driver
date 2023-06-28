@@ -31,6 +31,7 @@ var (
 	Provisioner  = false // provisioner in controller
 	MountManager = false // manage mount pod in controller (only in k8s)
 	Webhook      = false // inject juicefs client as sidecar in pod (only in k8s)
+	Immutable    = false // csi driver is running in an immutable environment
 
 	NodeName           = ""
 	Namespace          = ""

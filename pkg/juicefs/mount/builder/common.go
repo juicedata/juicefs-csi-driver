@@ -31,6 +31,7 @@ const (
 	JfsDirName      = "jfs-dir"
 	JfsRootDirName  = "jfs-root-dir"
 	UpdateDBDirName = "updatedb"
+	UpdateDBCfgFile = "/etc/updatedb.conf"
 )
 
 type Builder struct {
@@ -92,15 +93,20 @@ func (r *Builder) getVolumes() []corev1.Volume {
 				Path: config.MountPointPath,
 				Type: &dir,
 			},
-		}}, {
-		Name: UpdateDBDirName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/etc/updatedb.conf",
-				Type: &file,
-			},
 		},
 	}}
+
+	if !config.Immutable {
+		volumes = append(volumes, corev1.Volume{
+			Name: UpdateDBDirName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: UpdateDBCfgFile,
+					Type: &file,
+				},
+			}})
+	}
+
 	if r.jfsSetting.FormatCmd != "" {
 		// initContainer will generate xx.conf to share with mount container
 		volumes = append(volumes, corev1.Volume{
@@ -157,11 +163,16 @@ func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 		Name:             JfsDirName,
 		MountPath:        config.PodMountBase,
 		MountPropagation: &mp,
-	}, {
-		Name:             UpdateDBDirName,
-		MountPath:        "/etc/updatedb.conf",
-		MountPropagation: &mp,
 	}}
+
+	if !config.Immutable {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:             UpdateDBDirName,
+			MountPath:        UpdateDBCfgFile,
+			MountPropagation: &mp,
+		})
+	}
+
 	if r.jfsSetting.FormatCmd != "" {
 		// initContainer will generate xx.conf to share with mount container
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{

@@ -78,7 +78,7 @@ var (
 					Name: UpdateDBDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: "/etc/updatedb.conf",
+							Path: UpdateDBCfgFile,
 							Type: &file,
 						},
 					},
@@ -107,7 +107,7 @@ var (
 					}, {
 
 						Name:             UpdateDBDirName,
-						MountPath:        "/etc/updatedb.conf",
+						MountPath:        UpdateDBCfgFile,
 						MountPropagation: &mp,
 					},
 				},
