@@ -129,7 +129,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 	return nil
 }
 
-func (p *ProcessMount) JMount(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+func (p *ProcessMount) JMount(ctx context.Context, _ *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
 	// create subpath if readonly mount
 	if jfsSetting.SubPath != "" {
 		if util.ContainsString(jfsSetting.Options, "read-only") || util.ContainsString(jfsSetting.Options, "ro") {

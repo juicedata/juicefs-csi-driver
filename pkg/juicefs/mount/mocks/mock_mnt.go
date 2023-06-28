@@ -138,17 +138,17 @@ func (mr *MockMntInterfaceMockRecorder) JDeleteVolume(arg0, arg1 interface{}) *g
 }
 
 // JMount mocks base method.
-func (m *MockMntInterface) JMount(arg0 context.Context, arg1 *config.JfsSetting) error {
+func (m *MockMntInterface) JMount(arg0 context.Context, arg1 *config.AppInfo, arg2 *config.JfsSetting) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "JMount", arg0, arg1)
+	ret := m.ctrl.Call(m, "JMount", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // JMount indicates an expected call of JMount.
-func (mr *MockMntInterfaceMockRecorder) JMount(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMntInterfaceMockRecorder) JMount(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JMount", reflect.TypeOf((*MockMntInterface)(nil).JMount), arg0, arg1, arg2)
 }
 
 // JUmount mocks base method.

@@ -1,20 +1,20 @@
 /*
-Copyright 2021 Juicedata Inc
+ Copyright 2023 Juicedata Inc
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
-package controller
+package k8sclient
 
 import (
 	"encoding/json"
@@ -38,7 +38,7 @@ const (
 	serviceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
-type kubeletClient struct {
+type KubeletClient struct {
 	host   string
 	port   int
 	client *http.Client
@@ -108,7 +108,7 @@ func (c *KubeletClientConfig) transportConfig() *transport.Config {
 	return cfg
 }
 
-func newKubeletClient(host string, port int) (*kubeletClient, error) {
+func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 	var token string
 	var err error
 	kubeletClientCert := os.Getenv("KUBELET_CLIENT_CERT")
@@ -146,7 +146,7 @@ func newKubeletClient(host string, port int) (*kubeletClient, error) {
 		return nil, err
 	}
 
-	return &kubeletClient{
+	return &KubeletClient{
 		host: config.Address,
 		port: config.Port,
 		client: &http.Client{
@@ -156,7 +156,7 @@ func newKubeletClient(host string, port int) (*kubeletClient, error) {
 	}, nil
 }
 
-func (kc *kubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
+func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
 	if err != nil {
 		return nil, err
@@ -164,6 +164,9 @@ func (kc *kubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+	if string(body) == "Unauthorized" {
+		return nil, fmt.Errorf("unauthorized")
 	}
 	podLists := &corev1.PodList{}
 	if err = json.Unmarshal(body, &podLists); err != nil {
