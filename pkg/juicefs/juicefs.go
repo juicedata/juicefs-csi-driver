@@ -315,7 +315,11 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err != nil {
 		return nil, err
 	}
-	mountPath, err := j.MountFs(ctx, jfsSetting)
+	appInfo, err := config.ParseAppInfo(volCtx)
+	if err != nil {
+		return nil, err
+	}
+	mountPath, err := j.MountFs(ctx, appInfo, jfsSetting)
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +801,7 @@ func (j *juicefs) GetSubPath(ctx context.Context, volumeID string) (string, erro
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
+func (j *juicefs) MountFs(ctx context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
 		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.UniqueId)
@@ -807,7 +811,7 @@ func (j *juicefs) MountFs(ctx context.Context, jfsSetting *config.JfsSetting) (s
 		mnt = j.processMount
 	}
 
-	err := mnt.JMount(ctx, jfsSetting)
+	err := mnt.JMount(ctx, appInfo, jfsSetting)
 	if err != nil {
 		return "", err
 	}
