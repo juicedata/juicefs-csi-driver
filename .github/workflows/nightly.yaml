@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - fix/dockerfile
   schedule:
     - cron: "0 0 * * *"
 
