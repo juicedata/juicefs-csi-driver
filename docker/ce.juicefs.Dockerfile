@@ -21,7 +21,7 @@ ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev && sudo mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_amd64.deb && \
     sudo dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb /home/travis/.m2/foundationdb-server_6.3.23-1_amd64.deb && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \

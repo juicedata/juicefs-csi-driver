@@ -26,7 +26,7 @@ RUN apt update && apt install -y software-properties-common && apt update && \
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev && sudo mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_amd64.deb && \
     sudo dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb /home/travis/.m2/foundationdb-server_6.3.23-1_amd64.deb && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
