@@ -59,8 +59,8 @@ RUN chmod +x /tini
 RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 && apt update && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
     apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
-    wget -O - https://download.gluster.org/pub/gluster/glusterfs/11/rsa.pub | apt-key add - && \
-    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
+    wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
+    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     apt update
 
 RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof uuid-dev libglusterfs-dev && \
