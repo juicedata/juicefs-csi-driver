@@ -3,6 +3,7 @@
 function main() {
   deployMode=$1
   withoutKubelet=$2
+  prepare_pkg
   echo "deployMode: " $deployMode
   echo "withoutKubelet: " $withoutKubelet
   if [ $withoutKubelet == "withoutkubelet" ]; then
@@ -14,6 +15,28 @@ function main() {
   else
     deploy_csi $deployMode
   fi
+}
+
+function prepare_pkg() {
+  # ceph
+  sudo apt install -y software-properties-common
+  sudo wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+  sudo apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main'
+  sudo apt-get update
+  sudo apt-get install -y librados-dev libcephfs-dev librbd-dev
+
+  # fdb
+  sudo mkdir -p /home/travis/.m2
+  sudo wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_amd64.deb
+  sudo dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb
+
+  # gluster
+  sudo wget -O - https://download.gluster.org/pub/gluster/glusterfs/11/rsa.pub | sudo apt-key add -
+  sudo mkdir mkdir /etc/apt/sources.list.d/gluster.list
+  sudo chmod 777 /etc/apt/sources.list.d/gluster.list
+  sudo echo deb [arch=amd64] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/buster/amd64/apt buster main > /etc/apt/sources.list.d/gluster.list
+  sudo apt-get update
+  sudo apt-get install -y uuid-dev libglusterfs-dev
 }
 
 function deploy_csi() {
