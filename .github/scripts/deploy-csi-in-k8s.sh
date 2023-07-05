@@ -31,10 +31,10 @@ function prepare_pkg() {
   sudo dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_amd64.deb
 
   # gluster
-  sudo wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | sudo apt-key add -
+  sudo wget -O - https://download.gluster.org/pub/gluster/glusterfs/7/rsa.pub | sudo apt-key add -
   sudo mkdir mkdir /etc/apt/sources.list.d/gluster.list
   sudo chmod 777 /etc/apt/sources.list.d/gluster.list
-  sudo echo deb [arch=amd64] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/amd64/apt buster main > /etc/apt/sources.list.d/gluster.list
+  sudo echo deb [arch=amd64] https://download.gluster.org/pub/gluster/glusterfs/7/LATEST/Debian/buster/amd64/apt buster main > /etc/apt/sources.list.d/gluster.list
   sudo apt-get update
   sudo apt-get install -y uuid-dev libglusterfs-dev
 }
