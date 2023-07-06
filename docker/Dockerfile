@@ -29,7 +29,7 @@ RUN apt update && apt install -y software-properties-common && apt update && \
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev glusterfs-client && mkdir -p /home/travis/.m2 && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev uuid-dev libglusterfs-dev glusterfs-common && mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
@@ -63,7 +63,7 @@ RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 &&
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/7/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     apt update
 
-RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof uuid-dev libglusterfs-dev glusterfs-client && \
+RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof uuid-dev libglusterfs-dev glusterfs-common && \
     mkdir -p /home/travis/.m2 && wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     rm -rf /var/cache/apt/* && \
