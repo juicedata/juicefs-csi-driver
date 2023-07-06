@@ -5,34 +5,10 @@ on:
   push:
     branches:
       - master
-      - fix/dockerfile
   schedule:
     - cron: "0 0 * * *"
 
 jobs:
-  image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: technote-space/workflow-conclusion-action@v3
-      - uses: actions/checkout@v3
-
-      - name: Buildx and Push docker image nightly
-        env:
-          PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
-          #          JFSCHAN: beta
-          CEVERSION: ce-nightly
-          EEVERSION: ee-nightly
-        run: |
-          docker login --username chnliyong --password ${PASSWORD}
-          make image-nightly
-          make image-nightly-push
-          make ce-image
-          make ee-image
-          make fuse-image-nightly
-      - name: Success
-        if: ${{ success() }}
-        run: echo "All Done"
-
   build-matrix:
     runs-on: ubuntu-latest
     steps:
