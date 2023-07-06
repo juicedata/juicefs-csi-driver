@@ -36,7 +36,7 @@ function prepare_pkg() {
   sudo chmod 777 /etc/apt/sources.list.d/gluster.list
   sudo echo deb [arch=amd64] https://download.gluster.org/pub/gluster/glusterfs/7/LATEST/Debian/buster/amd64/apt buster main > /etc/apt/sources.list.d/gluster.list
   sudo apt-get update
-  sudo apt-get install -y uuid-dev libglusterfs-dev
+  sudo apt-get install -y uuid-dev libglusterfs-dev glusterfs-client
 }
 
 function deploy_csi() {
