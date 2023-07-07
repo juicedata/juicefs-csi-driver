@@ -101,7 +101,7 @@ func parseRawVersion(rawVersion string) (*clientVersion, error) {
 }
 
 func parseVersion(version string) (*clientVersion, error) {
-	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$`)
+	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:[+-](.+))?$`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(version))
 	if matches == nil {
 		return nil, fmt.Errorf("invalid version string: %s", version)
@@ -314,7 +314,11 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err != nil {
 		return nil, err
 	}
-	mountPath, err := j.MountFs(ctx, jfsSetting)
+	appInfo, err := config.ParseAppInfo(volCtx)
+	if err != nil {
+		return nil, err
+	}
+	mountPath, err := j.MountFs(ctx, appInfo, jfsSetting)
 	if err != nil {
 		return nil, err
 	}
@@ -736,19 +740,6 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
 
-	version, err := j.version(ctx, jfsSetting)
-	if err != nil {
-		return "", err
-	}
-	if jfsSetting.IsCe && version.LessThan(&clientVersion{1, 1, 0, ""}) {
-		klog.Infof("juicefs-ce version %s does not support quota, skipped", version)
-		return "", nil
-	}
-	if !jfsSetting.IsCe && version.LessThan(&clientVersion{4, 9, 2, ""}) {
-		klog.Infof("juicefs-ee version %s does not support quota, skipped", version)
-		return "", nil
-	}
-
 	var args, cmdArgs []string
 	if jfsSetting.IsCe {
 		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
@@ -762,6 +753,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	defer cmdCancel()
 
 	var res []byte
+	var err error
 	if jfsSetting.IsCe {
 		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
 	} else {
@@ -785,7 +777,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 }
 
 // MountFs mounts JuiceFS with idempotency
-func (j *juicefs) MountFs(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
+func (j *juicefs) MountFs(ctx context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 	var mnt podmount.MntInterface
 	if jfsSetting.UsePod {
 		jfsSetting.MountPath = filepath.Join(config.PodMountBase, jfsSetting.UniqueId)
@@ -795,7 +787,7 @@ func (j *juicefs) MountFs(ctx context.Context, jfsSetting *config.JfsSetting) (s
 		mnt = j.processMount
 	}
 
-	err := mnt.JMount(ctx, jfsSetting)
+	err := mnt.JMount(ctx, appInfo, jfsSetting)
 	if err != nil {
 		return "", err
 	}

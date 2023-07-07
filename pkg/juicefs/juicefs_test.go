@@ -297,7 +297,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -328,7 +328,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -370,7 +370,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			jf := &juicefs{}
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -392,7 +392,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			jf := &juicefs{}
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
@@ -426,7 +426,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -664,7 +664,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 					Exec:      k8sexec.New(),
 				}),
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldBeNil)
 		})
 		Convey("not MountPoint err", func() {
@@ -694,7 +694,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			_, e := jfs.MountFs(ctx, jfsSetting)
+			_, e := jfs.MountFs(ctx, nil, jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("add ref err", func() {
@@ -721,7 +721,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(context.TODO(), jfsSetting).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(context.TODO(), nil, jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -731,7 +731,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				podMount:  mockMnt,
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("jmount err", func() {
@@ -757,7 +757,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(context.TODO(), jfsSetting).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(context.TODO(), nil, jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -767,7 +767,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("jmount", func() {
@@ -793,7 +793,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(true, nil)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(context.TODO(), jfsSetting).Return(nil)
+			mockMnt.EXPECT().JMount(context.TODO(), nil, jfsSetting).Return(nil)
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -803,7 +803,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldBeNil)
 		})
 		Convey("not exist jmount err", func() {
@@ -828,7 +828,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 
 			mockMount := mocks.NewMockInterface(mockCtl)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(context.TODO(), jfsSetting).Return(errors.New("test"))
+			mockMnt.EXPECT().JMount(context.TODO(), nil, jfsSetting).Return(errors.New("test"))
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -838,7 +838,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldNotBeNil)
 		})
 		Convey("not exist", func() {
@@ -863,7 +863,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 
 			mockMount := mocks.NewMockInterface(mockCtl)
 			mockMnt := mntmock.NewMockMntInterface(mockCtl)
-			mockMnt.EXPECT().JMount(context.TODO(), jfsSetting).Return(nil)
+			mockMnt.EXPECT().JMount(context.TODO(), nil, jfsSetting).Return(nil)
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{
@@ -873,7 +873,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 				K8sClient:    &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 				processMount: mockMnt,
 			}
-			_, e := jfs.MountFs(context.TODO(), jfsSetting)
+			_, e := jfs.MountFs(context.TODO(), nil, jfsSetting)
 			So(e, ShouldBeNil)
 		})
 	})
@@ -1311,6 +1311,15 @@ func Test_parseRawVersion(t *testing.T) {
 				Major: 4,
 				Minor: 10,
 				Patch: 0,
+			},
+		},
+		{
+			name: "test-normal5",
+			raw:  "juicefs version 1.0.4+2023-04-06.f1c475d9",
+			want: clientVersion{
+				Major: 1,
+				Minor: 0,
+				Patch: 4,
 			},
 		},
 		{

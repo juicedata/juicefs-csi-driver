@@ -41,7 +41,13 @@ func StartReconciler() error {
 	if err != nil {
 		return err
 	}
-	kc, err := newKubeletClient(config.HostIp, port)
+	kc, err := k8sclient.NewKubeletClient(config.HostIp, port)
+	if err != nil {
+		return err
+	}
+
+	// check if kubelet can be connected
+	_, err = kc.GetNodeRunningPods()
 	if err != nil {
 		return err
 	}
@@ -57,7 +63,7 @@ func StartReconciler() error {
 	return nil
 }
 
-func doReconcile(ks *k8sclient.K8sClient, kc *kubeletClient) {
+func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 	for {
 		ctx := context.TODO()
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)

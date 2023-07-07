@@ -616,7 +616,11 @@ func TestWaitUntilMount(t *testing.T) {
 				}
 				_, _ = p.K8sClient.CreatePod(context.TODO(), tt.pod)
 			}
-			podName, err := p.createOrAddRef(context.TODO(), tt.args.jfsSetting)
+			podName, err := p.genMountPodName(context.TODO(), tt.args.jfsSetting)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			err = p.createOrAddRef(context.TODO(), podName, tt.args.jfsSetting)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -656,7 +660,9 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			_, err := p.createOrAddRef(ctx, &jfsConfig.JfsSetting{Storage: "ttt"})
+			podName, err := p.genMountPodName(context.TODO(), &jfsConfig.JfsSetting{Storage: "ttt"})
+			So(err, ShouldBeNil)
+			err = p.createOrAddRef(ctx, podName, &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -686,7 +692,7 @@ func TestJMount(t *testing.T) {
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			err := p.JMount(ctx, &jfsConfig.JfsSetting{Storage: "ttt"})
+			err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldNotBeNil)
 		})
 	})

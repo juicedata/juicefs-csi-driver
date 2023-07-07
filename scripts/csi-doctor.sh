@@ -268,6 +268,7 @@ collect_mount_pod_msg() {
   PV_ID=$(${kbctl} get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
   MOUNT_POD_NAME=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
 
+  $kbctl logs "$MOUNT_POD_NAME" -n $juicefs_namespace -c jfs-format &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-init.log" 2>&1
   $kbctl logs "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.log" 2>&1
   $kbctl get po "$MOUNT_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.yaml" 2>&1
   $kbctl describe po "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-describe.log" 2>&1

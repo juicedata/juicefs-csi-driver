@@ -24,7 +24,9 @@ import (
 	"time"
 
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
@@ -49,6 +51,7 @@ func parseNodeConfig() {
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
+	jfsMountPreemptionPolicy := os.Getenv("JUICEFS_MOUNT_PREEMPTION_POLICY")
 	if timeout := os.Getenv("JUICEFS_RECONCILE_TIMEOUT"); timeout != "" {
 		duration, _ := time.ParseDuration(timeout)
 		if duration > config.ReconcileTimeout {
@@ -58,6 +61,10 @@ func parseNodeConfig() {
 
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
+	}
+
+	if jfsMountPreemptionPolicy != "" {
+		config.JFSMountPreemptionPolicy = jfsMountPreemptionPolicy
 	}
 
 	if mountPodImage := os.Getenv("JUICEFS_CE_MOUNT_IMAGE"); mountPodImage != "" {
@@ -123,10 +130,29 @@ func nodeRun() {
 	}()
 
 	// enable pod manager in csi node
-	if !process && podManager && config.KubeletPort != "" && config.HostIp != "" {
-		if err := controller.StartReconciler(); err != nil {
-			klog.V(5).Infof("Could not Start Reconciler: %v", err)
-			os.Exit(1)
+	if !process && podManager {
+		needStartPodManager := false
+		if config.KubeletPort != "" && config.HostIp != "" {
+			if err := controller.StartReconciler(); err != nil {
+				klog.V(5).Info("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
+				needStartPodManager = true
+			}
+		} else {
+			needStartPodManager = true
+		}
+
+		if needStartPodManager {
+			go func() {
+				ctx := ctrl.SetupSignalHandler()
+				mgr, err := app.NewPodManager()
+				if err != nil {
+					klog.Fatalln(err)
+				}
+
+				if err := mgr.Start(ctx); err != nil {
+					klog.Fatalln(err)
+				}
+			}()
 		}
 		klog.V(5).Infof("Pod Reconciler Started")
 	}

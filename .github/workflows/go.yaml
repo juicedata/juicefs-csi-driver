@@ -69,8 +69,103 @@ jobs:
           value=`printf '%s\n' "${testmode[@]}" | jq -R . | jq -cs .`
           echo "value: $value"
           echo "matrix=$value" >> $GITHUB_OUTPUT
+          
+          wtestmode=("pod" "pod-mount-share" "pod-provisioner")
+          value=`printf '%s\n' "${wtestmode[@]}" | jq -R . | jq -cs .`
+          echo "value without kubelet: $value"
+          echo "wmatrix=$value" >> $GITHUB_OUTPUT
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      wmatrix: ${{ steps.set-matrix.outputs.wmatrix }}
+
+  e2e-ce-without-kubelet-test:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        testmode: ${{ fromJson(needs.build-matrix.outputs.wmatrix) }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
+      - name: Deploy JuiceFS CSI
+        run: |
+          testmode=${{matrix.testmode}}
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh ${testmode} withoutkubelet
+      - name: Run e2e test
+        env:
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "ce-secret"
+          JUICEFS_META_URL: "redis://redis.default.svc.cluster.local:6379/1"
+          JUICEFS_MODE: ce
+          TEST_MODE: ${{matrix.testmode}}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 e2e-test.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  e2e-ee-without-kubelet-test:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        testmode: ${{ fromJson(needs.build-matrix.outputs.wmatrix) }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare microk8s environment
+        run: ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
+      - name: Build image
+        env:
+          DEV_K8S: microk8s
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          make image-dev
+          make push-dev
+      - name: Deploy JuiceFS CSI
+        run: |
+          testmode=${{matrix.testmode}}
+          cd ${GITHUB_WORKSPACE}
+          dev_tag=dev-$(git describe --always)
+          echo "Dev tag is: " $dev_tag
+          export dev_tag=$dev_tag
+          .github/scripts/deploy-csi-in-k8s.sh ${testmode} withoutkubelet
+      - name: Run e2e test
+        env:
+          JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
+          JUICEFS_STORAGE: s3
+          JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
+          JUICEFS_ACCESS_KEY: "minioadmin"
+          JUICEFS_SECRET_KEY: "minioadmin"
+          JUICEFS_NAME: "csi-ci"
+          JUICEFS_META_URL: ""
+          JUICEFS_MODE: "ee"
+          TEST_MODE: ${{matrix.testmode}}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          python3 e2e-test.py
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
 
   e2e-ce-test:
     runs-on: ubuntu-latest

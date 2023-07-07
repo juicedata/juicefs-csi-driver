@@ -45,9 +45,10 @@ var (
 
 	CSIPod = corev1.Pod{}
 
-	MountPointPath       = "/var/lib/juicefs/volume"
-	JFSConfigPath        = "/var/lib/juicefs/config"
-	JFSMountPriorityName = "system-node-critical"
+	MountPointPath           = "/var/lib/juicefs/volume"
+	JFSConfigPath            = "/var/lib/juicefs/config"
+	JFSMountPriorityName     = "system-node-critical"
+	JFSMountPreemptionPolicy = ""
 
 	TmpPodMountBase = "/tmp"
 	PodMountBase    = "/jfs"
@@ -75,6 +76,7 @@ const (
 	UniqueId             = "juicefs-uniqueid"
 	CleanCache           = "juicefs-clean-cache"
 	MountContainerName   = "jfs-mount"
+	JuiceFSMountPod      = "juicefs-mountpod"
 	JobTypeValue         = "juicefs-job"
 
 	// CSI Secret

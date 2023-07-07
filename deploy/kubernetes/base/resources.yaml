@@ -199,7 +199,7 @@ metadata:
   name: csi.juicefs.com
 spec:
   attachRequired: false
-  podInfoOnMount: false
+  podInfoOnMount: true
 ---
 
 kind: StatefulSet
@@ -228,7 +228,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.19.0
+          image: juicedata/juicefs-csi-driver:v0.20.1
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -353,7 +353,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.19.0
+          image: juicedata/juicefs-csi-driver:v0.20.1
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
