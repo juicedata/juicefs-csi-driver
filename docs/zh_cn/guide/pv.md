@@ -438,10 +438,11 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
 
-如果要额外添加 FUSE 相关选项（也就是挂载命令的 `-o` 参数），请直接在 YAML 列表中追加，每行一个选项：
+PV/StorageClass 中的 `mountOptions` 同时支持 JuiceFS 本身的挂载参数和 FUSE 相关选项（也就是挂载命令的 `-o` 参数）。因此如果要额外添加 FUSE 相关选项，请直接在 YAML 列表中追加，每行一个选项：
 
 ```yaml
 mountOptions:
+  # JuiceFS 本身的挂载参数
   - cache-size=204800
   # 额外的 FUSE 相关选项
   - writeback_cache
