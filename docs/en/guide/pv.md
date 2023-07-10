@@ -440,7 +440,13 @@ Mount options are different between Community Edition and Cloud Service, see:
 - [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
 - [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
 
-`mountOptions` in PV/StorageClass supports both JuiceFS mount options and FUSE related options (specified in command line using `-o`). If you need to pass extra FUSE options, append directly in the YAML list, one option in each line, as demonstrated below:
+`mountOptions` in PV/StorageClass supports both JuiceFS mount options and FUSE options. Keep in mind that although FUSE options is specified using `-o` when using JuiceFS command line, the `-o` is to be omitted inside CSI `mountOptions`, just append each option directly in the YAML list. For a mount command example like below:
+
+```shell
+juicefs mount ... --cache-size=204800 -o writeback_cache,debug
+```
+
+Translated to CSI `mountOptions`:
 
 ```yaml
 mountOptions:
