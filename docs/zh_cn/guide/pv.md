@@ -763,7 +763,7 @@ parameters:
 allowVolumeExpansion: true         # 表示支持扩容
 ```
 
-然后通过编辑 PVC 的 spec 字段，指定不同的（和更大的）存储请求， 可以触发 PersistentVolume 的扩充：
+然后通过编辑 PVC 的 spec 字段，指定不同的（和更大的）存储请求，可以触发 PersistentVolume 的扩充：
 
 ```yaml
 kind: PersistentVolumeClaim

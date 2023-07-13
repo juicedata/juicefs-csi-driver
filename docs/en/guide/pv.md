@@ -749,7 +749,7 @@ JuiceFS:ce-secret  100G     0  100G   0% /data-0
 
 ### PV expansion {#pv-resize}
 
-In JuiceFS CSI driver version 0.21.0 and above, PersistentVolume expansion is supported (only dynamic PersistentVolume is supported). You need to specify `allowVolumeExpansion: true` in StorageClass, and specify the Secret to be used when expanding the capacity, which mainly provides authentication information of the file system, for example:
+In JuiceFS CSI Driver version 0.21.0 and above, PersistentVolume expansion is supported (only dynamic PersistentVolume is supported). You need to specify `allowVolumeExpansion: true` in StorageClass, and specify the Secret to be used when expanding the capacity, which mainly provides authentication information of the file system, for example:
 
 ```yaml {8-10}
 apiVersion: storage.k8s.io/v1
