@@ -135,6 +135,12 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			VolumeMode:                    options.PVC.Spec.VolumeMode,
 		},
 	}
+	if sc.Parameters[config.ControllerExpandSecretName] != "" && sc.Parameters[config.ControllerExpandSecretNamespace] != "" {
+		pv.Spec.CSI.ControllerExpandSecretRef = &corev1.SecretReference{
+			Name:      sc.Parameters[config.ControllerExpandSecretName],
+			Namespace: sc.Parameters[config.ControllerExpandSecretNamespace],
+		}
+	}
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 
@@ -159,7 +165,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 	klog.V(6).Infof("Provisioner: there are no other pvs using the same subPath, volume %s can be deleted.", volume.Name)
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
-	secretName, secretNamespace := volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretName], volume.Spec.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
+	secretName, secretNamespace := volume.Spec.CSI.NodePublishSecretRef.Name, volume.Spec.CSI.NodePublishSecretRef.Namespace
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		klog.Errorf("Provisioner: Get Secret error: %v", err)

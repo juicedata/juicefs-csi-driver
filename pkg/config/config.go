@@ -80,10 +80,12 @@ const (
 	JobTypeValue         = "juicefs-job"
 
 	// CSI Secret
-	ProvisionerSecretName      = "csi.storage.k8s.io/provisioner-secret-name"
-	ProvisionerSecretNamespace = "csi.storage.k8s.io/provisioner-secret-namespace"
-	PublishSecretName          = "csi.storage.k8s.io/provisioner-secret-name"
-	PublishSecretNamespace     = "csi.storage.k8s.io/provisioner-secret-namespace"
+	ProvisionerSecretName           = "csi.storage.k8s.io/provisioner-secret-name"
+	ProvisionerSecretNamespace      = "csi.storage.k8s.io/provisioner-secret-namespace"
+	PublishSecretName               = "csi.storage.k8s.io/node-publish-secret-name"
+	PublishSecretNamespace          = "csi.storage.k8s.io/node-publish-secret-namespace"
+	ControllerExpandSecretName      = "csi.storage.k8s.io/controller-expand-secret-name"
+	ControllerExpandSecretNamespace = "csi.storage.k8s.io/controller-expand-secret-namespace"
 
 	// webhook
 	WebhookName          = "juicefs-admission-webhook"

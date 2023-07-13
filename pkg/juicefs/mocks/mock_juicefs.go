@@ -67,6 +67,21 @@ func (mr *MockInterfaceMockRecorder) GetMountRefs(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMountRefs", reflect.TypeOf((*MockInterface)(nil).GetMountRefs), arg0)
 }
 
+// GetSubPath mocks base method.
+func (m *MockInterface) GetSubPath(arg0 context.Context, arg1 string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSubPath", arg0, arg1)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSubPath indicates an expected call of GetSubPath.
+func (mr *MockInterfaceMockRecorder) GetSubPath(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubPath", reflect.TypeOf((*MockInterface)(nil).GetSubPath), arg0, arg1)
+}
+
 // IsLikelyNotMountPoint mocks base method.
 func (m *MockInterface) IsLikelyNotMountPoint(arg0 string) (bool, error) {
 	m.ctrl.T.Helper()

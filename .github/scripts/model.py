@@ -89,11 +89,14 @@ class StorageClass:
                 "csi.storage.k8s.io/node-publish-secret-namespace": self.secret_namespace,
                 "csi.storage.k8s.io/provisioner-secret-name": self.secret_name,
                 "csi.storage.k8s.io/provisioner-secret-namespace": self.secret_namespace,
+                "csi.storage.k8s.io/controller-expand-secret-name": self.secret_name,
+                "csi.storage.k8s.io/controller-expand-secret-namespace": self.secret_namespace,
                 "juicefs/mount-cpu-limit": "5",
                 "juicefs/mount-memory-limit": "5Gi",
                 "juicefs/mount-cpu-request": "100m",
                 "juicefs/mount-memory-request": "500Mi",
-            }
+            },
+            allow_volume_expansion=True,
         )
         if self.parameters:
             for k, v in self.parameters.items():
@@ -117,12 +120,13 @@ class PVC:
         self.pv = pv
         self.labels = labels
         self.annotations = annotations
+        self.capacity = "1Gi"
 
     def create(self):
         spec = client.V1PersistentVolumeClaimSpec(
             access_modes=[self.access_mode],
             resources=client.V1ResourceRequirements(
-                requests={"storage": "1Gi"}
+                requests={"storage": self.capacity}
             )
         )
         if self.pv != "":
@@ -136,6 +140,15 @@ class PVC:
         )
         client.CoreV1Api().create_namespaced_persistent_volume_claim(namespace=self.namespace, body=pvc)
         PVCs.append(self)
+
+    def update_capacity(self, capacity):
+        pvc = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+        pvc.spec.resources = client.V1ResourceRequirements(
+            requests={"storage": capacity}
+        )
+        client.CoreV1Api().replace_namespaced_persistent_volume_claim(
+            name=self.name, namespace=self.namespace, body=pvc
+        )
 
     def delete(self):
         client.CoreV1Api().delete_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)

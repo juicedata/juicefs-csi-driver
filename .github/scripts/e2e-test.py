@@ -15,7 +15,7 @@ import os
 
 from kubernetes import config
 
-from config import GLOBAL_MOUNTPOINT, LOG, IS_CE
+from config import GLOBAL_MOUNTPOINT, LOG
 from test_case import (
     test_dynamic_mount_image_with_webhook,
     test_static_mount_image_with_webhook,
@@ -45,6 +45,7 @@ from test_case import (
     test_dynamic_pvc_delete_with_path_pattern,
     test_dynamic_pvc_delete_not_last_with_path_pattern,
     test_webhook_two_volume,
+    test_dynamic_expand,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -78,6 +79,7 @@ if __name__ == "__main__":
                 test_static_mount_image()
                 test_pod_resource_err()
                 test_quota_using_storage_rw()
+                test_dynamic_expand()
 
             elif test_mode == "pod-mount-share":
                 test_share_mount()
@@ -95,6 +97,8 @@ if __name__ == "__main__":
                 test_delete_all()
                 test_dynamic_delete_pod()
                 test_static_delete_pod()
+                test_quota_using_storage_rw()
+                test_dynamic_expand()
 
             elif test_mode == "webhook":
                 test_webhook_two_volume()
@@ -107,6 +111,7 @@ if __name__ == "__main__":
                 test_deployment_dynamic_patch_pv_with_webhook()
                 test_deployment_static_patch_pv_with_webhook()
                 test_quota_using_storage_rw()
+                test_dynamic_expand()
 
             elif test_mode == "webhook-provisioner":
                 test_webhook_two_volume()
@@ -122,6 +127,8 @@ if __name__ == "__main__":
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
                 test_job_complete_using_storage()
+                test_quota_using_storage_rw()
+                test_dynamic_expand()
 
             elif test_mode == "process":
                 test_static_cache_clean_upon_umount()
@@ -132,6 +139,7 @@ if __name__ == "__main__":
                 test_deployment_use_pv_ro()
                 test_delete_pvc()
                 test_quota_using_storage_rw()
+                test_dynamic_expand()
             else:
                 raise Exception("unknown test mode: %s" % test_mode)
         except Exception as e:
