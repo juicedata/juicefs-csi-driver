@@ -747,6 +747,39 @@ tmpfs               64M     0   64M   0% /dev
 JuiceFS:ce-secret  100G     0  100G   0% /data-0
 ```
 
+### PV expansion {#pv-resize}
+
+In JuiceFS CSI driver version 0.21.0 and above, PersistentVolume expansion is supported (only dynamic PersistentVolume is supported). You need to specify `allowVolumeExpansion: true` in StorageClass, and specify the Secret to be used when expanding the capacity, which mainly provides authentication information of the file system, for example:
+
+```yaml {8-10}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+...
+parameters:
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-secret   # same as provisioner-secret-name 
+  csi.storage.k8s.io/controller-expand-secret-namespace: default     # same as provisioner-secret-namespace 
+allowVolumeExpansion: true         # indicates support for expansion
+```
+
+Expansion of the PersistentVolume can then be triggered by specifying a different (and larger) storage request by editing the PVC's spec field:
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi # specify new size here
+```
+
 ### Access modes {#access-modes}
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
