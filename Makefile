@@ -184,7 +184,7 @@ csi-slim-image-version:
 .PHONY: ce-image
 ce-image:
 	docker build -f docker/ce.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
-        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) .
+        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION)
 
 .PHONY: ce-image-buildx
@@ -196,7 +196,7 @@ ce-image-buildx:
 .PHONY: ee-image
 ee-image:
 	docker build -f docker/ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
-        --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) .
+        --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION)
 
 .PHONY: ee-image-buildx

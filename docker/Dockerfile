@@ -12,17 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.18-buster as builder
+FROM golang:1.19-buster as builder
 
 ARG GOPROXY
+ARG TARGETARCH
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 ARG JUICEFS_CSI_REPO_REF=master
 
-RUN apt update && apt install -y software-properties-common && apt update && \
-    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
-    apt update
+RUN if [ ${TARGETARCH} -eq amd64 ]; then mkdir -p /home/travis/.m2 && \
+    wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    wget -O - https://download.gluster.org/pub/gluster/glusterfs/7/rsa.pub | apt-key add - && \
+    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/7/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
@@ -31,7 +34,7 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libceph
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && go get github.com/ceph/go-ceph@v0.4.0 && go mod tidy && \
-    make juicefs.ceph && mv juicefs.ceph juicefs
+    if [ ${TARGETARCH} -eq amd64 ]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs.ceph && mv juicefs.ceph juicefs; fi
 
 FROM python:3.8-slim-buster
 
@@ -53,8 +56,13 @@ RUN chmod +x /tini
 
 RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 && apt update && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && \
-    apt update
+    apt-add-repository 'deb https://download.ceph.com/debian-pacific/ buster main' && apt update && \
+    if [ ${TARGETARCH} -eq amd64 ]; then mkdir -p /home/travis/.m2 && \
+    wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    wget -O - https://download.gluster.org/pub/gluster/glusterfs/7/rsa.pub | apt-key add - && \
+    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/7/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi
 
 RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && \
