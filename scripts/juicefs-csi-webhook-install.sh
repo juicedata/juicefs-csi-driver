@@ -99,15 +99,18 @@ rules:
   - watch
   - create
   - delete
+  - patch
 - apiGroups:
   - ""
   resources:
   - persistentvolumeclaims
+  - persistentvolumeclaims/status
   verbs:
   - get
   - list
   - watch
   - update
+  - patch
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -343,7 +346,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.20.1
+        image: juicedata/juicefs-csi-driver:v0.21.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -396,6 +399,18 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
+        - --leader-election
+        - --v=2
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: quay.io/k8scsi/csi-resizer:v1.0.1
+        name: csi-resizer
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
         - --health-port=$(HEALTH_PORT)
         env:
         - name: ADDRESS
@@ -438,7 +453,7 @@ metadata:
   name: csi.juicefs.com
 spec:
   attachRequired: false
-  podInfoOnMount: false
+  podInfoOnMount: true
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -514,15 +529,18 @@ rules:
   - watch
   - create
   - delete
+  - patch
 - apiGroups:
   - ""
   resources:
   - persistentvolumeclaims
+  - persistentvolumeclaims/status
   verbs:
   - get
   - list
   - watch
   - update
+  - patch
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -730,7 +748,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.20.1
+        image: juicedata/juicefs-csi-driver:v0.21.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -778,6 +796,18 @@ spec:
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
         image: quay.io/k8scsi/csi-provisioner:v1.6.0
         name: csi-provisioner
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --csi-address=$(ADDRESS)
+        - --leader-election
+        - --v=2
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: quay.io/k8scsi/csi-resizer:v1.0.1
+        name: csi-resizer
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
@@ -848,7 +878,7 @@ metadata:
   name: csi.juicefs.com
 spec:
   attachRequired: false
-  podInfoOnMount: false
+  podInfoOnMount: true
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
