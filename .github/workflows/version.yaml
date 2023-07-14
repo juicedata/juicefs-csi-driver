@@ -41,8 +41,8 @@ jobs:
         echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
     - name: Build docker image & push
       env:
-        CEVERSION: ce-v1.1.0-beta1
-        CEJUICEFS_VERSION: v1.1.0-beta1
+        CEVERSION: ce-v1.1.0-beta2
+        CEJUICEFS_VERSION: v1.1.0-beta2
         EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
       run: |
         export DOCKER_CLI_EXPERIMENTAL=enabled

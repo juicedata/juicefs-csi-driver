@@ -228,7 +228,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.20.1
+          image: juicedata/juicefs-csi-driver:v0.21.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -300,7 +300,6 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-resizer
           image: quay.io/k8scsi/csi-resizer:v1.0.1
-          imagePullPolicy: Always
           args:
             - --csi-address=$(ADDRESS)
             - --leader-election
@@ -366,7 +365,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.20.1
+          image: juicedata/juicefs-csi-driver:v0.21.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
