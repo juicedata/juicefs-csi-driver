@@ -51,7 +51,7 @@ Comparing and merging YAML files can be wearisome, that's why [install via Helm]
 
 #### v0.21.0 version upgrade notes {#v0-21-0}
 
-In JuiceFS CSI driver v0.21.0 release, we introduced `podInfoOnMount: true` in `CSIDriver`. However, CSIDriver cannot be updated, you need to manually delete the old version of CSIDriver before upgrading, otherwise the upgrade will fail:
+In JuiceFS CSI Driver v0.21.0 release, we introduced `podInfoOnMount: true` in `CSIDriver`. However, CSIDriver cannot be updated, you need to manually delete the old version of CSIDriver before upgrading, otherwise the upgrade will fail:
 
 ```shell
 kubectl delete csidriver csi.juicefs.com
