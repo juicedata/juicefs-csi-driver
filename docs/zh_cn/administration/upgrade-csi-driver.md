@@ -14,7 +14,7 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
 特别地，如果你[修改了 Mount Pod 容器镜像](../guide/custom-image.md#overwrite-mount-pod-image)，那么升级 CSI 驱动就完全不影响 JuiceFS 客户端版本了，你需要按照[文档](../guide/custom-image.md#overwrite-mount-pod-image)，继续自行管理 Mount Pod 容器镜像。
 
-### 通过 Helm 升级
+### 通过 Helm 升级 {#helm-upgrade}
 
 用 Helm 安装 CSI 驱动时，所有的安装配置都汇集于 `values.yaml`，你需要自行管理该文件。升级的步骤也很简单，直接用新版的 Helm chart 重装 CSI 驱动即可：
 
@@ -25,7 +25,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 如果你已经将整个 Helm chart 纳入版本控制系统管理，则需要用 `helm pull --untar juicefs/juicefs-csi-driver` 下载最新版本的 CSI 驱动 Helm chart，覆盖当前版本。注意，`values.yaml` 的维护是你的责任，升级过程中请注意不要覆盖该文件，否则安装配置将会被重置为默认状态。
 
-### 通过 kubectl 升级
+### 通过 kubectl 升级 {#kubectl-upgrade}
 
 如果你并未对 CSI 驱动配置做任何改动，那么直接下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后用下边的命令进行覆盖安装即可。
 
@@ -50,6 +50,18 @@ kubectl apply -f ./k8s.yaml
 ```
 
 正因为梳理配置的步骤相对复杂，因此面对生产集群，我们更推荐[使用 Helm 安装和升级 CSI 驱动](../getting_started.md#helm)。
+
+#### v0.21.0 版本升级注意事项 {#v0-21-0}
+
+在 JuiceFS CSI 驱动 v0.21.0 版本中，我们在 CSIDriver 资源中引入了 `podInfoOnMount: true`，但 CSIDriver 资源不能更新，升级前需要手动删除旧版本的 CSIDriver 资源，否则会导致升级失败：
+
+```shell
+kubectl delete csidriver csi.juicefs.com
+```
+
+再参考 [通过 kubectl 升级](#kubectl-upgrade) 进行升级。
+
+若使用的是 helm 安装，可以直接升级 chart 升级，无需该步骤。
 
 ## 升级 CSI 驱动（进程挂载模式） {#mount-by-process-upgrade}
 

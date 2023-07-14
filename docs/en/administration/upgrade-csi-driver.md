@@ -14,7 +14,7 @@ But on the other hand, this also means **upgrading CSI Driver will not automatic
 
 Another thing to keep in mind, if you have [overwritten mount pod image](../guide/custom-image.md#overwrite-mount-pod-image), then upgrading CSI Driver will not affect JuiceFS Client version at all, you should just continue manage mount pod image according to the [docs](../guide/custom-image.md#overwrite-mount-pod-image).
 
-### Upgrade via Helm
+### Upgrade via Helm {#helm-upgrade}
 
 Run below commands:
 
@@ -23,7 +23,7 @@ helm repo update
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-### Upgrade via kubectl
+### Upgrade via kubectl {#kubectl-upgrade}
 
 If you haven't made any modifications to the default CSI installation, you can just download the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), and then perform the upgrade by running:
 
@@ -48,6 +48,18 @@ kubectl apply -f ./k8s.yaml
 ```
 
 Comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
+
+#### v0.21.0 version upgrade notes {#v0-21-0}
+
+In JuiceFS CSI driver v0.21.0 release, we introduced `podInfoOnMount: true` in `CSIDriver`. However, CSIDriver cannot be updated, you need to manually delete the old version of CSIDriver before upgrading, otherwise the upgrade will fail:
+
+```shell
+kubectl delete csidriver csi.juicefs.com
+```
+
+Then refer to [Upgrade via kubectl](#kubectl-upgrade) to upgrade.
+
+If you are using helm installation, you can directly upgrade the chart without this step.
 
 ## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 

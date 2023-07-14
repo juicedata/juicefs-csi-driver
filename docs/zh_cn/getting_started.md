@@ -196,11 +196,12 @@ CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果
 
 需要替换的镜像如下，请通过下方链接的网页，确定各镜像合适的版本（如果无法正常访问 `k8s.gcr.io`，请考虑先[「搬运镜像」](./administration/offline.md#copy-images)）：
 
-| 原镜像名称                                 | 新镜像名称                                                                                                                                |
-|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `quay.io/k8scsi/livenessprobe`             | [`k8s.gcr.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
-| `quay.io/k8scsi/csi-provisioner`           | [`k8s.gcr.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
-| `quay.io/k8scsi/csi-node-driver-registrar` | [`k8s.gcr.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
+| 原镜像名称                                      | 新镜像名称                                                                                                                                          |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `quay.io/k8scsi/livenessprobe`             | [`registry.k8s.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
+| `quay.io/k8scsi/csi-provisioner`           | [`registry.k8s.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
+| `quay.io/k8scsi/csi-node-driver-registrar` | [`registry.k8s.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
+| `quay.io/k8scsi/csi-resizer:`              | [`registry.k8s.io/sig-storage/csi-resizer`](https://kubernetes-csi.github.io/docs/external-resizer.html#supported-versions)                    |
 
 ### Helm
 
@@ -209,14 +210,17 @@ CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果
 ```yaml title="values.yaml"
 sidecars:
   livenessProbeImage:
-    repository: k8s.gcr.io/sig-storage/livenessprobe
+    repository: registry.k8s.io/sig-storage/livenessprobe
     tag: "v2.6.0"
   csiProvisionerImage:
-    repository: k8s.gcr.io/sig-storage/csi-provisioner
+    repository: registry.k8s.io/sig-storage/csi-provisioner
     tag: "v2.2.2"
   nodeDriverRegistrarImage:
-    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
     tag: "v2.5.0"
+  csiResizerImage:
+    repository: registry.k8s.io/sig-storage/csi-resizer
+    tag: "v1.8.0"
 ```
 
 ### kubectl
@@ -224,8 +228,9 @@ sidecars:
 对 `k8s.yaml` 中部分镜像以及 `provisioner` sidecar 的启动参数进行替换（macOS 请换用 [gnu-sed](https://formulae.brew.sh/formula/gnu-sed)）：
 
 ```shell
-sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@registry.k8s.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@registry.k8s.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 ```

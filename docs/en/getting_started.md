@@ -212,11 +212,12 @@ From v0.11.1 and above, JuiceFS CSI Driver supports using container images in th
 
 Images that need to replaced is listed below, find our the suitable version for your cluster via the links:
 
-| Original container image name              | New container image name                                                                                                                  |
-|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `quay.io/k8scsi/livenessprobe`             | [`k8s.gcr.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
-| `quay.io/k8scsi/csi-provisioner`           | [`k8s.gcr.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
-| `quay.io/k8scsi/csi-node-driver-registrar` | [`k8s.gcr.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
+| Original container image name              | New container image name                                                                                                                       |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `quay.io/k8scsi/livenessprobe`             | [`registry.k8s.io/sig-storage/livenessprobe`](https://kubernetes-csi.github.io/docs/livenessprobe.html#supported-versions)                     |
+| `quay.io/k8scsi/csi-provisioner`           | [`registry.k8s.io/sig-storage/csi-provisioner`](https://kubernetes-csi.github.io/docs/external-provisioner.html#supported-versions)            |
+| `quay.io/k8scsi/csi-node-driver-registrar` | [`registry.k8s.io/sig-storage/csi-node-driver-registrar`](https://kubernetes-csi.github.io/docs/node-driver-registrar.html#supported-versions) |
+| `quay.io/k8scsi/csi-resizer:`              | [`registry.k8s.io/sig-storage/csi-resizer`](https://kubernetes-csi.github.io/docs/external-resizer.html#supported-versions)                    |
 
 ### Helm
 
@@ -225,14 +226,17 @@ Add `sidecars` to `values.yaml`, to overwrite selected images:
 ```yaml
 sidecars:
   livenessProbeImage:
-    repository: k8s.gcr.io/sig-storage/livenessprobe
+    repository: registry.k8s.io/sig-storage/livenessprobe
     tag: "v2.6.0"
   csiProvisionerImage:
-    repository: k8s.gcr.io/sig-storage/csi-provisioner
+    repository: registry.k8s.io/sig-storage/csi-provisioner
     tag: "v2.2.2"
   nodeDriverRegistrarImage:
-    repository: k8s.gcr.io/sig-storage/csi-node-driver-registrar
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
     tag: "v2.5.0"
+  csiResizerImage:
+    repository: registry.k8s.io/sig-storage/csi-resizer
+    tag: "v1.8.0"
 ```
 
 ### kubectl
@@ -240,8 +244,9 @@ sidecars:
 Replace some container images and parameters of `provisioner` sidecar in `k8s.yaml` (use [gnu-sed](https://formulae.brew.sh/formula/gnu-sed) instead under macOS):
 
 ```shell
-sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
-sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/livenessprobe:v1.1.0@registry.k8s.io/sig-storage/livenessprobe:v2.6.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@registry.k8s.io/sig-storage/csi-provisioner:v2.2.2@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
+sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 ```
