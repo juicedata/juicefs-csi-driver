@@ -97,7 +97,8 @@ storageClasses:
 ## Set non-preempting PriorityClass for Mount Pod {#set-non-preempting-priorityclass-for-mount-pod}
 
 :::tip
-If the mount mode of CSI Driver is ["Sidecar mode"](../introduction.md#sidecar), the following problems will not be encountered.
+- It's recommended to set non-preempting PriorityClass for Mount Pod by default.
+- If the mount mode of CSI Driver is ["Sidecar mode"](../introduction.md#sidecar), the following problems will not be encountered.
 :::
 
 When CSI Node creates a Mount Pod, it will set PriorityClass to `system-node-critical` by default, so that the Mount Pod will not be evicted when the node resources are insufficient.
