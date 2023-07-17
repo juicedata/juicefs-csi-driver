@@ -299,8 +299,6 @@ parameters:
 
 Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
-### Deploy
-
 Create PVC and example pod:
 
 ```yaml {13}
@@ -540,7 +538,6 @@ Strictly speaking, dynamic provisioning doesn't inherently support mounting a ex
 ## Use more readable names for PV directory {#using-path-pattern}
 
 :::tip
-
 Not supported in [mount by process mode](../introduction.md#by-process).
 :::
 
@@ -747,11 +744,11 @@ tmpfs               64M     0   64M   0% /dev
 JuiceFS:ce-secret  100G     0  100G   0% /data-0
 ```
 
-### PV expansion {#pv-resize}
+### PV expansion {#pv-expansion}
 
-In JuiceFS CSI Driver version 0.21.0 and above, PersistentVolume expansion is supported (only dynamic PersistentVolume is supported). You need to specify `allowVolumeExpansion: true` in StorageClass, and specify the Secret to be used when expanding the capacity, which mainly provides authentication information of the file system, for example:
+In JuiceFS CSI Driver version 0.21.0 and above, PersistentVolume expansion is supported (only [dynamic provisioning](#dynamic-provisioning) is supported). You need to specify `allowVolumeExpansion: true` in [StorageClass](#create-storage-class), and specify the Secret to be used when expanding the capacity, which mainly provides authentication information of the file system, for example:
 
-```yaml {8-10}
+```yaml {9-11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 ...
@@ -760,14 +757,14 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/controller-expand-secret-name: juicefs-secret   # same as provisioner-secret-name 
-  csi.storage.k8s.io/controller-expand-secret-namespace: default     # same as provisioner-secret-namespace 
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-secret   # same as provisioner-secret-name
+  csi.storage.k8s.io/controller-expand-secret-namespace: default     # same as provisioner-secret-namespace
 allowVolumeExpansion: true         # indicates support for expansion
 ```
 
-Expansion of the PersistentVolume can then be triggered by specifying a different (and larger) storage request by editing the PVC's spec field:
+Expansion of the PersistentVolume can then be triggered by specifying a larger storage request by editing the PVC's `spec` field:
 
-```yaml
+```yaml {10}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -777,7 +774,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi # specify new size here
+      storage: 20Gi  # Specify a larger size here
 ```
 
 ### Access modes {#access-modes}
