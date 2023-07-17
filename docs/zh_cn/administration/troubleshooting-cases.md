@@ -29,7 +29,14 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
 ```
 
-此时需要[检查 CSI Node](./troubleshooting.md#check-csi-node)，确认其异常原因，并排查修复。
+此时需要[检查 CSI Node](./troubleshooting.md#check-csi-node)，确认其异常原因，并排查修复。常见的问题比如 kubelet 没有启用 Authentication webhook，导致获取 Pod 列表时报错：
+
+```
+kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
+reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
+```
+
+面对这种情况，我们建议[启用 Kubelet authentication webhook](../administration/going-production.md#authentication-webhook)。
 
 ## Mount Pod 异常 {#mount-pod-error}
 
