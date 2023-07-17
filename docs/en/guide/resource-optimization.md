@@ -97,6 +97,7 @@ storageClasses:
 ## Set non-preempting PriorityClass for Mount Pod {#set-non-preempting-priorityclass-for-mount-pod}
 
 :::tip
+
 - It's recommended to set non-preempting PriorityClass for Mount Pod by default.
 - If the mount mode of CSI Driver is ["Sidecar mode"](../introduction.md#sidecar), the following problems will not be encountered.
 :::

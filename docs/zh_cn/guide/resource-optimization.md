@@ -97,6 +97,7 @@ storageClasses:
 ## 为 Mount Pod 设置非抢占式 PriorityClass {#set-non-preempting-priorityclass-for-mount-pod}
 
 :::tip 提示
+
 - 建议默认为 Mount Pod 设置非抢占式 PriorityClass
 - 如果 CSI 驱动的运行模式为[「Sidecar 模式」](../introduction.md#sidecar)，则不会遇到以下问题。
 :::
