@@ -388,7 +388,7 @@ spec:
               storage: 1Gi
 ```
 
-:::note
+:::note 注意
 在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
 
@@ -537,8 +537,7 @@ spec:
 
 ## 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
-:::tip
-
+:::tip 提示
 [进程挂载模式](../introduction.md#by-process)不支持该功能。
 :::
 
@@ -745,11 +744,11 @@ tmpfs               64M     0   64M   0% /dev
 JuiceFS:ce-secret  100G     0  100G   0% /data-0
 ```
 
-### PV 扩容 {#pv-resize}
+### PV 扩容 {#pv-expansion}
 
-在 JuiceFS CSI 驱动 0.21.0 及以上版本，支持 PersistentVolume 的扩容（仅支持动态 PersistentVolume）。需要在 StorageClass 中指定 `allowVolumeExpansion: true`，同时指定扩容时所需使用的 Secret，主要提供文件系统的认证信息，例如：
+在 JuiceFS CSI 驱动 0.21.0 及以上版本，支持动态扩展 PersistentVolume 的容量（仅支持[动态配置](#dynamic-provisioning)）。需要在 [StorageClass](#create-storage-class) 中指定 `allowVolumeExpansion: true`，同时指定扩容时所需使用的 Secret，主要提供文件系统的认证信息，例如：
 
-```yaml {8-10}
+```yaml {9-11}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 ...
@@ -763,9 +762,9 @@ parameters:
 allowVolumeExpansion: true         # 表示支持扩容
 ```
 
-然后通过编辑 PVC 的 spec 字段，指定不同的（和更大的）存储请求，可以触发 PersistentVolume 的扩充：
+然后通过编辑 PVC 的 `spec` 字段，指定更大的存储请求，可以触发 PersistentVolume 的扩充：
 
-```yaml
+```yaml {10}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -775,9 +774,9 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi # 在此处指定新的大小
+      storage: 20Gi  # 在此处指定更大的容量
 ```
 
 ### 访问模式 {#access-modes}
 
-JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV/PVC，（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
+JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV／PVC（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
