@@ -711,17 +711,19 @@ spec:
 
 ### PV 容量分配 {#storage-capacity}
 
-目前而言，JuiceFS CSI 驱动仅支持为动态 PersistentVolume 设置存储容量。在静态 PersistentVolume 与其 PersistentVolumeClaim 中指定的容量会被忽略，填写任意有效值即可，例如 `100Gi`：
+从 v0.19.3 开始，JuiceFS CSI 驱动支持在动态配置设置存储容量（要注意，仅支持动态配置）。
+
+在静态配置中，PVC 中指定的容量会被忽略，填写任意有效值即可，建议填写一个较大的数值，避免未来版本如果带来该功能支持时，因为容量超限导致问题。
 
 ```yaml
 ...
 storageClassName: ""
 resources:
   requests:
-    storage: 100Gi
+    storage: 10Ti
 ```
 
-而在使用 StorageClass 的 PersistentVolumeClaim 中指定存储容量是有效的：
+而在动态配置中，可以在 PVC 中指定存储容量，这个容量限制将会被翻译成 `juicefs quota` 命令，在 CSI Controller 中执行，为该 PV 所对应的子目录添加容量限制。关于 `juicefs quota` 命令，可以参考[社区版文档](https://juicefs.com/docs/zh/community/command_reference/#quota)，商业版文档待补充。
 
 ```yaml
 ...
@@ -731,18 +733,14 @@ resources:
     storage: 100Gi
 ```
 
-:::note 注意
-存储容量只对该 PersistentVolumeClaim 所使用的子目录有效，不会影响整个 JuiceFS volume 的存储配额。
-:::
+创建并挂载好 PV 后，可以进入容器用 `df -h` 验证容量生效：
 
-我们可以在应用 Pod 中使用 `df` 查看存储容量：
-
-```bash
+```shell
 $ df -h
 Filesystem         Size  Used Avail Use% Mounted on
 overlay             84G   66G   18G  80% /
 tmpfs               64M     0   64M   0% /dev
-JuiceFS:ce-secret  100G     0  100G   0% /data-0
+JuiceFS:myjfs       100G     0  100G   0% /data-0
 ```
 
 ### PV 扩容 {#pv-resize}

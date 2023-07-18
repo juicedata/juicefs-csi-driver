@@ -234,7 +234,7 @@ authorization:
   ...
 ```
 
-在 v0.21.0 及其后版本，就算未启用上方的 Authentication webhook，CSI Node 也不再会出现异常、而是绕过 kubelet，直接访问 APIServer 去获取信息（比如 `ListPod`）。考虑到「节点上有哪些 Pod」这个信息，本身就存在于 kubelet 空间，绕远去访问 APIServer，势必会产生少量额外的性能开销。因此在生产集群，我们仍推荐启用 Authentication webhook。
+在 v0.21.0 及其后版本，就算未启用上方的 Authentication webhook，CSI Node 也不再会出现异常、而是绕过 kubelet，直接访问 APIServer 去获取信息（比如 `ListPod`），这种情况会产生少量额外的性能开销。因此在生产集群，我们仍推荐启用 Authentication webhook。
 
 需要注意，就算使用了 v0.21.0 及之后的版本，CSI 驱动需要配置 `podInfoOnMount: true`，上边提到的避免报错的特性才会真正生效。如果你采用 [Helm 安装方式](../getting_started.md#helm)，该问题并不存在，因为 `podInfoOnMount` 已经写死安装文件里，随着升级自动启用。而如果你使用 kubectl 直接安装，你需要为 `k8s.yaml` 添加如下配置：
 
