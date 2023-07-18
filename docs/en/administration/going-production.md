@@ -210,3 +210,42 @@ spec:
         - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
         ...
 ```
+
+## Enable kubelet authentication webhook {#authentication-webhook}
+
+If authentication webhook isn't enabled, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
+
+```
+kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
+reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
+```
+
+When this happens, we recommend that you enable authentication webhook:
+
+```yaml {5,8} title="/var/lib/kubelet/config.yaml"
+apiVersion: kubelet.config.k8s.io/v1beta1
+authentication:
+  webhook:
+    cacheTTL: 0s
+    enabled: true
+  ...
+authorization:
+  mode: Webhook
+  ...
+```
+
+From v0.21.0, even if kubelet authentication webhook wasn't enabled, CSI Node will not run into errors. Instead it'll simply bypass kubelet, and obtain information directly from APIServer (like `ListPod`). Doing this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
+
+Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
+
+```yaml {6} title="k8s.yaml"
+...
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+...
+spec:
+  podInfoOnMount: true
+  ...
+```
+
+As is demonstrated above, we recommend using Helm to install CSI Driver, as this avoids the toil of maintaining & reviewing `k8s.yaml`.

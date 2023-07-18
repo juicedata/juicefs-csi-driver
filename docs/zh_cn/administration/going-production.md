@@ -220,7 +220,7 @@ kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
 reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
 ```
 
-面对这种情况，我们建议[启用 Kubelet authentication webhook](../administration/going-production.md#authentication-webhook)。
+面对这种情况，我们建议启用 authentication webhook：
 
 ```yaml {5,8} title="/var/lib/kubelet/config.yaml"
 apiVersion: kubelet.config.k8s.io/v1beta1
