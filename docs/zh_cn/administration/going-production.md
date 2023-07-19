@@ -211,30 +211,27 @@ spec:
         ...
 ```
 
-## 启用 Kubelet authentication webhook {#authentication-webhook}
+## 启用 Kubelet 认证鉴权 {kubelet-authn-authz}
 
-如果 kubelet 没有启用 Authentication webhook，会导致 CSI Node 获取 Pod 列表时报错（该报错本身已经修复，见后续描述）：
+[Kubelet 的认证鉴权](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/)分为很多种，默认允许所有请求。但若 kubelet 关闭了匿名访问，会导致 CSI Node 获取 Pod 列表时报错（该报错本身已经修复，见后续描述）：
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
 reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
 ```
 
-面对这种情况，我们建议[启用 Kubelet authentication webhook](../administration/going-production.md#authentication-webhook)。
+面对这种情况，我们建议两种解决方法：
 
-```yaml {5,8} title="/var/lib/kubelet/config.yaml"
-apiVersion: kubelet.config.k8s.io/v1beta1
-authentication:
-  webhook:
-    cacheTTL: 0s
-    enabled: true
-  ...
-authorization:
-  mode: Webhook
-  ...
+1. [对 Kubelet 启用 X509 客户端证书认证](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authentication) ，并配置 CSI Node 对 Kubelet 的认证信息，以保证 CSI Node 能够正常访问 Kubelet。具体配置方式为将 Kubelet 的认证证书路径以环境变量的方式配置在 CSI Node 中，如下：
+
+```shell
+# 将 <KUBELET_CLIENT_CERT> 和 <KUBELET_CLIENT_KEY> 替换为实际的路径
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin KUBELET_CLIENT_CERT=<KUBELET_CLIENT_CERT> KUBELET_CLIENT_KEY=<KUBELET_CLIENT_KEY>
 ```
 
-在 v0.21.0 及其后版本，就算未启用上方的 Authentication webhook，CSI Node 也不再会出现异常、而是绕过 kubelet，直接访问 APIServer 去获取信息（比如 `ListPod`），这种情况会产生少量额外的性能开销。因此在生产集群，我们仍推荐启用 Authentication webhook。
+2. 将 Kubelet 鉴权委派给 APIServer，具体请参考[官方文档](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization)。
+
+在 v0.21.0 及其后版本，即使采取以上任意一种措施，CSI Node 也不再会出现异常，不会直接连接 Kubelet，而是 watch APIServer 去获取信息，由于 watch list 机制在启动时会对 APIServer 进行一次 `ListPod` 请求（有 `labelSelector`），在集群负载较大的情况下，会对 APIServer 造成额外的压力。因此在生产集群，我们仍推荐配置 CSI Node 对 Kubelet 的认证。
 
 需要注意，就算使用了 v0.21.0 及之后的版本，CSI 驱动需要配置 `podInfoOnMount: true`，上边提到的避免报错的特性才会真正生效。如果你采用 [Helm 安装方式](../getting_started.md#helm)，则 `podInfoOnMount` 默认开启无需配置，该特性会随着升级自动启用。而如果你使用 kubectl 直接安装，你需要为 `k8s.yaml` 添加如下配置：
 
