@@ -231,7 +231,7 @@ reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking 
 
 1. 将 Kubelet 鉴权委派给 APIServer，具体请参考[官方文档](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization)。
 
-在 v0.21.0 及其后版本，即使采取以上任意一种措施，CSI Node 也不再会出现异常，不会直接连接 Kubelet，而是 watch APIServer 去获取信息，由于 watch list 机制在启动时会对 APIServer 进行一次 `ListPod` 请求（有 `labelSelector`），在集群负载较大的情况下，会对 APIServer 造成额外的压力。因此在生产集群，我们仍推荐配置 CSI Node 对 Kubelet 的认证。
+在 v0.21.0 及其后版本，即使未采取以上措施，CSI Node 也能继续正常工作：如果遭遇鉴权错误，CSI Node 就不再直连 Kubelet，而是 watch APIServer 去获取信息，由于 watch list 机制在启动时会对 APIServer 进行一次 `ListPod` 请求（携带了 `labelSelector`，最大程度减少开销），在集群负载较大的情况下，会对 APIServer 造成额外的压力。因此在生产集群，我们仍推荐配置 CSI Node 对 Kubelet 的认证。
 
 需要注意，就算使用了 v0.21.0 及之后的版本，CSI 驱动需要配置 `podInfoOnMount: true`，上边提到的避免报错的特性才会真正生效。如果你采用 [Helm 安装方式](../getting_started.md#helm)，则 `podInfoOnMount` 默认开启无需配置，该特性会随着升级自动启用。而如果你使用 kubectl 直接安装，你需要为 `k8s.yaml` 添加如下配置：
 

@@ -231,7 +231,7 @@ This can be resolved using one of below methods:
 
 1. Delegate kubelet authentication to APIServer, refer to [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization) for more.
 
-From v0.21.0, any of the above measures can fix the CSI Node error, because CSI Node will connect to APIServer and watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector`), this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
+From v0.21.0, even without carrying out any of the above measures, CSI Node will continue to work normally, in the face of authentication error, CSI Node will bypass kubelet and connect to APIServer and watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
 
 Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
 
