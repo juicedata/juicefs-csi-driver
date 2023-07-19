@@ -213,7 +213,7 @@ spec:
 
 ## 启用 Kubelet 认证鉴权 {#kubelet-authn-authz}
 
-[Kubelet 的认证鉴权](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz/)分为很多种，默认的 `AlwaysAllow` 模式允许所有请求。但若 kubelet 关闭了匿名访问，会导致 CSI Node 获取 Pod 列表时报错（该报错本身已经修复，见后续描述）：
+[Kubelet 的认证鉴权](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz)分为很多种，默认的 `AlwaysAllow` 模式允许所有请求。但若 kubelet 关闭了匿名访问，会导致 CSI Node 获取 Pod 列表时报错（该报错本身已经修复，见后续描述）：
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
