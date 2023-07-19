@@ -36,7 +36,7 @@ kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
 reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
 ```
 
-面对这种情况，我们建议[启用 Kubelet 认证鉴权](../administration/going-production.md#kubelet-authn-authz)。
+面对这种情况，阅读[启用 Kubelet 认证鉴权](../administration/going-production.md#kubelet-authn-authz)了解如何修复该问题。
 
 ## Mount Pod 异常 {#mount-pod-error}
 

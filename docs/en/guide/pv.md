@@ -713,16 +713,18 @@ You can also use tools provided by a community developer to automatically add `m
 
 ### PV storage capacity {#storage-capacity}
 
-For now, JuiceFS CSI Driver doesn't support setting storage capacity for static PersistentVolume. the storage specified under static PersistentVolume and its PersistentVolumeClaim is simply ignored, just use a reasonable size as placeholder (e.g. `100Gi`).
+From v0.19.3, JuiceFS CSI Driver supports setting storage capacity under dynamic provisioning (and dynamic provisioning only, static provisioning isn't supported).
+
+In static provisioning, the storage specified in PVC/PV is simply ignored, fill in any a reasonably large size for future-proofing.
 
 ```yaml
 storageClassName: ""
 resources:
   requests:
-    storage: 100Gi
+    storage: 10Ti
 ```
 
-However, setting storage capacity works on dynamic PersistentVolumeClaim referring StorageClass:
+Under dynamic provisioning, you can specify storage capacity in PVC definition, and it'll be translated into a `juicefs quota` command, which will be executed within CSI Controller, to properly apply the specified capacity quota upon the corresponding subdir. To learn more about `juicefs quota`, check [Community Edition docs](https://juicefs.com/docs/community/command_reference/#quota) and Cloud Service docs (work in progress).
 
 ```yaml
 ...
@@ -732,12 +734,7 @@ resources:
     storage: 100Gi
 ```
 
-:::note
-The storage capacity only takes effects on the subpath used by this PersistentVolumeClaim,
-it does not affect the quota of the whole JuiceFS volume
-:::
-
-We can check the storage capacity by executing `df` command in the Pod which uses this PVC:
+After PV is created and mounted, verify by executing `df -h` command within the application pod:
 
 ```bash
 $ df -h
@@ -760,8 +757,8 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
   csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/controller-expand-secret-name: juicefs-secret   # same as provisioner-secret-name 
-  csi.storage.k8s.io/controller-expand-secret-namespace: default     # same as provisioner-secret-namespace 
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-secret   # same as provisioner-secret-name
+  csi.storage.k8s.io/controller-expand-secret-namespace: default     # same as provisioner-secret-namespace
 allowVolumeExpansion: true         # indicates support for expansion
 ```
 

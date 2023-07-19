@@ -211,30 +211,27 @@ spec:
         ...
 ```
 
-## Enable kubelet authentication webhook {#authentication-webhook}
+## Enable kubelet authentication {#kubelet-authn-authz}
 
-If authentication webhook isn't enabled, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
+Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz/), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
 reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
 ```
 
-When this happens, we recommend that you enable authentication webhook and restart kubelet:
+This can be resolved using one of below methods:
 
-```yaml {5,8} title="/var/lib/kubelet/config.yaml"
-apiVersion: kubelet.config.k8s.io/v1beta1
-authentication:
-  webhook:
-    cacheTTL: 0s
-    enabled: true
-  ...
-authorization:
-  mode: Webhook
-  ...
-```
+1. [Enable X509 client certificate authentication for kubelet](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authentication), and configure these credentials into CSI Node so that it gains access to kubelet. To do this, pass these certificates to the CSI Node startup command:
 
-From v0.21.0, even if kubelet authentication webhook wasn't enabled, CSI Node will not run into errors. Instead it'll simply bypass kubelet, and obtain information directly from APIServer (like `ListPod`). Doing this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
+    ```shell
+    # Replace KUBELET_CLIENT_CERT> and <KUBELET_CLIENT_KEY> to actual certificate path
+    kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin KUBELET_CLIENT_CERT=<KUBELET_CLIENT_CERT> KUBELET_CLIENT_KEY=<KUBELET_CLIENT_KEY>
+    ```
+
+1. Delegate kubelet authentication to APIServer, refer to [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization) for more.
+
+From v0.21.0, any of the above measures can fix the CSI Node error, because CSI Node will connect to APIServer and watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector`), this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
 
 Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
 
