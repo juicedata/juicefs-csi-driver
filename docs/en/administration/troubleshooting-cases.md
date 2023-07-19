@@ -31,7 +31,14 @@ If CSI Node pod is not properly running, and the socket file used to communicate
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
 ```
 
-[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot.
+[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot. A commonly encountered problem is kubelet being started without authentication webhook, which results in error when getting pod list:
+
+```
+kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
+reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
+```
+
+In such case, we recommend [enabling kubelet authentication webhook](../administration/going-production.md#authentication-webhook).
 
 ## Mount Pod failure {#mount-pod-error}
 
