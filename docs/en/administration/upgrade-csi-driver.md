@@ -67,7 +67,7 @@ kubectl delete csidriver csi.juicefs.com
 kubectl apply -f ./k8s.yaml
 ```
 
-Comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
+Dealing with exceptions like this, alongside with comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
 
 ## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 
