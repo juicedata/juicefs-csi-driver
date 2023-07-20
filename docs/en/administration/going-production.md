@@ -214,3 +214,39 @@ spec:
         - --leader-election-lease-duration=15s # Interval between replicas competing for Leader, default to 15s
         ...
 ```
+
+## Enable kubelet authentication {#kubelet-authn-authz}
+
+Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
+
+```
+kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
+reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking for beginning of value
+```
+
+This can be resolved using one of below methods:
+
+1. [Enable X509 client certificate authentication for kubelet](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authentication), and configure these credentials into CSI Node so that it gains access to kubelet. To do this, pass these certificates to the CSI Node startup command:
+
+    ```shell
+    # Replace KUBELET_CLIENT_CERT> and <KUBELET_CLIENT_KEY> to actual certificate path
+    kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin KUBELET_CLIENT_CERT=<KUBELET_CLIENT_CERT> KUBELET_CLIENT_KEY=<KUBELET_CLIENT_KEY>
+    ```
+
+1. Delegate kubelet authentication to APIServer, refer to [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization) for more.
+
+From v0.21.0, even without carrying out any of the above measures, CSI Node will continue to work normally, in the face of authentication error, CSI Node will bypass kubelet and connect to APIServer and watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
+
+Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
+
+```yaml {6} title="k8s.yaml"
+...
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+...
+spec:
+  podInfoOnMount: true
+  ...
+```
+
+As is demonstrated above, we recommend using Helm to install CSI Driver, as this avoids the toil of maintaining & reviewing `k8s.yaml`.
