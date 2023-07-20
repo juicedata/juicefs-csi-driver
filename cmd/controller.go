@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,6 +63,14 @@ func parseControllerConfig() {
 		config.FormatInPod = true
 		config.MountManager = false
 		config.ByProcess = false
+	}
+	if jfsImmutable := os.Getenv("JUICEFS_IMMUTABLE"); jfsImmutable != "" {
+		// check if running in an immutable environment
+		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
+			config.Immutable = immutable
+		} else {
+			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
+		}
 	}
 
 	config.NodeName = os.Getenv("NODE_NAME")

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"k8s.io/klog"
@@ -42,12 +43,22 @@ func parseNodeConfig() {
 		return
 	}
 	config.FormatInPod = formatInPod
+
+	if jfsImmutable := os.Getenv("JUICEFS_IMMUTABLE"); jfsImmutable != "" {
+		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
+			config.Immutable = immutable
+		} else {
+			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
+		}
+	}
+
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.PodName = os.Getenv("POD_NAME")
 	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
 	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
+
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
