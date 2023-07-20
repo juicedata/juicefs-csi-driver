@@ -25,7 +25,11 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### Upgrade via kubectl {#kubectl-upgrade}
 
-If you haven't made any modifications to the default CSI installation, you can just download the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), and then perform the upgrade by running:
+If you are to install via kubectl, we advise you against any modifications upon the `k8s.yaml`, as this introduces toil when you carry out upgrades in the future: you'll have to review every difference between versions, and decide what part of change is introduced by the upgrade, and what should be preserved as needed customizations. The toil will grow with more customizations, and should absolutely be avoided on production environments.
+
+So if you're still using kubectl to manage installations, switch to Helm whenever possible. Considering the default mount mode is [a decoupled architecture](../introduction.md#architecture), uninstalling CSI Driver doesn't interfere with existing PVs, so you can switch to Helm installation with ease, and enjoy a much easier maintenance.
+
+Of course, if you haven't made any modifications to the default CSI installation, you can just download the latest [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml), and then perform the upgrade by running:
 
 ```shell
 kubectl apply -f ./k8s.yaml
@@ -40,26 +44,30 @@ curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deplo
 cp k8s.yaml k8s.yaml.bak
 
 # Compare the differences between old and new YAML files, apply the newly introduced changes while maintaining your own modifications
-# For example, the CSI component image is usually updated, e.g. image: juicedata/juicefs-csi-driver:v0.17.5
+# For example, the CSI component image is usually updated, e.g. image: juicedata/juicefs-csi-driver:v0.21.0
 vimdiff k8s.yaml k8s-new.yaml
 
 # After changes have been applied, reinstall
 kubectl apply -f ./k8s.yaml
 ```
 
-Comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
+If installation raises error stating immutable resources:
 
-#### v0.21.0 version upgrade notes {#v0-21-0}
+```
+csidrivers.storage.k8s.io "csi.juicefs.com" was not valid:
+* spec.storageCapacity: Invalid value: true: field is immutable
+```
 
-In JuiceFS CSI Driver v0.21.0 release, we introduced `podInfoOnMount: true` in `CSIDriver`. However, CSIDriver cannot be updated, you need to manually delete the old version of CSIDriver before upgrading, otherwise the upgrade will fail:
+This indicates that the new `k8s.yaml` introduces changes on CSI Driver definition (e.g. [v0.21.0](https://github.com/juicedata/juicefs-csi-driver/releases/tag/v0.21.0) introduces `podInfoOnMount: true`), you'll have to delete relevant resources to re-install:
 
 ```shell
 kubectl delete csidriver csi.juicefs.com
+
+# Re-install
+kubectl apply -f ./k8s.yaml
 ```
 
-Then refer to [Upgrade via kubectl](#kubectl-upgrade) to upgrade.
-
-If you are using helm installation, you can directly upgrade the chart without this step.
+Comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
 
 ## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 
