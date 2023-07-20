@@ -35,7 +35,7 @@ Of course, if you haven't made any modifications to the default CSI installation
 kubectl apply -f ./k8s.yaml
 ```
 
-But if you maintain your own fork of `k8s.yaml`, with your own configuration changes, you'll need to compare the differences between the old and new `k8s.yaml`, apply the newly introduced changes, and then install.
+But if you maintain your own fork of `k8s.yaml`, with all your own customizations, you'll need to compare the differences between the old and new `k8s.yaml`, apply the newly introduced changes, and then install.
 
 ```shell
 curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml > k8s-new.yaml
