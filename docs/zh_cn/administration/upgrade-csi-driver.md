@@ -14,7 +14,7 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
 特别地，如果你[修改了 Mount Pod 容器镜像](../guide/custom-image.md#overwrite-mount-pod-image)，那么升级 CSI 驱动就完全不影响 JuiceFS 客户端版本了，你需要按照[文档](../guide/custom-image.md#overwrite-mount-pod-image)，继续自行管理 Mount Pod 容器镜像。
 
-### 通过 Helm 升级
+### 通过 Helm 升级 {#helm-upgrade}
 
 用 Helm 安装 CSI 驱动时，所有的安装配置都汇集于 `values.yaml`，你需要自行管理该文件。升级的步骤也很简单，直接用新版的 Helm chart 重装 CSI 驱动即可：
 
@@ -25,15 +25,19 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 如果你已经将整个 Helm chart 纳入版本控制系统管理，则需要用 `helm pull --untar juicefs/juicefs-csi-driver` 下载最新版本的 CSI 驱动 Helm chart，覆盖当前版本。注意，`values.yaml` 的维护是你的责任，升级过程中请注意不要覆盖该文件，否则安装配置将会被重置为默认状态。
 
-### 通过 kubectl 升级
+### 通过 kubectl 升级 {#kubectl-upgrade}
 
-如果你并未对 CSI 驱动配置做任何改动，那么直接下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后用下边的命令进行覆盖安装即可。
+如果你使用 kubectl 的安装方式，我们不建议你对 `k8s.yaml` 做任何定制修改，这些修改将会在升级时带来沉重的负担：你需要对新旧版本的 `k8s.yaml` 进行 diff 比对，辨认出哪些改动是需要保留的，哪些改动则是新版 CSI 驱动所需要的、应当覆盖。随着你的修改增多，这些工作会变得十分艰难。
+
+因此如果你的生产集群仍在使用 kubectl 安装方式，务必尽快切换成 Helm 安装方式。考虑到默认的容器挂载模式是一个[解耦架构](../introduction.md#architecture)，卸载 CSI 驱动并不影响正在运行的服务，你可以放心地卸载、[使用 Helm 重新安装 CSI 驱动](../getting_started.md#helm)，享受更便利的升级流程。
+
+当然了，如果你并未对 CSI 驱动配置做任何改动，那么直接下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后用下边的命令进行覆盖安装即可。
 
 ```shell
 kubectl apply -f ./k8s.yaml
 ```
 
-但如果你的团队有着自行维护的 `k8s.yaml`，并且已经对其中的配置做了变更，那就需要对新老版本的 `k8s.yaml` 进行内容比对，将新版引入的变动追加进来，然后再进行覆盖安装：
+但如果你的团队自行维护 `k8s.yaml`，已经对其中的配置做了变更，那就需要对新老版本的 `k8s.yaml` 进行内容比对，将新版引入的变动追加进来，然后再进行覆盖安装：
 
 ```shell
 curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml > k8s-new.yaml
@@ -42,14 +46,30 @@ curl https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deplo
 cp k8s.yaml k8s.yaml.bak
 
 # 对比新老版本的内容差异，在保留配置变更的基础上，将新版引入的变动进行追加
-# 比方说，新版的 CSI 驱动组件镜像往往会更新，例如 image: juicedata/juicefs-csi-driver:v0.17.5
+# 比方说，新版的 CSI 驱动组件镜像往往会更新，例如 image: juicedata/juicefs-csi-driver:v0.21.0
 vimdiff k8s.yaml k8s-new.yaml
 
 # 配置梳理完毕，进行覆盖安装
 kubectl apply -f ./k8s.yaml
 ```
 
-正因为梳理配置的步骤相对复杂，因此面对生产集群，我们更推荐[使用 Helm 安装和升级 CSI 驱动](../getting_started.md#helm)。
+如果安装过程中报错提示 CSI 驱动无法更新，报错提示资源无法变更：
+
+```
+csidrivers.storage.k8s.io "csi.juicefs.com" was not valid:
+* spec.storageCapacity: Invalid value: true: field is immutable
+```
+
+这往往表示新版 `k8s.yaml` 引入了 CSI 驱动的资源定义更新（比方说 [v0.21.0](https://github.com/juicedata/juicefs-csi-driver/releases/tag/v0.21.0) 引入了 `podInfoOnMount: true`），你需要手动删除相关资源，才能重装：
+
+```shell
+kubectl delete csidriver csi.juicefs.com
+
+# 覆盖安装
+kubectl apply -f ./k8s.yaml
+```
+
+复杂的梳理流程、以及安装时的异常处理，对生产环境的维护极不友好，因此在生产环境务必使用 Helm 的安装方式。
 
 ## 升级 CSI 驱动（进程挂载模式） {#mount-by-process-upgrade}
 
