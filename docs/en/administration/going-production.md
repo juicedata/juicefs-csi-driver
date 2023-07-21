@@ -226,16 +226,9 @@ reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking 
 
 This can be resolved using one of below methods:
 
-1. [Enable X509 client certificate authentication for kubelet](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authentication), and configure these credentials into CSI Node so that it gains access to kubelet. To do this, pass these certificates to the CSI Node startup command:
+### Upgrade CSI Driver
 
-    ```shell
-    # Replace KUBELET_CLIENT_CERT> and <KUBELET_CLIENT_KEY> to actual certificate path
-    kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin KUBELET_CLIENT_CERT=<KUBELET_CLIENT_CERT> KUBELET_CLIENT_KEY=<KUBELET_CLIENT_KEY>
-    ```
-
-1. Delegate kubelet authentication to APIServer, refer to [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization) for more.
-
-From v0.21.0, even without carrying out any of the above measures, CSI Node will continue to work normally, in the face of authentication error, CSI Node will bypass kubelet and connect to APIServer and watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to APIServer, thus authentication webhook is still recommended in production environments.
+Upgrade CSI Driver to v0.21.0 or newer versions, so that when faced with authentication issues, CSI Node will simply bypass kubelet and connect APIServer to watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to APIServer, if your APIServer is already heavily loaded, consider enabling authentication webhook (see in the next section).
 
 Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
 
@@ -250,3 +243,35 @@ spec:
 ```
 
 As is demonstrated above, we recommend using Helm to install CSI Driver, as this avoids the toil of maintaining & reviewing `k8s.yaml`.
+
+### Delegate kubelet authentication to APIServer
+
+Below content is summarized from [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization).
+
+Kubelet configuration can be specified directly in command arguments, or alternatively put in configuration files (default to `/var/lib/kubelet/config.yaml`), find out which one using commands like below:
+
+```shell {6}
+$ systemctl cat kubelet
+# /lib/systemd/system/kubelet.service
+...
+[Service]
+Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+Environment="KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml"
+...
+```
+
+Notice the highlighted lines above indicates that this kubelet puts configurations in `/var/lib/kubelet/config.yaml`, so you'll need to modify this file to enable webhook authentication (using the highlighted lines below):
+
+```yaml {5,8} title="/var/lib/kubelet/config.yaml"
+apiVersion: kubelet.config.k8s.io/v1beta1
+authentication:
+  webhook:
+    cacheTTL: 0s
+    enabled: true
+  ...
+authorization:
+  mode: Webhook
+  ...
+```
+
+If however, a configuration file isn't used, then kubelet is configured purely via startup command arguments, append `--authorization-mode=Webhook` and `--authentication-token-webhook` to achieve the same thing.
