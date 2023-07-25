@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
+        "strconv"
+        "strings"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -82,16 +83,23 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
 	}
 
-	pvName := options.PVName
-	sc := options.StorageClass
-
 	pvMeta := util.NewPVCMeta(*options.PVC)
 	subPath := options.PVName
 	if options.StorageClass.Parameters["pathPattern"] != "" {
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
-	secretName, secretNamespace := sc.Parameters[config.ProvisionerSecretName], sc.Parameters[config.ProvisionerSecretNamespace]
-	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+
+        pvName := options.PVName
+        scParams := make(map[string]string)
+        for k, v := range options.StorageClass.Parameters {
+                if strings.HasPrefix(k,"csi.storage.k8s.io/") {
+                        scParams[k] = pvMeta.ResolveSecret(v, pvName)
+                } else {
+                        scParams[k] = v
+                }
+        }
+ 
+        secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
@@ -104,7 +112,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	volCtx := make(map[string]string)
 	volCtx["subPath"] = subPath
 	volCtx["capacity"] = strconv.FormatInt(options.PVC.Spec.Resources.Requests.Storage().Value(), 10)
-	for k, v := range sc.Parameters {
+        for k, v := range scParams {
 		volCtx[k] = v
 	}
 	pv := &corev1.PersistentVolume{
@@ -123,22 +131,22 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 					FSType:           "juicefs",
 					VolumeAttributes: volCtx,
 					NodePublishSecretRef: &corev1.SecretReference{
-						Name:      sc.Parameters[config.PublishSecretName],
-						Namespace: sc.Parameters[config.PublishSecretNamespace],
+						Name:      scParams[config.PublishSecretName],
+						Namespace: scParams[config.PublishSecretNamespace],
 					},
 				},
 			},
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
-			StorageClassName:              sc.Name,
+			StorageClassName:              options.StorageClass.Name,
 			MountOptions:                  options.StorageClass.MountOptions,
 			VolumeMode:                    options.PVC.Spec.VolumeMode,
 		},
 	}
-	if sc.Parameters[config.ControllerExpandSecretName] != "" && sc.Parameters[config.ControllerExpandSecretNamespace] != "" {
+	if scParams[config.ControllerExpandSecretName] != "" && scParams[config.ControllerExpandSecretNamespace] != "" {
 		pv.Spec.CSI.ControllerExpandSecretRef = &corev1.SecretReference{
-			Name:      sc.Parameters[config.ControllerExpandSecretName],
-			Namespace: sc.Parameters[config.ControllerExpandSecretNamespace],
+			Name:      scParams[config.ControllerExpandSecretName],
+			Namespace: scParams[config.ControllerExpandSecretNamespace],
 		}
 	}
 	return pv, provisioncontroller.ProvisioningFinished, nil

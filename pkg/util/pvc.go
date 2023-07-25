@@ -18,6 +18,7 @@ package util
 
 import (
 	"context"
+	"os"
 	"regexp"
 	"strings"
 
@@ -90,4 +91,25 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		}
 	}
 	return true, nil
+}
+
+func (meta *PVCMetadata) ResolveSecret(str string, pvName string) string {
+	resolved := os.Expand(str, func(k string) string {
+		switch k {
+		case "pvc.name":
+			return meta.data["name"]
+		case "pvc.namespace":
+			return meta.data["namespace"]
+		case "pv.name":
+			return pvName
+		}
+		for ak, av := range meta.annotations {
+			if k == "pvc.annotations['"+ ak +"']" {
+				return av
+			}
+		}
+		klog.Errorf("Cannot resolve %s. replace it with an empty string", k)
+		return ""
+	})
+	return resolved
 }
