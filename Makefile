@@ -218,6 +218,7 @@ fuse-image-nightly:
 	docker build -f docker/fuse.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):nightly \
         --build-arg JUICEFS_REPO_REF=main \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
+		--build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg=JFS_AUTO_UPGRADE=disabled .
 	docker push $(REGISTRY)/$(FUSE_IMAGE):nightly
 
