@@ -20,14 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
-        "strconv"
-        "strings"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -89,17 +89,17 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
 
-        pvName := options.PVName
-        scParams := make(map[string]string)
-        for k, v := range options.StorageClass.Parameters {
-                if strings.HasPrefix(k,"csi.storage.k8s.io/") {
-                        scParams[k] = pvMeta.ResolveSecret(v, pvName)
-                } else {
-                        scParams[k] = v
-                }
-        }
+	pvName := options.PVName
+	scParams := make(map[string]string)
+	for k, v := range options.StorageClass.Parameters {
+		if strings.HasPrefix(k,"csi.storage.k8s.io/") {
+			scParams[k] = pvMeta.ResolveSecret(v, pvName)
+		} else {
+			scParams[k] = v
+		}
+	}
  
-        secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
+	secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())

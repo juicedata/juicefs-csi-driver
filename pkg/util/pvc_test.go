@@ -268,3 +268,93 @@ func TestCheckForSubPath(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveSecret(t *testing.T) {
+	type fields struct {
+		data        map[string]string
+		labels      map[string]string
+		annotations map[string]string
+	}
+	type args struct {
+		str string
+		pvname string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "test-pvc-name",
+			fields: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${pvc.name}",
+				pvname: "pv-a",
+			},
+			want: "test",
+		},
+		{
+			name: "test-pvc-namespace",
+			fields: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${pvc.namespace}",
+				pvname: "pv-a",
+			},
+			want: "default",
+		},
+		{
+			name: "test-pvc-annotation",
+			fields: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+				annotations: map[string]string{
+					"a.a": "b",
+				},
+			},
+			args: args{
+				str: "${pvc.annotations['a.a']}",
+				pvname: "pv-a",
+			},
+			want: "b",
+		},
+		{
+			name: "test-pv-name",
+			fields: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${pv.name}",
+				pvname: "pv-a",
+			},
+			want: "pv-a",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			meta := &PVCMetadata{
+				data:        tt.fields.data,
+				labels:      tt.fields.labels,
+				annotations: tt.fields.annotations,
+			}
+			if got := meta.ResolveSecret(tt.args.str, tt.args.pvname); got != tt.want {
+				t.Errorf("ResolveSecret() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
