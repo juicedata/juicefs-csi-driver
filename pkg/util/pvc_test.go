@@ -276,7 +276,7 @@ func TestResolveSecret(t *testing.T) {
 		annotations map[string]string
 	}
 	type args struct {
-		str string
+		str    string
 		pvname string
 	}
 	tests := []struct {
@@ -294,7 +294,7 @@ func TestResolveSecret(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${pvc.name}",
+				str:    "${pvc.name}",
 				pvname: "pv-a",
 			},
 			want: "test",
@@ -308,7 +308,7 @@ func TestResolveSecret(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${pvc.namespace}",
+				str:    "${pvc.namespace}",
 				pvname: "pv-a",
 			},
 			want: "default",
@@ -325,7 +325,7 @@ func TestResolveSecret(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${pvc.annotations['a.a']}",
+				str:    "${pvc.annotations['a.a']}",
 				pvname: "pv-a",
 			},
 			want: "b",
@@ -339,7 +339,7 @@ func TestResolveSecret(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${pv.name}",
+				str:    "${pv.name}",
 				pvname: "pv-a",
 			},
 			want: "pv-a",

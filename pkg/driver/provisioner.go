@@ -92,13 +92,13 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	pvName := options.PVName
 	scParams := make(map[string]string)
 	for k, v := range options.StorageClass.Parameters {
-		if strings.HasPrefix(k,"csi.storage.k8s.io/") {
+		if strings.HasPrefix(k, "csi.storage.k8s.io/") {
 			scParams[k] = pvMeta.ResolveSecret(v, pvName)
 		} else {
 			scParams[k] = v
 		}
 	}
- 
+
 	secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
@@ -112,7 +112,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	volCtx := make(map[string]string)
 	volCtx["subPath"] = subPath
 	volCtx["capacity"] = strconv.FormatInt(options.PVC.Spec.Resources.Requests.Storage().Value(), 10)
-        for k, v := range scParams {
+	for k, v := range scParams {
 		volCtx[k] = v
 	}
 	pv := &corev1.PersistentVolume{

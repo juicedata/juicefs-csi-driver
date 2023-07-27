@@ -104,7 +104,7 @@ func (meta *PVCMetadata) ResolveSecret(str string, pvName string) string {
 			return pvName
 		}
 		for ak, av := range meta.annotations {
-			if k == "pvc.annotations['"+ ak +"']" {
+			if k == "pvc.annotations['"+ak+"']" {
 				return av
 			}
 		}
