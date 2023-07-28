@@ -45,6 +45,11 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
+	// add mount path host path volume
+	mountVolumes, mountVolumeMounts := r.genHostPathVolumes()
+	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
+
 	pod.Name = podName
 	pod.Spec.ServiceAccountName = r.jfsSetting.ServiceAccountName
 	controllerutil.AddFinalizer(pod, config.Finalizer)
@@ -151,6 +156,32 @@ func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMod
 	}
 
 	return cacheVolumes, cacheVolumeMounts
+}
+
+func (r *Builder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	volumes = []corev1.Volume{}
+	volumeMounts = []corev1.VolumeMount{}
+	if len(r.jfsSetting.HostPath) == 0 {
+		return
+	}
+	mountPropagation := corev1.MountPropagationBidirectional
+	for idx, hostPath := range r.jfsSetting.HostPath {
+		name := fmt.Sprintf("hostpath-%d", idx)
+		volumes = append(volumes, corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostPath,
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:             name,
+			MountPath:        hostPath,
+			MountPropagation: &mountPropagation,
+		})
+	}
+	return
 }
 
 func (r *Builder) getCommand() string {

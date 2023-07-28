@@ -132,7 +132,6 @@ uninstall: yaml
 # build dev image
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
-	docker pull $(IMAGE):nightly
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
 
 # push dev image

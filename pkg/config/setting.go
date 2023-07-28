@@ -66,6 +66,7 @@ type JfsSetting struct {
 	MountPodAnnotations map[string]string `json:"mount_pod_annotations"`
 	DeletedDelay        string            `json:"deleted_delay"`
 	CleanCache          bool              `json:"clean_cache"`
+	HostPath            []string          `json:"host_path"`
 	ServiceAccountName  string
 	Resources           corev1.ResourceRequirements
 
@@ -321,6 +322,17 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 				return nil, err
 			}
 			jfsSetting.MountPodAnnotations = annos
+		}
+
+		var hostPaths []string
+		if volCtx[mountPodHostPath] != "" {
+			for _, v := range strings.Split(volCtx[mountPodHostPath], ",") {
+				p := strings.TrimSpace(v)
+				if p != "" {
+					hostPaths = append(hostPaths, strings.TrimSpace(v))
+				}
+			}
+			jfsSetting.HostPath = hostPaths
 		}
 	}
 	if len(labels) != 0 {
