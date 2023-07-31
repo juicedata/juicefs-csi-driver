@@ -600,6 +600,31 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "specify host path",
+			args: args{
+				secrets: map[string]string{"name": "test"},
+				volCtx:  map[string]string{mountPodHostPath: "/abc"},
+			},
+			want: &JfsSetting{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				Resources: defaultResource,
+				Attr: PodAttr{
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "juicedata/mount:ee-nightly",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs: []CachePVC{},
+				HostPath:  []string{"/abc"},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

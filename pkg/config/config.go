@@ -109,6 +109,7 @@ const (
 	deleteDelay            = "juicefs/mount-delete-delay"
 	cleanCache             = "juicefs/clean-cache"
 	cachePVC               = "juicefs/mount-cache-pvc"
+	mountPodHostPath       = "juicefs/host-path"
 
 	// DeleteDelayTimeKey mount pod annotation
 	DeleteDelayTimeKey = "juicefs-delete-delay"

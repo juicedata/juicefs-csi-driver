@@ -19,6 +19,7 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -493,6 +494,55 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 			r := Builder{jfsSetting, 0}
 			if got := r.getMetricsPort(); got != tt.want {
 				t.Errorf("getMetricsPort() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuilder_genHostPathVolumes(t *testing.T) {
+	mountPropagation := corev1.MountPropagationBidirectional
+	type fields struct {
+		jfsSetting *config.JfsSetting
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		wantVolumes      []corev1.Volume
+		wantVolumeMounts []corev1.VolumeMount
+	}{
+		{
+			name: "test",
+			fields: fields{
+				jfsSetting: &config.JfsSetting{
+					HostPath: []string{"/tmp"},
+				},
+			},
+			wantVolumes: []corev1.Volume{{
+				Name: "hostpath-0",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/tmp",
+					},
+				},
+			}},
+			wantVolumeMounts: []corev1.VolumeMount{{
+				Name:             "hostpath-0",
+				MountPath:        "/tmp",
+				MountPropagation: &mountPropagation,
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Builder{
+				jfsSetting: tt.fields.jfsSetting,
+			}
+			gotVolumes, gotVolumeMounts := r.genHostPathVolumes()
+			if !reflect.DeepEqual(gotVolumes, tt.wantVolumes) {
+				t.Errorf("genHostPathVolumes() gotVolumes = %v, want %v", gotVolumes, tt.wantVolumes)
+			}
+			if !reflect.DeepEqual(gotVolumeMounts, tt.wantVolumeMounts) {
+				t.Errorf("genHostPathVolumes() gotVolumeMounts = %v, want %v", gotVolumeMounts, tt.wantVolumeMounts)
 			}
 		})
 	}
