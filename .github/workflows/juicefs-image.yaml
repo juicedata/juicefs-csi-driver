@@ -54,6 +54,11 @@ jobs:
           else
             echo "JuiceFS mount ce version image $JUICEFS_CE_LATEST_VERSION already exists"
           fi
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
   publish-ee-mount-image:
     runs-on: ubuntu-latest
     steps:
@@ -89,3 +94,7 @@ jobs:
           else
             echo "JuiceFS mount ee version image already exists"
           fi
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
