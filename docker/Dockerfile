@@ -73,10 +73,10 @@ RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev li
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
 COPY --from=builder /workspace/juicefs-csi-driver/bin/juicefs-csi-driver /usr/local/bin/
+COPY --from=builder /workspace/juicefs-csi-driver/THIRD-PARTY /
 COPY --from=builder /workspace/juicefs/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
-COPY THIRD-PARTY /
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 

@@ -41,7 +41,7 @@ jobs:
         #        env:
         #          JFSCHAN: beta
         run: |
-          make image-nightly
+          make -C docker image-nightly
       - name: Prepare microk8s environment
         run: |
           ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
@@ -84,7 +84,7 @@ jobs:
         #        env:
         #          JFSCHAN: beta
         run: |
-          make image-nightly
+          make -C docker image-nightly
       - name: Prepare microk8s environment
         run: |
           ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
@@ -129,7 +129,7 @@ jobs:
 #        env:
 #          JFSCHAN: beta
         run: |
-          make image-nightly
+          make -C docker image-nightly
       - name: Prepare microk8s environment
         run: |
           ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
@@ -172,7 +172,7 @@ jobs:
 #        env:
 #          JFSCHAN: beta
         run: |
-          make image-nightly
+          make -C docker image-nightly
       - name: Prepare microk8s environment
         run: |
           ${GITHUB_WORKSPACE}/.github/scripts/k8s-deps.sh
@@ -223,11 +223,12 @@ jobs:
           EEVERSION: ee-nightly
         run: |
           docker login --username chnliyong --password ${PASSWORD}
-          make image-nightly
-          make image-nightly-push
-          make ce-image
-          make ee-image
-          make fuse-image-nightly
+          make -C docker image-nightly
+          make -C docker image-nightly-push
+          make -C docker ce-image
+          make -C docker ee-image
+          make -C docker fuse-ce-image
+          make -C docker fuse-ee-image
       - name: Success
         if: ${{ success() }}
         run: echo "All Done"
