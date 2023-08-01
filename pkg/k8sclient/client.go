@@ -235,6 +235,16 @@ func (k *K8sClient) DeleteSecret(ctx context.Context, secretName string, namespa
 	return k.CoreV1().Secrets(namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 }
 
+func (k *K8sClient) PatchSecret(ctx context.Context, secret *corev1.Secret, data []byte, pt types.PatchType) error {
+	if secret == nil {
+		klog.V(5).Info("Patch secret: secret is nil")
+		return nil
+	}
+	klog.V(6).Infof("Patch secret %v", secret.Name)
+	_, err := k.CoreV1().Secrets(secret.Namespace).Patch(ctx, secret.Name, pt, data, metav1.PatchOptions{})
+	return err
+}
+
 func (k *K8sClient) GetJob(ctx context.Context, jobName, namespace string) (*batchv1.Job, error) {
 	klog.V(6).Infof("Get job %s", jobName)
 	job, err := k.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})

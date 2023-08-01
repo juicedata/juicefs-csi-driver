@@ -149,6 +149,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			Namespace: scParams[config.ControllerExpandSecretNamespace],
 		}
 	}
+	util.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 
@@ -188,6 +189,16 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, volume.Spec.CSI.VolumeAttributes); err != nil {
 		klog.Errorf("provisioner: delete vol error %v", err)
 		return errors.New("unable to provision delete volume: " + err.Error())
+	}
+
+	shouldRemoveFinalizer, err := util.CheckForSecretFinalizer(ctx, j.K8sClient, volume)
+	if err != nil {
+		klog.Errorf("Provisioner: CheckForSecretFinalizer error: %v", err)
+		return err
+	}
+	if shouldRemoveFinalizer {
+		klog.V(5).Infof("Provisioner: Remove Finalizer on %s/%s", secretNamespace, secretName)
+		util.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 	}
 
 	return nil
