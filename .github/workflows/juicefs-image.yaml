@@ -18,6 +18,10 @@ jobs:
         continue-on-error: true
         run: |
           JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+          if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
+            echo "Failed to get juicefs ee version"
+            exit 1
+          fi
           echo "mount image is juicedata/mount:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
@@ -54,6 +58,11 @@ jobs:
           else
             echo "JuiceFS mount ce version image $JUICEFS_CE_LATEST_VERSION already exists"
           fi
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
   publish-ee-mount-image:
     runs-on: ubuntu-latest
     steps:
@@ -66,6 +75,10 @@ jobs:
         continue-on-error: true
         run: |
           JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
+          if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
+            echo "Failed to get juicefs ee version"
+            exit 1
+          fi
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
@@ -89,3 +102,7 @@ jobs:
           else
             echo "JuiceFS mount ee version image already exists"
           fi
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
