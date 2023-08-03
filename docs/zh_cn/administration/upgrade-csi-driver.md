@@ -4,7 +4,7 @@ slug: /upgrade-csi-driver
 sidebar_position: 2
 ---
 
-如果你目前的使用没有遇到问题，不必急于升级新版。但我们推荐你及时跟进大版本的升级，不要在大版本上落后太久。如果你不清楚当前所使用的版本，只需要查询 CSI 驱动组件所使用的镜像 Tag，就能确认当前版本。可以用下方一行命令快速检查：
+如果你目前的使用没有遇到问题，不必急于升级新版。但我们推荐你及时跟进大版本的升级，不要在大版本上落后太久。如果你不清楚当前所使用的版本，只需要查询 CSI 驱动组件所使用的镜像 tag，就能确认当前版本。可以用下方一行命令快速检查：
 
 ```shell
 kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..image}{"\n"}{end}' --all-namespaces | head -n 1 | grep -oP 'juicefs-csi-driver:\S+'

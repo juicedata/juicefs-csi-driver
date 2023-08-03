@@ -280,7 +280,7 @@ authorization:
 
 本节语境中不对「大规模」作明确定义，如果你的集群节点数超过 100，或者 Pod 总数超 1000，或者前两个条件均未达到，但是 Kubernetes APIServer 的负载过高，都可以考虑本节中的推荐事项，排除潜在的性能问题。
 
-* 开启 `ListPod` 缓存：CSI 驱动需要获取节点列表，如果 Pod 数量庞大，对 APIServer 和背后的 ETCD 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
+* 开启 `ListPod` 缓存：CSI 驱动需要获取节点列表，如果 Pod 数量庞大，对 APIServer 和背后的 etcd 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
 
   ```yaml title="values.yaml"
   controller:
