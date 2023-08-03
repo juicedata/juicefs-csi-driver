@@ -4,6 +4,12 @@ slug: /upgrade-csi-driver
 sidebar_position: 2
 ---
 
+如果你目前的使用没有遇到问题，不必急于升级新版。但我们推荐你及时跟进大版本的升级，不要在大版本上落后太久。如果你不清楚当前所使用的版本，只需要查询 CSI 驱动组件所使用的镜像 Tag，就能确认当前版本。可以用下方一行命令快速检查：
+
+```shell
+kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..image}{"\n"}{end}' --all-namespaces | head -n 1 | grep -oP 'juicefs-csi-driver:\S+'
+```
+
 阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。如果你希望单独升级 JuiceFS 客户端，参考[「升级 JuiceFS 客户端」](./upgrade-juicefs-client.md)。
 
 ## 升级 CSI 驱动（容器挂载模式） {#upgrade}
@@ -29,7 +35,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 如果你使用 kubectl 的安装方式，我们不建议你对 `k8s.yaml` 做任何定制修改，这些修改将会在升级时带来沉重的负担：你需要对新旧版本的 `k8s.yaml` 进行 diff 比对，辨认出哪些改动是需要保留的，哪些改动则是新版 CSI 驱动所需要的、应当覆盖。随着你的修改增多，这些工作会变得十分艰难。
 
-因此如果你的生产集群仍在使用 kubectl 安装方式，务必尽快切换成 Helm 安装方式。考虑到默认的容器挂载模式是一个[解耦架构](../introduction.md#architecture)，卸载 CSI 驱动并不影响正在运行的服务，你可以放心地卸载、[使用 Helm 重新安装 CSI 驱动](../getting_started.md#helm)，享受更便利的升级流程。
+因此如果你的生产集群仍在使用 kubectl 安装方式，务必尽快切换成 Helm 安装方式（参考下一小节了解如何迁移到 Helm 安装方式）。考虑到默认的容器挂载模式是一个[解耦架构](../introduction.md#architecture)，卸载 CSI 驱动并不影响正在运行的服务，你可以放心地卸载、[使用 Helm 重新安装 CSI 驱动](../getting_started.md#helm)，享受更便利的升级流程。
 
 当然了，如果你并未对 CSI 驱动配置做任何改动，那么直接下载最新的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/k8s.yaml)，然后用下边的命令进行覆盖安装即可。
 
@@ -70,6 +76,56 @@ kubectl apply -f ./k8s.yaml
 ```
 
 复杂的梳理流程、以及安装时的异常处理，对生产环境的维护极不友好，因此在生产环境务必使用 Helm 的安装方式。
+
+### 迁移到 Helm 安装方式
+
+Helm 安装需要先填写 `values.yaml`——你对 `k8s.yaml` 做过的所有改动，只要属于正常使用范畴，都能在 `values.yaml` 中找到对应的配置字段，你需要做的就是梳理当前配置，将他们填写到 `values.yaml`。当然了，如果你并没有对 `k8s.yaml` 进行定制（也没有对线上环境直接修改过配置），那么迁移会非常简单，直接跳过梳理步骤，直接按照下方的指示卸载重装即可。
+
+#### 梳理配置、填写 `values.yaml`
+
+开始之前，你需要确定当前所使用的 CSI 驱动版本，可以直接使用本文开头的方法进行判断。下方以 v0.18.0 升级到 v0.21.0 为例，讲解如何逐行梳理配置，填写 `values.yaml`。
+
+1. 用浏览器访问 GitHub，打开两个版本的 diff。这个过程需要手动输入链接，注意链接末尾的版本号，例如 `https://github.com/juicedata/juicefs-csi-driver/compare/v0.18.0..v0.21.0`，在文件列表中找到 `k8s.yaml`。在页面中会显示版本更新所引入的所有 `k8s.yaml` 变动。保留这个页面，稍后梳理配置的时候，如果不确定哪些变动是你的集群定制配置，哪些是升级所带来的修改，都可以参照这个页面来判断；
+1. 找到当前线上集群安装时所使用的 `k8s.yaml`，将其拷贝重命名为 `k8s-online.yaml`，本文档后续也用该名称来指代当前线上的安装文件。一定要注意，该文件必须能准确反映出「当前线上的配置」，如果你的团队临时修改过线上配置（比如使用 `kubectl edit` 临时添加环境变量、修改镜像），你需要对这些改动加以确认，并追加到 `k8s-online.yaml`；
+1. 将新版（此处链接以 v0.21.0 为例）CSI 驱动的 [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/94d4f95a5d0f15a7a430ea31257d725306e90ca4/deploy/k8s.yaml) 下载到本地，与线上配置进行对比，可以直接运行 `vimdiff k8s.yaml k8s-online.yaml`；
+1. 逐行对比配置文件，确定每一处配置修改是升级带来的，还是你的团队进行的定制。判断这些定制是否需要保留，然后填写到 `values.yaml`。如果不确定如何填写，仔细阅读 `values.yaml` 中的注释文档，通常就能找到线索。
+
+我们对撰写 `values.yaml` 有如下建议：
+
+如果 `k8s-online.yaml` 中[覆盖了默认的 Mount Pod 镜像](../guide/custom-image.md)（可以通过 `JUICEFS_EE_MOUNT_IMAGE` 环境变量，或者 StorageClass 的 `juicefs/mount-image` 字段），并且指定了一个更老版本的 Mount 镜像，我们鼓励你丢弃该配置，让集群随着 CSI 驱动升级，启用新版 Mount 镜像，相当于伴随着 CSI 驱动升级，JuiceSF 客户端一并升级。
+
+动态配置需要[创建 StorageClass](../guide/pv.md#create-storage-class)，而在 Helm Values 中，StorageClass 和[文件系统认证信息](../guide/pv.md#volume-credentials)是捆绑一起管理的，为了避免将敏感信息留在 `values.yaml`，我们一般建议手动管理文件系统认证信息和 StorageClass，然后将 `values.yaml` 中的 StorageClass 禁用：
+
+```yaml title="values.yaml"
+storageClasses:
+- enabled: false
+```
+
+#### 卸载重装
+
+如果你使用默认的容器挂载，或者 Sidecar 模式，那么卸载 CSI 驱动是不影响当前服务的（期间新的 PV 无法创建、挂载）。只有[进程挂载模式](../introduction.md#by-process)会因为卸载而中断服务。如果你没有在使用该模式，迁移过程对正在运行的 PV 完全没有影响，可以放心执行。
+
+如果你的环境是离线集群，无法直接从外网拉取镜像，那么也需要提前[搬运镜像](./offline.md)。
+
+提前准备好需要运行的运维命令，例如：
+
+```shell
+# 卸载当前 CSI 驱动
+kubectl delete -f k8s-online.yaml
+
+# 用 Helm 重装，不同集群的配置可以用不同的 values.yaml 文件来进行管理
+# 比如 values-dev.yaml, values-prod.yaml
+# CSI 驱动对安装命名空间没有特殊要求，你可以按需修改，比如 jfs-system
+helm upgrade --install juicefs-csi-driver . -f values.yaml -n kube-system
+```
+
+运行这些命令，重装以后，立刻观察 CSI 驱动各组件的启动情况：
+
+```shell
+kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+```
+
+等待所有组件启动完毕，然后简单创建应用 Pod 进行验证，可以参考[我们的示范](../guide/pv.md#static-provisioning)。
 
 ## 升级 CSI 驱动（进程挂载模式） {#mount-by-process-upgrade}
 

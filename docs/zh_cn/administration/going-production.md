@@ -275,3 +275,23 @@ authorization:
 ```
 
 但若 Kubelet 并未使用配置文件，而是将所有配置都直接追加在启动参数中，那么你需要追加 `--authorization-mode=Webhook` 和 `--authentication-token-webhook`，来实现相同的效果。
+
+## 大规模集群 {#large-scale}
+
+本节语境中不对「大规模」作明确定义，如果你的集群节点数超过 100，或者 Pod 总数超 1000，或者前两个条件均未达到，但是 Kubernetes APIServer 的负载过高，都可以考虑本节中的推荐事项，排除潜在的性能问题。
+
+* 开启 `ListPod` 缓存：CSI 驱动需要获取节点列表，如果 Pod 数量庞大，对 APIServer 和背后的 ETCD 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
+
+  ```yaml title="values.yaml"
+  controller:
+    envs:
+    - name: ENABLE_APISERVER_LIST_CACHE
+      value: "true"
+
+  node:
+    envs:
+    - name: ENABLE_APISERVER_LIST_CACHE
+      value: "true"
+  ```
+
+* 同样是为了减轻 APIServer 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
