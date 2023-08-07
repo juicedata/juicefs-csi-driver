@@ -4,6 +4,12 @@ slug: /upgrade-csi-driver
 sidebar_position: 2
 ---
 
+If you did not run into problems, there's no need to rush upgrades. But we do recommend that you keep using the latest major & minor versions of CSI Driver (patch versions however, can be skipped if it does not contain the needed improvements). To confirm which version that you're currently using, simply check the image version using the below one-liner:
+
+```shell
+kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..image}{"\n"}{end}' --all-namespaces | head -n 1 | grep -oP 'juicefs-csi-driver:\S+'
+```
+
 Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md).
 
 ## Upgrade CSI Driver (mount by pod mode) {#upgrade}
