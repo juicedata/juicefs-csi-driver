@@ -2,6 +2,11 @@ name: build juicefs image
 
 on:
   workflow_dispatch:
+    inputs:
+      ce_juicefs_build_version:
+        description: 'ce juicefs version for image build'
+        required: false
+        type: string
   schedule:
     - cron: "0 8 * * *"
 
@@ -16,31 +21,44 @@ jobs:
         run: docker login --username chnliyong --password ${PASSWORD}
       - name: check latest tag
         continue-on-error: true
+        env:
+          JUICEFS_BUILD_VERSION: ${{ inputs.ce_juicefs_build_version }}
         run: |
-          JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
-          if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
-            echo "Failed to get juicefs ee version"
-            exit 1
-          fi
-          echo "mount image is juicedata/mount:${JUICEFS_CE_LATEST_VERSION}-$JUICEFS_EE_LATEST_VERSION"
-          echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
-          echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
-          docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
-          rst=$?
-          if [ $rst -eq 0 ]; then
-            echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+          if [ ${{ env.JUICEFS_BUILD_VERSION }} ]; then
+            echo "JUICEFS_CE_LATEST_VERSION=${{ env.JUICEFS_BUILD_VERSION }}" >> $GITHUB_ENV
+            echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
+          else
+            JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+            if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
+              echo "Failed to get juicefs ce version"
+              exit 1
+            fi
+            echo "mount image is juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
+            echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
+            echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
+            docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
+            rst=$?
+            if [ $rst -eq 0 ]; then
+              echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+            fi
           fi
       - name: Build and Push juicefs latest image
         env:
           CEVERSION: latest
-          CEJUICEFS_VERSION: ${{ env.JUICEFS_CE_LATEST_VERSION }}
         run: |
-          image_exist=${{ env.MOUNT_IMAGE_EXIST }}
-          if [ $image_exist == "false" ]; then
-            echo "Build JuiceFS latest image"
-            make ce-image
-          else
+          JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+          if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
+            echo "Failed to get juicefs ce version"
+            exit 1
+          fi
+          docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
+          rst=$?
+          if [ $rst -eq 0 ]; then
             echo "JuiceFS latest image already exists"
+          else
+            echo "Build JuiceFS latest image"
+            export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
+            make -C docker ce-image
           fi
       - name: Buildx and Push juicefs image
         env:

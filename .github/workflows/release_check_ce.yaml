@@ -2,6 +2,11 @@ name: Release Check For CE
 
 on:
   workflow_dispatch:
+    inputs:
+      ce_juicefs_version:
+        description: 'ce juicefs version'
+        required: true
+        type: string
   push:
     branches:
       - release_check*
@@ -38,7 +43,7 @@ jobs:
       - name: Build image
         env:
           DEV_K8S: microk8s
-          CEJUICEFS_VERSION: release-1.1-beta1
+          CEJUICEFS_VERSION: ${{ inputs.ce_juicefs_version }}
           CEVERSION: ce-release-check
           MOUNTTAG: ce-release-check
         run: |
