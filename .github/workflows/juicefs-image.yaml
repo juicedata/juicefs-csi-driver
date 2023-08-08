@@ -3,9 +3,10 @@ name: build juicefs image
 on:
   workflow_dispatch:
     inputs:
-      - name: JUICEFS_BUILD_VERSION
+      ce_juicefs_build_version:
         description: 'ce juicefs version for image build'
         required: false
+        type: string
   schedule:
     - cron: "0 8 * * *"
 
@@ -21,7 +22,7 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         env:
-          JUICEFS_BUILD_VERSION: ${{ inputs.JUICEFS_BUILD_VERSION }}
+          JUICEFS_BUILD_VERSION: ${{ inputs.ce_juicefs_build_version }}
         run: |
           JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
           if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
