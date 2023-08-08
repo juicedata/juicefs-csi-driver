@@ -8,7 +8,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 0 * * *"
 
 jobs:
   publish-ce-mount-image:
