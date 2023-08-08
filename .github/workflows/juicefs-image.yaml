@@ -49,7 +49,7 @@ jobs:
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
             echo "Build JuiceFS latest image"
-            make ce-image
+            make -C docker ce-image
           else
             echo "JuiceFS latest image already exists"
           fi
