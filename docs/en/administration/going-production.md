@@ -275,3 +275,23 @@ authorization:
 ```
 
 If however, a configuration file isn't used, then kubelet is configured purely via startup command arguments, append `--authorization-mode=Webhook` and `--authentication-token-webhook` to achieve the same thing.
+
+## Large scale clusters {#large-scale}
+
+"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
+
+* Enable `ListPod` cache: CSI Driver needs to obtain the pod list, when faced with a large number of pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
+
+  ```yaml title="values.yaml"
+  controller:
+    envs:
+    - name: ENABLE_APISERVER_LIST_CACHE
+      value: "true"
+
+  node:
+    envs:
+    - name: ENABLE_APISERVER_LIST_CACHE
+      value: "true"
+  ```
+
+* Also to lower the workload on the APIServer, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
