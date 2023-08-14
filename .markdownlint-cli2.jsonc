@@ -32,7 +32,7 @@
     },
     "fenced-code-language": false,
     "first-line-heading": false,
-    "no-alt-text": false,
+    "no-alt-text": true,
     "code-block-style": {
       "style": "fenced"
     },
