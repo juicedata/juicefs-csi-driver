@@ -17,7 +17,7 @@ juicefs-csi-node-8rd96     3/3     Running       0          141d
 
 By default, CSI Driver runs in mount pod mode, in which JuiceFS Client runs in a dedicated mount pod, like the architecture shown below:
 
-![](./images/csi-driver-architecture.svg)
+![CSI-driver-architecture](./images/csi-driver-architecture.svg)
 
 A dedicated mount pod, managed by CSI Node Service, such architecture proves several advantages:
 
@@ -26,7 +26,7 @@ A dedicated mount pod, managed by CSI Node Service, such architecture proves sev
 
 On the same node, a PVC corresponds to a mount pod, while pods using the same PV may share a single mount pod. The relationship between different resources:
 
-![](./images/mount-pod-architecture.svg)
+![mount-pod-architecture](./images/mount-pod-architecture.svg)
 
 If mount pod mode doesn't suit you, check out [other mount modes](#other-mount-modes) provided by JuiceFS CSI Driver.
 
@@ -38,7 +38,7 @@ To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via
 
 This is the simpler approach, under static provisioning, the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
 
-![](./images/static-provisioning.svg)
+![static-provisioning](./images/static-provisioning.svg)
 
 Use static provisioning when:
 
@@ -49,7 +49,7 @@ Use static provisioning when:
 
 Managing PVs can be wearisome, when using CSI Driver at scale, it's recommended to create PV dynamically via dynamic provisioning, relieving the administrator from managing the PVs, while also achieving application data isolation. Under dynamic provisioning, the Kubernetes administrator will create and manage one or more StorageClass, the user only need to create a PVC and reference it in pod definition, and JuiceFS CSI Driver will create the corresponding PV for you. The relationship between different resources:
 
-![](./images/dynamic-provisioning.svg)
+![dynamic-provisioning](./images/dynamic-provisioning.svg)
 
 Taking mount pod mode for example, this is the overall process:
 
@@ -72,7 +72,7 @@ Mount pod is created by CSI Node, due to CSI Node being a DaemonSet component, i
 
 In this mode, CSI Node is no longer needed, CSI Controller is the only installed component. For Kubernetes namespaces that need to use CSI Driver, CSI Controller will listen for pod changes, check if JuiceFS PVC is used, and inject sidecar container accordingly.
 
-![](./images/sidecar-architecture.svg)
+![sidecar-architecture](./images/sidecar-architecture.svg)
 
 The overall process:
 
@@ -96,7 +96,7 @@ To use sidecar mode, [install CSI Driver in sidecar mode](./getting_started.md#s
 
 Apart from using a dedicated mount pod or a sidecar container to run JuiceFS Client, JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node Service, as processes (mount by process). In this mode, one or several JuiceFS Clients will run inside the CSI Node Service pod, managing all JuiceFS mount points for application pods referencing JuiceFS PV in the associating node.
 
-![](./images/byprocess-architecture.svg)
+![byprocess-architecture](./images/byprocess-architecture.svg)
 
 When all JuiceFS Client run inside CSI Node Service pod, it's not hard to imagine that CSI Node Service will be needing more resource. It's recommended to increase resource requests to 1 CPU and 1GiB Memory, limits to 2 CPU and 5GiB Memory, or adjust according to the actual resource usage.
 

@@ -21,7 +21,7 @@ juicefs-csi-node-8rd96     3/3     Running       0          141d
 
 CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户端运行在独立的 Pod 中，其架构如下：
 
-![](./images/csi-driver-architecture.svg)
+![CSI-driver-architecture](./images/csi-driver-architecture.svg)
 
 采用独立 Mount Pod 来运行 JuiceFS 客户端，并由 CSI Node Service 来管理 Mount Pod 的生命周期。这样的架构提供如下好处：
 
@@ -30,7 +30,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 在同一个节点上，一个 PVC 会对应一个 Mount Pod。而使用了相同 PV 的容器，则可以共享一个 Mount Pod。PVC、PV、Mount Pod 之间的关系如下图所示：
 
-![](./images/mount-pod-architecture.svg)
+![mount-pod-architecture](./images/mount-pod-architecture.svg)
 
 如果该模式不适用于你的场景，CSI 驱动还提供其他机制，详见[「其他运行模式」](#other-mount-modes)。
 
@@ -42,7 +42,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 静态配置方式最为简单直接，需要 Kubernetes 管理员创建 PersistentVolume（PV）以及[文件系统认证信息](./guide/pv.md#volume-credentials)（以 Kubernetes Secret 形式保存），然后用户创建 PersistentVolumeClaim（PVC），在定义中绑定该 PV，最后在 Pod 定义中引用该 PVC。资源间关系如下图所示：
 
-![](./images/static-provisioning.svg)
+![static-provisioning](./images/static-provisioning.svg)
 
 一般在以下场景使用静态配置：
 
@@ -53,7 +53,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 考虑到静态配置的管理更加复杂，规模化使用 CSI 驱动时，一般会以「动态配置」方式使用，管理员不再需要手动创建 PV，同时实现应用间的数据隔离。这种模式下，管理员会负责创建一个或多个 StorageClass，用户只需要创建 PVC，指定 StorageClass，并且在 Pod 中引用该 PVC，CSI 驱动就会按照 StorageClass 中配置好的参数，为你自动创建 PV。资源间关系如下：
 
-![](./images/dynamic-provisioning.svg)
+![dynamic-provisioning](./images/dynamic-provisioning.svg)
 
 以容器挂载模式为例，从创建到使用的流程大致如下：
 
@@ -84,7 +84,7 @@ Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组
 
 以 Sidecar 模式安装 CSI 驱动，所部署的组件只有 CSI Controller，不再需要 CSI Node。对于需要使用 CSI 驱动的 Kubernetes 命名空间，CSI Controller 会监听容器变动，检查是否使用了 JuiceFS PVC，并根据情况为其注入 Sidecar 容器。
 
-![](./images/sidecar-architecture.svg)
+![sidecar-architecture](./images/sidecar-architecture.svg)
 
 创建和使用的流程大致如下：
 
@@ -108,7 +108,7 @@ Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组
 
 相较于采用独立 Mount Pod 的容器挂载方式或 Sidecar 模式，CSI 驱动还提供无需独立 Pod 的进程挂载模式，在这种模式下，CSI Node Service 容器中将会负责运行一个或多个 JuiceFS 客户端，该节点上所有需要挂载的 JuiceFS PV，均在 CSI Node Service 容器中以进程模式执行挂载。
 
-![](./images/byprocess-architecture.svg)
+![byprocess-architecture](./images/byprocess-architecture.svg)
 
 可想而知，由于所有 JuiceFS 客户端均在 CSI Node Service 容器中运行，CSI Node Service 将需要更大的资源声明，推荐将其资源请求调大到至少 1 CPU 和 1GiB 内存，资源约束调大到至少 2 CPU 和 5GiB 内存，或者根据实际场景资源占用进行调整。
 
