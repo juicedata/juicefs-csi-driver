@@ -139,7 +139,7 @@ func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume 
 		pvSecretName := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
 		// Cannot remove the secret if it is used by another pv
 		if secretNamespace == pvSecretNamespace && secretName == pvSecretName {
-			klog.V(6).Infof("PV %s uses the same secret %s/%s", pv.Name, pvSecretNamespace, pvSecretName)
+			klog.V(5).Infof("PV %s uses the same secret %s/%s", pv.Name, pvSecretNamespace, pvSecretName)
 			return false, nil
 		}
 	}
