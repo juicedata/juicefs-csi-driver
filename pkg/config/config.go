@@ -41,7 +41,7 @@ var (
 	MountLabels        = ""
 	HostIp             = ""
 	KubeletPort        = ""
-	ReconcileTimeout   = 1 * time.Minute
+	ReconcileTimeout   = 5 * time.Minute
 	ReconcilerInterval = 5
 
 	CSIPod = corev1.Pod{}

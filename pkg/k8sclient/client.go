@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,6 +85,22 @@ func NewClient() (*K8sClient, error) {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
 	config.Timeout = timeout
+
+	if os.Getenv("KUBE_QPS") != "" {
+		kubeQpsInt, err := strconv.Atoi(os.Getenv("KUBE_QPS"))
+		if err != nil {
+			return nil, err
+		}
+		config.QPS = float32(kubeQpsInt)
+	}
+	if os.Getenv("KUBE_BURST") != "" {
+		kubeBurstInt, err := strconv.Atoi(os.Getenv("KUBE_BURST"))
+		if err != nil {
+			return nil, err
+		}
+		config.Burst = kubeBurstInt
+	}
+
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
