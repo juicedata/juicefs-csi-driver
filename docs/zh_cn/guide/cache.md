@@ -147,7 +147,7 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-对于 JuiceFS 企业版的[独立缓存集群场景](https://juicefs.com/docs/zh/cloud/guide/distributed-cache/)，如果需要程式化地调用预热命令，可以参考下方示范，用 Kubernetes Job 将预热过程自动化：
+对于 JuiceFS 企业版的[独立缓存集群场景](https://juicefs.com/docs/zh/cloud/guide/distributed-cache)，如果需要程式化地调用预热命令，可以参考下方示范，用 Kubernetes Job 将预热过程自动化：
 
 ```yaml title="warmup-job.yaml"
 apiVersion: batch/v1

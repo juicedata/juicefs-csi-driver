@@ -147,7 +147,7 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-For [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/distributed-cache/) scenarios, if you need to automate the warmup process, consider using Kubernetes Job:
+For [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/distributed-cache) scenarios, if you need to automate the warmup process, consider using Kubernetes Job:
 
 ```yaml title="warmup-job.yaml"
 apiVersion: batch/v1
