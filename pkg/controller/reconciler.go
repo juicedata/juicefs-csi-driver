@@ -18,16 +18,23 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
+
+const (
+	retryPeriod    = 5 * time.Second
+	maxRetryPeriod = 300 * time.Second
 )
 
 type PodReconciler struct {
@@ -64,6 +71,7 @@ func StartReconciler() error {
 }
 
 func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
+	backOff := flowcontrol.NewBackOff(retryPeriod, maxRetryPeriod)
 	for {
 		ctx := context.TODO()
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
@@ -89,6 +97,8 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
+			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
+
 			g.Go(func() error {
 				mounter := mount.SafeFormatAndMount{
 					Interface: mount.New(""),
@@ -104,14 +114,20 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					klog.Infof("goroutine of pod %s cancel", pod.Name)
 					return nil
 				default:
-					err := podDriver.Run(ctx, pod)
-					if err != nil {
-						klog.Errorf("Driver check pod %s error: %v", pod.Name, err)
+					if !backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
+						err = podDriver.Run(ctx, pod)
+						if err != nil {
+							klog.Errorf("Driver check pod %s error, will retry: %v", pod.Name, err)
+							backOff.Next(backOffID, time.Now())
+							return err
+						}
+						backOff.Reset(backOffID)
 					}
-					return err
 				}
+				return nil
 			})
 		}
+		backOff.GC()
 		g.Wait()
 	finish:
 		cancel()
