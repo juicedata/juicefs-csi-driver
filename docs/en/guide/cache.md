@@ -147,8 +147,91 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-On the other hand, if you've already install JuiceFS Client in the application pod, it's OK to run the warm-up command directly inside the application pod.
+If you need to automate this process, consider using Kubernetes Job:
 
+```yaml title="warmup-job.yaml"
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: warmup
+  annotations:
+      helm.sh/hook: post-install,pre-upgrade
+      helm.sh/hook-delete-policy: before-hook-creation
+  labels:
+    helm.sh/chart: warmup
+    app.kubernetes.io/name: warmup
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: warmup
+        helm.sh/chart: warmup
+        app.kubernetes.io/name: warmup
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: warmup
+          command:
+            - bash
+            - -c
+            - |
+              # Below shell code is only needed in on-premise environments, which unpacks JSON and set its key-value pairs as environment variables
+              for keyval in $(echo $ENVS | sed -e 's/": "/=/g' -e 's/{"//g' -e 's/", "/ /g' -e 's/"}//g' ); do
+                echo "export $keyval"
+                eval export $keyval
+              done
+
+              # Authenticate and mount JuiceFS, all environment variables comes from the volume credentials within the Kubernetes Secret
+              # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
+              /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
+
+              # Must use --foreground to make JuiceFS Client process run in foreground, adjust other mount options to your need (especially --cache-group)
+              # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=jfscache
+
+              # Check if warmup succeeds, by default, if any of the data blocks fails to download, the command fails, and client log needs to be check for troubleshooting
+              /usr/bin/juicefs warmup /mnt/jfs
+              code=$?
+              if [ "$code" != "0" ]; then
+                cat /var/log/juicefs.log
+              fi
+              exit $code
+          image: juicedata/mount:ee-4.9.16
+          securityContext:
+            privileged: true
+          env:
+            - name: VOL_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: juicefs-secret
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: access-key
+                  name: juicefs-secret
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: secret-key
+                  name: juicefs-secret
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: juicefs-secret
+            - name: ENVS
+              valueFrom:
+                secretKeyRef:
+                  key: envs
+                  name: juicefs-secret
+      restartPolicy: Never
+```
 ## Clean cache when mount pod exits {#mount-pod-clean-cache}
 
 Local cache can be a precious resource, especially when dealing with large scale data. JuiceFS CSI Driver does not delete cache by default when mount pod exits. If this behavior doesn't suit you, make adjustment so that local cache is cleaned when mount pod exits.
