@@ -147,7 +147,7 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-If you need to automate this process, consider using Kubernetes Job:
+For [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/distributed-cache/) scenarios, if you need to automate the warmup process, consider using Kubernetes Job:
 
 ```yaml title="warmup-job.yaml"
 apiVersion: batch/v1
@@ -190,7 +190,7 @@ spec:
               # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
               /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-              # Must use --foreground to make JuiceFS Client process run in foreground, adjust other mount options to your need (especially --cache-group)
+              # Mount with --no-sharing to avoid download cache data to container storage itself
               # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
               /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=jfscache
 

@@ -147,7 +147,7 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-如果需要程式化地调用预热命令，可以参考下方示范，用 Kubernetes Job 将预热过程自动化：
+对于 JuiceFS 企业版的[独立缓存集群场景](https://juicefs.com/docs/zh/cloud/guide/distributed-cache/)，如果需要程式化地调用预热命令，可以参考下方示范，用 Kubernetes Job 将预热过程自动化：
 
 ```yaml title="warmup-job.yaml"
 apiVersion: batch/v1
@@ -190,9 +190,8 @@ spec:
               # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
               /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-              # 由于在容器中常驻，必须用 --foreground 模式运行，其它挂载选项（特别是 --cache-group）按照实际情况调整
-              # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#mount
-              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=jfscache
+              # 以 --no-sharing 模式挂载客户端，避免预热到容器本地缓存目录
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --no-sharing --cache-size=0 --cache-group=jfscache
 
               # 判断 warmup 是否成功运行，默认如果有任何数据块下载失败，会报错，此时需要查看客户端日志，定位失败原因
               /usr/bin/juicefs warmup /mnt/jfs
