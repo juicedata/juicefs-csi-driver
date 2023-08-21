@@ -94,6 +94,10 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if req.Parameters["pathPattern"] != "" {
 		klog.Warningf("CreateVolume: volume %s uses pathPattern, please enable provisioner in CSI Controller, not works in default mode.", volumeId)
 	}
+	// check if use secretFinalizer
+	if req.Parameters["secretFinalizer"] == "true" {
+		klog.Warningf("CreateVolume: volume %s uses secretFinalizer, please enable provisioner in CSI Controller, not works in default mode.", volumeId)
+	}
 
 	volCtx["subPath"] = subPath
 	volCtx["capacity"] = strconv.FormatInt(requiredCap, 10)

@@ -18,13 +18,17 @@ package util
 
 import (
 	"context"
+	"encoding/json"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -112,4 +116,67 @@ func (meta *PVCMetadata) ResolveSecret(str string, pvName string) string {
 		return ""
 	})
 	return resolved
+}
+
+func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume *v1.PersistentVolume) (shouldRemoveFinalizer bool, err error) {
+	sc := volume.Spec.StorageClassName
+	secretNamespace := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
+	secretName := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
+	if sc == "" || secretNamespace == "" || secretName == "" {
+		klog.V(5).Infof("Cannot check for the secret, storageclass: %s, secretNamespace: %s, secretName: %s", sc, secretNamespace, secretName)
+		return false, nil
+	}
+	// get all pvs
+	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	for _, pv := range pvs {
+		if pv.Name == volume.Name || pv.DeletionTimestamp != nil || pv.Spec.StorageClassName != sc {
+			continue
+		}
+		pvSecretNamespace := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
+		pvSecretName := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
+		// Cannot remove the secret if it is used by another pv
+		if secretNamespace == pvSecretNamespace && secretName == pvSecretName {
+			klog.V(5).Infof("PV %s uses the same secret %s/%s", pv.Name, pvSecretNamespace, pvSecretName)
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func patchSecretFinalizer(ctx context.Context, client *k8s.K8sClient, secret *v1.Secret) error {
+	f := secret.GetFinalizers()
+	payload := []k8s.PatchListValue{{
+		Op:    "replace",
+		Path:  "/metadata/finalizers",
+		Value: f,
+	}}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		klog.Errorf("Parse json error: %v", err)
+		return err
+	}
+	if err := client.PatchSecret(ctx, secret, payloadBytes, types.JSONPatchType); err != nil {
+		klog.Errorf("Patch secret err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func AddSecretFinalizer(ctx context.Context, client *k8s.K8sClient, secret *v1.Secret, finalizer string) error {
+	if controllerutil.ContainsFinalizer(secret, finalizer) {
+		return nil
+	}
+	controllerutil.AddFinalizer(secret, finalizer)
+	return patchSecretFinalizer(ctx, client, secret)
+}
+
+func RemoveSecretFinalizer(ctx context.Context, client *k8s.K8sClient, secret *v1.Secret, finalizer string) error {
+	if !controllerutil.ContainsFinalizer(secret, finalizer) {
+		return nil
+	}
+	controllerutil.RemoveFinalizer(secret, finalizer)
+	return patchSecretFinalizer(ctx, client, secret)
 }
