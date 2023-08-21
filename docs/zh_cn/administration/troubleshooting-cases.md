@@ -112,7 +112,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 
 * **`volumeHandle` 冲突，导致 PVC 创建失败**
 
-  两个 pod 分别使用各自的 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
+  一个 pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
 
   ```shell {6}
   $ kubectl describe pvc jfs-static
@@ -121,6 +121,15 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
     Type     Reason         Age               From                         Message
     ----     ------         ----              ----                         -------
     Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
+  ```
+  
+  另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
+  
+  ```shell
+  Events:
+  Type     Reason       Age    From               Message
+  ----     ------       ----   ----               -------
+  Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
   ```
 
   请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。可以通过以下命令检查 `volumeHandle`：

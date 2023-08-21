@@ -114,7 +114,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
 * **PVC creation failures due to `volumeHandle` conflicts**
 
-  This happens when two application pods try to use their own PVC, but referenced PV uses a same `volumeHandle`, you'll see errors like:
+  This happens when an application pod try to use multiple PVCs, but referenced PV uses a same `volumeHandle`, you'll see errors like:
 
   ```shell {6}
   $ kubectl describe pvc jfs-static
@@ -123,6 +123,15 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
     Type     Reason         Age               From                         Message
     ----     ------         ----              ----                         -------
     Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
+  ```
+  
+  In addition, the application pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
+
+  ```shell
+  Events:
+  Type     Reason       Age    From               Message
+  ----     ------       ----   ----               -------
+  Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
   ```
 
   Check `volumeHandle` of all relevant PV, ensure `volumeHandle` is unique :
