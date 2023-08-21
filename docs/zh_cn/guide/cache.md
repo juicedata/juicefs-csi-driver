@@ -154,13 +154,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: warmup
-  annotations:
-      helm.sh/hook: post-install,pre-upgrade
-      helm.sh/hook-delete-policy: before-hook-creation
   labels:
-    helm.sh/chart: warmup
     app.kubernetes.io/name: warmup
-    app.kubernetes.io/managed-by: Helm
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 3600
@@ -169,9 +164,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/instance: warmup
-        helm.sh/chart: warmup
         app.kubernetes.io/name: warmup
-        app.kubernetes.io/managed-by: Helm
     spec:
       serviceAccountName: default
       containers:
@@ -191,7 +184,8 @@ spec:
               /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
               # 以 --no-sharing 模式挂载客户端，避免预热到容器本地缓存目录
-              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --no-sharing --cache-size=0 --cache-group=jfscache
+              # CACHEGROUP 需要替换成实际环境中的缓存组名
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --no-sharing --cache-size=0 --cache-group=CACHEGROUP
 
               # 判断 warmup 是否成功运行，默认如果有任何数据块下载失败，会报错，此时需要查看客户端日志，定位失败原因
               /usr/bin/juicefs warmup /mnt/jfs

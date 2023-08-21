@@ -154,13 +154,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: warmup
-  annotations:
-      helm.sh/hook: post-install,pre-upgrade
-      helm.sh/hook-delete-policy: before-hook-creation
   labels:
-    helm.sh/chart: warmup
     app.kubernetes.io/name: warmup
-    app.kubernetes.io/managed-by: Helm
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 3600
@@ -169,9 +164,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/instance: warmup
-        helm.sh/chart: warmup
         app.kubernetes.io/name: warmup
-        app.kubernetes.io/managed-by: Helm
     spec:
       serviceAccountName: default
       containers:
@@ -190,9 +183,9 @@ spec:
               # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
               /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-              # Mount with --no-sharing to avoid download cache data to container storage itself
-              # ref: https://juicefs.com/docs/cloud/reference/commands_reference#mount
-              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=jfscache
+              # Mount with --no-sharing to avoid download cache data to local container storage
+              # Replace CACHEGROUP with actual cache group name
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=CACHEGROUP
 
               # Check if warmup succeeds, by default, if any of the data blocks fails to download, the command fails, and client log needs to be check for troubleshooting
               /usr/bin/juicefs warmup /mnt/jfs
