@@ -147,7 +147,84 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-特别地，如果你的应用容器中也安装有 JuiceFS 客户端，那么也可以直接在应用容器中运行预热命令。
+对于 JuiceFS 企业版的[独立缓存集群场景](https://juicefs.com/docs/zh/cloud/guide/distributed-cache)，如果需要程式化地调用预热命令，可以参考下方示范，用 Kubernetes Job 将预热过程自动化：
+
+```yaml title="warmup-job.yaml"
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: warmup
+  labels:
+    app.kubernetes.io/name: warmup
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: warmup
+        app.kubernetes.io/name: warmup
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: warmup
+          command:
+            - bash
+            - -c
+            - |
+              # 下面的 shell 代码仅在私有部署需要，作用是将 envs 这一 JSON 进行展开，将键值设置为环境变量
+              for keyval in $(echo $ENVS | sed -e 's/": "/=/g' -e 's/{"//g' -e 's/", "/ /g' -e 's/"}//g' ); do
+                echo "export $keyval"
+                eval export $keyval
+              done
+
+              # 认证和挂载，所有环境变量均引用包含着文件系统认证信息的 Kubernetes Secret
+              # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
+              /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
+
+              # 以 --no-sharing 模式挂载客户端，避免预热到容器本地缓存目录
+              # CACHEGROUP 需要替换成实际环境中的缓存组名
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --no-sharing --cache-size=0 --cache-group=CACHEGROUP
+
+              # 判断 warmup 是否成功运行，默认如果有任何数据块下载失败，会报错，此时需要查看客户端日志，定位失败原因
+              /usr/bin/juicefs warmup /mnt/jfs
+              code=$?
+              if [ "$code" != "0" ]; then
+                cat /var/log/juicefs.log
+              fi
+              exit $code
+          image: juicedata/mount:ee-4.9.16
+          securityContext:
+            privileged: true
+          env:
+            - name: VOL_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: juicefs-secret
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: access-key
+                  name: juicefs-secret
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: secret-key
+                  name: juicefs-secret
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: juicefs-secret
+            - name: ENVS
+              valueFrom:
+                secretKeyRef:
+                  key: envs
+                  name: juicefs-secret
+      restartPolicy: Never
+```
 
 ## Mount Pod 退出时清理缓存 {#mount-pod-clean-cache}
 

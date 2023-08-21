@@ -147,7 +147,84 @@ df -h | grep JuiceFS
 juicefs warmup /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa/data
 ```
 
-On the other hand, if you've already install JuiceFS Client in the application pod, it's OK to run the warm-up command directly inside the application pod.
+For [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/distributed-cache) scenarios, if you need to automate the warmup process, consider using Kubernetes Job:
+
+```yaml title="warmup-job.yaml"
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: warmup
+  labels:
+    app.kubernetes.io/name: warmup
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: warmup
+        app.kubernetes.io/name: warmup
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: warmup
+          command:
+            - bash
+            - -c
+            - |
+              # Below shell code is only needed in on-premise environments, which unpacks JSON and set its key-value pairs as environment variables
+              for keyval in $(echo $ENVS | sed -e 's/": "/=/g' -e 's/{"//g' -e 's/", "/ /g' -e 's/"}//g' ); do
+                echo "export $keyval"
+                eval export $keyval
+              done
+
+              # Authenticate and mount JuiceFS, all environment variables comes from the volume credentials within the Kubernetes Secret
+              # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
+              /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
+
+              # Mount with --no-sharing to avoid download cache data to local container storage
+              # Replace CACHEGROUP with actual cache group name
+              /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=CACHEGROUP
+
+              # Check if warmup succeeds, by default, if any of the data blocks fails to download, the command fails, and client log needs to be check for troubleshooting
+              /usr/bin/juicefs warmup /mnt/jfs
+              code=$?
+              if [ "$code" != "0" ]; then
+                cat /var/log/juicefs.log
+              fi
+              exit $code
+          image: juicedata/mount:ee-4.9.16
+          securityContext:
+            privileged: true
+          env:
+            - name: VOL_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: juicefs-secret
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: access-key
+                  name: juicefs-secret
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: secret-key
+                  name: juicefs-secret
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: juicefs-secret
+            - name: ENVS
+              valueFrom:
+                secretKeyRef:
+                  key: envs
+                  name: juicefs-secret
+      restartPolicy: Never
+```
 
 ## Clean cache when mount pod exits {#mount-pod-clean-cache}
 
