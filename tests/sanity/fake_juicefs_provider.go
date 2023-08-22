@@ -37,6 +37,10 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
+func (j *fakeJfsProvider) CreateTarget(ctx context.Context, target string) error {
+	return nil
+}
+
 func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
 	return new(config.JfsSetting), nil
 }

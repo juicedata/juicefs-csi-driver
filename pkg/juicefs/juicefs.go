@@ -40,6 +40,7 @@ import (
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
+	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
@@ -65,6 +66,7 @@ type Interface interface {
 	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error)
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
+	CreateTarget(ctx context.Context, target string) error
 }
 
 type juicefs struct {
@@ -605,6 +607,32 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		return j.podMount.JUmount(ctx, mountPath, podName)
 	}
 	return nil
+}
+
+func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
+	var corruptedMnt bool
+	var exists bool
+
+	for {
+		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+			exists, err = k8sMount.PathExists(target)
+			return
+		})
+		if err == nil {
+			if !exists {
+				if err := os.MkdirAll(target, os.FileMode(0755)); err != nil {
+					return fmt.Errorf("could not create dir %q: %v", target, err)
+				}
+			}
+			return nil
+		} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); corruptedMnt {
+			// if target is a corrupted mount, umount it
+			util.UmountPath(ctx, target)
+			continue
+		} else {
+			return err
+		}
+	}
 }
 
 func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {

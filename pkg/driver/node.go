@@ -18,7 +18,6 @@ package driver
 
 import (
 	"context"
-	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -95,7 +94,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.V(5).Infof("NodePublishVolume: creating dir %s", target)
-	if err := os.MkdirAll(target, os.FileMode(0755)); err != nil {
+	if err := d.juicefs.CreateTarget(ctx, target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
