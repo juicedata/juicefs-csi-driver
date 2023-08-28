@@ -611,20 +611,14 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 
 func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 	var corruptedMnt bool
-	var exists bool
 
 	for {
 		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
-			exists, err = k8sMount.PathExists(target)
+			_, err = k8sMount.PathExists(target)
 			return
 		})
 		if err == nil {
-			if !exists {
-				if err := os.MkdirAll(target, os.FileMode(0755)); err != nil {
-					return fmt.Errorf("could not create dir %q: %v", target, err)
-				}
-			}
-			return nil
+			return os.MkdirAll(target, os.FileMode(0755))
 		} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); corruptedMnt {
 			// if target is a corrupted mount, umount it
 			util.UmountPath(ctx, target)
