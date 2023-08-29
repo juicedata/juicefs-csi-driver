@@ -43,26 +43,6 @@ DEFAULT_APP_NS="${APP_NS:-default}"
 ORIGINAL_ARGS=( "$@" )
 kbctl=kubectl
 
-juicefs_resources() {
-  local namespace="${namespace:-$DEFAULT_APP_NS}"
-
-  mkdir -p "$diagnose_dir/app"
-  $kbctl describe po "$app" -n $namespace &>"$diagnose_dir/app/$app-describe.log" 2>&1
-  $kbctl get po "$app" -oyaml -n $namespace &>"$diagnose_dir/app/$app.yaml" 2>&1
-
-  NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
-  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
-
-  mkdir -p "$diagnose_dir/pv"
-  $kbctl get pv "$PV_NAME" -oyaml &>"$diagnose_dir/pv/pv-$PV_NAME.yaml" 2>&1
-  $kbctl describe pv "$PV_NAME" &>"$diagnose_dir/pv/pv-$PV_NAME-describe.log" 2>&1
-
-  mkdir -p "$diagnose_dir/pvc"
-  $kbctl get pvc "$PVC_NAME" -n $namespace -oyaml &>"$diagnose_dir/pvc/$PVC_NAME.yaml" 2>&1
-  $kbctl describe pvc "$PVC_NAME" -n $namespace &>"$diagnose_dir/pvc/$PVC_NAME-describe.log" 2>&1
-}
-
 SHOULD_CHECK_CSI_CONRTROLLER=''
 
 debug_app_pod() {
@@ -257,21 +237,37 @@ mount_exec() {
   set +x
 }
 
-collect_mount_pod_msg() {
+collect_pv() {
   local namespace="${namespace:-$DEFAULT_APP_NS}"
   juicefs_namespace=${JFS_NS:-"kube-system"}
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
 
   NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  PVC_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
-  PV_NAME=$(${kbctl} -n ${namespace} get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
-  PV_ID=$(${kbctl} get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
-  MOUNT_POD_NAME=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
+  PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
+  mkdir -p "$diagnose_dir/pv"
+  mkdir -p "$diagnose_dir/pvc"
+  for pvc_name in $PVC_NAMES
+  do
 
-  $kbctl logs "$MOUNT_POD_NAME" -n $juicefs_namespace -c jfs-format &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-init.log" 2>&1
-  $kbctl logs "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.log" 2>&1
-  $kbctl get po "$MOUNT_POD_NAME" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod.yaml" 2>&1
-  $kbctl describe po "$MOUNT_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-describe.log" 2>&1
+    $kbctl get pvc "$pvc_name" -n $namespace -oyaml &>"$diagnose_dir/pvc/$pvc_name.yaml" 2>&1
+    $kbctl describe pvc "$pvc_name" -n $namespace &>"$diagnose_dir/pvc/$pvc_name-describe.log" 2>&1
+
+    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+
+    $kbctl get pv "$pv_name" -oyaml &>"$diagnose_dir/pv/pv-$pv_name.yaml" 2>&1
+    $kbctl describe pv "$pv_name" &>"$diagnose_dir/pv/pv-$pv_name-describe.log" 2>&1
+
+    pv_id=$(${kbctl} get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
+    if [ "$NODE_NAME" != "" ]; then
+      mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
+      for mount_pod_name in $mount_pod_names
+      do
+        $kbctl get po "$mount_pod_name" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.yaml" 2>&1
+        $kbctl describe po "$mount_pod_name" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.log" 2>&1
+        $kbctl logs "$mount_pod_name" -n $juicefs_namespace --all-containers=true >>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.log" 2>&1
+      done
+    fi
+  done
 
 }
 
@@ -294,19 +290,23 @@ collect_juicefs_csi_msg() {
   $kbctl describe po "$CSI_CTRL_POD_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-csi-controller/$CSI_CTRL_POD_NAME-describe.log" 2>&1
 }
 
-archive() {
+pd_collect() {
+  mkdir -p "$diagnose_dir/app"
+  $kbctl get po "$app" -oyaml -n $namespace &>"$diagnose_dir/app/$app.yaml" 2>&1
+  code=$?
+  if [ "${code}" != "0" ]; then
+    echo "$namespace/$app not found, abort"
+    rm -rf $diagnose_dir
+    exit $code
+  fi
+  echo "Start collecting logs for ${namespace}/${app}"
+  $kbctl describe po "$app" -n $namespace &>"$diagnose_dir/app/$app-describe.log" 2>&1
+  collect_pv
+  collect_juicefs_csi_msg
   set -e
   archive_file_path="${current_dir}/diagnose_juicefs_${timestamp}.tar.gz"
   tar -zcf "${archive_file_path}" -C /tmp $(basename $diagnose_dir)
   echo "Results have been saved to ${archive_file_path}"
-}
-
-pd_collect() {
-  echo "Start collecting logs for ${namespace}/${app}"
-  collect_mount_pod_msg
-  collect_juicefs_csi_msg
-  juicefs_resources
-  archive
 }
 
 collect() {
