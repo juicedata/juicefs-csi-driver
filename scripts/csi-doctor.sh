@@ -272,6 +272,9 @@ collect_pv() {
     fi
   done
 
+  kubectl -n $juicefs_namespace cp ${BASH_SOURCE[0]} $mount_pod_name:/tmp
+  kubectl -n $juicefs_namespace exec $mount_pod_name -- /tmp/csi-doctor.sh doctor
+  kubectl -n $juicefs_namespace cp $mount_pod_name:/tmp/juicefs-doctor $diagnose_dir
 }
 
 collect_juicefs_csi_msg() {
@@ -331,6 +334,17 @@ collect() {
   rm -rf $diagnose_dir
 }
 
+doctor() {
+  mkdir -p /tmp/juicefs-doctor
+  cd /tmp/juicefs-doctor
+  mps=$(df -t fuse.juicefs --output=target | tail -n +2)
+  for mp in $mps
+  do
+    fname=$(juicefs doctor $mp | tail -n 1 | grep -oP '\S+.tar.gz')
+    mv $fname $(echo $mp | tr '/' '_').tar.gz
+  done
+}
+
 main() {
   if [[ $# -eq 0 ]]; then
     print_usage
@@ -349,6 +363,9 @@ main() {
         action=$1
         ;;
       collect|help)
+        action=$1
+        ;;
+      doctor|help)
         action=$1
         ;;
       get-mount|help)
@@ -377,6 +394,9 @@ main() {
       ;;
     collect)
       collect
+      ;;
+    doctor)
+      doctor
       ;;
     get-mount)
       get_mount_pod
