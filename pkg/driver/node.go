@@ -26,6 +26,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -137,6 +138,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		capacity, err := strconv.ParseInt(cap, 10, 64)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
+		}
+		pv, err := d.k8sClient.GetPersistentVolume(ctx, volumeID)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "get pv %s: %v", volumeID, err)
+		}
+		if err == nil && pv != nil {
+			capacity = pv.Spec.Capacity.Storage().Value()
 		}
 		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
 		if err != nil {
