@@ -95,7 +95,10 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{config.UniqueId: uniqueId},
+		MatchExpressions: []metav1.LabelSelectorRequirement{{
+			Key:      config.UniqueId,
+			Operator: metav1.LabelSelectorOpExists,
+		}},
 	}
 	podList, err := m.K8sClient.ListPod(ctx, pvcNamespace, &labelSelector, nil)
 	if err != nil {

@@ -498,12 +498,15 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 	if err != nil {
 		return err
 	}
-	klog.Infof("setMountLabel: set mount info %s in pod %s", uniqueId, podName)
-	if err := util.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: uniqueId}); err != nil {
+	klog.Infof("setMountLabel: set mount info in pod %s", podName)
+	if err := util.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: ""}); err != nil {
 		return err
 	}
+
 	klog.Infof("setMountAnnotation: set mount info %s/%s in pod %s", jfsConfig.Namespace, mountPodName, podName)
-	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSMountPod: fmt.Sprintf("%s/%s", jfsConfig.Namespace, mountPodName)})
+	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{
+		fmt.Sprintf("%s-%s", jfsConfig.JuiceFSMountPod, uniqueId): fmt.Sprintf("%s/%s", jfsConfig.Namespace, mountPodName),
+	})
 }
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
