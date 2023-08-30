@@ -139,12 +139,14 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
 		}
-		pv, err := d.k8sClient.GetPersistentVolume(ctx, volumeID)
-		if err != nil && !k8serrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.Internal, "get pv %s: %v", volumeID, err)
-		}
-		if err == nil && pv != nil {
-			capacity = pv.Spec.Capacity.Storage().Value()
+		if d.k8sClient != nil {
+			pv, err := d.k8sClient.GetPersistentVolume(ctx, volumeID)
+			if err != nil && !k8serrors.IsNotFound(err) {
+				return nil, status.Errorf(codes.Internal, "get pv %s: %v", volumeID, err)
+			}
+			if err == nil && pv != nil {
+				capacity = pv.Spec.Capacity.Storage().Value()
+			}
 		}
 		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
 		if err != nil {
