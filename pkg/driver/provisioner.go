@@ -149,7 +149,8 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			Namespace: scParams[config.ControllerExpandSecretNamespace],
 		}
 	}
-	if options.StorageClass.Parameters["secretFinalizer"] == "true" {
+
+	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
 		klog.V(6).Infof("Provisioner: Add Finalizer on %s/%s", secret.Namespace, secret.Name)
 		err = util.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		if err != nil {
