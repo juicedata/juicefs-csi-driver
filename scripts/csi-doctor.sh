@@ -243,6 +243,8 @@ collect_pv() {
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
 
   NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
+  $kbctl top node "$NODE_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/node-top-$NODE_NAME.txt" 2>&1
+
   PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
   mkdir -p "$diagnose_dir/pv"
   mkdir -p "$diagnose_dir/pvc"
@@ -262,6 +264,7 @@ collect_pv() {
       mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
       for mount_pod_name in $mount_pod_names
       do
+        $kbctl top po "$mount_pod_name" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-top-$mount_pod_name.txt" 2>&1
         $kbctl get po "$mount_pod_name" -oyaml -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.yaml" 2>&1
         $kbctl describe po "$mount_pod_name" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.log" 2>&1
         $kbctl logs "$mount_pod_name" -n $juicefs_namespace --all-containers=true >>"$diagnose_dir/juicefs-$juicefs_namespace/mount-pod-$mount_pod_name.log" 2>&1
