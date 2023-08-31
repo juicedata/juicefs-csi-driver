@@ -43,6 +43,7 @@ DEFAULT_APP_NS="${APP_NS:-default}"
 ORIGINAL_ARGS=( "$@" )
 kbctl=kubectl
 
+PROVISIONER=csi.juicefs.com
 SHOULD_CHECK_CSI_CONRTROLLER=''
 
 debug_app_pod() {
@@ -62,8 +63,21 @@ debug_app_pod() {
   app_pod_uid=$(${kbctl} -n $namespace get po $app -o jsonpath='{.metadata.uid}')
   for pvc_name in $PVC_NAMES
   do
+    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}' 2>/dev/null)
+
+    if [ "$pv_name" == "" ]; then
+      echo "Ignore $pvc_name due to empty volumeName"
+      continue
+    fi
+
+    provisioner=$(${kbctl} get pv ${pv_name} -o 'go-template={{index .metadata.annotations "pv.kubernetes.io/provisioned-by"}}' 2>/dev/null)
+    if [ "$provisioner" != "$PROVISIONER" ]; then
+      echo "Ignore $pvc_name since it's not JuiceFS"
+      continue
+    fi
+
     debug_pvc $pvc_name
-    pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+
     pv_id=$(${kbctl} get pv $pv_name -o jsonpath='{.spec.csi.volumeHandle}')
     if [ "$NODE_NAME" != "" ]; then
       mount_pod_names=$(${kbctl} -n $juicefs_namespace get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $pv_id)
@@ -243,7 +257,7 @@ collect_pv() {
   mkdir -p "$diagnose_dir/juicefs-${juicefs_namespace}"
 
   NODE_NAME=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{.spec.nodeName}')
-  $kbctl top node "$NODE_NAME" -n $juicefs_namespace &>"$diagnose_dir/juicefs-$juicefs_namespace/node-top-$NODE_NAME.txt" 2>&1
+  $kbctl top node "$NODE_NAME" &>"$diagnose_dir/juicefs-$juicefs_namespace/node-top-$NODE_NAME.txt" 2>&1
 
   PVC_NAMES=$(${kbctl} -n ${namespace} get po ${app} -o jsonpath='{..persistentVolumeClaim.claimName}')
   mkdir -p "$diagnose_dir/pv"
@@ -255,6 +269,17 @@ collect_pv() {
     $kbctl describe pvc "$pvc_name" -n $namespace &>"$diagnose_dir/pvc/$pvc_name-describe.log" 2>&1
 
     pv_name=$(${kbctl} -n ${namespace} get pvc $pvc_name -o jsonpath='{.spec.volumeName}')
+
+    if [ "$pv_name" == "" ]; then
+      echo "Ignore $pvc_name due to empty volumeName"
+      continue
+    fi
+
+    provisioner=$(${kbctl} get pv ${pv_name} -o 'go-template={{index .metadata.annotations "pv.kubernetes.io/provisioned-by"}}')
+    if [ "$provisioner" != "$PROVISIONER" ]; then
+      echo "Ignore $pv_name since it's not JuiceFS"
+      continue
+    fi
 
     $kbctl get pv "$pv_name" -oyaml &>"$diagnose_dir/pv/pv-$pv_name.yaml" 2>&1
     $kbctl describe pv "$pv_name" &>"$diagnose_dir/pv/pv-$pv_name-describe.log" 2>&1
@@ -274,7 +299,7 @@ collect_pv() {
 
   kubectl -n $juicefs_namespace cp ${BASH_SOURCE[0]} $mount_pod_name:/tmp
   kubectl -n $juicefs_namespace exec $mount_pod_name -- /tmp/csi-doctor.sh doctor
-  kubectl -n $juicefs_namespace cp $mount_pod_name:/tmp/juicefs-doctor $diagnose_dir
+  kubectl -n $juicefs_namespace cp $mount_pod_name:/tmp/juicefs-doctor $diagnose_dir/doctor
 }
 
 collect_juicefs_csi_msg() {
