@@ -17,7 +17,13 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
-If kubectl is renamed in your environment (folks use this method to manage multiple Kubernetes clusters), or put elsewhere other than `PATH`, you can easily match this by editing the script, and change the `$kbctl` variable.
+If kubectl is renamed in your environment (folks use this method to manage multiple Kubernetes clusters), or put elsewhere other than `PATH`, you can easily match this by editing the script, and change the `$kbctl` variable:
+
+```shell
+# Faced with two different clusters, their corresponding kubectl aliased to kubectl_1 / kubectl_2
+KBCTL=kubectl_1 ./csi-doctor.sh debug my-app-pod -n default
+KBCTL=kubectl_2 ./csi-doctor.sh debug my-app-pod -n default
+```
 
 A commonly used feature is obtaining mount pod information. Assuming application pod being `my-app-pod` in namespace `default`, to obtain the mount pod that accompanies the application pod:
 

@@ -17,7 +17,13 @@ wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scrip
 chmod a+x csi-doctor.sh
 ```
 
-如果在你的运行环境中，kubectl 被重命名（比方说需要管理多个 Kubernetes 集群时，常常用不同 alias 来调用不同集群的 kubectl），或者并未放在 `PATH` 下，你也可以方便地修改脚步，将 `$kbctl` 变量替换为实际需要运行的 kubectl。
+如果在你的运行环境中，kubectl 被重命名（比方说需要管理多个 Kubernetes 集群时，常常用不同 alias 来调用不同集群的 kubectl），或者并未放在 `PATH` 下，你也可以方便地修改脚步，将 `$kbctl` 变量替换为实际需要运行的 kubectl：
+
+```shell
+# 假设面对两个不同集群，kubectl 分别被别名为 kubectl_1 / kubectl_2
+KBCTL=kubectl_1 ./csi-doctor.sh debug my-app-pod -n default
+KBCTL=kubectl_2 ./csi-doctor.sh debug my-app-pod -n default
+```
 
 诊断脚本中最为常用的功能，就是方便地获取 Mount Pod 相关信息。假设应用 Pod 为 `default` 命名空间下的 `my-app-pod`：
 

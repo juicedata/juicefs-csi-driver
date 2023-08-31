@@ -41,7 +41,7 @@ run() {
 
 DEFAULT_APP_NS="${APP_NS:-default}"
 ORIGINAL_ARGS=( "$@" )
-kbctl=kubectl
+kbctl=${KBCTL:-"kubectl"}
 
 PROVISIONER=csi.juicefs.com
 SHOULD_CHECK_CSI_CONRTROLLER=''
