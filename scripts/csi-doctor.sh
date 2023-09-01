@@ -70,7 +70,7 @@ debug_app_pod() {
       continue
     fi
 
-    provisioner=$(${kbctl} get pv ${pv_name} -o 'go-template={{index .metadata.annotations "pv.kubernetes.io/provisioned-by"}}' 2>/dev/null)
+    provisioner=$(${kbctl} get pv ${pv_name} -ojsonpath='{.spec.csi.driver}' 2>/dev/null)
     if [ "$provisioner" != "$PROVISIONER" ]; then
       echo "Ignore $pvc_name since it's not JuiceFS"
       continue
@@ -275,7 +275,7 @@ collect_pv() {
       continue
     fi
 
-    provisioner=$(${kbctl} get pv ${pv_name} -o 'go-template={{index .metadata.annotations "pv.kubernetes.io/provisioned-by"}}')
+    provisioner=$(${kbctl} get pv ${pv_name} -ojsonpath='{.spec.csi.driver}' 2>/dev/null)
     if [ "$provisioner" != "$PROVISIONER" ]; then
       echo "Ignore $pv_name since it's not JuiceFS"
       continue
