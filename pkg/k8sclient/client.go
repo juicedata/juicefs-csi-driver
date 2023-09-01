@@ -144,11 +144,11 @@ func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector
 		listOptions.ResourceVersion = "0"
 	}
 	if labelSelector != nil {
-		labelMap, err := metav1.LabelSelectorAsMap(labelSelector)
+		labelMap, err := metav1.LabelSelectorAsSelector(labelSelector)
 		if err != nil {
 			return nil, err
 		}
-		listOptions.LabelSelector = labels.SelectorFromSet(labelMap).String()
+		listOptions.LabelSelector = labelMap.String()
 	}
 	if filedSelector != nil {
 		listOptions.FieldSelector = fields.SelectorFromSet(*filedSelector).String()
