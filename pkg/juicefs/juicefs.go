@@ -789,6 +789,10 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	}
 	if err != nil {
 		re := string(res)
+		if strings.Contains(re, "invalid command: quota") || strings.Contains(re, "No help topic for 'quota'") {
+			klog.Info("juicefs inside do not support quota, skip it.")
+			return "", nil
+		}
 		klog.Errorf("SetQuota error: %v", err)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs set quota %s timed out", 10*defaultCheckTimeout)
