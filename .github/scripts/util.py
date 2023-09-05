@@ -295,3 +295,17 @@ def get_vol_uuid(name):
         ["sudo", "/usr/local/bin/juicefs", "status", name], stdout=subprocess.PIPE)
     out = output.stdout.decode("utf-8")
     return re.search("\"UUID\": \"(.*)\"", out).group(1)
+
+
+def is_quota_supported():
+    if IS_CE:
+        output = subprocess.run(["/usr/local/bin/juicefs", "quota"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = output.stderr.decode("utf-8")
+        if "No help topic for 'quota'" in out:
+            return False
+    else:
+        output = subprocess.run(["/usr/bin/juicefs", "quota"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = output.stdout.decode("utf-8")
+        if "invalid command: quota" in out:
+            return False
+    return True
