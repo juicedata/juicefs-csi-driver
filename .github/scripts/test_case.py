@@ -444,6 +444,103 @@ def test_delete_all():
     return
 
 
+def test_multi_pvc():
+    LOG.info("[test case] application with multi pvcs begin..")
+    # deploy pv
+    volume1_handle = "multi-1"
+    pv1 = PV(name="pv-multi-1", access_mode="ReadWriteMany", volume_handle=volume1_handle,
+             secret_name=SECRET_NAME, annotation={"pv.kubernetes.io/provisioned-by": "csi.juicefs.com"})
+    LOG.info("Deploy pv {}".format(pv1.name))
+    pv1.create()
+
+    volume2_handle = "multi-2"
+    pv2 = PV(name="pv-multi-2", access_mode="ReadWriteMany", volume_handle=volume2_handle,
+             secret_name=SECRET_NAME, annotation={"pv.kubernetes.io/provisioned-by": "csi.juicefs.com"})
+    LOG.info("Deploy pv {}".format(pv2.name))
+    pv2.create()
+
+    # deploy pvc
+    pvc1 = PVC(name="pvc-multi-1", access_mode="ReadWriteMany", storage_name="", pv=pv1.name)
+    LOG.info("Deploy pvc {}".format(pvc1.name))
+    pvc1.create()
+
+    pvc2 = PVC(name="pvc-multi-2", access_mode="ReadWriteMany", storage_name="", pv=pv2.name)
+    LOG.info("Deploy pvc {}".format(pvc2.name))
+    pvc2.create()
+
+    # deploy pod
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc1.check_is_bound() and pvc2.check_is_bound():
+            break
+        time.sleep(1)
+
+    output = gen_random_string(6) + ".txt"
+    # deploy pod
+    deployment = Deployment(name="deploy-multi", pvc="", replicas=1, out_put=output, pvcs=[pvc1.name, pvc2.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=1)
+    LOG.info("Watch for pods of {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    result = check_mount_point(output)
+    if not result:
+        raise Exception("mount Point of /jfs/{} are not ready within 5 min.".format(output))
+
+    # check app pod label and annotation
+    mount_pod1_name = get_only_mount_pod_name(volume1_handle)
+    mount_pod2_name = get_only_mount_pod_name(volume2_handle)
+    LOG.info("Check app pod labels and annotations.")
+
+    pods = client.CoreV1Api().list_namespaced_pod(
+        namespace="default",
+        label_selector="deployment={}".format(deployment.name)
+    )
+    pod = pods.items[0]
+    meta = pod.metadata
+
+    annos = meta.annotations
+    if annos is None:
+        annos = {}
+
+    unique1_id = volume1_handle
+    unique2_id = volume2_handle
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique1_id = STORAGECLASS_NAME
+        unique2_id = STORAGECLASS_NAME
+    key1 = f"juicefs-mountpod-{unique1_id}"
+    key2 = f"juicefs-mountpod-{unique2_id}"
+    mount_pod1 = annos[key1]
+    mount_pod2 = annos[key2]
+    if mount_pod1 != f"{KUBE_SYSTEM}/{mount_pod1_name}":
+        raise Exception("App pod {} does not have [{}] annotation {}. pod annotations: {}".format(
+            meta.name, key1, mount_pod1_name, annos))
+    if mount_pod2 != f"{KUBE_SYSTEM}/{mount_pod2_name}":
+        raise Exception("App pod {} does not have [{}] annotation {}. pod annotations: {}".format(
+            meta.name, key2, mount_pod2_name, annos))
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc1.name))
+    pvc1.delete()
+    LOG.info("Remove pvc {}".format(pvc2.name))
+    pvc2.delete()
+    LOG.info("Test pass.")
+    return
+
+
 def test_delete_pvc():
     LOG.info("[test case] Deployment and delete pvc begin..")
     # deploy pvc

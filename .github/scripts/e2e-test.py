@@ -46,6 +46,7 @@ from test_case import (
     test_dynamic_pvc_delete_not_last_with_path_pattern,
     test_webhook_two_volume,
     test_dynamic_expand,
+    test_multi_pvc
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -80,6 +81,7 @@ if __name__ == "__main__":
                 test_pod_resource_err()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
+                test_multi_pvc()
 
             elif test_mode == "pod-mount-share":
                 test_share_mount()
