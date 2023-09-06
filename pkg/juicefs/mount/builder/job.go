@@ -130,12 +130,15 @@ func (r *Builder) getCreateVolumeCmd() string {
 func (r *Builder) getDeleteVolumeCmd() string {
 	cmd := r.getJobCommand()
 	var jfsPath string
+	var gcArgs string
 	if r.jfsSetting.IsCe {
 		jfsPath = config.CeCliPath
+		gcArgs = "${metaurl}"
 	} else {
 		jfsPath = config.CliPath
+		gcArgs = "${VOL_NAME}"
 	}
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s && %s gc ${metaurl} --delete; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath, jfsPath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s && %s gc %s --delete; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath, jfsPath, gcArgs)
 }
 
 func (r *Builder) getJobCommand() string {
