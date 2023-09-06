@@ -135,7 +135,7 @@ func (r *Builder) getDeleteVolumeCmd() string {
 	} else {
 		jfsPath = config.CliPath
 	}
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s && %s gc ${metaurl} --delete; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath, jfsPath)
 }
 
 func (r *Builder) getJobCommand() string {
