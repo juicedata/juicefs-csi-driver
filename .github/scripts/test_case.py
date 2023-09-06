@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota
+    get_voldel_job, check_quota, is_quota_supported
 
 
 def test_deployment_using_storage_rw():
@@ -92,6 +92,10 @@ def test_deployment_using_storage_rw():
 
 
 def test_quota_using_storage_rw():
+    if not is_quota_supported():
+        LOG.info("juicefs donot support quota, skip.")
+        return
+
     LOG.info("[test case] Quota using storageClass with rwm begin..")
     # deploy pvc
     pvc = PVC(name="pvc-quota-rw", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
@@ -2277,6 +2281,9 @@ def test_webhook_two_volume():
 
 
 def test_dynamic_expand():
+    if not is_quota_supported():
+        LOG.info("juicefs donot support quota, skip.")
+        return
     LOG.info("[test case] Dynamic PVC capacity expand begin..")
     # deploy pvc
     pvc = PVC(name="pvc-cap-expand", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
