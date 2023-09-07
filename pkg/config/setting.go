@@ -281,10 +281,10 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 			jfsSetting.SubPath = volCtx["subPath"]
 		}
 
-		cpuLimit := volCtx[mountPodCpuLimitKey]
-		memoryLimit := volCtx[mountPodMemLimitKey]
-		cpuRequest := volCtx[mountPodCpuRequestKey]
-		memoryRequest := volCtx[mountPodMemRequestKey]
+		cpuLimit := volCtx[MountPodCpuLimitKey]
+		memoryLimit := volCtx[MountPodMemLimitKey]
+		cpuRequest := volCtx[MountPodCpuRequestKey]
+		memoryRequest := volCtx[MountPodMemRequestKey]
 		jfsSetting.Resources, err = parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 		if err != nil {
 			klog.Errorf("Parse resource error: %v", err)

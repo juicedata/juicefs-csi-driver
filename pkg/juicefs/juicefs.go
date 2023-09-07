@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -336,7 +337,7 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 
 // Settings get all jfs settings and generate format/auth command
 func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	mountOptions, err := j.validOptions(volumeID, options)
+	mountOptions, err := j.validOptions(volumeID, options, volCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +492,7 @@ func (j *juicefs) validTarget(target string) error {
 	return nil
 }
 
-func (j *juicefs) validOptions(volumeId string, options []string) ([]string, error) {
+func (j *juicefs) validOptions(volumeId string, options []string, volCtx map[string]string) ([]string, error) {
 	mountOptions := []string{}
 	for _, option := range options {
 		mountOption := strings.TrimSpace(option)
@@ -504,6 +505,23 @@ func (j *juicefs) validOptions(volumeId string, options []string) ([]string, err
 		}
 		if mountOption == "writeback" {
 			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", volumeId)
+		}
+		if len(ops) == 2 && ops[0] == "buffer-size" && volCtx != nil {
+			if volCtx[config.MountPodMemLimitKey] != "" {
+				memLimit, err := resource.ParseQuantity(volCtx[config.MountPodMemLimitKey])
+				memLimitByte := memLimit.Value()
+
+				// buffer-size is in MiB, turn to byte
+				bufSize, err := strconv.Atoi(ops[1])
+				if err != nil {
+					return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
+				}
+				bufferSize := int64(bufSize) << 20
+
+				if bufferSize > memLimitByte {
+					return []string{}, fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
+				}
+			}
 		}
 		mountOptions = append(mountOptions, mountOption)
 	}

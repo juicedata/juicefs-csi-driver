@@ -98,10 +98,10 @@ const (
 	InjectSidecarDisable = "disable" + injectSidecar
 
 	// config in pv
-	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
-	mountPodMemLimitKey    = "juicefs/mount-memory-limit"
-	mountPodCpuRequestKey  = "juicefs/mount-cpu-request"
-	mountPodMemRequestKey  = "juicefs/mount-memory-request"
+	MountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
+	MountPodMemLimitKey    = "juicefs/mount-memory-limit"
+	MountPodCpuRequestKey  = "juicefs/mount-cpu-request"
+	MountPodMemRequestKey  = "juicefs/mount-memory-request"
 	mountPodLabelKey       = "juicefs/mount-labels"
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
