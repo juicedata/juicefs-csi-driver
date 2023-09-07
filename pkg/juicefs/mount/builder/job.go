@@ -136,7 +136,7 @@ func (r *Builder) getDeleteVolumeCmd() string {
 		gcArgs = "${metaurl}"
 	} else {
 		jfsPath = config.CliPath
-		gcArgs = "${VOL_NAME}"
+		gcArgs = r.jfsSetting.Name
 	}
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s && %s gc %s --delete; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath, jfsPath, gcArgs)
 }
