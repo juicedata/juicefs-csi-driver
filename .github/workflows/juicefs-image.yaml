@@ -46,19 +46,13 @@ jobs:
         env:
           CEVERSION: latest
         run: |
-          JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
-          if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
-            echo "Failed to get juicefs ce version"
-            exit 1
-          fi
-          docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
-          rst=$?
-          if [ $rst -eq 0 ]; then
-            echo "JuiceFS latest image already exists"
-          else
+          image_exist=${{ env.MOUNT_IMAGE_EXIST }}
+          if [ $image_exist == "false" ]; then
             echo "Build JuiceFS latest image"
             export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
             make -C docker ce-image
+          else
+            echo "JuiceFS latest image already exists"
           fi
       - name: Buildx and Push juicefs image
         env:
