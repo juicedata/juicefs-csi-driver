@@ -76,6 +76,14 @@ var (
 						},
 					},
 				}, {
+					Name: FuseConnectinsName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: config.FuseConnectionPath,
+							Type: &dir,
+						},
+					},
+				}, {
 					Name: UpdateDBDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -104,6 +112,10 @@ var (
 					{
 						Name:             JfsDirName,
 						MountPath:        config.PodMountBase,
+						MountPropagation: &mp,
+					}, {
+						Name:             FuseConnectinsName,
+						MountPath:        config.FuseConnectionPath,
 						MountPropagation: &mp,
 					}, {
 
