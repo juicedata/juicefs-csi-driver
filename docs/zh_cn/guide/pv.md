@@ -778,3 +778,41 @@ spec:
 ### 访问模式 {#access-modes}
 
 JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV／PVC（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
+
+### 给 Mount Pod 挂载宿主机目录 {#mount-host-path}
+
+在某些场景下，需要在 Mount Pod 中挂载宿主机的目录，比如需要挂载宿主机的 `/etc/hosts` 路径以使用代理访问对象存储。可以按照下面的方式，将宿主机的目录挂载到 Mount Pod 中。静态和动态配置方式中，需要在不同的地方填写该配置。
+
+#### 静态配置
+
+```yaml {17}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/host-path: /etc/hosts
+```
+
+#### 动态配置
+
+```yaml {7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  juicefs/host-path: /etc/hosts
+```

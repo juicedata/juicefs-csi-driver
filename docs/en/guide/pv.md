@@ -777,3 +777,42 @@ spec:
 ### Access modes {#access-modes}
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
+
+### Mount host's directory in Mount Pod {#mount-host-path}
+
+In some scenarios, you need to mount the host's directory in the Mount Pod. For example, you need to mount the host's `/etc/hosts` path to use a proxy to access object storage. 
+You can mount the directory of the host to the Mount Pod in the following way. Config is set differently for static and dynamic provisioning.
+
+#### Static provisioning
+
+```yaml {17}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/host-path: /etc/hosts
+```
+
+#### Dynamic provisioning
+
+```yaml {7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  juicefs/host-path: /etc/hosts
+```
