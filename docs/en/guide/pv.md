@@ -780,7 +780,7 @@ JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change t
 
 ### Mount host's directory in Mount Pod {#mount-host-path}
 
-In some scenarios, you need to mount the host's directory in the Mount Pod. For example, you need to mount the host's `/etc/hosts` path to use a proxy to access object storage. 
+In some scenarios, you need to mount the host's directory in the Mount Pod. For example, you need to mount the host's `/etc/hosts` path to use a proxy to access object storage.
 You can mount the directory of the host to the Mount Pod in the following way. Config is set differently for static and dynamic provisioning.
 
 #### Static provisioning
