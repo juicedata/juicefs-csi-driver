@@ -781,7 +781,7 @@ JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据
 
 ### 给 Mount Pod 挂载宿主机目录 {#mount-host-path}
 
-在某些场景下，需要在 Mount Pod 中挂载宿主机的目录，比如需要挂载宿主机的 `/etc/hosts` 路径以使用代理访问对象存储。可以按照下面的方式，将宿主机的目录挂载到 Mount Pod 中。静态和动态配置方式中，需要在不同的地方填写该配置。
+如果希望在 Mount Pod 中挂载宿主机文件或目录，可以声明 `juicefs/host-path`，可以在这个字段中填写多个文件映射，逗号分隔。这个字段在静态和动态配置方式中填写位置不同，以 `/data/file.txt` 这个文件为例，详见下方示范。
 
 #### 静态配置
 
@@ -802,7 +802,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/host-path: /etc/hosts
+      juicefs/host-path: /data/file.txt
 ```
 
 #### 动态配置
@@ -814,5 +814,19 @@ metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
 parameters:
-  juicefs/host-path: /etc/hosts
+  juicefs/host-path: /data/file.txt
+```
+
+#### 高级用法
+
+将 `/etc/hosts` 映射进容器，某些场景下可能需要让容器复用宿主机的 `/etc/hosts`，但通常而言，如果希望为容器添加 hosts 记录，优先考虑使用 [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)。
+
+```yaml
+juicefs/host-path: `/etc/hosts`
+```
+
+如果有需要，可以映射多个文件或目录，逗号分隔：
+
+```yaml
+juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
 ```

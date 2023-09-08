@@ -780,8 +780,7 @@ JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change t
 
 ### Mount host's directory in Mount Pod {#mount-host-path}
 
-In some scenarios, you need to mount the host's directory in the Mount Pod. For example, you need to mount the host's `/etc/hosts` path to use a proxy to access object storage.
-You can mount the directory of the host to the Mount Pod in the following way. Config is set differently for static and dynamic provisioning.
+If you need to mount files or directories into the mount pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
 
 #### Static provisioning
 
@@ -802,7 +801,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/host-path: /etc/hosts
+      juicefs/host-path: /data/file.txt
 ```
 
 #### Dynamic provisioning
@@ -814,5 +813,18 @@ metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
 parameters:
-  juicefs/host-path: /etc/hosts
+  juicefs/host-path: /data/file.txt
 ```
+
+#### Advanced usage
+
+Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/ is usually the better approach).
+
+```yaml
+juicefs/host-path: `/etc/hosts`
+```
+
+If you need to mount multiple files or directories, specify them using comma:
+
+```yaml
+juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
