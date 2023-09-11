@@ -778,3 +778,55 @@ spec:
 ### 访问模式 {#access-modes}
 
 JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV／PVC（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
+
+### 给 Mount Pod 挂载宿主机目录 {#mount-host-path}
+
+如果希望在 Mount Pod 中挂载宿主机文件或目录，可以声明 `juicefs/host-path`，可以在这个字段中填写多个文件映射，逗号分隔。这个字段在静态和动态配置方式中填写位置不同，以 `/data/file.txt` 这个文件为例，详见下方示范。
+
+#### 静态配置
+
+```yaml {17}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/host-path: /data/file.txt
+```
+
+#### 动态配置
+
+```yaml {7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  juicefs/host-path: /data/file.txt
+```
+
+#### 高级用法
+
+将 `/etc/hosts` 映射进容器，某些场景下可能需要让容器复用宿主机的 `/etc/hosts`，但通常而言，如果希望为容器添加 hosts 记录，优先考虑使用 [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)。
+
+```yaml
+juicefs/host-path: `/etc/hosts`
+```
+
+如果有需要，可以映射多个文件或目录，逗号分隔：
+
+```yaml
+juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
+```

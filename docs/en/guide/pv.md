@@ -777,3 +777,54 @@ spec:
 ### Access modes {#access-modes}
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
+
+### Mount host's directory in Mount Pod {#mount-host-path}
+
+If you need to mount files or directories into the mount pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
+
+#### Static provisioning
+
+```yaml {17}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/host-path: /data/file.txt
+```
+
+#### Dynamic provisioning
+
+```yaml {7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  juicefs/host-path: /data/file.txt
+```
+
+#### Advanced usage
+
+Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](<https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/> is usually the better approach).
+
+```yaml
+juicefs/host-path: `/etc/hosts`
+```
+
+If you need to mount multiple files or directories, specify them using comma:
+
+```yaml
+juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
