@@ -14,12 +14,21 @@ sidebar_position: 7
 kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
 
-上方的报错信息表示，名为 `csi.juicefs.com` 的驱动没有找到，此时遵循以下步骤进行排查：
+上方的报错信息表示，名为 `csi.juicefs.com` 的驱动没有找到，请先确认使用的是 mount pod 模式还是 sidecar 模式。
+
+若使用的是 mount pod 模式，遵循以下步骤进行排查：
 
 * 运行 `kubectl get csidrivers.storage.k8s.io`，如果输出的中确没有 `csi.juicefs.com` 字样，说明 CSI 驱动并未按照，重新回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)。
 * 如果上方的 `csidrivers` 列表中存在 `csi.juicefs.com`，那么说明 CSI 驱动已经安装，问题出在 CSI Node。
 * [检查 CSI Node 是否正常运作](./troubleshooting.md#check-csi-node)。
 * 检查应用 Pod 所在节点，是否正常运行着 CSI Node，如果为 CSI Node 这个 DaemonSet 组件配置了[调度策略](../guide/resource-optimization.md#csi-node-node-selector)，或者节点本身存在[「污点」](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration)，都有可能造成 CSI Node 容器缺失。
+
+若使用的是 sidecar 模式，请确认对应的 namespace 有没有打上 JuiceFS sidecar 所需 label（`juicefs.com/enable-injection=true`）：
+
+```shell
+# 换成应用 pod 所在 namespace
+kubectl get ns <namespace> --show-labels
+```
 
 ## CSI Node pod 异常
 
