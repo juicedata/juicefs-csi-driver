@@ -97,7 +97,7 @@ image-release-check-push:
 .PHONY: csi-slim-image-version
 csi-slim-image-version:
 	docker buildx build -f csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(VERSION)-slim \
-        --build-arg JUICEFS_REPO_REF=$(JUICEFS_CE_LATEST_VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
