@@ -818,7 +818,7 @@ parameters:
 
 #### Advanced usage
 
-Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](<https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/> is usually the better approach).
+Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) is usually the better approach).
 
 ```yaml
 juicefs/host-path: "/etc/hosts"
