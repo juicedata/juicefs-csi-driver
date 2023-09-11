@@ -14,6 +14,7 @@
 FROM golang:1.18-buster as builder
 
 ARG GOPROXY
+ARG TARGETARCH
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 ARG JUICEFS_CSI_REPO_REF=master
@@ -21,14 +22,16 @@ ARG JUICEFS_CSI_REPO_REF=master
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 
 WORKDIR /workspace
-COPY . .
-RUN make
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 
 ENV STATIC=1
 RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
+    git clone https://github.com/juicedata/juicefs-csi-driver && \
+    cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then upx bin/juicefs-csi-driver; fi" && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
-    cd juicefs && git checkout $JUICEFS_REPO_REF && make && upx juicefs
-RUN upx /workspace/bin/juicefs-csi-driver
+    cd juicefs && git checkout $JUICEFS_REPO_REF && make && \
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then upx juicefs; fi"
 
 FROM alpine:3.15.5
 
