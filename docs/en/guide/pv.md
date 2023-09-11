@@ -821,10 +821,11 @@ parameters:
 Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](<https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/> is usually the better approach).
 
 ```yaml
-juicefs/host-path: `/etc/hosts`
+juicefs/host-path: "/etc/hosts"
 ```
 
 If you need to mount multiple files or directories, specify them using comma:
 
 ```yaml
-juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
+juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
+```

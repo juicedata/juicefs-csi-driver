@@ -822,11 +822,11 @@ parameters:
 将 `/etc/hosts` 映射进容器，某些场景下可能需要让容器复用宿主机的 `/etc/hosts`，但通常而言，如果希望为容器添加 hosts 记录，优先考虑使用 [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)。
 
 ```yaml
-juicefs/host-path: `/etc/hosts`
+juicefs/host-path: "/etc/hosts"
 ```
 
 如果有需要，可以映射多个文件或目录，逗号分隔：
 
 ```yaml
-juicefs/host-path: `/data/file1.txt,/data/file2.txt,/data/dir1`
+juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
