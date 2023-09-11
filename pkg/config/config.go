@@ -51,8 +51,6 @@ var (
 	JFSMountPriorityName     = "system-node-critical"
 	JFSMountPreemptionPolicy = ""
 
-	FuseConnectionPath = "/sys/fs/fuse/connections"
-
 	TmpPodMountBase = "/tmp"
 	PodMountBase    = "/jfs"
 	MountBase       = "/var/lib/jfs"

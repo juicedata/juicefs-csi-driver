@@ -28,11 +28,10 @@ import (
 )
 
 const (
-	JfsDirName         = "jfs-dir"
-	FuseConnectinsName = "fuse-connections"
-	JfsRootDirName     = "jfs-root-dir"
-	UpdateDBDirName    = "updatedb"
-	UpdateDBCfgFile    = "/etc/updatedb.conf"
+	JfsDirName      = "jfs-dir"
+	JfsRootDirName  = "jfs-root-dir"
+	UpdateDBDirName = "updatedb"
+	UpdateDBCfgFile = "/etc/updatedb.conf"
 )
 
 type Builder struct {
@@ -87,26 +86,15 @@ func (r *Builder) getVolumes() []corev1.Volume {
 	dir := corev1.HostPathDirectoryOrCreate
 	file := corev1.HostPathFileOrCreate
 	secretName := r.jfsSetting.SecretName
-	volumes := []corev1.Volume{
-		{
-			Name: JfsDirName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: config.MountPointPath,
-					Type: &dir,
-				},
+	volumes := []corev1.Volume{{
+		Name: JfsDirName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: config.MountPointPath,
+				Type: &dir,
 			},
 		},
-		{
-			Name: FuseConnectinsName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: config.FuseConnectionPath,
-					Type: &dir,
-				},
-			},
-		},
-	}
+	}}
 
 	if !config.Immutable {
 		volumes = append(volumes, corev1.Volume{
@@ -171,18 +159,11 @@ func (r *Builder) getVolumes() []corev1.Volume {
 
 func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
 	mp := corev1.MountPropagationBidirectional
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:             JfsDirName,
-			MountPath:        config.PodMountBase,
-			MountPropagation: &mp,
-		},
-		{
-			Name:             FuseConnectinsName,
-			MountPath:        config.FuseConnectionPath,
-			MountPropagation: &mp,
-		},
-	}
+	volumeMounts := []corev1.VolumeMount{{
+		Name:             JfsDirName,
+		MountPath:        config.PodMountBase,
+		MountPropagation: &mp,
+	}}
 
 	if !config.Immutable {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
