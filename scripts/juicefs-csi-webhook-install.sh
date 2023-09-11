@@ -346,7 +346,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.22.0
+        image: juicedata/juicefs-csi-driver:v0.22.1
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -748,7 +748,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.22.0
+        image: juicedata/juicefs-csi-driver:v0.22.1
         livenessProbe:
           failureThreshold: 5
           httpGet:

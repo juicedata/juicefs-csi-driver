@@ -1,29 +1,17 @@
 name: version
 
 on:
+  workflow_dispatch:
+    inputs:
+      ce_juicefs_build_version:
+        description: 'ce juicefs version for image build'
+        required: false
+        type: string
   release:
     types:
       - created
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go 1.18.x
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.18.x'
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-      - name: Build
-        run: make
-      - name: Verify
-        run: make verify
-      - name: Test
-        run: make test
-      - name: Test sanity
-        run: make test-sanity
-
   publish-version:
     needs: test
     runs-on: ubuntu-latest
@@ -34,9 +22,14 @@ jobs:
       env:
         PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
     - name: Confirm juicefs version
+      env:
+        JUICEFS_BUILD_VERSION: ${{ inputs.ce_juicefs_build_version }}
       run: |
-        JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
-        echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
+        if [ ${{ env.JUICEFS_BUILD_VERSION }} ]; then
+          echo "JUICEFS_CE_LATEST_VERSION=${{ env.JUICEFS_BUILD_VERSION }}" >> $GITHUB_ENV
+        else
+          JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+          echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
         JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
         echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
     - name: Build docker image & push
