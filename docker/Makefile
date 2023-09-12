@@ -25,7 +25,7 @@ BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 PKG=github.com/juicedata/juicefs-csi-driver
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
-JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+JUICEFS_CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+)?')
 IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoint=/usr/bin/juicefs $(IMAGE):$(VERSION) version | cut -d' ' -f3)
 
 JUICEFS_CE_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
@@ -59,7 +59,7 @@ image-nightly-push:
 # build & push csi version image
 .PHONY: image-version
 image-version:
-	docker buildx build -t $(IMAGE):$(VERSION) \
+	docker buildx build -t $(IMAGE):$(CSI_VERSION) \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
@@ -67,8 +67,8 @@ image-version:
 
 .PHONY: push-version
 push-version:
-	docker push $(IMAGE):$(VERSION)
-	docker tag $(IMAGE):$(VERSION) $(IMAGE_VERSION_ANNOTATED)
+	docker push $(IMAGE):$(CSI_VERSION)
+	docker tag $(IMAGE):$(CSI_VERSION) $(IMAGE_VERSION_ANNOTATED)
 	docker push $(IMAGE_VERSION_ANNOTATED)
 
 # build image for release check
@@ -96,7 +96,7 @@ image-release-check-push:
 # build & push csi slim image
 .PHONY: csi-slim-image-version
 csi-slim-image-version:
-	docker buildx build -f csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(VERSION)-slim \
+	docker buildx build -f csi.Dockerfile -t $(REGISTRY)/$(IMAGE):$(CSI_VERSION)-slim \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
