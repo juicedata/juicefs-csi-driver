@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -61,12 +63,18 @@ func run() {
 
 type dashboardApi struct {
 	k8sClient *k8sclient.K8sClient
+
+	appPodsLock sync.RWMutex
+	appPods     map[string]*corev1.Pod
 }
 
 func newApi(k8sClient *k8sclient.K8sClient) *dashboardApi {
-	return &dashboardApi{
+	api := &dashboardApi{
 		k8sClient: k8sClient,
+		appPods:   make(map[string]*corev1.Pod),
 	}
+	go api.watchAppPod()
+	return api
 }
 
 func (api *dashboardApi) handle(group *gin.RouterGroup) {
