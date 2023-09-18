@@ -221,7 +221,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForCreateVolume()
 	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -253,7 +253,7 @@ func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 
 func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForDeleteVolume()
 	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -323,7 +323,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	defer lock.Unlock()
 
 	jfsSetting.SecretName = podName + "-secret"
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
@@ -544,7 +544,7 @@ func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volu
 	jfsSetting.VolumeId = volumeId
 	jfsSetting.CacheDirs = cacheDirs
 	jfsSetting.UUID = id
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForCleanCache()
 	klog.V(6).Infof("Clean cache job: %v", job)
 	_, err = p.K8sClient.GetJob(ctx, job.Name, job.Namespace)

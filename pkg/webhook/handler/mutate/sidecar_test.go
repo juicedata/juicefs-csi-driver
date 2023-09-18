@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
 )
 
@@ -65,6 +66,10 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 								},
 							},
 						},
+						Containers: []corev1.Container{{
+							Name:         "test",
+							VolumeMounts: []corev1.VolumeMount{{Name: "app-volume", MountPath: "data"}},
+						}},
 					},
 				},
 				volumes: []corev1.Volume{{
@@ -128,6 +133,10 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 								},
 							},
 						},
+						Containers: []corev1.Container{{
+							Name:         "test",
+							VolumeMounts: []corev1.VolumeMount{{Name: "app-volume", MountPath: "data"}},
+						}},
 					},
 				},
 				volumes: []corev1.Volume{{
@@ -155,7 +164,8 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 			s := &SidecarMutate{
 				jfsSetting: tt.fields.jfsSetting,
 			}
-			s.injectVolume(tt.args.pod, tt.args.volumes, tt.args.mountPath, tt.fields.pair)
+			r := builder.NewContainerBuilder(tt.fields.jfsSetting, 0)
+			s.injectVolume(tt.args.pod, r, tt.args.volumes, tt.args.mountPath, tt.fields.pair)
 			if len(tt.args.pod.Spec.Volumes) != len(tt.wantPodVolume) {
 				t.Errorf("injectVolume() = %v, want %v", tt.args.pod.Spec.Volumes, tt.wantPodVolume)
 			}

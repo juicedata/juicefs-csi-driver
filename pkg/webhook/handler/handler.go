@@ -37,6 +37,15 @@ type SidecarHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
 	decoder *admission.Decoder
+	// is in serverless environment
+	serverless bool
+}
+
+func NewSidecarHandler(client *k8sclient.K8sClient, serverless bool) *SidecarHandler {
+	return &SidecarHandler{
+		Client:     client,
+		serverless: serverless,
+	}
 }
 
 func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
@@ -72,7 +81,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, s.Client)
-	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, pair)
+	sidecarMutate := mutate.NewSidecarMutate(s.Client, jfs, s.serverless, pair)
 	klog.Infof("[SidecarHandler] start injecting juicefs client as sidecar in pod [%s] namespace [%s].", pod.Name, pod.Namespace)
 	out, err := sidecarMutate.Mutate(ctx, pod)
 	if err != nil {

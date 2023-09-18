@@ -18,30 +18,50 @@ package builder
 
 import (
 	"fmt"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
+	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func (r *Builder) NewMountPod(podName string) *corev1.Pod {
-	resourceRequirements := r.jfsSetting.Resources
+type PodBuilder struct {
+	BaseBuilder
+}
 
-	cmd := r.getCommand()
+func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
+	return &PodBuilder{
+		BaseBuilder: BaseBuilder{
+			jfsSetting: setting,
+			capacity:   capacity,
+		},
+	}
+}
 
-	pod := r.generateJuicePod()
+// NewMountPod generates a pod with juicefs client
+func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
+	pod := r.genCommonJuicePod(r.genCommonContainer)
 
-	metricsPort := r.getMetricsPort()
+	cmd := r.genMountCommand()
+	pod.Name = podName
+	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 
-	// add cache-dir host path volume
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	// generate volumes and volumeMounts only used in mount pod
+	volumes, volumeMounts := r.genPodVolumes()
+	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
+
+	// generate initContainer
+	if r.jfsSetting.FormatCmd != "" {
+		initVolumeMounts := r.genInitVolumes()
+		initContainer := r.genInitContainer()
+		initContainer.VolumeMounts = append(initContainer.VolumeMounts, initVolumeMounts...)
+		pod.Spec.InitContainers = []corev1.Container{initContainer}
+	}
+
+	// add cache-dir hostpath & PVC volume
+	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
@@ -50,63 +70,26 @@ func (r *Builder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
 
-	pod.Name = podName
-	pod.Spec.ServiceAccountName = r.jfsSetting.ServiceAccountName
-	controllerutil.AddFinalizer(pod, config.Finalizer)
-	pod.Spec.PriorityClassName = config.JFSMountPriorityName
-	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
-	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
-		Name:  "JFS_FOREGROUND",
-		Value: "1",
-	}}
-	pod.Spec.Containers[0].Resources = resourceRequirements
-	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
-	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-		PreStop: &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
-		},
-	}
-
-	if r.jfsSetting.Attr.HostNetwork {
-		// When using hostNetwork, the MountPod will use a random port for metrics.
-		// Before inducing any auxiliary method to detect that random port, the
-		// best way is to avoid announcing any port about that.
-		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{}
-	} else {
-		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
-			{Name: "metrics", ContainerPort: metricsPort},
-		}
-	}
-
-	if config.Webhook {
-		pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
-				fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
-		}
-	}
-
-	gracePeriod := int64(10)
-	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
-
-	for k, v := range r.jfsSetting.MountPodLabels {
-		pod.Labels[k] = v
-	}
-	for k, v := range r.jfsSetting.MountPodAnnotations {
-		pod.Annotations[k] = v
-	}
-	if r.jfsSetting.DeletedDelay != "" {
-		pod.Annotations[config.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
-	}
-	pod.Annotations[config.JuiceFSUUID] = r.jfsSetting.UUID
-	pod.Annotations[config.UniqueId] = r.jfsSetting.UniqueId
-	if r.jfsSetting.CleanCache {
-		pod.Annotations[config.CleanCache] = "true"
-	}
 	return pod
 }
 
-func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMode) ([]corev1.Volume, []corev1.VolumeMount) {
+// genCommonContainer: generate common privileged container
+func (r *PodBuilder) genCommonContainer() corev1.Container {
+	isPrivileged := true
+	rootUser := int64(0)
+	return corev1.Container{
+		Name:  config.MountContainerName,
+		Image: r.BaseBuilder.jfsSetting.Attr.Image,
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &isPrivileged,
+			RunAsUser:  &rootUser,
+		},
+		Env: []corev1.EnvVar{},
+	}
+}
+
+// genCacheDirVolumes: generate cache-dir hostpath & PVC volume
+func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	cacheVolumes := []corev1.Volume{}
 	cacheVolumeMounts := []corev1.VolumeMount{}
 
@@ -128,9 +111,8 @@ func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMod
 		cacheVolumes = append(cacheVolumes, hostPathVolume)
 
 		volumeMount := corev1.VolumeMount{
-			Name:             name,
-			MountPath:        cacheDir,
-			MountPropagation: &mountPropagation,
+			Name:      name,
+			MountPath: cacheDir,
 		}
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
 	}
@@ -158,13 +140,13 @@ func (r *Builder) getCacheDirVolumes(mountPropagation corev1.MountPropagationMod
 	return cacheVolumes, cacheVolumeMounts
 }
 
-func (r *Builder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+// genHostPathVolumes: generate host path volumes
+func (r *PodBuilder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	volumes = []corev1.Volume{}
 	volumeMounts = []corev1.VolumeMount{}
 	if len(r.jfsSetting.HostPath) == 0 {
 		return
 	}
-	mountPropagation := corev1.MountPropagationBidirectional
 	for idx, hostPath := range r.jfsSetting.HostPath {
 		name := fmt.Sprintf("hostpath-%d", idx)
 		volumes = append(volumes, corev1.Volume{
@@ -176,49 +158,18 @@ func (r *Builder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts []
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:             name,
-			MountPath:        hostPath,
-			MountPropagation: &mountPropagation,
+			Name:      name,
+			MountPath: hostPath,
 		})
 	}
 	return
 }
 
-func (r *Builder) getCommand() string {
-	cmd := ""
-	options := r.jfsSetting.Options
-	if r.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
-		if !util.ContainsPrefix(options, "metrics=") {
-			if r.jfsSetting.Attr.HostNetwork {
-				// Pick up a random (useable) port for hostNetwork MountPods.
-				options = append(options, "metrics=0.0.0.0:0")
-			} else {
-				options = append(options, "metrics=0.0.0.0:9567")
-			}
-		}
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
-		cmd = strings.Join(mountArgs, " ")
-	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
-		mountOptions := []string{"foreground", "no-update"}
-		if r.jfsSetting.EncryptRsaKey != "" {
-			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")
-		}
-		mountOptions = append(mountOptions, options...)
-		mountArgs = append(mountArgs, "-o", strings.Join(mountOptions, ","))
-		cmd = strings.Join(mountArgs, " ")
-	}
-	return util.QuoteForShell(cmd)
-}
-
-func (r *Builder) getInitContainer() corev1.Container {
-	isPrivileged := true
+// genInitContainer: generate init container
+func (r *PodBuilder) genInitContainer() corev1.Container {
 	rootUser := int64(0)
+	isPrivileged := true
 	secretName := r.jfsSetting.SecretName
-	formatCmd := r.jfsSetting.FormatCmd
 	container := corev1.Container{
 		Name:  "jfs-format",
 		Image: r.jfsSetting.Attr.Image,
@@ -227,67 +178,9 @@ func (r *Builder) getInitContainer() corev1.Container {
 			RunAsUser:  &rootUser,
 		},
 	}
-	if r.jfsSetting.EncryptRsaKey != "" {
-		if r.jfsSetting.IsCe {
-			container.VolumeMounts = append(container.VolumeMounts,
-				corev1.VolumeMount{
-					Name:      "rsa-key",
-					MountPath: "/root/.rsa",
-				},
-			)
-			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
-		}
-	}
 
-	// create subpath if readonly mount or in webhook mode
-	if r.jfsSetting.SubPath != "" {
-		if util.ContainsString(r.jfsSetting.Options, "read-only") || util.ContainsString(r.jfsSetting.Options, "ro") || config.Webhook {
-			// generate mount command
-			cmd := r.getJobCommand()
-			initCmd := fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi; umount /mnt/jfs", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
-			formatCmd = fmt.Sprintf("%s && %s", formatCmd, initCmd)
-			if config.Webhook && r.capacity > 0 {
-				quotaPath := r.jfsSetting.SubPath
-				var subdir string
-				for _, o := range r.jfsSetting.Options {
-					pair := strings.Split(o, "=")
-					if len(pair) != 2 {
-						continue
-					}
-					if pair[0] == "subdir" {
-						subdir = path.Join("/", pair[1])
-					}
-				}
-				var setQuotaCmd string
-				targetPath := path.Join(subdir, quotaPath)
-				capacity := strconv.FormatInt(r.capacity, 10)
-				if r.jfsSetting.IsCe {
-					// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
-					cmdArgs := []string{
-						config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
-						config.CeCliPath,
-						"quota", "set", "${metaurl}",
-						"--path", targetPath,
-						"--capacity", capacity,
-						"; fi",
-					}
-					setQuotaCmd = strings.Join(cmdArgs, " ")
-				} else {
-					cmdArgs := []string{
-						config.CliPath, "quota; if [ $? -eq 0 ]; then",
-						config.CliPath,
-						"quota", "set", r.jfsSetting.Name,
-						"--path", targetPath,
-						"--capacity", capacity,
-						"; fi",
-					}
-					setQuotaCmd = strings.Join(cmdArgs, " ")
-				}
-				formatCmd = fmt.Sprintf("%s && %s", formatCmd, setQuotaCmd)
-			}
-		}
-	}
-	container.Command = []string{"sh", "-c", formatCmd}
+	initCmd := r.genInitCommand()
+	container.Command = []string{"sh", "-c", initCmd}
 
 	container.EnvFrom = append(container.EnvFrom, corev1.EnvFromSource{
 		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
@@ -297,19 +190,122 @@ func (r *Builder) getInitContainer() corev1.Container {
 	return container
 }
 
-func (r *Builder) getMetricsPort() int32 {
-	port := int64(9567)
-	options := r.jfsSetting.Options
+// genPodVolumes: generate volumes for mount pod
+// 1. jfs dir: mount point used to propagate the mount point in the mount container to host
+// 2. update db dir: mount updatedb.conf from host to mount pod
+// 3. jfs config dir: mount jfs config dir as emptyDir to deliver config file to mount container
+func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	dir := corev1.HostPathDirectoryOrCreate
+	file := corev1.HostPathFileOrCreate
+	mp := corev1.MountPropagationBidirectional
+	volumes := []corev1.Volume{{
+		Name: JfsDirName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: config.MountPointPath,
+				Type: &dir,
+			},
+		},
+	}}
+	volumeMounts := []corev1.VolumeMount{{
+		Name:             JfsDirName,
+		MountPath:        config.PodMountBase,
+		MountPropagation: &mp,
+	}}
 
-	for _, option := range options {
-		if strings.HasPrefix(option, "metrics=") {
-			re := regexp.MustCompile(`metrics=.*:([0-9]{1,6})`)
-			match := re.FindStringSubmatch(option)
-			if len(match) > 0 {
-				port, _ = strconv.ParseInt(match[1], 10, 32)
-			}
-		}
+	if !config.Immutable {
+		volumes = append(volumes, corev1.Volume{
+			Name: UpdateDBDirName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: UpdateDBCfgFile,
+					Type: &file,
+				},
+			}},
+		)
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      UpdateDBDirName,
+			MountPath: UpdateDBCfgFile,
+		})
 	}
 
-	return int32(port)
+	if r.jfsSetting.FormatCmd != "" {
+		// initContainer will generate xx.conf to share with mount container
+		volumes = append(volumes, corev1.Volume{
+			Name: JfsRootDirName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      JfsRootDirName,
+			MountPath: "/root/.juicefs",
+		})
+	}
+
+	return volumes, volumeMounts
+}
+
+// genInitVolumes: generate volumes for initContainer in mount pod
+// jfs config dir: mount jfs config dir as emptyDir to deliver config file to initContainer
+func (r *PodBuilder) genInitVolumes() []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{}
+
+	if r.jfsSetting.FormatCmd != "" {
+		// initContainer will generate xx.conf to share with mount container
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      JfsRootDirName,
+			MountPath: "/root/.juicefs",
+		})
+	}
+
+	return volumeMounts
+}
+
+// genCleanCachePod: generate pod to clean cache in host
+func (r *PodBuilder) genCleanCachePod() *corev1.Pod {
+	volumeMountPrefix := "/var/jfsCache"
+	cacheVolumes := []corev1.Volume{}
+	cacheVolumeMounts := []corev1.VolumeMount{}
+
+	hostPathType := corev1.HostPathDirectory
+
+	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		name := fmt.Sprintf("cachedir-%d", idx)
+
+		hostPathVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
+				Path: filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"),
+				Type: &hostPathType,
+			}},
+		}
+		cacheVolumes = append(cacheVolumes, hostPathVolume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			MountPath: filepath.Join(volumeMountPrefix, name),
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey: config.PodTypeValue,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:         "jfs-cache-clean",
+				Image:        r.jfsSetting.Attr.Image,
+				Command:      []string{"sh", "-c", "rm -rf /var/jfsCache/*/chunks"},
+				VolumeMounts: cacheVolumeMounts,
+			}},
+			Volumes: cacheVolumes,
+		},
+	}
+	return pod
 }

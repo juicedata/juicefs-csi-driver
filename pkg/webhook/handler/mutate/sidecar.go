@@ -37,8 +37,9 @@ import (
 )
 
 type SidecarMutate struct {
-	Client  *k8sclient.K8sClient
-	juicefs juicefs.Interface
+	Client     *k8sclient.K8sClient
+	juicefs    juicefs.Interface
+	Serverless bool
 
 	Pair       []volconf.PVPair
 	jfsSetting *config.JfsSetting
@@ -46,11 +47,12 @@ type SidecarMutate struct {
 
 var _ Mutate = &SidecarMutate{}
 
-func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, pair []volconf.PVPair) Mutate {
+func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, serverless bool, pair []volconf.PVPair) Mutate {
 	return &SidecarMutate{
-		Client:  client,
-		juicefs: jfs,
-		Pair:    pair,
+		Client:     client,
+		juicefs:    jfs,
+		Serverless: serverless,
+		Pair:       pair,
 	}
 }
 
@@ -90,7 +92,15 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair volcon
 	if cap <= 0 {
 		return nil, fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
-	r := builder.NewBuilder(jfsSetting, cap)
+
+	var r builder.SidecarInterface
+	if !s.Serverless {
+		r = builder.NewContainerBuilder(jfsSetting, cap)
+	} else if pod.Annotations != nil && pod.Annotations[builder.VCIANNOKey] == builder.VCIANNOValue {
+		r = builder.NewVCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
+	} else {
+		r = builder.NewServerlessBuilder(jfsSetting, cap)
+	}
 
 	// create secret per PVC
 	secret := r.NewSecret()
@@ -107,14 +117,18 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair volcon
 	// deduplicate container name and volume name in pod when multiple volumes are mounted
 	s.Deduplicate(pod, mountPod, index)
 
-	// inject container
-	s.injectContainer(out, mountPod.Spec.Containers[0])
-	// inject initContainer
-	s.injectInitContainer(out, mountPod.Spec.InitContainers[0])
 	// inject volume
-	s.injectVolume(out, mountPod.Spec.Volumes, mountPath, pair)
+	s.injectVolume(out, r, mountPod.Spec.Volumes, mountPath, pair)
 	// inject label
 	s.injectLabel(out)
+	// inject annotation
+	s.injectAnnotation(out, mountPod.Annotations)
+	// inject container
+	s.injectContainer(out, mountPod.Spec.Containers[0])
+	if len(mountPod.Spec.InitContainers) > 0 {
+		// inject initContainer
+		s.injectInitContainer(out, mountPod.Spec.InitContainers[0])
+	}
 
 	return
 }
@@ -206,8 +220,7 @@ func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Co
 	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 }
 
-func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, mountPath string, pair volconf.PVPair) {
-	hostMount := filepath.Join(config.MountPointPath, mountPath, s.jfsSetting.SubPath)
+func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInterface, volumes []corev1.Volume, mountPath string, pair volconf.PVPair) {
 	mountedVolume := []corev1.Volume{}
 	podVolumes := make(map[string]bool)
 	for _, volume := range pod.Spec.Volumes {
@@ -223,14 +236,17 @@ func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, m
 	}
 	for i, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pair.PVC.Name {
-			// overwrite original volume and use juicefs volume mountpoint instead
-			pod.Spec.Volumes[i] = corev1.Volume{
-				Name: volume.Name,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: hostMount,
-					},
-				}}
+			// overwrite volume
+			build.OverwriteVolumes(&volume, mountPath)
+			pod.Spec.Volumes[i] = volume
+
+			for j, vm := range pod.Spec.Containers[0].VolumeMounts {
+				// overwrite volumeMount
+				if vm.Name == volume.Name {
+					build.OverwriteVolumeMounts(&vm)
+					pod.Spec.Containers[0].VolumeMounts[j] = vm
+				}
+			}
 		}
 	}
 	// inject volume
@@ -245,6 +261,19 @@ func (s *SidecarMutate) injectLabel(pod *corev1.Pod) {
 	}
 
 	metaObj.Labels[config.InjectSidecarDone] = config.True
+	metaObj.DeepCopyInto(&pod.ObjectMeta)
+}
+
+func (s *SidecarMutate) injectAnnotation(pod *corev1.Pod, annotations map[string]string) {
+	metaObj := pod.ObjectMeta
+
+	if metaObj.Annotations == nil {
+		metaObj.Annotations = map[string]string{}
+	}
+
+	for k, v := range annotations {
+		metaObj.Annotations[k] = v
+	}
 	metaObj.DeepCopyInto(&pod.ObjectMeta)
 }
 

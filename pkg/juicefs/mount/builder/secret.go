@@ -47,7 +47,7 @@ echo "succeed in checking mount point $ConditionPathIsMountPoint"
 `
 )
 
-func (r *Builder) NewSecret() corev1.Secret {
+func (r *BaseBuilder) NewSecret() corev1.Secret {
 	data := make(map[string]string)
 	if r.jfsSetting.MetaUrl != "" {
 		data["metaurl"] = r.jfsSetting.MetaUrl

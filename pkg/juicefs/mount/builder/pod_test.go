@@ -107,9 +107,8 @@ var (
 						MountPropagation: &mp,
 					}, {
 
-						Name:             UpdateDBDirName,
-						MountPath:        UpdateDBCfgFile,
-						MountPropagation: &mp,
+						Name:      UpdateDBDirName,
+						MountPath: UpdateDBCfgFile,
 					},
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -156,9 +155,8 @@ func putDefaultCacheDir(pod *corev1.Pod) {
 		},
 	}
 	volumeMount := corev1.VolumeMount{
-		Name:             "jfs-default-cache",
-		MountPath:        "/var/jfsCache",
-		MountPropagation: &mp,
+		Name:      "jfs-default-cache",
+		MountPath: "/var/jfsCache",
 	}
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMount)
@@ -170,18 +168,15 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	optionWithCacheDir2 := []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1"}
 	optionWithCacheDir3 := []string{"cache-dir"}
 
-	r := Builder{nil, 0}
+	r := PodBuilder{BaseBuilder{nil, 0}}
 
-	mp := corev1.MountPropagationBidirectional
 	dir := corev1.HostPathDirectory
 	volumeMounts := []corev1.VolumeMount{{
-		Name:             JfsDirName,
-		MountPath:        config.PodMountBase,
-		MountPropagation: &mp,
+		Name:      JfsDirName,
+		MountPath: config.PodMountBase,
 	}, {
-		Name:             JfsRootDirName,
-		MountPath:        "/root/.juicefs",
-		MountPropagation: &mp,
+		Name:      JfsRootDirName,
+		MountPath: "/root/.juicefs",
 	}}
 
 	volumes := []corev1.Volume{{
@@ -199,7 +194,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 3 || len(volumeMounts) != 3 {
@@ -208,7 +203,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 4 || len(volumeMounts) != 4 {
@@ -217,7 +212,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 6 || len(volumeMounts) != 6 {
@@ -226,7 +221,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true)
 	r.jfsSetting = s
-	cacheVolumes, cacheVolumeMounts = r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 7 || len(volumeMounts) != 7 {
@@ -255,19 +250,19 @@ func TestNewMountPod(t *testing.T) {
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
-	podConfigTest.Spec.Volumes = append(podConfigTest.Spec.Volumes, corev1.Volume{
+	podConfigTest.Spec.Volumes = append([]corev1.Volume{{
 		Name:         "config-1",
 		VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "secret-test"}},
-	})
-	podConfigTest.Spec.Containers[0].VolumeMounts = append(podConfigTest.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+	}}, podConfigTest.Spec.Volumes...)
+	podConfigTest.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{
 		Name:      "config-1",
 		MountPath: "/test",
-	})
+	}}, podConfigTest.Spec.Containers[0].VolumeMounts...)
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true)
-	r := Builder{s, 0}
+	r := PodBuilder{BaseBuilder{s, 0}}
 	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
-	cacheVolumes, cacheVolumeMounts := r.getCacheDirVolumes(corev1.MountPropagationBidirectional)
+	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
@@ -395,7 +390,7 @@ func TestNewMountPod(t *testing.T) {
 					Image:          config.CEMountImage,
 				},
 			}
-			r := Builder{jfsSetting, 0}
+			r := PodBuilder{BaseBuilder{jfsSetting, 0}}
 			got := r.NewMountPod(podName)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
@@ -448,8 +443,8 @@ func TestPodMount_getCommand(t *testing.T) {
 				MountPath: tt.args.mountPath,
 				Options:   tt.args.options,
 			}
-			r := Builder{jfsSetting, 0}
-			if got := r.getCommand(); got != tt.want {
+			r := PodBuilder{BaseBuilder{jfsSetting, 0}}
+			if got := r.genMountCommand(); got != tt.want {
 				t.Errorf("getCommand() = %v, want %v", got, tt.want)
 			}
 		})
@@ -491,8 +486,8 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 				Name:    tt.name,
 				Options: tt.args.options,
 			}
-			r := Builder{jfsSetting, 0}
-			if got := r.getMetricsPort(); got != tt.want {
+			r := PodBuilder{BaseBuilder{jfsSetting, 0}}
+			if got := r.genMetricsPort(); got != tt.want {
 				t.Errorf("getMetricsPort() = %v, want %v", got, tt.want)
 			}
 		})
@@ -500,7 +495,6 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 }
 
 func TestBuilder_genHostPathVolumes(t *testing.T) {
-	mountPropagation := corev1.MountPropagationBidirectional
 	type fields struct {
 		jfsSetting *config.JfsSetting
 	}
@@ -526,17 +520,16 @@ func TestBuilder_genHostPathVolumes(t *testing.T) {
 				},
 			}},
 			wantVolumeMounts: []corev1.VolumeMount{{
-				Name:             "hostpath-0",
-				MountPath:        "/tmp",
-				MountPropagation: &mountPropagation,
+				Name:      "hostpath-0",
+				MountPath: "/tmp",
 			}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Builder{
+			r := &PodBuilder{BaseBuilder{
 				jfsSetting: tt.fields.jfsSetting,
-			}
+			}}
 			gotVolumes, gotVolumeMounts := r.genHostPathVolumes()
 			if !reflect.DeepEqual(gotVolumes, tt.wantVolumes) {
 				t.Errorf("genHostPathVolumes() gotVolumes = %v, want %v", gotVolumes, tt.wantVolumes)

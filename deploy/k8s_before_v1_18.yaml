@@ -572,3 +572,38 @@ metadata:
 spec:
   attachRequired: false
   podInfoOnMount: true
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-admission-serverless-webhook
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: CA_BUNDLE
+    service:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+      path: /juicefs/serverless/inject-v1-pod
+  failurePolicy: Fail
+  name: sidecar.inject.serverless.juicefs.com
+  namespaceSelector:
+    matchLabels:
+      juicefs.com/enable-serverless-injection: "true"
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods
+  sideEffects: None
+  timeoutSeconds: 20
