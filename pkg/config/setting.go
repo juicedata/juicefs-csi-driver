@@ -436,10 +436,10 @@ func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
 	// set default value
-	podLimit[corev1.ResourceCPU] = resource.MustParse(defaultMountPodCpuLimit)
-	podLimit[corev1.ResourceMemory] = resource.MustParse(defaultMountPodMemLimit)
-	podRequest[corev1.ResourceCPU] = resource.MustParse(defaultMountPodCpuRequest)
-	podRequest[corev1.ResourceMemory] = resource.MustParse(defaultMountPodMemRequest)
+	podLimit[corev1.ResourceCPU] = resource.MustParse(DefaultMountPodCpuLimit)
+	podLimit[corev1.ResourceMemory] = resource.MustParse(DefaultMountPodMemLimit)
+	podRequest[corev1.ResourceCPU] = resource.MustParse(DefaultMountPodCpuRequest)
+	podRequest[corev1.ResourceMemory] = resource.MustParse(DefaultMountPodMemRequest)
 	var err error
 	if cpuLimit != "" {
 		if podLimit[corev1.ResourceCPU], err = resource.ParseQuantity(cpuLimit); err != nil {
@@ -470,12 +470,12 @@ func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 func getDefaultResource() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 		},
 	}
 }

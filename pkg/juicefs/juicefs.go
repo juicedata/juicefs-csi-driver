@@ -506,21 +506,26 @@ func (j *juicefs) validOptions(volumeId string, options []string, volCtx map[str
 		if mountOption == "writeback" {
 			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", volumeId)
 		}
-		if len(ops) == 2 && ops[0] == "buffer-size" && volCtx != nil {
-			if volCtx[config.MountPodMemLimitKey] != "" {
-				memLimit, err := resource.ParseQuantity(volCtx[config.MountPodMemLimitKey])
-				memLimitByte := memLimit.Value()
+		if len(ops) == 2 && ops[0] == "buffer-size" {
+			rs := volCtx[config.MountPodMemLimitKey]
+			if rs == "" {
+				rs = config.DefaultMountPodMemLimit
+			}
+			memLimit, err := resource.ParseQuantity(rs)
+			if err != nil {
+				return []string{}, fmt.Errorf("invalid memory limit: %s", volCtx[config.MountPodMemLimitKey])
+			}
+			memLimitByte := memLimit.Value()
 
-				// buffer-size is in MiB, turn to byte
-				bufSize, err := strconv.Atoi(ops[1])
-				if err != nil {
-					return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
-				}
-				bufferSize := int64(bufSize) << 20
+			// buffer-size is in MiB, turn to byte
+			bufSize, err := strconv.Atoi(ops[1])
+			if err != nil {
+				return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
+			}
+			bufferSize := int64(bufSize) << 20
 
-				if bufferSize > memLimitByte {
-					return []string{}, fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
-				}
+			if bufferSize > memLimitByte {
+				return []string{}, fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
 			}
 		}
 		mountOptions = append(mountOptions, mountOption)

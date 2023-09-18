@@ -49,12 +49,12 @@ func TestParseSecret(t *testing.T) {
 	}
 	defaultResource := corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 		},
 	}
 
@@ -182,7 +182,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
 					},
 					Requests: defaultResource.Requests,
 				},
@@ -215,7 +215,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
+						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
 					},
 					Requests: defaultResource.Requests,
 				},
@@ -248,7 +248,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
+						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
 					},
 					Limits: defaultResource.Limits,
 				},
@@ -278,7 +278,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 					},
 					Limits: defaultResource.Limits,
 				},
