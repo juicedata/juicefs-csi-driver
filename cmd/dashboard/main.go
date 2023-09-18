@@ -2,7 +2,8 @@ package main
 
 import (
 	goflag "flag"
-	"net/http"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -30,7 +31,7 @@ func main() {
 		},
 	}
 
-	cmd.PersistentFlags().Uint16Var(&port, "port", 9090, "port to listen on")
+	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
@@ -46,19 +47,16 @@ func run() {
 	if devMode {
 		client, err = getLocalConfig()
 	} else {
+		gin.SetMode(gin.ReleaseMode)
 		client, err = k8sclient.NewClient()
 	}
 	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
+		log.Fatalf("can't get k8s client: %v", err)
 	}
-	_ = newApi(client)
+	api := newApi(client)
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
-	})
-	r.Run()
+	api.handle(r.Group("/api/v1"))
+	r.Run(fmt.Sprintf(":%d", port))
 }
 
 type dashboardApi struct {
@@ -69,6 +67,10 @@ func newApi(k8sClient *k8sclient.K8sClient) *dashboardApi {
 	return &dashboardApi{
 		k8sClient: k8sClient,
 	}
+}
+
+func (api *dashboardApi) handle(group *gin.RouterGroup) {
+	group.GET("/pods", api.listAppPod())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {
