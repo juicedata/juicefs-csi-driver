@@ -49,12 +49,12 @@ func TestParseSecret(t *testing.T) {
 	}
 	defaultResource := corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 		},
 	}
 
@@ -166,7 +166,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-cpu-limit",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{mountPodCpuLimitKey: "1"},
+				volCtx:  map[string]string{MountPodCpuLimitKey: "1"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -182,7 +182,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemLimit),
+						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
 					},
 					Requests: defaultResource.Requests,
 				},
@@ -199,7 +199,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-mem-limit",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{mountPodMemLimitKey: "1G"},
+				volCtx:  map[string]string{MountPodMemLimitKey: "1G"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -215,7 +215,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuLimit),
+						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
 					},
 					Requests: defaultResource.Requests,
 				},
@@ -232,7 +232,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-mem-request",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{mountPodMemRequestKey: "1G"},
+				volCtx:  map[string]string{MountPodMemRequestKey: "1G"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -248,7 +248,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(defaultMountPodCpuRequest),
+						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
 					},
 					Limits: defaultResource.Limits,
 				},
@@ -265,7 +265,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-cpu-request",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodCpuRequestKey: "1"},
+				volCtx:  map[string]string{MountPodCpuRequestKey: "1"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -278,7 +278,7 @@ func TestParseSecret(t *testing.T) {
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(defaultMountPodMemRequest),
+						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 					},
 					Limits: defaultResource.Limits,
 				},
