@@ -2,7 +2,7 @@ package main
 
 import "github.com/gin-gonic/gin"
 
-func (api *dashboardApi) listPod() gin.HandlerFunc {
+func (api *dashboardApi) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods, err := api.k8sClient.ListPod(c, "kube-system", nil, nil)
 		if err != nil {
