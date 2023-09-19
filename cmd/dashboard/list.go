@@ -13,10 +13,47 @@ import (
 
 func (api *dashboardApi) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.appPods))
 		api.appPodsLock.RLock()
-		c.JSON(200, api.appPods)
+		for _, pod := range api.appPods {
+			pods = append(pods, pod)
+		}
 		api.appPodsLock.RUnlock()
+		c.JSON(200, pods)
 	}
+}
+
+func (api *dashboardApi) listPodByLabels(labels map[string]string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		selector := &v1.LabelSelector{
+			MatchLabels: labels,
+		}
+		pods, err := api.k8sClient.ListPod(c, api.sysNamespace, selector, nil)
+		if err != nil {
+			c.JSON(500, err)
+			return
+		}
+		c.JSON(200, pods)
+	}
+}
+
+func (api *dashboardApi) listMountPod() gin.HandlerFunc {
+	return api.listPodByLabels(map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
+}
+
+func (api *dashboardApi) listCSINodePod() gin.HandlerFunc {
+	return api.listPodByLabels(map[string]string{
+		"app.kubernetes.io/name": "juicefs-csi-driver",
+		"app":                    "juicefs-csi-node",
+	})
+}
+
+func (api *dashboardApi) listCSIControllerPod() gin.HandlerFunc {
+	return api.listPodByLabels(map[string]string{
+		"app.kubernetes.io/name": "juicefs-csi-driver",
+		"app":                    "juicefs-csi-controller",
+	})
+
 }
 
 func (api *dashboardApi) watchAppPod() {

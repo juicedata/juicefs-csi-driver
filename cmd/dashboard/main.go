@@ -19,6 +19,10 @@ import (
 	"k8s.io/klog"
 )
 
+const (
+	SysNamespaceKey = "SYS_NAMESPACE"
+)
+
 var (
 	port    uint16
 	devMode bool
@@ -46,32 +50,37 @@ func main() {
 func run() {
 	var client *k8sclient.K8sClient
 	var err error
+	sysNamespace := "kube-system"
 	if devMode {
 		client, err = getLocalConfig()
 	} else {
+		sysNamespace = os.Getenv("SysNamespaceKey")
 		gin.SetMode(gin.ReleaseMode)
 		client, err = k8sclient.NewClient()
 	}
 	if err != nil {
 		log.Fatalf("can't get k8s client: %v", err)
 	}
-	api := newApi(client)
+
+	api := newApi(sysNamespace, client)
 	r := gin.Default()
 	api.handle(r.Group("/api/v1"))
 	r.Run(fmt.Sprintf(":%d", port))
 }
 
 type dashboardApi struct {
-	k8sClient *k8sclient.K8sClient
+	sysNamespace string
+	k8sClient    *k8sclient.K8sClient
 
 	appPodsLock sync.RWMutex
 	appPods     map[string]*corev1.Pod
 }
 
-func newApi(k8sClient *k8sclient.K8sClient) *dashboardApi {
+func newApi(sysNamespace string, k8sClient *k8sclient.K8sClient) *dashboardApi {
 	api := &dashboardApi{
-		k8sClient: k8sClient,
-		appPods:   make(map[string]*corev1.Pod),
+		sysNamespace: sysNamespace,
+		k8sClient:    k8sClient,
+		appPods:      make(map[string]*corev1.Pod),
 	}
 	go api.watchAppPod()
 	return api
@@ -79,6 +88,9 @@ func newApi(k8sClient *k8sclient.K8sClient) *dashboardApi {
 
 func (api *dashboardApi) handle(group *gin.RouterGroup) {
 	group.GET("/pods", api.listAppPod())
+	group.GET("/mountpods", api.listMountPod())
+	group.GET("/csi-nodes", api.listCSINodePod())
+	group.GET("/controllers", api.listCSIControllerPod())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {
