@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -76,11 +77,15 @@ func (api *podApi) watchAppPod(ctx context.Context) {
 			log.Printf("unknown type: %v", event.Object)
 			continue
 		}
+		name := types.NamespacedName{
+			Namespace: pod.Namespace,
+			Name:      pod.Name,
+		}
 		switch event.Type {
 		case watch.Added, watch.Modified, watch.Error:
-			api.appPods[string(pod.UID)] = pod
+			api.appPods[name] = pod
 		case watch.Deleted:
-			delete(api.appPods, string(pod.UID))
+			delete(api.appPods, name)
 		}
 		api.appPodsLock.Unlock()
 	}

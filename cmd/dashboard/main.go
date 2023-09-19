@@ -103,7 +103,7 @@ func (api *podApi) handle(group *gin.RouterGroup) {
 	group.GET("/csi-nodes", api.listCSINodePod())
 	group.GET("/controllers", api.listCSIControllerPod())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
-	podGroup.GET("/", api.getPod())
+	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/events", api.getPodEvents())
 	podGroup.GET("/logs/:container", api.getPodLogs())
 }
