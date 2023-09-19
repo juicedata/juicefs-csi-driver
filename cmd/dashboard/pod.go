@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -145,7 +148,7 @@ func (api *podApi) getPodLogs() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) getPodPVs() gin.HandlerFunc {
+func (api *podApi) listPodPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
 		if !ok {
@@ -159,6 +162,45 @@ func (api *podApi) getPodPVs() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, pvs)
+	}
+}
+
+func (api *podApi) listMountPods() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		pvs, err := api.listJuiceFSPVs(c, pod)
+		if err != nil {
+			c.String(500, "list juicefs pvs: %v", err)
+			return
+		}
+		var mountPods []*corev1.Pod
+		for _, pv := range pvs {
+			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Name)
+			mountPodName, ok := pod.Annotations[key]
+			if !ok {
+				log.Printf("can't find mount pod name by annotation `%s`\n", key)
+				continue
+			}
+			pair := strings.SplitN(mountPodName, string(types.Separator), 2)
+			if len(pair) != 2 {
+				log.Printf("invalid mount pod name %s\n", mountPodName)
+				continue
+			}
+			api.componentsLock.RLock()
+			mountPod, exist := api.mountPods[pair[1]]
+			api.componentsLock.RUnlock()
+			if !exist {
+				log.Printf("mount pod %s not found\n", mountPodName)
+				continue
+			}
+			mountPods = append(mountPods, mountPod)
+		}
+		c.IndentedJSON(200, mountPods)
 	}
 }
 
