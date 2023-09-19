@@ -91,6 +91,8 @@ func (api *dashboardApi) handle(group *gin.RouterGroup) {
 	group.GET("/mountpods", api.listMountPod())
 	group.GET("/csi-nodes", api.listCSINodePod())
 	group.GET("/controllers", api.listCSIControllerPod())
+	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
+	podGroup.GET("/", api.getPod())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {

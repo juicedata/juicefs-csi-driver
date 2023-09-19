@@ -49,7 +49,7 @@ test-sanity:
 .PHONY: dashboard
 dashboard:
 	mkdir -p bin
-	GOOS=linux go build -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
+	GOOS=linux go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
 
 .PHONY: dashboard-dev
 dashboard-dev: dashboard

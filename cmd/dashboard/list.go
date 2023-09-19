@@ -19,7 +19,7 @@ func (api *dashboardApi) listAppPod() gin.HandlerFunc {
 			pods = append(pods, pod)
 		}
 		api.appPodsLock.RUnlock()
-		c.JSON(200, pods)
+		c.IndentedJSON(200, pods)
 	}
 }
 
@@ -30,10 +30,10 @@ func (api *dashboardApi) listPodByLabels(labels map[string]string) gin.HandlerFu
 		}
 		pods, err := api.k8sClient.ListPod(c, api.sysNamespace, selector, nil)
 		if err != nil {
-			c.JSON(500, err)
+			c.String(500, "list pod: %v", err)
 			return
 		}
-		c.JSON(200, pods)
+		c.IndentedJSON(200, pods)
 	}
 }
 
