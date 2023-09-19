@@ -20,6 +20,11 @@ type podApi struct {
 	sysNamespace string
 	k8sClient    *k8sclient.K8sClient
 
+	componentsLock sync.RWMutex
+	mountPods      map[string]*corev1.Pod
+	csiNodes       map[string]*corev1.Pod
+	controllers    map[string]*corev1.Pod
+
 	appPodsLock sync.RWMutex
 	appPods     map[string]*corev1.Pod
 
@@ -31,9 +36,13 @@ func newPodApi(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8
 	api := &podApi{
 		sysNamespace: sysNamespace,
 		k8sClient:    k8sClient,
+		mountPods:    make(map[string]*corev1.Pod),
+		csiNodes:     make(map[string]*corev1.Pod),
+		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[string]*corev1.Pod),
 		events:       make(map[string]map[string]*corev1.Event),
 	}
+	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
 	go api.watchPodEvents(ctx)
 	return api

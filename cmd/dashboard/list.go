@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -23,53 +24,49 @@ func (api *podApi) listAppPod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listPodByLabels(labels map[string]string) gin.HandlerFunc {
+func (api *podApi) listMountPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		selector := &v1.LabelSelector{
-			MatchLabels: labels,
+		pods := make([]*corev1.Pod, 0, len(api.mountPods))
+		api.componentsLock.RLock()
+		for _, pod := range api.mountPods {
+			pods = append(pods, pod)
 		}
-		pods, err := api.k8sClient.ListPod(c, api.sysNamespace, selector, nil)
-		if err != nil {
-			c.String(500, "list pod: %v", err)
-			return
-		}
+		api.componentsLock.RUnlock()
 		c.IndentedJSON(200, pods)
 	}
 }
 
-func (api *podApi) listMountPod() gin.HandlerFunc {
-	return api.listPodByLabels(map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
-}
-
 func (api *podApi) listCSINodePod() gin.HandlerFunc {
-	return api.listPodByLabels(map[string]string{
-		"app.kubernetes.io/name": "juicefs-csi-driver",
-		"app":                    "juicefs-csi-node",
-	})
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.csiNodes))
+		api.componentsLock.RLock()
+		for _, pod := range api.csiNodes {
+			pods = append(pods, pod)
+		}
+		api.componentsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
 }
 
 func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
-	return api.listPodByLabels(map[string]string{
-		"app.kubernetes.io/name": "juicefs-csi-driver",
-		"app":                    "juicefs-csi-controller",
-	})
-
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.controllers))
+		api.componentsLock.RLock()
+		for _, pod := range api.controllers {
+			pods = append(pods, pod)
+		}
+		api.componentsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
 }
 
 func (api *podApi) watchAppPod(ctx context.Context) {
 	labelSelector := &v1.LabelSelector{
 		MatchExpressions: []v1.LabelSelectorRequirement{{Key: config.UniqueId, Operator: v1.LabelSelectorOpExists}},
 	}
-	s, err := v1.LabelSelectorAsSelector(labelSelector)
+	watcher, err := api.watchPodByLabelSelector(ctx, labelSelector)
 	if err != nil {
-		log.Fatalf("can't convert label selector %v: %v", labelSelector, err)
-	}
-	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(ctx, v1.ListOptions{
-		LabelSelector: s.String(),
-		Watch:         true,
-	})
-	if err != nil {
-		log.Fatalf("can't watch pods by %s: %v", s.String(), err)
+		log.Fatalf("%v", err)
 	}
 	for event := range watcher.ResultChan() {
 		api.appPodsLock.Lock()
@@ -86,5 +83,67 @@ func (api *podApi) watchAppPod(ctx context.Context) {
 			delete(api.appPods, string(pod.UID))
 		}
 		api.appPodsLock.Unlock()
+	}
+}
+
+func (api *podApi) watchPodByLabels(ctx context.Context, labels map[string]string) (watch.Interface, error) {
+	return api.watchPodByLabelSelector(ctx, &v1.LabelSelector{MatchLabels: labels})
+}
+
+func (api *podApi) watchPodByLabelSelector(ctx context.Context, selector *v1.LabelSelector) (watch.Interface, error) {
+	s, err := v1.LabelSelectorAsSelector(selector)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't convert label selector %v", selector)
+	}
+	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(ctx, v1.ListOptions{
+		LabelSelector: s.String(),
+		Watch:         true,
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't watch pods by %s", s.String())
+	}
+	return watcher, nil
+}
+
+func (api *podApi) watchComponents(ctx context.Context) {
+	mountPodWatcher, err := api.watchPodByLabels(ctx, map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	csiNodeWatcher, err := api.watchPodByLabels(ctx, map[string]string{
+		"app.kubernetes.io/name": "juicefs-csi-driver",
+		"app":                    "juicefs-csi-node",
+	})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	csiControllerWatcher, err := api.watchPodByLabels(ctx, map[string]string{
+		"app.kubernetes.io/name": "juicefs-csi-driver",
+		"app":                    "juicefs-csi-controller",
+	})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	watchers := []watch.Interface{mountPodWatcher, csiNodeWatcher, csiControllerWatcher}
+	tables := []map[string]*corev1.Pod{api.mountPods, api.csiNodes, api.controllers}
+	for i := range watchers {
+		go func(watcher watch.Interface, table map[string]*corev1.Pod) {
+			for event := range watcher.ResultChan() {
+				api.componentsLock.Lock()
+				pod, ok := event.Object.(*corev1.Pod)
+				if !ok {
+					api.componentsLock.Unlock()
+					log.Printf("unknown type: %v", event.Object)
+					continue
+				}
+				switch event.Type {
+				case watch.Added, watch.Modified, watch.Error:
+					table[pod.Name] = pod
+				case watch.Deleted:
+					delete(table, pod.Name)
+				}
+				api.componentsLock.Unlock()
+			}
+		}(watchers[i], tables[i])
 	}
 }
