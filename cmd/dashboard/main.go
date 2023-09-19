@@ -1,18 +1,20 @@
 package main
 
 import (
+	"context"
 	goflag "flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
-	"sync"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -54,7 +56,7 @@ func run() {
 	if devMode {
 		client, err = getLocalConfig()
 	} else {
-		sysNamespace = os.Getenv("SysNamespaceKey")
+		sysNamespace = os.Getenv(SysNamespaceKey)
 		gin.SetMode(gin.ReleaseMode)
 		client, err = k8sclient.NewClient()
 	}
@@ -62,37 +64,42 @@ func run() {
 		log.Fatalf("can't get k8s client: %v", err)
 	}
 
-	api := newApi(sysNamespace, client)
-	r := gin.Default()
-	api.handle(r.Group("/api/v1"))
-	r.Run(fmt.Sprintf(":%d", port))
-}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	podApi := newPodApi(ctx, sysNamespace, client)
+	router := gin.Default()
+	podApi.handle(router.Group("/api/v1"))
 
-type dashboardApi struct {
-	sysNamespace string
-	k8sClient    *k8sclient.K8sClient
-
-	appPodsLock sync.RWMutex
-	appPods     map[string]*corev1.Pod
-}
-
-func newApi(sysNamespace string, k8sClient *k8sclient.K8sClient) *dashboardApi {
-	api := &dashboardApi{
-		sysNamespace: sysNamespace,
-		k8sClient:    k8sClient,
-		appPods:      make(map[string]*corev1.Pod),
+	addr := fmt.Sprintf(":%d", port)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: router,
 	}
-	go api.watchAppPod()
-	return api
+
+	go func() {
+		log.Printf("listen on %s\n", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutdown Server ...")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server Shutdown:", err)
+	}
 }
 
-func (api *dashboardApi) handle(group *gin.RouterGroup) {
+func (api *podApi) handle(group *gin.RouterGroup) {
 	group.GET("/pods", api.listAppPod())
 	group.GET("/mountpods", api.listMountPod())
 	group.GET("/csi-nodes", api.listCSINodePod())
 	group.GET("/controllers", api.listCSIControllerPod())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPod())
+	podGroup.GET("/events", api.getPodEvents())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {

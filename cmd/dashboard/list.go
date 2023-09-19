@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func (api *dashboardApi) listAppPod() gin.HandlerFunc {
+func (api *podApi) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods := make([]*corev1.Pod, 0, len(api.appPods))
 		api.appPodsLock.RLock()
@@ -23,7 +23,7 @@ func (api *dashboardApi) listAppPod() gin.HandlerFunc {
 	}
 }
 
-func (api *dashboardApi) listPodByLabels(labels map[string]string) gin.HandlerFunc {
+func (api *podApi) listPodByLabels(labels map[string]string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		selector := &v1.LabelSelector{
 			MatchLabels: labels,
@@ -37,18 +37,18 @@ func (api *dashboardApi) listPodByLabels(labels map[string]string) gin.HandlerFu
 	}
 }
 
-func (api *dashboardApi) listMountPod() gin.HandlerFunc {
+func (api *podApi) listMountPod() gin.HandlerFunc {
 	return api.listPodByLabels(map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
 }
 
-func (api *dashboardApi) listCSINodePod() gin.HandlerFunc {
+func (api *podApi) listCSINodePod() gin.HandlerFunc {
 	return api.listPodByLabels(map[string]string{
 		"app.kubernetes.io/name": "juicefs-csi-driver",
 		"app":                    "juicefs-csi-node",
 	})
 }
 
-func (api *dashboardApi) listCSIControllerPod() gin.HandlerFunc {
+func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
 	return api.listPodByLabels(map[string]string{
 		"app.kubernetes.io/name": "juicefs-csi-driver",
 		"app":                    "juicefs-csi-controller",
@@ -56,7 +56,7 @@ func (api *dashboardApi) listCSIControllerPod() gin.HandlerFunc {
 
 }
 
-func (api *dashboardApi) watchAppPod() {
+func (api *podApi) watchAppPod(ctx context.Context) {
 	labelSelector := &v1.LabelSelector{
 		MatchExpressions: []v1.LabelSelectorRequirement{{Key: config.UniqueId, Operator: v1.LabelSelectorOpExists}},
 	}
@@ -64,7 +64,7 @@ func (api *dashboardApi) watchAppPod() {
 	if err != nil {
 		log.Fatalf("can't convert label selector %v: %v", labelSelector, err)
 	}
-	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(context.TODO(), v1.ListOptions{
+	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(ctx, v1.ListOptions{
 		LabelSelector: s.String(),
 		Watch:         true,
 	})
@@ -75,6 +75,7 @@ func (api *dashboardApi) watchAppPod() {
 		api.appPodsLock.Lock()
 		pod, ok := event.Object.(*corev1.Pod)
 		if !ok {
+			api.appPodsLock.Unlock()
 			log.Printf("unknown type: %v", event.Object)
 			continue
 		}

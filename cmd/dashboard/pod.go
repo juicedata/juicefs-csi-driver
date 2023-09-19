@@ -1,15 +1,45 @@
 package main
 
 import (
+	"context"
+	"log"
+	"sync"
+
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 )
 
-func (api *dashboardApi) getPodMiddileware() gin.HandlerFunc {
+type podApi struct {
+	sysNamespace string
+	k8sClient    *k8sclient.K8sClient
+
+	appPodsLock sync.RWMutex
+	appPods     map[string]*corev1.Pod
+
+	eventsLock sync.RWMutex
+	events     map[string]map[string]*corev1.Event
+}
+
+func newPodApi(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *podApi {
+	api := &podApi{
+		sysNamespace: sysNamespace,
+		k8sClient:    k8sClient,
+		appPods:      make(map[string]*corev1.Pod),
+		events:       make(map[string]map[string]*corev1.Event),
+	}
+	go api.watchAppPod(ctx)
+	go api.watchPodEvents(ctx)
+	return api
+}
+
+func (api *podApi) getPodMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
@@ -31,7 +61,7 @@ func (api *dashboardApi) getPodMiddileware() gin.HandlerFunc {
 	}
 }
 
-func (api *dashboardApi) getPod() gin.HandlerFunc {
+func (api *podApi) getPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pod, ok := c.Get("pod")
 		if !ok {
@@ -42,22 +72,56 @@ func (api *dashboardApi) getPod() gin.HandlerFunc {
 	}
 }
 
-// func (api *dashboardApi) getPodEvents() gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		namespace := c.Param("namespace")
-// 		name := c.Param("name")
-// 		events, err := api.k8sClient.CoreV1().Events(namespace).List()
-// 		if err != nil {
-// 			c.String(500, "get pod events: %v", err)
-// 			return
-// 		}
-// 		c.IndentedJSON(200, events)
-// 	}
-// }
+func (api *podApi) getPodEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pod, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		api.eventsLock.RLock()
+		events := api.events[string(pod.(*corev1.Pod).UID)]
+		list := make([]*corev1.Event, 0, len(events))
+		for _, e := range events {
+			list = append(list, e)
+		}
+		api.eventsLock.RUnlock()
+		c.IndentedJSON(200, list)
+	}
+}
 
 func isPermitted(pod *corev1.Pod) bool {
 	_, existUniqueId := pod.Labels[config.UniqueId]
 	return existUniqueId ||
 		pod.Labels["app.kubernetes.io/name"] == "juicefs-mount" ||
 		pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver"
+}
+
+func (api *podApi) watchPodEvents(ctx context.Context) {
+	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
+		TypeMeta: v1.TypeMeta{Kind: "Pod"},
+		Watch:    true,
+	})
+	if err != nil {
+		log.Fatalf("can't watch event of pods in %s: %v", api.sysNamespace, err)
+	}
+	for e := range watcher.ResultChan() {
+		api.eventsLock.Lock()
+		event, ok := e.Object.(*corev1.Event)
+		if !ok {
+			api.eventsLock.Unlock()
+			log.Printf("unknown type: %v", e.Object)
+			continue
+		}
+		switch e.Type {
+		case watch.Added:
+			if api.events[string(event.InvolvedObject.UID)] == nil {
+				api.events[string(event.InvolvedObject.UID)] = make(map[string]*corev1.Event)
+			}
+			api.events[string(event.InvolvedObject.UID)][string(event.UID)] = event
+		case watch.Deleted:
+			delete(api.events, string(event.UID))
+		}
+		api.eventsLock.Unlock()
+	}
 }
