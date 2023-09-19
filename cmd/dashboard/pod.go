@@ -101,6 +101,38 @@ func (api *podApi) getPodEvents() gin.HandlerFunc {
 	}
 }
 
+func (api *podApi) getPodLogs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		container := c.Param("container")
+		var existContainer bool
+		for _, c := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
+			if c.Name == container {
+				existContainer = true
+				break
+			}
+		}
+		if !existContainer {
+			c.String(404, "container %s not found", container)
+			return
+		}
+
+		logs, err := api.k8sClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
+			Container: container,
+		}).DoRaw(c)
+		if err != nil {
+			c.String(500, "get pod logs of container %s: %v", container, err)
+			return
+		}
+		c.String(200, string(logs))
+	}
+}
+
 func isPermitted(pod *corev1.Pod) bool {
 	_, existUniqueId := pod.Labels[config.UniqueId]
 	return existUniqueId ||
