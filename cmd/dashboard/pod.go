@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -45,6 +46,7 @@ func newPodApi(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8
 	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
 	go api.watchPodEvents(ctx)
+	go api.cleanupPodEvents(ctx)
 	return api
 }
 
@@ -89,7 +91,7 @@ func (api *podApi) getPodEvents() gin.HandlerFunc {
 			return
 		}
 		api.eventsLock.RLock()
-		events := api.events[string(pod.(*corev1.Pod).UID)]
+		events := api.events[string(pod.(*corev1.Pod).Name)]
 		list := make([]*corev1.Event, 0, len(events))
 		for _, e := range events {
 			list = append(list, e)
@@ -122,15 +124,51 @@ func (api *podApi) watchPodEvents(ctx context.Context) {
 			log.Printf("unknown type: %v", e.Object)
 			continue
 		}
+		objName := event.InvolvedObject.Name
 		switch e.Type {
 		case watch.Added:
-			if api.events[string(event.InvolvedObject.UID)] == nil {
-				api.events[string(event.InvolvedObject.UID)] = make(map[string]*corev1.Event)
+			if api.events[objName] == nil {
+				api.events[objName] = make(map[string]*corev1.Event, 1)
 			}
-			api.events[string(event.InvolvedObject.UID)][string(event.UID)] = event
+			api.events[objName][string(event.UID)] = event
 		case watch.Deleted:
-			delete(api.events, string(event.UID))
+			delete(api.events[objName], string(event.UID))
 		}
 		api.eventsLock.Unlock()
 	}
+}
+
+func (api *podApi) cleanupPodEvents(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ticker.Reset(10 * time.Second)
+			api.eventsLock.Lock()
+			for name := range api.events {
+				if !api.isComponents(name) {
+					delete(api.events, name)
+					log.Printf("delete all events of pod %s\n", name)
+				}
+			}
+			api.eventsLock.Unlock()
+		}
+	}
+}
+
+func (api *podApi) isComponents(name string) bool {
+	var ok bool
+	api.componentsLock.RLock()
+	_, ok = api.mountPods[name]
+	if !ok {
+		_, ok = api.csiNodes[name]
+	}
+	if !ok {
+		_, ok = api.controllers[name]
+	}
+	api.componentsLock.RUnlock()
+	return ok
 }

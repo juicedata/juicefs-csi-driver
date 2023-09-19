@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -81,6 +82,10 @@ func run() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
+	}()
+	go func() {
+		// pprof server
+		log.Println(http.ListenAndServe("localhost:8089", nil))
 	}()
 
 	quit := make(chan os.Signal, 1)
