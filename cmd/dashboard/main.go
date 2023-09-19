@@ -106,6 +106,7 @@ func (api *podApi) handle(group *gin.RouterGroup) {
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/events", api.getPodEvents())
 	podGroup.GET("/logs/:container", api.getPodLogs())
+	podGroup.GET("/pvs", api.getPodPVs())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {

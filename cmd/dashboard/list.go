@@ -61,6 +61,30 @@ func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
 	}
 }
 
+func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolume, error) {
+	pvs := make([]*corev1.PersistentVolume, 0)
+	for _, v := range pod.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvc, err := api.k8sClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, v.PersistentVolumeClaim.ClaimName, v1.GetOptions{})
+		if err != nil {
+			log.Printf("can't get pvc %s/%s: %v\n", pod.Namespace, v.PersistentVolumeClaim.ClaimName, err)
+			continue
+		}
+		pv, err := api.k8sClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, v1.GetOptions{})
+		if err != nil {
+			log.Printf("can't get pv %s: %v\n", pvc.Spec.VolumeName, err)
+			continue
+		}
+		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+			continue
+		}
+		pvs = append(pvs, pv)
+	}
+	return pvs, nil
+}
+
 func (api *podApi) watchAppPod(ctx context.Context) {
 	labelSelector := &v1.LabelSelector{
 		MatchExpressions: []v1.LabelSelectorRequirement{{Key: config.UniqueId, Operator: v1.LabelSelectorOpExists}},

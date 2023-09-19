@@ -145,6 +145,23 @@ func (api *podApi) getPodLogs() gin.HandlerFunc {
 	}
 }
 
+func (api *podApi) getPodPVs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		pvs, err := api.listJuiceFSPVs(c, pod)
+		if err != nil {
+			c.String(500, "list juicefs pvs: %v", err)
+			return
+		}
+		c.IndentedJSON(200, pvs)
+	}
+}
+
 func (api *podApi) watchPodEvents(ctx context.Context) {
 	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
 		TypeMeta: v1.TypeMeta{Kind: "Pod"},
