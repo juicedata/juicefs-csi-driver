@@ -51,9 +51,17 @@ dashboard:
 	mkdir -p bin
 	GOOS=linux go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
 
+.PHONY: dashboard-dist
+dashboard-dist:
+	mkdir -p dist
+	cp dashboard-ui/*.html dist/
+	cp dashboard-ui/*.js dist/
+
 .PHONY: dashboard-dev
-dashboard-dev: dashboard
-	./bin/juicefs-csi-dashboard --dev
+dashboard-dev: dashboard dashboard-dist
+	./bin/juicefs-csi-dashboard --dev --static-dir=./dist
+
+
 
 # build deploy yaml
 yaml:

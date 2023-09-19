@@ -27,8 +27,9 @@ const (
 )
 
 var (
-	port    uint16
-	devMode bool
+	port      uint16
+	devMode   bool
+	staticDir string
 )
 
 func main() {
@@ -42,6 +43,8 @@ func main() {
 
 	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
+	cmd.PersistentFlags().StringVar(&staticDir, "static-dir", "", "static files to serve")
+
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
 	cmd.PersistentFlags().AddGoFlagSet(goFlag)
@@ -69,8 +72,13 @@ func run() {
 	defer cancel()
 	podApi := newPodApi(ctx, sysNamespace, client)
 	router := gin.Default()
+	if staticDir != "" {
+		router.GET("/", func(c *gin.Context) {
+			c.Redirect(http.StatusMovedPermanently, "/app/index.html")
+		})
+		router.Static("/app", staticDir)
+	}
 	podApi.handle(router.Group("/api/v1"))
-
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
 		Addr:    addr,
