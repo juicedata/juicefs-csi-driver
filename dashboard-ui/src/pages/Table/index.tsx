@@ -8,29 +8,8 @@ import {
 } from '@ant-design/pro-components';
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
-import { Pod } from 'kubernetes-types/core/v1'
-import { listAppPods } from '@/services/pod';
+import { Pod, listAppPods } from '@/services/pod';
 
-/**
- *  删除节点
- * @param selectedRows
- */
-const handleRemove = async (selectedRows: Pod[]) => {
-  const hide = message.loading('正在删除');
-  if (!selectedRows) return true;
-  try {
-    // await deleteUser({
-    //   userId: selectedRows.find((row) => row.id)?.id || '',
-    // });
-    hide();
-    message.success('删除成功，即将刷新');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('删除失败，请重试');
-    return false;
-  }
-};
 
 const TableList: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -58,6 +37,30 @@ const TableList: React.FC<unknown> = () => {
           {pod.metadata?.namespace + '/' + pod.metadata?.name}
         </a>
       ),
+    },
+    {
+      title: '挂载 Pod',
+      render: (_, pod) => {
+        if (pod.mountPods?.length == 1) {
+          return (
+            <a onClick={() => { }}>
+              {pod.mountPods[0].metadata?.name}
+            </a>
+          )
+        } else {
+          return (
+            <ul>
+              {pod.mountPods?.map((mountPod) => (
+                <li>
+                <a onClick={() => { }}>
+                  {mountPod.metadata?.name}
+                </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      }
     },
     {
       title: '集群内 IP',
@@ -133,7 +136,6 @@ const TableList: React.FC<unknown> = () => {
         >
           <Button
             onClick={async () => {
-              await handleRemove(selectedRowsState);
               setSelectedRows([]);
               actionRef.current?.reloadAndRest?.();
             }}
