@@ -75,10 +75,7 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
 	}
-	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-		Name:  "JFS_NO_UMOUNT",
-		Value: "1",
-	})
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, []corev1.EnvVar{{Name: "JFS_NO_UMOUNT", Value: "1"}, {Name: "JFS_FOREGROUND", Value: "1"}}...)
 
 	// generate volumes and volumeMounts only used in VCI serverless sidecar
 	volumes, volumeMounts := r.genVCIServerlessVolumes()

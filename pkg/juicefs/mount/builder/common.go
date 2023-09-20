@@ -94,10 +94,6 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			},
 		},
 	}}
-	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
-		Name:  "JFS_FOREGROUND",
-		Value: "1",
-	}}
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Resources
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{

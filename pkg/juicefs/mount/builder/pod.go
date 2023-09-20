@@ -46,6 +46,10 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	cmd := r.genMountCommand()
 	pod.Name = podName
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
+	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
+		Name:  "JFS_FOREGROUND",
+		Value: "1",
+	}}
 
 	// generate volumes and volumeMounts only used in mount pod
 	volumes, volumeMounts := r.genPodVolumes()

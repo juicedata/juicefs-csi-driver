@@ -57,6 +57,10 @@ func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
 	}
+	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
+		Name:  "JFS_FOREGROUND",
+		Value: "1",
+	}}
 
 	// generate volumes and volumeMounts only used in serverless sidecar
 	volumes, volumeMounts := r.genServerlessVolumes()
