@@ -79,6 +79,54 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/mountpods", api.listMountPods())
 }
 
+func (api *API) listAppPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.appPods))
+		api.appPodsLock.RLock()
+		for _, pod := range api.appPods {
+			pods = append(pods, pod)
+		}
+		api.appPodsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
+}
+
+func (api *API) listMountPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.mountPods))
+		api.componentsLock.RLock()
+		for _, pod := range api.mountPods {
+			pods = append(pods, pod)
+		}
+		api.componentsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
+}
+
+func (api *API) listCSINodePod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.csiNodes))
+		api.componentsLock.RLock()
+		for _, pod := range api.csiNodes {
+			pods = append(pods, pod)
+		}
+		api.componentsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
+}
+
+func (api *API) listCSIControllerPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pods := make([]*corev1.Pod, 0, len(api.controllers))
+		api.componentsLock.RLock()
+		for _, pod := range api.controllers {
+			pods = append(pods, pod)
+		}
+		api.componentsLock.RUnlock()
+		c.IndentedJSON(200, pods)
+	}
+}
+
 func (api *API) getComponentPod(name string) (*corev1.Pod, bool) {
 	var pod *corev1.Pod
 	var exist bool

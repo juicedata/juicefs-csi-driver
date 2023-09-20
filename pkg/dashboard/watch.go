@@ -20,7 +20,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -28,78 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 )
-
-func (api *API) listAppPod() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.appPods))
-		api.appPodsLock.RLock()
-		for _, pod := range api.appPods {
-			pods = append(pods, pod)
-		}
-		api.appPodsLock.RUnlock()
-		c.IndentedJSON(200, pods)
-	}
-}
-
-func (api *API) listMountPod() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.mountPods))
-		api.componentsLock.RLock()
-		for _, pod := range api.mountPods {
-			pods = append(pods, pod)
-		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
-	}
-}
-
-func (api *API) listCSINodePod() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.csiNodes))
-		api.componentsLock.RLock()
-		for _, pod := range api.csiNodes {
-			pods = append(pods, pod)
-		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
-	}
-}
-
-func (api *API) listCSIControllerPod() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.controllers))
-		api.componentsLock.RLock()
-		for _, pod := range api.controllers {
-			pods = append(pods, pod)
-		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
-	}
-}
-
-func (api *API) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
-	pvs := make(map[string]*corev1.PersistentVolume)
-	for _, v := range pod.Spec.Volumes {
-		if v.PersistentVolumeClaim == nil {
-			continue
-		}
-		pvc, err := api.k8sClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, v.PersistentVolumeClaim.ClaimName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pvc %s/%s: %v\n", pod.Namespace, v.PersistentVolumeClaim.ClaimName, err)
-			continue
-		}
-		pv, err := api.k8sClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pv %s: %v\n", pvc.Spec.VolumeName, err)
-			continue
-		}
-		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
-			continue
-		}
-		pvs[v.PersistentVolumeClaim.ClaimName] = pv
-	}
-	return pvs, nil
-}
 
 func (api *API) watchAppPod(ctx context.Context) {
 	labelSelector := &v1.LabelSelector{
