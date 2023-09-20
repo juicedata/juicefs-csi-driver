@@ -36,6 +36,18 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listPVsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pvs := make(map[string]*corev1.PersistentVolume)
+		api.pvsLock.RLock()
+		for name, pv := range api.pvs {
+			pvs[name.String()] = pv
+		}
+		api.pvsLock.RUnlock()
+		c.IndentedJSON(200, pvs)
+	}
+}
+
 func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*corev1.PersistentVolume {
 	pvs := make(map[string]*corev1.PersistentVolume)
 	for _, v := range pod.Spec.Volumes {

@@ -21,67 +21,15 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 )
-
-type API struct {
-	sysNamespace string
-	k8sClient    *k8sclient.K8sClient
-
-	componentsLock sync.RWMutex
-	mountPods      map[string]*corev1.Pod
-	csiNodes       map[string]*corev1.Pod
-	controllers    map[string]*corev1.Pod
-
-	appPodsLock sync.RWMutex
-	appPods     map[types.NamespacedName]*corev1.Pod
-
-	eventsLock sync.RWMutex
-	events     map[string]map[string]*corev1.Event
-
-	pvsLock sync.RWMutex
-	pvs     map[types.NamespacedName]*corev1.PersistentVolume
-}
-
-func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
-	api := &API{
-		sysNamespace: sysNamespace,
-		k8sClient:    k8sClient,
-		mountPods:    make(map[string]*corev1.Pod),
-		csiNodes:     make(map[string]*corev1.Pod),
-		controllers:  make(map[string]*corev1.Pod),
-		appPods:      make(map[types.NamespacedName]*corev1.Pod),
-		events:       make(map[string]map[string]*corev1.Event),
-		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
-	}
-	go api.watchComponents(ctx)
-	go api.watchAppPod(ctx)
-	go api.watchPodEvents(ctx)
-	go api.cleanupPodEvents(ctx)
-	return api
-}
-
-func (api *API) Handle(group *gin.RouterGroup) {
-	group.GET("/pods", api.listAppPod())
-	group.GET("/mountpods", api.listMountPod())
-	group.GET("/csi-nodes", api.listCSINodePod())
-	group.GET("/controllers", api.listCSIControllerPod())
-	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
-	podGroup.GET("/", api.getPodHandler())
-	podGroup.GET("/events", api.getPodEvents())
-	podGroup.GET("/logs/:container", api.getPodLogs())
-	podGroup.GET("/pvs", api.listPodPVsHandler())
-	podGroup.GET("/mountpods", api.listMountPods())
-}
 
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
