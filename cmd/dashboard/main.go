@@ -90,10 +90,8 @@ func run() {
 	podApi := dashboard.NewPodApi(ctx, sysNamespace, client)
 	router := gin.Default()
 	if staticDir != "" {
-		router.GET("/", func(c *gin.Context) {
-			c.Redirect(http.StatusMovedPermanently, "/app/index.html")
-		})
-		router.Static("/app", staticDir)
+		router.StaticFile("/", filepath.Join(staticDir, "index.html"))
+		router.Static("/static", staticDir)
 	}
 	podApi.Handle(router.Group("/api/v1"))
 	addr := fmt.Sprintf(":%d", port)
