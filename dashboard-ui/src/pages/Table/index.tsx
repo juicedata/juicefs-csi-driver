@@ -111,10 +111,10 @@ const TableList: React.FC<unknown> = () => {
             新建
           </Button>,
         ]}
-        request={async (params, sorter, filter) => {
+        request={async (params, sort, filter) => {
           const { data, success } = await listAppPods({
             ...params,
-            sorter,
+            sort,
             filter,
           });
           return {

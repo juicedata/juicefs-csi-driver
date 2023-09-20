@@ -10,7 +10,7 @@ export interface PagingListArgs {
     filter: Record<string, (string | number)[] | null>
 }
 export interface PodListResult {
-    data: Pod[];
+    data?: Pod[];
     success: boolean;
 }
 
