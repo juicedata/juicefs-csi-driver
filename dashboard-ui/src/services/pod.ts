@@ -15,8 +15,16 @@ export interface PodListResult {
 }
 
 export const listAppPods = async (args: PagingListArgs) => {
+    let data: Pod[]
+    try {
+        let pods = await fetch('http://localhost:8088/api/v1/pods')
+        data = JSON.parse(await pods.text())
+    } catch (e) {
+        console.log(`fail to list pods: ${e}`)
+        return { data: null, success: false }
+    }
     return {
-        data: [],
+        data,
         success: true,
     }
 }

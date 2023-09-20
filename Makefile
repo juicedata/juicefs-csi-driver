@@ -53,13 +53,11 @@ dashboard:
 
 .PHONY: dashboard-dist
 dashboard-dist:
-	mkdir -p dist
-	cp dashboard-ui/*.html dist/
-	cp dashboard-ui/*.js dist/
+	cd dashboard-ui && yarn run build
 
 .PHONY: dashboard-dev
-dashboard-dev: dashboard dashboard-dist
-	./bin/juicefs-csi-dashboard --dev --static-dir=./dist
+dashboard-dev: dashboard
+	./bin/juicefs-csi-dashboard --dev --static-dir=./dashboard-ui/dist
 
 
 

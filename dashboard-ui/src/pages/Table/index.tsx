@@ -43,8 +43,6 @@ const TableList: React.FC<unknown> = () => {
   const columns: ProColumns<Pod>[] = [
     {
       title: '名称',
-      dataIndex: 'name',
-      tip: '名称是唯一的 key',
       formItemProps: {
         rules: [
           {
@@ -53,46 +51,42 @@ const TableList: React.FC<unknown> = () => {
           },
         ],
       },
+      render: (_, pod) => (
+        <a
+          onClick={() => { }}
+        >
+          {pod.metadata?.namespace + '/' + pod.metadata?.name}
+        </a>
+      ),
     },
     {
-      title: '昵称',
-      dataIndex: 'nickName',
+      title: '集群内 IP',
+      dataIndex: ['status', 'podIP'],
       valueType: 'text',
     },
     {
-      title: '性别',
-      dataIndex: 'gender',
+      title: '状态',
+      dataIndex: ['status', 'phase'],
       hideInForm: true,
       valueEnum: {
-        0: { text: '男', status: 'MALE' },
-        1: { text: '女', status: 'FEMALE' },
+        0: { text: '等待中...', status: 'Pending' },
+        1: { text: '正在运行', status: 'Running' },
+        2: { text: '运行成功', status: 'Succeeded' },
+        3: { text: '运行失败', status: 'Failed' },
+        4: { text: '未知状态', status: 'Unknown' },
       },
     },
     {
-      title: '操作',
-      dataIndex: 'option',
-      valueType: 'option',
-      render: (_, record) => (
-        <>
-          <a
-            onClick={() => {
-              handleUpdateModalVisible(true);
-              setStepFormValues(record);
-            }}
-          >
-            配置
-          </a>
-          <Divider type="vertical" />
-          <a href="">订阅警报</a>
-        </>
-      ),
+      title: '所在节点',
+      dataIndex: ['spec', 'nodeName'],
+      valueType: 'text',
     },
   ];
 
   return (
     <PageContainer
       header={{
-        title: 'CRUD 示例',
+        title: '应用 Pod 管理',
       }}
     >
       <ProTable<Pod>

@@ -27,7 +27,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -89,6 +91,16 @@ func run() {
 	defer cancel()
 	podApi := dashboard.NewPodApi(ctx, sysNamespace, client)
 	router := gin.Default()
+	if devMode {
+		router.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{"*"},
+			AllowMethods:     []string{"*"},
+			AllowHeaders:     []string{"*"},
+			ExposeHeaders:    []string{"*"},
+			AllowCredentials: true,
+			MaxAge:           12 * time.Hour,
+		}))
+	}
 	if staticDir != "" {
 		router.StaticFile("/", filepath.Join(staticDir, "index.html"))
 		router.Static("/static", staticDir)
