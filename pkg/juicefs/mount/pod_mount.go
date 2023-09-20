@@ -343,7 +343,18 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
-				_, err := p.K8sClient.CreatePod(ctx, newPod)
+				nodeSelector := map[string]string{
+					"kubernetes.io/hostname": newPod.Spec.NodeName,
+				}
+				nodes, err := p.K8sClient.ListNode(ctx, &metav1.LabelSelector{MatchLabels: nodeSelector})
+				if err != nil || len(nodes) != 1 || nodes[0].Name != newPod.Spec.NodeName {
+					klog.Warningf("cannot select node %s by label selector: %v", newPod.Spec.NodeName, err)
+				} else {
+					newPod.Spec.NodeName = ""
+					newPod.Spec.NodeSelector = nodeSelector
+				}
+
+				_, err = p.K8sClient.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
