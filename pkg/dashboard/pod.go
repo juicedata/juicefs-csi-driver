@@ -47,6 +47,9 @@ type API struct {
 
 	eventsLock sync.RWMutex
 	events     map[string]map[string]*corev1.Event
+
+	pvsLock sync.RWMutex
+	pvs     map[types.NamespacedName]*corev1.PersistentVolume
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
@@ -58,6 +61,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		events:       make(map[string]map[string]*corev1.Event),
+		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
 	}
 	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
