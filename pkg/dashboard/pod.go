@@ -233,7 +233,7 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs, err := api.listJuiceFSPVs(c, pod)
+		pvs, err := api.listPVsOfPod(c, pod)
 		if err != nil {
 			c.String(500, "list juicefs pvs: %v", err)
 			return
@@ -250,7 +250,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs, err := api.listJuiceFSPVs(c, pod)
+		pvs, err := api.listPVsOfPod(c, pod)
 		if err != nil {
 			c.String(500, "list juicefs pvs: %v", err)
 			return

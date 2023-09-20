@@ -25,7 +25,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (api *API) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
+func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
 	pvs := make(map[string]*corev1.PersistentVolume)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
