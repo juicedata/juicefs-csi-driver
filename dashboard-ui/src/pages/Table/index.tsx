@@ -9,6 +9,7 @@ import {
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
 import { Pod } from 'kubernetes-types/core/v1'
+import { listAppPods } from '@/services/pod';
 
 /**
  *  删除节点
@@ -110,19 +111,17 @@ const TableList: React.FC<unknown> = () => {
             新建
           </Button>,
         ]}
-        // request={async (params, sorter, filter) => {
-        //   const { data, success } = await queryUserList({
-        //     ...params,
-        //     // FIXME: remove @ts-ignore
-        //     // @ts-ignore
-        //     sorter,
-        //     filter,
-        //   });
-        //   return {
-        //     data: data?.list || [],
-        //     success,
-        //   };
-        // }}
+        request={async (params, sorter, filter) => {
+          const { data, success } = await listAppPods({
+            ...params,
+            sorter,
+            filter,
+          });
+          return {
+            data: data || [],
+            success,
+          };
+        }}
         columns={columns}
         rowSelection={{
           onChange: (_, selectedRows) => setSelectedRows(selectedRows),
