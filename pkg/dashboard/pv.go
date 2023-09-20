@@ -20,10 +20,28 @@ import (
 	"context"
 	"log"
 
+	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func (api *API) listPodPVsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		pvs, err := api.listPVsOfPod(c, pod)
+		if err != nil {
+			c.String(500, "list juicefs pvs: %v", err)
+			return
+		}
+		c.IndentedJSON(200, pvs)
+	}
+}
 
 func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
 	pvs := make(map[string]*corev1.PersistentVolume)
