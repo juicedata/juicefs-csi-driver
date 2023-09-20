@@ -18,12 +18,10 @@ package dashboard
 
 import (
 	"context"
-	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (api *API) listPodPVsHandler() gin.HandlerFunc {
@@ -34,35 +32,22 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs, err := api.listPVsOfPod(c, pod)
-		if err != nil {
-			c.String(500, "list juicefs pvs: %v", err)
-			return
-		}
-		c.IndentedJSON(200, pvs)
+		c.IndentedJSON(200, api.listPVsOfPod(c, pod))
 	}
 }
 
-func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
+func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*corev1.PersistentVolume {
 	pvs := make(map[string]*corev1.PersistentVolume)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
 			continue
 		}
-		pvc, err := api.k8sClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, v.PersistentVolumeClaim.ClaimName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pvc %s/%s: %v\n", pod.Namespace, v.PersistentVolumeClaim.ClaimName, err)
-			continue
+		api.pvsLock.RLock()
+		pv, ok := api.pvs[types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName}]
+		if ok {
+			pvs[v.PersistentVolumeClaim.ClaimName] = pv
 		}
-		pv, err := api.k8sClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pv %s: %v\n", pvc.Spec.VolumeName, err)
-			continue
-		}
-		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
-			continue
-		}
-		pvs[v.PersistentVolumeClaim.ClaimName] = pv
+		api.pvsLock.RUnlock()
 	}
-	return pvs, nil
+	return pvs
 }

@@ -237,11 +237,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs, err := api.listPVsOfPod(c, pod)
-		if err != nil {
-			c.String(500, "list juicefs pvs: %v", err)
-			return
-		}
+		pvs := api.listPVsOfPod(c, pod)
 		mountPods := make(map[string]*corev1.Pod)
 		for pvc, pv := range pvs {
 			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Name)
