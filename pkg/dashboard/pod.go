@@ -17,18 +17,14 @@ limitations under the License.
 package dashboard
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 func (api *API) listAppPod() gin.HandlerFunc {
@@ -212,58 +208,37 @@ func (api *API) listMountPods() gin.HandlerFunc {
 	}
 }
 
-func (api *API) watchPodEvents(ctx context.Context) {
-	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
-		TypeMeta: v1.TypeMeta{Kind: "Pod"},
-		Watch:    true,
-	})
-	if err != nil {
-		log.Fatalf("can't watch event of pods in %s: %v", api.sysNamespace, err)
-	}
-	for e := range watcher.ResultChan() {
-		api.eventsLock.Lock()
-		event, ok := e.Object.(*corev1.Event)
+func (api *API) getMountPodOfPV() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pv")
 		if !ok {
-			api.eventsLock.Unlock()
-			log.Printf("unknown type: %v", e.Object)
-			continue
-		}
-		objName := event.InvolvedObject.Name
-		switch e.Type {
-		case watch.Added:
-			if api.events[objName] == nil {
-				api.events[objName] = make(map[string]*corev1.Event, 1)
-			}
-			api.events[objName][string(event.UID)] = event
-		case watch.Deleted:
-			delete(api.events[objName], string(event.UID))
-		}
-		api.eventsLock.Unlock()
-	}
-}
-
-func (api *API) cleanupPodEvents(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
+			c.String(404, "not found")
 			return
-		case <-ticker.C:
-			ticker.Reset(10 * time.Second)
-			api.eventsLock.Lock()
-			for name := range api.events {
-				if !api.isComponents(name) {
-					delete(api.events, name)
-					log.Printf("delete all events of pod %s\n", name)
-				}
-			}
-			api.eventsLock.Unlock()
 		}
+		pv := obj.(*PVExtended)
+		pod := api.getAppPod(pv.Pod)
+		if pod == nil {
+			c.String(404, "not found")
+			return
+		}
+		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Name)
+		mountPodName, ok := pod.Annotations[key]
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
+		if len(pair) != 2 {
+			c.String(500, "invalid mount pod name %s\n", mountPodName)
+			return
+		}
+		api.componentsLock.RLock()
+		defer api.componentsLock.RUnlock()
+		mountPod, exist := api.mountPods[pair[1]]
+		if !exist {
+			c.String(404, "not found")
+			return
+		}
+		c.IndentedJSON(200, mountPod)
 	}
-}
-
-func (api *API) isComponents(name string) bool {
-	_, exist := api.getComponentPod(name)
-	return exist
 }

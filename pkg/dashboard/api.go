@@ -26,6 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type PVExtended struct {
+	Pod types.NamespacedName
+	*corev1.PersistentVolume
+}
+
 type API struct {
 	sysNamespace string
 	k8sClient    *k8sclient.K8sClient
@@ -42,7 +47,7 @@ type API struct {
 	events     map[string]map[string]*corev1.Event
 
 	pvsLock sync.RWMutex
-	pvs     map[types.NamespacedName]*corev1.PersistentVolume
+	pvs     map[types.NamespacedName]*PVExtended
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
@@ -54,7 +59,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		events:       make(map[string]map[string]*corev1.Event),
-		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
+		pvs:          make(map[types.NamespacedName]*PVExtended),
 	}
 	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
@@ -75,4 +80,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/logs/:container", api.getPodLogs())
 	podGroup.GET("/pvs", api.listPodPVsHandler())
 	podGroup.GET("/mountpods", api.listMountPods())
+	pvGroup := group.Group("/pv/:namespace/:name", api.getPVMiddileware())
+	pvGroup.GET("/", api.getPVHandler())
+	pvGroup.GET("/mountpod", api.getMountPodOfPV())
 }

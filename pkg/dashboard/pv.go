@@ -38,7 +38,7 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 
 func (api *API) listPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pvs := make(map[string]*corev1.PersistentVolume)
+		pvs := make(map[string]*PVExtended)
 		api.pvsLock.RLock()
 		for name, pv := range api.pvs {
 			pvs[name.String()] = pv
@@ -46,6 +46,36 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 		api.pvsLock.RUnlock()
 		c.IndentedJSON(200, pvs)
 	}
+}
+
+func (api *API) getPVMiddileware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		pv := api.getPV(namespace, name)
+		if pv == nil {
+			c.AbortWithStatus(404)
+			return
+		}
+		c.Set("pv", pv)
+	}
+}
+
+func (api *API) getPVHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pv, ok := c.Get("pv")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		c.IndentedJSON(200, pv)
+	}
+}
+
+func (api *API) getPV(namespace, name string) *PVExtended {
+	api.pvsLock.RLock()
+	defer api.pvsLock.RUnlock()
+	return api.pvs[types.NamespacedName{Namespace: namespace, Name: name}]
 }
 
 func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*corev1.PersistentVolume {
@@ -57,7 +87,7 @@ func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*c
 		api.pvsLock.RLock()
 		pv, ok := api.pvs[types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName}]
 		if ok {
-			pvs[v.PersistentVolumeClaim.ClaimName] = pv
+			pvs[v.PersistentVolumeClaim.ClaimName] = pv.PersistentVolume
 		}
 		api.pvsLock.RUnlock()
 	}

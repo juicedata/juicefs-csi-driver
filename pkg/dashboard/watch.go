@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/pkg/errors"
@@ -81,7 +82,7 @@ func (api *API) fetchPVs(ctx context.Context, pod *corev1.Pod) {
 			continue
 		}
 		api.pvsLock.Lock()
-		api.pvs[types.NamespacedName{Namespace: pod.Namespace, Name: pvc.Name}] = pv
+		api.pvs[types.NamespacedName{Namespace: pod.Namespace, Name: pvc.Name}] = &PVExtended{types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, pv}
 		api.pvsLock.Unlock()
 	}
 }
@@ -158,4 +159,60 @@ func (api *API) watchComponents(ctx context.Context) {
 			}
 		}(watchers[i], tables[i])
 	}
+}
+
+func (api *API) watchPodEvents(ctx context.Context) {
+	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
+		TypeMeta: v1.TypeMeta{Kind: "Pod"},
+		Watch:    true,
+	})
+	if err != nil {
+		log.Fatalf("can't watch event of pods in %s: %v", api.sysNamespace, err)
+	}
+	for e := range watcher.ResultChan() {
+		api.eventsLock.Lock()
+		event, ok := e.Object.(*corev1.Event)
+		if !ok {
+			api.eventsLock.Unlock()
+			log.Printf("unknown type: %v", e.Object)
+			continue
+		}
+		objName := event.InvolvedObject.Name
+		switch e.Type {
+		case watch.Added:
+			if api.events[objName] == nil {
+				api.events[objName] = make(map[string]*corev1.Event, 1)
+			}
+			api.events[objName][string(event.UID)] = event
+		case watch.Deleted:
+			delete(api.events[objName], string(event.UID))
+		}
+		api.eventsLock.Unlock()
+	}
+}
+
+func (api *API) cleanupPodEvents(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ticker.Reset(10 * time.Second)
+			api.eventsLock.Lock()
+			for name := range api.events {
+				if !api.isComponents(name) {
+					delete(api.events, name)
+					log.Printf("delete all events of pod %s\n", name)
+				}
+			}
+			api.eventsLock.Unlock()
+		}
+	}
+}
+
+func (api *API) isComponents(name string) bool {
+	_, exist := api.getComponentPod(name)
+	return exist
 }
