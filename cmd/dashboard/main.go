@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -13,6 +29,7 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -70,7 +87,7 @@ func run() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := newPodApi(ctx, sysNamespace, client)
+	podApi := dashboard.NewPodApi(ctx, sysNamespace, client)
 	router := gin.Default()
 	if staticDir != "" {
 		router.GET("/", func(c *gin.Context) {
@@ -78,7 +95,7 @@ func run() {
 		})
 		router.Static("/app", staticDir)
 	}
-	podApi.handle(router.Group("/api/v1"))
+	podApi.Handle(router.Group("/api/v1"))
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
 		Addr:    addr,
@@ -103,19 +120,6 @@ func run() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server Shutdown:", err)
 	}
-}
-
-func (api *podApi) handle(group *gin.RouterGroup) {
-	group.GET("/pods", api.listAppPod())
-	group.GET("/mountpods", api.listMountPod())
-	group.GET("/csi-nodes", api.listCSINodePod())
-	group.GET("/controllers", api.listCSIControllerPod())
-	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
-	podGroup.GET("/", api.getPodHandler())
-	podGroup.GET("/events", api.getPodEvents())
-	podGroup.GET("/logs/:container", api.getPodLogs())
-	podGroup.GET("/pvs", api.listPodPVsHandler())
-	podGroup.GET("/mountpods", api.listMountPods())
 }
 
 func getLocalConfig() (*k8sclient.K8sClient, error) {
