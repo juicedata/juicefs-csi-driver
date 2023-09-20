@@ -37,7 +37,7 @@ const AppPodTable: React.FC<unknown> = () => {
       ),
     },
     {
-      title: '持久卷申领',
+      title: '持久卷',
       render: (_, pod) => {
         if (!pod.mountPods || pod.mountPods.size == 0) {
           return <span>无</span>
