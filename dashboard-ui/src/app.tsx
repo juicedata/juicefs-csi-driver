@@ -17,6 +17,7 @@ export const layout: RuntimeConfig['layout'] = () => {
     menu: {
       locale: false,
     },
+    rightContentRender: false,
     colorPrimary: '#0ABD59',
   };
 };
