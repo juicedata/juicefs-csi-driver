@@ -1,3 +1,6 @@
+import { ReactComponent as Logo } from './assets/logo.svg'
+import { RuntimeConfig } from 'umi';
+
 // 运行时配置
 
 // 全局初始化数据配置，用于 Layout 用户信息和权限初始化
@@ -6,11 +9,14 @@ export async function getInitialState(): Promise<{ name: string }> {
   return { name: 'JuiceFS CSI Driver' };
 }
 
-export const layout = () => {
+export const layout: RuntimeConfig['layout'] = () => {
   return {
-    logo: 'https://img.alicdn.com/tfs/TB1YHEpwUT1gK0jSZFhXXaAtVXa-28-27.svg',
+    layout: "side",
+    title: "JuiceFS CSI",
+    logo: <Logo />,
     menu: {
       locale: false,
     },
+    colorPrimary: '#0ABD59',
   };
 };
