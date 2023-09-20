@@ -29,6 +29,10 @@ export default defineConfig({
       path: '/pvs',
       component: './PVTable',
     },
+    {
+      path: '/pod/:namespace/:podName',
+      component: './DetailedPod',
+    },
   ],
   npmClient: 'yarn',
 });

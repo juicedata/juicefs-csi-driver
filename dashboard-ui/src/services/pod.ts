@@ -20,15 +20,15 @@ export interface PodListResult {
 export const listAppPods = async (args: PagingListArgs) => {
     let data: Pod[]
     try {
-        let pods = await fetch('http://localhost:8088/api/v1/pods')
+        const pods = await fetch('http://localhost:8088/api/v1/pods')
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
         return { data: null, success: false }
     }
-    for (let pod of data) {
+    for (const pod of data) {
         try {
-            let mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
+            const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
             pod.mountPods = JSON.parse(await mountPods.text())
         } catch (e) {
             console.log(`fail to list mount pods of pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
@@ -37,5 +37,17 @@ export const listAppPods = async (args: PagingListArgs) => {
     return {
         data,
         success: true,
+    }
+}
+export const getPod = async (namespace: string, podName: string) => {
+    try {
+        const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
+        const pod = JSON.parse(await rawPod.text())
+        const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
+        pod.mountPods = JSON.parse(await mountPods.text())
+        return pod
+    } catch (e) {
+        console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
+        return null
     }
 }

@@ -10,7 +10,7 @@ import {
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
 import { Pod, listAppPods } from '@/services/pod';
-
+import { Link } from 'umi';
 
 const AppPodTable: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -31,30 +31,29 @@ const AppPodTable: React.FC<unknown> = () => {
         ],
       },
       render: (_, pod) => (
-        <a
-          onClick={() => { }}
-        >
+        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
           {pod.metadata?.namespace + '/' + pod.metadata?.name}
-        </a>
+        </Link>
       ),
     },
     {
       title: '挂载 Pod',
       render: (_, pod) => {
         if (pod.mountPods?.length == 1) {
+          let mountPod = pod.mountPods[0]
           return (
-            <a onClick={() => { }}>
-              {pod.mountPods[0].metadata?.name}
-            </a>
+            <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}`}>
+              {mountPod.metadata?.name}
+            </Link>
           )
         } else {
           return (
             <ul>
               {pod.mountPods?.map((mountPod) => (
                 <li>
-                <a onClick={() => { }}>
+                <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}`}>
                   {mountPod.metadata?.name}
-                </a>
+                </Link>
                 </li>
               ))}
             </ul>
