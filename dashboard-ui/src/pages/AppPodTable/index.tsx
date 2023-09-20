@@ -11,7 +11,7 @@ import React, { useRef, useState } from 'react';
 import { Pod, listAppPods } from '@/services/pod';
 
 
-const TableList: React.FC<unknown> = () => {
+const AppPodTable: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
   const [updateModalVisible, handleUpdateModalVisible] =
     useState<boolean>(false);
@@ -104,6 +104,7 @@ const TableList: React.FC<unknown> = () => {
             key="1"
             type="primary"
             onClick={() => handleModalVisible(true)}
+            hidden={true}
           >
             新建
           </Button>,
@@ -145,45 +146,6 @@ const TableList: React.FC<unknown> = () => {
           <Button type="primary">批量审批</Button>
         </FooterToolbar>
       )}
-      {/* <CreateForm
-        onCancel={() => handleModalVisible(false)}
-        modalVisible={createModalVisible}
-      >
-        <ProTable<API.UserInfo, API.UserInfo>
-          onSubmit={async (value) => {
-            const success = await handleAdd(value);
-            if (success) {
-              handleModalVisible(false);
-              if (actionRef.current) {
-                actionRef.current.reload();
-              }
-            }
-          }}
-          rowKey="id"
-          type="form"
-          columns={columns}
-        />
-      </CreateForm> */}
-      {/* {stepFormValues && Object.keys(stepFormValues).length ? (
-        <UpdateForm
-          onSubmit={async (value) => {
-            const success = await handleUpdate(value);
-            if (success) {
-              handleUpdateModalVisible(false);
-              setStepFormValues({});
-              if (actionRef.current) {
-                actionRef.current.reload();
-              }
-            }
-          }}
-          onCancel={() => {
-            handleUpdateModalVisible(false);
-            setStepFormValues({});
-          }}
-          updateModalVisible={updateModalVisible}
-          values={stepFormValues}
-        />
-      ) : null} */}
 
       <Drawer
         width={600}
@@ -211,4 +173,4 @@ const TableList: React.FC<unknown> = () => {
   );
 };
 
-export default TableList;
+export default AppPodTable;

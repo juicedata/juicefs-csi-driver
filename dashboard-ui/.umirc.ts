@@ -17,7 +17,7 @@ export default defineConfig({
     {
       name: '应用 Pod',
       path: '/pods',
-      component: './Table',
+      component: './AppPodTable',
     },
   ],
   npmClient: 'yarn',
