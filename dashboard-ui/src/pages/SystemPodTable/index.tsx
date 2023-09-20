@@ -10,9 +10,9 @@ import {
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
 import { Pod, listAppPods } from '@/services/pod';
+import { Link } from 'umi';
 
-
-const SystemPodTable: React.FC<unknown> = () => {
+const AppPodTable: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
   const [updateModalVisible, handleUpdateModalVisible] =
     useState<boolean>(false);
@@ -31,30 +31,37 @@ const SystemPodTable: React.FC<unknown> = () => {
         ],
       },
       render: (_, pod) => (
-        <a
-          onClick={() => { }}
-        >
+        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
           {pod.metadata?.namespace + '/' + pod.metadata?.name}
-        </a>
+        </Link>
       ),
     },
     {
-      title: '挂载 Pod',
+      title: '持久卷申领',
       render: (_, pod) => {
-        if (pod.mountPods?.length == 1) {
+        if (!pod.mountPods || pod.mountPods.size == 0) {
+          return <span>无</span>
+        } else if (pod.mountPods.size == 1) {
+          const [firstKey] = pod.mountPods.keys();
+          const mountPod = pod.mountPods.get(firstKey);
           return (
-            <a onClick={() => { }}>
-              {pod.mountPods[0].metadata?.name}
-            </a>
+            <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}`}>
+              {firstKey}
+            </Link>
           )
         } else {
+          const podMap = pod.mountPods?.keys()
+          const pairs = Array.from(podMap).map((key) => ({
+            key: key,
+            pod: pod.mountPods?.get(key),
+          }))
           return (
             <ul>
-              {pod.mountPods?.map((mountPod) => (
+              {pairs.map(({key, pod}) => (
                 <li>
-                <a onClick={() => { }}>
-                  {mountPod.metadata?.name}
-                </a>
+                <Link to={`/pod/${pod?.metadata?.namespace}/${pod?.metadata?.name}`}>
+                  {key}
+                </Link>
                 </li>
               ))}
             </ul>
@@ -88,7 +95,7 @@ const SystemPodTable: React.FC<unknown> = () => {
   return (
     <PageContainer
       header={{
-        title: '系统 Pod 管理',
+        title: '应用 Pod 管理',
       }}
     >
       <ProTable<Pod>
@@ -149,4 +156,4 @@ const SystemPodTable: React.FC<unknown> = () => {
   );
 };
 
-export default SystemPodTable;
+export default AppPodTable;

@@ -1,7 +1,7 @@
 import { Pod as RawPod } from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
-    mountPods?: RawPod[]
+    mountPods?: Map<string, RawPod>
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -29,7 +29,7 @@ export const listAppPods = async (args: PagingListArgs) => {
     for (const pod of data) {
         try {
             const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-            pod.mountPods = JSON.parse(await mountPods.text())
+            pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
         } catch (e) {
             console.log(`fail to list mount pods of pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
         }
@@ -44,7 +44,7 @@ export const getPod = async (namespace: string, podName: string) => {
         const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
         const pod = JSON.parse(await rawPod.text())
         const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-        pod.mountPods = JSON.parse(await mountPods.text())
+        pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
         return pod
     } catch (e) {
         console.log(`fail to get pod(${namespace}/${podName}): ${e}`)

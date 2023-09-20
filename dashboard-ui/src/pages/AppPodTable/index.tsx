@@ -37,22 +37,30 @@ const AppPodTable: React.FC<unknown> = () => {
       ),
     },
     {
-      title: '挂载 Pod',
+      title: '持久卷申领',
       render: (_, pod) => {
-        if (pod.mountPods?.length == 1) {
-          let mountPod = pod.mountPods[0]
+        if (!pod.mountPods || pod.mountPods.size == 0) {
+          return <span>无</span>
+        } else if (pod.mountPods.size == 1) {
+          const [firstKey] = pod.mountPods.keys();
+          const mountPod = pod.mountPods.get(firstKey);
           return (
-            <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}`}>
-              {mountPod.metadata?.name}
+            <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}`}>
+              {firstKey}
             </Link>
           )
         } else {
+          const podMap = pod.mountPods?.keys()
+          const pairs = Array.from(podMap).map((key) => ({
+            key: key,
+            pod: pod.mountPods?.get(key),
+          }))
           return (
             <ul>
-              {pod.mountPods?.map((mountPod) => (
+              {pairs.map(({key, pod}) => (
                 <li>
-                <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}`}>
-                  {mountPod.metadata?.name}
+                <Link to={`/pod/${pod?.metadata?.namespace}/${pod?.metadata?.name}`}>
+                  {key}
                 </Link>
                 </li>
               ))}
