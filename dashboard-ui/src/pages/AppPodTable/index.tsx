@@ -5,6 +5,7 @@ import {
   ProDescriptions,
   ProColumns,
   ProTable,
+  ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
@@ -17,7 +18,6 @@ const AppPodTable: React.FC<unknown> = () => {
     useState<boolean>(false);
   const [stepFormValues, setStepFormValues] = useState({});
   const actionRef = useRef<ActionType>();
-  const [row, setRow] = useState<Pod>();
   const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
   const columns: ProColumns<Pod>[] = [
     {
@@ -85,7 +85,6 @@ const AppPodTable: React.FC<unknown> = () => {
       valueType: 'text',
     },
   ];
-
   return (
     <PageContainer
       header={{
@@ -146,29 +145,6 @@ const AppPodTable: React.FC<unknown> = () => {
           <Button type="primary">批量审批</Button>
         </FooterToolbar>
       )}
-
-      <Drawer
-        width={600}
-        open={!!row}
-        onClose={() => {
-          setRow(undefined);
-        }}
-        closable={false}
-      >
-        {row?.metadata?.name && (
-          <ProDescriptions<Pod>
-            column={2}
-            title={row?.metadata?.name}
-            request={async () => ({
-              data: row || {},
-            })}
-            params={{
-              id: row?.metadata?.name,
-            }}
-            columns={columns}
-          />
-        )}
-      </Drawer>
     </PageContainer>
   );
 };
