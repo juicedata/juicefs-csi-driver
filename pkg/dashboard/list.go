@@ -77,8 +77,8 @@ func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolume, error) {
-	pvs := make([]*corev1.PersistentVolume, 0)
+func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
+	pvs := make(map[string]*corev1.PersistentVolume)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
 			continue
@@ -96,7 +96,7 @@ func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) ([]*core
 		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
 			continue
 		}
-		pvs = append(pvs, pv)
+		pvs[v.PersistentVolumeClaim.ClaimName] = pv
 	}
 	return pvs, nil
 }
