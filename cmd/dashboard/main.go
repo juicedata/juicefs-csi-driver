@@ -89,7 +89,7 @@ func run() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := dashboard.NewPodApi(ctx, sysNamespace, client)
+	podApi := dashboard.NewAPI(ctx, sysNamespace, client)
 	router := gin.Default()
 	if devMode {
 		router.Use(cors.New(cors.Config{

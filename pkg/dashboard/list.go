@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func (api *podApi) listAppPod() gin.HandlerFunc {
+func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods := make([]*corev1.Pod, 0, len(api.appPods))
 		api.appPodsLock.RLock()
@@ -41,7 +41,7 @@ func (api *podApi) listAppPod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listMountPod() gin.HandlerFunc {
+func (api *API) listMountPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods := make([]*corev1.Pod, 0, len(api.mountPods))
 		api.componentsLock.RLock()
@@ -53,7 +53,7 @@ func (api *podApi) listMountPod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listCSINodePod() gin.HandlerFunc {
+func (api *API) listCSINodePod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods := make([]*corev1.Pod, 0, len(api.csiNodes))
 		api.componentsLock.RLock()
@@ -65,7 +65,7 @@ func (api *podApi) listCSINodePod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
+func (api *API) listCSIControllerPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pods := make([]*corev1.Pod, 0, len(api.controllers))
 		api.componentsLock.RLock()
@@ -77,7 +77,7 @@ func (api *podApi) listCSIControllerPod() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
+func (api *API) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[string]*corev1.PersistentVolume, error) {
 	pvs := make(map[string]*corev1.PersistentVolume)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
@@ -101,7 +101,7 @@ func (api *podApi) listJuiceFSPVs(ctx context.Context, pod *corev1.Pod) (map[str
 	return pvs, nil
 }
 
-func (api *podApi) watchAppPod(ctx context.Context) {
+func (api *API) watchAppPod(ctx context.Context) {
 	labelSelector := &v1.LabelSelector{
 		MatchExpressions: []v1.LabelSelectorRequirement{{Key: config.UniqueId, Operator: v1.LabelSelectorOpExists}},
 	}
@@ -131,11 +131,11 @@ func (api *podApi) watchAppPod(ctx context.Context) {
 	}
 }
 
-func (api *podApi) watchPodByLabels(ctx context.Context, labels map[string]string) (watch.Interface, error) {
+func (api *API) watchPodByLabels(ctx context.Context, labels map[string]string) (watch.Interface, error) {
 	return api.watchPodByLabelSelector(ctx, &v1.LabelSelector{MatchLabels: labels})
 }
 
-func (api *podApi) watchPodByLabelSelector(ctx context.Context, selector *v1.LabelSelector) (watch.Interface, error) {
+func (api *API) watchPodByLabelSelector(ctx context.Context, selector *v1.LabelSelector) (watch.Interface, error) {
 	s, err := v1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't convert label selector %v", selector)
@@ -150,7 +150,7 @@ func (api *podApi) watchPodByLabelSelector(ctx context.Context, selector *v1.Lab
 	return watcher, nil
 }
 
-func (api *podApi) watchComponents(ctx context.Context) {
+func (api *API) watchComponents(ctx context.Context) {
 	mountPodWatcher, err := api.watchPodByLabels(ctx, map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
 	if err != nil {
 		log.Fatalf("%v", err)

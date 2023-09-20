@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type podApi struct {
+type API struct {
 	sysNamespace string
 	k8sClient    *k8sclient.K8sClient
 
@@ -49,8 +49,8 @@ type podApi struct {
 	events     map[string]map[string]*corev1.Event
 }
 
-func NewPodApi(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *podApi {
-	api := &podApi{
+func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
+	api := &API{
 		sysNamespace: sysNamespace,
 		k8sClient:    k8sClient,
 		mountPods:    make(map[string]*corev1.Pod),
@@ -66,7 +66,7 @@ func NewPodApi(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8
 	return api
 }
 
-func (api *podApi) Handle(group *gin.RouterGroup) {
+func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pods", api.listAppPod())
 	group.GET("/mountpods", api.listMountPod())
 	group.GET("/csi-nodes", api.listCSINodePod())
@@ -79,7 +79,7 @@ func (api *podApi) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/mountpods", api.listMountPods())
 }
 
-func (api *podApi) getComponentPod(name string) (*corev1.Pod, bool) {
+func (api *API) getComponentPod(name string) (*corev1.Pod, bool) {
 	var pod *corev1.Pod
 	var exist bool
 	api.componentsLock.RLock()
@@ -94,13 +94,13 @@ func (api *podApi) getComponentPod(name string) (*corev1.Pod, bool) {
 	return pod, exist
 }
 
-func (api *podApi) getAppPod(name types.NamespacedName) *corev1.Pod {
+func (api *API) getAppPod(name types.NamespacedName) *corev1.Pod {
 	api.appPodsLock.RLock()
 	defer api.appPodsLock.RUnlock()
 	return api.appPods[name]
 }
 
-func (api *podApi) getPodMiddileware() gin.HandlerFunc {
+func (api *API) getPodMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
@@ -116,7 +116,7 @@ func (api *podApi) getPodMiddileware() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) getPodHandler() gin.HandlerFunc {
+func (api *API) getPodHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pod, ok := c.Get("pod")
 		if !ok {
@@ -127,7 +127,7 @@ func (api *podApi) getPodHandler() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) getPodEvents() gin.HandlerFunc {
+func (api *API) getPodEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pod, ok := c.Get("pod")
 		if !ok {
@@ -145,7 +145,7 @@ func (api *podApi) getPodEvents() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) getPodLogs() gin.HandlerFunc {
+func (api *API) getPodLogs() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
 		if !ok {
@@ -177,7 +177,7 @@ func (api *podApi) getPodLogs() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listPodPVsHandler() gin.HandlerFunc {
+func (api *API) listPodPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
 		if !ok {
@@ -194,7 +194,7 @@ func (api *podApi) listPodPVsHandler() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) listMountPods() gin.HandlerFunc {
+func (api *API) listMountPods() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
 		if !ok {
@@ -233,7 +233,7 @@ func (api *podApi) listMountPods() gin.HandlerFunc {
 	}
 }
 
-func (api *podApi) watchPodEvents(ctx context.Context) {
+func (api *API) watchPodEvents(ctx context.Context) {
 	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
 		TypeMeta: v1.TypeMeta{Kind: "Pod"},
 		Watch:    true,
@@ -263,7 +263,7 @@ func (api *podApi) watchPodEvents(ctx context.Context) {
 	}
 }
 
-func (api *podApi) cleanupPodEvents(ctx context.Context) {
+func (api *API) cleanupPodEvents(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -284,7 +284,7 @@ func (api *podApi) cleanupPodEvents(ctx context.Context) {
 	}
 }
 
-func (api *podApi) isComponents(name string) bool {
+func (api *API) isComponents(name string) bool {
 	_, exist := api.getComponentPod(name)
 	return exist
 }
