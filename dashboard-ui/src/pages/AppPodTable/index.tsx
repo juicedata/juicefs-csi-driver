@@ -45,21 +45,16 @@ const AppPodTable: React.FC<unknown> = () => {
           const [firstKey] = pod.mountPods.keys();
           const mountPod = pod.mountPods.get(firstKey);
           return (
-            <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}`}>
+            <Link to={`/pv/${pod.metadata?.namespace}/${firstKey}`}>
               {firstKey}
             </Link>
           )
         } else {
-          const podMap = pod.mountPods?.keys()
-          const pairs = Array.from(podMap).map((key) => ({
-            key: key,
-            pod: pod.mountPods?.get(key),
-          }))
           return (
             <ul>
-              {pairs.map(({key, pod}) => (
+              {Array.from(pod.mountPods?.keys()).map((key) => (
                 <li>
-                <Link to={`/pod/${pod?.metadata?.namespace}/${pod?.metadata?.name}`}>
+                <Link to={`/pv/${pod.metadata?.namespace}/${key}`}>
                   {key}
                 </Link>
                 </li>

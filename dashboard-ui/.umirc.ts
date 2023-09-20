@@ -33,6 +33,10 @@ export default defineConfig({
       path: '/pod/:namespace/:podName',
       component: './DetailedPod',
     },
+    {
+      path: '/pv/:namespace/:podName',
+      component: './DetailedPV',
+    },
   ],
   npmClient: 'yarn',
 });
