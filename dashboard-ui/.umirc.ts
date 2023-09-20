@@ -19,6 +19,16 @@ export default defineConfig({
       path: '/pods',
       component: './AppPodTable',
     },
+    {
+      name: '系统 Pod',
+      path: '/syspods',
+      component: './SystemPodTable',
+    },
+    {
+      name: 'PV',
+      path: '/pvs',
+      component: './PVTable',
+    },
   ],
   npmClient: 'yarn',
 });
