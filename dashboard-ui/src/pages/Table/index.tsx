@@ -3,13 +3,11 @@ import {
   FooterToolbar,
   PageContainer,
   ProDescriptions,
-  ProDescriptionsItemProps,
+  ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
 import { Button, Divider, Drawer, message } from 'antd';
 import React, { useRef, useState } from 'react';
-import CreateForm from './components/CreateForm';
-import UpdateForm, { FormValueType } from './components/UpdateForm';
 import { Pod } from 'kubernetes-types/core/v1'
 
 /**
@@ -41,7 +39,7 @@ const TableList: React.FC<unknown> = () => {
   const actionRef = useRef<ActionType>();
   const [row, setRow] = useState<Pod>();
   const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
-  const columns: ProDescriptionsItemProps<Pod>[] = [
+  const columns: ProColumns<Pod>[] = [
     {
       title: '名称',
       dataIndex: 'name',
