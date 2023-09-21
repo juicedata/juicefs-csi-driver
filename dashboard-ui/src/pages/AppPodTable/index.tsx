@@ -19,11 +19,13 @@ const AppPodTable: React.FC<unknown> = () => {
   const columns: ProColumns<Pod>[] = [
     {
       title: '命名空间',
+      disable: true,
       key: 'namespace',
       dataIndex: ['metadata', 'namespace'],
     },
     {
       title: '名称',
+      disable: true,
       key: 'name',
       formItemProps: {
         rules: [
@@ -72,7 +74,7 @@ const AppPodTable: React.FC<unknown> = () => {
       title: '创建时间',
       key: 'time',
       sorter: 'time',
-      hideInSearch: true,
+      search: false,
       render: (_, pod) => (
         <span>{
           (new Date(pod.metadata?.creationTimestamp||"")).toLocaleDateString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -82,6 +84,7 @@ const AppPodTable: React.FC<unknown> = () => {
     {
       title: '状态',
       disable: true,
+      search: false,
       key: 'status',
       dataIndex: ['status', 'phase'],
       hideInForm: true,
