@@ -27,15 +27,28 @@ export const listAppPods = async (args: PagingListArgs) => {
         console.log(`fail to list pods: ${e}`)
         return { data: null, success: false }
     }
-    for (const pod of data) {
+    const getMore = async (pod: Pod) => {
         try {
-            const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-            pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
-            const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
-            pod.csiNode = JSON.parse(await csiNode.text())
+            const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
+            const mountPods = new Map(Object.entries(JSON.parse(await rawMountPods.text())))
+            const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
+            const csiNode = JSON.parse(await rawCSINode.text())
+            return { mountPods, csiNode }
         } catch (e) {
-            console.log(`fail to list mount pods of pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
+            console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
+            return { mountPods: null, csiNode: null }
         }
+    }
+
+    const tasks = []
+    for (const pod of data) {
+        tasks.push(getMore(pod))
+    }
+    const results = await Promise.all(tasks)
+    for ( const i in results) {
+        const { mountPods, csiNode } = results[i]
+        data[i].mountPods = mountPods || new Map()
+        data[i].csiNode = csiNode || null
     }
     return {
         data,
