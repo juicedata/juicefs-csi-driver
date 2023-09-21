@@ -14,9 +14,6 @@ import { Link } from 'umi';
 
 const AppPodTable: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
-  const [updateModalVisible, handleUpdateModalVisible] =
-    useState<boolean>(false);
-  const [stepFormValues, setStepFormValues] = useState({});
   const actionRef = useRef<ActionType>();
   const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
   const columns: ProColumns<Pod>[] = [
@@ -73,18 +70,15 @@ const AppPodTable: React.FC<unknown> = () => {
       title: '状态',
       dataIndex: ['status', 'phase'],
       hideInForm: true,
-      valueEnum: {
-        0: { text: '等待中...', status: 'Pending' },
-        1: { text: '正在运行', status: 'Running' },
-        2: { text: '运行成功', status: 'Succeeded' },
-        3: { text: '运行失败', status: 'Failed' },
-        4: { text: '未知状态', status: 'Unknown' },
-      },
+      valueType: 'text',
     },
     {
       title: '所在节点',
-      dataIndex: ['spec', 'nodeName'],
-      valueType: 'text',
+      render: (_, pod) => (
+        <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
+          {pod.spec?.nodeName}
+        </Link>
+      ),
     },
   ];
   return (
