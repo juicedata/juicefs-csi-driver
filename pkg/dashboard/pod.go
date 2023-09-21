@@ -96,6 +96,12 @@ func (api *API) getAppPod(name types.NamespacedName) *corev1.Pod {
 	return api.appPods[name]
 }
 
+func (api *API) getCSINode(nodeName string) *corev1.Pod {
+	api.componentsLock.RLock()
+	defer api.componentsLock.RUnlock()
+	return api.nodeindex[nodeName]
+}
+
 func (api *API) getPodMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
@@ -205,6 +211,22 @@ func (api *API) listMountPods() gin.HandlerFunc {
 			mountPods[pvc] = mountPod
 		}
 		c.IndentedJSON(200, mountPods)
+	}
+}
+
+func (api *API) getCSINodeOfPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := api.getCSINode(obj.(*corev1.Pod).Spec.NodeName)
+		if pod == nil {
+			c.String(404, "not found")
+			return
+		}
+		c.IndentedJSON(200, pod)
 	}
 }
 

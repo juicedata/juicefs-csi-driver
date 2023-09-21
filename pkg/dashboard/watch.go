@@ -139,8 +139,20 @@ func (api *API) watchComponents(ctx context.Context) {
 	}
 	watchers := []watch.Interface{mountPodWatcher, csiNodeWatcher, csiControllerWatcher}
 	tables := []map[string]*corev1.Pod{api.mountPods, api.csiNodes, api.controllers}
+	indexes := []func(watch.EventType, *corev1.Pod){
+		nil,
+		func(eventType watch.EventType, pod *corev1.Pod) {
+			switch eventType {
+			case watch.Added, watch.Modified, watch.Error:
+				api.nodeindex[pod.Spec.NodeName] = pod
+			case watch.Deleted:
+				delete(api.nodeindex, pod.Spec.NodeName)
+			}
+		},
+		nil,
+	}
 	for i := range watchers {
-		go func(watcher watch.Interface, table map[string]*corev1.Pod) {
+		go func(watcher watch.Interface, table map[string]*corev1.Pod, index func(watch.EventType, *corev1.Pod)) {
 			for event := range watcher.ResultChan() {
 				api.componentsLock.Lock()
 				pod, ok := event.Object.(*corev1.Pod)
@@ -148,6 +160,9 @@ func (api *API) watchComponents(ctx context.Context) {
 					api.componentsLock.Unlock()
 					log.Printf("unknown type: %v", event.Object)
 					continue
+				}
+				if index != nil {
+					index(event.Type, pod)
 				}
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
@@ -157,7 +172,7 @@ func (api *API) watchComponents(ctx context.Context) {
 				}
 				api.componentsLock.Unlock()
 			}
-		}(watchers[i], tables[i])
+		}(watchers[i], tables[i], indexes[i])
 	}
 }
 
