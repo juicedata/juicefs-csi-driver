@@ -18,6 +18,10 @@ const AppPodTable: React.FC<unknown> = () => {
   const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
   const columns: ProColumns<Pod>[] = [
     {
+      title: '命名空间',
+      dataIndex: ['metadata', 'namespace'],
+    },
+    {
       title: '名称',
       formItemProps: {
         rules: [
@@ -29,7 +33,7 @@ const AppPodTable: React.FC<unknown> = () => {
       },
       render: (_, pod) => (
         <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
-          {pod.metadata?.namespace + '/' + pod.metadata?.name}
+          {pod.metadata?.name}
         </Link>
       ),
     },
@@ -73,10 +77,10 @@ const AppPodTable: React.FC<unknown> = () => {
       valueType: 'text',
     },
     {
-      title: '所在节点',
+      title: 'CSI 节点',
       render: (_, pod) => (
         <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
-          {pod.spec?.nodeName}
+          {pod.csiNode?.metadata?.name}
         </Link>
       ),
     },
