@@ -19,7 +19,6 @@ const AppPodTable: React.FC<unknown> = () => {
   const columns: ProColumns<Pod>[] = [
     {
       title: '命名空间',
-      disable: true,
       key: 'namespace',
       dataIndex: ['metadata', 'namespace'],
     },
