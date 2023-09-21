@@ -85,10 +85,33 @@ const AppPodTable: React.FC<unknown> = () => {
       title: '状态',
       disable: true,
       search: false,
+      filters: true,
+      onFilter: true,
       key: 'status',
       dataIndex: ['status', 'phase'],
-      hideInForm: true,
-      valueType: 'text',
+      valueType: 'select',
+      valueEnum: {
+        Pending: {
+          text: '等待运行',
+          color: 'yellow',
+        },
+        Running: {
+          text: '运行中',
+          color: 'green',
+        },
+        Succeeded: {
+          text: '已完成',
+          color: 'blue',
+        },
+        Failed: {
+          text: '失败',
+          color: 'red',
+        },
+        Unknown: {
+          text: '未知',
+          color: 'grey',
+        },
+      },
     },
     {
       title: 'CSI 节点',
