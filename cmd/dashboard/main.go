@@ -36,6 +36,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog"
@@ -48,6 +49,7 @@ const (
 var (
 	port      uint16
 	devMode   bool
+	mockMode  bool
 	staticDir string
 )
 
@@ -62,6 +64,7 @@ func main() {
 
 	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
+	cmd.PersistentFlags().BoolVar(&mockMode, "mock", false, "enable mock mode")
 	cmd.PersistentFlags().StringVar(&staticDir, "static-dir", "", "static files to serve")
 
 	goFlag := goflag.CommandLine
@@ -76,8 +79,10 @@ func run() {
 	var client *k8sclient.K8sClient
 	var err error
 	sysNamespace := "kube-system"
-	if devMode {
-		client, err = getLocalConfig()
+	if mockMode {
+		client = getMockClient()
+	} else if devMode {
+		client, err = getLocalClient()
 	} else {
 		sysNamespace = os.Getenv(SysNamespaceKey)
 		gin.SetMode(gin.ReleaseMode)
@@ -91,7 +96,7 @@ func run() {
 	defer cancel()
 	podApi := dashboard.NewAPI(ctx, sysNamespace, client)
 	router := gin.Default()
-	if devMode {
+	if mockMode || devMode {
 		router.Use(cors.New(cors.Config{
 			AllowOrigins:     []string{"*"},
 			AllowMethods:     []string{"*"},
@@ -132,7 +137,15 @@ func run() {
 	}
 }
 
-func getLocalConfig() (*k8sclient.K8sClient, error) {
+func getMockClient() *k8sclient.K8sClient {
+	client := &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}
+	for _, pod := range dashboard.MockPods {
+		_, _ = client.CreatePod(context.TODO(), &pod)
+	}
+	return client
+}
+
+func getLocalClient() (*k8sclient.K8sClient, error) {
 	home := homedir.HomeDir()
 	if home == "" {
 		home = "/root"

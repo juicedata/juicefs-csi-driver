@@ -59,7 +59,9 @@ dashboard-dist:
 dashboard-dev: dashboard
 	./bin/juicefs-csi-dashboard --dev --static-dir=./dashboard-ui/dist
 
-
+.PHONY: dashboard-mock
+dashboard-mock: dashboard
+	./bin/juicefs-csi-dashboard --mock
 
 # build deploy yaml
 yaml:
