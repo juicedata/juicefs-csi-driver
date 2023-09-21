@@ -81,6 +81,7 @@ const AppPodTable: React.FC<unknown> = () => {
     },
     {
       title: '状态',
+      disable: true,
       key: 'status',
       dataIndex: ['status', 'phase'],
       hideInForm: true,
@@ -105,7 +106,7 @@ const AppPodTable: React.FC<unknown> = () => {
       <ProTable<Pod>
         headerTitle="查询表格"
         actionRef={actionRef}
-        rowKey="id"
+        rowKey={(record) => record.metadata?.uid!}
         search={{
           labelWidth: 120,
         }}
