@@ -19,10 +19,12 @@ const AppPodTable: React.FC<unknown> = () => {
   const columns: ProColumns<Pod>[] = [
     {
       title: '命名空间',
+      key: 'namespace',
       dataIndex: ['metadata', 'namespace'],
     },
     {
       title: '名称',
+      key: 'name',
       formItemProps: {
         rules: [
           {
@@ -39,6 +41,7 @@ const AppPodTable: React.FC<unknown> = () => {
     },
     {
       title: '持久卷',
+      key: 'pv',
       render: (_, pod) => {
         if (!pod.mountPods || pod.mountPods.size == 0) {
           return <span>无</span>
@@ -66,18 +69,26 @@ const AppPodTable: React.FC<unknown> = () => {
       }
     },
     {
-      title: '集群内 IP',
-      dataIndex: ['status', 'podIP'],
-      valueType: 'text',
+      title: '创建时间',
+      key: 'time',
+      sorter: 'time',
+      hideInSearch: true,
+      render: (_, pod) => (
+        <span>{
+          (new Date(pod.metadata?.creationTimestamp||"")).toLocaleDateString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        }</span>
+      ),
     },
     {
       title: '状态',
+      key: 'status',
       dataIndex: ['status', 'phase'],
       hideInForm: true,
       valueType: 'text',
     },
     {
       title: 'CSI 节点',
+      key: 'csiNode',
       render: (_, pod) => (
         <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
           {pod.csiNode?.metadata?.name}
