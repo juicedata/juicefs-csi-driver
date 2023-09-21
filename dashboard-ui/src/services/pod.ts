@@ -9,7 +9,10 @@ export type SortOrder = 'descend' | 'ascend' | null;
 export interface PagingListArgs {
     pageSize?: number;
     current?: number;
-    keyword?: string;
+    namespace?: string;
+    name?: string;
+    pv?: string;
+    csiNode?: string;
     sort: Record<string, SortOrder>;
     filter: Record<string, (string | number)[] | null>
 }
@@ -19,6 +22,7 @@ export interface PodListResult {
 }
 
 export const listAppPods = async (args: PagingListArgs) => {
+    console.log(`list pods with args: ${JSON.stringify(args)}`)
     let data: Pod[]
     try {
         const pods = await fetch('http://localhost:8088/api/v1/pods')
@@ -27,6 +31,10 @@ export const listAppPods = async (args: PagingListArgs) => {
         console.log(`fail to list pods: ${e}`)
         return { data: null, success: false }
     }
+    data = data.filter(pod => 
+        pod.metadata?.namespace?.includes(args.namespace||"") &&
+        pod.metadata?.name?.includes(args.name||"")
+    )
     const getMore = async (pod: Pod) => {
         try {
             const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
@@ -49,6 +57,17 @@ export const listAppPods = async (args: PagingListArgs) => {
         const { mountPods, csiNode } = results[i]
         data[i].mountPods = mountPods || new Map()
         data[i].csiNode = csiNode || null
+    }
+    data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode||""))
+    if (args.pv) {
+        data = data.filter(pod => {
+            for (const name of pod.mountPods!.keys()) {
+                if (name.includes(args.pv||"")) {
+                    return true
+                }
+            }
+            return false
+        })
     }
     const timeOrder = args.sort['time']
     if (timeOrder) {

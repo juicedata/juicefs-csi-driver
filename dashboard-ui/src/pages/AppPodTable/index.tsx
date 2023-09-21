@@ -48,7 +48,6 @@ const AppPodTable: React.FC<unknown> = () => {
           return <span>无</span>
         } else if (pod.mountPods.size == 1) {
           const [firstKey] = pod.mountPods.keys();
-          const mountPod = pod.mountPods.get(firstKey);
           return (
             <Link to={`/pv/${pod.metadata?.namespace}/${firstKey}`}>
               {firstKey}
