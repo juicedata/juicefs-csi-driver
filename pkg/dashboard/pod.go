@@ -214,14 +214,14 @@ func (api *API) listMountPods() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getCSINodeOfPod() gin.HandlerFunc {
+func (api *API) getCSINodeByName() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		obj, ok := c.Get("pod")
-		if !ok {
+		nodeName := c.Param("nodeName")
+		if nodeName == "" {
 			c.String(404, "not found")
 			return
 		}
-		pod := api.getCSINode(obj.(*corev1.Pod).Spec.NodeName)
+		pod := api.getCSINode(nodeName)
 		if pod == nil {
 			c.String(404, "not found")
 			return
