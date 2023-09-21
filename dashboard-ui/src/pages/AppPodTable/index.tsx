@@ -129,7 +129,8 @@ const AppPodTable: React.FC<unknown> = () => {
       }}
     >
       <ProTable<Pod>
-        headerTitle="查询表格"
+        headerTitle="Pod 列表"
+        tooltip="此列表只显示使用了 JuiceFS CSI 的 Pod"
         actionRef={actionRef}
         rowKey={(record) => record.metadata?.uid!}
         search={{
