@@ -24,7 +24,7 @@ import (
 )
 
 var MockPods = []corev1.Pod{
-	corev1.Pod{
+	{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      "database-1",
