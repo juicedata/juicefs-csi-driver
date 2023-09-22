@@ -21,9 +21,10 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 type PVExtended struct {

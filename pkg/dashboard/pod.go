@@ -22,9 +22,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (api *API) listAppPod() gin.HandlerFunc {
@@ -190,7 +191,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 		pvs := api.listPVsOfPod(c, pod)
 		mountPods := make(map[string]*corev1.Pod)
 		for pvc, pv := range pvs {
-			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Name)
+			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
 			mountPodName, ok := pod.Annotations[key]
 			if !ok {
 				log.Printf("can't find mount pod name by annotation `%s`\n", key)
