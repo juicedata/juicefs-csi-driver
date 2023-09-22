@@ -11,8 +11,8 @@ export async function getInitialState(): Promise<{ name: string }> {
 
 export const layout: RuntimeConfig['layout'] = () => {
   return {
-    navTheme: "realDark",
-    layout: "side",
+    // navTheme: "realDark",
+    layout: "mix",
     title: "JuiceFS CSI",
     logo: <Logo />,
     menu: {

@@ -104,14 +104,10 @@ const DetailedPod: React.FC<unknown> = () => {
                 tabList={tabList}
                 onTabChange={handleTabChange}
             >
-
-                <div>
-                    <ProCard direction="column">
-                        <ProCard style={{height: 200}}/>
-                        <div> {content} </div>
-                    </ProCard>
-                </div>
-
+                <ProCard direction="column">
+                    <ProCard style={{height: 200}}/>
+                    {content}
+                </ProCard>
             </PageContainer>
         )
     }
