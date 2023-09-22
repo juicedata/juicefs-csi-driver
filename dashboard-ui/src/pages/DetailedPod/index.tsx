@@ -1,8 +1,12 @@
-import { PageContainer } from '@ant-design/pro-components';
-import React, { useState, useEffect, Suspense } from 'react';
-import { useMatch } from '@umijs/max';
-import { Pod, getPod } from '@/services/pod';
-import { PageLoading } from '@ant-design/pro-components';
+import {PageContainer, PageLoading, ProCard} from '@ant-design/pro-components';
+import React, {useEffect, useState} from 'react';
+import {useMatch} from '@umijs/max';
+import {getPod, Pod} from '@/services/pod';
+import * as jsyaml from "js-yaml";
+import {Collapse, Tabs, TabsProps} from "antd";
+import {Button} from 'antd/lib';
+import TabPane from 'antd/es/tabs/TabPane';
+import {Link} from "@@/exports";
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -11,31 +15,106 @@ const DetailedPod: React.FC<unknown> = () => {
     if (!namespace || !name) {
         return (
             <PageContainer
-            header={{
-                title: 'Pod 不存在',
-            }}
+                header={{
+                    title: 'Pod 不存在',
+                }}
             >
             </PageContainer>
         )
     }
-    const [ pod, setPod ] = useState<Pod>()
+    const [pod, setPod] = useState<Pod>()
     useEffect(() => {
         getPod(namespace, name).then(setPod)
     }, [setPod])
+
+    const [activeTab, setActiveTab] = useState('1');
+    const handleTabChange = (key: any) => {
+        setActiveTab(key);
+    };
+
     if (!pod) {
-        return <PageLoading />
+        return <PageLoading/>
     } else {
+        const tabList: TabsProps['items'] = [
+            {
+                key: '1',
+                label: 'Yaml',
+            },
+            {
+                key: '2',
+                label: '日志',
+            },
+            {
+                key: '3',
+                label: 'Mount Pods',
+            },
+        ];
+
+        const p = {
+            metadata: pod.metadata,
+            spec: pod.spec,
+            status: pod.status,
+        }
+        const podYaml = jsyaml.dump(p)
+        const podLog = "log"
+
+        let mountPods: Map<string, Pod> = new Map
+        if (pod.mountPods && pod.mountPods.size != 0) {
+            pod.mountPods.forEach((mountPod, pvcName) => {
+                if (mountPod.metadata != undefined && mountPod.metadata?.name != undefined) {
+                    mountPods.set(mountPod.metadata.name, mountPod)
+                }
+            })
+        }
+
+        let content: any
+        switch (activeTab) {
+            case "1":
+                content = <div>
+                    <pre><code>{podYaml}</code></pre>
+                </div>
+                break
+            case "2":
+                content = podLog
+                break
+            case "3":
+                content = (
+                    <div>
+                        {Array.from(mountPods).map(([name, mountPod]) => (
+                            <ProCard
+                                key={name}
+                                title={name}
+                                headerBordered
+                                collapsible
+                                defaultCollapsed
+                            >
+                                <pre><code>{jsyaml.dump(mountPod)}</code></pre>
+                            </ProCard>
+                        ))}
+                    </div>
+                );
+        }
+
         return (
             <PageContainer
-            header={{
-                title: pod?.metadata?.name,
-            }}
+                fixedHeader
+                header={{
+                    title: pod?.metadata?.name,
+                }}
+                tabList={tabList}
+                onTabChange={handleTabChange}
             >
-                TODO...
+
+                <div>
+                    <ProCard direction="column">
+                        <ProCard style={{height: 200}}/>
+                        <div> {content} </div>
+                    </ProCard>
+                </div>
+
             </PageContainer>
         )
     }
-    
 }
 
 export default DetailedPod;
