@@ -55,9 +55,33 @@ const PVTable: React.FC<unknown> = () => {
             title: '状态',
             dataIndex: ['status', 'phase'],
             hideInForm: true,
+            valueType: 'select',
+            disable: true,
+            search: false,
+            filters: true,
+            onFilter: true,
+            key: 'status',
             valueEnum: {
-                0: {text: '等待中...', status: 'Pending'},
-                1: {text: '已绑定', status: 'Bound'},
+                Pending: {
+                    text: '等待运行',
+                    color: 'yellow',
+                },
+                Bound: {
+                    text: '已绑定',
+                    color: 'green',
+                },
+                Available: {
+                    text: '可绑定',
+                    color: 'blue',
+                },
+                Released: {
+                    text: '已释放',
+                    color: 'grey',
+                },
+                Failed: {
+                    text: '失败',
+                    color: 'red',
+                }
             },
         },
     ];
