@@ -3,10 +3,7 @@ import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {Collapse, Tabs, TabsProps} from "antd";
-import {Button} from 'antd/lib';
-import TabPane from 'antd/es/tabs/TabPane';
-import {Link} from "@@/exports";
+import {TabsProps} from "antd";
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -56,7 +53,8 @@ const DetailedPod: React.FC<unknown> = () => {
             status: pod.status,
         }
         const podYaml = jsyaml.dump(p)
-        const podLog = "log"
+        const podLog = pod.log
+
 
         let mountPods: Map<string, Pod> = new Map
         if (pod.mountPods && pod.mountPods.size != 0) {
@@ -75,7 +73,9 @@ const DetailedPod: React.FC<unknown> = () => {
                 </div>
                 break
             case "2":
-                content = podLog
+                content = <div>
+                    <pre><code>{podLog}</code></pre>
+                </div>
                 break
             case "3":
                 content = (
