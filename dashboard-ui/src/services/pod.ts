@@ -4,6 +4,7 @@ export type Pod = RawPod & {
     mountPods?: Map<string, RawPod>
     csiNode?: RawPod,
     log?: string[],
+    event?: string,
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -105,6 +106,8 @@ export const getPod = async (namespace: string, podName: string) => {
         pod.csiNode = JSON.parse(await csiNode.text())
         const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${pod.spec?.containers[0].name}`)
         pod.log = await log.text()
+        const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
+        pod.events = JSON.parse(await events.text())
         return pod
     } catch (e) {
         console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
