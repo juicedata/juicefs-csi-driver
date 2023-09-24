@@ -8,10 +8,6 @@ import * as jsyaml from "js-yaml";
 import {TabsProps, Select } from "antd";
 import { Link } from 'umi';
 
-type PodState = Pod & {
-    container: string
-}
-
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
     const namespace = routeData?.params?.namespace
@@ -26,28 +22,29 @@ const DetailedPod: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-    const [pod, setPod] = useState<PodState>()
+    const [pod, setPod] = useState<Pod>()
+    const [container, setContainer] = useState<string>()
+
     useEffect(() => {
         getPod(namespace, name).then((pod) => {
             if (pod) {
-                setPod({
-                    ...pod,
-                    container: pod.spec!.containers![0].name,
-                })
+                setPod(pod)
             }
         })
     }, [setPod])
 
+    const getContainer = () => (container || pod?.spec?.containers?.[0].name)
     const [activeTab, setActiveTab] = useState('1');
     const handleTabChange = (key: string) => {
         setActiveTab(key);
         if (key === '2' && pod) {
-            if (pod.logs.has(pod.container)) {
+            const cname = getContainer()!
+            if (pod.logs.has(cname)) {
                 return
             }
-            getLog(pod, pod.container).then((log) => {
+            getLog(pod, cname).then((log) => {
                 const newLogs = new Map(pod!.logs)
-                newLogs.set(pod.container, log)
+                newLogs.set(cname, log)
                 setPod({
                     ...pod,
                     logs: newLogs
@@ -57,22 +54,18 @@ const DetailedPod: React.FC<unknown> = () => {
     };
 
     const handleContainerChange = (container: string) => {
+        setContainer(container)
         if (pod!.logs.has(container)) {
+            return
+        }
+        getLog(pod!, container).then((log) => {
+            const newLogs = new Map(pod!.logs)
+            newLogs.set(container, log)
             setPod({
                 ...pod!,
-                container: container,
+                logs: newLogs,
             })
-        } else {
-            getLog(pod!, container).then((log) => {
-                const newLogs = new Map(pod!.logs)
-                newLogs.set(container, log)
-                setPod({
-                    ...pod!,
-                    container: container,
-                    logs: newLogs,
-                })
-            })
-        }
+        })
     }
 
     if (!pod) {
@@ -93,7 +86,7 @@ const DetailedPod: React.FC<unknown> = () => {
                     <Select
                         key="container"
                         placeholder='选择容器'
-                        value={pod.container}
+                        value={container}
                         style={{ width: 200 }}
                         onChange={handleContainerChange}
                         options={containers.map((container) => {
@@ -117,7 +110,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 onTabChange={handleTabChange}
             >
                 <ProCard direction="column">
-                    {getPobTabsContent(activeTab, pod)}
+                    {getPobTabsContent(activeTab, pod, getContainer()!)}
                 </ProCard>
             </PageContainer>
         )
@@ -148,7 +141,7 @@ const getPodTabs = (pod: Pod) => {
     return tabList
 }
 
-const getPobTabsContent = (activeTab: string, pod: PodState) => {
+const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
     const p = {
         metadata: pod.metadata,
         spec: pod.spec,
@@ -177,10 +170,10 @@ const getPobTabsContent = (activeTab: string, pod: PodState) => {
             break
         case "2":
             console.log(`logs: ${pod.logs}`)
-            if (!pod.logs.has(pod.container)) {
+            if (!pod.logs.has(container)) {
                 content = <PageLoading/>
             } else {
-                const log = pod.logs.get(pod.container)!
+                const log = pod.logs.get(container)!
                 let language = "text"
                 if (log.length < 16 * 1024) {
                     language = "log"
