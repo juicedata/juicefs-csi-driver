@@ -104,13 +104,21 @@ export const getPod = async (namespace: string, podName: string) => {
         pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
         const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
         pod.csiNode = JSON.parse(await csiNode.text())
-        const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${pod.spec?.containers[0].name}`)
-        pod.log = await log.text()
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
         pod.events = JSON.parse(await events.text())
         return pod
     } catch (e) {
         console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
         return null
+    }
+}
+
+export const getLog = async (pod: Pod) => {
+    try {
+        const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${pod.spec?.containers[0].name}`)
+        return await log.text()
+    } catch (e) {
+        console.log(`fail to get log of pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
+        return ""
     }
 }

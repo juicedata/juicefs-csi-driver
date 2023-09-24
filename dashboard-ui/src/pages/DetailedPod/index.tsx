@@ -2,7 +2,7 @@ import {PageContainer, PageLoading, ProCard} from '@ant-design/pro-components';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {getPod, Pod} from '@/services/pod';
+import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
 import {TabsProps} from "antd";
 import {Link} from "@@/exports";
@@ -31,10 +31,19 @@ const DetailedPod: React.FC<unknown> = () => {
     }, [setPod])
 
     const [activeTab, setActiveTab] = useState('1');
-    const handleTabChange = (key: any) => {
+    const handleTabChange = (key: string) => {
         setActiveTab(key);
+        if (key === '2' && pod && !(pod.log)) {
+            getLog(pod).then((log) => {
+                if (log) {
+                    setPod({
+                        ...pod,
+                        log: log
+                    })
+                }
+            })
+        }
     };
-
     if (!pod) {
         return <PageLoading/>
     } else {
@@ -44,7 +53,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: pod?.metadata?.name,
+                    title: pod.metadata?.name,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}
@@ -57,7 +66,7 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 }
 
-function getPodTabs(pod: Pod): any {
+const getPodTabs = (pod: Pod) => {
     let tabList: TabsProps['items'] = [
         {
             key: '1',
@@ -81,7 +90,7 @@ function getPodTabs(pod: Pod): any {
     return tabList
 }
 
-function getPobTabsContent(activeTab: string, pod: Pod): any {
+const getPobTabsContent = (activeTab: string, pod: Pod) => {
     const p = {
         metadata: pod.metadata,
         spec: pod.spec,
@@ -109,9 +118,17 @@ function getPobTabsContent(activeTab: string, pod: Pod): any {
             </SyntaxHighlighter>
             break
         case "2":
-            content = <SyntaxHighlighter language="log" wrapLongLines={true}>
-                {pod.log||""}
-            </SyntaxHighlighter>
+            if (!pod.log) {
+                content = <PageLoading/>
+            } else {
+                let language = "text"
+                if (pod.log.length < 16 * 1024) {
+                    language = "log"
+                }
+                content = <SyntaxHighlighter language={language} wrapLongLines={true}>
+                    {pod.log}
+                </SyntaxHighlighter>
+            }
             break
         case '3':
             content = <div>
