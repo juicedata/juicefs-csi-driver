@@ -88,6 +88,10 @@ function getPobTabsContent(activeTab: string, pod: Pod): any {
         status: pod.status,
     }
 
+    p.metadata?.managedFields?.forEach((managedField) => {
+        managedField.fieldsV1 = undefined
+    })
+
     let mountPods: Map<string, Pod> = new Map
     if (pod.mountPods && pod.mountPods.size != 0) {
         pod.mountPods.forEach((mountPod, pvcName) => {
