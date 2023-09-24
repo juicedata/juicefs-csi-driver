@@ -231,9 +231,9 @@ func (api *API) getCSINodeByName() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getMountPodOfPV() gin.HandlerFunc {
+func (api *API) getMountPodOfPVC() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		obj, ok := c.Get("pv")
+		obj, ok := c.Get("pvc")
 		if !ok {
 			c.String(404, "not found")
 			return

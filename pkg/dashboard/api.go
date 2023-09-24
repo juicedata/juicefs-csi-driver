@@ -85,7 +85,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/logs/:container", api.getPodLogs())
 	podGroup.GET("/pvs", api.listPodPVsHandler())
 	podGroup.GET("/mountpods", api.listMountPods())
-	pvGroup := group.Group("/pv/:namespace/:name", api.getPVMiddileware())
-	pvGroup.GET("/", api.getPVHandler())
-	pvGroup.GET("/mountpod", api.getMountPodOfPV())
+	pvGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
+	pvGroup.GET("/", api.getPVCHandler())
+	pvGroup.GET("/mountpod", api.getMountPodOfPVC())
 }

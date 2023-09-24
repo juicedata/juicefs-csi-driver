@@ -48,22 +48,22 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getPVMiddileware() gin.HandlerFunc {
+func (api *API) getPVCMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
-		pv := api.getPV(namespace, name)
-		if pv == nil {
+		pvc := api.getPV(namespace, name)
+		if pvc == nil {
 			c.AbortWithStatus(404)
 			return
 		}
-		c.Set("pv", pv)
+		c.Set("pvc", pvc)
 	}
 }
 
-func (api *API) getPVHandler() gin.HandlerFunc {
+func (api *API) getPVCHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pv, ok := c.Get("pv")
+		pv, ok := c.Get("pvc")
 		if !ok {
 			c.String(404, "not found")
 			return

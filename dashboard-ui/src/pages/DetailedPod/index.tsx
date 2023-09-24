@@ -35,12 +35,10 @@ const DetailedPod: React.FC<unknown> = () => {
         setActiveTab(key);
         if (key === '2' && pod && !(pod.log)) {
             getLog(pod).then((log) => {
-                if (log) {
-                    setPod({
-                        ...pod,
-                        log: log
-                    })
-                }
+                setPod({
+                    ...pod,
+                    log: log
+                })
             })
         }
     };
@@ -118,7 +116,7 @@ const getPobTabsContent = (activeTab: string, pod: Pod) => {
             </SyntaxHighlighter>
             break
         case "2":
-            if (!pod.log) {
+            if (pod.log === undefined) {
                 content = <PageLoading/>
             } else {
                 let language = "text"
