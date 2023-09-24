@@ -3,8 +3,8 @@ import {Pod as RawPod} from 'kubernetes-types/core/v1'
 export type Pod = RawPod & {
     mountPods?: Map<string, RawPod>
     csiNode?: RawPod,
-    log?: string[],
-    event?: string,
+    log?: string,
+    events?: string[],
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -99,7 +99,7 @@ export const listAppPods = async (args: PagingListArgs) => {
 export const getPod = async (namespace: string, podName: string) => {
     try {
         const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
-        const pod = JSON.parse(await rawPod.text())
+        const pod: Pod = JSON.parse(await rawPod.text())
         const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
         pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
         const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)

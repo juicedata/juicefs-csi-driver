@@ -14,9 +14,11 @@
     "@ant-design/icons": "^5.0.1",
     "@ant-design/pro-components": "^2.4.4",
     "@types/js-yaml": "^4.0.6",
+    "@types/react-syntax-highlighter": "^15.5.7",
     "@umijs/max": "^4.0.81",
     "antd": "^5.4.0",
-    "kubernetes-types": "^1.26.0"
+    "kubernetes-types": "^1.26.0",
+    "react-syntax-highlighter": "^15.5.0"
   },
   "devDependencies": {
     "@types/react": "^18.0.33",

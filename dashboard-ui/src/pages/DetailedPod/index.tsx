@@ -1,4 +1,5 @@
 import {PageContainer, PageLoading, ProCard} from '@ant-design/pro-components';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, Pod} from '@/services/pod';
@@ -22,7 +23,11 @@ const DetailedPod: React.FC<unknown> = () => {
     }
     const [pod, setPod] = useState<Pod>()
     useEffect(() => {
-        getPod(namespace, name).then(setPod)
+        getPod(namespace, name).then((pod) => {
+            if (pod) {
+                setPod(pod)
+            }
+        })
     }, [setPod])
 
     const [activeTab, setActiveTab] = useState('1');
@@ -95,18 +100,18 @@ function getPobTabsContent(activeTab: string, pod: Pod): any {
     let content: any
     switch (activeTab) {
         case "1":
-            content = <div>
-                <pre><code>{jsyaml.dump(p)}</code></pre>
-            </div>
+            content = <SyntaxHighlighter language="yaml">
+                {jsyaml.dump(p)}
+            </SyntaxHighlighter>
             break
         case "2":
-            content = <div>
-                <pre><code>{pod.log}</code></pre>
-            </div>
+            content = <SyntaxHighlighter language="log" wrapLongLines={true}>
+                {pod.log||""}
+            </SyntaxHighlighter>
             break
         case '3':
             content = <div>
-                <pre><code>{pod.event}</code></pre>
+                <pre><code>{pod.events}</code></pre>
             </div>
             break
         case "4":
