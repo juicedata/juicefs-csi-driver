@@ -91,6 +91,7 @@ const DetailedPod: React.FC<unknown> = () => {
             if (containers.length > 1) {
                 extra.push(
                     <Select
+                        key="container"
                         placeholder='选择容器'
                         value={pod.container}
                         style={{ width: 200 }}
