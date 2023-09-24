@@ -4,8 +4,8 @@ import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps} from "antd";
-import {Link} from "@@/exports";
+import {TabsProps, Select } from "antd";
+import { Link } from 'umi';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -31,6 +31,7 @@ const DetailedPod: React.FC<unknown> = () => {
     }, [setPod])
 
     const [activeTab, setActiveTab] = useState('1');
+    const [ container, setContainer ] = useState<string>()
     const handleTabChange = (key: string) => {
         setActiveTab(key);
         if (key === '2' && pod && !(pod.log)) {
@@ -42,16 +43,43 @@ const DetailedPod: React.FC<unknown> = () => {
             })
         }
     };
+
     if (!pod) {
         return <PageLoading/>
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
-
+        const extra = []
+        if (activeTab === '2') {
+            const containers: string[] = []
+            pod.spec?.containers?.forEach((container) => {
+                containers.push(container.name)
+            })
+            pod.spec?.initContainers?.forEach((container) => {
+                containers.push(container.name)
+            })
+            if (containers.length > 1) {
+                extra.push(
+                    <Select
+                        placeholder='选择容器'
+                        value={container}
+                        style={{ width: 200 }}
+                        onChange={setContainer}
+                        options={containers.map((container) => {
+                            return {
+                                value: container,
+                                label: container,
+                            }
+                        })}
+                    />
+                )
+            }
+        }
         return (
             <PageContainer
                 fixedHeader
                 header={{
                     title: pod.metadata?.name,
+                    extra: extra,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}
