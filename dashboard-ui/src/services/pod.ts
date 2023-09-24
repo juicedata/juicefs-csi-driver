@@ -3,7 +3,7 @@ import {Pod as RawPod} from 'kubernetes-types/core/v1'
 export type Pod = RawPod & {
     mountPods?: Map<string, RawPod>
     csiNode?: RawPod,
-    log?: string,
+    logs: Map<string, string>,
     events?: string[],
 }
 
@@ -106,6 +106,7 @@ export const getPod = async (namespace: string, podName: string) => {
         pod.csiNode = JSON.parse(await csiNode.text())
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
         pod.events = JSON.parse(await events.text())
+        pod.logs = new Map()
         return pod
     } catch (e) {
         console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
@@ -113,12 +114,12 @@ export const getPod = async (namespace: string, podName: string) => {
     }
 }
 
-export const getLog = async (pod: Pod) => {
+export const getLog = async (pod: Pod, container: string) => {
     try {
-        const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${pod.spec?.containers[0].name}`)
+        const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`)
         return await log.text()
     } catch (e) {
-        console.log(`fail to get log of pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
+        console.log(`fail to get log of pod(${pod.metadata?.namespace}/${pod.metadata?.name}/${container}): ${e}`)
         return ""
     }
 }
