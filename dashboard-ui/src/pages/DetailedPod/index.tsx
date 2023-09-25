@@ -1,12 +1,12 @@
 import {PageContainer, PageLoading, ProCard} from '@ant-design/pro-components';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
 import {Pod as RawPod} from 'kubernetes-types/core/v1'
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps, Select } from "antd";
-import { Link } from 'umi';
+import {TabsProps, Select} from "antd";
+import {Link} from 'umi';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -87,7 +87,7 @@ const DetailedPod: React.FC<unknown> = () => {
                         key="container"
                         placeholder='选择容器'
                         value={container}
-                        style={{ width: 200 }}
+                        style={{width: 200}}
                         onChange={handleContainerChange}
                         options={containers.map((container) => {
                             return {
@@ -181,13 +181,17 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
                 } else {
                     content = <pre><code>{log}</code></pre>
                 }
-                
+
             }
             break
         case '3':
-            content = <div>
-                <pre><code>{pod.events}</code></pre>
-            </div>
+            if (pod.events?.length === 0) {
+                content = <div>无</div>
+            } else {
+                content = <div>
+                    <pre><code>{pod.events}</code></pre>
+                </div>
+            }
             break
         case "4":
             if (pod.mountPods) {
