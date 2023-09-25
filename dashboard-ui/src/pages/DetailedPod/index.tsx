@@ -72,7 +72,7 @@ const DetailedPod: React.FC<unknown> = () => {
         return <PageLoading/>
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
-        const extra = []
+        const footer = []
         if (activeTab === '2') {
             const containers: string[] = []
             pod.spec?.containers?.forEach((container) => {
@@ -82,7 +82,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 containers.push(container.name)
             })
             if (containers.length > 1) {
-                extra.push(
+                footer.push(
                     <Select
                         key="container"
                         placeholder='选择容器'
@@ -104,10 +104,10 @@ const DetailedPod: React.FC<unknown> = () => {
                 fixedHeader
                 header={{
                     title: pod.metadata?.name,
-                    extra: extra,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}
+                footer={footer}
             >
                 <ProCard direction="column">
                     {getPobTabsContent(activeTab, pod, getContainer()!)}
