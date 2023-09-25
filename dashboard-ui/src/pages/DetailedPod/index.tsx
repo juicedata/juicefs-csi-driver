@@ -175,7 +175,7 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
             } else {
                 const log = pod.logs.get(container)!
                 let language = "text"
-                if (log.length < 16 * 1024) {
+                if (log.length < 4 * 1024) {
                     language = "log"
                 }
                 content = <SyntaxHighlighter language={language} wrapLongLines={true}>
