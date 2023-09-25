@@ -174,13 +174,14 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
                 content = <PageLoading/>
             } else {
                 const log = pod.logs.get(container)!
-                let language = "text"
-                if (log.length < 4 * 1024) {
-                    language = "log"
+                if (log.length < 16 * 1024) {
+                    content = <SyntaxHighlighter language={"log"} wrapLongLines={true}>
+                        {log}
+                    </SyntaxHighlighter>
+                } else {
+                    content = <pre><code>{log}</code></pre>
                 }
-                content = <SyntaxHighlighter language={language} wrapLongLines={true}>
-                    {log}
-                </SyntaxHighlighter>
+                
             }
             break
         case '3':
