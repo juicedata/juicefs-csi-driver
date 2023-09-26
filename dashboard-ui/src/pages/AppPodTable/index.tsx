@@ -10,7 +10,11 @@ import {
 import {Button, Divider, Drawer, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Pod, listAppPods} from '@/services/pod';
+import {Pod as RawPod} from 'kubernetes-types/core/v1'
 import {Link} from 'umi';
+import {Badge} from 'antd/lib';
+import {PVC} from "@/services/pv";
+import {ensureLastSlash} from "@umijs/preset-umi/dist/features/ssr/builder/css-loader";
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -55,15 +59,13 @@ const AppPodTable: React.FC<unknown> = () => {
                     )
                 } else {
                     return (
-                        <ul>
+                        <div>
                             {Array.from(pod.mountPods?.keys()).map((key) => (
-                                <li>
-                                    <Link to={`/pv/${pod.metadata?.namespace}/${key}`}>
-                                        {key}
-                                    </Link>
-                                </li>
+                                <Link to={`/pv/${pod.metadata?.namespace}/${key}`}>
+                                    {key}
+                                </Link>
                             ))}
-                        </ul>
+                        </div>
                     )
                 }
             }
@@ -77,22 +79,27 @@ const AppPodTable: React.FC<unknown> = () => {
                 } else if (pod.mountPods.size == 1) {
                     const [firstKey] = pod.mountPods.keys();
                     const mountPod = pod.mountPods.get(firstKey);
+                    if (mountPod === undefined) {
+                        return
+                    }
                     return (
                         <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
-                            {firstKey}
+                            <Badge color={getPodStatusBadge(mountPod)}
+                                   text={`${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}`}/>
+                            <br/>
                         </Link>
                     )
                 } else {
                     return (
-                        <ul>
+                        <div>
                             {Array.from(pod.mountPods?.entries()).map(([_, mountPod]) => (
-                                <li>
-                                    <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
-                                        {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
-                                    </Link>
-                                </li>
+                                <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
+                                    <Badge color={getPodStatusBadge(mountPod)}
+                                           text={`${mountPod.metadata?.namespace}/${mountPod?.metadata?.name}`}/>
+                                    <br/>
+                                </Link>
                             ))}
-                        </ul>
+                        </div>
                     )
                 }
             }
@@ -147,11 +154,20 @@ const AppPodTable: React.FC<unknown> = () => {
         {
             title: 'CSI 节点',
             key: 'csiNode',
-            render: (_, pod) => (
-                <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
-                    {pod.csiNode?.metadata?.name}
-                </Link>
-            ),
+            render: (_, pod) => {
+                if (pod.csiNode === undefined) {
+                    return
+                }
+                return (
+                    <Link to={`/pod/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}>
+                        <Badge color={getPodStatusBadge(pod.csiNode)}
+                               text={`${pod.csiNode.metadata?.name}`}/>
+                    </Link>
+                    // <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
+                    //     {pod.csiNode?.metadata?.name}
+                    // </Link>
+                )
+            },
         },
     ];
     return (
@@ -218,5 +234,24 @@ const AppPodTable: React.FC<unknown> = () => {
         </PageContainer>
     );
 };
+
+function getPodStatusBadge(pod: RawPod): string {
+    if (pod.status === undefined || pod.status.phase === undefined) {
+        return "grey"
+    }
+    switch (pod.status.phase) {
+        case "Running":
+            return "green"
+        case "Succeeded":
+            return "blue"
+        case "Pending":
+            return "yellow"
+        case "Failed":
+            return "red"
+        case "Unknown":
+        default:
+            return "grey"
+    }
+}
 
 export default AppPodTable;
