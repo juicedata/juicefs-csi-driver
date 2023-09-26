@@ -673,10 +673,10 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	cmdArgs := []string{config.CliPath, "auth", secrets["name"]}
 
 	keysCompatible := map[string]string{
-		"access-key":  "accesskey",
-		"access-key2": "accesskey2",
-		"secret-key":  "secretkey",
-		"secret-key2": "secretkey2",
+		"accesskey":  "access-key",
+		"accesskey2": "access-key2",
+		"secretkey":  "secret-key",
+		"secretkey2": "secret-key2",
 	}
 	// compatible
 	for compatibleKey, realKey := range keysCompatible {
@@ -688,17 +688,22 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	}
 
 	keys := []string{
-		"accesskey",
-		"accesskey2",
+		"access-key",
+		"access-key2",
 		"bucket",
 		"bucket2",
 		"subdir",
 	}
 	keysStripped := []string{
 		"token",
-		"secretkey",
-		"secretkey2",
-		"passphrase"}
+		"secret-key",
+		"secret-key2",
+		"passphrase",
+	}
+	strippedkey := map[string]string{
+		"secret-key":  "secretkey",
+		"secret-key2": "secretkey2",
+	}
 	for _, k := range keys {
 		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
@@ -707,7 +712,11 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	}
 	for _, k := range keysStripped {
 		if secrets[k] != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, k))
+			argKey := k
+			if v, ok := strippedkey[k]; ok {
+				argKey = v
+			}
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, argKey))
 			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
 		}
 	}

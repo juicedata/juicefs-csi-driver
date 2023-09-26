@@ -66,7 +66,8 @@ RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 &&
 
 RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && \
-    curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
+    bash -c "if [[ ${JFSCHAN} == beta ]]; then curl -sSL https://juicefs.com/static/juicefs.py.beta -o ${JUICEFS_CLI}; else curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI}; fi; " && \
+    chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs && \
     ln -s /usr/local/bin/python /usr/bin/python && \
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
