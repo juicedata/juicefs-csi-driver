@@ -1,12 +1,15 @@
-import {PageContainer, PageLoading, ProCard} from '@ant-design/pro-components';
+import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
 import {Pod as RawPod} from 'kubernetes-types/core/v1'
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps, Select} from "antd";
+import {TabsProps, Select, Col, Empty, Table, Tag} from "antd";
 import {Link} from 'umi';
+import {Row} from 'antd/lib';
+import ProList from "@ant-design/pro-list/lib";
+import {ColumnsType} from 'antd/lib/table';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -69,11 +72,11 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 
     if (!pod) {
-        return <PageLoading/>
+        return <Empty/>
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
         const footer = []
-        if (activeTab === '2') {
+        if (activeTab === '3') {
             const containers: string[] = []
             pod.spec?.containers?.forEach((container) => {
                 containers.push(container.name)
@@ -121,20 +124,24 @@ const getPodTabs = (pod: Pod) => {
     let tabList: TabsProps['items'] = [
         {
             key: '1',
-            label: 'Yaml',
+            label: '状态',
         },
         {
             key: '2',
-            label: '日志',
+            label: 'Yaml',
         },
         {
             key: '3',
+            label: '日志',
+        },
+        {
+            key: '4',
             label: '事件',
         },
     ]
     if (pod.mountPods?.size !== 0) {
         tabList.push({
-            key: '4',
+            key: '5',
             label: 'Mount Pods',
         })
     }
@@ -160,18 +167,104 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
             }
         })
     }
-
+    const containers: any[] = []
+    pod.status?.containerStatuses?.forEach((cnStatus, _) => {
+        const cnState: string = cnStatus.ready ? "Ready" : "NotReady"
+        containers.push({
+            name: cnStatus.name,
+            status: cnState,
+            restartCount: cnStatus.restartCount,
+            startAt: cnStatus.state?.running?.startedAt,
+        })
+    })
     let content: any
     switch (activeTab) {
         case "1":
+            content = <div>
+                <ProCard>
+                    <ProDescriptions
+                        title="基础信息"
+                        column={2}
+                        dataSource={{
+                            name: pod.metadata?.name,
+                            namespace: pod.metadata?.namespace,
+                            status: pod.status?.phase,
+                            time: pod.metadata?.creationTimestamp,
+                        }}
+                        columns={[
+                            {
+                                title: '名称',
+                                key: 'name',
+                                dataIndex: 'name',
+                            },
+                            {
+                                title: '命名空间',
+                                key: 'namespace',
+                                dataIndex: 'namespace',
+                            },
+                            {
+                                title: '状态',
+                                key: 'status',
+                                dataIndex: 'status',
+                                valueType: 'select',
+                                valueEnum: {
+                                    all: {text: 'Running', status: 'Default'},
+                                    Running: {
+                                        text: 'Running',
+                                        status: 'Success',
+                                    },
+                                    Pending: {
+                                        text: 'Pending',
+                                        status: 'Pending',
+                                    },
+                                },
+                            },
+                            {
+                                title: '创建时间',
+                                key: 'time',
+                                dataIndex: 'time',
+                            },
+                        ]}
+                    >
+                    </ProDescriptions>
+                </ProCard>
+
+                <ProCard>
+                    <Table columns={[
+                        {
+                            title: '容器名',
+                            dataIndex: 'name',
+                            key: 'name',
+                        },
+                        {
+                            title: '重启次数',
+                            dataIndex: 'restartCount',
+                            key: 'restartCount',
+                        },
+                        {
+                            title: '状态',
+                            key: 'status',
+                            dataIndex: 'status',
+                        },
+                        {
+                            title: '启动时间',
+                            dataIndex: 'startAt',
+                            key: 'startAt',
+                        },
+                    ]} dataSource={containers}/>
+                </ProCard>
+
+            </div>
+            break
+        case "2":
             content = <SyntaxHighlighter language="yaml">
                 {jsyaml.dump(p)}
             </SyntaxHighlighter>
             break
-        case "2":
+        case "3":
             console.log(`logs: ${pod.logs}`)
             if (!pod.logs.has(container)) {
-                content = <PageLoading/>
+                content = <Empty/>
             } else {
                 const log = pod.logs.get(container)!
                 if (log.length < 16 * 1024) {
@@ -184,16 +277,16 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
 
             }
             break
-        case '3':
+        case '4':
             if (pod.events?.length === 0) {
-                content = <div>无</div>
+                content = <Empty/>
             } else {
                 content = <div>
                     <pre><code>{pod.events}</code></pre>
                 </div>
             }
             break
-        case "4":
+        case "5":
             if (pod.mountPods) {
                 content = getMountPodsResult(mountPods)
             }
