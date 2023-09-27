@@ -123,3 +123,46 @@ export const getLog = async (pod: Pod, container: string) => {
         return ""
     }
 }
+
+export const listSystemPods = async (args: PagingListArgs) => {
+    console.log(`list system pods with args: ${JSON.stringify(args)}`)
+    let data: Pod[]
+    let mountPods: Pod[] = [],
+        csiNodes: Pod[] = [],
+        csiControllers: Pod[] = []
+    try {
+        const mountPodList = await fetch('http://localhost:8088/api/v1/mountpods')
+        const csiNodeList = await fetch('http://localhost:8088/api/v1/csi-nodes')
+        const csiControllerList = await fetch('http://localhost:8088/api/v1/controllers')
+        mountPods = JSON.parse(await mountPodList.text())
+        csiNodes = JSON.parse(await csiNodeList.text())
+        csiControllers = JSON.parse(await csiControllerList.text())
+    } catch (e) {
+        console.log(`fail to list mount pods: ${e}`)
+        return {data: null, success: false}
+    }
+
+    data = mountPods.concat(csiNodes, csiControllers)
+    const timeOrder = args.sort['time']
+    if (timeOrder) {
+        data.sort((a, b) => {
+            const aTime = new Date(a.metadata?.creationTimestamp || 0).getTime()
+            const bTime = new Date(b.metadata?.creationTimestamp || 0).getTime()
+            if (timeOrder === 'descend') {
+                return bTime - aTime
+            } else {
+                return aTime - bTime
+            }
+        })
+    } else {
+        data.sort((a, b) => {
+            const aName = a.metadata?.namespace + "/" + a.metadata?.name || ''
+            const bName = b.metadata?.namespace + "/" + b.metadata?.name || ''
+            return aName > bName ? 1 : -1
+        })
+    }
+    return {
+        data,
+        success: true,
+    }
+}

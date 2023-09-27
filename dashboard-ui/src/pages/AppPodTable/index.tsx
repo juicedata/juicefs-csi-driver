@@ -153,7 +153,7 @@ const AppPodTable: React.FC<unknown> = () => {
             ),
         },
         {
-            title: 'CSI 节点',
+            title: 'CSI Node',
             key: 'csiNode',
             render: (_, pod) => {
                 if (pod.csiNode === undefined) {
