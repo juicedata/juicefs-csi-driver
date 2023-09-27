@@ -181,26 +181,25 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
     switch (activeTab) {
         case "1":
             content = <div>
-                <ProCard>
+                <ProCard title="基础信息">
                     <ProDescriptions
-                        title="基础信息"
                         column={2}
                         dataSource={{
-                            name: pod.metadata?.name,
                             namespace: pod.metadata?.namespace,
+                            node: pod.spec?.nodeName,
                             status: pod.status?.phase,
                             time: pod.metadata?.creationTimestamp,
                         }}
                         columns={[
                             {
-                                title: '名称',
-                                key: 'name',
-                                dataIndex: 'name',
-                            },
-                            {
                                 title: '命名空间',
                                 key: 'namespace',
                                 dataIndex: 'namespace',
+                            },
+                            {
+                                title: '所在节点',
+                                key: 'node',
+                                dataIndex: 'node',
                             },
                             {
                                 title: '状态',
@@ -225,11 +224,10 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
                                 dataIndex: 'time',
                             },
                         ]}
-                    >
-                    </ProDescriptions>
+                    />
                 </ProCard>
 
-                <ProCard>
+                <ProCard title={"容器列表"}>
                     <Table columns={[
                         {
                             title: '容器名',
@@ -296,23 +294,60 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
 
 function getMountPodsResult(mountPods: Map<string, RawPod>): any {
     return (
-        <div>
+        <ProCard
+            direction="column"
+            gutter={[0, 16]}
+            style={{marginBlockStart: 8}}>
             {Array.from(mountPods).map(([name, mountPod]) => (
-                <ProCard
-                    key={name}
-                    title={
-                        <Link to={`/pod/${mountPod.metadata?.namespace}/${name}`}>
-                            {name}
-                        </Link>
-                    }
-                    headerBordered
-                    collapsible
-                    defaultCollapsed
-                >
-                    <pre><code>{jsyaml.dump(mountPod)}</code></pre>
+                <ProCard title={`${mountPod.metadata?.name}`} type="inner" bordered
+                         extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
+                    <ProDescriptions
+                        column={4}
+                        dataSource={{
+                            namespace: mountPod.metadata?.namespace,
+                            node: mountPod.spec?.nodeName,
+                            status: mountPod.status?.phase,
+                            time: mountPod.metadata?.creationTimestamp,
+                        }}
+                        columns={[
+                            {
+                                title: '命名空间',
+                                key: 'namespace',
+                                dataIndex: 'namespace',
+                            },
+                            {
+                                title: '所在节点',
+                                key: 'node',
+                                dataIndex: 'node',
+                            },
+                            {
+                                title: '状态',
+                                key: 'status',
+                                dataIndex: 'status',
+                                valueType: 'select',
+                                valueEnum: {
+                                    all: {text: 'Running', status: 'Default'},
+                                    Running: {
+                                        text: 'Running',
+                                        status: 'Success',
+                                    },
+                                    Pending: {
+                                        text: 'Pending',
+                                        status: 'Pending',
+                                    },
+                                },
+                            },
+                            {
+                                title: '创建时间',
+                                key: 'time',
+                                dataIndex: 'time',
+                            },
+                        ]}
+                    >
+                    </ProDescriptions>
                 </ProCard>
             ))}
-        </div>
+        </ProCard>
     )
 }
 
