@@ -11,6 +11,8 @@ import {Button, Divider, Drawer, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import {PV, listPV} from '@/services/pv';
 import {Link} from 'umi';
+import {Badge} from "antd/lib";
+import {Pod as RawPod} from "kubernetes-types/core/v1";
 
 const PVTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -45,11 +47,40 @@ const PVTable: React.FC<unknown> = () => {
                     pv.spec.claimRef.name
                     return (
                         <Link to={`/pv/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
-                            {pv.spec.claimRef.name}
+                            <Badge color={getPVStatusBadge(pv)}
+                                   text={`${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}/>
                         </Link>
                     )
                 }
             }
+        },
+        {
+            title: '容量',
+            key: 'storage',
+            dataIndex: ['spec', 'capacity', 'storage'],
+        },
+        {
+            title: '访问模式',
+            key: 'accessModes',
+            render: (_, pv) => {
+                let accessModes: string
+                if (pv.spec?.accessModes) {
+                    accessModes = pv.spec.accessModes.join(",")
+                    return (
+                        <div>{accessModes}</div>
+                    )
+                }
+            }
+        },
+        {
+            title: '回收策略',
+            key: 'persistentVolumeReclaimPolicy',
+            dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
+        },
+        {
+            title: 'StorageClass',
+            key: 'StorageClassName',
+            dataIndex: ['spec', 'StorageClassName'],
         },
         {
             title: '状态',
@@ -83,6 +114,21 @@ const PVTable: React.FC<unknown> = () => {
                     color: 'red',
                 }
             },
+        },
+        {
+            title: '创建时间',
+            key: 'time',
+            sorter: 'time',
+            search: false,
+            render: (_, pv) => (
+                <span>{
+                    (new Date(pv.metadata?.creationTimestamp || "")).toLocaleDateString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit"
+                    })
+                }</span>
+            ),
         },
     ];
     return (
@@ -144,5 +190,24 @@ const PVTable: React.FC<unknown> = () => {
         </PageContainer>
     );
 };
+
+function getPVStatusBadge(pv: PV): string {
+    if (pv.status === undefined || pv.status.phase === undefined) {
+        return "grey"
+    }
+    switch (pv.status.phase) {
+        case "Bound":
+            return "green"
+        case "Available":
+            return "blue"
+        case "Pending":
+            return "yellow"
+        case "Failed":
+            return "red"
+        case "Released":
+        default:
+            return "grey"
+    }
+}
 
 export default PVTable;
