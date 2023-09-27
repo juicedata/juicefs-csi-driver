@@ -62,15 +62,25 @@ def mount_on_host(mount_path):
     LOG.info(f"Mount {mount_path}")
     try:
         if IS_CE:
-            subprocess.check_call(
+            subprocess.run(
                 ["sudo", "/usr/local/bin/juicefs", "format", f"--storage={STORAGE}", f"--access-key={ACCESS_KEY}",
-                 f"--secret-key={SECRET_KEY}", f"--bucket={BUCKET}", META_URL, SECRET_NAME])
-            subprocess.check_call(["sudo", "/usr/local/bin/juicefs", "mount", "-d", META_URL, mount_path])
+                 f"--secret-key={SECRET_KEY}", f"--bucket={BUCKET}", META_URL, SECRET_NAME],
+                check=True
+            )
+            subprocess.run(
+                ["sudo", "/usr/local/bin/juicefs", "mount", "-d", META_URL, mount_path],
+                check=True
+            )
         else:
-            subprocess.check_call(
-                ["sudo", "/usr/bin/juicefs", "auth", f"--token={TOKEN}", f"--accesskey={ACCESS_KEY}",
-                 f"--secretkey={SECRET_KEY}", f"--bucket={BUCKET}", SECRET_NAME])
-            subprocess.check_call(["sudo", "/usr/bin/juicefs", "mount", "-d", SECRET_NAME, mount_path])
+            subprocess.run(
+                ["sudo", "/usr/bin/juicefs", "auth", f"--token={TOKEN}", f"--access-key={ACCESS_KEY}",
+                 f"--secret-key={SECRET_KEY}", f"--bucket={BUCKET}", SECRET_NAME],
+                check=True
+            )
+            subprocess.run(
+                ["sudo", "/usr/bin/juicefs", "mount", "-d", SECRET_NAME, mount_path],
+                check=True
+            )
         LOG.info("Mount success.")
     except Exception as e:
         LOG.info("Error in juicefs mount: {}".format(e))
