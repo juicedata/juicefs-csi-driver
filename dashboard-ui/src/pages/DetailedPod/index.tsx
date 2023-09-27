@@ -40,7 +40,7 @@ const DetailedPod: React.FC<unknown> = () => {
     const [activeTab, setActiveTab] = useState('1');
     const handleTabChange = (key: string) => {
         setActiveTab(key);
-        if (key === '2' && pod) {
+        if (key === '3' && pod) {
             const cname = getContainer()!
             if (pod.logs.has(cname)) {
                 return

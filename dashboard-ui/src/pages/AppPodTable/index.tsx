@@ -63,6 +63,7 @@ const AppPodTable: React.FC<unknown> = () => {
                             {Array.from(pod.mountPods?.keys()).map((key) => (
                                 <Link to={`/pv/${pod.metadata?.namespace}/${key}`}>
                                     {key}
+                                    <br/>
                                 </Link>
                             ))}
                         </div>
@@ -163,9 +164,6 @@ const AppPodTable: React.FC<unknown> = () => {
                         <Badge color={getPodStatusBadge(pod.csiNode)}
                                text={`${pod.csiNode.metadata?.name}`}/>
                     </Link>
-                    // <Link to={`/pod/${pod.csiNode?.metadata?.namespace}/${pod.csiNode?.metadata?.name}`}>
-                    //     {pod.csiNode?.metadata?.name}
-                    // </Link>
                 )
             },
         },
