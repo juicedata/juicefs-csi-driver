@@ -30,11 +30,16 @@ export default defineConfig({
       component: './PVTable',
     },
     {
+      name: 'PVC',
+      path: '/pvcs',
+      component: './PVCTable',
+    },
+    {
       path: '/pod/:namespace/:podName',
       component: './DetailedPod',
     },
     {
-      path: '/pv/:namespace/:podName',
+      path: '/pv/:namespace/:pvcName',
       component: './DetailedPV',
     },
   ],

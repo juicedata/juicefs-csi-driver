@@ -1,4 +1,4 @@
-import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
+import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
 import {Pod as RawPod} from 'kubernetes-types/core/v1'
 import React, {useEffect, useState} from 'react';
@@ -7,9 +7,6 @@ import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
 import {TabsProps, Select, Col, Empty, Table, Tag} from "antd";
 import {Link} from 'umi';
-import {Row} from 'antd/lib';
-import ProList from "@ant-design/pro-list/lib";
-import {ColumnsType} from 'antd/lib/table';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -106,7 +103,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: pod.metadata?.name,
+                    title: `应用 Pod: ${pod.metadata?.name}`,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}
@@ -292,7 +289,7 @@ const getPobTabsContent = (activeTab: string, pod: Pod, container: string) => {
     return content
 }
 
-function getMountPodsResult(mountPods: Map<string, RawPod>): any {
+const getMountPodsResult = (mountPods: Map<string, RawPod>) => {
     return (
         <ProCard
             direction="column"

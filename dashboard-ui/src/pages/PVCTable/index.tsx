@@ -14,7 +14,7 @@ import {Link} from 'umi';
 import {Badge} from "antd/lib";
 import {Pod as RawPod} from "kubernetes-types/core/v1";
 
-const PVTable: React.FC<unknown> = () => {
+const PVCTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
     const [updateModalVisible, handleUpdateModalVisible] =
         useState<boolean>(false);
@@ -33,13 +33,13 @@ const PVTable: React.FC<unknown> = () => {
                 ],
             },
             render: (_, pv) => (
-                <Link to={`/pv/${pv.spec?.claimRef?.namespace}/${pv.spec?.claimRef?.name}`}>
+                <Link to={`/pv/${pv.metadata?.name}`}>
                     {pv.metadata?.name}
                 </Link>
             ),
         },
         {
-            title: '持久卷申领',
+            title: '持久卷',
             render: (_, pv) => {
                 if (!pv.spec?.claimRef) {
                     return <span>无</span>
@@ -134,7 +134,7 @@ const PVTable: React.FC<unknown> = () => {
     return (
         <PageContainer
             header={{
-                title: 'PV 管理',
+                title: 'PVC 管理',
             }}
         >
             <ProTable<PV>
@@ -210,4 +210,4 @@ function getPVStatusBadge(pv: PV): string {
     }
 }
 
-export default PVTable;
+export default PVCTable;
