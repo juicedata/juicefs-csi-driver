@@ -614,6 +614,7 @@ func TestWaitUntilMount(t *testing.T) {
 					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
 					jfsConfig.PodJuiceHashLabelKey: hashVal,
 				}
+				tt.pod.Spec.NodeName = jfsConfig.NodeName
 				_, _ = p.K8sClient.CreatePod(context.TODO(), tt.pod)
 			}
 			podName, err := p.genMountPodName(context.TODO(), tt.args.jfsSetting)
