@@ -21,6 +21,12 @@ const PVTable: React.FC<unknown> = () => {
     const [stepFormValues, setStepFormValues] = useState({});
     const actionRef = useRef<ActionType>();
     const [selectedRowsState, setSelectedRows] = useState<PV[]>([]);
+    const accessModeMap: { [key: string]: string } = {
+        ReadWriteOnce: 'RWO',
+        ReadWriteMany: 'RWM',
+        ReadOnlyMany: 'ROM',
+        ReadWriteOncePod: 'RWOP',
+    };
     const columns: ProColumns<PV>[] = [
         {
             title: '名称',
@@ -65,7 +71,7 @@ const PVTable: React.FC<unknown> = () => {
             render: (_, pv) => {
                 let accessModes: string
                 if (pv.spec?.accessModes) {
-                    accessModes = pv.spec.accessModes.join(",")
+                    accessModes = pv.spec.accessModes.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(",")
                     return (
                         <div>{accessModes}</div>
                     )
