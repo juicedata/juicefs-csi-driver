@@ -48,6 +48,8 @@ jobs:
           make -C docker image-release-check
           make -C docker image-release-check-push
       - name: Deploy JuiceFS CSI
+        env:
+          JFSCHAN: beta
         run: |
           testmode=${{matrix.testmode}}
           cd ${GITHUB_WORKSPACE}
@@ -57,6 +59,7 @@ jobs:
           .github/scripts/deploy-csi-in-k8s.sh ${testmode}
       - name: Run e2e test
         env:
+          JFSCHAN: beta
           JUICEFS_TOKEN: ${{ secrets.JUICEFS_CI_VOLUME_TOKEN }}
           JUICEFS_STORAGE: s3
           JUICEFS_BUCKET: "http://juicefs-bucket.minio.default.svc.cluster.local:9000"
