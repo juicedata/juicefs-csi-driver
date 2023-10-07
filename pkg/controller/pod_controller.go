@@ -58,6 +58,10 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		klog.V(6).Infof("pod %s has been deleted.", request.Name)
 		return reconcile.Result{}, nil
 	}
+	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+		klog.V(6).Infof("pod %s/%s is not on node %s, skipped", mountPod.Namespace, mountPod.Name, config.NodeName)
+		return reconcile.Result{}, nil
+	}
 
 	// get mount info
 	mit := newMountInfoTable()

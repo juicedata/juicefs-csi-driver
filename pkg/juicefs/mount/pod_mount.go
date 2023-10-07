@@ -34,7 +34,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
@@ -283,7 +282,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	return err
 }
 
-func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
+func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
 		klog.Errorf("Generate hash of jfsSetting error: %v", err)
@@ -295,18 +294,17 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
 		jfsConfig.PodJuiceHashLabelKey: hashVal,
 	}}
-	fieldSelector := &fields.Set{"spec.nodeName": jfsConfig.NodeName}
-	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
 		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, hashVal, err)
 		return "", err
 	}
-	if len(pods) > 0 {
-		podName = pods[0].Name
-	} else {
-		podName = GenPodNameByUniqueId(jfsSetting.UniqueId, true)
+	for _, pod := range pods {
+		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {
+			return pod.Name, nil
+		}
 	}
-	return
+	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }
 
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting) (err error) {
