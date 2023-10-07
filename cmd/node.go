@@ -61,6 +61,7 @@ func parseNodeConfig() {
 
 	config.HostIp = os.Getenv("HOST_IP")
 	config.KubeletPort = os.Getenv("KUBELET_PORT")
+	config.KubeletEnabled = os.Getenv("KUBELET_ENABLED") == "true"
 	jfsMountPriorityName := os.Getenv("JUICEFS_MOUNT_PRIORITY_NAME")
 	jfsMountPreemptionPolicy := os.Getenv("JUICEFS_MOUNT_PREEMPTION_POLICY")
 	if timeout := os.Getenv("JUICEFS_RECONCILE_TIMEOUT"); timeout != "" {
@@ -143,7 +144,7 @@ func nodeRun() {
 	// enable pod manager in csi node
 	if !process && podManager {
 		needStartPodManager := false
-		if config.KubeletPort != "" && config.HostIp != "" {
+		if config.KubeletPort != "" && config.HostIp != "" && config.KubeletEnabled {
 			if err := controller.StartReconciler(); err != nil {
 				klog.V(5).Info("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
 				needStartPodManager = true

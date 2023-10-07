@@ -40,6 +40,7 @@ var (
 	EEMountImage       = "juicedata/mount:ee-nightly" // mount pod ee image
 	MountLabels        = ""
 	HostIp             = ""
+	KubeletEnabled     = false
 	KubeletPort        = ""
 	ReconcileTimeout   = 5 * time.Minute
 	ReconcilerInterval = 5
