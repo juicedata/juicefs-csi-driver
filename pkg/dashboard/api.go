@@ -27,11 +27,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-type PVExtended struct {
-	Pod types.NamespacedName
-	*corev1.PersistentVolume
-}
-
 type API struct {
 	sysNamespace string
 	k8sClient    *k8sclient.K8sClient
@@ -49,7 +44,9 @@ type API struct {
 	events     map[string]map[string]*corev1.Event
 
 	pvsLock sync.RWMutex
-	pvs     map[types.NamespacedName]*PVExtended
+	pvs     map[string]*corev1.PersistentVolume
+	pvcs    map[types.NamespacedName]*corev1.PersistentVolumeClaim
+	pairs   map[types.NamespacedName]string
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
@@ -62,10 +59,14 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		events:       make(map[string]map[string]*corev1.Event),
-		pvs:          make(map[types.NamespacedName]*PVExtended),
+		pvs:          make(map[string]*corev1.PersistentVolume),
+		pvcs:         make(map[types.NamespacedName]*corev1.PersistentVolumeClaim),
+		pairs:        make(map[types.NamespacedName]string),
 	}
 	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
+	go api.watchRelatedPV(ctx)
+	go api.watchRelatedPVC(ctx)
 	go api.watchPodEvents(ctx)
 	go api.cleanupPodEvents(ctx)
 	return api
@@ -78,6 +79,8 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/csi-nodes", api.listCSINodePod())
 	group.GET("/controllers", api.listCSIControllerPod())
 	group.GET("/pvs", api.listPVsHandler())
+	group.GET("/pvcs", api.listPVsHandler())
+	group.GET("/storageclasses", api.listPVsHandler())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
@@ -85,7 +88,12 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/logs/:container", api.getPodLogs())
 	podGroup.GET("/pvs", api.listPodPVsHandler())
 	podGroup.GET("/mountpods", api.listMountPods())
-	pvGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
-	pvGroup.GET("/", api.getPVCHandler())
-	pvGroup.GET("/mountpod", api.getMountPodOfPVC())
+	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
+	pvGroup.GET("/", api.getPVHandler())
+	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
+	pvcGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
+	pvcGroup.GET("/", api.getPVCHandler())
+	pvcGroup.GET("/mountpods", api.getMountPodsOfPVC())
+	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
+	scGroup.GET("/", api.getSCHandler())
 }

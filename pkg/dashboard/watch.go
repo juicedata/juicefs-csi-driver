@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func (api *API) watchAppPod(ctx context.Context) {
@@ -36,64 +37,141 @@ func (api *API) watchAppPod(ctx context.Context) {
 		log.Fatalf("%v", err)
 	}
 	for event := range watcher.ResultChan() {
-		api.appPodsLock.Lock()
-		pod, ok := event.Object.(*corev1.Pod)
-		if !ok {
-			api.appPodsLock.Unlock()
-			log.Printf("unknown type: %v", event.Object)
-			continue
-		}
-		name := types.NamespacedName{
-			Namespace: pod.Namespace,
-			Name:      pod.Name,
-		}
-		switch event.Type {
-		case watch.Added, watch.Modified, watch.Error:
-			if event.Type == watch.Added {
-				go api.fetchPVs(ctx, pod)
+		func() {
+			api.appPodsLock.Lock()
+			defer api.appPodsLock.Unlock()
+
+			pod, ok := event.Object.(*corev1.Pod)
+			if !ok {
+				log.Printf("unknown type: %v", event.Object)
+				return
 			}
-			api.appPods[name] = pod
-		case watch.Deleted:
-			delete(api.appPods, name)
-			go api.removePVs(pod)
-		}
-		api.appPodsLock.Unlock()
+
+			// check if pod use JuiceFS Volume
+			var used bool
+			if pod.Labels != nil {
+				// mount pod mode
+				if _, ok := pod.Labels[config.UniqueId]; ok {
+					used = true
+				}
+				// sidecar mode
+				if _, ok := pod.Labels[config.InjectSidecarDone]; ok {
+					used = true
+				}
+			}
+			if !used {
+				used, _, err := util.GetVolumes(ctx, api.k8sClient, pod)
+				if err != nil {
+					log.Printf("get volumes error %v", err)
+					return
+				}
+				if !used {
+					return
+				}
+			}
+
+			name := types.NamespacedName{
+				Namespace: pod.Namespace,
+				Name:      pod.Name,
+			}
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Error:
+				api.appPods[name] = pod
+			case watch.Deleted:
+				delete(api.appPods, name)
+			}
+		}()
 	}
 }
 
-func (api *API) fetchPVs(ctx context.Context, pod *corev1.Pod) {
-	for _, v := range pod.Spec.Volumes {
-		if v.PersistentVolumeClaim == nil {
-			continue
-		}
-		pvc, err := api.k8sClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, v.PersistentVolumeClaim.ClaimName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pvc %s/%s: %v\n", pod.Namespace, v.PersistentVolumeClaim.ClaimName, err)
-			continue
-		}
-		pv, err := api.k8sClient.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, v1.GetOptions{})
-		if err != nil {
-			log.Printf("can't get pv %s: %v\n", pvc.Spec.VolumeName, err)
-			continue
-		}
-		if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
-			continue
-		}
-		api.pvsLock.Lock()
-		api.pvs[types.NamespacedName{Namespace: pod.Namespace, Name: pvc.Name}] = &PVExtended{types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, pv}
-		api.pvsLock.Unlock()
+func (api *API) watchRelatedPV(ctx context.Context) {
+	watcher, err := api.watchPV(ctx)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for event := range watcher.ResultChan() {
+		func() {
+			api.pvsLock.Lock()
+			defer api.pvsLock.Unlock()
+
+			pv, ok := event.Object.(*corev1.PersistentVolume)
+			if !ok {
+				log.Printf("unknown type: %v", event.Object)
+				return
+			}
+
+			// if PV is JuiceFS PV
+			if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+				return
+			}
+
+			// get pvc if bounded
+			var pvc *corev1.PersistentVolumeClaim
+			if pv.Spec.ClaimRef != nil {
+				pvc, err = api.k8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+				if err != nil {
+					log.Printf("get pvc error %v", err)
+				}
+			}
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Error:
+				api.pvs[pv.Name] = pv
+				if pvc != nil {
+					pvcName := types.NamespacedName{
+						Namespace: pvc.Namespace,
+						Name:      pvc.Name,
+					}
+					api.pairs[pvcName] = pv.Name
+					api.pvcs[pvcName] = pvc
+				}
+			case watch.Deleted:
+				delete(api.pvs, pv.Name)
+				if pvc != nil {
+					pvcName := types.NamespacedName{
+						Namespace: pvc.Namespace,
+						Name:      pvc.Name,
+					}
+					delete(api.pairs, pvcName)
+				}
+			}
+		}()
 	}
 }
 
-func (api *API) removePVs(pod *corev1.Pod) {
-	for _, v := range pod.Spec.Volumes {
-		if v.PersistentVolumeClaim == nil {
-			continue
-		}
-		api.pvsLock.Lock()
-		delete(api.pvs, types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName})
-		api.pvsLock.Unlock()
+func (api *API) watchRelatedPVC(ctx context.Context) {
+	watcher, err := api.watchPV(ctx)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for event := range watcher.ResultChan() {
+		func() {
+			api.pvsLock.Lock()
+			defer api.pvsLock.Unlock()
 
+			pvc, ok := event.Object.(*corev1.PersistentVolumeClaim)
+			if !ok {
+				log.Printf("unknown type: %v", event.Object)
+				return
+			}
+
+			pvcName := types.NamespacedName{
+				Namespace: pvc.Namespace,
+				Name:      pvc.Name,
+			}
+			// if PVC is not JuiceFS PVC, return
+			_, ok = api.pvcs[pvcName]
+			if !ok {
+				return
+			}
+
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Error:
+				api.pvcs[pvcName] = pvc
+			case watch.Deleted:
+				delete(api.pvcs, pvcName)
+				delete(api.pairs, pvcName)
+			}
+		}()
 	}
 }
 
@@ -118,6 +196,26 @@ func (api *API) watchPodByLabelSelector(ctx context.Context, selector *v1.LabelS
 
 func (api *API) watchPod(ctx context.Context) (watch.Interface, error) {
 	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(ctx, v1.ListOptions{
+		Watch: true,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "can't watch pods")
+	}
+	return watcher, nil
+}
+
+func (api *API) watchPV(ctx context.Context) (watch.Interface, error) {
+	watcher, err := api.k8sClient.CoreV1().PersistentVolumes().Watch(ctx, v1.ListOptions{
+		Watch: true,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "can't watch pods")
+	}
+	return watcher, nil
+}
+
+func (api *API) watchPVC(ctx context.Context) (watch.Interface, error) {
+	watcher, err := api.k8sClient.CoreV1().PersistentVolumeClaims("").Watch(ctx, v1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {

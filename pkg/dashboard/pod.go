@@ -231,37 +231,59 @@ func (api *API) getCSINodeByName() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getMountPodOfPVC() gin.HandlerFunc {
+func (api *API) getMountPodsOfPV() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pv")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pv := obj.(*corev1.PersistentVolume)
+
+		// todo: if unique id is sc name (mount pod shared by sc)
+		api.componentsLock.RLock()
+		defer api.componentsLock.RUnlock()
+		var mountPods = make([]*corev1.Pod, 0)
+		for _, pod := range api.mountPods {
+			if pod.Labels != nil && pod.Labels[config.PodUniqueIdLabelKey] == pv.Spec.CSI.VolumeHandle {
+				mountPods = append(mountPods, pod)
+			}
+		}
+		c.IndentedJSON(200, mountPods)
+	}
+}
+
+func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pvc")
 		if !ok {
 			c.String(404, "not found")
 			return
 		}
-		pv := obj.(*PVExtended)
-		pod := api.getAppPod(pv.Pod)
-		if pod == nil {
+		pvc := obj.(*corev1.PersistentVolumeClaim)
+		pvName := api.pairs[types.NamespacedName{
+			Namespace: pvc.Namespace,
+			Name:      pvc.Name,
+		}]
+		if pvName == "" {
 			c.String(404, "not found")
 			return
 		}
-		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Name)
-		mountPodName, ok := pod.Annotations[key]
-		if !ok {
+		pv := api.pvs[pvName]
+		if pv == nil {
 			c.String(404, "not found")
 			return
 		}
-		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
-		if len(pair) != 2 {
-			c.String(500, "invalid mount pod name %s\n", mountPodName)
-			return
-		}
+
+		// todo: if unique id is sc name (mount pod shared by sc)
 		api.componentsLock.RLock()
 		defer api.componentsLock.RUnlock()
-		mountPod, exist := api.mountPods[pair[1]]
-		if !exist {
-			c.String(404, "not found")
-			return
+		var mountPods = make([]*corev1.Pod, 0)
+		for _, pod := range api.mountPods {
+			if pod.Labels != nil && pod.Labels[config.PodUniqueIdLabelKey] == pv.Spec.CSI.VolumeHandle {
+				mountPods = append(mountPods, pod)
+			}
 		}
-		c.IndentedJSON(200, mountPod)
+		c.IndentedJSON(200, mountPods)
 	}
 }

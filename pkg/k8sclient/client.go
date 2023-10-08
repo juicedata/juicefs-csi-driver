@@ -335,6 +335,16 @@ func (k *K8sClient) ListPersistentVolumes(ctx context.Context, labelSelector *me
 	return pvList.Items, nil
 }
 
+func (k *K8sClient) ListStorageClasses(ctx context.Context) ([]storagev1.StorageClass, error) {
+	klog.V(6).Info("List storageclass")
+	scList, err := k.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		klog.V(6).Infof("Can't list pv: %v", err)
+		return nil, err
+	}
+	return scList.Items, nil
+}
+
 func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, namespace string) (*corev1.PersistentVolumeClaim, error) {
 	klog.V(6).Infof("Get pvc %s in namespace %s", pvcName, namespace)
 	mntPod, err := k.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
