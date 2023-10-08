@@ -33,20 +33,19 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
 )
 
 type SidecarMutate struct {
 	Client  *k8sclient.K8sClient
 	juicefs juicefs.Interface
 
-	Pair       []volconf.PVPair
+	Pair       []util.PVPair
 	jfsSetting *config.JfsSetting
 }
 
 var _ Mutate = &SidecarMutate{}
 
-func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, pair []volconf.PVPair) Mutate {
+func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, pair []util.PVPair) Mutate {
 	return &SidecarMutate{
 		Client:  client,
 		juicefs: jfs,
@@ -65,7 +64,7 @@ func (s *SidecarMutate) Mutate(ctx context.Context, pod *corev1.Pod) (out *corev
 	return
 }
 
-func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair volconf.PVPair, index int) (out *corev1.Pod, err error) {
+func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.PVPair, index int) (out *corev1.Pod, err error) {
 	// get secret, volumeContext and mountOptions from PV
 	secrets, volCtx, options, err := s.GetSettings(*pair.PV)
 	if err != nil {
@@ -206,7 +205,7 @@ func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Co
 	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 }
 
-func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, mountPath string, pair volconf.PVPair) {
+func (s *SidecarMutate) injectVolume(pod *corev1.Pod, volumes []corev1.Volume, mountPath string, pair util.PVPair) {
 	hostMount := filepath.Join(config.MountPointPath, mountPath, s.jfsSetting.SubPath)
 	mountedVolume := []corev1.Volume{}
 	podVolumes := make(map[string]bool)
