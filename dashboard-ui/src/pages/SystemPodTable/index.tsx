@@ -7,10 +7,10 @@ import {
     ProTable,
     ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
-import {Button, Divider, Drawer, message} from 'antd';
-import React, {useRef, useState} from 'react';
-import {Pod, listSystemPods} from '@/services/pod';
-import {Link} from 'umi';
+import { Button, Divider, Drawer, message } from 'antd';
+import React, { useRef, useState } from 'react';
+import { Pod, listSystemPods } from '@/services/pod';
+import { Link } from 'umi';
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -103,7 +103,7 @@ const AppPodTable: React.FC<unknown> = () => {
             <ProTable<Pod>
                 headerTitle="查询表格"
                 actionRef={actionRef}
-                rowKey="id"
+                rowKey={(record) => record.metadata?.uid!}
                 search={{
                     labelWidth: 120,
                 }}
@@ -118,7 +118,7 @@ const AppPodTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listSystemPods({
+                    const { data, success } = await listSystemPods({
                         ...params,
                         sort,
                         filter,
@@ -138,7 +138,7 @@ const AppPodTable: React.FC<unknown> = () => {
                     extra={
                         <div>
                             已选择{' '}
-                            <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}
+                            <a style={{ fontWeight: 600 }}>{selectedRowsState.length}</a>{' '}
                             项&nbsp;&nbsp;
                         </div>
                     }
