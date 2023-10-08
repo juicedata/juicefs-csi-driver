@@ -89,6 +89,15 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
 	}
 
+	mountOptions := make([]string, 0)
+	for _, mo := range options.StorageClass.MountOptions {
+		parsedStr := pvMeta.StringParser(mo)
+		for _, sp := range strings.Split(strings.TrimSpace(parsedStr), ",") {
+			mountOptions = append(mountOptions, sp)
+		}
+	}
+	klog.V(6).Infof("Provisioner Resolved MountOptions: %v", mountOptions)
+
 	pvName := options.PVName
 	scParams := make(map[string]string)
 	for k, v := range options.StorageClass.Parameters {
@@ -139,7 +148,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
 			StorageClassName:              options.StorageClass.Name,
-			MountOptions:                  options.StorageClass.MountOptions,
+			MountOptions:                  mountOptions,
 			VolumeMode:                    options.PVC.Spec.VolumeMode,
 		},
 	}

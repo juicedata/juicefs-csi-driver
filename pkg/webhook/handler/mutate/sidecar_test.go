@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestSidecarMutate_injectVolume(t *testing.T) {

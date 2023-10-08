@@ -29,7 +29,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
 )
 
@@ -62,7 +61,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pair, err := volconf.GetVolumes(ctx, s.Client, pod)
+	used, pair, err := util.GetVolumes(ctx, s.Client, pod)
 	if err != nil {
 		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
