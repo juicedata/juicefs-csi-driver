@@ -1,12 +1,12 @@
-import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
-import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
-import {Pod as RawPod} from 'kubernetes-types/core/v1'
-import React, {useEffect, useState} from 'react';
-import {useMatch} from '@umijs/max';
-import {getPod, getLog, Pod} from '@/services/pod';
+import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { Pod as RawPod } from 'kubernetes-types/core/v1'
+import React, { useEffect, useState } from 'react';
+import { useMatch } from '@umijs/max';
+import { getPod, getLog, Pod } from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps, Select, Col, Empty, Table, Tag, Button} from "antd";
-import {Link} from 'umi';
+import { TabsProps, Select, Col, Empty, Table, Tag, Button } from "antd";
+import { Link } from 'umi';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -35,26 +35,7 @@ const DetailedPod: React.FC<unknown> = () => {
 
     const getContainer = () => (container || pod?.spec?.containers?.[0].name)
     const [activeTab, setActiveTab] = useState('1');
-    const handleTabChange = (key: string) => {
-        setActiveTab(key);
-        if (key === '3' && pod) {
-            const cname = getContainer()!
-            if (pod.logs.has(cname)) {
-                return
-            }
-            getLog(pod, cname).then((log) => {
-                const newLogs = new Map(pod!.logs)
-                newLogs.set(cname, log)
-                setPod({
-                    ...pod,
-                    logs: newLogs
-                })
-            })
-        }
-    };
-
-    const handleContainerChange = (container: string) => {
-        setContainer(container)
+    const ensureLog = (container: string) => {
         if (pod!.logs.has(container)) {
             return
         }
@@ -66,6 +47,19 @@ const DetailedPod: React.FC<unknown> = () => {
                 logs: newLogs,
             })
         })
+    }
+
+    const handleTabChange = (key: string) => {
+        setActiveTab(key);
+        if (key === '3' && pod) {
+            const cname = getContainer()!
+            ensureLog(cname)
+        }
+    };
+
+    const handleContainerChange = (container: string) => {
+        setContainer(container)
+        ensureLog(container)
     }
 
     const getPodTabs = (pod: Pod) => {
@@ -129,6 +123,7 @@ const DetailedPod: React.FC<unknown> = () => {
         const handleButtonClick = (container: string) => {
             setActiveTab('3');
             setContainer(container);
+            ensureLog(container)
         };
 
         switch (activeTab) {
@@ -160,7 +155,7 @@ const DetailedPod: React.FC<unknown> = () => {
                                     dataIndex: 'status',
                                     valueType: 'select',
                                     valueEnum: {
-                                        all: {text: 'Running', status: 'Default'},
+                                        all: { text: 'Running', status: 'Default' },
                                         Running: {
                                             text: 'Running',
                                             status: 'Success',
@@ -212,7 +207,7 @@ const DetailedPod: React.FC<unknown> = () => {
                                     </Button>
                                 )
                             }
-                        ]} dataSource={containers}/>
+                        ]} dataSource={containers} />
                     </ProCard>
                 </div>
                 break
@@ -225,7 +220,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 console.log(`logs: ${pod.logs}`)
                 const container = getContainer()!
                 if (!pod.logs.has(container)) {
-                    content = <Empty/>
+                    content = <Empty />
                 } else {
                     const log = pod.logs.get(container)!
                     if (log.length < 16 * 1024) {
@@ -240,7 +235,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 break
             case '4':
                 if (pod.events?.length === 0) {
-                    content = <Empty/>
+                    content = <Empty />
                 } else {
                     content = <div>
                         <pre><code>{pod.events}</code></pre>
@@ -260,10 +255,10 @@ const DetailedPod: React.FC<unknown> = () => {
             <ProCard
                 direction="column"
                 gutter={[0, 16]}
-                style={{marginBlockStart: 8}}>
+                style={{ marginBlockStart: 8 }}>
                 {Array.from(mountPods).map(([name, mountPod]) => (
                     <ProCard title={`${mountPod.metadata?.name}`} type="inner" bordered
-                             extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
+                        extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
                         <ProDescriptions
                             column={4}
                             dataSource={{
@@ -289,7 +284,7 @@ const DetailedPod: React.FC<unknown> = () => {
                                     dataIndex: 'status',
                                     valueType: 'select',
                                     valueEnum: {
-                                        all: {text: 'Running', status: 'Default'},
+                                        all: { text: 'Running', status: 'Default' },
                                         Running: {
                                             text: 'Running',
                                             status: 'Success',
@@ -315,7 +310,7 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 
     if (!pod) {
-        return <Empty/>
+        return <Empty />
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
         const footer = []
@@ -333,7 +328,7 @@ const DetailedPod: React.FC<unknown> = () => {
                         key="container"
                         placeholder='选择容器'
                         value={container}
-                        style={{width: 200}}
+                        style={{ width: 200 }}
                         onChange={handleContainerChange}
                         options={containers.map((container) => {
                             return {
@@ -352,6 +347,7 @@ const DetailedPod: React.FC<unknown> = () => {
                     title: `应用 Pod: ${pod.metadata?.name}`,
                 }}
                 tabList={tabList}
+                tabActiveKey={activeTab}
                 onTabChange={handleTabChange}
                 footer={footer}
             >
