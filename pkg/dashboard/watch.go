@@ -21,19 +21,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (api *API) watchAppPod(ctx context.Context) {
-	labelSelector := &v1.LabelSelector{
-		MatchExpressions: []v1.LabelSelectorRequirement{{Key: config.UniqueId, Operator: v1.LabelSelectorOpExists}},
-	}
-	watcher, err := api.watchPodByLabelSelector(ctx, labelSelector)
+	watcher, err := api.watchPod(ctx)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -114,6 +112,16 @@ func (api *API) watchPodByLabelSelector(ctx context.Context, selector *v1.LabelS
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't watch pods by %s", s.String())
+	}
+	return watcher, nil
+}
+
+func (api *API) watchPod(ctx context.Context) (watch.Interface, error) {
+	watcher, err := api.k8sClient.CoreV1().Pods("").Watch(ctx, v1.ListOptions{
+		Watch: true,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "can't watch pods")
 	}
 	return watcher, nil
 }
