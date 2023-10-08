@@ -207,7 +207,10 @@ const DetailedPod: React.FC<unknown> = () => {
                                     </Button>
                                 )
                             }
-                        ]} dataSource={containers} />
+                        ]}
+                            dataSource={containers}
+                            rowKey={c => c.name}
+                        />
                     </ProCard>
                 </div>
                 break
