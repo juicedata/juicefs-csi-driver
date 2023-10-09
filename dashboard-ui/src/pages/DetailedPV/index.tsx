@@ -2,7 +2,7 @@ import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getLog, Pod} from '@/services/pod';
-import {getMountPodOfPVC, getPVC, PV} from '@/services/pv';
+import {getMountPodOfPVC, getPVC, getPV, PV} from '@/services/pv';
 import {Link} from 'umi';
 import * as jsyaml from "js-yaml";
 import {Empty, Table, TabsProps} from "antd";
@@ -10,10 +10,9 @@ import {Pod as RawPod} from "kubernetes-types/core/v1";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 
 const DetailedPV: React.FC<unknown> = () => {
-    const routeData = useMatch('/pv/:namespace/:name')
-    const pvcNamespace = routeData?.params?.namespace
+    const routeData = useMatch('/pv/:name')
     const pvName = routeData?.params?.name
-    if (!pvcNamespace || !pvName) {
+    if (!pvName) {
         return (
             <PageContainer
                 header={{
@@ -24,13 +23,19 @@ const DetailedPV: React.FC<unknown> = () => {
         )
     }
     const [pv, setPV] = useState<PV>()
-    const [mountpod, setMountPod] = useState<Pod>()
+    const [mountpods, setMountPods] = useState<Pod>()
+    const pvcNamespace = pv?.spec?.claimRef?.namespace || ""
+    const pvcName = pv?.spec?.claimRef?.name || ""
+
     useEffect(() => {
-        getPVC(pvcNamespace, pvName)
-            .then(setPV)
-            .then(() => getMountPodOfPVC(pvcNamespace, pvName))
-            .then(setMountPod)
-    }, [setPV, setMountPod])
+        getPV(pvName).then(setPV)
+        if (pvcNamespace && pvcName) {
+            getPVC(pvcNamespace, pvName)
+                .then(setPV)
+                .then(() => getMountPodOfPVC(pvcNamespace, pvName))
+                .then(setMountPods)
+        }
+    }, [setPV, setMountPods])
 
     const [activeTab, setActiveTab] = useState('1');
     const handleTabChange = (key: string) => {
@@ -92,6 +97,12 @@ const getPVTabsContent = (activeTab: string, pv: PV, pvcNamespace: string, pvNam
     p.metadata?.managedFields?.forEach((managedField) => {
         managedField.fieldsV1 = undefined
     })
+    const accessModeMap: { [key: string]: string } = {
+        ReadWriteOnce: 'RWO',
+        ReadWriteMany: 'RWM',
+        ReadOnlyMany: 'ROM',
+        ReadWriteOncePod: 'RWOP',
+    };
 
     let content: any
     switch (activeTab) {
@@ -103,7 +114,7 @@ const getPVTabsContent = (activeTab: string, pv: PV, pvcNamespace: string, pvNam
                         dataSource={{
                             pvc: `${pvcNamespace}/${pvName}`,  // todo: link
                             capacity: pv.spec?.capacity?.storage,
-                            accessMode: pv.spec?.accessModes,
+                            accessMode: pv.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
                             reclaimPolicy: pv.spec?.persistentVolumeReclaimPolicy,
                             storageClass: pv.spec?.storageClassName,
                             volumeHandle: pv.spec?.csi?.volumeHandle,
@@ -147,15 +158,26 @@ const getPVTabsContent = (activeTab: string, pv: PV, pvcNamespace: string, pvNam
                                 dataIndex: 'status',
                                 valueType: 'select',
                                 valueEnum: {
-                                    all: {text: 'Running', status: 'Default'},
-                                    Running: {
-                                        text: 'Running',
-                                        status: 'Success',
-                                    },
                                     Pending: {
-                                        text: 'Pending',
-                                        status: 'Pending',
+                                        text: '等待运行',
+                                        color: 'yellow',
                                     },
+                                    Bound: {
+                                        text: '已绑定',
+                                        color: 'green',
+                                    },
+                                    Available: {
+                                        text: '可绑定',
+                                        color: 'blue',
+                                    },
+                                    Released: {
+                                        text: '已释放',
+                                        color: 'grey',
+                                    },
+                                    Failed: {
+                                        text: '失败',
+                                        color: 'red',
+                                    }
                                 },
                             },
                             {

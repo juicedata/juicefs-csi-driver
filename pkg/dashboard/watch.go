@@ -139,7 +139,7 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 }
 
 func (api *API) watchRelatedPVC(ctx context.Context) {
-	watcher, err := api.watchPV(ctx)
+	watcher, err := api.watchPVC(ctx)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

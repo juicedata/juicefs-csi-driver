@@ -69,7 +69,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		api.eventsLock.RUnlock()
 		api.pvsLock.RLock()
 		for k, v := range api.pvs {
-			status.Pvs[k.String()] = types.NamespacedName{
+			status.Pvs[k] = types.NamespacedName{
 				Namespace: v.Namespace,
 				Name:      v.Name,
 			}

@@ -39,7 +39,7 @@ const PVTable: React.FC<unknown> = () => {
                 ],
             },
             render: (_, pv) => (
-                <Link to={`/pv/${pv.spec?.claimRef?.namespace}/${pv.spec?.claimRef?.name}`}>
+                <Link to={`/pv/${pv.metadata?.name}/`}>
                     {pv.metadata?.name}
                 </Link>
             ),
@@ -50,11 +50,9 @@ const PVTable: React.FC<unknown> = () => {
                 if (!pv.spec?.claimRef) {
                     return <span>无</span>
                 } else {
-                    pv.spec.claimRef.name
                     return (
                         <Link to={`/pv/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
-                            <Badge color={getPVStatusBadge(pv)}
-                                   text={`${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}/>
+                            {pv.spec.claimRef.namespace}/{pv.spec.claimRef.name}
                         </Link>
                     )
                 }
@@ -146,7 +144,7 @@ const PVTable: React.FC<unknown> = () => {
             <ProTable<PV>
                 headerTitle="查询表格"
                 actionRef={actionRef}
-                rowKey="id"
+                rowKey={(record) => record.metadata?.uid!}
                 search={{
                     labelWidth: 120,
                 }}
@@ -197,23 +195,5 @@ const PVTable: React.FC<unknown> = () => {
     );
 };
 
-function getPVStatusBadge(pv: PV): string {
-    if (pv.status === undefined || pv.status.phase === undefined) {
-        return "grey"
-    }
-    switch (pv.status.phase) {
-        case "Bound":
-            return "green"
-        case "Available":
-            return "blue"
-        case "Pending":
-            return "yellow"
-        case "Failed":
-            return "red"
-        case "Released":
-        default:
-            return "grey"
-    }
-}
 
 export default PVTable;

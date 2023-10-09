@@ -112,7 +112,7 @@ func (api *API) getSCMiddileware() gin.HandlerFunc {
 
 func (api *API) listPVCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pvcs := make([]*corev1.PersistentVolumeClaim, len(api.pvcs))
+		pvcs := make([]*corev1.PersistentVolumeClaim, 0)
 		api.pvsLock.RLock()
 		for _, pv := range api.pvcs {
 			pvcs = append(pvcs, pv)

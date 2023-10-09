@@ -84,21 +84,26 @@ const AppPodTable: React.FC<unknown> = () => {
                         return
                     }
                     return (
-                        <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
-                            <Badge color={getPodStatusBadge(mountPod)}
-                                   text={`${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}`}/>
-                            <br/>
-                        </Link>
+                        <Badge color={getPodStatusBadge(mountPod)}
+                               text={
+                                   <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
+                                       {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
+                                   </Link>
+                               }
+                        />
                     )
                 } else {
                     return (
                         <div>
                             {Array.from(pod.mountPods?.entries()).map(([_, mountPod]) => (
-                                <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
-                                    <Badge color={getPodStatusBadge(mountPod)}
-                                           text={`${mountPod.metadata?.namespace}/${mountPod?.metadata?.name}`}/>
-                                    <br/>
-                                </Link>
+                                <Badge color={getPodStatusBadge(mountPod)}
+                                       text={
+                                           <Link
+                                               to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
+                                               {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
+                                           </Link>
+                                       }
+                                />
                             ))}
                         </div>
                     )
@@ -160,10 +165,11 @@ const AppPodTable: React.FC<unknown> = () => {
                     return
                 }
                 return (
-                    <Link to={`/pod/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}>
-                        <Badge color={getPodStatusBadge(pod.csiNode)}
-                               text={`${pod.csiNode.metadata?.name}`}/>
-                    </Link>
+                    <Badge color={getPodStatusBadge(pod.csiNode)} text={
+                        <Link to={`/pod/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}>
+                            {pod.csiNode.metadata?.name}
+                        </Link>
+                    }/>
                 )
             },
         },

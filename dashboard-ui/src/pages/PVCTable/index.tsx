@@ -9,7 +9,7 @@ import {
 } from '@ant-design/pro-components';
 import {Button, Divider, Drawer, message} from 'antd';
 import React, {useRef, useState} from 'react';
-import {PV, listPV} from '@/services/pv';
+import {PVC, listPVC} from '@/services/pv';
 import {Link} from 'umi';
 import {Badge} from "antd/lib";
 import {Pod as RawPod} from "kubernetes-types/core/v1";
@@ -20,8 +20,14 @@ const PVCTable: React.FC<unknown> = () => {
         useState<boolean>(false);
     const [stepFormValues, setStepFormValues] = useState({});
     const actionRef = useRef<ActionType>();
-    const [selectedRowsState, setSelectedRows] = useState<PV[]>([]);
-    const columns: ProColumns<PV>[] = [
+    const [selectedRowsState, setSelectedRows] = useState<PVC[]>([]);
+    const accessModeMap: { [key: string]: string } = {
+        ReadWriteOnce: 'RWO',
+        ReadWriteMany: 'RWM',
+        ReadOnlyMany: 'ROM',
+        ReadWriteOncePod: 'RWOP',
+    };
+    const columns: ProColumns<PVC>[] = [
         {
             title: '名称',
             formItemProps: {
@@ -32,23 +38,26 @@ const PVCTable: React.FC<unknown> = () => {
                     },
                 ],
             },
-            render: (_, pv) => (
-                <Link to={`/pv/${pv.metadata?.name}`}>
-                    {pv.metadata?.name}
+            render: (_, pvc) => (
+                <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
+                    {pvc.metadata?.name}
                 </Link>
             ),
         },
         {
+            title: '命名空间',
+            key: 'namespace',
+            dataIndex: ['metadata', 'namespace'],
+        },
+        {
             title: '持久卷',
-            render: (_, pv) => {
-                if (!pv.spec?.claimRef) {
+            render: (_, pvc) => {
+                if (!pvc.spec?.volumeName) {
                     return <span>无</span>
                 } else {
-                    pv.spec.claimRef.name
                     return (
-                        <Link to={`/pv/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
-                            <Badge color={getPVStatusBadge(pv)}
-                                   text={`${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}/>
+                        <Link to={`/pv/${pvc.spec.volumeName}`}>
+                            {pvc.spec.volumeName}
                         </Link>
                     )
                 }
@@ -57,25 +66,20 @@ const PVCTable: React.FC<unknown> = () => {
         {
             title: '容量',
             key: 'storage',
-            dataIndex: ['spec', 'capacity', 'storage'],
+            dataIndex: ['spec', 'resources', 'requests', 'storage'],
         },
         {
             title: '访问模式',
             key: 'accessModes',
-            render: (_, pv) => {
+            render: (_, pvc) => {
                 let accessModes: string
-                if (pv.spec?.accessModes) {
-                    accessModes = pv.spec.accessModes.join(",")
+                if (pvc.spec?.accessModes) {
+                    accessModes = pvc.spec.accessModes.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(",")
                     return (
                         <div>{accessModes}</div>
                     )
                 }
             }
-        },
-        {
-            title: '回收策略',
-            key: 'persistentVolumeReclaimPolicy',
-            dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
         },
         {
             title: 'StorageClass',
@@ -137,10 +141,10 @@ const PVCTable: React.FC<unknown> = () => {
                 title: 'PVC 管理',
             }}
         >
-            <ProTable<PV>
+            <ProTable<PVC>
                 headerTitle="查询表格"
                 actionRef={actionRef}
-                rowKey="id"
+                rowKey={(record) => record.metadata?.uid!}
                 search={{
                     labelWidth: 120,
                 }}
@@ -155,7 +159,7 @@ const PVCTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listPV();
+                    const {data, success} = await listPVC();
                     return {
                         data: data || [],
                         success,
@@ -166,48 +170,28 @@ const PVCTable: React.FC<unknown> = () => {
                     onChange: (_, selectedRows) => setSelectedRows(selectedRows),
                 }}
             />
-            {selectedRowsState?.length > 0 && (
-                <FooterToolbar
-                    extra={
-                        <div>
-                            已选择{' '}
-                            <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}
-                            项&nbsp;&nbsp;
-                        </div>
-                    }
-                >
-                    <Button
-                        onClick={async () => {
-                            setSelectedRows([]);
-                            actionRef.current?.reloadAndRest?.();
-                        }}
-                    >
-                        批量删除
-                    </Button>
-                    <Button type="primary">批量审批</Button>
-                </FooterToolbar>
-            )}
+            {/*{selectedRowsState?.length > 0 && (*/}
+            {/*    <FooterToolbar*/}
+            {/*        extra={*/}
+            {/*            <div>*/}
+            {/*                已选择{' '}*/}
+            {/*                <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}*/}
+            {/*                项&nbsp;&nbsp;*/}
+            {/*            </div>*/}
+            {/*        }*/}
+            {/*    >*/}
+            {/*        <Button*/}
+            {/*            onClick={async () => {*/}
+            {/*                setSelectedRows([]);*/}
+            {/*                actionRef.current?.reloadAndRest?.();*/}
+            {/*            }}*/}
+            {/*        >*/}
+            {/*            批量删除*/}
+            {/*        </Button>*/}
+            {/*    </FooterToolbar>*/}
+            {/*)}*/}
         </PageContainer>
     );
 };
-
-function getPVStatusBadge(pv: PV): string {
-    if (pv.status === undefined || pv.status.phase === undefined) {
-        return "grey"
-    }
-    switch (pv.status.phase) {
-        case "Bound":
-            return "green"
-        case "Available":
-            return "blue"
-        case "Pending":
-            return "yellow"
-        case "Failed":
-            return "red"
-        case "Released":
-        default:
-            return "grey"
-    }
-}
 
 export default PVCTable;
