@@ -10,7 +10,7 @@ import {
 import {Button, Divider, Drawer, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Pod, listAppPods} from '@/services/pod';
-import {Pod as RawPod} from 'kubernetes-types/core/v1'
+import {PersistentVolume, Pod as RawPod} from 'kubernetes-types/core/v1'
 import {Link} from 'umi';
 import {Badge} from 'antd/lib';
 import {PVC} from "@/services/pv";
@@ -48,23 +48,29 @@ const AppPodTable: React.FC<unknown> = () => {
             title: '持久卷',
             key: 'pv',
             render: (_, pod) => {
-                if (!pod.mountPods || pod.mountPods.size == 0) {
+                if (!pod.pvs || pod.pvs.length == 0) {
                     return <span>无</span>
-                } else if (pod.mountPods.size == 1) {
-                    const [firstKey] = pod.mountPods.keys();
+                } else if (pod.pvs.length == 1) {
+                    const pv = pod.pvs[0]
                     return (
-                        <Link to={`/pv/${pod.metadata?.namespace}/${firstKey}`}>
-                            {firstKey}
-                        </Link>
+                        <Badge color={getPVStatusBadge(pv)} text={
+                            <Link to={`/pv/${pv.metadata?.name}`}>
+                                {pv.metadata?.name}
+                            </Link>
+                        }/>
                     )
                 } else {
                     return (
                         <div>
-                            {Array.from(pod.mountPods?.keys()).map((key) => (
-                                <Link to={`/pv/${pod.metadata?.namespace}/${key}`}>
-                                    {key}
+                            {pod.pvs.map((key) => (
+                                <div>
+                                    <Badge color={getPVStatusBadge(key)} text={
+                                        <Link to={`/pv/${key.metadata?.name}`}>
+                                            {key.metadata?.name}
+                                        </Link>
+                                    }/>
                                     <br/>
-                                </Link>
+                                </div>
                             ))}
                         </div>
                     )
@@ -96,14 +102,17 @@ const AppPodTable: React.FC<unknown> = () => {
                     return (
                         <div>
                             {Array.from(pod.mountPods?.entries()).map(([_, mountPod]) => (
-                                <Badge color={getPodStatusBadge(mountPod)}
-                                       text={
-                                           <Link
-                                               to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
-                                               {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
-                                           </Link>
-                                       }
-                                />
+                                <div>
+                                    <Badge color={getPodStatusBadge(mountPod)}
+                                           text={
+                                               <Link
+                                                   to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
+                                                   {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
+                                               </Link>
+                                           }
+                                    />
+                                    <br/>
+                                </div>
                             ))}
                         </div>
                     )
@@ -253,6 +262,25 @@ function getPodStatusBadge(pod: RawPod): string {
         case "Failed":
             return "red"
         case "Unknown":
+        default:
+            return "grey"
+    }
+}
+
+function getPVStatusBadge(pv: PersistentVolume): string {
+    if (pv.status === undefined || pv.status.phase === undefined) {
+        return "grey"
+    }
+    switch (pv.status.phase) {
+        case "Bound":
+            return "green"
+        case "Available":
+            return "blue"
+        case "Pending":
+            return "yellow"
+        case "Failed":
+            return "red"
+        case "Released":
         default:
             return "grey"
     }

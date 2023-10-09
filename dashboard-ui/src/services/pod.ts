@@ -1,7 +1,10 @@
 import {Pod as RawPod} from 'kubernetes-types/core/v1'
+import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
     mountPods?: Map<string, RawPod>
+    pvcs?: PersistentVolumeClaim[],
+    pvs?: PersistentVolume[],
     csiNode?: RawPod,
     logs: Map<string, string>,
     events?: string[],
@@ -45,7 +48,11 @@ export const listAppPods = async (args: PagingListArgs) => {
             const mountPods = new Map(Object.entries(JSON.parse(await rawMountPods.text())))
             const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
             const csiNode = JSON.parse(await rawCSINode.text())
-            return {mountPods, csiNode}
+            const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
+            const pvcs = JSON.parse(await rawPVCs.text())
+            const rawPVs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvs`)
+            const pvs = JSON.parse(await rawPVs.text())
+            return {mountPods, csiNode, pvcs, pvs}
         } catch (e) {
             console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
             return {mountPods: null, csiNode: null}
@@ -58,9 +65,11 @@ export const listAppPods = async (args: PagingListArgs) => {
     }
     const results = await Promise.all(tasks)
     for (const i in results) {
-        const {mountPods, csiNode} = results[i]
+        const {mountPods, csiNode, pvcs, pvs} = results[i]
         data[i].mountPods = mountPods || new Map()
         data[i].csiNode = csiNode || null
+        data[i].pvcs = pvcs || []
+        data[i].pvs = pvs || []
     }
     data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode || ""))
     if (args.pv) {

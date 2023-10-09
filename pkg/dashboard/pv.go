@@ -40,6 +40,18 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listPodPVCsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		c.IndentedJSON(200, api.listPVCsOfPod(c, pod))
+	}
+}
+
 func (api *API) listSCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		scs := make([]storagev1.StorageClass, 0)
@@ -181,8 +193,8 @@ func (api *API) getStorageClass(ctx *gin.Context, name string) (*storagev1.Stora
 	return sc, nil
 }
 
-func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*corev1.PersistentVolume {
-	pvs := make(map[string]*corev1.PersistentVolume)
+func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolume {
+	pvs := make([]*corev1.PersistentVolume, 0)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
 			continue
@@ -191,9 +203,28 @@ func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) map[string]*c
 		pvName := api.pairs[types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName}]
 		pv, ok := api.pvs[pvName]
 		if ok {
-			pvs[v.PersistentVolumeClaim.ClaimName] = pv
+			pvs = append(pvs, pv)
 		}
 		api.pvsLock.RUnlock()
 	}
 	return pvs
+}
+
+func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolumeClaim {
+	pvcs := make([]*corev1.PersistentVolumeClaim, 0)
+	for _, v := range pod.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		api.pvsLock.RLock()
+		pvc, ok := api.pvcs[types.NamespacedName{
+			Name:      v.PersistentVolumeClaim.ClaimName,
+			Namespace: pod.Namespace,
+		}]
+		if ok {
+			pvcs = append(pvcs, pvc)
+		}
+		api.pvsLock.RUnlock()
+	}
+	return pvcs
 }

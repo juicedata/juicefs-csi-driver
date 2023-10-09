@@ -190,7 +190,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 		pod := obj.(*corev1.Pod)
 		pvs := api.listPVsOfPod(c, pod)
 		mountPods := make(map[string]*corev1.Pod)
-		for pvc, pv := range pvs {
+		for _, pv := range pvs {
 			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
 			mountPodName, ok := pod.Annotations[key]
 			if !ok {
@@ -209,7 +209,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 				log.Printf("mount pod %s not found\n", mountPodName)
 				continue
 			}
-			mountPods[pvc] = mountPod
+			mountPods[pv.Name] = mountPod
 		}
 		c.IndentedJSON(200, mountPods)
 	}
