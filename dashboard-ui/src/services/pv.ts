@@ -1,5 +1,5 @@
 import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
-import {Pod} from "@/services/pod";
+import {StorageClass} from 'kubernetes-types/storage/v1'
 
 export type PV = PersistentVolume & {
     Pod: {
@@ -38,6 +38,21 @@ export const listPVC = async () => {
     } catch (e) {
         console.log(`fail to list pv`)
         return {data: null, success: false}
+    }
+    return {
+        data,
+        success: true,
+    }
+}
+
+export const listStorageClass = async () => {
+    let data: StorageClass[] = []
+    try {
+        const rawSC = await fetch(`http://localhost:8088/api/v1/storageclasses`)
+        data = JSON.parse(await rawSC.text())
+    } catch (e) {
+        console.log(`fail to list sc`)
+        return {data: [], success: false}
     }
     return {
         data,
