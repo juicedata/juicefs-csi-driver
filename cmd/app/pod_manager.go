@@ -20,7 +20,6 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -58,7 +57,6 @@ func NewPodManager() (*PodManager, error) {
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
 					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
-					Field: fields.SelectorFromSet(fields.Set{"spec.nodeName": config.NodeName}),
 				},
 			},
 		}),

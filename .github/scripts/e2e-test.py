@@ -52,6 +52,7 @@ from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret
 
 if __name__ == "__main__":
     test_mode = os.getenv("TEST_MODE")
+    without_kubelet = os.getenv("WITHOUT_KUBELET") == "true"
     if check_do_test():
         config.load_kube_config()
         # clear juicefs volume first.
@@ -78,10 +79,11 @@ if __name__ == "__main__":
                 test_deployment_static_patch_pv()
                 test_dynamic_mount_image()
                 test_static_mount_image()
-                test_pod_resource_err()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                if without_kubelet:
+                    test_pod_resource_err()
 
             elif test_mode == "pod-mount-share":
                 test_share_mount()
