@@ -29,7 +29,7 @@ RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 &&
 
 RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof librados-dev libcephfs-dev librbd-dev && \
     rm -rf /var/cache/apt/* && \
-    bash -c "if [[ ${JFSCHAN} == beta ]]; then curl -sSL https://juicefs.com/static/juicefs.py.beta -o ${JUICEFS_CLI}; else curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI}; fi; " && \
+    bash -c "if [[ -n ${JFSCHAN} ]] && [[ ${JFSCHAN} == beta ]]; then curl -sSL https://juicefs.com/static/juicefs.py.beta -o ${JUICEFS_CLI}; else curl -sSL https://juicefs.com/static/juicefs -o ${JUICEFS_CLI}; fi; " && \
     chmod +x ${JUICEFS_CLI} && \
     mkdir -p /root/.juicefs && \
     ln -s /usr/local/bin/python /usr/bin/python && \
