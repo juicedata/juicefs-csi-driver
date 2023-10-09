@@ -1209,6 +1209,7 @@ func Test_juicefs_validOptions(t *testing.T) {
 	type args struct {
 		volumeId string
 		options  []string
+		volCtx   map[string]string
 	}
 	tests := []struct {
 		name    string
@@ -1252,11 +1253,23 @@ func Test_juicefs_validOptions(t *testing.T) {
 			want:    []string{},
 			wantErr: true,
 		},
+		{
+			name: "test-buffersize",
+			args: args{
+				volumeId: "test",
+				options:  []string{"buffer-size=1024"},
+				volCtx: map[string]string{
+					config.MountPodMemLimitKey: "1Mi",
+				},
+			},
+			want:    []string{},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			j := &juicefs{}
-			got, err := j.validOptions(tt.args.volumeId, tt.args.options)
+			got, err := j.validOptions(tt.args.volumeId, tt.args.options, tt.args.volCtx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return

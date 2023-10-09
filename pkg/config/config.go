@@ -98,10 +98,10 @@ const (
 	InjectSidecarDisable = "disable" + injectSidecar
 
 	// config in pv
-	mountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
-	mountPodMemLimitKey    = "juicefs/mount-memory-limit"
-	mountPodCpuRequestKey  = "juicefs/mount-cpu-request"
-	mountPodMemRequestKey  = "juicefs/mount-memory-request"
+	MountPodCpuLimitKey    = "juicefs/mount-cpu-limit"
+	MountPodMemLimitKey    = "juicefs/mount-memory-limit"
+	MountPodCpuRequestKey  = "juicefs/mount-cpu-request"
+	MountPodMemRequestKey  = "juicefs/mount-memory-request"
 	mountPodLabelKey       = "juicefs/mount-labels"
 	mountPodAnnotationKey  = "juicefs/mount-annotations"
 	mountPodServiceAccount = "juicefs/mount-service-account"
@@ -116,10 +116,10 @@ const (
 	DeleteDelayAtKey   = "juicefs-delete-at"
 
 	// default value
-	defaultMountPodCpuLimit   = "2000m"
-	defaultMountPodMemLimit   = "5Gi"
-	defaultMountPodCpuRequest = "1000m"
-	defaultMountPodMemRequest = "1Gi"
+	DefaultMountPodCpuLimit   = "2000m"
+	DefaultMountPodMemLimit   = "5Gi"
+	DefaultMountPodCpuRequest = "1000m"
+	DefaultMountPodMemRequest = "1Gi"
 )
 
 var PodLocks [1024]sync.Mutex

@@ -26,7 +26,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/config"
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestSidecarMutate_injectVolume(t *testing.T) {
