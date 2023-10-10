@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -180,7 +181,7 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 	}
 }
 
-func (api *API) listMountPods() gin.HandlerFunc {
+func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
 		if !ok {
@@ -189,7 +190,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 		}
 		pod := obj.(*corev1.Pod)
 		pvs := api.listPVsOfPod(c, pod)
-		mountPods := make(map[string]*corev1.Pod)
+		mountPods := make([]*corev1.Pod, 0)
 		for _, pv := range pvs {
 			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
 			mountPodName, ok := pod.Annotations[key]
@@ -209,7 +210,7 @@ func (api *API) listMountPods() gin.HandlerFunc {
 				log.Printf("mount pod %s not found\n", mountPodName)
 				continue
 			}
-			mountPods[pv.Name] = mountPod
+			mountPods = append(mountPods, mountPod)
 		}
 		c.IndentedJSON(200, mountPods)
 	}
@@ -285,5 +286,26 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			}
 		}
 		c.IndentedJSON(200, mountPods)
+	}
+}
+
+func (api *API) getPVOfSC() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("sc")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		sc := obj.(*storagev1.StorageClass)
+
+		api.pvsLock.RLock()
+		defer api.pvsLock.RUnlock()
+		var pvs = make([]*corev1.PersistentVolume, 0)
+		for _, pv := range api.pvs {
+			if pv.Spec.StorageClassName == sc.Name {
+				pvs = append(pvs, pv)
+			}
+		}
+		c.IndentedJSON(200, pvs)
 	}
 }

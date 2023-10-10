@@ -81,36 +81,31 @@ const AppPodTable: React.FC<unknown> = () => {
             title: 'Mount Pods',
             key: 'mount pod',
             render: (_, pod) => {
-                if (!pod.mountPods || pod.mountPods.size == 0) {
+                if (!pod.mountPods || pod.mountPods.length == 0) {
                     return <span>无</span>
-                } else if (pod.mountPods.size == 1) {
-                    const [firstKey] = pod.mountPods.keys();
-                    const mountPod = pod.mountPods.get(firstKey);
+                } else if (pod.mountPods.length == 1) {
+                    const mountPod = pod.mountPods[0]
                     if (mountPod === undefined) {
                         return
                     }
                     return (
-                        <Badge color={getPodStatusBadge(mountPod)}
-                               text={
-                                   <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
-                                       {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
-                                   </Link>
-                               }
-                        />
+                        <Badge color={getPodStatusBadge(mountPod)} text={
+                            <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
+                                {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
+                            </Link>
+                        }/>
                     )
                 } else {
                     return (
                         <div>
-                            {Array.from(pod.mountPods?.entries()).map(([_, mountPod]) => (
+                            {pod.mountPods.map((mountPod) => (
                                 <div>
-                                    <Badge color={getPodStatusBadge(mountPod)}
-                                           text={
-                                               <Link
-                                                   to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
-                                                   {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
-                                               </Link>
-                                           }
-                                    />
+                                    <Badge color={getPodStatusBadge(mountPod)} text={
+                                        <Link
+                                            to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
+                                            {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
+                                        </Link>
+                                    }/>
                                     <br/>
                                 </div>
                             ))}

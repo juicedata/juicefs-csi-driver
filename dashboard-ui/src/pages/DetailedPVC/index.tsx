@@ -1,11 +1,15 @@
-import {PageContainer, PageLoading} from '@ant-design/pro-components';
+import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {Pod} from '@/services/pod';
-import {getMountPodOfPVC, getPVC, PVC} from '@/services/pv';
+import {getMountPodOfPVC, getPVC, PV, PVC} from '@/services/pv';
 import {Link} from 'umi';
 import * as jsyaml from "js-yaml";
-import {TabsProps} from "antd";
+import {List, TabsProps} from "antd";
+import {PVStatusEnum} from "@/services/common";
+import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
+import {getMountPodsResult} from "@/pages/DetailedPod";
+import {Pod as RawPod, PersistentVolume, PersistentVolumeClaim} from "kubernetes-types/core/v1";
 
 const DetailedPVC: React.FC<unknown> = () => {
     const routeData = useMatch('/pvc/:namespace/:name')
@@ -21,8 +25,8 @@ const DetailedPVC: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-    const [pvc, setPV] = useState<PVC>()
-    const [mountpod, setMountPod] = useState<Pod>()
+    const [pvc, setPV] = useState<PersistentVolumeClaim>()
+    const [mountpods, setMountPod] = useState<RawPod[]>()
     useEffect(() => {
         getPVC(namespace, name)
             .then(setPV)
@@ -35,10 +39,122 @@ const DetailedPVC: React.FC<unknown> = () => {
         setActiveTab(key);
     };
 
+    const getPVCTabs = () => {
+        let tabList: TabsProps['items'] = [
+            {
+                key: '1',
+                label: '状态',
+            },
+            {
+                key: '2',
+                label: 'Yaml',
+            },
+            {
+                key: '3',
+                label: '事件',
+            },
+        ]
+        if (mountpods) {
+            tabList.push({
+                key: '4',
+                label: 'Mount Pod',
+            })
+        }
+        return tabList
+    }
+    const getPVCTabsContent = (activeTab: string, pvc: PersistentVolumeClaim) => {
+        const accessModeMap: { [key: string]: string } = {
+            ReadWriteOnce: 'RWO',
+            ReadWriteMany: 'RWM',
+            ReadOnlyMany: 'ROM',
+            ReadWriteOncePod: 'RWOP',
+        };
+
+        let content: any
+        switch (activeTab) {
+            case "1":
+                content = <div>
+                    <ProCard title="基础信息">
+                        <ProDescriptions
+                            column={2}
+                            dataSource={{
+                                name: pvc.metadata?.name,
+                                namespace: pvc.metadata?.namespace,
+                                pv: `${pvc.spec?.volumeName}`,  // todo: link
+                                capacity: pvc.spec?.resources?.requests?.storage,
+                                accessMode: pvc.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
+                                storageClass: pvc.spec?.storageClassName,
+                                status: pvc.status?.phase,
+                                time: pvc.metadata?.creationTimestamp,
+                            }}
+                            columns={[
+                                {
+                                    title: "名称",
+                                    key: 'name',
+                                    dataIndex: 'name',
+                                },
+                                {
+                                    title: "命名空间",
+                                    key: 'namespace',
+                                    dataIndex: 'namespace',
+                                },
+                                {
+                                    title: 'PV',
+                                    key: 'pv',
+                                    dataIndex: 'pv',
+                                },
+                                {
+                                    title: '容量',
+                                    key: 'capacity',
+                                    dataIndex: 'capacity',
+                                },
+                                {
+                                    title: '访问模式',
+                                    key: 'accessMode',
+                                    dataIndex: 'accessMode',
+                                },
+                                {
+                                    title: 'StorageClass',
+                                    key: 'storageClass',
+                                    dataIndex: 'storageClass',
+                                },
+                                {
+                                    title: '状态',
+                                    key: 'status',
+                                    dataIndex: 'status',
+                                    valueType: 'select',
+                                    valueEnum: PVStatusEnum,
+                                },
+                                {
+                                    title: '创建时间',
+                                    key: 'time',
+                                    dataIndex: 'time',
+                                },
+                            ]}
+                        />
+                    </ProCard>
+                </div>
+                break
+            case "2":
+                content = <SyntaxHighlighter language="yaml">
+                    {jsyaml.dump(pvc)}
+                </SyntaxHighlighter>
+                break
+            case '3':
+                content = <div>todo...</div>
+                break
+            case "4":
+                if (mountpods != undefined) {
+                    content = getMountPodsResult(mountpods)
+                }
+        }
+        return content
+    }
+
     if (!pvc) {
         return <PageLoading/>
     } else {
-        const tabList: TabsProps['items'] = getPVCTabs(pvc)
+        const tabList: TabsProps['items'] = getPVCTabs()
         return (
             <PageContainer
                 header={{
@@ -48,12 +164,9 @@ const DetailedPVC: React.FC<unknown> = () => {
                 tabList={tabList}
                 onTabChange={handleTabChange}
             >
-                <h3> Mount Pod:&nbsp;
-                    <Link to={`/pod/${mountpod?.metadata?.namespace}/${mountpod?.metadata?.name}`}>
-                        {mountpod?.metadata?.name}
-                    </Link>
-                </h3>
-                TODO...
+                <ProCard direction="column">
+                    {getPVCTabsContent(activeTab, pvc)}
+                </ProCard>
             </PageContainer>
         )
     }

@@ -51,6 +51,10 @@ export default defineConfig({
             path: '/pvc/:namespace/:pvName',
             component: './DetailedPVC',
         },
+        {
+            path: '/storageclass/:scName',
+            component: './DetailedSC',
+        },
     ],
     npmClient: 'yarn',
 });

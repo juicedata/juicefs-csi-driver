@@ -2,7 +2,7 @@ import {Pod as RawPod} from 'kubernetes-types/core/v1'
 import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
-    mountPods?: Map<string, RawPod>
+    mountPods?: RawPod[],
     pvcs?: PersistentVolumeClaim[],
     pvs?: PersistentVolume[],
     csiNode?: RawPod,
@@ -45,7 +45,7 @@ export const listAppPods = async (args: PagingListArgs) => {
     const getMore = async (pod: Pod) => {
         try {
             const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-            const mountPods = new Map(Object.entries(JSON.parse(await rawMountPods.text())))
+            const mountPods = JSON.parse(await rawMountPods.text())
             const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
             const csiNode = JSON.parse(await rawCSINode.text())
             const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
@@ -66,7 +66,7 @@ export const listAppPods = async (args: PagingListArgs) => {
     const results = await Promise.all(tasks)
     for (const i in results) {
         const {mountPods, csiNode, pvcs, pvs} = results[i]
-        data[i].mountPods = mountPods || new Map()
+        data[i].mountPods = mountPods || []
         data[i].csiNode = csiNode || null
         data[i].pvcs = pvcs || []
         data[i].pvs = pvs || []
@@ -74,12 +74,7 @@ export const listAppPods = async (args: PagingListArgs) => {
     data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode || ""))
     if (args.pv) {
         data = data.filter(pod => {
-            for (const name of pod.mountPods!.keys()) {
-                if (name.includes(args.pv || "")) {
-                    return true
-                }
-            }
-            return false
+            return !!pod.metadata?.name?.includes(args.pv || "");
         })
     }
     const timeOrder = args.sort['time']
@@ -110,7 +105,7 @@ export const getPod = async (namespace: string, podName: string) => {
         const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
         const pod: Pod = JSON.parse(await rawPod.text())
         const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-        pod.mountPods = new Map(Object.entries(JSON.parse(await mountPods.text())))
+        pod.mountPods = JSON.parse(await mountPods.text())
         const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
         pod.csiNode = JSON.parse(await csiNode.text())
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)

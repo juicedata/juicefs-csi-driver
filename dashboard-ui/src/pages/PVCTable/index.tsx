@@ -83,8 +83,15 @@ const PVCTable: React.FC<unknown> = () => {
         },
         {
             title: 'StorageClass',
-            key: 'StorageClassName',
-            dataIndex: ['spec', 'StorageClassName'],
+            key: 'storageClassName',
+            render: (_, pvc) => {
+                if (pvc.spec?.storageClassName){
+                    return (
+                        <Link to={`/storageclass/${pvc.spec?.storageClassName}/`}>{pvc.spec?.storageClassName}</Link>
+                    )
+                }
+                return "-"
+            }
         },
         {
             title: '状态',

@@ -1,12 +1,12 @@
-import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { Pod as RawPod } from 'kubernetes-types/core/v1'
-import React, { useEffect, useState } from 'react';
-import { useMatch } from '@umijs/max';
-import { getPod, getLog, Pod } from '@/services/pod';
+import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
+import {Pod as RawPod} from 'kubernetes-types/core/v1'
+import React, {useEffect, useState} from 'react';
+import {useMatch} from '@umijs/max';
+import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import { TabsProps, Select, Col, Empty, Table, Tag, Button } from "antd";
-import { Link } from 'umi';
+import {TabsProps, Select, Col, Empty, Table, Tag, Button} from "antd";
+import {Link} from 'umi';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -81,7 +81,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 label: '事件',
             },
         ]
-        if (pod.mountPods?.size !== 0) {
+        if (pod.mountPods?.length !== 0) {
             tabList.push({
                 key: '5',
                 label: 'Mount Pods',
@@ -101,14 +101,6 @@ const DetailedPod: React.FC<unknown> = () => {
             managedField.fieldsV1 = undefined
         })
 
-        let mountPods: Map<string, RawPod> = new Map
-        if (pod.mountPods && pod.mountPods.size != 0) {
-            pod.mountPods.forEach((mountPod, pvcName) => {
-                if (mountPod.metadata != undefined && mountPod.metadata?.name != undefined) {
-                    mountPods.set(mountPod.metadata.name, mountPod)
-                }
-            })
-        }
         const containers: any[] = []
         pod.status?.containerStatuses?.forEach((cnStatus, _) => {
             const cnState: string = cnStatus.ready ? "Ready" : "NotReady"
@@ -155,7 +147,7 @@ const DetailedPod: React.FC<unknown> = () => {
                                     dataIndex: 'status',
                                     valueType: 'select',
                                     valueEnum: {
-                                        all: { text: 'Running', status: 'Default' },
+                                        all: {text: 'Running', status: 'Default'},
                                         Running: {
                                             text: 'Running',
                                             status: 'Success',
@@ -201,15 +193,14 @@ const DetailedPod: React.FC<unknown> = () => {
                                 title: "日志",
                                 key: 'action',
                                 render: (record) => (
-                                    // todo，跳转有问题
                                     <Button type="link" onClick={() => handleButtonClick(record.name)}>
                                         查看日志
                                     </Button>
                                 )
                             }
                         ]}
-                            dataSource={containers}
-                            rowKey={c => c.name}
+                               dataSource={containers}
+                               rowKey={c => c.name}
                         />
                     </ProCard>
                 </div>
@@ -223,7 +214,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 console.log(`logs: ${pod.logs}`)
                 const container = getContainer()!
                 if (!pod.logs.has(container)) {
-                    content = <Empty />
+                    content = <Empty/>
                 } else {
                     const log = pod.logs.get(container)!
                     if (log.length < 16 * 1024) {
@@ -238,7 +229,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 break
             case '4':
                 if (pod.events?.length === 0) {
-                    content = <Empty />
+                    content = <Empty/>
                 } else {
                     content = <div>
                         <pre><code>{pod.events}</code></pre>
@@ -247,73 +238,15 @@ const DetailedPod: React.FC<unknown> = () => {
                 break
             case "5":
                 if (pod.mountPods) {
-                    content = getMountPodsResult(mountPods)
+                    content = getMountPodsResult(pod.mountPods)
                 }
         }
         return content
     }
 
-    const getMountPodsResult = (mountPods: Map<string, RawPod>) => {
-        return (
-            <ProCard
-                direction="column"
-                gutter={[0, 16]}
-                style={{ marginBlockStart: 8 }}>
-                {Array.from(mountPods).map(([name, mountPod]) => (
-                    <ProCard title={`${mountPod.metadata?.name}`} type="inner" bordered
-                        extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
-                        <ProDescriptions
-                            column={4}
-                            dataSource={{
-                                namespace: mountPod.metadata?.namespace,
-                                node: mountPod.spec?.nodeName,
-                                status: mountPod.status?.phase,
-                                time: mountPod.metadata?.creationTimestamp,
-                            }}
-                            columns={[
-                                {
-                                    title: '命名空间',
-                                    key: 'namespace',
-                                    dataIndex: 'namespace',
-                                },
-                                {
-                                    title: '所在节点',
-                                    key: 'node',
-                                    dataIndex: 'node',
-                                },
-                                {
-                                    title: '状态',
-                                    key: 'status',
-                                    dataIndex: 'status',
-                                    valueType: 'select',
-                                    valueEnum: {
-                                        all: { text: 'Running', status: 'Default' },
-                                        Running: {
-                                            text: 'Running',
-                                            status: 'Success',
-                                        },
-                                        Pending: {
-                                            text: 'Pending',
-                                            status: 'Pending',
-                                        },
-                                    },
-                                },
-                                {
-                                    title: '创建时间',
-                                    key: 'time',
-                                    dataIndex: 'time',
-                                },
-                            ]}
-                        >
-                        </ProDescriptions>
-                    </ProCard>
-                ))}
-            </ProCard>
-        )
-    }
 
     if (!pod) {
-        return <Empty />
+        return <Empty/>
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
         const footer = []
@@ -331,7 +264,7 @@ const DetailedPod: React.FC<unknown> = () => {
                         key="container"
                         placeholder='选择容器'
                         value={container}
-                        style={{ width: 200 }}
+                        style={{width: 200}}
                         onChange={handleContainerChange}
                         options={containers.map((container) => {
                             return {
@@ -362,4 +295,62 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 }
 
+export const getMountPodsResult = (mountPods: RawPod[]) => {
+    return (
+        <ProCard
+            direction="column"
+            gutter={[0, 16]}
+            style={{marginBlockStart: 8}}>
+            {mountPods.map((mountPod) => (
+                <ProCard title={`${mountPod.metadata?.name}`} type="inner" bordered
+                         extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
+                    <ProDescriptions
+                        column={4}
+                        dataSource={{
+                            namespace: mountPod.metadata?.namespace,
+                            node: mountPod.spec?.nodeName,
+                            status: mountPod.status?.phase,
+                            time: mountPod.metadata?.creationTimestamp,
+                        }}
+                        columns={[
+                            {
+                                title: '命名空间',
+                                key: 'namespace',
+                                dataIndex: 'namespace',
+                            },
+                            {
+                                title: '所在节点',
+                                key: 'node',
+                                dataIndex: 'node',
+                            },
+                            {
+                                title: '状态',
+                                key: 'status',
+                                dataIndex: 'status',
+                                valueType: 'select',
+                                valueEnum: {
+                                    all: {text: 'Running', status: 'Default'},
+                                    Running: {
+                                        text: 'Running',
+                                        status: 'Success',
+                                    },
+                                    Pending: {
+                                        text: 'Pending',
+                                        status: 'Pending',
+                                    },
+                                },
+                            },
+                            {
+                                title: '创建时间',
+                                key: 'time',
+                                dataIndex: 'time',
+                            },
+                        ]}
+                    >
+                    </ProDescriptions>
+                </ProCard>
+            ))}
+        </ProCard>
+    )
+}
 export default DetailedPod;
