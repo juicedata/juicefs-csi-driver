@@ -86,6 +86,11 @@ const DetailedPod: React.FC<unknown> = () => {
                 key: '5',
                 label: 'Mount Pods',
             })
+        } else if (pod.appPods?.length !== 0) {
+            tabList.push({
+                key: '5',
+                label: 'App Pods',
+            })
         }
         return tabList
     }
@@ -237,8 +242,10 @@ const DetailedPod: React.FC<unknown> = () => {
                 }
                 break
             case "5":
-                if (pod.mountPods) {
-                    content = getMountPodsResult(pod.mountPods)
+                if (pod.mountPods && pod.mountPods?.length != 0) {
+                    content = getPodTableContent(pod.mountPods)
+                } else if (pod.appPods && pod.appPods.length != 0) {
+                    content = getPodTableContent(pod.appPods)
                 }
         }
         return content
@@ -287,7 +294,9 @@ const DetailedPod: React.FC<unknown> = () => {
                 onTabChange={handleTabChange}
                 footer={footer}
             >
-                <ProCard direction="column">
+                <ProCard
+                    direction="column"
+                >
                     {getPobTabsContent(activeTab, pod)}
                 </ProCard>
             </PageContainer>
@@ -295,22 +304,22 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 }
 
-export const getMountPodsResult = (mountPods: RawPod[]) => {
+export const getPodTableContent = (pods: RawPod[]) => {
     return (
         <ProCard
             direction="column"
             gutter={[0, 16]}
             style={{marginBlockStart: 8}}>
-            {mountPods.map((mountPod) => (
-                <ProCard title={`${mountPod.metadata?.name}`} type="inner" bordered
-                         extra={<Link to={`/pod/${mountPod.metadata?.namespace}/${name}/`}> 查看详情 </Link>}>
+            {pods.map((pod) => (
+                <ProCard title={`${pod.metadata?.name}`} type="inner" bordered
+                         extra={<Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/`}> 查看详情 </Link>}>
                     <ProDescriptions
                         column={4}
                         dataSource={{
-                            namespace: mountPod.metadata?.namespace,
-                            node: mountPod.spec?.nodeName,
-                            status: mountPod.status?.phase,
-                            time: mountPod.metadata?.creationTimestamp,
+                            namespace: pod.metadata?.namespace,
+                            node: pod.spec?.nodeName,
+                            status: pod.status?.phase,
+                            time: pod.metadata?.creationTimestamp,
                         }}
                         columns={[
                             {

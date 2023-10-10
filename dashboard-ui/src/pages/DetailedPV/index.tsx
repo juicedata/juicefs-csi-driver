@@ -24,7 +24,7 @@ import {Empty, List, Table, TabsProps} from "antd";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {PVStatusEnum} from "@/services/common"
 import {Pod as RawPod, Pod as rawPod} from "kubernetes-types/core/v1"
-import {getMountPodsResult} from "@/pages/DetailedPod";
+import {getPodTableContent} from "@/pages/DetailedPod";
 
 const DetailedPV: React.FC<unknown> = () => {
     const routeData = useMatch('/pv/:name')
@@ -113,7 +113,7 @@ const DetailedPV: React.FC<unknown> = () => {
         switch (activeTab) {
             case "1":
                 content = <div>
-                    <ProCard title="基础信息">
+                    <ProCard title="基础信息" >
                         <ProDescriptions
                             column={2}
                             dataSource={{
@@ -200,7 +200,7 @@ const DetailedPV: React.FC<unknown> = () => {
                 break
             case "4":
                 if (mountpods != undefined) {
-                    content = getMountPodsResult(mountpods)
+                    content = getPodTableContent(mountpods)
                 }
         }
         return content

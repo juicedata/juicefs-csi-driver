@@ -8,7 +8,7 @@ import * as jsyaml from "js-yaml";
 import {List, TabsProps} from "antd";
 import {PVStatusEnum} from "@/services/common";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {getMountPodsResult} from "@/pages/DetailedPod";
+import {getPodTableContent} from "@/pages/DetailedPod";
 import {Pod as RawPod, PersistentVolume, PersistentVolumeClaim} from "kubernetes-types/core/v1";
 
 const DetailedPVC: React.FC<unknown> = () => {
@@ -145,7 +145,7 @@ const DetailedPVC: React.FC<unknown> = () => {
                 break
             case "4":
                 if (mountpods != undefined) {
-                    content = getMountPodsResult(mountpods)
+                    content = getPodTableContent(mountpods)
                 }
         }
         return content

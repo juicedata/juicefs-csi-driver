@@ -3,6 +3,7 @@ import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
     mountPods?: RawPod[],
+    appPods?: RawPod[],
     pvcs?: PersistentVolumeClaim[],
     pvs?: PersistentVolume[],
     csiNode?: RawPod,
@@ -106,6 +107,8 @@ export const getPod = async (namespace: string, podName: string) => {
         const pod: Pod = JSON.parse(await rawPod.text())
         const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
         pod.mountPods = JSON.parse(await mountPods.text())
+        const appPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`)
+        pod.appPods = JSON.parse(await appPods.text())
         const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
         pod.csiNode = JSON.parse(await csiNode.text())
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)

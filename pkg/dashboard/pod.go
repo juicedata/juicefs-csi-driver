@@ -216,6 +216,52 @@ func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
+	getUidFunc := func(target string) string {
+		pair := strings.Split(target, "volumes/kubernetes.io~csi")
+		if len(pair) != 2 {
+			return ""
+		}
+
+		podDir := strings.TrimSuffix(pair[0], "/")
+		index := strings.LastIndex(podDir, "/")
+		if index <= 0 {
+			return ""
+		}
+		return podDir[index+1:]
+	}
+
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pod := obj.(*corev1.Pod)
+		appPods := make([]*corev1.Pod, 0)
+		if pod.Annotations != nil {
+			api.appPodsLock.Lock()
+			allPods := api.appPods
+			api.appPodsLock.Unlock()
+
+			podsByUid := make(map[string]*corev1.Pod)
+			for _, po := range allPods {
+				podsByUid[string(po.UID)] = po
+			}
+			for _, v := range pod.Annotations {
+				uid := getUidFunc(v)
+				if uid == "" {
+					continue
+				}
+				if po, ok := podsByUid[uid]; ok {
+					appPods = append(appPods, po)
+				}
+			}
+		}
+		c.IndentedJSON(200, appPods)
+	}
+}
+
 func (api *API) getCSINodeByName() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Param("nodeName")
