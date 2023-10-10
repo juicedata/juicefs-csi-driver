@@ -1,15 +1,29 @@
+/*
+ Copyright 2023 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {Pod} from '@/services/pod';
 import {getMountPodOfPVC, getPVC, PV, PVC} from '@/services/pv';
-import {Link} from 'umi';
 import * as jsyaml from "js-yaml";
-import {List, TabsProps} from "antd";
+import {TabsProps} from "antd";
 import {PVStatusEnum} from "@/services/common";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {getPodTableContent} from "@/pages/DetailedPod";
-import {Pod as RawPod, PersistentVolume, PersistentVolumeClaim} from "kubernetes-types/core/v1";
+import {Pod as RawPod, PersistentVolumeClaim} from "kubernetes-types/core/v1";
 
 const DetailedPVC: React.FC<unknown> = () => {
     const routeData = useMatch('/pvc/:namespace/:name')
@@ -170,57 +184,6 @@ const DetailedPVC: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-}
-
-function getPVCTabs(pvc: PVC): any {
-    return [
-        {
-            key: '1',
-            label: 'Yaml',
-        },
-        {
-            key: '2',
-            label: '事件',
-        },
-        {
-            key: '3',
-            label: 'PVC',
-        },
-        {
-            key: '4',
-            label: 'MountPod',
-        },
-    ]
-}
-
-function getPVTabsContent(activeTab: string, pvc: PVC, mountPod: Pod | undefined): any {
-    let content: any
-    switch (activeTab) {
-        case "1":
-            content = <div>
-                <pre><code>{jsyaml.dump(pvc)}</code></pre>
-            </div>
-            break
-        case "2":
-            content = <div>
-                <pre><code>pv event</code></pre>
-            </div>
-            break
-        case '3':
-            content = <div>
-                <pre><code>pvc</code></pre>
-            </div>
-            break
-        case "4":
-            if (mountPod !== undefined) {
-                content = <div>
-                    <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}`}>
-                        {mountPod.metadata?.name}
-                    </Link>
-                </div>
-            }
-    }
-    return content
 }
 
 export default DetailedPVC;

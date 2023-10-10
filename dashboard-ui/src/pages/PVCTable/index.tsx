@@ -1,18 +1,30 @@
+/*
+ Copyright 2023 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 import {
     ActionType,
-    FooterToolbar,
     PageContainer,
-    ProDescriptions,
     ProColumns,
     ProTable,
-    ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
 import {Button, Divider, Drawer, message} from 'antd';
 import React, {useRef, useState} from 'react';
 import {PVC, listPVC} from '@/services/pv';
 import {Link} from 'umi';
-import {Badge} from "antd/lib";
-import {Pod as RawPod} from "kubernetes-types/core/v1";
+import {PVStatusEnum} from "@/services/common";
 
 const PVCTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -66,11 +78,13 @@ const PVCTable: React.FC<unknown> = () => {
         {
             title: '容量',
             key: 'storage',
+            search: false,
             dataIndex: ['spec', 'resources', 'requests', 'storage'],
         },
         {
             title: '访问模式',
             key: 'accessModes',
+            search: false,
             render: (_, pvc) => {
                 let accessModes: string
                 if (pvc.spec?.accessModes) {
@@ -85,7 +99,7 @@ const PVCTable: React.FC<unknown> = () => {
             title: 'StorageClass',
             key: 'storageClassName',
             render: (_, pvc) => {
-                if (pvc.spec?.storageClassName){
+                if (pvc.spec?.storageClassName) {
                     return (
                         <Link to={`/storageclass/${pvc.spec?.storageClassName}/`}>{pvc.spec?.storageClassName}</Link>
                     )
@@ -103,28 +117,7 @@ const PVCTable: React.FC<unknown> = () => {
             filters: true,
             onFilter: true,
             key: 'status',
-            valueEnum: {
-                Pending: {
-                    text: '等待运行',
-                    color: 'yellow',
-                },
-                Bound: {
-                    text: '已绑定',
-                    color: 'green',
-                },
-                Available: {
-                    text: '可绑定',
-                    color: 'blue',
-                },
-                Released: {
-                    text: '已释放',
-                    color: 'grey',
-                },
-                Failed: {
-                    text: '失败',
-                    color: 'red',
-                }
-            },
+            valueEnum: PVStatusEnum,
         },
         {
             title: '创建时间',

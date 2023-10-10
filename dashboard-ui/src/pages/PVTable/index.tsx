@@ -1,18 +1,31 @@
+/*
+ Copyright 2023 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 import {
     ActionType,
     FooterToolbar,
     PageContainer,
-    ProDescriptions,
     ProColumns,
     ProTable,
-    ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
-import {Button, Divider, Drawer, message} from 'antd';
+import {Button} from 'antd';
 import React, {useRef, useState} from 'react';
 import {PV, listPV} from '@/services/pv';
 import {Link} from 'umi';
-import {Badge} from "antd/lib";
-import {Pod as RawPod} from "kubernetes-types/core/v1";
+import {PVStatusEnum} from "@/services/common";
 
 const PVTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -61,11 +74,13 @@ const PVTable: React.FC<unknown> = () => {
         {
             title: '容量',
             key: 'storage',
+            search: false,
             dataIndex: ['spec', 'capacity', 'storage'],
         },
         {
             title: '访问模式',
             key: 'accessModes',
+            search: false,
             render: (_, pv) => {
                 let accessModes: string
                 if (pv.spec?.accessModes) {
@@ -79,13 +94,14 @@ const PVTable: React.FC<unknown> = () => {
         {
             title: '回收策略',
             key: 'persistentVolumeReclaimPolicy',
+            search: false,
             dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
         },
         {
             title: 'StorageClass',
             key: 'storageClassName',
             render: (_, pv) => {
-                if (pv.spec?.storageClassName){
+                if (pv.spec?.storageClassName) {
                     return (
                         <Link to={`/storageclass/${pv.spec?.storageClassName}/`}>{pv.spec?.storageClassName}</Link>
                     )
@@ -103,28 +119,7 @@ const PVTable: React.FC<unknown> = () => {
             filters: true,
             onFilter: true,
             key: 'status',
-            valueEnum: {
-                Pending: {
-                    text: '等待运行',
-                    color: 'yellow',
-                },
-                Bound: {
-                    text: '已绑定',
-                    color: 'green',
-                },
-                Available: {
-                    text: '可绑定',
-                    color: 'blue',
-                },
-                Released: {
-                    text: '已释放',
-                    color: 'grey',
-                },
-                Failed: {
-                    text: '失败',
-                    color: 'red',
-                }
-            },
+            valueEnum: PVStatusEnum,
         },
         {
             title: '创建时间',
@@ -177,27 +172,27 @@ const PVTable: React.FC<unknown> = () => {
                     onChange: (_, selectedRows) => setSelectedRows(selectedRows),
                 }}
             />
-            {selectedRowsState?.length > 0 && (
-                <FooterToolbar
-                    extra={
-                        <div>
-                            已选择{' '}
-                            <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}
-                            项&nbsp;&nbsp;
-                        </div>
-                    }
-                >
-                    <Button
-                        onClick={async () => {
-                            setSelectedRows([]);
-                            actionRef.current?.reloadAndRest?.();
-                        }}
-                    >
-                        批量删除
-                    </Button>
-                    <Button type="primary">批量审批</Button>
-                </FooterToolbar>
-            )}
+            {/*{selectedRowsState?.length > 0 && (*/}
+            {/*    <FooterToolbar*/}
+            {/*        extra={*/}
+            {/*            <div>*/}
+            {/*                已选择{' '}*/}
+            {/*                <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}*/}
+            {/*                项&nbsp;&nbsp;*/}
+            {/*            </div>*/}
+            {/*        }*/}
+            {/*    >*/}
+            {/*        <Button*/}
+            {/*            onClick={async () => {*/}
+            {/*                setSelectedRows([]);*/}
+            {/*                actionRef.current?.reloadAndRest?.();*/}
+            {/*            }}*/}
+            {/*        >*/}
+            {/*            批量删除*/}
+            {/*        </Button>*/}
+            {/*        <Button type="primary">批量审批</Button>*/}
+            {/*    </FooterToolbar>*/}
+            {/*)}*/}
         </PageContainer>
     );
 };

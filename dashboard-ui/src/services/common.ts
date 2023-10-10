@@ -39,3 +39,28 @@ export const PVStatusEnum = () => {
         }
     }
 }
+
+export const PodStatusEnum = () => {
+    return {
+        Pending: {
+            text: '等待运行',
+            color: 'yellow',
+        },
+        Running: {
+            text: '运行中',
+            color: 'green',
+        },
+        Succeeded: {
+            text: '已完成',
+            color: 'blue',
+        },
+        Failed: {
+            text: '失败',
+            color: 'red',
+        },
+        Unknown: {
+            text: '未知',
+            color: 'grey',
+        },
+    }
+}

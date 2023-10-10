@@ -17,13 +17,12 @@
 import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {Pod} from '@/services/pod';
 import {getMountPodOfPVC, getPVC, getPV, PV} from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import {Empty, List, Table, TabsProps} from "antd";
+import {Empty, List, TabsProps} from "antd";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {PVStatusEnum} from "@/services/common"
-import {Pod as RawPod, Pod as rawPod} from "kubernetes-types/core/v1"
+import {Pod as RawPod} from "kubernetes-types/core/v1"
 import {getPodTableContent} from "@/pages/DetailedPod";
 
 const DetailedPV: React.FC<unknown> = () => {
@@ -113,7 +112,7 @@ const DetailedPV: React.FC<unknown> = () => {
         switch (activeTab) {
             case "1":
                 content = <div>
-                    <ProCard title="基础信息" >
+                    <ProCard title="基础信息">
                         <ProDescriptions
                             column={2}
                             dataSource={{

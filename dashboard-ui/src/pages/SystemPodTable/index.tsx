@@ -1,22 +1,33 @@
+/*
+ Copyright 2023 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 import {
     ActionType,
     FooterToolbar,
     PageContainer,
-    ProDescriptions,
     ProColumns,
     ProTable,
-    ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
-import { Button, Divider, Drawer, message } from 'antd';
-import React, { useRef, useState } from 'react';
-import { Pod, listSystemPods } from '@/services/pod';
-import { Link } from 'umi';
+import {Button} from 'antd';
+import React, {useRef, useState} from 'react';
+import {Pod, listSystemPods} from '@/services/pod';
+import {Link} from 'umi';
 
-const AppPodTable: React.FC<unknown> = () => {
+const SystemPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
-    const [updateModalVisible, handleUpdateModalVisible] =
-        useState<boolean>(false);
-    const [stepFormValues, setStepFormValues] = useState({});
     const actionRef = useRef<ActionType>();
     const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
     const columns: ProColumns<Pod>[] = [
@@ -118,7 +129,7 @@ const AppPodTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const { data, success } = await listSystemPods({
+                    const {data, success} = await listSystemPods({
                         ...params,
                         sort,
                         filter,
@@ -133,29 +144,29 @@ const AppPodTable: React.FC<unknown> = () => {
                     onChange: (_, selectedRows) => setSelectedRows(selectedRows),
                 }}
             />
-            {selectedRowsState?.length > 0 && (
-                <FooterToolbar
-                    extra={
-                        <div>
-                            已选择{' '}
-                            <a style={{ fontWeight: 600 }}>{selectedRowsState.length}</a>{' '}
-                            项&nbsp;&nbsp;
-                        </div>
-                    }
-                >
-                    <Button
-                        onClick={async () => {
-                            setSelectedRows([]);
-                            actionRef.current?.reloadAndRest?.();
-                        }}
-                    >
-                        批量删除
-                    </Button>
-                    <Button type="primary">批量审批</Button>
-                </FooterToolbar>
-            )}
+            {/*{selectedRowsState?.length > 0 && (*/}
+            {/*    <FooterToolbar*/}
+            {/*        extra={*/}
+            {/*            <div>*/}
+            {/*                已选择{' '}*/}
+            {/*                <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}*/}
+            {/*                项&nbsp;&nbsp;*/}
+            {/*            </div>*/}
+            {/*        }*/}
+            {/*    >*/}
+            {/*        <Button*/}
+            {/*            onClick={async () => {*/}
+            {/*                setSelectedRows([]);*/}
+            {/*                actionRef.current?.reloadAndRest?.();*/}
+            {/*            }}*/}
+            {/*        >*/}
+            {/*            批量删除*/}
+            {/*        </Button>*/}
+            {/*        <Button type="primary">批量审批</Button>*/}
+            {/*    </FooterToolbar>*/}
+            {/*)}*/}
         </PageContainer>
     );
 };
 
-export default AppPodTable;
+export default SystemPodTable;
