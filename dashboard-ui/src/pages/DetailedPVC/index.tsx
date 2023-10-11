@@ -170,7 +170,7 @@ const DetailedPVC: React.FC<unknown> = () => {
         return (
             <PageContainer
                 header={{
-                    title: `持久卷: ${pvc?.metadata?.name}`,
+                    title: `PersistentVolumeClaim: ${pvc?.metadata?.name}`,
                 }}
                 fixedHeader
                 tabList={tabList}

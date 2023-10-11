@@ -62,7 +62,7 @@ const PVCTable: React.FC<unknown> = () => {
             dataIndex: ['metadata', 'namespace'],
         },
         {
-            title: '持久卷',
+            title: 'PV',
             render: (_, pvc) => {
                 if (!pvc.spec?.volumeName) {
                     return <span>无</span>

@@ -57,7 +57,7 @@ const AppPodTable: React.FC<unknown> = () => {
             dataIndex: ['metadata', 'namespace'],
         },
         {
-            title: '持久卷',
+            title: 'PV',
             key: 'pv',
             render: (_, pod) => {
                 if (!pod.pvs || pod.pvs.length == 0) {

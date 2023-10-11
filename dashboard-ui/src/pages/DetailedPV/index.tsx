@@ -17,7 +17,7 @@
 import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {getMountPodOfPVC, getPVC, getPV, getPVEvents} from '@/services/pv';
+import {getMountPodOfPV, getPVC, getPV, getPVEvents} from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import {Empty, List, TabsProps} from "antd";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
@@ -46,12 +46,7 @@ const DetailedPV: React.FC<unknown> = () => {
 
     useEffect(() => {
         getPV(pvName).then(setPV)
-        if (pvcNamespace && pvcName) {
-            getPVC(pvcNamespace, pvName)
-                .then(setPV)
-                .then(() => getMountPodOfPVC(pvcNamespace, pvName))
-                .then(setMountPods)
-        }
+        getMountPodOfPV(pvName).then(setMountPods)
     }, [setPV, setMountPods])
     useEffect(() => {
         getPVEvents(pv?.metadata?.name || "").then(setEvents)
@@ -211,7 +206,7 @@ const DetailedPV: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: `持久卷: ${pv?.metadata?.name}`,
+                    title: `PersistentVolume: ${pv?.metadata?.name}`,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}

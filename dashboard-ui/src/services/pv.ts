@@ -136,6 +136,16 @@ export const getMountPodOfPVC = async (namespace: string, pvcName: string) => {
     }
 }
 
+export const getMountPodOfPV = async (pvName: string) => {
+    try {
+        const rawPod = await fetch(`http://localhost:8088/api/v1/pv/${pvName}/mountpods`)
+        return JSON.parse(await rawPod.text())
+    } catch (e) {
+        console.log(`fail to get mountpod of pv (${pvName}): ${e}`)
+        return null
+    }
+}
+
 export const getPVOfSC = async (scName: string) => {
     try {
         const pvs = await fetch(`http://localhost:8088/api/v1/storageclass/${scName}/pvs`)

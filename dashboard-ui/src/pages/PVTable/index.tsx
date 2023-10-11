@@ -58,7 +58,7 @@ const PVTable: React.FC<unknown> = () => {
             ),
         },
         {
-            title: '持久卷申领',
+            title: 'PVC',
             render: (_, pv) => {
                 if (!pv.spec?.claimRef) {
                     return <span>无</span>

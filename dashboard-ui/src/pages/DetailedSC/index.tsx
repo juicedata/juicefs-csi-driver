@@ -193,7 +193,7 @@ const DetailedSC: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: `存储类型: ${sc?.metadata?.name}`,
+                    title: `StorageClass: ${sc?.metadata?.name}`,
                 }}
                 tabList={tabList}
                 onTabChange={handleTabChange}
