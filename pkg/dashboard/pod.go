@@ -1,17 +1,17 @@
 /*
-Copyright 2023 The Kubernetes Authors.
+ Copyright 2023 Juicedata Inc
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package dashboard
@@ -139,10 +139,61 @@ func (api *API) getPodEvents() gin.HandlerFunc {
 			return
 		}
 		api.eventsLock.RLock()
-		events := api.events[string(pod.(*corev1.Pod).Name)]
+		events := api.events[types.NamespacedName{
+			Namespace: pod.(*corev1.Pod).Namespace,
+			Name:      pod.(*corev1.Pod).Name,
+		}]
 		list := make([]*corev1.Event, 0, len(events))
 		for _, e := range events {
-			list = append(list, e)
+			if e.InvolvedObject.UID == pod.(*corev1.Pod).UID {
+				list = append(list, e)
+			}
+		}
+		api.eventsLock.RUnlock()
+		c.IndentedJSON(200, list)
+	}
+}
+
+func (api *API) getPVEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pv, ok := c.Get("pv")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		api.eventsLock.RLock()
+		events := api.events[types.NamespacedName{
+			Namespace: pv.(*corev1.PersistentVolume).Namespace,
+			Name:      pv.(*corev1.PersistentVolume).Name,
+		}]
+		list := make([]*corev1.Event, 0, len(events))
+		for _, e := range events {
+			if e.InvolvedObject.UID == pv.(*corev1.PersistentVolume).UID {
+				list = append(list, e)
+			}
+		}
+		api.eventsLock.RUnlock()
+		c.IndentedJSON(200, list)
+	}
+}
+
+func (api *API) getPVCEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pvc, ok := c.Get("pvc")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		api.eventsLock.RLock()
+		events := api.events[types.NamespacedName{
+			Namespace: pvc.(*corev1.PersistentVolumeClaim).Namespace,
+			Name:      pvc.(*corev1.PersistentVolumeClaim).Name,
+		}]
+		list := make([]*corev1.Event, 0, len(events))
+		for _, e := range events {
+			if e.InvolvedObject.UID == pvc.(*corev1.PersistentVolumeClaim).UID {
+				list = append(list, e)
+			}
 		}
 		api.eventsLock.RUnlock()
 		c.IndentedJSON(200, list)

@@ -17,13 +17,13 @@
 import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {getMountPodOfPVC, getPVC, PV, PVC} from '@/services/pv';
+import {getMountPodOfPVC, getPVC, getPVCEvents, getPVEvents, PV, PVC} from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import {TabsProps} from "antd";
 import {PVStatusEnum} from "@/services/common";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {getPodTableContent} from "@/pages/DetailedPod";
-import {Pod as RawPod, PersistentVolumeClaim} from "kubernetes-types/core/v1";
+import {EventTable, getPodTableContent} from "@/pages/DetailedPod";
+import {Pod as RawPod, PersistentVolumeClaim, Event} from "kubernetes-types/core/v1";
 
 const DetailedPVC: React.FC<unknown> = () => {
     const routeData = useMatch('/pvc/:namespace/:name')
@@ -41,12 +41,16 @@ const DetailedPVC: React.FC<unknown> = () => {
     }
     const [pvc, setPV] = useState<PersistentVolumeClaim>()
     const [mountpods, setMountPod] = useState<RawPod[]>()
+    const [events, setEvents] = useState<Event[]>()
     useEffect(() => {
         getPVC(namespace, name)
             .then(setPV)
             .then(() => getMountPodOfPVC(namespace, name))
             .then(setMountPod)
     }, [setPV, setMountPod])
+    useEffect(() => {
+        getPVCEvents(pvc?.metadata?.namespace || "", pvc?.metadata?.name || "").then(setEvents)
+    }, []);
 
     const [activeTab, setActiveTab] = useState('1');
     const handleTabChange = (key: any) => {
@@ -63,14 +67,10 @@ const DetailedPVC: React.FC<unknown> = () => {
                 key: '2',
                 label: 'Yaml',
             },
-            {
-                key: '3',
-                label: '事件',
-            },
         ]
         if (mountpods) {
             tabList.push({
-                key: '4',
+                key: '3',
                 label: 'Mount Pod',
             })
         }
@@ -147,6 +147,7 @@ const DetailedPVC: React.FC<unknown> = () => {
                             ]}
                         />
                     </ProCard>
+                    {EventTable(events || [])}
                 </div>
                 break
             case "2":
@@ -154,10 +155,7 @@ const DetailedPVC: React.FC<unknown> = () => {
                     {jsyaml.dump(pvc)}
                 </SyntaxHighlighter>
                 break
-            case '3':
-                content = <div>todo...</div>
-                break
-            case "4":
+            case "3":
                 if (mountpods != undefined) {
                     content = getPodTableContent(mountpods)
                 }

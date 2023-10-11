@@ -1,17 +1,17 @@
 /*
-Copyright 2023 The Kubernetes Authors.
+ Copyright 2023 Juicedata Inc
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package dashboard
@@ -41,7 +41,7 @@ type API struct {
 	appPods     map[types.NamespacedName]*corev1.Pod
 
 	eventsLock sync.RWMutex
-	events     map[string]map[string]*corev1.Event
+	events     map[types.NamespacedName]map[string]*corev1.Event
 
 	pvsLock sync.RWMutex
 	pvs     map[string]*corev1.PersistentVolume
@@ -58,7 +58,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		nodeindex:    make(map[string]*corev1.Pod),
 		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
-		events:       make(map[string]map[string]*corev1.Event),
+		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
 		pvs:          make(map[string]*corev1.PersistentVolume),
 		pvcs:         make(map[types.NamespacedName]*corev1.PersistentVolumeClaim),
 		pairs:        make(map[types.NamespacedName]string),
@@ -68,7 +68,9 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 	go api.watchRelatedPV(ctx)
 	go api.watchRelatedPVC(ctx)
 	go api.watchPodEvents(ctx)
-	go api.cleanupPodEvents(ctx)
+	go api.watchPVEvents(ctx)
+	go api.watchPVCEvents(ctx)
+	go api.cleanupEvents(ctx)
 	return api
 }
 
@@ -93,9 +95,11 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
+	pvGroup.GET("/events", api.getPVCEvents())
 	pvcGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
 	pvcGroup.GET("/", api.getPVCHandler())
 	pvcGroup.GET("/mountpods", api.getMountPodsOfPVC())
+	pvcGroup.GET("/events", api.getPVCEvents())
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())

@@ -65,11 +65,7 @@ const DetailedSC: React.FC<unknown> = () => {
                 label: 'Yaml',
             },
             {
-                key: '3',
-                label: '事件',
-            },
-            {
-                key: "4",
+                key: "3",
                 label: 'PV',
             }
         ]
@@ -144,10 +140,7 @@ const DetailedSC: React.FC<unknown> = () => {
                     {jsyaml.dump(sc)}
                 </SyntaxHighlighter>
                 break
-            case '3':
-                content = <div>todo...</div>
-                break
-            case "4":
+            case "3":
                 if (pvs) {
                     content = getPVsResult(pvs)
                 }

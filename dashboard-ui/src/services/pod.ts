@@ -14,7 +14,7 @@
  limitations under the License.
  */
 
-import {Pod as RawPod} from 'kubernetes-types/core/v1'
+import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
 import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
@@ -24,7 +24,7 @@ export type Pod = RawPod & {
     pvs?: PersistentVolume[],
     csiNode?: RawPod,
     logs: Map<string, string>,
-    events?: string[],
+    events?: Event[],
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -128,7 +128,13 @@ export const getPod = async (namespace: string, podName: string) => {
         const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
         pod.csiNode = JSON.parse(await csiNode.text())
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
-        pod.events = JSON.parse(await events.text())
+        let podEvents: Event[] = JSON.parse(await events.text()) || []
+        podEvents.sort((a, b) => {
+            const aTime = new Date(a.firstTimestamp || a.eventTime || 0).getTime()
+            const bTime = new Date(b.firstTimestamp || b.eventTime || 0).getTime()
+            return bTime - aTime
+        })
+        pod.events = podEvents
         pod.logs = new Map()
         return pod
     } catch (e) {

@@ -86,10 +86,30 @@ export const getPV = async (pvName: string) => {
     }
 }
 
+export const getPVEvents = async (pvName: string) => {
+    try {
+        const events = await fetch(`http://localhost:8088/api/v1/pv/${pvName}/events`)
+        return JSON.parse(await events.text())
+    } catch (e) {
+        console.log(`fail to get pv events (${pvName}): ${e}`)
+        return null
+    }
+}
+
 export const getPVC = async (namespace: string, pvcName: string) => {
     try {
         const rawPV = await fetch(`http://localhost:8088/api/v1/pvc/${namespace}/${pvcName}/`)
         return JSON.parse(await rawPV.text())
+    } catch (e) {
+        console.log(`fail to get pvc(${namespace}/${pvcName}): ${e}`)
+        return null
+    }
+}
+
+export const getPVCEvents = async (namespace: string, pvcName: string) => {
+    try {
+        const events = await fetch(`http://localhost:8088/api/v1/pvc/${namespace}/${pvcName}/events`)
+        return JSON.parse(await events.text())
     } catch (e) {
         console.log(`fail to get pvc(${namespace}/${pvcName}): ${e}`)
         return null

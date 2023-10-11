@@ -16,7 +16,7 @@
 
 import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
-import {Pod as RawPod} from 'kubernetes-types/core/v1'
+import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, getLog, Pod} from '@/services/pod';
@@ -93,19 +93,15 @@ const DetailedPod: React.FC<unknown> = () => {
                 key: '3',
                 label: '日志',
             },
-            {
-                key: '4',
-                label: '事件',
-            },
         ]
         if (pod.mountPods?.length !== 0) {
             tabList.push({
-                key: '5',
+                key: '4',
                 label: 'Mount Pods',
             })
         } else if (pod.appPods?.length !== 0) {
             tabList.push({
-                key: '5',
+                key: '4',
                 label: 'App Pods',
             })
         }
@@ -168,17 +164,7 @@ const DetailedPod: React.FC<unknown> = () => {
                                     key: 'status',
                                     dataIndex: 'status',
                                     valueType: 'select',
-                                    valueEnum: {
-                                        all: {text: 'Running', status: 'Default'},
-                                        Running: {
-                                            text: 'Running',
-                                            status: 'Success',
-                                        },
-                                        Pending: {
-                                            text: 'Pending',
-                                            status: 'Pending',
-                                        },
-                                    },
+                                    valueEnum: PodStatusEnum,
                                 },
                                 {
                                     title: '创建时间',
@@ -223,8 +209,11 @@ const DetailedPod: React.FC<unknown> = () => {
                         ]}
                                dataSource={containers}
                                rowKey={c => c.name}
+                               pagination={false}
                         />
                     </ProCard>
+
+                    {EventTable(pod.events || [])}
                 </div>
                 break
             case "2":
@@ -246,19 +235,9 @@ const DetailedPod: React.FC<unknown> = () => {
                     } else {
                         content = <pre><code>{log}</code></pre>
                     }
-
                 }
                 break
-            case '4':
-                if (pod.events?.length === 0) {
-                    content = <Empty/>
-                } else {
-                    content = <div>
-                        <pre><code>{pod.events}</code></pre>
-                    </div>
-                }
-                break
-            case "5":
+            case "4":
                 if (pod.mountPods && pod.mountPods?.length != 0) {
                     content = getPodTableContent(pod.mountPods)
                 } else if (pod.appPods && pod.appPods.length != 0) {
@@ -304,16 +283,14 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: `应用 Pod: ${pod.metadata?.name}`,
+                    title: `Pod: ${pod.metadata?.name}`,
                 }}
                 tabList={tabList}
                 tabActiveKey={activeTab}
                 onTabChange={handleTabChange}
                 footer={footer}
             >
-                <ProCard
-                    direction="column"
-                >
+                <ProCard direction="column">
                     {getPobTabsContent(activeTab, pod)}
                 </ProCard>
             </PageContainer>
@@ -368,5 +345,47 @@ export const getPodTableContent = (pods: RawPod[]) => {
             ))}
         </ProCard>
     )
+}
+
+export const EventTable = (events: Event[]) => {
+    const podEvents: Event[] = events
+    podEvents.forEach(event => {
+        event.firstTimestamp = event.firstTimestamp || event.eventTime
+        event.reportingComponent = event.reportingComponent || event.source?.component
+    })
+    return <ProCard title={"事件"}>
+        <Table columns={[
+            {
+                title: 'Type',
+                dataIndex: 'type',
+                key: 'type',
+            },
+            {
+                title: 'Reason',
+                dataIndex: 'reason',
+                key: 'reason',
+            },
+            {
+                title: 'CreatedTime',
+                key: 'firstTimestamp',
+                dataIndex: 'firstTimestamp',
+            },
+            {
+                title: 'From',
+                dataIndex: 'reportingComponent',
+                key: 'reportingComponent',
+            },
+            {
+                title: "Message",
+                key: 'message',
+                dataIndex: 'message',
+            }
+        ]}
+               dataSource={podEvents}
+               size="small"
+               pagination={false}
+               rowKey={(c) => c.metadata?.uid!}
+        />
+    </ProCard>
 }
 export default DetailedPod;

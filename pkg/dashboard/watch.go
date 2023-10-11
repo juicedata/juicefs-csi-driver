@@ -1,17 +1,17 @@
 /*
-Copyright 2023 The Kubernetes Authors.
+ Copyright 2023 Juicedata Inc
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package dashboard
@@ -283,12 +283,12 @@ func (api *API) watchComponents(ctx context.Context) {
 }
 
 func (api *API) watchPodEvents(ctx context.Context) {
-	watcher, err := api.k8sClient.CoreV1().Events(api.sysNamespace).Watch(ctx, v1.ListOptions{
+	watcher, err := api.k8sClient.CoreV1().Events("").Watch(ctx, v1.ListOptions{
 		TypeMeta: v1.TypeMeta{Kind: "Pod"},
 		Watch:    true,
 	})
 	if err != nil {
-		log.Fatalf("can't watch event of pods in %s: %v", api.sysNamespace, err)
+		log.Fatalf("can't watch event of pods: %v", err)
 	}
 	for e := range watcher.ResultChan() {
 		api.eventsLock.Lock()
@@ -298,7 +298,11 @@ func (api *API) watchPodEvents(ctx context.Context) {
 			log.Printf("unknown type: %v", e.Object)
 			continue
 		}
-		objName := event.InvolvedObject.Name
+		objName := types.NamespacedName{
+			Namespace: event.InvolvedObject.Namespace,
+			Name:      event.InvolvedObject.Name,
+		}
+
 		switch e.Type {
 		case watch.Added:
 			if api.events[objName] == nil {
@@ -312,7 +316,75 @@ func (api *API) watchPodEvents(ctx context.Context) {
 	}
 }
 
-func (api *API) cleanupPodEvents(ctx context.Context) {
+func (api *API) watchPVEvents(ctx context.Context) {
+	watcher, err := api.k8sClient.CoreV1().Events("").Watch(ctx, v1.ListOptions{
+		TypeMeta: v1.TypeMeta{Kind: "PersistentVolume"},
+		Watch:    true,
+	})
+	if err != nil {
+		log.Fatalf("can't watch event of PV: %v", err)
+	}
+	for e := range watcher.ResultChan() {
+		api.eventsLock.Lock()
+		event, ok := e.Object.(*corev1.Event)
+		if !ok {
+			api.eventsLock.Unlock()
+			log.Printf("unknown type: %v", e.Object)
+			continue
+		}
+		objName := types.NamespacedName{
+			Namespace: event.InvolvedObject.Namespace,
+			Name:      event.InvolvedObject.Name,
+		}
+
+		switch e.Type {
+		case watch.Added:
+			if api.events[objName] == nil {
+				api.events[objName] = make(map[string]*corev1.Event, 1)
+			}
+			api.events[objName][string(event.UID)] = event
+		case watch.Deleted:
+			delete(api.events[objName], string(event.UID))
+		}
+		api.eventsLock.Unlock()
+	}
+}
+
+func (api *API) watchPVCEvents(ctx context.Context) {
+	watcher, err := api.k8sClient.CoreV1().Events("").Watch(ctx, v1.ListOptions{
+		TypeMeta: v1.TypeMeta{Kind: "PersistentVolumeClaim"},
+		Watch:    true,
+	})
+	if err != nil {
+		log.Fatalf("can't watch event of PVC: %v", err)
+	}
+	for e := range watcher.ResultChan() {
+		api.eventsLock.Lock()
+		event, ok := e.Object.(*corev1.Event)
+		if !ok {
+			api.eventsLock.Unlock()
+			log.Printf("unknown type: %v", e.Object)
+			continue
+		}
+		objName := types.NamespacedName{
+			Namespace: event.InvolvedObject.Namespace,
+			Name:      event.InvolvedObject.Name,
+		}
+
+		switch e.Type {
+		case watch.Added:
+			if api.events[objName] == nil {
+				api.events[objName] = make(map[string]*corev1.Event, 1)
+			}
+			api.events[objName][string(event.UID)] = event
+		case watch.Deleted:
+			delete(api.events[objName], string(event.UID))
+		}
+		api.eventsLock.Unlock()
+	}
+}
+
+func (api *API) cleanupEvents(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -323,7 +395,7 @@ func (api *API) cleanupPodEvents(ctx context.Context) {
 			ticker.Reset(10 * time.Second)
 			api.eventsLock.Lock()
 			for name := range api.events {
-				if !api.isComponents(name) {
+				if !api.isComponents(name.Name) && !api.isApp(name) && !api.isPV(name) && !api.isPVC(name) {
 					delete(api.events, name)
 					log.Printf("delete all events of pod %s\n", name)
 				}
@@ -336,4 +408,19 @@ func (api *API) cleanupPodEvents(ctx context.Context) {
 func (api *API) isComponents(name string) bool {
 	_, exist := api.getComponentPod(name)
 	return exist
+}
+
+func (api *API) isApp(name types.NamespacedName) bool {
+	pod := api.getAppPod(name)
+	return pod != nil
+}
+
+func (api *API) isPV(name types.NamespacedName) bool {
+	pv := api.getPV(name.Name)
+	return pv != nil
+}
+
+func (api *API) isPVC(name types.NamespacedName) bool {
+	pvc := api.getPVC(name.Namespace, name.Name)
+	return pvc != nil
 }

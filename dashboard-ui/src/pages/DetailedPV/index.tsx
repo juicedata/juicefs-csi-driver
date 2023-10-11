@@ -17,13 +17,13 @@
 import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
 import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
-import {getMountPodOfPVC, getPVC, getPV, PV} from '@/services/pv';
+import {getMountPodOfPVC, getPVC, getPV, getPVEvents} from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import {Empty, List, TabsProps} from "antd";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {PVStatusEnum} from "@/services/common"
-import {Pod as RawPod} from "kubernetes-types/core/v1"
-import {getPodTableContent} from "@/pages/DetailedPod";
+import {Pod as RawPod, PersistentVolume, Event} from "kubernetes-types/core/v1"
+import {EventTable, getPodTableContent} from "@/pages/DetailedPod";
 
 const DetailedPV: React.FC<unknown> = () => {
     const routeData = useMatch('/pv/:name')
@@ -38,8 +38,9 @@ const DetailedPV: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-    const [pv, setPV] = useState<PV>()
+    const [pv, setPV] = useState<PersistentVolume>()
     const [mountpods, setMountPods] = useState<RawPod[]>()
+    const [events, setEvents] = useState<Event[]>()
     const pvcNamespace = pv?.spec?.claimRef?.namespace || ""
     const pvcName = pv?.spec?.claimRef?.name || ""
 
@@ -52,12 +53,15 @@ const DetailedPV: React.FC<unknown> = () => {
                 .then(setMountPods)
         }
     }, [setPV, setMountPods])
+    useEffect(() => {
+        getPVEvents(pv?.metadata?.name || "").then(setEvents)
+    }, []);
 
     const [activeTab, setActiveTab] = useState('1');
     const handleTabChange = (key: string) => {
         setActiveTab(key);
     };
-    const getPVTabs = (pv: PV) => {
+    const getPVTabs = (pv: PersistentVolume) => {
         let tabList: TabsProps['items'] = [
             {
                 key: '1',
@@ -67,21 +71,17 @@ const DetailedPV: React.FC<unknown> = () => {
                 key: '2',
                 label: 'Yaml',
             },
-            {
-                key: '3',
-                label: '事件',
-            },
         ]
         if (mountpods) {
             tabList.push({
-                key: '4',
+                key: '3',
                 label: 'Mount Pod',
             })
         }
         return tabList
     }
 
-    const getPVTabsContent = (activeTab: string, pv: PV, pvcNamespace: string, pvName: string) => {
+    const getPVTabsContent = (activeTab: string, pv: PersistentVolume, pvcNamespace: string, pvName: string) => {
         const p = {
             metadata: pv.metadata,
             spec: pv.spec,
@@ -187,6 +187,7 @@ const DetailedPV: React.FC<unknown> = () => {
                             renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
                         />
                     </ProCard>
+                    {EventTable(events || [])}
                 </div>
                 break
             case "2":
@@ -194,10 +195,7 @@ const DetailedPV: React.FC<unknown> = () => {
                     {jsyaml.dump(p)}
                 </SyntaxHighlighter>
                 break
-            case '3':
-                content = <div>todo...</div>
-                break
-            case "4":
+            case "3":
                 if (mountpods != undefined) {
                     content = getPodTableContent(mountpods)
                 }
