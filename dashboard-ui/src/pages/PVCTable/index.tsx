@@ -20,11 +20,12 @@ import {
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button, Divider, Drawer, message} from 'antd';
+import {Button, Divider, Drawer, message, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
 import {PVC, listPVC} from '@/services/pv';
 import {Link} from 'umi';
 import {PVStatusEnum} from "@/services/common";
+import {AlertTwoTone} from "@ant-design/icons";
 
 const PVCTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -50,11 +51,25 @@ const PVCTable: React.FC<unknown> = () => {
                     },
                 ],
             },
-            render: (_, pvc) => (
-                <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
-                    {pvc.metadata?.name}
-                </Link>
-            ),
+            render: (_, pvc) => {
+                if (pvc.failedReason === "") {
+                    return (
+                        <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
+                            {pvc.metadata?.name}
+                        </Link>
+                    )
+                }
+                return (
+                    <div>
+                        <Tooltip title={pvc.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
+                        <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
+                            {pvc.metadata?.name}
+                        </Link>
+                    </div>
+                )
+            },
         },
         {
             title: '命名空间',

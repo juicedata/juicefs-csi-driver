@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func (api *API) watchAppPod(ctx context.Context) {
@@ -60,10 +59,15 @@ func (api *API) watchAppPod(ctx context.Context) {
 				}
 			}
 			if !used {
-				used, _, err := util.GetVolumes(ctx, api.k8sClient, pod)
-				if err != nil {
-					log.Printf("get volumes error %v", err)
-					return
+				// api.pvcs contain all pending pvc & juicefs pvc, we should get pod if pvc pending.
+				for _, volume := range pod.Spec.Volumes {
+					if volume.PersistentVolumeClaim != nil {
+						api.pvsLock.Lock()
+						if _, ok := api.pvcs[types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}]; ok {
+							used = true
+						}
+						api.pvsLock.Unlock()
+					}
 				}
 				if !used {
 					return
@@ -158,10 +162,11 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 				Namespace: pvc.Namespace,
 				Name:      pvc.Name,
 			}
-			// if PVC is not JuiceFS PVC, return
-			_, ok = api.pvcs[pvcName]
-			if !ok {
-				return
+			// if PVC bound and is not JuiceFS PVC, return
+			if pvc.Status.Phase == corev1.ClaimBound {
+				if _, ok = api.pvcs[pvcName]; !ok {
+					return
+				}
 			}
 
 			switch event.Type {

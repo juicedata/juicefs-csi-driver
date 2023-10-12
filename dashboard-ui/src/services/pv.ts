@@ -14,14 +14,17 @@
  limitations under the License.
  */
 
-import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
+import {PersistentVolume, PersistentVolumeClaim, Pod as RawPod} from 'kubernetes-types/core/v1'
 import {StorageClass} from 'kubernetes-types/storage/v1'
+import {Pod} from "@/services/pod";
+import {val} from "@umijs/utils/compiled/cheerio/lib/api/attributes";
 
 export type PV = PersistentVolume & {
     Pod: {
         namespace: string
         name: string
     }
+    failedReason?: string,
 }
 
 export type PVC = PersistentVolumeClaim & {
@@ -29,6 +32,7 @@ export type PVC = PersistentVolumeClaim & {
         namespace: string
         name: string
     }
+    failedReason?: string,
 }
 
 export const listPV = async () => {
@@ -39,6 +43,20 @@ export const listPV = async () => {
     } catch (e) {
         console.log(`fail to list pv`)
         return {data: null, success: false}
+    }
+    const getMore = async (pv: PersistentVolume) => {
+        const failedReason = failedReasonOfPV(pv)
+        return {failedReason}
+    }
+
+    const tasks = []
+    for (const pv of data) {
+        tasks.push(getMore(pv))
+    }
+    const results = await Promise.all(tasks)
+    for (const i in results) {
+        const {failedReason} = results[i]
+        data[i].failedReason = failedReason || ""
     }
     return {
         data,
@@ -54,6 +72,20 @@ export const listPVC = async () => {
     } catch (e) {
         console.log(`fail to list pv`)
         return {data: null, success: false}
+    }
+    const getMore = async (pvc: PersistentVolumeClaim) => {
+        const failedReason = failedReasonOfPVC(pvc)
+        return {failedReason}
+    }
+
+    const tasks = []
+    for (const pvc of data) {
+        tasks.push(getMore(pvc))
+    }
+    const results = await Promise.all(tasks)
+    for (const i in results) {
+        const {failedReason} = results[i]
+        data[i].failedReason = failedReason || ""
     }
     return {
         data,
@@ -155,3 +187,26 @@ export const getPVOfSC = async (scName: string) => {
         return null
     }
 }
+const failedReasonOfPVC = (pvc: PersistentVolumeClaim) => {
+    if (pvc.status?.phase === "Bound") {
+        return ""
+    }
+    if (pvc.spec?.storageClassName !== "") {
+        return "对应的 PV 未自动创建，请点击「系统 Pod」查看 CSI Controller 日志。"
+    }
+    if (pvc.spec.volumeName) {
+        return `未找到名为 ${pvc.spec.volumeName} 的 PV。`
+    }
+    if (pvc.spec.selector === undefined) {
+        return "未设置 PVC 的 selector。"
+    }
+    return `未找到符合 PVC 条件的 PV，请点击「PV」查看其是否被创建。`
+}
+
+const failedReasonOfPV = (pv: PersistentVolume) => {
+    if (pv.status?.phase === "Bound") {
+        return ""
+    }
+    return `未找到符合 PV 条件的 PVC，请点击「PVC」查看其是否被创建。`
+}
+

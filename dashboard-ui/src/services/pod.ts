@@ -25,6 +25,7 @@ export type Pod = RawPod & {
     csiNode?: RawPod,
     logs: Map<string, string>,
     events?: Event[],
+    failedReason?: string,
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -63,13 +64,17 @@ export const listAppPods = async (args: PagingListArgs) => {
         try {
             const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
             const mountPods = JSON.parse(await rawMountPods.text())
-            const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
-            const csiNode = JSON.parse(await rawCSINode.text())
+            let csiNode
+            if (pod.spec?.nodeName !== undefined) {
+                const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
+                csiNode = JSON.parse(await rawCSINode.text())
+            }
             const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
             const pvcs = JSON.parse(await rawPVCs.text())
             const rawPVs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvs`)
             const pvs = JSON.parse(await rawPVs.text())
-            return {mountPods, csiNode, pvcs, pvs}
+            const failedReason = failedReasonOfAppPod(pod, mountPods, pvcs, csiNode)
+            return {mountPods, csiNode, pvcs, pvs, failedReason}
         } catch (e) {
             console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
             return {mountPods: null, csiNode: null}
@@ -82,17 +87,20 @@ export const listAppPods = async (args: PagingListArgs) => {
     }
     const results = await Promise.all(tasks)
     for (const i in results) {
-        const {mountPods, csiNode, pvcs, pvs} = results[i]
+        const {mountPods, csiNode, pvcs, pvs, failedReason} = results[i]
         data[i].mountPods = mountPods || []
         data[i].csiNode = csiNode || null
         data[i].pvcs = pvcs || []
         data[i].pvs = pvs || []
+        data[i].failedReason = failedReason || ""
     }
-    data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode || ""))
     if (args.pv) {
         data = data.filter(pod => {
             return !!pod.metadata?.name?.includes(args.pv || "");
         })
+    }
+    if (args.csiNode) {
+        data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode || ""))
     }
     const timeOrder = args.sort['time']
     if (timeOrder) {
@@ -170,8 +178,21 @@ export const listSystemPods = async (args: PagingListArgs) => {
         console.log(`fail to list mount pods: ${e}`)
         return {data: null, success: false}
     }
-
     data = mountPods.concat(csiNodes, csiControllers)
+    const getMore = async (pod: RawPod) => {
+        const failedReason = failedReasonOfSysPod(pod)
+        return {failedReason}
+    }
+    const tasks = []
+    for (const pv of data) {
+        tasks.push(getMore(pv))
+    }
+    const results = await Promise.all(tasks)
+    for (const i in results) {
+        const {failedReason} = results[i]
+        data[i].failedReason = failedReason || ""
+    }
+
     const timeOrder = args.sort['time']
     if (timeOrder) {
         data.sort((a, b) => {
@@ -194,4 +215,121 @@ export const listSystemPods = async (args: PagingListArgs) => {
         data,
         success: true,
     }
+}
+
+const failedReasonOfAppPod = (pod: RawPod, mountPods: RawPod[], pvcs: PersistentVolumeClaim[], csiNode: RawPod | undefined) => {
+    // check if pod is ready
+    if (isPodReady(pod)) {
+        return ""
+    }
+
+    let reason = ""
+    // 1. PVC pending
+    pvcs.forEach(pvc => {
+        if (pvc.status?.phase !== "Bound") {
+            reason = `PVC "${pvc.metadata?.name}" 未成功绑定，请点击「PVC」查看详情。`
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+
+    // 2. not scheduled
+    pod.status?.conditions?.forEach(condition => {
+        if (condition.type === "PodScheduled" && condition.status != "True") {
+            reason = "未调度成功，请点击 Pod 详情查看调度失败的具体原因。"
+            return
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+
+    if (pod.metadata?.labels != undefined && pod.metadata?.labels["done.sidecar.juicefs.com/inject"] === "true") {
+        // sidecar mode
+        let reason = ""
+        pod.status?.initContainerStatuses?.forEach(containerStatus => {
+            if (!containerStatus.ready) {
+                reason = `${containerStatus.name} 容器异常，请点击 Pod 详情查看容器状态及日志。`
+            }
+        })
+        pod.status?.containerStatuses?.forEach(containerStatus => {
+            if (!containerStatus.ready) {
+                reason = `${containerStatus.name} 容器异常，请点击 Pod 详情查看容器状态及日志。`
+            }
+        })
+        return reason
+    }
+
+    // mount pod mode
+    // 2. check csi node
+    if (csiNode === undefined) {
+        return "所在节点 CSI Node 未启动成功，请检查：1. 若是 sidecar 模式，请查看其所在 namespace 是否打上需要的 label 或查看 CSI Controller 日志以确认为何 sidecar 未注入；2. 若是 Mount Pod 模式，请检查 CSI Node DaemonSet 是否未调度到该节点上。"
+    }
+    if (!isPodReady(csiNode)) {
+        return "所在节点 CSI Node 未启动成功，请点击右方「CSI Node」查看其状态及日志。"
+    }
+    // 3. check mount pod
+    if (mountPods?.length == 0) {
+        return "Mount Pod 未启动，请点击右方「CSI Node」检查其日志。"
+    }
+    mountPods?.forEach(mountPod => {
+        if (!isPodReady(mountPod)) {
+            reason = "Mount Pod 未启动成功，请点击右方「Mount Pods」检查其状态及日志。"
+            return
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+
+    return "pod 异常，请点击详情查看其 event 或日志。"
+}
+
+const failedReasonOfSysPod = (pod: RawPod) => {
+    // check if pod is ready
+    if (isPodReady(pod)) {
+        return ""
+    }
+
+    let reason = ""
+    // 1. not scheduled
+    pod.status?.conditions?.forEach(condition => {
+        if (condition.type === "PodScheduled" && condition.status != "True") {
+            reason = "未调度成功，请点击 Pod 详情查看调度失败的具体原因。"
+            return
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+
+    pod.status?.initContainerStatuses?.forEach(containerStatus => {
+        if (!containerStatus.ready) {
+            reason = `${containerStatus.name} 容器异常，请点击 Pod 详情查看容器状态及日志。`
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+    pod.status?.containerStatuses?.forEach(containerStatus => {
+        if (!containerStatus.ready) {
+            reason = `${containerStatus.name} 容器异常，请点击 Pod 详情查看容器状态及日志。`
+        }
+    })
+    if (reason !== "") {
+        return reason
+    }
+
+    return "pod 异常，请点击详情查看其 event 或日志。"
+}
+
+const isPodReady = (pod: RawPod) => {
+    let conditionTrue = 0
+    pod.status?.conditions?.forEach(condition => {
+        if ((condition.type === "ContainersReady" || condition.type === "Ready") && condition.status === "True") {
+            conditionTrue++
+        }
+    })
+    return conditionTrue === 2;
 }

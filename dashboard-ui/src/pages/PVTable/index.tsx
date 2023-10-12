@@ -21,11 +21,12 @@ import {
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button} from 'antd';
+import {Button, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
 import {PV, listPV} from '@/services/pv';
 import {Link} from 'umi';
 import {PVStatusEnum} from "@/services/common";
+import {AlertTwoTone} from "@ant-design/icons";
 
 const PVTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -51,11 +52,25 @@ const PVTable: React.FC<unknown> = () => {
                     },
                 ],
             },
-            render: (_, pv) => (
-                <Link to={`/pv/${pv.metadata?.name}/`}>
-                    {pv.metadata?.name}
-                </Link>
-            ),
+            render: (_, pv) => {
+                if (pv.failedReason === "") {
+                    return (
+                        <Link to={`/pv/${pv.metadata?.name}/`}>
+                            {pv.metadata?.name}
+                        </Link>
+                    )
+                }
+                return (
+                    <div>
+                        <Tooltip title={pv.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
+                        <Link to={`/pv/${pv.metadata?.name}/`}>
+                            {pv.metadata?.name}
+                        </Link>
+                    </div>
+                )
+            },
         },
         {
             title: 'PVC',

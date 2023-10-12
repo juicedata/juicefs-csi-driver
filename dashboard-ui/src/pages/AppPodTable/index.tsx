@@ -20,13 +20,15 @@ import {
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button} from 'antd';
+import {Button, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Pod, listAppPods} from '@/services/pod';
 import {PersistentVolume, Pod as RawPod} from 'kubernetes-types/core/v1'
 import {Link} from 'umi';
 import {Badge} from 'antd/lib';
 import {PodStatusEnum} from "@/services/common";
+import {AlertTwoTone} from "@ant-design/icons";
+import {red} from "@ant-design/colors";
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -45,11 +47,25 @@ const AppPodTable: React.FC<unknown> = () => {
                     },
                 ],
             },
-            render: (_, pod) => (
-                <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
-                    {pod.metadata?.name}
-                </Link>
-            ),
+            render: (_, pod) => {
+                if (pod.failedReason === "") {
+                    return (
+                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                            {pod.metadata?.name}
+                        </Link>
+                    )
+                }
+                return (
+                    <div>
+                        <Tooltip title={pod.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
+                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                            {pod.metadata?.name}
+                        </Link>
+                    </div>
+                )
+            },
         },
         {
             title: '命名空间',
@@ -156,7 +172,7 @@ const AppPodTable: React.FC<unknown> = () => {
             title: 'CSI Node',
             key: 'csiNode',
             render: (_, pod) => {
-                if (pod.csiNode === undefined) {
+                if (pod.csiNode === undefined || pod.csiNode === null) {
                     return
                 }
                 return (

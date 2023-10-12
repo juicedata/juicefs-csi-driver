@@ -21,10 +21,12 @@ import {
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button} from 'antd';
+import {Button, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Pod, listSystemPods} from '@/services/pod';
 import {Link} from 'umi';
+import {AlertTwoTone} from "@ant-design/icons";
+import {PodStatusEnum} from "@/services/common";
 
 const SystemPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -41,11 +43,25 @@ const SystemPodTable: React.FC<unknown> = () => {
                     },
                 ],
             },
-            render: (_, pod) => (
-                <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
-                    {pod.metadata?.name}
-                </Link>
-            ),
+            render: (_, pod) => {
+                if (pod.failedReason === "") {
+                    return (
+                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                            {pod.metadata?.name}
+                        </Link>
+                    )
+                }
+                return (
+                    <div>
+                        <Tooltip title={pod.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
+                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                            {pod.metadata?.name}
+                        </Link>
+                    </div>
+                )
+            },
         },
         {
             title: '命名空间',
@@ -61,28 +77,7 @@ const SystemPodTable: React.FC<unknown> = () => {
             key: 'status',
             dataIndex: ['status', 'phase'],
             valueType: 'select',
-            valueEnum: {
-                Pending: {
-                    text: '等待运行',
-                    color: 'yellow',
-                },
-                Running: {
-                    text: '运行中',
-                    color: 'green',
-                },
-                Succeeded: {
-                    text: '已完成',
-                    color: 'blue',
-                },
-                Failed: {
-                    text: '失败',
-                    color: 'red',
-                },
-                Unknown: {
-                    text: '未知',
-                    color: 'grey',
-                },
-            },
+            valueEnum: PodStatusEnum,
         },
         {
             title: '所在节点',

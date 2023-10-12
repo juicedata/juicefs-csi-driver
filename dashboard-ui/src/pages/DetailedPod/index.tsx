@@ -21,7 +21,7 @@ import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getPod, getLog, Pod} from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps, Select, Empty, Table, Button} from "antd";
+import {TabsProps, Select, Empty, Table, Button, Tag} from "antd";
 import {Link} from 'umi';
 import {PodStatusEnum} from "@/services/common";
 
@@ -129,6 +129,15 @@ const DetailedPod: React.FC<unknown> = () => {
                 startAt: cnStatus.state?.running?.startedAt,
             })
         })
+        pod.status?.initContainerStatuses?.forEach((cnStatus, _) => {
+            const cnState: string = cnStatus.ready ? "Ready" : "NotReady"
+            containers.push({
+                name: cnStatus.name,
+                status: cnState,
+                restartCount: cnStatus.restartCount,
+                startAt: cnStatus.state?.running?.startedAt,
+            })
+        })
         let content: any
         const handleButtonClick = (container: string) => {
             setActiveTab('3');
@@ -191,6 +200,11 @@ const DetailedPod: React.FC<unknown> = () => {
                                 title: '状态',
                                 key: 'status',
                                 dataIndex: 'status',
+                                render: (status) => {
+                                    const color = status === 'Ready' ? 'green' : 'red';
+                                    const text = status === 'Ready' ? 'Ready' : 'NotReady';
+                                    return <Tag color={color}>{text}</Tag>;
+                                },
                             },
                             {
                                 title: '启动时间',
@@ -222,7 +236,6 @@ const DetailedPod: React.FC<unknown> = () => {
                 </SyntaxHighlighter>
                 break
             case "3":
-                console.log(`logs: ${pod.logs}`)
                 const container = getContainer()!
                 if (!pod.logs.has(container)) {
                     content = <Empty/>
