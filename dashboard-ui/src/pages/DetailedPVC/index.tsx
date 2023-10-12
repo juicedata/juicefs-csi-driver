@@ -94,7 +94,7 @@ const DetailedPVC: React.FC<unknown> = () => {
                             dataSource={{
                                 name: pvc.metadata?.name,
                                 namespace: pvc.metadata?.namespace,
-                                pv: `${pvc.spec?.volumeName}`,  // todo: link
+                                pv: `${pvc.spec?.volumeName || "-"}`,  // todo: link
                                 capacity: pvc.spec?.resources?.requests?.storage,
                                 accessMode: pvc.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
                                 storageClass: pvc.spec?.storageClassName,

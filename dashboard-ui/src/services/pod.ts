@@ -65,7 +65,7 @@ export const listAppPods = async (args: PagingListArgs) => {
             const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
             const mountPods = JSON.parse(await rawMountPods.text())
             let csiNode
-            if (pod.spec?.nodeName !== undefined) {
+            if (pod.spec?.nodeName) {
                 const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
                 csiNode = JSON.parse(await rawCSINode.text())
             }
@@ -133,8 +133,10 @@ export const getPod = async (namespace: string, podName: string) => {
         pod.mountPods = JSON.parse(await mountPods.text())
         const appPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`)
         pod.appPods = JSON.parse(await appPods.text())
-        const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
-        pod.csiNode = JSON.parse(await csiNode.text())
+        if (pod.spec?.nodeName) {
+            const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
+            pod.csiNode = JSON.parse(await csiNode.text())
+        }
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
         let podEvents: Event[] = JSON.parse(await events.text()) || []
         podEvents.sort((a, b) => {
