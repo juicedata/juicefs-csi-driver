@@ -19,6 +19,7 @@ package builder
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,10 @@ func (r *JobBuilder) NewJobForCreateVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-createvol"
 	job := r.newJob(jobName)
 	jobCmd := r.getCreateVolumeCmd()
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", jobCmd}
+	initCmd := r.genInitCommand()
+	cmd := strings.Join([]string{initCmd, jobCmd}, "\n")
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
+
 	klog.Infof("create volume job cmd: %s", jobCmd)
 	return job
 }
@@ -57,7 +61,9 @@ func (r *JobBuilder) NewJobForDeleteVolume() *batchv1.Job {
 	jobName := GenJobNameByVolumeId(r.jfsSetting.VolumeId) + "-delvol"
 	job := r.newJob(jobName)
 	jobCmd := r.getDeleteVolumeCmd()
-	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", jobCmd}
+	initCmd := r.genInitCommand()
+	cmd := strings.Join([]string{initCmd, jobCmd}, "\n")
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	klog.Infof("delete volume job cmd: %s", jobCmd)
 	return job
 }

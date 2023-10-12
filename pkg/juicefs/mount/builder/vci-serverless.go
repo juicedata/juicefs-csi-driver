@@ -57,7 +57,6 @@ func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, p
 // 1. no hostpath
 // 2. without privileged container
 // 3. no propagationBidirectional
-// 3. no initContainer
 // 4. with env JFS_NO_UMOUNT=1
 // 5. annotations for VCI
 func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
@@ -69,6 +68,18 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 			"container": "jfs-mount",
 			"mountPath" : "%s"
 		}]`, r.jfsSetting.MountPath),
+	}
+	if len(pod.Spec.InitContainers) != 0 {
+		pod.Annotations = map[string]string{
+			VCIPropagationConfig: VCIPropagationConfigValue,
+			VCIPropagation: fmt.Sprintf(`[{
+			"container": "jfs-mount",
+			"mountPath" : "%s"
+		}, {
+			"container": "jfs-init",
+			"mountPath" : "/mnt/jfs"
+		}]`, r.jfsSetting.MountPath),
+		}
 	}
 
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{

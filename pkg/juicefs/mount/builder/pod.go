@@ -19,6 +19,7 @@ package builder
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,8 +44,13 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod := r.genCommonJuicePod(r.genCommonContainer)
 
-	cmd := r.genMountCommand()
 	pod.Name = podName
+	mountCmd := r.genMountCommand()
+	cmd := mountCmd
+	initCmd := r.genInitCommand()
+	if initCmd != "" {
+		cmd = strings.Join([]string{initCmd, mountCmd}, "\n")
+	}
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
 		Name:  "JFS_FOREGROUND",
@@ -56,14 +62,6 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
 
-	// generate initContainer
-	if r.jfsSetting.FormatCmd != "" {
-		initVolumeMounts := r.genInitVolumes()
-		initContainer := r.genInitContainer()
-		initContainer.VolumeMounts = append(initContainer.VolumeMounts, initVolumeMounts...)
-		pod.Spec.InitContainers = []corev1.Container{initContainer}
-	}
-
 	// add cache-dir hostpath & PVC volume
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
@@ -74,6 +72,9 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
 
+	if len(pod.Spec.InitContainers) != 0 {
+		pod.Spec.InitContainers[0].VolumeMounts = append(pod.Spec.InitContainers[0].VolumeMounts, mountVolumeMounts...)
+	}
 	return pod
 }
 
@@ -169,35 +170,9 @@ func (r *PodBuilder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts
 	return
 }
 
-// genInitContainer: generate init container
-func (r *PodBuilder) genInitContainer() corev1.Container {
-	rootUser := int64(0)
-	isPrivileged := true
-	secretName := r.jfsSetting.SecretName
-	container := corev1.Container{
-		Name:  "jfs-format",
-		Image: r.jfsSetting.Attr.Image,
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &isPrivileged,
-			RunAsUser:  &rootUser,
-		},
-	}
-
-	initCmd := r.genInitCommand()
-	container.Command = []string{"sh", "-c", initCmd}
-
-	container.EnvFrom = append(container.EnvFrom, corev1.EnvFromSource{
-		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{
-			Name: secretName,
-		}},
-	})
-	return container
-}
-
 // genPodVolumes: generate volumes for mount pod
 // 1. jfs dir: mount point used to propagate the mount point in the mount container to host
 // 2. update db dir: mount updatedb.conf from host to mount pod
-// 3. jfs config dir: mount jfs config dir as emptyDir to deliver config file to mount container
 func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	dir := corev1.HostPathDirectoryOrCreate
 	file := corev1.HostPathFileOrCreate
@@ -233,37 +208,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 		})
 	}
 
-	if r.jfsSetting.FormatCmd != "" {
-		// initContainer will generate xx.conf to share with mount container
-		volumes = append(volumes, corev1.Volume{
-			Name: JfsRootDirName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      JfsRootDirName,
-			MountPath: "/root/.juicefs",
-		})
-	}
-
 	return volumes, volumeMounts
-}
-
-// genInitVolumes: generate volumes for initContainer in mount pod
-// jfs config dir: mount jfs config dir as emptyDir to deliver config file to initContainer
-func (r *PodBuilder) genInitVolumes() []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{}
-
-	if r.jfsSetting.FormatCmd != "" {
-		// initContainer will generate xx.conf to share with mount container
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      JfsRootDirName,
-			MountPath: "/root/.juicefs",
-		})
-	}
-
-	return volumeMounts
 }
 
 // genCleanCachePod: generate pod to clean cache in host

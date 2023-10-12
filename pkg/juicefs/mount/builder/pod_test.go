@@ -174,9 +174,6 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      JfsDirName,
 		MountPath: config.PodMountBase,
-	}, {
-		Name:      JfsRootDirName,
-		MountPath: "/root/.juicefs",
 	}}
 
 	volumes := []corev1.Volume{{
@@ -184,20 +181,14 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
 			Path: config.MountPointPath,
 			Type: &dir,
-		}}}, {
-		Name: JfsRootDirName,
-		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
-			Path: config.JFSConfigPath,
-			Type: &dir,
-		}},
-	}}
+		}}}}
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true)
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 3 || len(volumeMounts) != 3 {
+	if len(volumes) != 2 || len(volumeMounts) != 2 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
@@ -206,7 +197,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 4 || len(volumeMounts) != 4 {
+	if len(volumes) != 3 || len(volumeMounts) != 3 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
@@ -215,7 +206,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 6 || len(volumeMounts) != 6 {
+	if len(volumes) != 5 || len(volumeMounts) != 5 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
@@ -224,7 +215,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
-	if len(volumes) != 7 || len(volumeMounts) != 7 {
+	if len(volumes) != 6 || len(volumeMounts) != 6 {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 }

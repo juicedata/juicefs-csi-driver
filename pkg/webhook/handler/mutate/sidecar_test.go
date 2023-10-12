@@ -190,39 +190,6 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 	}
 }
 
-func TestSidecarMutate_injectInitContainer(t *testing.T) {
-	type args struct {
-		pod       *corev1.Pod
-		container corev1.Container
-	}
-	tests := []struct {
-		name                 string
-		args                 args
-		wantInitContainerLen int
-	}{
-		{
-			name: "test inject init container",
-			args: args{
-				pod: &corev1.Pod{},
-				container: corev1.Container{
-					Name:  "format",
-					Image: "juicedata/mount:latest",
-				},
-			},
-			wantInitContainerLen: 1,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SidecarMutate{}
-			s.injectInitContainer(tt.args.pod, tt.args.container)
-			if len(tt.args.pod.Spec.InitContainers) != tt.wantInitContainerLen {
-				t.Errorf("injectInitContainer() = %v, want %v", tt.args.pod.Spec.InitContainers, tt.wantInitContainerLen)
-			}
-		})
-	}
-}
-
 func TestSidecarMutate_injectContainer(t *testing.T) {
 	type args struct {
 		pod       *corev1.Pod
