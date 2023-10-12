@@ -146,6 +146,13 @@ func (s *SidecarMutate) Deduplicate(pod, mountPod *corev1.Pod, index int) {
 		return
 	}
 
+	// deduplicate initContainer name
+	for _, c := range pod.Spec.InitContainers {
+		if c.Name == mountPod.Spec.InitContainers[0].Name {
+			mountPod.Spec.InitContainers[0].Name = fmt.Sprintf("%s-%d", c.Name, index)
+		}
+	}
+
 	// deduplicate volume name
 	for i, mv := range mountPod.Spec.Volumes {
 		if mv.Name == builder.UpdateDBDirName || mv.Name == builder.JfsDirName {
@@ -209,7 +216,7 @@ func (s *SidecarMutate) injectContainer(pod *corev1.Pod, container corev1.Contai
 }
 
 func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Container) {
-	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.Containers...)
+	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 }
 
 func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInterface, volumes []corev1.Volume, mountPath string, pair util.PVPair) {
