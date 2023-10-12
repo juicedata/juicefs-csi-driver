@@ -159,7 +159,7 @@ func (r *BaseBuilder) genMountCommand() string {
 
 // genInitContainer: generate init container
 func (r *BaseBuilder) genInitContainer(cnGen func() corev1.Container) *corev1.Container {
-	if r.jfsSetting.SubPath == "" && !util.ContainsString(r.jfsSetting.Options, "read-only") && !util.ContainsString(r.jfsSetting.Options, "ro") && !config.Webhook {
+	if r.jfsSetting.SubPath == "" {
 		// do not need initContainer if no subpath
 		return nil
 	}
@@ -217,6 +217,8 @@ func (r *BaseBuilder) genInitContainer(cnGen func() corev1.Container) *corev1.Co
 			}
 			initCmds = append(initCmds, setQuotaCmd)
 		}
+	} else {
+		return nil
 	}
 	container.Command = []string{"sh", "-c", strings.Join(initCmds, "\n")}
 	return &container
