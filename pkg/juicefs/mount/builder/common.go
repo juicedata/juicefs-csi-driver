@@ -114,6 +114,13 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	if initContainer := r.genInitContainer(cnGen); initContainer != nil {
 		// initContainer should have the same volumeMounts as mount container
 		initContainer.VolumeMounts = pod.Spec.Containers[0].VolumeMounts
+		initContainer.EnvFrom = []corev1.EnvFromSource{{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: r.jfsSetting.SecretName,
+				},
+			},
+		}}
 		pod.Spec.InitContainers = []corev1.Container{*initContainer}
 	}
 	return pod
@@ -152,7 +159,7 @@ func (r *BaseBuilder) genMountCommand() string {
 
 // genInitContainer: generate init container
 func (r *BaseBuilder) genInitContainer(cnGen func() corev1.Container) *corev1.Container {
-	if r.jfsSetting.SubPath == "" {
+	if r.jfsSetting.SubPath == "" && !util.ContainsString(r.jfsSetting.Options, "read-only") && !util.ContainsString(r.jfsSetting.Options, "ro") && !config.Webhook {
 		// do not need initContainer if no subpath
 		return nil
 	}
@@ -223,9 +230,8 @@ func (r *BaseBuilder) genInitCommand() string {
 			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
 		}
 	}
-	initCmds := []string{formatCmd}
 
-	return strings.Join(initCmds, "\n")
+	return formatCmd
 }
 
 // genJobCommand generates job command
