@@ -97,6 +97,8 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 		r = builder.NewContainerBuilder(jfsSetting, cap)
 	} else if pod.Annotations != nil && pod.Annotations[builder.VCIANNOKey] == builder.VCIANNOValue {
 		r = builder.NewVCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
+	} else if pod.Annotations != nil && pod.Annotations[builder.CCIANNOKey] == builder.CCIANNOValue {
+		r = builder.NewCCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	} else {
 		r = builder.NewServerlessBuilder(jfsSetting, cap)
 	}
