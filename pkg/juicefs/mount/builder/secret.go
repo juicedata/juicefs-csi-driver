@@ -44,10 +44,24 @@ do
 done
 echo "$(date "+%Y-%m-%d %H:%M:%S")"
 echo "succeed in checking mount point $ConditionPathIsMountPoint"
+if [ -n "${subpath}" ]; then
+	echo "create subpath ${subpath}"
+	mkdir -p 777 $ConditionPathIsMountPoint/${subpath}
+	if [ -n "${capacity}" ]; then
+		if [ "${community}" == ce ]; then
+			echo "set quota in ${subpath}"
+			/usr/local/bin/juicefs quota > /dev/null; if [ $? -eq 0 ]; then /usr/local/bin/juicefs quota set ${metaurl} --path ${quotaPath} --capacity ${capacity}; fi; 
+		fi;
+		if [ "${community}" == ee ]; then
+			echo "set quota in ${subpath}"
+			/usr/bin/juicefs quota > /dev/null; if [ $? -eq 0 ]; then /usr/bin/juicefs quota set ${name} --path ${quotaPath} --capacity ${capacity}; fi; 
+		fi;
+	fi;
+fi;
 `
 )
 
-func (r *Builder) NewSecret() corev1.Secret {
+func (r *BaseBuilder) NewSecret() corev1.Secret {
 	data := make(map[string]string)
 	if r.jfsSetting.MetaUrl != "" {
 		data["metaurl"] = r.jfsSetting.MetaUrl

@@ -18,36 +18,273 @@ package builder
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 const (
 	JfsDirName      = "jfs-dir"
-	JfsRootDirName  = "jfs-root-dir"
 	UpdateDBDirName = "updatedb"
 	UpdateDBCfgFile = "/etc/updatedb.conf"
 )
 
-type Builder struct {
+type BaseBuilder struct {
 	jfsSetting *config.JfsSetting
 	capacity   int64
 }
 
-func NewBuilder(setting *config.JfsSetting, capacity int64) *Builder {
-	return &Builder{setting, capacity}
+// genPodTemplate generates a pod template from csi pod
+func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				config.PodTypeKey:          config.PodTypeValue,
+				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+			},
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			Containers:         []corev1.Container{baseCnGen()},
+			NodeName:           config.NodeName,
+			HostNetwork:        r.jfsSetting.Attr.HostNetwork,
+			HostAliases:        r.jfsSetting.Attr.HostAliases,
+			HostPID:            r.jfsSetting.Attr.HostPID,
+			HostIPC:            r.jfsSetting.Attr.HostIPC,
+			DNSConfig:          r.jfsSetting.Attr.DNSConfig,
+			DNSPolicy:          r.jfsSetting.Attr.DNSPolicy,
+			ServiceAccountName: r.jfsSetting.ServiceAccountName,
+			ImagePullSecrets:   r.jfsSetting.Attr.ImagePullSecrets,
+			PreemptionPolicy:   r.jfsSetting.Attr.PreemptionPolicy,
+			Tolerations:        r.jfsSetting.Attr.Tolerations,
+		},
+	}
 }
 
-func (r *Builder) generateJuicePod() *corev1.Pod {
-	pod := r.generatePodTemplate()
+// genCommonJuicePod generates a pod with common settings
+func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
+	pod := r.genPodTemplate(cnGen)
+	// labels & annotations
+	pod.ObjectMeta.Labels, pod.ObjectMeta.Annotations = r._genMetadata()
+	pod.Spec.ServiceAccountName = r.jfsSetting.ServiceAccountName
+	pod.Spec.PriorityClassName = config.JFSMountPriorityName
+	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
+	gracePeriod := int64(10)
+	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
+	controllerutil.AddFinalizer(pod, config.Finalizer)
 
-	volumes := r.getVolumes()
-	volumeMounts := r.getVolumeMounts()
+	volumes, volumeMounts := r._genJuiceVolumes()
+	pod.Spec.Volumes = volumes
+	pod.Spec.Containers[0].VolumeMounts = volumeMounts
+	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
+		SecretRef: &corev1.SecretEnvSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: r.jfsSetting.SecretName,
+			},
+		},
+	}}
+	pod.Spec.Containers[0].Resources = r.jfsSetting.Resources
+	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.Handler{
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
+				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+		},
+	}
+
+	if r.jfsSetting.Attr.HostNetwork {
+		// When using hostNetwork, the MountPod will use a random port for metrics.
+		// Before inducing any auxiliary method to detect that random port, the
+		// best way is to avoid announcing any port about that.
+		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{}
+	} else {
+		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
+			{Name: "metrics", ContainerPort: r.genMetricsPort()},
+		}
+	}
+	return pod
+}
+
+// genMountCommand generates mount command
+func (r *BaseBuilder) genMountCommand() string {
+	cmd := ""
+	options := r.jfsSetting.Options
+	if r.jfsSetting.IsCe {
+		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
+		if !util.ContainsPrefix(options, "metrics=") {
+			if r.jfsSetting.Attr.HostNetwork {
+				// Pick up a random (useable) port for hostNetwork MountPods.
+				options = append(options, "metrics=0.0.0.0:0")
+			} else {
+				options = append(options, "metrics=0.0.0.0:9567")
+			}
+		}
+		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		cmd = strings.Join(mountArgs, " ")
+	} else {
+		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
+		mountOptions := []string{"foreground", "no-update"}
+		if r.jfsSetting.EncryptRsaKey != "" {
+			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")
+		}
+		mountOptions = append(mountOptions, options...)
+		mountArgs = append(mountArgs, "-o", strings.Join(mountOptions, ","))
+		cmd = strings.Join(mountArgs, " ")
+	}
+	return util.QuoteForShell(cmd)
+}
+
+// genInitCommand generates init command
+func (r *BaseBuilder) genInitCommand() string {
+	formatCmd := r.jfsSetting.FormatCmd
+	if r.jfsSetting.EncryptRsaKey != "" {
+		if r.jfsSetting.IsCe {
+			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
+		}
+	}
+
+	return formatCmd
+}
+
+func (r *BaseBuilder) getQuotaPath() string {
+	quotaPath := r.jfsSetting.SubPath
+	var subdir string
+	for _, o := range r.jfsSetting.Options {
+		pair := strings.Split(o, "=")
+		if len(pair) != 2 {
+			continue
+		}
+		if pair[0] == "subdir" {
+			subdir = path.Join("/", pair[1])
+		}
+	}
+	targetPath := path.Join(subdir, quotaPath)
+	return targetPath
+}
+
+// genJobCommand generates job command
+func (r *BaseBuilder) getJobCommand() string {
+	var cmd string
+	options := util.StripReadonlyOption(r.jfsSetting.Options)
+	if r.jfsSetting.IsCe {
+		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
+		if len(options) != 0 {
+			args = append(args, "-o", strings.Join(options, ","))
+		}
+		cmd = strings.Join(args, " ")
+	} else {
+		args := []string{config.JfsMountPath, r.jfsSetting.Source, "/mnt/jfs"}
+		if r.jfsSetting.EncryptRsaKey != "" {
+			options = append(options, "rsa-key=/root/.rsa/rsa-key.pem")
+		}
+		options = append(options, "background")
+		args = append(args, "-o", strings.Join(options, ","))
+		cmd = strings.Join(args, " ")
+	}
+	return util.QuoteForShell(cmd)
+}
+
+// genMetricsPort generates metrics port
+func (r *BaseBuilder) genMetricsPort() int32 {
+	port := int64(9567)
+	options := r.jfsSetting.Options
+
+	for _, option := range options {
+		if strings.HasPrefix(option, "metrics=") {
+			re := regexp.MustCompile(`metrics=.*:([0-9]{1,6})`)
+			match := re.FindStringSubmatch(option)
+			if len(match) > 0 {
+				port, _ = strconv.ParseInt(match[1], 10, 32)
+			}
+		}
+	}
+
+	return int32(port)
+}
+
+// _genMetadata generates labels & annotations
+func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
+	labels = map[string]string{
+		config.PodTypeKey:          config.PodTypeValue,
+		config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+	}
+	annotations = map[string]string{}
+
+	for k, v := range r.jfsSetting.MountPodLabels {
+		labels[k] = v
+	}
+	for k, v := range r.jfsSetting.MountPodAnnotations {
+		annotations[k] = v
+	}
+	if r.jfsSetting.DeletedDelay != "" {
+		annotations[config.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
+	}
+	annotations[config.JuiceFSUUID] = r.jfsSetting.UUID
+	annotations[config.UniqueId] = r.jfsSetting.UniqueId
+	if r.jfsSetting.CleanCache {
+		annotations[config.CleanCache] = "true"
+	}
+	return
+}
+
+// _genJuiceVolumes generates volumes & volumeMounts
+// 1. if encrypt_rsa_key is set, mount secret to /root/.rsa
+// 2. if init_config is set, mount secret to /root/.config
+// 3. configs in secret
+func (r *BaseBuilder) _genJuiceVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+	volumes := []corev1.Volume{}
+	volumeMounts := []corev1.VolumeMount{}
+	secretName := r.jfsSetting.SecretName
+
+	if r.jfsSetting.EncryptRsaKey != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "rsa-key",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
+					Items: []corev1.KeyToPath{{
+						Key:  "encrypt_rsa_key",
+						Path: "rsa-key.pem",
+					}},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      "rsa-key",
+				MountPath: "/root/.rsa",
+			},
+		)
+	}
+	if r.jfsSetting.InitConfig != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "init-config",
+			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+				Items: []corev1.KeyToPath{{
+					Key:  "init_config",
+					Path: r.jfsSetting.Name + ".conf",
+				}},
+			}},
+		})
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      "init-config",
+				MountPath: "/root/.juicefs",
+			},
+		)
+	}
 	i := 1
 	for k, v := range r.jfsSetting.Configs {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -64,235 +301,5 @@ func (r *Builder) generateJuicePod() *corev1.Pod {
 		})
 		i++
 	}
-
-	pod.Spec.Volumes = volumes
-	pod.Spec.Containers[0].VolumeMounts = volumeMounts
-	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
-		SecretRef: &corev1.SecretEnvSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: r.jfsSetting.SecretName,
-			},
-		},
-	}}
-	if r.jfsSetting.FormatCmd != "" {
-		initContainer := r.getInitContainer()
-		initContainer.VolumeMounts = append(initContainer.VolumeMounts, volumeMounts...)
-		pod.Spec.InitContainers = []corev1.Container{initContainer}
-	}
-	return pod
-}
-
-func (r *Builder) getVolumes() []corev1.Volume {
-	dir := corev1.HostPathDirectoryOrCreate
-	file := corev1.HostPathFileOrCreate
-	secretName := r.jfsSetting.SecretName
-	volumes := []corev1.Volume{{
-		Name: JfsDirName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.MountPointPath,
-				Type: &dir,
-			},
-		},
-	}}
-
-	if !config.Immutable {
-		volumes = append(volumes, corev1.Volume{
-			Name: UpdateDBDirName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: UpdateDBCfgFile,
-					Type: &file,
-				},
-			}})
-	}
-
-	if r.jfsSetting.FormatCmd != "" {
-		// initContainer will generate xx.conf to share with mount container
-		volumes = append(volumes, corev1.Volume{
-			Name: JfsRootDirName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: nil,
-			},
-		})
-	}
-	if r.jfsSetting.EncryptRsaKey != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "rsa-key",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-					Items: []corev1.KeyToPath{{
-						Key:  "encrypt_rsa_key",
-						Path: "rsa-key.pem",
-					}},
-				},
-			},
-		})
-	}
-	if config.Webhook {
-		var mode int32 = 0755
-		volumes = append(volumes, corev1.Volume{
-			Name: "jfs-check-mount",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  secretName,
-					DefaultMode: utilpointer.Int32Ptr(mode),
-				},
-			},
-		})
-	}
-	if r.jfsSetting.InitConfig != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "init-config",
-			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
-				SecretName: secretName,
-				Items: []corev1.KeyToPath{{
-					Key:  "init_config",
-					Path: r.jfsSetting.Name + ".conf",
-				}},
-			}},
-		})
-	}
-	return volumes
-}
-
-func (r *Builder) getVolumeMounts() []corev1.VolumeMount {
-	mp := corev1.MountPropagationBidirectional
-	volumeMounts := []corev1.VolumeMount{{
-		Name:             JfsDirName,
-		MountPath:        config.PodMountBase,
-		MountPropagation: &mp,
-	}}
-
-	if !config.Immutable {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:             UpdateDBDirName,
-			MountPath:        UpdateDBCfgFile,
-			MountPropagation: &mp,
-		})
-	}
-
-	if r.jfsSetting.FormatCmd != "" {
-		// initContainer will generate xx.conf to share with mount container
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:             JfsRootDirName,
-			MountPath:        "/root/.juicefs",
-			MountPropagation: &mp,
-		})
-	}
-	if r.jfsSetting.EncryptRsaKey != "" {
-		if !r.jfsSetting.IsCe {
-			volumeMounts = append(volumeMounts,
-				corev1.VolumeMount{
-					Name:      "rsa-key",
-					MountPath: "/root/.rsa",
-				},
-			)
-		}
-	}
-	if r.jfsSetting.InitConfig != "" {
-		volumeMounts = append(volumeMounts,
-			corev1.VolumeMount{
-				Name:      "init-config",
-				MountPath: "/root/.juicefs",
-			},
-		)
-	}
-	if config.Webhook {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "jfs-check-mount",
-			MountPath: checkMountScriptPath,
-			SubPath:   checkMountScriptName,
-		})
-	}
-	return volumeMounts
-}
-
-func (r *Builder) generateCleanCachePod() *corev1.Pod {
-	volumeMountPrefix := "/var/jfsCache"
-	cacheVolumes := []corev1.Volume{}
-	cacheVolumeMounts := []corev1.VolumeMount{}
-
-	hostPathType := corev1.HostPathDirectory
-
-	for idx, cacheDir := range r.jfsSetting.CacheDirs {
-		name := fmt.Sprintf("cachedir-%d", idx)
-
-		hostPathVolume := corev1.Volume{
-			Name: name,
-			VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
-				Path: filepath.Join(cacheDir, r.jfsSetting.UUID, "raw"),
-				Type: &hostPathType,
-			}},
-		}
-		cacheVolumes = append(cacheVolumes, hostPathVolume)
-
-		volumeMount := corev1.VolumeMount{
-			Name:      name,
-			MountPath: filepath.Join(volumeMountPrefix, name),
-		}
-		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
-	}
-
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: r.jfsSetting.Attr.Namespace,
-			Labels: map[string]string{
-				config.PodTypeKey: config.PodTypeValue,
-			},
-			Annotations: make(map[string]string),
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:         "jfs-cache-clean",
-				Image:        r.jfsSetting.Attr.Image,
-				Command:      []string{"sh", "-c", "rm -rf /var/jfsCache/*/chunks"},
-				VolumeMounts: cacheVolumeMounts,
-			}},
-			Volumes: cacheVolumes,
-		},
-	}
-	return pod
-}
-
-func (r *Builder) generatePodTemplate() *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: r.jfsSetting.Attr.Namespace,
-			Labels: map[string]string{
-				config.PodTypeKey:          config.PodTypeValue,
-				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
-			},
-			Annotations: make(map[string]string),
-		},
-		Spec: corev1.PodSpec{
-			Containers:         []corev1.Container{r.genCommonContainer()},
-			NodeName:           config.NodeName,
-			HostNetwork:        r.jfsSetting.Attr.HostNetwork,
-			HostAliases:        r.jfsSetting.Attr.HostAliases,
-			HostPID:            r.jfsSetting.Attr.HostPID,
-			HostIPC:            r.jfsSetting.Attr.HostIPC,
-			DNSConfig:          r.jfsSetting.Attr.DNSConfig,
-			DNSPolicy:          r.jfsSetting.Attr.DNSPolicy,
-			ServiceAccountName: r.jfsSetting.ServiceAccountName,
-			ImagePullSecrets:   r.jfsSetting.Attr.ImagePullSecrets,
-			PreemptionPolicy:   r.jfsSetting.Attr.PreemptionPolicy,
-			Tolerations:        r.jfsSetting.Attr.Tolerations,
-		},
-	}
-}
-
-func (r *Builder) genCommonContainer() corev1.Container {
-	isPrivileged := true
-	rootUser := int64(0)
-	return corev1.Container{
-		Name:  config.MountContainerName,
-		Image: r.jfsSetting.Attr.Image,
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &isPrivileged,
-			RunAsUser:  &rootUser,
-		},
-		Env: []corev1.EnvVar{},
-	}
+	return volumes, volumeMounts
 }
