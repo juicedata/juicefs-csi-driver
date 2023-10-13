@@ -153,50 +153,24 @@ func (r *BaseBuilder) genInitCommand() string {
 			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
 		}
 	}
-	initCmds := []string{formatCmd}
 
-	// set quota in webhook mode
-	if config.Webhook && r.capacity > 0 {
-		quotaPath := r.jfsSetting.SubPath
-		var subdir string
-		for _, o := range r.jfsSetting.Options {
-			pair := strings.Split(o, "=")
-			if len(pair) != 2 {
-				continue
-			}
-			if pair[0] == "subdir" {
-				subdir = path.Join("/", pair[1])
-			}
+	return formatCmd
+}
+
+func (r *BaseBuilder) getQuotaPath() string {
+	quotaPath := r.jfsSetting.SubPath
+	var subdir string
+	for _, o := range r.jfsSetting.Options {
+		pair := strings.Split(o, "=")
+		if len(pair) != 2 {
+			continue
 		}
-		var setQuotaCmd string
-		targetPath := path.Join(subdir, quotaPath)
-		capacity := strconv.FormatInt(r.capacity, 10)
-		if r.jfsSetting.IsCe {
-			// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
-			cmdArgs := []string{
-				config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
-				config.CeCliPath,
-				"quota", "set", "${metaurl}",
-				"--path", targetPath,
-				"--capacity", capacity,
-				"; fi",
-			}
-			setQuotaCmd = strings.Join(cmdArgs, " ")
-		} else {
-			cmdArgs := []string{
-				config.CliPath, "quota; if [ $? -eq 0 ]; then",
-				config.CliPath,
-				"quota", "set", r.jfsSetting.Name,
-				"--path", targetPath,
-				"--capacity", capacity,
-				"; fi",
-			}
-			setQuotaCmd = strings.Join(cmdArgs, " ")
+		if pair[0] == "subdir" {
+			subdir = path.Join("/", pair[1])
 		}
-		initCmds = append(initCmds, setQuotaCmd)
 	}
-
-	return strings.Join(initCmds, "\n")
+	targetPath := path.Join(subdir, quotaPath)
+	return targetPath
 }
 
 // genJobCommand generates job command

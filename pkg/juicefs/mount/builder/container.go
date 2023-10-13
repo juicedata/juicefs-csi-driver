@@ -19,6 +19,7 @@ package builder
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	utilpointer "k8s.io/utils/pointer"
@@ -52,9 +53,27 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	volumes, volumeMounts := r.genSidecarVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
+
+	// check mount & create subpath & set quota
+	capacity := strconv.FormatInt(r.capacity, 10)
+	subpath := r.jfsSetting.SubPath
+	community := "ce"
+	if !r.jfsSetting.IsCe {
+		community = "ee"
+	}
+	quotaPath := r.getQuotaPath()
+	name := r.jfsSetting.Name
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
-			fmt.Sprintf("time %s %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath, r.jfsSetting.SubPath)}},
+			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
+				subpath,
+				name,
+				capacity,
+				community,
+				quotaPath,
+				checkMountScriptPath,
+				r.jfsSetting.MountPath,
+			)}},
 	}
 	return pod
 }

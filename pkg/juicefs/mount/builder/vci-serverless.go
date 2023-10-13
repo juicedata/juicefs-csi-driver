@@ -18,6 +18,7 @@ package builder
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,9 +71,26 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 		}]`, r.jfsSetting.MountPath),
 	}
 
+	// check mount & create subpath & set quota
+	capacity := strconv.FormatInt(r.capacity, 10)
+	subpath := r.jfsSetting.SubPath
+	community := "ce"
+	if !r.jfsSetting.IsCe {
+		community = "ee"
+	}
+	quotaPath := r.getQuotaPath()
+	name := r.jfsSetting.Name
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
-			fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
+			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
+				subpath,
+				name,
+				capacity,
+				community,
+				quotaPath,
+				checkMountScriptPath,
+				r.jfsSetting.MountPath,
+			)}},
 	}
 	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, []corev1.EnvVar{{Name: "JFS_NO_UMOUNT", Value: "1"}, {Name: "JFS_FOREGROUND", Value: "1"}}...)
 
