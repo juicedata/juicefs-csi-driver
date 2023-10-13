@@ -52,31 +52,7 @@ const DetailedPV: React.FC<unknown> = () => {
         getPVEvents(pv?.metadata?.name || "").then(setEvents)
     }, []);
 
-    const [activeTab, setActiveTab] = useState('1');
-    const handleTabChange = (key: string) => {
-        setActiveTab(key);
-    };
-    const getPVTabs = (pv: PersistentVolume) => {
-        let tabList: TabsProps['items'] = [
-            {
-                key: '1',
-                label: '状态',
-            },
-            {
-                key: '2',
-                label: 'Yaml',
-            },
-        ]
-        if (mountpods) {
-            tabList.push({
-                key: '3',
-                label: 'Mount Pod',
-            })
-        }
-        return tabList
-    }
-
-    const getPVTabsContent = (activeTab: string, pv: PersistentVolume, pvcNamespace: string, pvName: string) => {
+    const getPVTabsContent = (pv: PersistentVolume, pvcNamespace: string, pvName: string) => {
         const p = {
             metadata: pv.metadata,
             spec: pv.spec,
@@ -104,115 +80,110 @@ const DetailedPV: React.FC<unknown> = () => {
                 }
             }
         }
-        switch (activeTab) {
-            case "1":
-                content = <div>
-                    <ProCard title="基础信息">
-                        <ProDescriptions
-                            column={2}
-                            dataSource={{
-                                pvc: `${pvcNamespace}/${pvName}`,  // todo: link
-                                capacity: pv.spec?.capacity?.storage,
-                                accessMode: pv.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
-                                reclaimPolicy: pv.spec?.persistentVolumeReclaimPolicy,
-                                storageClass: pv.spec?.storageClassName,
-                                volumeHandle: pv.spec?.csi?.volumeHandle,
-                                status: pv.status?.phase,
-                                time: pv.metadata?.creationTimestamp,
-                            }}
-                            columns={[
-                                {
-                                    title: 'PVC',
-                                    key: 'pvc',
-                                    dataIndex: 'pvc',
-                                },
-                                {
-                                    title: '容量',
-                                    key: 'capacity',
-                                    dataIndex: 'capacity',
-                                },
-                                {
-                                    title: '访问模式',
-                                    key: 'accessMode',
-                                    dataIndex: 'accessMode',
-                                },
-                                {
-                                    title: '回收策略',
-                                    key: 'reclaimPolicy',
-                                    dataIndex: 'reclaimPolicy',
-                                },
-                                {
-                                    title: 'StorageClass',
-                                    key: 'storageClass',
-                                    dataIndex: 'storageClass',
-                                },
-                                {
-                                    title: 'volumeHandle',
-                                    key: 'volumeHandle',
-                                    dataIndex: 'volumeHandle',
-                                },
-                                {
-                                    title: '状态',
-                                    key: 'status',
-                                    dataIndex: 'status',
-                                    valueType: 'select',
-                                    valueEnum: PVStatusEnum,
-                                },
-                                {
-                                    title: '创建时间',
-                                    key: 'time',
-                                    dataIndex: 'time',
-                                },
-                            ]}
-                        />
-                    </ProCard>
-                    <ProCard title="VolumeAttributes">
-                        <List
-                            dataSource={parameters}
-                            split={false}
-                            size="small"
-                            renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
-                        />
-                    </ProCard>
-                    <ProCard title="挂载参数">
-                        <List
-                            dataSource={pv.spec?.mountOptions}
-                            split={false}
-                            size="small"
-                            renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
-                        />
-                    </ProCard>
-                    {EventTable(events || [])}
-                </div>
-                break
-            case "2":
-                content = <SyntaxHighlighter language="yaml">
-                    {jsyaml.dump(p)}
-                </SyntaxHighlighter>
-                break
-            case "3":
-                if (mountpods != undefined) {
-                    content = getPodTableContent(mountpods)
-                }
-        }
+        content = <div>
+            <ProCard title="基础信息">
+                <ProDescriptions
+                    column={2}
+                    dataSource={{
+                        pvc: `${pvcNamespace}/${pvName}`,  // todo: link
+                        capacity: pv.spec?.capacity?.storage,
+                        accessMode: pv.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
+                        reclaimPolicy: pv.spec?.persistentVolumeReclaimPolicy,
+                        storageClass: pv.spec?.storageClassName,
+                        volumeHandle: pv.spec?.csi?.volumeHandle,
+                        status: pv.status?.phase,
+                        time: pv.metadata?.creationTimestamp,
+                    }}
+                    columns={[
+                        {
+                            title: 'PVC',
+                            key: 'pvc',
+                            dataIndex: 'pvc',
+                        },
+                        {
+                            title: '容量',
+                            key: 'capacity',
+                            dataIndex: 'capacity',
+                        },
+                        {
+                            title: '访问模式',
+                            key: 'accessMode',
+                            dataIndex: 'accessMode',
+                        },
+                        {
+                            title: '回收策略',
+                            key: 'reclaimPolicy',
+                            dataIndex: 'reclaimPolicy',
+                        },
+                        {
+                            title: 'StorageClass',
+                            key: 'storageClass',
+                            dataIndex: 'storageClass',
+                        },
+                        {
+                            title: 'volumeHandle',
+                            key: 'volumeHandle',
+                            dataIndex: 'volumeHandle',
+                        },
+                        {
+                            title: '状态',
+                            key: 'status',
+                            dataIndex: 'status',
+                            valueType: 'select',
+                            valueEnum: PVStatusEnum,
+                        },
+                        {
+                            title: '创建时间',
+                            key: 'time',
+                            dataIndex: 'time',
+                        },
+                        {
+                            title: 'Yaml',
+                            key: 'yaml',
+                            render: (index) => {
+                                // todo
+                                return <div>点击查看</div>
+                            }
+                        },
+                    ]}
+                />
+            </ProCard>
+            <ProCard title="VolumeAttributes">
+                <List
+                    dataSource={parameters}
+                    split={false}
+                    size="small"
+                    renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
+                />
+            </ProCard>
+            <ProCard title="挂载参数">
+                <List
+                    dataSource={pv.spec?.mountOptions}
+                    split={false}
+                    size="small"
+                    renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
+                />
+            </ProCard>
+
+            {getPodTableContent(mountpods || [], "Mount Pods")}
+
+            {EventTable(events || [])}
+        </div>
         return content
     }
 
     if (!pv) {
         return <Empty/>
     } else {
-        const tabList: TabsProps['items'] = getPVTabs(pv)
         return (
             <PageContainer
                 fixedHeader
                 header={{
                     title: `PersistentVolume: ${pv?.metadata?.name}`,
                 }}
-                tabList={tabList}
-                onTabChange={handleTabChange}
             >
                 <ProCard direction="column">
-                    {getPVTabsContent(activeTab, pv, pvcNamespace, pvName)}
+                    {getPVTabsContent(pv, pvcNamespace, pvName)}
                 </ProCard>
             </PageContainer>
         )

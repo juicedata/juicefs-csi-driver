@@ -139,124 +139,110 @@ const DetailedPod: React.FC<unknown> = () => {
             })
         })
         let content: any
-        const handleButtonClick = (container: string) => {
-            setActiveTab('3');
-            setContainer(container);
-            ensureLog(container)
-        };
 
-        switch (activeTab) {
-            case "1":
-                content = <div>
-                    <ProCard title="基础信息">
-                        <ProDescriptions
-                            column={2}
-                            dataSource={{
-                                namespace: pod.metadata?.namespace,
-                                node: pod.spec?.nodeName,
-                                status: pod.status?.phase,
-                                time: pod.metadata?.creationTimestamp,
-                            }}
-                            columns={[
-                                {
-                                    title: '命名空间',
-                                    key: 'namespace',
-                                    dataIndex: 'namespace',
-                                },
-                                {
-                                    title: '所在节点',
-                                    key: 'node',
-                                    dataIndex: 'node',
-                                },
-                                {
-                                    title: '状态',
-                                    key: 'status',
-                                    dataIndex: 'status',
-                                    valueType: 'select',
-                                    valueEnum: PodStatusEnum,
-                                },
-                                {
-                                    title: '创建时间',
-                                    key: 'time',
-                                    dataIndex: 'time',
-                                },
-                            ]}
-                        />
-                    </ProCard>
-
-                    <ProCard title={"容器列表"}>
-                        <Table columns={[
-                            {
-                                title: '容器名',
-                                dataIndex: 'name',
-                                key: 'name',
-                            },
-                            {
-                                title: '重启次数',
-                                dataIndex: 'restartCount',
-                                key: 'restartCount',
-                            },
-                            {
-                                title: '状态',
-                                key: 'status',
-                                dataIndex: 'status',
-                                render: (status) => {
-                                    const color = status === 'Ready' ? 'green' : 'red';
-                                    const text = status === 'Ready' ? 'Ready' : 'NotReady';
-                                    return <Tag color={color}>{text}</Tag>;
-                                },
-                            },
-                            {
-                                title: '启动时间',
-                                dataIndex: 'startAt',
-                                key: 'startAt',
-                            },
-                            {
-                                title: "日志",
-                                key: 'action',
-                                render: (record) => (
-                                    <Button type="link" onClick={() => handleButtonClick(record.name)}>
-                                        查看日志
-                                    </Button>
-                                )
-                            }
-                        ]}
-                               dataSource={containers}
-                               rowKey={c => c.name}
-                               pagination={false}
-                        />
-                    </ProCard>
-
-                    {EventTable(pod.events || [])}
-                </div>
-                break
-            case "2":
-                content = <SyntaxHighlighter language="yaml">
-                    {jsyaml.dump(p)}
-                </SyntaxHighlighter>
-                break
-            case "3":
-                const container = getContainer()!
-                if (!pod.logs.has(container)) {
-                    content = <Empty/>
-                } else {
-                    const log = pod.logs.get(container)!
-                    if (log.length < 16 * 1024) {
-                        content = <SyntaxHighlighter language={"log"} wrapLongLines={true}>
-                            {log}
-                        </SyntaxHighlighter>
-                    } else {
-                        content = <pre><code>{log}</code></pre>
-                    }
-                }
-                break
-            case "4":
-                if (pod.mountPods && pod.mountPods?.length != 0) {
-                    content = getPodTableContent(pod.mountPods)
-                } else if (pod.appPods && pod.appPods.length != 0) {
-                    content = getPodTableContent(pod.appPods)
-                }
+        let exhibitPods: RawPod[] = []
+        let exhibitPodTableName = ""
+        if (pod.mountPods?.length !== 0) {
+            exhibitPods = pod.mountPods || []
+            exhibitPodTableName = "Mount Pods"
         }
+        if (pod.appPods?.length !== 0) {
+            exhibitPods = pod.appPods || []
+            exhibitPodTableName = "App Pods"
+        }
+        content = <div>
+            <ProCard title="基础信息">
+                <ProDescriptions
+                    column={2}
+                    dataSource={{
+                        namespace: pod.metadata?.namespace,
+                        node: pod.spec?.nodeName,
+                        status: pod.status?.phase,
+                        time: pod.metadata?.creationTimestamp,
+                    }}
+                    columns={[
+                        {
+                            title: '命名空间',
+                            key: 'namespace',
+                            dataIndex: 'namespace',
+                        },
+                        {
+                            title: '所在节点',
+                            key: 'node',
+                            dataIndex: 'node',
+                        },
+                        {
+                            title: '状态',
+                            key: 'status',
+                            dataIndex: 'status',
+                            valueType: 'select',
+                            valueEnum: PodStatusEnum,
+                        },
+                        {
+                            title: '创建时间',
+                            key: 'time',
+                            dataIndex: 'time',
+                        },
+                        {
+                            title: 'Yaml',
+                            key: 'yaml',
+                            render: (index) => {
+                                // todo
+                                return <div>点击查看</div>
+                            }
+                        },
+                    ]}
+                />
+            </ProCard>
+
+            <ProCard title={"容器列表"}>
+                <Table columns={[
+                    {
+                        title: '容器名',
+                        dataIndex: 'name',
+                        key: 'name',
+                    },
+                    {
+                        title: '重启次数',
+                        dataIndex: 'restartCount',
+                        key: 'restartCount',
+                    },
+                    {
+                        title: '状态',
+                        key: 'status',
+                        dataIndex: 'status',
+                        render: (status) => {
+                            const color = status === 'Ready' ? 'green' : 'red';
+                            const text = status === 'Ready' ? 'Ready' : 'NotReady';
+                            return <Tag color={color}>{text}</Tag>;
+                        },
+                    },
+                    {
+                        title: '启动时间',
+                        dataIndex: 'startAt',
+                        key: 'startAt',
+                    },
+                    {
+                        title: "日志",
+                        key: 'action',
+                        render: (record) => (
+                            // todo
+                            <Button>
+                                查看日志
+                            </Button>
+                        )
+                    }
+                ]}
+                       dataSource={containers}
+                       rowKey={c => c.name}
+                       pagination={false}
+                />
+            </ProCard>
+
+            {getPodTableContent(exhibitPods, exhibitPodTableName)}
+
+            {EventTable(pod.events || [])}
+        </div>
         return content
     }
 
@@ -265,43 +251,12 @@ const DetailedPod: React.FC<unknown> = () => {
         return <Empty/>
     } else {
         const tabList: TabsProps['items'] = getPodTabs(pod)
-        const footer = []
-        if (activeTab === '3') {
-            const containers: string[] = []
-            pod.spec?.containers?.forEach((container) => {
-                containers.push(container.name)
-            })
-            pod.spec?.initContainers?.forEach((container) => {
-                containers.push(container.name)
-            })
-            if (containers.length > 1) {
-                footer.push(
-                    <Select
-                        key="container"
-                        placeholder='选择容器'
-                        value={container}
-                        style={{width: 200}}
-                        onChange={handleContainerChange}
-                        options={containers.map((container) => {
-                            return {
-                                value: container,
-                                label: container,
-                            }
-                        })}
-                    />
-                )
-            }
-        }
         return (
             <PageContainer
                 fixedHeader
                 header={{
                     title: `Pod: ${pod.metadata?.name}`,
                 }}
-                tabList={tabList}
-                tabActiveKey={activeTab}
-                onTabChange={handleTabChange}
-                footer={footer}
             >
                 <ProCard direction="column">
                     {getPobTabsContent(activeTab, pod)}
@@ -311,53 +266,67 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 }
 
-export const getPodTableContent = (pods: RawPod[]) => {
-    return (
-        <ProCard
-            direction="column"
-            gutter={[0, 16]}
-            style={{marginBlockStart: 8}}>
-            {pods.map((pod) => (
-                <ProCard title={`${pod.metadata?.name}`} type="inner" bordered
-                         extra={<Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/`}> 查看详情 </Link>}>
-                    <ProDescriptions
-                        column={4}
-                        dataSource={{
-                            namespace: pod.metadata?.namespace,
-                            node: pod.spec?.nodeName,
-                            status: pod.status?.phase,
-                            time: pod.metadata?.creationTimestamp,
-                        }}
-                        columns={[
-                            {
-                                title: '命名空间',
-                                key: 'namespace',
-                                dataIndex: 'namespace',
-                            },
-                            {
-                                title: '所在节点',
-                                key: 'node',
-                                dataIndex: 'node',
-                            },
-                            {
-                                title: '状态',
-                                key: 'status',
-                                dataIndex: 'status',
-                                valueType: 'select',
-                                valueEnum: PodStatusEnum,
-                            },
-                            {
-                                title: '创建时间',
-                                key: 'time',
-                                dataIndex: 'time',
-                            },
-                        ]}
-                    >
-                    </ProDescriptions>
-                </ProCard>
-            ))}
-        </ProCard>
-    )
+export const getPodTableContent = (pods: RawPod[], title: string) => {
+    return <ProCard title={title}>
+        <Table columns={[
+            {
+                title: '名称',
+                key: 'name',
+                render: (mountPod) => (
+                    <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata.name}/`}>
+                        {mountPod.metadata.name}
+                    </Link>
+                ),
+            },
+            {
+                title: 'Namespace',
+                key: 'namespace',
+                dataIndex: ["metadata", 'namespace'],
+            },
+            {
+                title: '状态',
+                key: 'status',
+                dataIndex: ['status', "phase"],
+                render: (status) => {
+                    let color = "grey"
+                    let text = "未知"
+                    switch (status) {
+                        case "Pending":
+                            color = 'yellow'
+                            text = '等待运行'
+                            break
+                        case "Running":
+                            text = "运行中"
+                            color = "green"
+                            break
+                        case "Succeed":
+                            text = "已完成"
+                            color = "blue"
+                            break
+                        case "Failed":
+                            text = "失败"
+                            color = "red"
+                            break
+                        case "Unknown":
+                        default:
+                            text = "未知"
+                            color = "grey"
+                            break
+                    }
+                    return <Tag color={color}>{text}</Tag>;
+                },
+            },
+            {
+                title: '启动时间',
+                dataIndex: ['metadata', 'creationTimestamp'],
+                key: 'startAt',
+            },
+        ]}
+               dataSource={pods}
+               rowKey={c => c.metadata?.uid!}
+               pagination={false}
+        />
+    </ProCard>
 }
 
 export const EventTable = (events: Event[]) => {

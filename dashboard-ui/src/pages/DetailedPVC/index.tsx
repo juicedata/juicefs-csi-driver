@@ -52,31 +52,7 @@ const DetailedPVC: React.FC<unknown> = () => {
         getPVCEvents(pvc?.metadata?.namespace || "", pvc?.metadata?.name || "").then(setEvents)
     }, []);
 
-    const [activeTab, setActiveTab] = useState('1');
-    const handleTabChange = (key: any) => {
-        setActiveTab(key);
-    };
-
-    const getPVCTabs = () => {
-        let tabList: TabsProps['items'] = [
-            {
-                key: '1',
-                label: '状态',
-            },
-            {
-                key: '2',
-                label: 'Yaml',
-            },
-        ]
-        if (mountpods) {
-            tabList.push({
-                key: '3',
-                label: 'Mount Pod',
-            })
-        }
-        return tabList
-    }
-    const getPVCTabsContent = (activeTab: string, pvc: PersistentVolumeClaim) => {
+    const getPVCTabsContent = (pvc: PersistentVolumeClaim) => {
         const accessModeMap: { [key: string]: string } = {
             ReadWriteOnce: 'RWO',
             ReadWriteMany: 'RWM',
@@ -85,99 +61,94 @@ const DetailedPVC: React.FC<unknown> = () => {
         };
 
         let content: any
-        switch (activeTab) {
-            case "1":
-                content = <div>
-                    <ProCard title="基础信息">
-                        <ProDescriptions
-                            column={2}
-                            dataSource={{
-                                name: pvc.metadata?.name,
-                                namespace: pvc.metadata?.namespace,
-                                pv: `${pvc.spec?.volumeName || "-"}`,  // todo: link
-                                capacity: pvc.spec?.resources?.requests?.storage,
-                                accessMode: pvc.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
-                                storageClass: pvc.spec?.storageClassName,
-                                status: pvc.status?.phase,
-                                time: pvc.metadata?.creationTimestamp,
-                            }}
-                            columns={[
-                                {
-                                    title: "名称",
-                                    key: 'name',
-                                    dataIndex: 'name',
-                                },
-                                {
-                                    title: "命名空间",
-                                    key: 'namespace',
-                                    dataIndex: 'namespace',
-                                },
-                                {
-                                    title: 'PV',
-                                    key: 'pv',
-                                    dataIndex: 'pv',
-                                },
-                                {
-                                    title: '容量',
-                                    key: 'capacity',
-                                    dataIndex: 'capacity',
-                                },
-                                {
-                                    title: '访问模式',
-                                    key: 'accessMode',
-                                    dataIndex: 'accessMode',
-                                },
-                                {
-                                    title: 'StorageClass',
-                                    key: 'storageClass',
-                                    dataIndex: 'storageClass',
-                                },
-                                {
-                                    title: '状态',
-                                    key: 'status',
-                                    dataIndex: 'status',
-                                    valueType: 'select',
-                                    valueEnum: PVStatusEnum,
-                                },
-                                {
-                                    title: '创建时间',
-                                    key: 'time',
-                                    dataIndex: 'time',
-                                },
-                            ]}
-                        />
-                    </ProCard>
-                    {EventTable(events || [])}
-                </div>
-                break
-            case "2":
-                content = <SyntaxHighlighter language="yaml">
-                    {jsyaml.dump(pvc)}
-                </SyntaxHighlighter>
-                break
-            case "3":
-                if (mountpods != undefined) {
-                    content = getPodTableContent(mountpods)
-                }
-        }
+        content = <div>
+            <ProCard title="基础信息">
+                <ProDescriptions
+                    column={2}
+                    dataSource={{
+                        name: pvc.metadata?.name,
+                        namespace: pvc.metadata?.namespace,
+                        pv: `${pvc.spec?.volumeName || "-"}`,  // todo: link
+                        capacity: pvc.spec?.resources?.requests?.storage,
+                        accessMode: pvc.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
+                        storageClass: pvc.spec?.storageClassName,
+                        status: pvc.status?.phase,
+                        time: pvc.metadata?.creationTimestamp,
+                    }}
+                    columns={[
+                        {
+                            title: "名称",
+                            key: 'name',
+                            dataIndex: 'name',
+                        },
+                        {
+                            title: "命名空间",
+                            key: 'namespace',
+                            dataIndex: 'namespace',
+                        },
+                        {
+                            title: 'PV',
+                            key: 'pv',
+                            dataIndex: 'pv',
+                        },
+                        {
+                            title: '容量',
+                            key: 'capacity',
+                            dataIndex: 'capacity',
+                        },
+                        {
+                            title: '访问模式',
+                            key: 'accessMode',
+                            dataIndex: 'accessMode',
+                        },
+                        {
+                            title: 'StorageClass',
+                            key: 'storageClass',
+                            dataIndex: 'storageClass',
+                        },
+                        {
+                            title: '状态',
+                            key: 'status',
+                            dataIndex: 'status',
+                            valueType: 'select',
+                            valueEnum: PVStatusEnum,
+                        },
+                        {
+                            title: '创建时间',
+                            key: 'time',
+                            dataIndex: 'time',
+                        },
+                        {
+                            title: 'Yaml',
+                            key: 'yaml',
+                            render: (index) => {
+                                // todo
+                                return <div>点击查看</div>
+                            }
+                        },
+                    ]}
+                />
+            </ProCard>
+
+            {getPodTableContent(mountpods || [], "Mount Pods")}
+
+            {EventTable(events || [])}
+        </div>
         return content
     }
 
     if (!pvc) {
         return <PageLoading/>
     } else {
-        const tabList: TabsProps['items'] = getPVCTabs()
         return (
             <PageContainer
                 header={{
                     title: `PersistentVolumeClaim: ${pvc?.metadata?.name}`,
                 }}
                 fixedHeader
-                tabList={tabList}
-                onTabChange={handleTabChange}
             >
                 <ProCard direction="column">
-                    {getPVCTabsContent(activeTab, pvc)}
+                    {getPVCTabsContent(pvc)}
                 </ProCard>
             </PageContainer>
         )

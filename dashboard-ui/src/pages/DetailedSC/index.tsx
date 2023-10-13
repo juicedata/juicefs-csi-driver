@@ -19,7 +19,7 @@ import React, {useEffect, useState} from 'react';
 import {useMatch} from '@umijs/max';
 import {getSC, getPVOfSC} from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import {Empty, List, TabsProps} from "antd";
+import {Empty, List, Table, TabsProps, Tag} from "antd";
 import {StorageClass} from "kubernetes-types/storage/v1";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {PersistentVolume} from "kubernetes-types/core/v1";
@@ -49,30 +49,7 @@ const DetailedSC: React.FC<unknown> = () => {
         getPVOfSC(scName).then(setPVs)
     }, [setPVs])
 
-    const [activeTab, setActiveTab] = useState('1');
-    const handleTabChange = (key: string) => {
-        setActiveTab(key);
-    };
-
-    const getSCTabs = (sc: StorageClass) => {
-        let tabList: TabsProps['items'] = [
-            {
-                key: '1',
-                label: '状态',
-            },
-            {
-                key: '2',
-                label: 'Yaml',
-            },
-            {
-                key: "3",
-                label: 'PV',
-            }
-        ]
-        return tabList
-    }
-
-    const getSCTabsContent = (activeTab: string, sc: StorageClass) => {
+    const getSCTabsContent = (sc: StorageClass) => {
         let content: any
         let parameters: string[] = []
         for (const key in sc.parameters) {
@@ -81,70 +58,115 @@ const DetailedSC: React.FC<unknown> = () => {
                 parameters.push(`${key}: ${value}`)
             }
         }
-        switch (activeTab) {
-            case "1":
-                content = <div>
-                    <ProCard title="基础信息">
-                        <ProDescriptions
-                            column={2}
-                            dataSource={{
-                                reclaimPolicy: sc.reclaimPolicy,
-                                provisioner: sc.provisioner,
-                                expansion: sc.allowVolumeExpansion ? "支持" : "不支持",
-                                time: sc.metadata?.creationTimestamp,
-                            }}
-                            columns={[
-                                {
-                                    title: '回收策略',
-                                    key: 'reclaimPolicy',
-                                    dataIndex: 'reclaimPolicy',
-                                },
-                                {
-                                    title: 'Provisioner',
-                                    key: 'provisioner',
-                                    dataIndex: 'provisioner',
-                                },
-                                {
-                                    title: '支持扩容',
-                                    key: 'expansion',
-                                    dataIndex: 'expansion',
-                                },
-                                {
-                                    title: '创建时间',
-                                    key: 'time',
-                                    dataIndex: 'time',
-                                },
-                            ]}
-                        />
-                    </ProCard>
-                    <ProCard title="Paramters">
-                        <List
-                            dataSource={parameters}
-                            split={false}
-                            size="small"
-                            renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
-                        />
-                    </ProCard>
-                    <ProCard title="挂载参数">
-                        <List
-                            dataSource={sc.mountOptions}
-                            split={false}
-                            size="small"
-                            renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
-                        />
-                    </ProCard>
-                </div>
-                break
-            case "2":
-                content = <SyntaxHighlighter language="yaml">
-                    {jsyaml.dump(sc)}
-                </SyntaxHighlighter>
-                break
-            case "3":
-                if (pvs) {
-                    content = getPVsResult(pvs)
-                }
-        }
+        content = <div>
+            <ProCard title="基础信息">
+                <ProDescriptions
+                    column={2}
+                    dataSource={{
+                        reclaimPolicy: sc.reclaimPolicy,
+                        expansion: sc.allowVolumeExpansion ? "支持" : "不支持",
+                        time: sc.metadata?.creationTimestamp,
+                    }}
+                    columns={[
+                        {
+                            title: '回收策略',
+                            key: 'reclaimPolicy',
+                            dataIndex: 'reclaimPolicy',
+                        },
+                        {
+                            title: '支持扩容',
+                            key: 'expansion',
+                            dataIndex: 'expansion',
+                        },
+                        {
+                            title: '创建时间',
+                            key: 'time',
+                            dataIndex: 'time',
+                        },
+                        {
+                            title: 'Yaml',
+                            key: 'yaml',
+                            render: (index) => {
+                                // todo
+                                return <div>点击查看</div>
+                            }
+                        },
+                    ]}
+                />
+            </ProCard>
+            <ProCard title="Paramters">
+                <List
+                    dataSource={parameters}
+                    split={false}
+                    size="small"
+                    renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
+                />
+            </ProCard>
+            <ProCard title="挂载参数">
+                <List
+                    dataSource={sc.mountOptions}
+                    split={false}
+                    size="small"
+                    renderItem={(item) => <List.Item><code>{item}</code></List.Item>}
+                />
+            </ProCard>
+
+            <ProCard title={"PV"}>
+                <Table columns={[
+                    {
+                        title: '名称',
+                        key: 'name',
+                        render: (pv) => (
+                            <Link to={`/pv/${pv.metadata.name}/`}>
+                                {pv.metadata.name}
+                            </Link>
+                        ),
+                    },
+                    {
+                        title: '状态',
+                        key: 'status',
+                        dataIndex: ['status', "phase"],
+                        render: (status) => {
+                            let color = "grey"
+                            let text = "未知"
+                            switch (status) {
+                                case "Pending":
+                                    color = 'yellow'
+                                    text = '等待运行'
+                                    break
+                                case "Bound":
+                                    text = "已绑定"
+                                    color = "green"
+                                    break
+                                case "Available":
+                                    text = "可绑定"
+                                    color = "blue"
+                                    break
+                                case "Failed":
+                                    text = "失败"
+                                    color = "red"
+                                    break
+                                case "Released":
+                                default:
+                                    text = "已释放"
+                                    color = "grey"
+                                    break
+                            }
+                            return <Tag color={color}>{text}</Tag>;
+                        },
+                    },
+                    {
+                        title: '启动时间',
+                        dataIndex: ['metadata', 'creationTimestamp'],
+                        key: 'startAt',
+                    },
+                ]}
+                       dataSource={pvs}
+                       rowKey={c => c.metadata?.uid!}
+                       pagination={false}
+                />
+            </ProCard>
+        </div>
         return content
     }
 
@@ -188,18 +210,15 @@ const DetailedSC: React.FC<unknown> = () => {
     if (!sc) {
         return <Empty/>
     } else {
-        const tabList: TabsProps['items'] = getSCTabs(sc)
         return (
             <PageContainer
                 fixedHeader
                 header={{
                     title: `StorageClass: ${sc?.metadata?.name}`,
                 }}
-                tabList={tabList}
-                onTabChange={handleTabChange}
             >
                 <ProCard direction="column">
-                    {getSCTabsContent(activeTab, sc)}
+                    {getSCTabsContent(sc)}
                 </ProCard>
             </PageContainer>
         )
