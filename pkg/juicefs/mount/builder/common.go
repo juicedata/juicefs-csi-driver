@@ -111,18 +111,6 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			{Name: "metrics", ContainerPort: r.genMetricsPort()},
 		}
 	}
-	if initContainer := r.genInitContainer(cnGen); initContainer != nil {
-		// initContainer should have the same volumeMounts as mount container
-		initContainer.VolumeMounts = pod.Spec.Containers[0].VolumeMounts
-		initContainer.EnvFrom = []corev1.EnvFromSource{{
-			SecretRef: &corev1.SecretEnvSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: r.jfsSetting.SecretName,
-				},
-			},
-		}}
-		pod.Spec.InitContainers = []corev1.Container{*initContainer}
-	}
 	return pod
 }
 
@@ -157,73 +145,6 @@ func (r *BaseBuilder) genMountCommand() string {
 	return util.QuoteForShell(cmd)
 }
 
-// genInitContainer: generate init container
-func (r *BaseBuilder) genInitContainer(cnGen func() corev1.Container) *corev1.Container {
-	if r.jfsSetting.SubPath == "" {
-		// do not need initContainer if no subpath
-		return nil
-	}
-	container := cnGen()
-	container.Name = "jfs-init"
-
-	initCmds := []string{
-		r.genInitCommand(),
-	}
-	// create subpath if readonly mount or in webhook mode
-	if util.ContainsString(r.jfsSetting.Options, "read-only") || util.ContainsString(r.jfsSetting.Options, "ro") || config.Webhook {
-		// generate mount command
-		initCmds = append(initCmds,
-			r.getJobCommand(),
-			fmt.Sprintf("if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", r.jfsSetting.SubPath, r.jfsSetting.SubPath),
-			"umount /mnt/jfs",
-		)
-		// set quota in webhook mode
-		if config.Webhook && r.capacity > 0 {
-			quotaPath := r.jfsSetting.SubPath
-			var subdir string
-			for _, o := range r.jfsSetting.Options {
-				pair := strings.Split(o, "=")
-				if len(pair) != 2 {
-					continue
-				}
-				if pair[0] == "subdir" {
-					subdir = path.Join("/", pair[1])
-				}
-			}
-			var setQuotaCmd string
-			targetPath := path.Join(subdir, quotaPath)
-			capacity := strconv.FormatInt(r.capacity, 10)
-			if r.jfsSetting.IsCe {
-				// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
-				cmdArgs := []string{
-					config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
-					config.CeCliPath,
-					"quota", "set", "${metaurl}",
-					"--path", targetPath,
-					"--capacity", capacity,
-					"; fi",
-				}
-				setQuotaCmd = strings.Join(cmdArgs, " ")
-			} else {
-				cmdArgs := []string{
-					config.CliPath, "quota; if [ $? -eq 0 ]; then",
-					config.CliPath,
-					"quota", "set", r.jfsSetting.Name,
-					"--path", targetPath,
-					"--capacity", capacity,
-					"; fi",
-				}
-				setQuotaCmd = strings.Join(cmdArgs, " ")
-			}
-			initCmds = append(initCmds, setQuotaCmd)
-		}
-	} else {
-		return nil
-	}
-	container.Command = []string{"sh", "-c", strings.Join(initCmds, "\n")}
-	return &container
-}
-
 // genInitCommand generates init command
 func (r *BaseBuilder) genInitCommand() string {
 	formatCmd := r.jfsSetting.FormatCmd
@@ -232,8 +153,50 @@ func (r *BaseBuilder) genInitCommand() string {
 			formatCmd = formatCmd + " --encrypt-rsa-key=/root/.rsa/rsa-key.pem"
 		}
 	}
+	initCmds := []string{formatCmd}
 
-	return formatCmd
+	// set quota in webhook mode
+	if config.Webhook && r.capacity > 0 {
+		quotaPath := r.jfsSetting.SubPath
+		var subdir string
+		for _, o := range r.jfsSetting.Options {
+			pair := strings.Split(o, "=")
+			if len(pair) != 2 {
+				continue
+			}
+			if pair[0] == "subdir" {
+				subdir = path.Join("/", pair[1])
+			}
+		}
+		var setQuotaCmd string
+		targetPath := path.Join(subdir, quotaPath)
+		capacity := strconv.FormatInt(r.capacity, 10)
+		if r.jfsSetting.IsCe {
+			// juicefs quota; if [ $? -eq 0 ]; then juicefs quota set ${metaurl} --path ${path} --capacity ${capacity}; fi
+			cmdArgs := []string{
+				config.CeCliPath, "quota; if [ $? -eq 0 ]; then",
+				config.CeCliPath,
+				"quota", "set", "${metaurl}",
+				"--path", targetPath,
+				"--capacity", capacity,
+				"; fi",
+			}
+			setQuotaCmd = strings.Join(cmdArgs, " ")
+		} else {
+			cmdArgs := []string{
+				config.CliPath, "quota; if [ $? -eq 0 ]; then",
+				config.CliPath,
+				"quota", "set", r.jfsSetting.Name,
+				"--path", targetPath,
+				"--capacity", capacity,
+				"; fi",
+			}
+			setQuotaCmd = strings.Join(cmdArgs, " ")
+		}
+		initCmds = append(initCmds, setQuotaCmd)
+	}
+
+	return strings.Join(initCmds, "\n")
 }
 
 // genJobCommand generates job command

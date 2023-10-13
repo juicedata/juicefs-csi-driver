@@ -31,6 +31,7 @@ const (
 
 var (
 	checkMountScriptContent = `ConditionPathIsMountPoint="$1"
+subpath="$2"
 count=0
 while ! mount | grep $ConditionPathIsMountPoint | grep JuiceFS
 do
@@ -44,6 +45,10 @@ do
 done
 echo "$(date "+%Y-%m-%d %H:%M:%S")"
 echo "succeed in checking mount point $ConditionPathIsMountPoint"
+if [ -n "$subpath" ]; then
+echo "create subpath $subpath"
+mkdir -r 777 $ConditionPathIsMountPoint/$subpath
+fi;
 `
 )
 

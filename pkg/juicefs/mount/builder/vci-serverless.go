@@ -69,18 +69,6 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 			"mountPath" : "%s"
 		}]`, r.jfsSetting.MountPath),
 	}
-	if len(pod.Spec.InitContainers) != 0 {
-		pod.Annotations = map[string]string{
-			VCIPropagationConfig: VCIPropagationConfigValue,
-			VCIPropagation: fmt.Sprintf(`[{
-			"container": "jfs-mount",
-			"mountPath" : "%s"
-		}, {
-			"container": "jfs-init",
-			"mountPath" : "/mnt/jfs"
-		}]`, r.jfsSetting.MountPath),
-		}
-	}
 
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",

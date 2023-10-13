@@ -124,10 +124,6 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 	s.injectAnnotation(out, mountPod.Annotations)
 	// inject container
 	s.injectContainer(out, mountPod.Spec.Containers[0])
-	// inject initContainer
-	if len(mountPod.Spec.InitContainers) != 0 {
-		s.injectInitContainer(out, mountPod.Spec.InitContainers[0])
-	}
 
 	return
 }
@@ -144,13 +140,6 @@ func (s *SidecarMutate) Deduplicate(pod, mountPod *corev1.Pod, index int) {
 	if !conflict {
 		// if container name not conflict, do not check others
 		return
-	}
-
-	// deduplicate initContainer name
-	for _, c := range pod.Spec.InitContainers {
-		if c.Name == mountPod.Spec.InitContainers[0].Name {
-			mountPod.Spec.InitContainers[0].Name = fmt.Sprintf("%s-%d", c.Name, index)
-		}
 	}
 
 	// deduplicate volume name
@@ -213,10 +202,6 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 
 func (s *SidecarMutate) injectContainer(pod *corev1.Pod, container corev1.Container) {
 	pod.Spec.Containers = append([]corev1.Container{container}, pod.Spec.Containers...)
-}
-
-func (s *SidecarMutate) injectInitContainer(pod *corev1.Pod, container corev1.Container) {
-	pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 }
 
 func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInterface, volumes []corev1.Volume, mountPath string, pair util.PVPair) {

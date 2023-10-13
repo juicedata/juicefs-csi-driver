@@ -72,9 +72,6 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
 
-	if len(pod.Spec.InitContainers) != 0 {
-		pod.Spec.InitContainers[0].VolumeMounts = append(pod.Spec.InitContainers[0].VolumeMounts, mountVolumeMounts...)
-	}
 	return pod
 }
 

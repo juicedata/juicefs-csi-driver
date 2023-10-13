@@ -54,7 +54,7 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
-			fmt.Sprintf("time %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath)}},
+			fmt.Sprintf("time %s %s %s >> /proc/1/fd/1", checkMountScriptPath, r.jfsSetting.MountPath, r.jfsSetting.SubPath)}},
 	}
 	return pod
 }

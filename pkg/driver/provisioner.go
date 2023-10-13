@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -87,6 +89,16 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	subPath := options.PVName
 	if options.StorageClass.Parameters["pathPattern"] != "" {
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
+	}
+	// return error if set readonly in dynamic provisioner
+	for _, am := range options.PVC.Spec.AccessModes {
+		if am == corev1.ReadOnlyMany {
+			if options.StorageClass.Parameters["pathPattern"] == "" {
+				return nil, provisioncontroller.ProvisioningFinished, status.Errorf(codes.InvalidArgument, "Dynamic mounting uses the sub-path named pv name as data isolation, so read-only mode cannot be used.")
+			} else {
+				klog.Warningf("Volume is set readonly, please make sure the subpath %s exists.", subPath)
+			}
+		}
 	}
 
 	mountOptions := make([]string, 0)
