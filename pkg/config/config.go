@@ -18,7 +18,6 @@ package config
 
 import (
 	"hash/fnv"
-	"os"
 	"sync"
 	"time"
 
@@ -59,8 +58,6 @@ var (
 	CeCliPath       = "/usr/local/bin/juicefs"
 	CeMountPath     = "/bin/mount.juicefs"
 	JfsMountPath    = "/sbin/mount.juicefs"
-	JfsGoBinaryPath = os.Getenv("JFS_MOUNT_PATH")
-	JfsChannel      = os.Getenv("JFSCHAN")
 )
 
 const (
@@ -109,6 +106,7 @@ const (
 	deleteDelay            = "juicefs/mount-delete-delay"
 	cleanCache             = "juicefs/clean-cache"
 	cachePVC               = "juicefs/mount-cache-pvc"
+	cacheEmptyDir          = "juicefs/mount-cache-emptydir"
 	mountPodHostPath       = "juicefs/host-path"
 
 	// DeleteDelayTimeKey mount pod annotation

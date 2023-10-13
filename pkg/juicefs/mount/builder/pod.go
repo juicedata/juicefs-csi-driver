@@ -139,6 +139,26 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
 	}
 
+	if r.jfsSetting.CacheEmptyDir != nil {
+		name := "cachedir-empty-dir"
+		emptyVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					Medium:    corev1.StorageMedium(r.jfsSetting.CacheEmptyDir.Medium),
+					SizeLimit: &r.jfsSetting.CacheEmptyDir.SizeLimit,
+				},
+			},
+		}
+		cacheVolumes = append(cacheVolumes, emptyVolume)
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: r.jfsSetting.CacheEmptyDir.Path,
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
 	return cacheVolumes, cacheVolumeMounts
 }
 
