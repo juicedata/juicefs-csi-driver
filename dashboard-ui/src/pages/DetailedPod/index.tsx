@@ -24,7 +24,6 @@ import * as jsyaml from "js-yaml";
 import { TabsProps, Select, Empty, Table, Button, Tag } from "antd";
 import { Link } from 'umi';
 import { PodStatusEnum } from "@/services/common";
-import queryString from 'query-string';
 
 const DetailedPod: React.FC<unknown> = () => {
     const params = useParams()
@@ -230,7 +229,7 @@ const DetailedPod: React.FC<unknown> = () => {
         const data = format === 'json' ? JSON.stringify(p, null, "\t") : jsyaml.dump(p)
         content = (
             <SyntaxHighlighter language={format} showLineNumbers>
-                {data}
+                {data.trim()}
             </SyntaxHighlighter>
         )
     } else if (typeof container === 'string') {
@@ -238,12 +237,14 @@ const DetailedPod: React.FC<unknown> = () => {
         if (!log) {
             content = <Empty />
         } else {
-            const logs = log.split("\n")
+            let logs = log.split("\n")
+            let start = 0
             if (logs.length > 1024) {
-                logs.splice(logs.length - 1024)
+                start = logs.length - 1024
+                logs = logs.splice(start)
             }
-            content = <SyntaxHighlighter language={"log"} showLineNumbers wrapLongLines={true}>
-                {logs.join("\n")}
+            content = <SyntaxHighlighter language={"log"} startingLineNumber={start} showLineNumbers wrapLongLines={true}>
+                {logs.join("\n").trim()}
             </SyntaxHighlighter>
         }
     } else {
