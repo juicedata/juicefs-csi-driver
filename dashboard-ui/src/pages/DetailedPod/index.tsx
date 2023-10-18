@@ -14,16 +14,17 @@
  limitations under the License.
  */
 
-import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
-import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
-import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
-import React, {useEffect, useState} from 'react';
-import {useMatch} from '@umijs/max';
-import {getPod, getLog, Pod} from '@/services/pod';
+import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
+import React, { useEffect, useState } from 'react';
+import { useMatch, useLocation } from '@umijs/max';
+import { getPod, getLog, Pod } from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import {TabsProps, Select, Empty, Table, Button, Tag} from "antd";
-import {Link} from 'umi';
-import {PodStatusEnum} from "@/services/common";
+import { TabsProps, Select, Empty, Table, Button, Tag } from "antd";
+import { Link } from 'umi';
+import { PodStatusEnum } from "@/services/common";
+import queryString from 'query-string';
 
 const DetailedPod: React.FC<unknown> = () => {
     const routeData = useMatch('/pod/:namespace/:name')
@@ -39,8 +40,10 @@ const DetailedPod: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
+    const query = queryString.parse(useLocation().search)
+    const format = query['raw']
+    const container = query['log']
     const [pod, setPod] = useState<Pod>()
-    const [container, setContainer] = useState<string>()
 
     useEffect(() => {
         getPod(namespace, name).then((pod) => {
@@ -49,7 +52,6 @@ const DetailedPod: React.FC<unknown> = () => {
             }
         })
     }, [setPod])
-
     const getContainer = () => (container || pod?.spec?.containers?.[0].name)
     const [activeTab, setActiveTab] = useState('1');
     const ensureLog = (container: string) => {
@@ -66,49 +68,7 @@ const DetailedPod: React.FC<unknown> = () => {
         })
     }
 
-    const handleTabChange = (key: string) => {
-        setActiveTab(key);
-        if (key === '3' && pod) {
-            const cname = getContainer()!
-            ensureLog(cname)
-        }
-    };
-
-    const handleContainerChange = (container: string) => {
-        setContainer(container)
-        ensureLog(container)
-    }
-
-    const getPodTabs = (pod: Pod) => {
-        let tabList: TabsProps['items'] = [
-            {
-                key: '1',
-                label: '状态',
-            },
-            {
-                key: '2',
-                label: 'Yaml',
-            },
-            {
-                key: '3',
-                label: '日志',
-            },
-        ]
-        if (pod.mountPods?.length !== 0) {
-            tabList.push({
-                key: '4',
-                label: 'Mount Pods',
-            })
-        } else if (pod.appPods?.length !== 0) {
-            tabList.push({
-                key: '4',
-                label: 'App Pods',
-            })
-        }
-        return tabList
-    }
-
-    const getPobTabsContent = (activeTab: string, pod: Pod) => {
+    const getPobTabsContent = (pod: Pod) => {
         const p = {
             metadata: pod.metadata,
             spec: pod.spec,
@@ -186,9 +146,11 @@ const DetailedPod: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: (index) => {
+                            render: () => {
                                 // todo
-                                return <div>点击查看</div>
+                                return <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}?raw=yaml`}>
+                                    {'点击查看'}
+                                </Link>
                             }
                         },
                     ]}
@@ -233,9 +195,9 @@ const DetailedPod: React.FC<unknown> = () => {
                         )
                     }
                 ]}
-                       dataSource={containers}
-                       rowKey={c => c.name}
-                       pagination={false}
+                    dataSource={containers}
+                    rowKey={c => c.name}
+                    pagination={false}
                 />
             </ProCard>
 
@@ -248,9 +210,32 @@ const DetailedPod: React.FC<unknown> = () => {
 
 
     if (!pod) {
-        return <Empty/>
+        return <Empty />
+    } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
+        pod.metadata?.managedFields?.forEach((managedField) => {
+            managedField.fieldsV1 = undefined
+        })
+        const p = {
+            metadata: pod.metadata,
+            spec: pod.spec,
+            status: pod.status,
+        }
+        const contents = format === 'json' ? JSON.stringify(p, null, "\t") : jsyaml.dump(p)
+        return (
+            <PageContainer
+                fixedHeader
+                header={{
+                    title: <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/`}>
+                        {pod.metadata?.name}
+                    </Link>,
+                }}
+            >
+                <SyntaxHighlighter language={format} showLineNumbers>
+                    {contents}
+                </SyntaxHighlighter>
+            </PageContainer>
+        )
     } else {
-        const tabList: TabsProps['items'] = getPodTabs(pod)
         return (
             <PageContainer
                 fixedHeader
@@ -259,7 +244,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 }}
             >
                 <ProCard direction="column">
-                    {getPobTabsContent(activeTab, pod)}
+                    {getPobTabsContent(pod)}
                 </ProCard>
             </PageContainer>
         )
@@ -322,9 +307,9 @@ export const getPodTableContent = (pods: RawPod[], title: string) => {
                 key: 'startAt',
             },
         ]}
-               dataSource={pods}
-               rowKey={c => c.metadata?.uid!}
-               pagination={false}
+            dataSource={pods}
+            rowKey={c => c.metadata?.uid!}
+            pagination={false}
         />
     </ProCard>
 }
@@ -363,10 +348,10 @@ export const EventTable = (events: Event[]) => {
                 dataIndex: 'message',
             }
         ]}
-               dataSource={podEvents}
-               size="small"
-               pagination={false}
-               rowKey={(c) => c.metadata?.uid!}
+            dataSource={podEvents}
+            size="small"
+            pagination={false}
+            rowKey={(c) => c.metadata?.uid!}
         />
     </ProCard>
 }
