@@ -1,4 +1,4 @@
-import {defineConfig} from '@umijs/max';
+import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
     antd: {},
@@ -41,6 +41,14 @@ export default defineConfig({
         },
         {
             path: '/pod/:namespace/:podName',
+            component: './DetailedPod',
+        },
+        {
+            path: '/apppod/:namespace/:podName',
+            component: './DetailedPod',
+        },
+        {
+            path: '/mountpod/:namespace/:podName',
             component: './DetailedPod',
         },
         {

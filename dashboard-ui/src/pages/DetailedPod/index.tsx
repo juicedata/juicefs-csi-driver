@@ -18,7 +18,7 @@ import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-compone
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
 import React, { useEffect, useState } from 'react';
-import { useMatch, useLocation } from '@umijs/max';
+import { useParams, useSearchParams } from '@umijs/max';
 import { getPod, getLog, Pod } from '@/services/pod';
 import * as jsyaml from "js-yaml";
 import { TabsProps, Select, Empty, Table, Button, Tag } from "antd";
@@ -27,9 +27,11 @@ import { PodStatusEnum } from "@/services/common";
 import queryString from 'query-string';
 
 const DetailedPod: React.FC<unknown> = () => {
-    const routeData = useMatch('/pod/:namespace/:name')
-    const namespace = routeData?.params?.namespace
-    const name = routeData?.params?.name
+    const params = useParams()
+    console.log(JSON.stringify(params))
+    const [searchParams, setSearchParams] = useSearchParams()
+    const namespace = params['namespace']
+    const name = params['podName']
     if (!namespace || !name) {
         return (
             <PageContainer
@@ -40,9 +42,8 @@ const DetailedPod: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-    const query = queryString.parse(useLocation().search)
-    const format = query['raw']
-    const container = query['log']
+    const format = searchParams.get('raw')
+    const container = searchParams.get('log')
     const [pod, setPod] = useState<Pod>()
 
     useEffect(() => {
@@ -102,13 +103,16 @@ const DetailedPod: React.FC<unknown> = () => {
 
         let exhibitPods: RawPod[] = []
         let exhibitPodTableName = ""
+        let currentPodType
         if (pod.mountPods?.length !== 0) {
             exhibitPods = pod.mountPods || []
             exhibitPodTableName = "Mount Pods"
+            currentPodType = 'app'
         }
         if (pod.appPods?.length !== 0) {
             exhibitPods = pod.appPods || []
             exhibitPodTableName = "App Pods"
+            currentPodType = 'mount'
         }
         content = <div>
             <ProCard title="基础信息">
@@ -146,7 +150,11 @@ const DetailedPod: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: () => podLink(pod, '?raw=yaml', '点击查看')
+                            render: () => (
+                                <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}?raw=yaml`}>
+                                    {'点击查看'}
+                                </Link>
+                            )
                         },
                     ]}
                 />
@@ -196,7 +204,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 />
             </ProCard>
 
-            {getPodTableContent(exhibitPods, exhibitPodTableName)}
+            {getPodTableContent(exhibitPods, exhibitPodTableName, currentPodType)}
 
             {EventTable(pod.events || [])}
         </div>
@@ -244,13 +252,13 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 }
 
-export const getPodTableContent = (pods: RawPod[], title: string) => {
+export const getPodTableContent = (pods: RawPod[], title: string, podType?: string) => {
     return <ProCard title={title}>
         <Table columns={[
             {
                 title: '名称',
                 key: 'name',
-                render: (pod) => podLink(pod, '?raw=yaml'),
+                render: (pod) => podLink(pod, podType),
             },
             {
                 title: 'Namespace',
@@ -345,10 +353,16 @@ export const EventTable = (events: Event[]) => {
     </ProCard>
 }
 
-const podLink = (pod: RawPod, suffix?: string, text?: string) => (
-    <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}${suffix || ''}`}>
-        {text || pod.metadata?.name}
+const podLink = (pod: Pod, podType?: string) => {
+    let base = 'pod'
+    if (podType === 'app') {
+        base = 'apppod'
+    } else if (podType === 'mount') {
+        base = 'mountpod'
+    }
+    return <Link to={`/${base}/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+        {pod.metadata?.name}
     </Link>
-)
+}
 
 export default DetailedPod;
