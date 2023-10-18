@@ -240,24 +240,21 @@ const DetailedPod: React.FC<unknown> = () => {
         if (!log) {
             content = <Empty />
         } else {
+            const data = new Blob([log], { type: 'text/plain' });
+            logDownloader = (
+                <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
+                    下载完整日志
+                </Typography.Link>
+            )
             let logs = log.split("\n")
-            let start = 0
+            let start = 1
             if (logs.length > 1024) {
-                start = logs.length - 1024
-                logs = logs.splice(start)
+                start = logs.length - 1023
+                logs = logs.splice(logs.length - 1024)
             }
             content = <SyntaxHighlighter language={"log"} startingLineNumber={start} showLineNumbers wrapLongLines={true}>
                 {logs.join("\n").trim()}
             </SyntaxHighlighter>
-            if (start > 0) {
-                const data = new Blob([log], { type: 'text/plain' });
-                logDownloader = <Space>
-                    <Typography.Text type="warning">日志过长，只加载最后部分内容...</Typography.Text>
-                    <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
-                        下载完整日志
-                    </Typography.Link>
-                </Space>
-            }
         }
     } else {
         content = (
@@ -273,8 +270,8 @@ const DetailedPod: React.FC<unknown> = () => {
                 {
                     title: selfLink(location.pathname, pod.metadata?.name || ''),
                     subTitle: subtitle,
+                    extra: logDownloader,
                 }}
-            footer={[logDownloader]}
         >
             {content}
         </PageContainer>
