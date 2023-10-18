@@ -14,14 +14,14 @@
  limitations under the License.
  */
 
-import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
+import { PageContainer, ProCard, ProDescriptions, FooterToolbar } from '@ant-design/pro-components';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { getPod, getLog, Pod } from '@/services/pod';
 import * as jsyaml from "js-yaml";
-import { TabsProps, Select, Empty, Table, Button, Tag } from "antd";
+import { TabsProps, Select, Empty, Table, Button, Tag, Typography, Space } from "antd";
 import { Link } from 'umi';
 import { PodStatusEnum } from "@/services/common";
 
@@ -215,6 +215,8 @@ const DetailedPod: React.FC<unknown> = () => {
     }
 
     let content = <Empty />
+    let subtitle
+    let logDownloader
     if (!pod) {
         return content
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
@@ -233,6 +235,7 @@ const DetailedPod: React.FC<unknown> = () => {
             </SyntaxHighlighter>
         )
     } else if (typeof container === 'string') {
+        subtitle = container
         const log = pod.logs.get(container)
         if (!log) {
             content = <Empty />
@@ -246,6 +249,15 @@ const DetailedPod: React.FC<unknown> = () => {
             content = <SyntaxHighlighter language={"log"} startingLineNumber={start} showLineNumbers wrapLongLines={true}>
                 {logs.join("\n").trim()}
             </SyntaxHighlighter>
+            if (start > 0) {
+                const data = new Blob([log], { type: 'text/plain' });
+                logDownloader = <Space>
+                    <Typography.Text type="warning">日志过长，只加载最后部分内容...</Typography.Text>
+                    <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
+                        下载完整日志
+                    </Typography.Link>
+                </Space>
+            }
         }
     } else {
         content = (
@@ -257,9 +269,12 @@ const DetailedPod: React.FC<unknown> = () => {
     return (
         <PageContainer
             fixedHeader
-            header={{
-                title: selfLink(location.pathname, pod.metadata?.name || ''),
-            }}
+            header={
+                {
+                    title: selfLink(location.pathname, pod.metadata?.name || ''),
+                    subTitle: subtitle,
+                }}
+            footer={[logDownloader]}
         >
             {content}
         </PageContainer>
