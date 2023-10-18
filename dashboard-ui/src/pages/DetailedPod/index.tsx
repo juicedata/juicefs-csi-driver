@@ -18,7 +18,7 @@ import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-compone
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from '@umijs/max';
+import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { getPod, getLog, Pod } from '@/services/pod';
 import * as jsyaml from "js-yaml";
 import { TabsProps, Select, Empty, Table, Button, Tag } from "antd";
@@ -30,6 +30,7 @@ const DetailedPod: React.FC<unknown> = () => {
     const params = useParams()
     console.log(JSON.stringify(params))
     const [searchParams, setSearchParams] = useSearchParams()
+    const location = useLocation()
     const namespace = params['namespace']
     const name = params['podName']
     if (!namespace || !name) {
@@ -151,7 +152,7 @@ const DetailedPod: React.FC<unknown> = () => {
                             title: 'Yaml',
                             key: 'yaml',
                             render: () => (
-                                <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}?raw=yaml`}>
+                                <Link to={`${location.pathname}?raw=yaml`}>
                                     {'点击查看'}
                                 </Link>
                             )
@@ -228,7 +229,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: podLink(pod),
+                    title: selfLink(location.pathname, pod.metadata?.name || ''),
                 }}
             >
                 <SyntaxHighlighter language={format} showLineNumbers>
@@ -241,7 +242,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: podLink(pod),
+                    title: selfLink(location.pathname, pod.metadata?.name || ''),
                 }}
             >
                 <ProCard direction="column">
@@ -362,6 +363,12 @@ const podLink = (pod: Pod, podType?: string) => {
     }
     return <Link to={`/${base}/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
         {pod.metadata?.name}
+    </Link>
+}
+
+const selfLink = (path: string, podName: string) => {
+    return <Link to={`${path}`}>
+        {podName}
     </Link>
 }
 
