@@ -146,12 +146,7 @@ const DetailedPod: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: () => {
-                                // todo
-                                return <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}?raw=yaml`}>
-                                    {'点击查看'}
-                                </Link>
-                            }
+                            render: () => podLink(pod, '?raw=yaml', '点击查看')
                         },
                     ]}
                 />
@@ -225,9 +220,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/`}>
-                        {pod.metadata?.name}
-                    </Link>,
+                    title: podLink(pod),
                 }}
             >
                 <SyntaxHighlighter language={format} showLineNumbers>
@@ -240,7 +233,7 @@ const DetailedPod: React.FC<unknown> = () => {
             <PageContainer
                 fixedHeader
                 header={{
-                    title: `Pod: ${pod.metadata?.name}`,
+                    title: podLink(pod),
                 }}
             >
                 <ProCard direction="column">
@@ -257,11 +250,7 @@ export const getPodTableContent = (pods: RawPod[], title: string) => {
             {
                 title: '名称',
                 key: 'name',
-                render: (mountPod) => (
-                    <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata.name}/`}>
-                        {mountPod.metadata.name}
-                    </Link>
-                ),
+                render: (pod) => podLink(pod, '?raw=yaml'),
             },
             {
                 title: 'Namespace',
@@ -355,4 +344,11 @@ export const EventTable = (events: Event[]) => {
         />
     </ProCard>
 }
+
+const podLink = (pod: RawPod, suffix?: string, text?: string) => (
+    <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}${suffix || ''}`}>
+        {text || pod.metadata?.name}
+    </Link>
+)
+
 export default DetailedPod;
