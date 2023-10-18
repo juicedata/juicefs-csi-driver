@@ -38,5 +38,6 @@ RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
-RUN bash -c "mkdir -p /usr/local/juicefs/mount && curl -sSL https://s.juicefs.com/static/Linux/mount.beta.ceph -o mount.ceph && if [[ '${JFSCHAN}' == beta ]]; then cp mount.ceph /usr/local/juicefs/mount/jfsmount.beta; else cp mount.ceph /usr/local/juicefs/mount/jfsmount; fi;"
+RUN bash -c "mkdir -p /usr/local/juicefs/mount && curl -sSL https://s.juicefs.com/static/Linux/mount.beta.ceph -o mount.ceph && chmod +x mount.ceph && if [[ '${JFSCHAN}' == beta ]]; then cp -a mount.ceph /usr/local/juicefs/mount/jfsmount.beta; else cp -a mount.ceph /usr/local/juicefs/mount/jfsmount; fi;"
 
+RUN /usr/bin/juicefs version
