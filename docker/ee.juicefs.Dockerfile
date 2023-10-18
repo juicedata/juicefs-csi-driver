@@ -40,4 +40,3 @@ RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping
 
 RUN bash -c "mkdir -p /usr/local/juicefs/mount && curl -sSL https://s.juicefs.com/static/Linux/mount.beta.ceph -o mount.ceph && if [[ '${JFSCHAN}' == beta ]]; then cp mount.ceph /usr/local/juicefs/mount/jfsmount.beta; else cp mount.ceph /usr/local/juicefs/mount/jfsmount; fi;"
 
-RUN /usr/bin/juicefs version
