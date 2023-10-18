@@ -46,7 +46,6 @@ const DetailedPod: React.FC<unknown> = () => {
     const format = searchParams.get('raw')
     const container = searchParams.get('log')
     const [pod, setPod] = useState<Pod>()
-
     useEffect(() => {
         getPod(namespace, name).then((pod) => {
             if (pod) {
@@ -54,22 +53,25 @@ const DetailedPod: React.FC<unknown> = () => {
             }
         })
     }, [setPod])
-    const getContainer = () => (container || pod?.spec?.containers?.[0].name)
-    const [activeTab, setActiveTab] = useState('1');
     const ensureLog = (container: string) => {
-        if (pod!.logs.has(container)) {
+        if (!pod) {
             return
         }
-        getLog(pod!, container).then((log) => {
-            const newLogs = new Map(pod!.logs)
+        if (pod.logs.has(container)) {
+            return
+        }
+        getLog(pod, container).then((log) => {
+            const newLogs = new Map(pod.logs)
             newLogs.set(container, log)
             setPod({
-                ...pod!,
+                ...pod,
                 logs: newLogs,
             })
         })
     }
-
+    if (typeof container === 'string') {
+        ensureLog(container)
+    }
     const getPobTabsContent = (pod: Pod) => {
         const p = {
             metadata: pod.metadata,
@@ -192,10 +194,11 @@ const DetailedPod: React.FC<unknown> = () => {
                         title: "日志",
                         key: 'action',
                         render: (record) => (
-                            // todo
-                            <Button>
-                                查看日志
-                            </Button>
+                            (
+                                <Link to={`${location.pathname}?log=${record.name}`}>
+                                    {'查看日志'}
+                                </Link>
+                            )
                         )
                     }
                 ]}
@@ -212,9 +215,9 @@ const DetailedPod: React.FC<unknown> = () => {
         return content
     }
 
-
+    let content = <Empty />
     if (!pod) {
-        return <Empty />
+        return content
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
         pod.metadata?.managedFields?.forEach((managedField) => {
             managedField.fieldsV1 = undefined
@@ -224,33 +227,42 @@ const DetailedPod: React.FC<unknown> = () => {
             spec: pod.spec,
             status: pod.status,
         }
-        const contents = format === 'json' ? JSON.stringify(p, null, "\t") : jsyaml.dump(p)
-        return (
-            <PageContainer
-                fixedHeader
-                header={{
-                    title: selfLink(location.pathname, pod.metadata?.name || ''),
-                }}
-            >
-                <SyntaxHighlighter language={format} showLineNumbers>
-                    {contents}
-                </SyntaxHighlighter>
-            </PageContainer>
+        const data = format === 'json' ? JSON.stringify(p, null, "\t") : jsyaml.dump(p)
+        content = (
+            <SyntaxHighlighter language={format} showLineNumbers>
+                {data}
+            </SyntaxHighlighter>
         )
+    } else if (typeof container === 'string') {
+        const log = pod.logs.get(container)
+        if (!log) {
+            content = <Empty />
+        } else {
+            const logs = log.split("\n")
+            if (logs.length > 1024) {
+                logs.splice(logs.length - 1024)
+            }
+            content = <SyntaxHighlighter language={"log"} showLineNumbers wrapLongLines={true}>
+                {logs.join("\n")}
+            </SyntaxHighlighter>
+        }
     } else {
-        return (
-            <PageContainer
-                fixedHeader
-                header={{
-                    title: selfLink(location.pathname, pod.metadata?.name || ''),
-                }}
-            >
-                <ProCard direction="column">
-                    {getPobTabsContent(pod)}
-                </ProCard>
-            </PageContainer>
+        content = (
+            <ProCard direction="column">
+                {getPobTabsContent(pod)}
+            </ProCard>
         )
     }
+    return (
+        <PageContainer
+            fixedHeader
+            header={{
+                title: selfLink(location.pathname, pod.metadata?.name || ''),
+            }}
+        >
+            {content}
+        </PageContainer>
+    )
 }
 
 export const getPodTableContent = (pods: RawPod[], title: string, podType?: string) => {
