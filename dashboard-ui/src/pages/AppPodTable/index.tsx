@@ -23,7 +23,7 @@ import {
 import {Button, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
 import {Pod, listAppPods} from '@/services/pod';
-import {PersistentVolume, Pod as RawPod} from 'kubernetes-types/core/v1'
+import {PersistentVolume, Pod as RawPod} from 'kubernetes-models/v1'
 import {Link} from 'umi';
 import {Badge} from 'antd/lib';
 import {PodStatusEnum} from "@/services/common";

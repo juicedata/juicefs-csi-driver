@@ -10,7 +10,7 @@ export default defineConfig({
         title: 'JuiceFS',
     },
     favicons: [
-        "https://static1.juicefs.com/images/favicon.d6e4afae8198.ico",
+        'https://static1.juicefs.com/images/favicon.d6e4afae8198.ico',
     ],
     routes: [
         {
@@ -21,6 +21,7 @@ export default defineConfig({
             name: '应用 Pod',
             path: '/pods',
             component: './AppPodTable',
+            icon: 'https://github.com/kubernetes/community/blob/master/icons/svg/resources/labeled/pod.svg'
         },
         {
             name: '系统 Pod',

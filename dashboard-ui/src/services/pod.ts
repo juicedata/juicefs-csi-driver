@@ -14,8 +14,7 @@
  limitations under the License.
  */
 
-import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
-import {PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
+import { Pod as RawPod, Event, PersistentVolume, PersistentVolumeClaim } from "kubernetes-models/v1";
 
 export type Pod = RawPod & {
     mountPods?: RawPod[],
