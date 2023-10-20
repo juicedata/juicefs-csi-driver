@@ -415,9 +415,9 @@ export const EventTable = (events: Event[]) => {
 const podLink = (pod: Pod, podType?: string) => {
     let base = 'pod'
     if (podType === 'app') {
-        base = 'apppod'
-    } else if (podType === 'mount') {
         base = 'mountpod'
+    } else if (podType === 'mount') {
+        base = 'apppod'
     }
     return <Link to={`/${base}/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
         {pod.metadata?.name}
