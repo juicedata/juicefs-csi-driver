@@ -21,27 +21,31 @@ export default defineConfig({
             name: '应用 Pod',
             path: '/pods',
             component: './AppPodTable',
-            icon: 'https://github.com/kubernetes/community/blob/master/icons/svg/resources/labeled/pod.svg'
+            icon: './pod-256.png'
         },
         {
             name: '系统 Pod',
             path: '/syspods',
             component: './SystemPodTable',
+            icon: './ds-256.png'
         },
         {
             name: 'PV',
             path: '/pvs',
             component: './PVTable',
+            icon: './pv-256.png'
         },
         {
             name: 'PVC',
             path: '/pvcs',
             component: './PVCTable',
+            icon: './pvc-256.png'
         },
         {
             name: 'StorageClass',
             path: '/storageclasses',
             component: './SCTable',
+            icon: './sc-256.png'
         },
         {
             path: '/pod/:namespace/:podName',
