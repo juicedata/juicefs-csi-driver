@@ -107,8 +107,9 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 
 	// overwrite subdir
 	if r.jfsSetting.SubPath != "" {
+		options := make([]string, 0)
 		subdir := r.jfsSetting.SubPath
-		for i, option := range r.jfsSetting.Options {
+		for _, option := range r.jfsSetting.Options {
 			if strings.HasPrefix(option, "subdir=") {
 				s := strings.Split(option, "=")
 				if len(s) != 2 {
@@ -117,10 +118,11 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 				if s[0] == "subdir" {
 					subdir = path.Join(s[1], r.jfsSetting.SubPath)
 				}
-				r.jfsSetting.Options = append(r.jfsSetting.Options[:i], r.jfsSetting.Options[i+1:]...)
+				continue
 			}
+			options = append(options, option)
 		}
-		r.jfsSetting.Options = append(r.jfsSetting.Options, fmt.Sprintf("subdir=%s", subdir))
+		r.jfsSetting.Options = append(options, fmt.Sprintf("subdir=%s", subdir))
 	}
 
 	// command
