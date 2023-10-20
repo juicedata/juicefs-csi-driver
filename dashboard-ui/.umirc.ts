@@ -9,6 +9,9 @@ export default defineConfig({
     layout: {
         title: 'JuiceFS',
     },
+    favicons: [
+        "https://static1.juicefs.com/images/favicon.d6e4afae8198.ico",
+    ],
     routes: [
         {
             path: '/',
