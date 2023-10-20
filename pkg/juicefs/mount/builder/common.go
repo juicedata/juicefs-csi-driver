@@ -101,10 +101,11 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		},
 	}
 
-	if r.jfsSetting.Attr.HostNetwork {
+	if r.jfsSetting.Attr.HostNetwork || !r.jfsSetting.IsCe {
 		// When using hostNetwork, the MountPod will use a random port for metrics.
 		// Before inducing any auxiliary method to detect that random port, the
 		// best way is to avoid announcing any port about that.
+		// Enterprise edition does not have metrics port.
 		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{}
 	} else {
 		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{

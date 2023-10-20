@@ -18,6 +18,7 @@ package builder
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -103,6 +104,24 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
+
+	// overwrite subdir
+	if r.jfsSetting.SubPath != "" {
+		subdir := r.jfsSetting.SubPath
+		for i, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				if s[0] == "subdir" {
+					subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				}
+				r.jfsSetting.Options = append(r.jfsSetting.Options[:i], r.jfsSetting.Options[i+1:]...)
+			}
+		}
+		r.jfsSetting.Options = append(r.jfsSetting.Options, fmt.Sprintf("subdir=%s", subdir))
+	}
 
 	// command
 	mountCmd := r.genMountCommand()

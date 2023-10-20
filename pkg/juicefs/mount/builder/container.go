@@ -18,8 +18,10 @@ package builder
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	utilpointer "k8s.io/utils/pointer"
@@ -75,6 +77,32 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 				r.jfsSetting.MountPath,
 			)}},
 	}
+
+	// overwrite subdir
+	if r.jfsSetting.SubPath != "" {
+		subdir := r.jfsSetting.SubPath
+		for i, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				if s[0] == "subdir" {
+					subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				}
+				r.jfsSetting.Options = append(r.jfsSetting.Options[:i], r.jfsSetting.Options[i+1:]...)
+			}
+		}
+		r.jfsSetting.Options = append(r.jfsSetting.Options, fmt.Sprintf("subdir=%s", subdir))
+	}
+
+	mountCmd := r.genMountCommand()
+	cmd := mountCmd
+	initCmd := r.genInitCommand()
+	if initCmd != "" {
+		cmd = strings.Join([]string{initCmd, mountCmd}, "\n")
+	}
+	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 	return pod
 }
 
@@ -85,7 +113,7 @@ func (r *ContainerBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
 
 func (r *ContainerBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {
 	// overwrite original volume and use juicefs volume mountpoint instead
-	hostMount := filepath.Join(config.MountPointPath, mountPath, r.jfsSetting.SubPath)
+	hostMount := filepath.Join(config.MountPointPath, mountPath)
 	volume.VolumeSource = corev1.VolumeSource{
 		HostPath: &corev1.HostPathVolumeSource{
 			Path: hostMount,

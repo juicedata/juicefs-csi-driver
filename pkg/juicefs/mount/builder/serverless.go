@@ -18,6 +18,7 @@ package builder
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -90,6 +91,24 @@ func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
+	// overwrite subdir
+	if r.jfsSetting.SubPath != "" {
+		subdir := r.jfsSetting.SubPath
+		for i, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				if s[0] == "subdir" {
+					subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				}
+				r.jfsSetting.Options = append(r.jfsSetting.Options[:i], r.jfsSetting.Options[i+1:]...)
+			}
+		}
+		r.jfsSetting.Options = append(r.jfsSetting.Options, fmt.Sprintf("subdir=%s", subdir))
+	}
+
 	// command
 	mountCmd := r.genMountCommand()
 	initCmd := r.genInitCommand()
@@ -101,7 +120,7 @@ func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
 
 func (r *ServerlessBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {
 	// overwrite original volume and use juicefs volume mountpoint instead
-	hostMount := filepath.Join(config.MountPointPath, mountPath, r.jfsSetting.SubPath)
+	hostMount := filepath.Join(config.MountPointPath, mountPath)
 	volume.VolumeSource = corev1.VolumeSource{
 		HostPath: &corev1.HostPathVolumeSource{
 			Path: hostMount,
