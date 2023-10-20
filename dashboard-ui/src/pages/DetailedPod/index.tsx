@@ -38,6 +38,7 @@ const LogTools: React.FC<LogToolProps> = (props) => {
         <Space>
             <Button
                 loading={logLoading}
+                type="link"
                 icon={<SyncOutlined />}
                 onClick={() => {
                     setLogLoading(true)
