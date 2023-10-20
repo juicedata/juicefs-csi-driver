@@ -18,7 +18,6 @@ package builder
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -79,24 +78,7 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	}
 
 	// overwrite subdir
-	if r.jfsSetting.SubPath != "" {
-		options := make([]string, 0)
-		subdir := r.jfsSetting.SubPath
-		for _, option := range r.jfsSetting.Options {
-			if strings.HasPrefix(option, "subdir=") {
-				s := strings.Split(option, "=")
-				if len(s) != 2 {
-					continue
-				}
-				if s[0] == "subdir" {
-					subdir = path.Join(s[1], r.jfsSetting.SubPath)
-				}
-				continue
-			}
-			options = append(options, option)
-		}
-		r.jfsSetting.Options = append(options, fmt.Sprintf("subdir=%s", subdir))
-	}
+	r.overwriteSubdirWithSubPath()
 
 	mountCmd := r.genMountCommand()
 	cmd := mountCmd
