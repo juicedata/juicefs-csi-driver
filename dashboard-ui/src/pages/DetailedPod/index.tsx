@@ -26,6 +26,43 @@ import { Link } from 'umi';
 import { PodStatusEnum } from "@/services/common";
 import { SyncOutlined, DownloadOutlined } from '@ant-design/icons';
 
+type LogToolProps = {
+    pod: Pod
+    setPod: (pod: Pod) => void
+    container: string
+    data: Blob
+}
+const LogTools: React.FC<LogToolProps> = (props) => {
+    const [logLoading, setLogLoading] = useState<boolean>(false);
+    return (
+        <Space>
+            <Button
+                loading={logLoading}
+                icon={<SyncOutlined />}
+                onClick={() => {
+                    setLogLoading(true)
+                    getLog(props.pod, props.container).then((log) => {
+                        const newLogs = new Map(props.pod.logs)
+                        newLogs.set(props.container, log)
+                        props.setPod({
+                            ...props.pod,
+                            logs: newLogs,
+                        })
+                        setInterval(setLogLoading, 1000, false)
+                    })
+                }}
+            >
+            刷新
+            </Button>
+            <Typography.Link href={URL.createObjectURL(props.data)} download={`${props.pod.metadata?.name}-${props.container}.log`}>
+                <Button type="link" icon={<DownloadOutlined />} >
+                    下载完整日志
+                </Button>
+            </Typography.Link>
+        </Space>
+    )
+}
+
 const DetailedPod: React.FC<unknown> = () => {
     const params = useParams()
     console.log(JSON.stringify(params))
@@ -46,7 +83,6 @@ const DetailedPod: React.FC<unknown> = () => {
     const format = searchParams.get('raw')
     const container = searchParams.get('log')
     const [pod, setPod] = useState<Pod>()
-    const [logLoading, setLogLoading] = useState<boolean>(true);
     useEffect(() => {
         getPod(namespace, name).then((pod) => {
             if (pod) {
@@ -64,7 +100,6 @@ const DetailedPod: React.FC<unknown> = () => {
         getLog(pod, container).then((log) => {
             const newLogs = new Map(pod.logs)
             newLogs.set(container, log)
-            setLogLoading(false)
             setPod({
                 ...pod,
                 logs: newLogs,
@@ -243,35 +278,7 @@ const DetailedPod: React.FC<unknown> = () => {
         if (!log) {
             content = <Empty />
         } else {
-            const data = new Blob([log], { type: 'text/plain' });
-            logTools = (
-                <Space>
-                    <Button
-                        loading={logLoading}
-                        icon={<SyncOutlined />}
-                        onClick={() => {
-                            setLogLoading(true)
-                            getLog(pod, container).then((log) => {
-                                const newLogs = new Map(pod.logs)
-                                newLogs.set(container, log)
-                                setPod({
-                                    ...pod,
-                                    logs: newLogs,
-                                })
-                                setInterval(setLogLoading, 1000, false)
-                            })
-                        }}
-                    >
-                    刷新
-                    </Button>
-                    <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
-                        <Button type="link" icon={<DownloadOutlined />} >
-                        
-                                下载完整日志
-                        </Button>
-                    </Typography.Link>
-                </Space>
-            )
+            logTools = <LogTools pod={pod} setPod={setPod} container={container} data={new Blob([log], { type: 'text/plain' })} />
             let logs = log.split("\n")
             let start = 1
             if (logs.length > 1024) {
