@@ -30,7 +30,7 @@ export const layout: RuntimeConfig['layout'] = () => {
     // navTheme: "realDark",
     layout: "mix",
     title: "JuiceFS CSI",
-    logo: <Logo />,
+    logo: false,
     menu: {
       locale: false,
     },
