@@ -24,6 +24,7 @@ import * as jsyaml from "js-yaml";
 import { TabsProps, Select, Empty, Table, Button, Tag, Typography, Space } from "antd";
 import { Link } from 'umi';
 import { PodStatusEnum } from "@/services/common";
+import { SyncOutlined, DownloadOutlined } from '@ant-design/icons';
 
 const DetailedPod: React.FC<unknown> = () => {
     const params = useParams()
@@ -45,6 +46,7 @@ const DetailedPod: React.FC<unknown> = () => {
     const format = searchParams.get('raw')
     const container = searchParams.get('log')
     const [pod, setPod] = useState<Pod>()
+    const [logLoading, setLogLoading] = useState<boolean>(true);
     useEffect(() => {
         getPod(namespace, name).then((pod) => {
             if (pod) {
@@ -62,6 +64,7 @@ const DetailedPod: React.FC<unknown> = () => {
         getLog(pod, container).then((log) => {
             const newLogs = new Map(pod.logs)
             newLogs.set(container, log)
+            setLogLoading(false)
             setPod({
                 ...pod,
                 logs: newLogs,
@@ -216,7 +219,7 @@ const DetailedPod: React.FC<unknown> = () => {
 
     let content = <Empty />
     let subtitle
-    let logDownloader
+    let logTools
     if (!pod) {
         return content
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
@@ -241,10 +244,33 @@ const DetailedPod: React.FC<unknown> = () => {
             content = <Empty />
         } else {
             const data = new Blob([log], { type: 'text/plain' });
-            logDownloader = (
-                <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
-                    下载完整日志
-                </Typography.Link>
+            logTools = (
+                <Space>
+                    <Button
+                        loading={logLoading}
+                        icon={<SyncOutlined />}
+                        onClick={() => {
+                            setLogLoading(true)
+                            getLog(pod, container).then((log) => {
+                                const newLogs = new Map(pod.logs)
+                                newLogs.set(container, log)
+                                setPod({
+                                    ...pod,
+                                    logs: newLogs,
+                                })
+                                setInterval(setLogLoading, 1000, false)
+                            })
+                        }}
+                    >
+                    刷新
+                    </Button>
+                    <Typography.Link href={URL.createObjectURL(data)} download={`${pod.metadata?.name}-${container}.log`}>
+                        <Button type="link" icon={<DownloadOutlined />} >
+                        
+                                下载完整日志
+                        </Button>
+                    </Typography.Link>
+                </Space>
             )
             let logs = log.split("\n")
             let start = 1
@@ -270,7 +296,7 @@ const DetailedPod: React.FC<unknown> = () => {
                 {
                     title: selfLink(location.pathname, pod.metadata?.name || ''),
                     subTitle: subtitle,
-                    extra: logDownloader,
+                    extra: logTools,
                 }}
         >
             {content}
