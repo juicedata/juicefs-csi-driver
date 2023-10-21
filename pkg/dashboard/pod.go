@@ -31,10 +31,12 @@ import (
 
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.appPods))
 		api.appPodsLock.RLock()
-		for _, pod := range api.appPods {
-			pods = append(pods, pod)
+		pods := make([]*corev1.Pod, 0, api.appIndexes.Len())
+		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
+			if pod, ok := api.appPods[e.Value.(types.NamespacedName)]; ok {
+				pods = append(pods, pod)
+			}
 		}
 		api.appPodsLock.RUnlock()
 		c.IndentedJSON(200, pods)

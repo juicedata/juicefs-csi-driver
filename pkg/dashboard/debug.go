@@ -27,8 +27,9 @@ type APIStatus struct {
 	CsiNodes     []string
 	Controllers  []string
 	AppPods      []types.NamespacedName
+	AppIndexes   []types.NamespacedName
 	Nodeindex    map[string]types.NamespacedName
-	Events       map[types.NamespacedName]int
+	Events       map[string]int
 	Pvs          map[string]types.NamespacedName
 }
 
@@ -37,7 +38,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		status := &APIStatus{
 			SysNamespace: api.sysNamespace,
 			Nodeindex:    make(map[string]types.NamespacedName),
-			Events:       make(map[types.NamespacedName]int),
+			Events:       make(map[string]int),
 			Pvs:          make(map[string]types.NamespacedName),
 		}
 		api.componentsLock.RLock()
@@ -61,10 +62,13 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		for k := range api.appPods {
 			status.AppPods = append(status.AppPods, k)
 		}
+		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
+			status.AppIndexes = append(status.AppIndexes, e.Value.(types.NamespacedName))
+		}
 		api.appPodsLock.RUnlock()
 		api.eventsLock.RLock()
 		for k, v := range api.events {
-			status.Events[k] = len(v)
+			status.Events[k.String()] = len(v)
 		}
 		api.eventsLock.RUnlock()
 		api.pvsLock.RLock()

@@ -101,24 +101,24 @@ export const listAppPods = async (args: PagingListArgs) => {
     if (args.csiNode) {
         data = data.filter(pod => pod.csiNode?.metadata?.name?.includes(args.csiNode || ""))
     }
-    const timeOrder = args.sort['time']
-    if (timeOrder) {
-        data.sort((a, b) => {
-            const aTime = new Date(a.metadata?.creationTimestamp || 0).getTime()
-            const bTime = new Date(b.metadata?.creationTimestamp || 0).getTime()
-            if (timeOrder === 'descend') {
-                return bTime - aTime
-            } else {
-                return aTime - bTime
-            }
-        })
-    } else {
-        data.sort((a, b) => {
-            const aName = a.metadata?.namespace + "/" + a.metadata?.name || ''
-            const bName = b.metadata?.namespace + "/" + b.metadata?.name || ''
-            return aName > bName ? 1 : -1
-        })
-    }
+    // const timeOrder = args.sort['time']
+    // if (timeOrder) {
+    //     data.sort((a, b) => {
+    //         const aTime = new Date(a.metadata?.creationTimestamp || 0).getTime()
+    //         const bTime = new Date(b.metadata?.creationTimestamp || 0).getTime()
+    //         if (timeOrder === 'descend') {
+    //             return bTime - aTime
+    //         } else {
+    //             return aTime - bTime
+    //         }
+    //     })
+    // } else {
+    //     data.sort((a, b) => {
+    //         const aName = a.metadata?.namespace + "/" + a.metadata?.name || ''
+    //         const bName = b.metadata?.namespace + "/" + b.metadata?.name || ''
+    //         return aName > bName ? 1 : -1
+    //     })
+    // }
     return {
         data,
         success: true,

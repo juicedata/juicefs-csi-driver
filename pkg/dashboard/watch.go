@@ -70,21 +70,50 @@ func (api *API) watchAppPod(ctx context.Context) {
 					return
 				}
 			}
-			func() {
-				name := types.NamespacedName{
-					Namespace: pod.Namespace,
-					Name:      pod.Name,
-				}
-				api.appPodsLock.Lock()
-				defer api.appPodsLock.Unlock()
-				switch event.Type {
-				case watch.Added, watch.Modified, watch.Error:
-					api.appPods[name] = pod
-				case watch.Deleted:
-					delete(api.appPods, name)
-				}
-			}()
+			name := types.NamespacedName{
+				Namespace: pod.Namespace,
+				Name:      pod.Name,
+			}
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Error:
+				api.updateAppPod(name, pod, event.Type == watch.Added)
+			case watch.Deleted:
+				api.removeAppPod(name)
+			}
 		}(e)
+	}
+}
+
+func (api *API) updateAppPod(name types.NamespacedName, pod *corev1.Pod, indexing bool) {
+	api.appPodsLock.Lock()
+	defer api.appPodsLock.Unlock()
+	api.appPods[name] = pod
+	if indexing {
+		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
+			currentName := e.Value.(types.NamespacedName)
+			currentPod, ok := api.appPods[currentName]
+			if !ok {
+				api.appIndexes.Remove(e)
+				continue
+			}
+			if pod.CreationTimestamp.After(currentPod.CreationTimestamp.Time) {
+				api.appIndexes.InsertBefore(name, e)
+				return
+			}
+		}
+		api.appIndexes.PushBack(name)
+	}
+}
+
+func (api *API) removeAppPod(name types.NamespacedName) {
+	api.appPodsLock.Lock()
+	defer api.appPodsLock.Unlock()
+	delete(api.appPods, name)
+	for e := api.appIndexes.Back(); e != nil; e = e.Prev() {
+		if e.Value.(types.NamespacedName) == name {
+			api.appIndexes.Remove(e)
+			break
+		}
 	}
 }
 
