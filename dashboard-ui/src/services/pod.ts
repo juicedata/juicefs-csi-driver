@@ -49,16 +49,15 @@ export const listAppPods = async (args: PagingListArgs) => {
     console.log(`list pods with args: ${JSON.stringify(args)}`)
     let data: Pod[]
     try {
-        const pods = await fetch(`http://localhost:8088/api/v1/pods?order=${args.sort['time']}`)
+        const order = args.sort['time'] || 'descend'
+        const namespace = args.namespace || ""
+        const name = args.name || ""
+        const pods = await fetch(`http://localhost:8088/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}`)
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
         return {data: null, success: false}
     }
-    data = data.filter(pod =>
-        pod.metadata?.namespace?.includes(args.namespace || "") &&
-        pod.metadata?.name?.includes(args.name || "")
-    )
     const getMore = async (pod: Pod) => {
         try {
             const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)

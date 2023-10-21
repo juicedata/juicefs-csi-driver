@@ -32,10 +32,17 @@ import (
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		descend := c.Query("order") != "ascend"
+		nameFilter := c.Query("name")
+		namespaceFilter := c.Query("namespace")
+		// pvFilter := c.Query("pv")
+		// mountpodFilter := c.Query("mountpod")
+		// csiNodeFilter := c.Query("csinode")
 		api.appPodsLock.RLock()
 		pods := make([]*corev1.Pod, 0, api.appIndexes.Len())
 		appendPod := func(value any) {
-			if pod, ok := api.appPods[value.(types.NamespacedName)]; ok {
+			if pod, ok := api.appPods[value.(types.NamespacedName)]; ok &&
+				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
+				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
 				pods = append(pods, pod)
 			}
 		}
