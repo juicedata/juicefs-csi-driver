@@ -35,11 +35,8 @@ func (api *API) watchAppPod(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	for event := range watcher.ResultChan() {
-		func() {
-			api.appPodsLock.Lock()
-			defer api.appPodsLock.Unlock()
-
+	for e := range watcher.ResultChan() {
+		go func(event watch.Event) {
 			pod, ok := event.Object.(*corev1.Pod)
 			if !ok {
 				log.Printf("unknown type: %v", event.Object)
@@ -62,29 +59,32 @@ func (api *API) watchAppPod(ctx context.Context) {
 				// api.pvcs contain all pending pvc & juicefs pvc, we should get pod if pvc pending.
 				for _, volume := range pod.Spec.Volumes {
 					if volume.PersistentVolumeClaim != nil {
-						api.pvsLock.Lock()
+						api.pvsLock.RLock()
 						if _, ok := api.pvcs[types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}]; ok {
 							used = true
 						}
-						api.pvsLock.Unlock()
+						api.pvsLock.RUnlock()
 					}
 				}
 				if !used {
 					return
 				}
 			}
-
-			name := types.NamespacedName{
-				Namespace: pod.Namespace,
-				Name:      pod.Name,
-			}
-			switch event.Type {
-			case watch.Added, watch.Modified, watch.Error:
-				api.appPods[name] = pod
-			case watch.Deleted:
-				delete(api.appPods, name)
-			}
-		}()
+			func() {
+				name := types.NamespacedName{
+					Namespace: pod.Namespace,
+					Name:      pod.Name,
+				}
+				api.appPodsLock.Lock()
+				defer api.appPodsLock.Unlock()
+				switch event.Type {
+				case watch.Added, watch.Modified, watch.Error:
+					api.appPods[name] = pod
+				case watch.Deleted:
+					delete(api.appPods, name)
+				}
+			}()
+		}(e)
 	}
 }
 
@@ -93,11 +93,8 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	for event := range watcher.ResultChan() {
-		func() {
-			api.pvsLock.Lock()
-			defer api.pvsLock.Unlock()
-
+	for e := range watcher.ResultChan() {
+		go func(event watch.Event) {
 			pv, ok := event.Object.(*corev1.PersistentVolume)
 			if !ok {
 				log.Printf("unknown type: %v", event.Object)
@@ -117,28 +114,32 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 					log.Printf("get pvc error %v", err)
 				}
 			}
-			switch event.Type {
-			case watch.Added, watch.Modified, watch.Error:
-				api.pvs[pv.Name] = pv
-				if pvc != nil {
-					pvcName := types.NamespacedName{
-						Namespace: pvc.Namespace,
-						Name:      pvc.Name,
+			func() {
+				api.pvsLock.Lock()
+				defer api.pvsLock.Unlock()
+				switch event.Type {
+				case watch.Added, watch.Modified, watch.Error:
+					api.pvs[pv.Name] = pv
+					if pvc != nil {
+						pvcName := types.NamespacedName{
+							Namespace: pvc.Namespace,
+							Name:      pvc.Name,
+						}
+						api.pairs[pvcName] = pv.Name
+						api.pvcs[pvcName] = pvc
 					}
-					api.pairs[pvcName] = pv.Name
-					api.pvcs[pvcName] = pvc
-				}
-			case watch.Deleted:
-				delete(api.pvs, pv.Name)
-				if pvc != nil {
-					pvcName := types.NamespacedName{
-						Namespace: pvc.Namespace,
-						Name:      pvc.Name,
+				case watch.Deleted:
+					delete(api.pvs, pv.Name)
+					if pvc != nil {
+						pvcName := types.NamespacedName{
+							Namespace: pvc.Namespace,
+							Name:      pvc.Name,
+						}
+						delete(api.pairs, pvcName)
 					}
-					delete(api.pairs, pvcName)
 				}
-			}
-		}()
+			}()
+		}(e)
 	}
 }
 
