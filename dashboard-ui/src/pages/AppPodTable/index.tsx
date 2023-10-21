@@ -157,6 +157,8 @@ const AppPodTable: React.FC<unknown> = () => {
             title: '创建时间',
             key: 'time',
             sorter: 'time',
+            defaultSortOrder: 'descend',
+            sortDirections: ['descend', 'ascend'],
             search: false,
             render: (_, pod) => (
                 <span>{

@@ -31,11 +31,21 @@ import (
 
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		descend := c.Query("order") != "ascend"
 		api.appPodsLock.RLock()
 		pods := make([]*corev1.Pod, 0, api.appIndexes.Len())
-		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
-			if pod, ok := api.appPods[e.Value.(types.NamespacedName)]; ok {
+		appendPod := func(value any) {
+			if pod, ok := api.appPods[value.(types.NamespacedName)]; ok {
 				pods = append(pods, pod)
+			}
+		}
+		if descend {
+			for e := api.appIndexes.Front(); e != nil; e = e.Next() {
+				appendPod(e.Value)
+			}
+		} else {
+			for e := api.appIndexes.Back(); e != nil; e = e.Prev() {
+				appendPod(e.Value)
 			}
 		}
 		api.appPodsLock.RUnlock()
