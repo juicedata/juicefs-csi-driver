@@ -107,7 +107,7 @@ const AppPodTable: React.FC<unknown> = () => {
         },
         {
             title: 'Mount Pods',
-            key: 'mount pod',
+            key: 'mountPod',
             render: (_, pod) => {
                 if (!pod.mountPods || pod.mountPods.length == 0) {
                     return <span>无</span>

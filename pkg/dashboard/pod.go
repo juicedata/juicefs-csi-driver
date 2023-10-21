@@ -17,6 +17,7 @@
 package dashboard
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -34,9 +35,9 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		descend := c.Query("order") != "ascend"
 		nameFilter := c.Query("name")
 		namespaceFilter := c.Query("namespace")
-		// pvFilter := c.Query("pv")
-		// mountpodFilter := c.Query("mountpod")
-		// csiNodeFilter := c.Query("csinode")
+		pvFilter := c.Query("pv")
+		mountpodFilter := c.Query("mountpod")
+		csiNodeFilter := c.Query("csinode")
 		api.appPodsLock.RLock()
 		pods := make([]*corev1.Pod, 0, api.appIndexes.Len())
 		appendPod := func(value any) {
@@ -56,8 +57,55 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			}
 		}
 		api.appPodsLock.RUnlock()
+		if pvFilter != "" || mountpodFilter != "" || csiNodeFilter != "" {
+			filterdPods := make([]*corev1.Pod, 0, len(pods))
+			for _, pod := range pods {
+				if api.filterPVsOfPod(c, pod, pvFilter) && api.filterMountPodsOfPod(c, pod, mountpodFilter) && api.filterCSINodeOfPod(c, pod, csiNodeFilter) {
+					filterdPods = append(filterdPods, pod)
+				}
+			}
+			pods = filterdPods
+		}
 		c.IndentedJSON(200, pods)
 	}
+}
+
+func (api *API) filterPVsOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+	if filter == "" {
+		return true
+	}
+	for _, pv := range api.listPVsOfPod(ctx, pod) {
+		if strings.Contains(pv.Name, filter) {
+			return true
+		}
+	}
+	return false
+}
+
+func (api *API) filterMountPodsOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+	if filter == "" {
+		return true
+	}
+	for _, mountPod := range api.listMountPodOf(ctx, pod) {
+		if strings.Contains(mountPod.Name, filter) {
+			return true
+		}
+	}
+	return false
+}
+
+func (api *API) filterCSINodeOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+	if filter == "" {
+		return true
+	}
+	if pod.Spec.NodeName == "" {
+		return false
+	}
+	csiNode := api.getCSINode(pod.Spec.NodeName)
+	if csiNode == nil {
+		return false
+	}
+	return strings.Contains(csiNode.Name, filter)
 }
 
 func (api *API) listMountPod() gin.HandlerFunc {
@@ -251,6 +299,33 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.Pod {
+	pvs := api.listPVsOfPod(ctx, pod)
+	mountPods := make([]*corev1.Pod, 0)
+	for _, pv := range pvs {
+		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
+		mountPodName, ok := pod.Annotations[key]
+		if !ok {
+			log.Printf("can't find mount pod name by annotation `%s`\n", key)
+			continue
+		}
+		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
+		if len(pair) != 2 {
+			log.Printf("invalid mount pod name %s\n", mountPodName)
+			continue
+		}
+		api.componentsLock.RLock()
+		mountPod, exist := api.mountPods[pair[1]]
+		api.componentsLock.RUnlock()
+		if !exist {
+			log.Printf("mount pod %s not found\n", mountPodName)
+			continue
+		}
+		mountPods = append(mountPods, mountPod)
+	}
+	return mountPods
+}
+
 func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
@@ -259,30 +334,7 @@ func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs := api.listPVsOfPod(c, pod)
-		mountPods := make([]*corev1.Pod, 0)
-		for _, pv := range pvs {
-			key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
-			mountPodName, ok := pod.Annotations[key]
-			if !ok {
-				log.Printf("can't find mount pod name by annotation `%s`\n", key)
-				continue
-			}
-			pair := strings.SplitN(mountPodName, string(types.Separator), 2)
-			if len(pair) != 2 {
-				log.Printf("invalid mount pod name %s\n", mountPodName)
-				continue
-			}
-			api.componentsLock.RLock()
-			mountPod, exist := api.mountPods[pair[1]]
-			api.componentsLock.RUnlock()
-			if !exist {
-				log.Printf("mount pod %s not found\n", mountPodName)
-				continue
-			}
-			mountPods = append(mountPods, mountPod)
-		}
-		c.IndentedJSON(200, mountPods)
+		c.IndentedJSON(200, api.listMountPodOf(c, pod))
 	}
 }
 
