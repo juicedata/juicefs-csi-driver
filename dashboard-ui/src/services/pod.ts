@@ -41,14 +41,12 @@ export interface PagingListArgs {
     filter: Record<string, (string | number)[] | null>
 }
 
-export interface PodListResult {
-    data?: Pod[];
-    success: boolean;
-}
-
 export const listAppPods = async (args: PagingListArgs) => {
     console.log(`list pods with args: ${JSON.stringify(args)}`)
-    let data: Pod[]
+    let data: {
+        pods: Pod[]
+        total: number
+    }
     try {
         const order = args.sort['time'] || 'descend'
         const namespace = args.namespace || ""
@@ -56,18 +54,21 @@ export const listAppPods = async (args: PagingListArgs) => {
         const pv = args.pv || ""
         const csiNode = args.csiNode || ""
         const mountPod = args.mountPod || ""
-        const pods = await fetch(`http://localhost:8088/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}`)
+        const pageSize = args.pageSize || 20
+        const current = args.current || 1
+        const pods = await fetch(`http://localhost:8088/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
         return { data: null, success: false }
     }
-    data.forEach(pod => {
+    data.pods.forEach(pod => {
         pod.failedReason = failedReasonOfAppPod(pod)
     })
     return {
-        data,
+        pods: data.pods,
         success: true,
+        total: data.total,
     }
 }
 export const getPod = async (namespace: string, podName: string) => {

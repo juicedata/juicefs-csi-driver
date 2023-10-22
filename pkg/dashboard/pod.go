@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -38,14 +39,30 @@ type PodExtra struct {
 	CsiNode     *corev1.Pod                     `json:"csiNode"`
 }
 
+type ListAppPodResult struct {
+	Total int         `json:"total"`
+	Pods  []*PodExtra `json:"pods"`
+}
+
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
 		descend := c.Query("order") != "ascend"
 		nameFilter := c.Query("name")
 		namespaceFilter := c.Query("namespace")
 		pvFilter := c.Query("pv")
 		mountpodFilter := c.Query("mountpod")
 		csiNodeFilter := c.Query("csinode")
+
 		api.appPodsLock.RLock()
 		pods := make([]*PodExtra, 0, api.appIndexes.Len())
 		appendPod := func(value any) {
@@ -74,7 +91,18 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			}
 			pods = filterdPods
 		}
-		for _, pod := range pods {
+		result := &ListAppPodResult{len(pods), make([]*PodExtra, 0)}
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(pods)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(pods)) {
+			endIndex = uint64(len(pods))
+		}
+		result.Pods = pods[startIndex:endIndex]
+		for _, pod := range result.Pods {
 			if pod.Pvs == nil {
 				pod.Pvs = api.listPVsOfPod(c, pod.Pod)
 			}
@@ -86,7 +114,7 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			}
 			pod.Pvcs = api.listPVCsOfPod(c, pod.Pod)
 		}
-		c.IndentedJSON(200, pods)
+		c.IndentedJSON(200, result)
 	}
 }
 

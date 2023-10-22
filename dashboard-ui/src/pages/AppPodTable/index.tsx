@@ -212,14 +212,15 @@ const AppPodTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listAppPods({
+                    const {pods, success, total} = await listAppPods({
                         ...params,
                         sort,
                         filter,
                     });
                     return {
-                        data: data || [],
+                        data: pods || [],
                         success,
+                        total,
                     };
                 }}
                 columns={columns}
