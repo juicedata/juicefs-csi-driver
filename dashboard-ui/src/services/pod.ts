@@ -62,40 +62,9 @@ export const listAppPods = async (args: PagingListArgs) => {
         console.log(`fail to list pods: ${e}`)
         return { data: null, success: false }
     }
-    // const getMore = async (pod: Pod) => {
-    //     try {
-    //         const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-    //         const mountPods = JSON.parse(await rawMountPods.text())
-    //         let csiNode
-    //         if (pod.spec?.nodeName) {
-    //             const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
-    //             csiNode = JSON.parse(await rawCSINode.text())
-    //         }
-    //         const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
-    //         const pvcs = JSON.parse(await rawPVCs.text())
-    //         const rawPVs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvs`)
-    //         const pvs = JSON.parse(await rawPVs.text())
-    //         const failedReason = failedReasonOfAppPod(pod, mountPods, pvcs, csiNode)
-    //         return {mountPods, csiNode, pvcs, pvs, failedReason}
-    //     } catch (e) {
-    //         console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
-    //         return {mountPods: null, csiNode: null}
-    //     }
-    // }
-
-    // const tasks = []
-    // for (const pod of data) {
-    //     tasks.push(getMore(pod))
-    // }
-    // const results = await Promise.all(tasks)
-    // for (const i in results) {
-    //     const {mountPods, csiNode, pvcs, pvs, failedReason} = results[i]
-    //     data[i].mountPods = mountPods || []
-    //     data[i].csiNode = csiNode || null
-    //     data[i].pvcs = pvcs || []
-    //     data[i].pvs = pvs || []
-    //     data[i].failedReason = failedReason || ""
-    // }
+    data.forEach(pod => {
+        pod.failedReason = failedReasonOfAppPod(pod)
+    })
     return {
         data,
         success: true,
@@ -195,7 +164,8 @@ export const listSystemPods = async (args: PagingListArgs) => {
     }
 }
 
-const failedReasonOfAppPod = (pod: RawPod, mountPods: RawPod[], pvcs: PersistentVolumeClaim[], csiNode: RawPod | undefined) => {
+const failedReasonOfAppPod = (pod: Pod) => {
+    const {mountPods, pvcs, csiNode} = pod
     // check if pod is ready
     if (isPodReady(pod)) {
         return ""
@@ -203,7 +173,7 @@ const failedReasonOfAppPod = (pod: RawPod, mountPods: RawPod[], pvcs: Persistent
 
     let reason = ""
     // 1. PVC pending
-    pvcs.forEach(pvc => {
+    pvcs?.forEach(pvc => {
         if (pvc.status?.phase !== "Bound") {
             reason = `PVC "${pvc.metadata?.name}" 未成功绑定，请点击「PVC」查看详情。`
         }
