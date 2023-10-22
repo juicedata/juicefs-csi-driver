@@ -60,42 +60,42 @@ export const listAppPods = async (args: PagingListArgs) => {
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
-        return {data: null, success: false}
+        return { data: null, success: false }
     }
-    const getMore = async (pod: Pod) => {
-        try {
-            const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
-            const mountPods = JSON.parse(await rawMountPods.text())
-            let csiNode
-            if (pod.spec?.nodeName) {
-                const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
-                csiNode = JSON.parse(await rawCSINode.text())
-            }
-            const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
-            const pvcs = JSON.parse(await rawPVCs.text())
-            const rawPVs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvs`)
-            const pvs = JSON.parse(await rawPVs.text())
-            const failedReason = failedReasonOfAppPod(pod, mountPods, pvcs, csiNode)
-            return {mountPods, csiNode, pvcs, pvs, failedReason}
-        } catch (e) {
-            console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
-            return {mountPods: null, csiNode: null}
-        }
-    }
+    // const getMore = async (pod: Pod) => {
+    //     try {
+    //         const rawMountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
+    //         const mountPods = JSON.parse(await rawMountPods.text())
+    //         let csiNode
+    //         if (pod.spec?.nodeName) {
+    //             const rawCSINode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
+    //             csiNode = JSON.parse(await rawCSINode.text())
+    //         }
+    //         const rawPVCs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvcs`)
+    //         const pvcs = JSON.parse(await rawPVCs.text())
+    //         const rawPVs = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/pvs`)
+    //         const pvs = JSON.parse(await rawPVs.text())
+    //         const failedReason = failedReasonOfAppPod(pod, mountPods, pvcs, csiNode)
+    //         return {mountPods, csiNode, pvcs, pvs, failedReason}
+    //     } catch (e) {
+    //         console.log(`fail to get mount pods or csi node by pod(${pod.metadata?.namespace}/${pod.metadata?.name}): ${e}`)
+    //         return {mountPods: null, csiNode: null}
+    //     }
+    // }
 
-    const tasks = []
-    for (const pod of data) {
-        tasks.push(getMore(pod))
-    }
-    const results = await Promise.all(tasks)
-    for (const i in results) {
-        const {mountPods, csiNode, pvcs, pvs, failedReason} = results[i]
-        data[i].mountPods = mountPods || []
-        data[i].csiNode = csiNode || null
-        data[i].pvcs = pvcs || []
-        data[i].pvs = pvs || []
-        data[i].failedReason = failedReason || ""
-    }
+    // const tasks = []
+    // for (const pod of data) {
+    //     tasks.push(getMore(pod))
+    // }
+    // const results = await Promise.all(tasks)
+    // for (const i in results) {
+    //     const {mountPods, csiNode, pvcs, pvs, failedReason} = results[i]
+    //     data[i].mountPods = mountPods || []
+    //     data[i].csiNode = csiNode || null
+    //     data[i].pvcs = pvcs || []
+    //     data[i].pvs = pvs || []
+    //     data[i].failedReason = failedReason || ""
+    // }
     return {
         data,
         success: true,
@@ -154,12 +154,12 @@ export const listSystemPods = async (args: PagingListArgs) => {
         csiControllers = JSON.parse(await csiControllerList.text())
     } catch (e) {
         console.log(`fail to list mount pods: ${e}`)
-        return {data: null, success: false}
+        return { data: null, success: false }
     }
     data = mountPods.concat(csiNodes, csiControllers)
     const getMore = async (pod: RawPod) => {
         const failedReason = failedReasonOfSysPod(pod)
-        return {failedReason}
+        return { failedReason }
     }
     const tasks = []
     for (const pv of data) {
@@ -167,7 +167,7 @@ export const listSystemPods = async (args: PagingListArgs) => {
     }
     const results = await Promise.all(tasks)
     for (const i in results) {
-        const {failedReason} = results[i]
+        const { failedReason } = results[i]
         data[i].failedReason = failedReason || ""
     }
 

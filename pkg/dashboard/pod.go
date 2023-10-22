@@ -30,6 +30,14 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
+type PodExtra struct {
+	*corev1.Pod `json:",inline"`
+	Pvs         []*corev1.PersistentVolume      `json:"pvs"`
+	Pvcs        []*corev1.PersistentVolumeClaim `json:"pvcs"`
+	MountPods   []*corev1.Pod                   `json:"mountPods"`
+	CsiNode     *corev1.Pod                     `json:"csiNode"`
+}
+
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		descend := c.Query("order") != "ascend"
@@ -39,12 +47,12 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		mountpodFilter := c.Query("mountpod")
 		csiNodeFilter := c.Query("csinode")
 		api.appPodsLock.RLock()
-		pods := make([]*corev1.Pod, 0, api.appIndexes.Len())
+		pods := make([]*PodExtra, 0, api.appIndexes.Len())
 		appendPod := func(value any) {
 			if pod, ok := api.appPods[value.(types.NamespacedName)]; ok &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
 				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
-				pods = append(pods, pod)
+				pods = append(pods, &PodExtra{Pod: pod})
 			}
 		}
 		if descend {
@@ -58,7 +66,7 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		}
 		api.appPodsLock.RUnlock()
 		if pvFilter != "" || mountpodFilter != "" || csiNodeFilter != "" {
-			filterdPods := make([]*corev1.Pod, 0, len(pods))
+			filterdPods := make([]*PodExtra, 0, len(pods))
 			for _, pod := range pods {
 				if api.filterPVsOfPod(c, pod, pvFilter) && api.filterMountPodsOfPod(c, pod, mountpodFilter) && api.filterCSINodeOfPod(c, pod, csiNodeFilter) {
 					filterdPods = append(filterdPods, pod)
@@ -66,15 +74,28 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			}
 			pods = filterdPods
 		}
+		for _, pod := range pods {
+			if pod.Pvs == nil {
+				pod.Pvs = api.listPVsOfPod(c, pod.Pod)
+			}
+			if pod.MountPods == nil {
+				pod.MountPods = api.listMountPodOf(c, pod.Pod)
+			}
+			if pod.CsiNode == nil {
+				pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
+			}
+			pod.Pvcs = api.listPVCsOfPod(c, pod.Pod)
+		}
 		c.IndentedJSON(200, pods)
 	}
 }
 
-func (api *API) filterPVsOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+func (api *API) filterPVsOfPod(ctx context.Context, pod *PodExtra, filter string) bool {
 	if filter == "" {
 		return true
 	}
-	for _, pv := range api.listPVsOfPod(ctx, pod) {
+	pod.Pvs = api.listPVsOfPod(ctx, pod.Pod)
+	for _, pv := range pod.Pvs {
 		if strings.Contains(pv.Name, filter) {
 			return true
 		}
@@ -82,11 +103,12 @@ func (api *API) filterPVsOfPod(ctx context.Context, pod *corev1.Pod, filter stri
 	return false
 }
 
-func (api *API) filterMountPodsOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+func (api *API) filterMountPodsOfPod(ctx context.Context, pod *PodExtra, filter string) bool {
 	if filter == "" {
 		return true
 	}
-	for _, mountPod := range api.listMountPodOf(ctx, pod) {
+	pod.MountPods = api.listMountPodOf(ctx, pod.Pod)
+	for _, mountPod := range pod.MountPods {
 		if strings.Contains(mountPod.Name, filter) {
 			return true
 		}
@@ -94,18 +116,18 @@ func (api *API) filterMountPodsOfPod(ctx context.Context, pod *corev1.Pod, filte
 	return false
 }
 
-func (api *API) filterCSINodeOfPod(ctx context.Context, pod *corev1.Pod, filter string) bool {
+func (api *API) filterCSINodeOfPod(ctx context.Context, pod *PodExtra, filter string) bool {
 	if filter == "" {
 		return true
 	}
 	if pod.Spec.NodeName == "" {
 		return false
 	}
-	csiNode := api.getCSINode(pod.Spec.NodeName)
-	if csiNode == nil {
+	pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
+	if pod.CsiNode == nil {
 		return false
 	}
-	return strings.Contains(csiNode.Name, filter)
+	return strings.Contains(pod.CsiNode.Name, filter)
 }
 
 func (api *API) listMountPod() gin.HandlerFunc {
