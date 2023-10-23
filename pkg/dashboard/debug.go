@@ -26,6 +26,7 @@ type APIStatus struct {
 	MountPods    []string
 	CsiNodes     []string
 	Controllers  []string
+	SysIndexes   []types.NamespacedName
 	AppPods      []types.NamespacedName
 	AppIndexes   []types.NamespacedName
 	Nodeindex    map[string]types.NamespacedName
@@ -57,6 +58,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 				Name:      v.Name,
 			}
 		}
+		status.SysIndexes = api.sysIndexes.debug()
 		api.componentsLock.RUnlock()
 		api.appPodsLock.RLock()
 		for k := range api.appPods {

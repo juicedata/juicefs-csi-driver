@@ -288,11 +288,14 @@ func (api *API) watchComponents(ctx context.Context) {
 				if index != nil {
 					index(event.Type, pod)
 				}
+				spacedName := api.sysNamespaced(pod.Name)
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
-					table[api.sysNamespaced(pod.Name)] = pod
+					table[spacedName] = pod
+					api.sysIndexes.addIndex(spacedName, pod, api.mountPods, api.csiNodes, api.controllers)
 				case watch.Deleted:
 					delete(table, api.sysNamespaced(pod.Name))
+					api.sysIndexes.removeIndex(spacedName)
 				}
 				api.componentsLock.Unlock()
 			}

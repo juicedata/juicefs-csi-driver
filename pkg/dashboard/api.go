@@ -36,6 +36,7 @@ type API struct {
 	csiNodes       map[types.NamespacedName]*corev1.Pod
 	controllers    map[types.NamespacedName]*corev1.Pod
 	nodeindex      map[string]*corev1.Pod
+	sysIndexes     *timeOrderedIndexes[corev1.Pod]
 
 	appPodsLock sync.RWMutex
 	appPods     map[types.NamespacedName]*corev1.Pod
@@ -58,6 +59,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		csiNodes:     make(map[types.NamespacedName]*corev1.Pod),
 		controllers:  make(map[types.NamespacedName]*corev1.Pod),
 		nodeindex:    make(map[string]*corev1.Pod),
+		sysIndexes:   newTimeIndexes[corev1.Pod](),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
 		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
