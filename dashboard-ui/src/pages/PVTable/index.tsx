@@ -79,7 +79,7 @@ const PVTable: React.FC<unknown> = () => {
                     return <span>无</span>
                 } else {
                     return (
-                        <Link to={`/pv/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
+                        <Link to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
                             {pv.spec.claimRef.namespace}/{pv.spec.claimRef.name}
                         </Link>
                     )

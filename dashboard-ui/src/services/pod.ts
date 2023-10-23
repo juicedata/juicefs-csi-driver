@@ -71,6 +71,7 @@ export const listAppPods = async (args: PagingListArgs) => {
         total: data.total,
     }
 }
+
 export const getPod = async (namespace: string, podName: string) => {
     try {
         const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
