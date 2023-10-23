@@ -120,13 +120,14 @@ const SystemPodTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listSystemPods({
+                    const {pods, success, total} = await listSystemPods({
                         ...params,
                         sort,
                         filter,
                     });
                     return {
-                        data: data || [],
+                        data: pods || [],
+                        total,
                         success,
                     };
                 }}

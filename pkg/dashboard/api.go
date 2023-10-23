@@ -85,6 +85,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/debug/status", api.debugAPIStatus())
 	group.GET("/pods", api.listAppPod())
+	group.GET("/syspods", api.listSysPod())
 	group.GET("/mountpods", api.listMountPod())
 	group.GET("/csi-nodes", api.listCSINodePod())
 	group.GET("/controllers", api.listCSIControllerPod())

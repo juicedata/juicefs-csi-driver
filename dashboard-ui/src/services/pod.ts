@@ -122,63 +122,30 @@ export interface SysPagingListArgs {
 
 export const listSystemPods = async (args: SysPagingListArgs) => {
     console.log(`list system pods with args: ${JSON.stringify(args)}`)
-    let data: Pod[]
-    let mountPods: Pod[] = [],
-        csiNodes: Pod[] = [],
-        csiControllers: Pod[] = []
+    let data: {
+        pods: Pod[]
+        total: number
+    }
     try {
-        const order = args.sort['time'] || 'descend'
+        const order = args.sort['time'] || 'ascend'
         const namespace = args.namespace || ""
         const name = args.name || ""
         const node = args.node || ""
         const pageSize = args.pageSize || 20
         const current = args.current || 1
-        const mountPodList = await fetch(`http://localhost:8088/api/v1/mountpods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
-        const csiNodeList = await fetch(`http://localhost:8088/api/v1/csi-nodes?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
-        const csiControllerList = await fetch(`http://localhost:8088/api/v1/controllers?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
-        mountPods = JSON.parse(await mountPodList.text())
-        csiNodes = JSON.parse(await csiNodeList.text())
-        csiControllers = JSON.parse(await csiControllerList.text())
+        const podList = await fetch(`http://localhost:8088/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
+        data = JSON.parse(await podList.text())
     } catch (e) {
-        console.log(`fail to list mount pods: ${e}`)
+        console.log(`fail to list sys pods: ${e}`)
         return { data: null, success: false }
     }
-    data = mountPods.concat(csiNodes, csiControllers)
-    const getMore = async (pod: RawPod) => {
-        const failedReason = failedReasonOfSysPod(pod)
-        return { failedReason }
-    }
-    const tasks = []
-    for (const pv of data) {
-        tasks.push(getMore(pv))
-    }
-    const results = await Promise.all(tasks)
-    for (const i in results) {
-        const { failedReason } = results[i]
-        data[i].failedReason = failedReason || ""
-    }
-
-    const timeOrder = args.sort['time']
-    if (timeOrder) {
-        data.sort((a, b) => {
-            const aTime = new Date(a.metadata?.creationTimestamp || 0).getTime()
-            const bTime = new Date(b.metadata?.creationTimestamp || 0).getTime()
-            if (timeOrder === 'descend') {
-                return bTime - aTime
-            } else {
-                return aTime - bTime
-            }
-        })
-    } else {
-        data.sort((a, b) => {
-            const aName = a.metadata?.namespace + "/" + a.metadata?.name || ''
-            const bName = b.metadata?.namespace + "/" + b.metadata?.name || ''
-            return aName > bName ? 1 : -1
-        })
-    }
+    data.pods.forEach(pod => {
+        pod.failedReason = failedReasonOfSysPod(pod)
+    })
     return {
-        data,
+        pods: data.pods,
         success: true,
+        total: data.total,
     }
 }
 

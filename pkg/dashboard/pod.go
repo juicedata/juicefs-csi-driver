@@ -44,6 +44,11 @@ type ListAppPodResult struct {
 	Pods  []*PodExtra `json:"pods"`
 }
 
+type ListSysPodResult struct {
+	Total int           `json:"total"`
+	Pods  []*corev1.Pod `json:"pods"`
+}
+
 func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
@@ -147,6 +152,58 @@ func (api *API) filterCSINodeOfPod(ctx context.Context, pod *PodExtra, filter st
 		return false
 	}
 	return strings.Contains(pod.CsiNode.Name, filter)
+}
+
+func (api *API) listSysPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		descend := c.Query("order") == "descend"
+		nameFilter := c.Query("name")
+		namespaceFilter := c.Query("namespace")
+		nodeFilter := c.Query("node")
+		required := func(pod *corev1.Pod) bool {
+			return (nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
+				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) &&
+				(nodeFilter == "" || strings.Contains(pod.Spec.NodeName, nodeFilter))
+
+		}
+		pods := make([]*corev1.Pod, 0, api.sysIndexes.length())
+		appendPod := func(pod *corev1.Pod) {
+			if required(pod) {
+				pods = append(pods, pod)
+			}
+		}
+		for name := range api.sysIndexes.iterate(c, descend) {
+			if pod, ok := api.mountPods[name]; ok {
+				appendPod(pod)
+			} else if pod, ok := api.csiNodes[name]; ok {
+				appendPod(pod)
+			} else if pod, ok := api.controllers[name]; ok {
+				appendPod(pod)
+			}
+		}
+		result := &ListSysPodResult{len(pods), make([]*corev1.Pod, 0)}
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(pods)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(pods)) {
+			endIndex = uint64(len(pods))
+		}
+		result.Pods = pods[startIndex:endIndex]
+		c.IndentedJSON(200, result)
+	}
 }
 
 func (api *API) listMountPod() gin.HandlerFunc {
