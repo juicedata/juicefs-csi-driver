@@ -129,25 +129,30 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 			func() {
 				api.pvsLock.Lock()
 				defer api.pvsLock.Unlock()
+				name := api.sysNamespaced(pv.Name)
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
-					api.pvs[api.sysNamespaced(pv.Name)] = pv
+					api.pvs[name] = pv
+					api.pvIndexes.addIndex(name, pv, api.pvs)
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
-						api.pairs[pvcName] = api.sysNamespaced(pv.Name)
+						api.pairs[pvcName] = name
 						api.pvcs[pvcName] = pvc
+						api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
 					}
 				case watch.Deleted:
-					delete(api.pvs, api.sysNamespaced(pv.Name))
+					delete(api.pvs, name)
+					api.pvIndexes.removeIndex(name)
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
 						delete(api.pairs, pvcName)
+						delete(api.pvcs, pvcName)
 					}
 				}
 			}()
@@ -160,8 +165,8 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	for event := range watcher.ResultChan() {
-		func() {
+	for e := range watcher.ResultChan() {
+		go func(event watch.Event) {
 			api.pvsLock.Lock()
 			defer api.pvsLock.Unlock()
 
@@ -185,11 +190,13 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 			switch event.Type {
 			case watch.Added, watch.Modified, watch.Error:
 				api.pvcs[pvcName] = pvc
+				api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
 			case watch.Deleted:
 				delete(api.pvcs, pvcName)
 				delete(api.pairs, pvcName)
+				api.pvcIndexes.removeIndex(pvcName)
 			}
-		}()
+		}(e)
 	}
 }
 

@@ -45,10 +45,12 @@ type API struct {
 	eventsLock sync.RWMutex
 	events     map[types.NamespacedName]map[string]*corev1.Event
 
-	pvsLock sync.RWMutex
-	pvs     map[types.NamespacedName]*corev1.PersistentVolume
-	pvcs    map[types.NamespacedName]*corev1.PersistentVolumeClaim
-	pairs   map[types.NamespacedName]types.NamespacedName
+	pvsLock    sync.RWMutex
+	pvs        map[types.NamespacedName]*corev1.PersistentVolume
+	pvcs       map[types.NamespacedName]*corev1.PersistentVolumeClaim
+	pvIndexes  *timeOrderedIndexes[corev1.PersistentVolume]
+	pvcIndexes *timeOrderedIndexes[corev1.PersistentVolumeClaim]
+	pairs      map[types.NamespacedName]types.NamespacedName
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
@@ -65,6 +67,8 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
 		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
 		pvcs:         make(map[types.NamespacedName]*corev1.PersistentVolumeClaim),
+		pvIndexes:    newTimeIndexes[corev1.PersistentVolume](),
+		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
 		pairs:        make(map[types.NamespacedName]types.NamespacedName),
 	}
 	go api.watchComponents(ctx)

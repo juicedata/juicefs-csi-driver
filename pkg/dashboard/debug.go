@@ -32,6 +32,8 @@ type APIStatus struct {
 	Nodeindex    map[string]types.NamespacedName
 	Events       map[string]int
 	Pvs          map[string]types.NamespacedName
+	PvIndexes    []types.NamespacedName
+	PvcIndexes   []types.NamespacedName
 }
 
 func (api *API) debugAPIStatus() gin.HandlerFunc {
@@ -78,6 +80,8 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 				Name:      v.Name,
 			}
 		}
+		status.PvIndexes = api.pvIndexes.debug()
+		status.PvcIndexes = api.pvcIndexes.debug()
 		api.pvsLock.RUnlock()
 		c.IndentedJSON(200, status)
 	}
