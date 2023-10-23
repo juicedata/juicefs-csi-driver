@@ -100,6 +100,9 @@ func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
+	// overwrite subdir
+	r.overwriteSubdirWithSubPath()
+
 	// command
 	mountCmd := r.genMountCommand()
 	initCmd := r.genInitCommand()
