@@ -127,9 +127,15 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
         csiNodes: Pod[] = [],
         csiControllers: Pod[] = []
     try {
-        const mountPodList = await fetch('http://localhost:8088/api/v1/mountpods')
-        const csiNodeList = await fetch('http://localhost:8088/api/v1/csi-nodes')
-        const csiControllerList = await fetch('http://localhost:8088/api/v1/controllers')
+        const order = args.sort['time'] || 'descend'
+        const namespace = args.namespace || ""
+        const name = args.name || ""
+        const node = args.node || ""
+        const pageSize = args.pageSize || 20
+        const current = args.current || 1
+        const mountPodList = await fetch(`http://localhost:8088/api/v1/mountpods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
+        const csiNodeList = await fetch(`http://localhost:8088/api/v1/csi-nodes?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
+        const csiControllerList = await fetch(`http://localhost:8088/api/v1/controllers?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
         mountPods = JSON.parse(await mountPodList.text())
         csiNodes = JSON.parse(await csiNodeList.text())
         csiControllers = JSON.parse(await csiControllerList.text())
