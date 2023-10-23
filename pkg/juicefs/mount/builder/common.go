@@ -101,10 +101,11 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		},
 	}
 
-	if r.jfsSetting.Attr.HostNetwork {
+	if r.jfsSetting.Attr.HostNetwork || !r.jfsSetting.IsCe {
 		// When using hostNetwork, the MountPod will use a random port for metrics.
 		// Before inducing any auxiliary method to detect that random port, the
 		// best way is to avoid announcing any port about that.
+		// Enterprise edition does not have metrics port.
 		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{}
 	} else {
 		pod.Spec.Containers[0].Ports = []corev1.ContainerPort{
@@ -171,6 +172,27 @@ func (r *BaseBuilder) getQuotaPath() string {
 	}
 	targetPath := path.Join(subdir, quotaPath)
 	return targetPath
+}
+
+func (r *BaseBuilder) overwriteSubdirWithSubPath() {
+	if r.jfsSetting.SubPath != "" {
+		options := make([]string, 0)
+		subdir := r.jfsSetting.SubPath
+		for _, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				if s[0] == "subdir" {
+					subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				}
+				continue
+			}
+			options = append(options, option)
+		}
+		r.jfsSetting.Options = append(options, fmt.Sprintf("subdir=%s", subdir))
+	}
 }
 
 // genJobCommand generates job command
