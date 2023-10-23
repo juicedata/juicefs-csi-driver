@@ -42,15 +42,16 @@ type JfsSetting struct {
 	IsCe   bool
 	UsePod bool
 
-	UUID          string
-	Name          string         `json:"name"`
-	MetaUrl       string         `json:"metaurl"`
-	Source        string         `json:"source"`
-	Storage       string         `json:"storage"`
-	FormatOptions string         `json:"format-options"`
-	CachePVCs     []CachePVC     // PVC using by mount pod
-	CacheEmptyDir *CacheEmptyDir // EmptyDir using by mount pod
-	CacheDirs     []string       // hostPath using by mount pod
+	UUID               string
+	Name               string               `json:"name"`
+	MetaUrl            string               `json:"metaurl"`
+	Source             string               `json:"source"`
+	Storage            string               `json:"storage"`
+	FormatOptions      string               `json:"format-options"`
+	CachePVCs          []CachePVC           // PVC using by mount pod
+	CacheEmptyDir      *CacheEmptyDir       // EmptyDir using by mount pod
+	CacheInlineVolumes []*CacheInlineVolume // InlineVolume using by mount pod
+	CacheDirs          []string             // hostPath using by mount pod
 
 	// put in secret
 	SecretKey     string            `json:"secret-key,omitempty"`
@@ -120,6 +121,11 @@ type CacheEmptyDir struct {
 	Path      string
 }
 
+type CacheInlineVolume struct {
+	CSI  *corev1.CSIVolumeSource
+	Path string
+}
+
 func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bool) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{
 		Options: []string{},
@@ -186,11 +192,31 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 				Medium: medium,
 				Path:   volPath,
 			}
-			klog.Infof("sizeLimit %s", sizeLimit)
+			klog.Infof("sizeLimit of emptyDir is %s", sizeLimit)
 			if sizeLimit != "" {
 				if jfsSetting.CacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
 					return nil, err
 				}
+			}
+		}
+	}
+	// parse inline volume of cache
+	if volCtx != nil {
+		if _, ok := volCtx[cacheInlineVolume]; ok {
+			inlineVolumes := []*corev1.CSIVolumeSource{}
+			err = json.Unmarshal([]byte(volCtx[cacheInlineVolume]), &inlineVolumes)
+			if err != nil {
+				return nil, err
+			}
+			jfsSetting.CacheInlineVolumes = make([]*CacheInlineVolume, 0)
+
+			for i, inlineVolume := range inlineVolumes {
+				volPath := fmt.Sprintf("/var/jfsCache-inlineVolume-%d", i)
+				dirs = append(dirs, volPath)
+				jfsSetting.CacheInlineVolumes = append(jfsSetting.CacheInlineVolumes, &CacheInlineVolume{
+					CSI:  inlineVolume,
+					Path: volPath,
+				})
 			}
 		}
 	}

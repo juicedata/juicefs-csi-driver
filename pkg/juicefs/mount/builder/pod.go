@@ -159,6 +159,22 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
 	}
 
+	if r.jfsSetting.CacheInlineVolumes != nil {
+		for i, inlineVolume := range r.jfsSetting.CacheInlineVolumes {
+			name := fmt.Sprintf("cachedir-inline-volume-%d", i)
+			cacheVolumes = append(cacheVolumes, corev1.Volume{
+				Name:         name,
+				VolumeSource: corev1.VolumeSource{CSI: inlineVolume.CSI},
+			})
+			volumeMount := corev1.VolumeMount{
+				Name:      name,
+				ReadOnly:  false,
+				MountPath: inlineVolume.Path,
+			}
+			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+		}
+	}
+
 	return cacheVolumes, cacheVolumeMounts
 }
 
