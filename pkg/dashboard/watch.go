@@ -89,19 +89,7 @@ func (api *API) updateAppPod(name types.NamespacedName, pod *corev1.Pod, indexin
 	defer api.appPodsLock.Unlock()
 	api.appPods[name] = pod
 	if indexing {
-		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
-			currentName := e.Value.(types.NamespacedName)
-			currentPod, ok := api.appPods[currentName]
-			if !ok {
-				api.appIndexes.Remove(e)
-				continue
-			}
-			if pod.CreationTimestamp.After(currentPod.CreationTimestamp.Time) {
-				api.appIndexes.InsertBefore(name, e)
-				return
-			}
-		}
-		api.appIndexes.PushBack(name)
+		api.appIndexes.addIndex(name, pod, api.appPods)
 	}
 }
 
@@ -109,12 +97,7 @@ func (api *API) removeAppPod(name types.NamespacedName) {
 	api.appPodsLock.Lock()
 	defer api.appPodsLock.Unlock()
 	delete(api.appPods, name)
-	for e := api.appIndexes.Back(); e != nil; e = e.Prev() {
-		if e.Value.(types.NamespacedName) == name {
-			api.appIndexes.Remove(e)
-			break
-		}
-	}
+	api.appIndexes.removeIndex(name)
 }
 
 func (api *API) watchRelatedPV(ctx context.Context) {

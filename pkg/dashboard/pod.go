@@ -64,21 +64,12 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		csiNodeFilter := c.Query("csinode")
 
 		api.appPodsLock.RLock()
-		pods := make([]*PodExtra, 0, api.appIndexes.Len())
-		appendPod := func(value any) {
-			if pod, ok := api.appPods[value.(types.NamespacedName)]; ok &&
+		pods := make([]*PodExtra, 0, api.appIndexes.length())
+		for name := range api.appIndexes.iterate(c, descend) {
+			if pod, ok := api.appPods[name]; ok &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
 				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
 				pods = append(pods, &PodExtra{Pod: pod})
-			}
-		}
-		if descend {
-			for e := api.appIndexes.Front(); e != nil; e = e.Next() {
-				appendPod(e.Value)
-			}
-		} else {
-			for e := api.appIndexes.Back(); e != nil; e = e.Prev() {
-				appendPod(e.Value)
 			}
 		}
 		api.appPodsLock.RUnlock()

@@ -62,9 +62,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		for k := range api.appPods {
 			status.AppPods = append(status.AppPods, k)
 		}
-		for e := api.appIndexes.Front(); e != nil; e = e.Next() {
-			status.AppIndexes = append(status.AppIndexes, e.Value.(types.NamespacedName))
-		}
+		status.AppIndexes = api.appIndexes.debug()
 		api.appPodsLock.RUnlock()
 		api.eventsLock.RLock()
 		for k, v := range api.events {

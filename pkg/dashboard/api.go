@@ -17,7 +17,6 @@
 package dashboard
 
 import (
-	"container/list"
 	"context"
 	"sync"
 
@@ -40,7 +39,7 @@ type API struct {
 
 	appPodsLock sync.RWMutex
 	appPods     map[types.NamespacedName]*corev1.Pod
-	appIndexes  *list.List
+	appIndexes  *timeOrderedIndexes[corev1.Pod]
 
 	eventsLock sync.RWMutex
 	events     map[types.NamespacedName]map[string]*corev1.Event
@@ -60,7 +59,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		nodeindex:    make(map[string]*corev1.Pod),
 		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
-		appIndexes:   list.New(),
+		appIndexes:   newTimeIndexes[corev1.Pod](),
 		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
 		pvs:          make(map[string]*corev1.PersistentVolume),
 		pvcs:         make(map[types.NamespacedName]*corev1.PersistentVolumeClaim),
