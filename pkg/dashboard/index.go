@@ -44,11 +44,11 @@ func (i *timeOrderedIndexes[T]) iterate(ctx context.Context, descend bool) <-cha
 	ch := make(chan types.NamespacedName)
 	go func() {
 		if descend {
-			for e := i.list.Front(); e != nil && ctx.Err() == nil; e = e.Next() {
+			for e := i.list.Back(); e != nil && ctx.Err() == nil; e = e.Prev() {
 				ch <- e.Value.(types.NamespacedName)
 			}
 		} else {
-			for e := i.list.Back(); e != nil && ctx.Err() == nil; e = e.Prev() {
+			for e := i.list.Front(); e != nil && ctx.Err() == nil; e = e.Next() {
 				ch <- e.Value.(types.NamespacedName)
 			}
 		}
@@ -62,7 +62,7 @@ func (i *timeOrderedIndexes[T]) length() int {
 }
 
 func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T, maps ...map[types.NamespacedName]*T) {
-	for e := i.list.Front(); e != nil; e = e.Next() {
+	for e := i.list.Back(); e != nil; e = e.Prev() {
 		currentName := e.Value.(types.NamespacedName)
 		var (
 			currentResource *T
@@ -79,15 +79,15 @@ func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T,
 		}
 
 		if getCreateTime(*resource).After(getCreateTime(*currentResource).Time) {
-			i.list.InsertBefore(name, e)
+			i.list.InsertAfter(name, e)
 			return
 		}
 	}
-	i.list.PushBack(name)
+	i.list.PushFront(name)
 }
 
 func (i *timeOrderedIndexes[T]) removeIndex(name types.NamespacedName) {
-	for e := i.list.Back(); e != nil; e = e.Prev() {
+	for e := i.list.Front(); e != nil; e = e.Next() {
 		if e.Value.(types.NamespacedName) == name {
 			i.list.Remove(e)
 			break
