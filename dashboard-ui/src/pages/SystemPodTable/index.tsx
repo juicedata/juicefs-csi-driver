@@ -35,14 +35,8 @@ const SystemPodTable: React.FC<unknown> = () => {
     const columns: ProColumns<Pod>[] = [
         {
             title: '名称',
-            formItemProps: {
-                rules: [
-                    {
-                        required: true,
-                        message: '名称为必填项',
-                    },
-                ],
-            },
+            disable: true,
+            key: 'name',
             render: (_, pod) => {
                 if (pod.failedReason === "") {
                     return (
@@ -80,14 +74,10 @@ const SystemPodTable: React.FC<unknown> = () => {
             valueEnum: PodStatusEnum,
         },
         {
-            title: '所在节点',
-            dataIndex: ['spec', 'nodeName'],
-            valueType: 'text',
-        },
-        {
             title: '创建时间',
             key: 'time',
             sorter: 'time',
+            defaultSortOrder: 'ascend',
             search: false,
             render: (_, pod) => (
                 <span>{
@@ -98,6 +88,12 @@ const SystemPodTable: React.FC<unknown> = () => {
                     })
                 }</span>
             ),
+        },
+        {
+            title: '所在节点',
+            key: 'node',
+            dataIndex: ['spec', 'nodeName'],
+            valueType: 'text',
         },
     ];
     return (

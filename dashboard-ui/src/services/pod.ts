@@ -29,7 +29,7 @@ export type Pod = RawPod & {
 
 export type SortOrder = 'descend' | 'ascend' | null;
 
-export interface PagingListArgs {
+export interface AppPagingListArgs {
     pageSize?: number;
     current?: number;
     namespace?: string;
@@ -41,7 +41,7 @@ export interface PagingListArgs {
     filter: Record<string, (string | number)[] | null>
 }
 
-export const listAppPods = async (args: PagingListArgs) => {
+export const listAppPods = async (args: AppPagingListArgs) => {
     console.log(`list pods with args: ${JSON.stringify(args)}`)
     let data: {
         pods: Pod[]
@@ -110,7 +110,17 @@ export const getLog = async (pod: Pod, container: string) => {
     }
 }
 
-export const listSystemPods = async (args: PagingListArgs) => {
+export interface SysPagingListArgs {
+    pageSize?: number;
+    current?: number;
+    namespace?: string;
+    name?: string;
+    node?: string;
+    sort: Record<string, SortOrder>;
+    filter: Record<string, (string | number)[] | null>
+}
+
+export const listSystemPods = async (args: SysPagingListArgs) => {
     console.log(`list system pods with args: ${JSON.stringify(args)}`)
     let data: Pod[]
     let mountPods: Pod[] = [],
