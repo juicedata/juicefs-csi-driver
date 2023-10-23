@@ -45,8 +45,6 @@ done
 echo "$(date "+%Y-%m-%d %H:%M:%S")"
 echo "succeed in checking mount point $ConditionPathIsMountPoint"
 if [ -n "${subpath}" ]; then
-	echo "create subpath ${subpath}"
-	mkdir -p 777 $ConditionPathIsMountPoint/${subpath}
 	if [ -n "${capacity}" ]; then
 		if [ "${community}" == ce ]; then
 			echo "set quota in ${subpath}"
