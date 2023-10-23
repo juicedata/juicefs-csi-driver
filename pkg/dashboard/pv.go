@@ -170,7 +170,7 @@ func (api *API) getSCHandler() gin.HandlerFunc {
 func (api *API) getPV(name string) *corev1.PersistentVolume {
 	api.pvsLock.RLock()
 	defer api.pvsLock.RUnlock()
-	return api.pvs[name]
+	return api.pvs[api.sysNamespaced(name)]
 }
 
 func (api *API) getPVC(namespace, name string) *corev1.PersistentVolumeClaim {

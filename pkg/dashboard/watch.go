@@ -131,17 +131,17 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 				defer api.pvsLock.Unlock()
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
-					api.pvs[pv.Name] = pv
+					api.pvs[api.sysNamespaced(pv.Name)] = pv
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
-						api.pairs[pvcName] = pv.Name
+						api.pairs[pvcName] = api.sysNamespaced(pv.Name)
 						api.pvcs[pvcName] = pvc
 					}
 				case watch.Deleted:
-					delete(api.pvs, pv.Name)
+					delete(api.pvs, api.sysNamespaced(pv.Name))
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
@@ -262,7 +262,7 @@ func (api *API) watchComponents(ctx context.Context) {
 		log.Fatalf("%v", err)
 	}
 	watchers := []watch.Interface{mountPodWatcher, csiNodeWatcher, csiControllerWatcher}
-	tables := []map[string]*corev1.Pod{api.mountPods, api.csiNodes, api.controllers}
+	tables := []map[types.NamespacedName]*corev1.Pod{api.mountPods, api.csiNodes, api.controllers}
 	indexes := []func(watch.EventType, *corev1.Pod){
 		nil,
 		func(eventType watch.EventType, pod *corev1.Pod) {
@@ -276,7 +276,7 @@ func (api *API) watchComponents(ctx context.Context) {
 		nil,
 	}
 	for i := range watchers {
-		go func(watcher watch.Interface, table map[string]*corev1.Pod, index func(watch.EventType, *corev1.Pod)) {
+		go func(watcher watch.Interface, table map[types.NamespacedName]*corev1.Pod, index func(watch.EventType, *corev1.Pod)) {
 			for event := range watcher.ResultChan() {
 				api.componentsLock.Lock()
 				pod, ok := event.Object.(*corev1.Pod)
@@ -290,9 +290,9 @@ func (api *API) watchComponents(ctx context.Context) {
 				}
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
-					table[pod.Name] = pod
+					table[api.sysNamespaced(pod.Name)] = pod
 				case watch.Deleted:
-					delete(table, pod.Name)
+					delete(table, api.sysNamespaced(pod.Name))
 				}
 				api.componentsLock.Unlock()
 			}
@@ -424,7 +424,7 @@ func (api *API) cleanupEvents(ctx context.Context) {
 }
 
 func (api *API) isComponents(name string) bool {
-	_, exist := api.getComponentPod(name)
+	_, exist := api.getComponentPod(api.sysNamespaced(name))
 	return exist
 }
 

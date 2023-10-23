@@ -185,7 +185,7 @@ func (api *API) listCSIControllerPod() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getComponentPod(name string) (*corev1.Pod, bool) {
+func (api *API) getComponentPod(name types.NamespacedName) (*corev1.Pod, bool) {
 	var pod *corev1.Pod
 	var exist bool
 	api.componentsLock.RLock()
@@ -216,7 +216,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
-		pod, exist := api.getComponentPod(name)
+		pod, exist := api.getComponentPod(api.sysNamespaced(name))
 		if !exist {
 			pod = api.getAppPod(types.NamespacedName{Namespace: namespace, Name: name})
 		}
@@ -356,7 +356,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.P
 			continue
 		}
 		api.componentsLock.RLock()
-		mountPod, exist := api.mountPods[pair[1]]
+		mountPod, exist := api.mountPods[types.NamespacedName{pair[0], pair[1]}]
 		api.componentsLock.RUnlock()
 		if !exist {
 			log.Printf("mount pod %s not found\n", mountPodName)
@@ -471,11 +471,11 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			return
 		}
 		pvc := obj.(*corev1.PersistentVolumeClaim)
-		pvName := api.pairs[types.NamespacedName{
+		pvName, ok := api.pairs[types.NamespacedName{
 			Namespace: pvc.Namespace,
 			Name:      pvc.Name,
 		}]
-		if pvName == "" {
+		if !ok {
 			c.String(404, "not found")
 			return
 		}

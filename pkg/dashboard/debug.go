@@ -43,13 +43,13 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		}
 		api.componentsLock.RLock()
 		for k := range api.mountPods {
-			status.MountPods = append(status.MountPods, k)
+			status.MountPods = append(status.MountPods, k.String())
 		}
 		for k := range api.csiNodes {
-			status.CsiNodes = append(status.CsiNodes, k)
+			status.CsiNodes = append(status.CsiNodes, k.String())
 		}
 		for k := range api.controllers {
-			status.Controllers = append(status.Controllers, k)
+			status.Controllers = append(status.Controllers, k.String())
 		}
 		for k, v := range api.nodeindex {
 			status.Nodeindex[k] = types.NamespacedName{
@@ -71,7 +71,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		api.eventsLock.RUnlock()
 		api.pvsLock.RLock()
 		for k, v := range api.pvs {
-			status.Pvs[k] = types.NamespacedName{
+			status.Pvs[k.String()] = types.NamespacedName{
 				Namespace: v.Namespace,
 				Name:      v.Name,
 			}

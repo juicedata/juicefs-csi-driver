@@ -32,10 +32,10 @@ type API struct {
 	k8sClient    *k8sclient.K8sClient
 
 	componentsLock sync.RWMutex
-	mountPods      map[string]*corev1.Pod
-	csiNodes       map[string]*corev1.Pod
+	mountPods      map[types.NamespacedName]*corev1.Pod
+	csiNodes       map[types.NamespacedName]*corev1.Pod
+	controllers    map[types.NamespacedName]*corev1.Pod
 	nodeindex      map[string]*corev1.Pod
-	controllers    map[string]*corev1.Pod
 
 	appPodsLock sync.RWMutex
 	appPods     map[types.NamespacedName]*corev1.Pod
@@ -45,25 +45,25 @@ type API struct {
 	events     map[types.NamespacedName]map[string]*corev1.Event
 
 	pvsLock sync.RWMutex
-	pvs     map[string]*corev1.PersistentVolume
+	pvs     map[types.NamespacedName]*corev1.PersistentVolume
 	pvcs    map[types.NamespacedName]*corev1.PersistentVolumeClaim
-	pairs   map[types.NamespacedName]string
+	pairs   map[types.NamespacedName]types.NamespacedName
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
 		k8sClient:    k8sClient,
-		mountPods:    make(map[string]*corev1.Pod),
-		csiNodes:     make(map[string]*corev1.Pod),
+		mountPods:    make(map[types.NamespacedName]*corev1.Pod),
+		csiNodes:     make(map[types.NamespacedName]*corev1.Pod),
+		controllers:  make(map[types.NamespacedName]*corev1.Pod),
 		nodeindex:    make(map[string]*corev1.Pod),
-		controllers:  make(map[string]*corev1.Pod),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
 		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
-		pvs:          make(map[string]*corev1.PersistentVolume),
+		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
 		pvcs:         make(map[types.NamespacedName]*corev1.PersistentVolumeClaim),
-		pairs:        make(map[types.NamespacedName]string),
+		pairs:        make(map[types.NamespacedName]types.NamespacedName),
 	}
 	go api.watchComponents(ctx)
 	go api.watchAppPod(ctx)
