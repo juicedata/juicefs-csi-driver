@@ -104,7 +104,6 @@ const DetailedPV: React.FC<unknown> = () => {
                         {
                             title: 'PVC',
                             key: 'pvc',
-                            dataIndex: 'pvc',
                             render: (_, record) => {
                                 const [namespace, name] = record.pvc.split("/")
                                 return <Link to={`/pvc/${namespace}/${name}`}>{record.pvc}</Link>

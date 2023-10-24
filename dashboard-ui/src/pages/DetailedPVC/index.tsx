@@ -94,7 +94,9 @@ const DetailedPVC: React.FC<unknown> = () => {
                         {
                             title: 'PV',
                             key: 'pv',
-                            dataIndex: 'pv',
+                            render: (_, record) => {
+                                return <Link to={`/pv/${record.pv}`}>{record.pv}</Link>
+                            }
                         },
                         {
                             title: '容量',
@@ -109,7 +111,9 @@ const DetailedPVC: React.FC<unknown> = () => {
                         {
                             title: 'StorageClass',
                             key: 'storageClass',
-                            dataIndex: 'storageClass',
+                            render: (_, record) => {
+                                return <Link to={`/storageclass/${record.storageClass}`}>{record.storageClass}</Link>
+                            }
                         },
                         {
                             title: '状态',
