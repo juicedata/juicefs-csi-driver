@@ -17,7 +17,7 @@
 import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
 import React, { useEffect, useState } from 'react';
 import { useMatch } from '@umijs/max';
-import { useParams, useSearchParams } from '@umijs/max';
+import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { getMountPodOfPV, getPVC, getPV, getPVEvents } from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import { Empty, List, TabsProps } from "antd";
@@ -29,6 +29,7 @@ import { Link } from 'umi';
 import { formatData } from '../utils';
 
 const DetailedPV: React.FC<unknown> = () => {
+    const location = useLocation()
     const params = useParams()
     const [searchParams, setSearchParams] = useSearchParams()
     const pvName = params['pvName']

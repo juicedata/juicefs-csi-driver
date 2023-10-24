@@ -64,7 +64,7 @@ export default defineConfig({
             component: './DetailedPV',
         },
         {
-            path: '/pvc/:namespace/:pvName',
+            path: '/pvc/:namespace/:name',
             component: './DetailedPVC',
         },
         {

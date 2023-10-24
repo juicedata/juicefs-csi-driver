@@ -16,20 +16,22 @@
 
 import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
 import React, { useEffect, useState } from 'react';
-import { useMatch } from '@umijs/max';
 import { getMountPodOfPVC, getPVC, getPVCEvents, getPVEvents, PV, PVC } from '@/services/pv';
-import * as jsyaml from "js-yaml";
+import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { TabsProps } from "antd";
 import { PVStatusEnum } from "@/services/common";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
 import { Pod as RawPod, PersistentVolumeClaim, Event } from "kubernetes-types/core/v1";
 import { Link } from 'umi';
+import { formatData } from '../utils';
 
 const DetailedPVC: React.FC<unknown> = () => {
-    const routeData = useMatch('/pvc/:namespace/:name')
-    const namespace = routeData?.params?.namespace
-    const name = routeData?.params?.name
+    const params = useParams()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const namespace = params['namespace']
+    const name = params['name']
+    const format = searchParams.get('raw')
     if (!namespace || !name) {
         return (
             <PageContainer
@@ -140,22 +142,28 @@ const DetailedPVC: React.FC<unknown> = () => {
         return content
     }
 
+    let contents
     if (!pvc) {
         return <PageLoading />
+    } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
+        contents = formatData(pvc, format)
     } else {
-        return (
-            <PageContainer
-                header={{
-                    title: `PersistentVolumeClaim: ${pvc?.metadata?.name}`,
-                }}
-                fixedHeader
-            >
-                <ProCard direction="column">
-                    {getPVCTabsContent(pvc)}
-                </ProCard>
-            </PageContainer>
+        contents = (
+            <ProCard direction="column">
+                {getPVCTabsContent(pvc)}
+            </ProCard>
         )
     }
+    return (
+        <PageContainer
+            header={{
+                title: `PersistentVolumeClaim: ${pvc?.metadata?.name}`,
+            }}
+            fixedHeader
+        >
+            {contents}
+        </PageContainer>
+    )
 }
 
 export default DetailedPVC;
