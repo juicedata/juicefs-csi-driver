@@ -114,7 +114,12 @@ export const listPVC = async (args: PVCPagingListArgs) => {
     }
 }
 
-export const listStorageClass = async () => {
+export interface SCPagingListArgs {
+    name?: string;
+    sort: Record<string, 'descend' | 'ascend' | null>;
+}
+
+export const listStorageClass = async (args: SCPagingListArgs) => {
     let data: StorageClass[] = []
     try {
         const rawSC = await fetch(`http://localhost:8088/api/v1/storageclasses`)
@@ -122,6 +127,24 @@ export const listStorageClass = async () => {
     } catch (e) {
         console.log(`fail to list sc`)
         return {data: [], success: false}
+    }
+    if (args.name) {
+        data = data.filter(sc => sc.metadata?.name?.includes(args.name!))
+    }
+    if (args.sort['time'] === 'ascend') {
+        data.sort((a, b) => {
+            if (a.metadata?.creationTimestamp && b.metadata?.creationTimestamp) {
+                return a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+            }
+            return 0
+        })
+    } else {
+        data.sort((a, b) => {
+            if (a.metadata?.creationTimestamp && b.metadata?.creationTimestamp) {
+                return b.metadata.creationTimestamp.localeCompare(a.metadata.creationTimestamp)
+            }
+            return 0
+        })
     }
     return {
         data,

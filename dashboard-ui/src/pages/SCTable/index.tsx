@@ -37,14 +37,7 @@ const SCTable: React.FC<unknown> = () => {
     const columns: ProColumns<StorageClass>[] = [
         {
             title: '名称',
-            formItemProps: {
-                rules: [
-                    {
-                        required: true,
-                        message: '名称为必填项',
-                    },
-                ],
-            },
+            key: 'name',
             render: (_, sc) => (
                 <Link to={`/storageclass/${sc.metadata?.name}/`}>
                     {sc.metadata?.name}
@@ -113,7 +106,10 @@ const SCTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listStorageClass();
+                    const {data, success} = await listStorageClass({
+                        ...params,
+                        sort,
+                    });
                     return {
                         data: data || [],
                         success,
