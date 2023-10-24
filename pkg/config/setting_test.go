@@ -716,6 +716,18 @@ func Test_parseYamlOrJson(t *testing.T) {
 }
 
 func Test_parsePodResources(t *testing.T) {
+	podLimit = map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceCPU:    resource.MustParse("1"),
+		corev1.ResourceMemory: resource.MustParse("2G"),
+	}
+	podRequest = map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceCPU:    resource.MustParse("3"),
+		corev1.ResourceMemory: resource.MustParse("4G"),
+	}
+	testResources = corev1.ResourceRequirements{
+		Limits:   podLimit,
+		Requests: podRequest,
+	}
 	type args struct {
 		cpuLimit      string
 		memoryLimit   string
@@ -737,6 +749,20 @@ func Test_parsePodResources(t *testing.T) {
 				memoryRequest: "4G",
 			},
 			want:    testResources,
+			wantErr: false,
+		},
+		{
+			name: "test-nil",
+			args: args{
+				cpuLimit:      "-1",
+				memoryLimit:   "0",
+				cpuRequest:    "0",
+				memoryRequest: "0",
+			},
+			want: corev1.ResourceRequirements{
+				Limits:   map[corev1.ResourceName]resource.Quantity{},
+				Requests: map[corev1.ResourceName]resource.Quantity{},
+			},
 			wantErr: false,
 		},
 		{
