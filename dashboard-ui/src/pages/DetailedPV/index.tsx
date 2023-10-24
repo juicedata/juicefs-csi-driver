@@ -17,6 +17,7 @@
 import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
 import React, { useEffect, useState } from 'react';
 import { useMatch } from '@umijs/max';
+import { useParams, useSearchParams } from '@umijs/max';
 import { getMountPodOfPV, getPVC, getPV, getPVEvents } from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import { Empty, List, TabsProps } from "antd";
@@ -24,10 +25,14 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { PVStatusEnum } from "@/services/common"
 import { Pod as RawPod, PersistentVolume, Event } from "kubernetes-types/core/v1"
 import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
+import { Link } from 'umi';
+import { formatData } from '../utils';
 
 const DetailedPV: React.FC<unknown> = () => {
-    const routeData = useMatch('/pv/:name')
-    const pvName = routeData?.params?.name
+    const params = useParams()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const pvName = params['pvName']
+    const format = searchParams.get('raw')
     if (!pvName) {
         return (
             <PageContainer
@@ -99,6 +104,10 @@ const DetailedPV: React.FC<unknown> = () => {
                             title: 'PVC',
                             key: 'pvc',
                             dataIndex: 'pvc',
+                            render: (_, record) => {
+                                const [namespace, name] = record.pvc.split("/")
+                                return <Link to={`/pvc/${namespace}/${name}`}>{record.pvc}</Link>
+                            }
                         },
                         {
                             title: '容量',
@@ -118,7 +127,9 @@ const DetailedPV: React.FC<unknown> = () => {
                         {
                             title: 'StorageClass',
                             key: 'storageClass',
-                            dataIndex: 'storageClass',
+                            render: (_, record) => {
+                                return <Link to={`/storageclass/${record.storageClass}`}>{record.storageClass}</Link>
+                            }
                         },
                         {
                             title: 'volumeHandle',
@@ -140,10 +151,11 @@ const DetailedPV: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: (index) => {
-                                // todo
-                                return <div>点击查看</div>
-                            }
+                            render: () => (
+                                <Link to={`${location.pathname}?raw=yaml`}>
+                                    {'点击查看'}
+                                </Link>
+                            )
                         },
                     ]}
                 />
@@ -172,22 +184,28 @@ const DetailedPV: React.FC<unknown> = () => {
         return content
     }
 
+    let contents
     if (!pv) {
         return <PageLoading />
+    } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
+        contents = formatData(pv, format)
     } else {
-        return (
-            <PageContainer
-                fixedHeader
-                header={{
-                    title: `PersistentVolume: ${pv?.metadata?.name}`,
-                }}
-            >
-                <ProCard direction="column">
-                    {getPVTabsContent(pv, pvcNamespace, pvName)}
-                </ProCard>
-            </PageContainer>
+        contents = (
+            <ProCard direction="column">
+                {getPVTabsContent(pv, pvcNamespace, pvName)}
+            </ProCard>
         )
     }
+    return (
+        <PageContainer
+            fixedHeader
+            header={{
+                title: `PersistentVolume: ${pv?.metadata?.name}`,
+            }}
+        >
+            {contents}
+        </PageContainer>
+    )
 }
 
 export default DetailedPV;

@@ -20,11 +20,11 @@ import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { getPod, getLog, Pod } from '@/services/pod';
-import * as jsyaml from "js-yaml";
 import { TabsProps, Select, Empty, Table, Button, Tag, Typography, Space } from "antd";
 import { Link } from 'umi';
 import { PodStatusEnum } from "@/services/common";
 import { SyncOutlined, DownloadOutlined } from '@ant-design/icons';
+import { formatData } from '../utils';
 
 type LogToolProps = {
     pod: Pod
@@ -53,7 +53,7 @@ const LogTools: React.FC<LogToolProps> = (props) => {
                     })
                 }}
             >
-            刷新
+                刷新
             </Button>
             <Typography.Link href={URL.createObjectURL(props.data)} download={`${props.pod.metadata?.name}-${props.container}.log`}>
                 <Button type="link" icon={<DownloadOutlined />} >
@@ -65,10 +65,9 @@ const LogTools: React.FC<LogToolProps> = (props) => {
 }
 
 const DetailedPod: React.FC<unknown> = () => {
-    const params = useParams()
-    console.log(JSON.stringify(params))
-    const [searchParams, setSearchParams] = useSearchParams()
     const location = useLocation()
+    const params = useParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const namespace = params['namespace']
     const name = params['podName']
     if (!namespace || !name) {
@@ -259,20 +258,7 @@ const DetailedPod: React.FC<unknown> = () => {
     if (!pod) {
         return content
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
-        pod.metadata?.managedFields?.forEach((managedField) => {
-            managedField.fieldsV1 = undefined
-        })
-        const p = {
-            metadata: pod.metadata,
-            spec: pod.spec,
-            status: pod.status,
-        }
-        const data = format === 'json' ? JSON.stringify(p, null, "\t") : jsyaml.dump(p)
-        content = (
-            <SyntaxHighlighter language={format} showLineNumbers>
-                {data.trim()}
-            </SyntaxHighlighter>
-        )
+        content = formatData(pod, format)
     } else if (typeof container === 'string') {
         subtitle = container
         const log = pod.logs.get(container)

@@ -24,6 +24,7 @@ import { PVStatusEnum } from "@/services/common";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
 import { Pod as RawPod, PersistentVolumeClaim, Event } from "kubernetes-types/core/v1";
+import { Link } from 'umi';
 
 const DetailedPVC: React.FC<unknown> = () => {
     const routeData = useMatch('/pvc/:namespace/:name')
@@ -122,10 +123,11 @@ const DetailedPVC: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: (index) => {
-                                // todo
-                                return <div>点击查看</div>
-                            }
+                            render: () => (
+                                <Link to={`${location.pathname}?raw=yaml`}>
+                                    {'点击查看'}
+                                </Link>
+                            )
                         },
                     ]}
                 />

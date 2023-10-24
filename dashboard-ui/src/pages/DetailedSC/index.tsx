@@ -14,17 +14,17 @@
  limitations under the License.
  */
 
-import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
-import React, {useEffect, useState} from 'react';
-import {useMatch} from '@umijs/max';
-import {getSC, getPVOfSC} from '@/services/pv';
+import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
+import React, { useEffect, useState } from 'react';
+import { useMatch } from '@umijs/max';
+import { getSC, getPVOfSC } from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import {Empty, List, Table, TabsProps, Tag} from "antd";
-import {StorageClass} from "kubernetes-types/storage/v1";
-import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {PersistentVolume} from "kubernetes-types/core/v1";
-import {Link} from "@@/exports";
-import {PVStatusEnum} from "@/services/common";
+import { Empty, List, Table, TabsProps, Tag } from "antd";
+import { StorageClass } from "kubernetes-types/storage/v1";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PersistentVolume } from "kubernetes-types/core/v1";
+import { Link } from "@@/exports";
+import { PVStatusEnum } from "@/services/common";
 
 const DetailedSC: React.FC<unknown> = () => {
     const routeData = useMatch('/storageclass/:name/')
@@ -86,10 +86,11 @@ const DetailedSC: React.FC<unknown> = () => {
                         {
                             title: 'Yaml',
                             key: 'yaml',
-                            render: (index) => {
-                                // todo
-                                return <div>点击查看</div>
-                            }
+                            render: () => (
+                                <Link to={`${location.pathname}?raw=yaml`}>
+                                    {'点击查看'}
+                                </Link>
+                            )
                         },
                     ]}
                 />
@@ -161,9 +162,9 @@ const DetailedSC: React.FC<unknown> = () => {
                         key: 'startAt',
                     },
                 ]}
-                       dataSource={pvs}
-                       rowKey={c => c.metadata?.uid!}
-                       pagination={false}
+                    dataSource={pvs}
+                    rowKey={c => c.metadata?.uid!}
+                    pagination={false}
                 />
             </ProCard>
         </div>
@@ -175,10 +176,10 @@ const DetailedSC: React.FC<unknown> = () => {
             <ProCard
                 direction="column"
                 gutter={[0, 16]}
-                style={{marginBlockStart: 8}}>
+                style={{ marginBlockStart: 8 }}>
                 {pvs.map((pv) => (
                     <ProCard title={`${pv.metadata?.name}`} type="inner" bordered
-                             extra={<Link to={`/pv/${pv.metadata?.name}/`}> 查看详情 </Link>}>
+                        extra={<Link to={`/pv/${pv.metadata?.name}/`}> 查看详情 </Link>}>
                         <ProDescriptions
                             column={2}
                             dataSource={{
@@ -208,7 +209,7 @@ const DetailedSC: React.FC<unknown> = () => {
     }
 
     if (!sc) {
-        return <Empty/>
+        return <Empty />
     } else {
         return (
             <PageContainer
