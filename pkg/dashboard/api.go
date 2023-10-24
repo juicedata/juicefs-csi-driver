@@ -104,7 +104,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
-	pvGroup.GET("/events", api.getPVCEvents())
+	pvGroup.GET("/events", api.getPVEvents())
 	pvcGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
 	pvcGroup.GET("/", api.getPVCHandler())
 	pvcGroup.GET("/mountpods", api.getMountPodsOfPVC())
