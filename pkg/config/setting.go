@@ -206,9 +206,10 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 			inlineVolumes := []*corev1.CSIVolumeSource{}
 			err = json.Unmarshal([]byte(volCtx[cacheInlineVolume]), &inlineVolumes)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parse cache inline volume error: %v", err)
 			}
 			jfsSetting.CacheInlineVolumes = make([]*CacheInlineVolume, 0)
+			klog.V(6).Infof("get cache inline volume: %v", inlineVolumes)
 
 			for i, inlineVolume := range inlineVolumes {
 				volPath := fmt.Sprintf("/var/jfsCache-inlineVolume-%d", i)
