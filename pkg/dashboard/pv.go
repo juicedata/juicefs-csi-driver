@@ -73,7 +73,12 @@ func (api *API) listSCsHandler() gin.HandlerFunc {
 
 type ListPVPodResult struct {
 	Total int                        `json:"total"`
-	PVS   []*corev1.PersistentVolume `json:"pvs"`
+	PVs   []*corev1.PersistentVolume `json:"pvs"`
+}
+
+type ListPVCPodResult struct {
+	Total int                             `json:"total"`
+	PVCs  []*corev1.PersistentVolumeClaim `json:"pvcs"`
 }
 
 func (api *API) listPVsHandler() gin.HandlerFunc {
@@ -123,7 +128,7 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 		if endIndex > uint64(len(pvs)) {
 			endIndex = uint64(len(pvs))
 		}
-		result.PVS = pvs[startIndex:endIndex]
+		result.PVs = pvs[startIndex:endIndex]
 		c.IndentedJSON(200, result)
 	}
 }
@@ -171,13 +176,56 @@ func (api *API) getSCMiddileware() gin.HandlerFunc {
 
 func (api *API) listPVCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pvcs := make([]*corev1.PersistentVolumeClaim, 0)
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		descend := c.Query("order") != "ascend"
+		namespaceFilter := c.Query("namespace")
+		nameFilter := c.Query("name")
+		pvFilter := c.Query("pv")
+		scFilter := c.Query("sc")
+		required := func(pvc *corev1.PersistentVolumeClaim) bool {
+			pvName := ""
+			scName := ""
+			if pv, ok := api.pairs[types.NamespacedName{Namespace: pvc.Namespace, Name: pvc.Name}]; ok {
+				pvName = pv.Name
+			}
+			if pvc.Spec.StorageClassName != nil {
+				scName = *pvc.Spec.StorageClassName
+			}
+			return (namespaceFilter == "" || strings.Contains(pvc.Namespace, namespaceFilter)) &&
+				(nameFilter == "" || strings.Contains(pvc.Name, nameFilter)) &&
+				(pvFilter == "" || strings.Contains(pvName, pvFilter)) &&
+				(scFilter == "" || strings.Contains(scName, scFilter))
+
+		}
 		api.pvsLock.RLock()
-		for _, pv := range api.pvcs {
-			pvcs = append(pvcs, pv)
+		pvcs := make([]*corev1.PersistentVolumeClaim, 0, api.pvcIndexes.length())
+		for name := range api.pvcIndexes.iterate(c, descend) {
+			if pvc, ok := api.pvcs[name]; ok && required(pvc) {
+				pvcs = append(pvcs, pvc)
+			}
 		}
 		api.pvsLock.RUnlock()
-		c.IndentedJSON(200, pvcs)
+		result := &ListPVCPodResult{len(pvcs), make([]*corev1.PersistentVolumeClaim, 0)}
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(pvcs)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(pvcs)) {
+			endIndex = uint64(len(pvcs))
+		}
+		result.PVCs = pvcs[startIndex:endIndex]
+		c.IndentedJSON(200, result)
 	}
 }
 

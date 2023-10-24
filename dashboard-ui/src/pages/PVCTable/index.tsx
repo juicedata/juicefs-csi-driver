@@ -43,6 +43,7 @@ const PVCTable: React.FC<unknown> = () => {
     const columns: ProColumns<PVC>[] = [
         {
             title: '名称',
+            key: 'name',
             formItemProps: {
                 rules: [
                     {
@@ -78,6 +79,7 @@ const PVCTable: React.FC<unknown> = () => {
         },
         {
             title: 'PV',
+            key: 'pv',
             render: (_, pvc) => {
                 if (!pvc.spec?.volumeName) {
                     return <span>无</span>
@@ -112,7 +114,7 @@ const PVCTable: React.FC<unknown> = () => {
         },
         {
             title: 'StorageClass',
-            key: 'storageClassName',
+            key: 'sc',
             render: (_, pvc) => {
                 if (pvc.spec?.storageClassName) {
                     return (
@@ -174,10 +176,15 @@ const PVCTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listPVC();
+                    const {pvcs, success, total} = await listPVC({
+                        ...params,
+                        sort,
+                        filter,
+                    });
                     return {
-                        data: data || [],
+                        data: pvcs || [],
                         success,
+                        total,
                     };
                 }}
                 columns={columns}

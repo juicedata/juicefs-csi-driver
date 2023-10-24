@@ -64,10 +64,6 @@ export const listPV = async (args: PVPagingListArgs) => {
         console.log(`fail to list pv`)
         return {data: null, success: false}
     }
-    const getMore = async (pv: PersistentVolume) => {
-        const failedReason = failedReasonOfPV(pv)
-        return {failedReason}
-    }
     data.pvs.forEach(pv => {
         pv.failedReason = failedReasonOfPV(pv)
     })
@@ -78,32 +74,43 @@ export const listPV = async (args: PVPagingListArgs) => {
     }
 }
 
-export const listPVC = async () => {
-    let data: PVC[] = []
+export interface PVCPagingListArgs {
+    pageSize?: number;
+    current?: number;
+    namespace?: number
+    name?: string;
+    pv?: string;
+    sc?: string;
+    sort: Record<string, 'descend' | 'ascend' | null>;
+    filter: Record<string, (string | number)[] | null>
+}
+
+export const listPVC = async (args: PVCPagingListArgs) => {
+    let data: {
+        pvcs: PVC[]
+        total: number
+    }
     try {
-        const rawPV = await fetch(`http://localhost:8088/api/v1/pvcs`)
-        data = JSON.parse(await rawPV.text())
+        const order = args.sort['time'] || 'descend'
+        const namespace = args.namespace || ""
+        const name = args.name || ""
+        const pv = args.pv || ""
+        const sc = args.sc || ""
+        const pageSize = args.pageSize || 20
+        const current = args.current || 1
+        const rawPVC = await fetch(`http://localhost:8088/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
+        data = JSON.parse(await rawPVC.text())
     } catch (e) {
-        console.log(`fail to list pv`)
+        console.log(`fail to list pvc`)
         return {data: null, success: false}
     }
-    const getMore = async (pvc: PersistentVolumeClaim) => {
-        const failedReason = failedReasonOfPVC(pvc)
-        return {failedReason}
-    }
-
-    const tasks = []
-    for (const pvc of data) {
-        tasks.push(getMore(pvc))
-    }
-    const results = await Promise.all(tasks)
-    for (const i in results) {
-        const {failedReason} = results[i]
-        data[i].failedReason = failedReason || ""
-    }
+    data.pvcs.forEach(pvc => {
+        pvc.failedReason = failedReasonOfPVC(pvc)
+    })
     return {
-        data,
+        pvcs: data.pvcs,
         success: true,
+        total: data.total,
     }
 }
 
