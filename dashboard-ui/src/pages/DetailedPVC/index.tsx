@@ -39,17 +39,17 @@ const DetailedPVC: React.FC<unknown> = () => {
             </PageContainer>
         )
     }
-    const [pvc, setPV] = useState<PersistentVolumeClaim>()
+    const [pvc, setPVC] = useState<PersistentVolumeClaim>()
     const [mountpods, setMountPod] = useState<RawPod[]>()
     const [events, setEvents] = useState<Event[]>()
     useEffect(() => {
         getPVC(namespace, name)
-            .then(setPV)
+            .then(setPVC)
             .then(() => getMountPodOfPVC(namespace, name))
             .then(setMountPod)
-    }, [setPV, setMountPod])
+    }, [setPVC, setMountPod])
     useEffect(() => {
-        getPVCEvents(pvc?.metadata?.namespace || "", pvc?.metadata?.name || "")
+        getPVCEvents(namespace, name)
             .then(setEvents)
     }, [setEvents]);
 
