@@ -17,6 +17,7 @@
 import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
 import React, { useEffect, useState } from 'react';
 import { useMatch } from '@umijs/max';
+import { useParams, useSearchParams, useLocation } from '@umijs/max';
 import { getSC, getPVOfSC } from '@/services/pv';
 import * as jsyaml from "js-yaml";
 import { Empty, List, Table, TabsProps, Tag } from "antd";
@@ -25,10 +26,14 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { PersistentVolume } from "kubernetes-types/core/v1";
 import { Link } from "@@/exports";
 import { PVStatusEnum } from "@/services/common";
+import { formatData } from '../utils';
 
 const DetailedSC: React.FC<unknown> = () => {
-    const routeData = useMatch('/storageclass/:name/')
-    const scName = routeData?.params?.name
+    const location = useLocation()
+    const params = useParams()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const scName = params['scName']
+    const format = searchParams.get('raw')
     if (!scName) {
         return (
             <PageContainer
@@ -208,22 +213,28 @@ const DetailedSC: React.FC<unknown> = () => {
         )
     }
 
+    let contents
     if (!sc) {
         return <Empty />
+    } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
+        contents = formatData(sc, format)
     } else {
-        return (
-            <PageContainer
-                fixedHeader
-                header={{
-                    title: `StorageClass: ${sc?.metadata?.name}`,
-                }}
-            >
-                <ProCard direction="column">
-                    {getSCTabsContent(sc)}
-                </ProCard>
-            </PageContainer>
+        contents = (
+            <ProCard direction="column">
+                {getSCTabsContent(sc)}
+            </ProCard>
         )
     }
+    return (
+        <PageContainer
+            fixedHeader
+            header={{
+                title: `StorageClass: ${sc?.metadata?.name}`,
+            }}
+        >
+            {contents}
+        </PageContainer>
+    )
 }
 
 export default DetailedSC;

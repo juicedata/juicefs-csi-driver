@@ -258,7 +258,12 @@ const DetailedPod: React.FC<unknown> = () => {
     if (!pod) {
         return content
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
-        content = formatData(pod, format)
+        const raw: RawPod = {
+            metadata: pod.metadata,
+            spec: pod.spec,
+            status: pod.status,
+        }
+        content = formatData(raw, format)
     } else if (typeof container === 'string') {
         subtitle = container
         const log = pod.logs.get(container)

@@ -27,6 +27,7 @@ import { Link } from 'umi';
 import { formatData } from '../utils';
 
 const DetailedPVC: React.FC<unknown> = () => {
+    const location = useLocation()
     const params = useParams()
     const [searchParams, setSearchParams] = useSearchParams()
     const namespace = params['namespace']

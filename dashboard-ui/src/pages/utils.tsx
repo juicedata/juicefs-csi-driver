@@ -20,20 +20,13 @@ import * as jsyaml from "js-yaml";
 
 export interface Source {
     metadata?: ObjectMeta
-    spec?: any
-    status?: any
 }
 
 export const formatData = (src: Source, format: string) => {
     src.metadata?.managedFields?.forEach((managedField) => {
         managedField.fieldsV1 = undefined
     })
-    const s = {
-        metadata: src.metadata,
-        spec: src.spec,
-        status: src.status,
-    }
-    const data = format === 'json' ? JSON.stringify(s, null, "\t") : jsyaml.dump(s)
+    const data = format === 'json' ? JSON.stringify(src, null, "\t") : jsyaml.dump(src)
     return (
         <SyntaxHighlighter language={format} showLineNumbers >
             {data.trim()}
