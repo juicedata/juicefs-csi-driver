@@ -319,28 +319,30 @@ func (api *API) watchPodEvents(ctx context.Context) {
 		log.Fatalf("can't watch event of pods: %v", err)
 	}
 	for e := range watcher.ResultChan() {
-		api.eventsLock.Lock()
-		event, ok := e.Object.(*corev1.Event)
-		if !ok {
-			api.eventsLock.Unlock()
-			log.Printf("unknown type: %v", e.Object)
-			continue
-		}
-		objName := types.NamespacedName{
-			Namespace: event.InvolvedObject.Namespace,
-			Name:      event.InvolvedObject.Name,
-		}
-
-		switch e.Type {
-		case watch.Added:
-			if api.events[objName] == nil {
-				api.events[objName] = make(map[string]*corev1.Event, 1)
+		go func(we watch.Event) {
+			api.eventsLock.Lock()
+			event, ok := we.Object.(*corev1.Event)
+			if !ok {
+				api.eventsLock.Unlock()
+				log.Printf("unknown type: %v", we.Object)
+				return
 			}
-			api.events[objName][string(event.UID)] = event
-		case watch.Deleted:
-			delete(api.events[objName], string(event.UID))
-		}
-		api.eventsLock.Unlock()
+			objName := types.NamespacedName{
+				Namespace: event.InvolvedObject.Namespace,
+				Name:      event.InvolvedObject.Name,
+			}
+
+			switch we.Type {
+			case watch.Added:
+				if api.events[objName] == nil {
+					api.events[objName] = make(map[string]*corev1.Event, 1)
+				}
+				api.events[objName][string(event.UID)] = event
+			case watch.Deleted:
+				delete(api.events[objName], string(event.UID))
+			}
+			api.eventsLock.Unlock()
+		}(e)
 	}
 }
 
@@ -353,28 +355,30 @@ func (api *API) watchPVEvents(ctx context.Context) {
 		log.Fatalf("can't watch event of PV: %v", err)
 	}
 	for e := range watcher.ResultChan() {
-		api.eventsLock.Lock()
-		event, ok := e.Object.(*corev1.Event)
-		if !ok {
-			api.eventsLock.Unlock()
-			log.Printf("unknown type: %v", e.Object)
-			continue
-		}
-		objName := types.NamespacedName{
-			Namespace: event.InvolvedObject.Namespace,
-			Name:      event.InvolvedObject.Name,
-		}
-
-		switch e.Type {
-		case watch.Added:
-			if api.events[objName] == nil {
-				api.events[objName] = make(map[string]*corev1.Event, 1)
+		go func(we watch.Event) {
+			api.eventsLock.Lock()
+			event, ok := we.Object.(*corev1.Event)
+			if !ok {
+				api.eventsLock.Unlock()
+				log.Printf("unknown type: %v", we.Object)
+				return
 			}
-			api.events[objName][string(event.UID)] = event
-		case watch.Deleted:
-			delete(api.events[objName], string(event.UID))
-		}
-		api.eventsLock.Unlock()
+			objName := types.NamespacedName{
+				Namespace: event.InvolvedObject.Namespace,
+				Name:      event.InvolvedObject.Name,
+			}
+
+			switch we.Type {
+			case watch.Added:
+				if api.events[objName] == nil {
+					api.events[objName] = make(map[string]*corev1.Event, 1)
+				}
+				api.events[objName][string(event.UID)] = event
+			case watch.Deleted:
+				delete(api.events[objName], string(event.UID))
+			}
+			api.eventsLock.Unlock()
+		}(e)
 	}
 }
 
@@ -387,28 +391,30 @@ func (api *API) watchPVCEvents(ctx context.Context) {
 		log.Fatalf("can't watch event of PVC: %v", err)
 	}
 	for e := range watcher.ResultChan() {
-		api.eventsLock.Lock()
-		event, ok := e.Object.(*corev1.Event)
-		if !ok {
-			api.eventsLock.Unlock()
-			log.Printf("unknown type: %v", e.Object)
-			continue
-		}
-		objName := types.NamespacedName{
-			Namespace: event.InvolvedObject.Namespace,
-			Name:      event.InvolvedObject.Name,
-		}
-
-		switch e.Type {
-		case watch.Added:
-			if api.events[objName] == nil {
-				api.events[objName] = make(map[string]*corev1.Event, 1)
+		go func(we watch.Event) {
+			api.eventsLock.Lock()
+			event, ok := we.Object.(*corev1.Event)
+			if !ok {
+				api.eventsLock.Unlock()
+				log.Printf("unknown type: %v", we.Object)
+				return
 			}
-			api.events[objName][string(event.UID)] = event
-		case watch.Deleted:
-			delete(api.events[objName], string(event.UID))
-		}
-		api.eventsLock.Unlock()
+			objName := types.NamespacedName{
+				Namespace: event.InvolvedObject.Namespace,
+				Name:      event.InvolvedObject.Name,
+			}
+
+			switch we.Type {
+			case watch.Added:
+				if api.events[objName] == nil {
+					api.events[objName] = make(map[string]*corev1.Event, 1)
+				}
+				api.events[objName][string(event.UID)] = event
+			case watch.Deleted:
+				delete(api.events[objName], string(event.UID))
+			}
+			api.eventsLock.Unlock()
+		}(e)
 	}
 }
 
