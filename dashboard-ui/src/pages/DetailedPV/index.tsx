@@ -14,16 +14,16 @@
  limitations under the License.
  */
 
-import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
-import React, {useEffect, useState} from 'react';
-import {useMatch} from '@umijs/max';
-import {getMountPodOfPV, getPVC, getPV, getPVEvents} from '@/services/pv';
+import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
+import React, { useEffect, useState } from 'react';
+import { useMatch } from '@umijs/max';
+import { getMountPodOfPV, getPVC, getPV, getPVEvents } from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import {Empty, List, TabsProps} from "antd";
-import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {PVStatusEnum} from "@/services/common"
-import {Pod as RawPod, PersistentVolume, Event} from "kubernetes-types/core/v1"
-import {EventTable, getPodTableContent} from "@/pages/DetailedPod";
+import { Empty, List, TabsProps } from "antd";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PVStatusEnum } from "@/services/common"
+import { Pod as RawPod, PersistentVolume, Event } from "kubernetes-types/core/v1"
+import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
 
 const DetailedPV: React.FC<unknown> = () => {
     const routeData = useMatch('/pv/:name')
@@ -49,8 +49,8 @@ const DetailedPV: React.FC<unknown> = () => {
         getMountPodOfPV(pvName).then(setMountPods)
     }, [setPV, setMountPods])
     useEffect(() => {
-        getPVEvents(pv?.metadata?.name || "").then(setEvents)
-    }, []);
+        getPVEvents(pvName).then(setEvents)
+    }, [setEvents]);
 
     const getPVTabsContent = (pv: PersistentVolume, pvcNamespace: string, pvName: string) => {
         const p = {
@@ -85,7 +85,7 @@ const DetailedPV: React.FC<unknown> = () => {
                 <ProDescriptions
                     column={2}
                     dataSource={{
-                        pvc: `${pvcNamespace}/${pvName}`,  // todo: link
+                        pvc: `${pvcNamespace}/${pvcName}`,  // todo: link
                         capacity: pv.spec?.capacity?.storage,
                         accessMode: pv.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
                         reclaimPolicy: pv.spec?.persistentVolumeReclaimPolicy,
@@ -173,7 +173,7 @@ const DetailedPV: React.FC<unknown> = () => {
     }
 
     if (!pv) {
-        return <Empty/>
+        return <PageLoading />
     } else {
         return (
             <PageContainer
