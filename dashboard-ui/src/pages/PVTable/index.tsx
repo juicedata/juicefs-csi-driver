@@ -44,6 +44,7 @@ const PVTable: React.FC<unknown> = () => {
     const columns: ProColumns<PV>[] = [
         {
             title: '名称',
+            key: 'name',
             formItemProps: {
                 rules: [
                     {
@@ -74,6 +75,7 @@ const PVTable: React.FC<unknown> = () => {
         },
         {
             title: 'PVC',
+            key: 'pvc',
             render: (_, pv) => {
                 if (!pv.spec?.claimRef) {
                     return <span>无</span>
@@ -114,7 +116,7 @@ const PVTable: React.FC<unknown> = () => {
         },
         {
             title: 'StorageClass',
-            key: 'storageClassName',
+            key: 'sc',
             render: (_, pv) => {
                 if (pv.spec?.storageClassName) {
                     return (
@@ -176,10 +178,15 @@ const PVTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {data, success} = await listPV();
+                    const {pvs, success, total} = await listPV({
+                        ...params,
+                        sort,
+                        filter,
+                    });
                     return {
-                        data: data || [],
+                        data: pvs || [],
                         success,
+                        total,
                     };
                 }}
                 columns={columns}

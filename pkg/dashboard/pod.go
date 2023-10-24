@@ -176,6 +176,7 @@ func (api *API) listSysPod() gin.HandlerFunc {
 				(nodeFilter == "" || strings.Contains(pod.Spec.NodeName, nodeFilter))
 
 		}
+		api.componentsLock.RLock()
 		pods := make([]*corev1.Pod, 0, api.sysIndexes.length())
 		appendPod := func(pod *corev1.Pod) {
 			if required(pod) {
@@ -191,6 +192,7 @@ func (api *API) listSysPod() gin.HandlerFunc {
 				appendPod(pod)
 			}
 		}
+		api.componentsLock.RUnlock()
 		result := &ListSysPodResult{len(pods), make([]*corev1.Pod, 0)}
 		startIndex := (current - 1) * pageSize
 		if startIndex >= uint64(len(pods)) {

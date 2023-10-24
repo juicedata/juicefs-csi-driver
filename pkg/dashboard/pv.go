@@ -18,6 +18,8 @@ package dashboard
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -69,15 +71,60 @@ func (api *API) listSCsHandler() gin.HandlerFunc {
 	}
 }
 
+type ListPVPodResult struct {
+	Total int                        `json:"total"`
+	PVS   []*corev1.PersistentVolume `json:"pvs"`
+}
+
 func (api *API) listPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pvs := make([]*corev1.PersistentVolume, 0)
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		descend := c.Query("order") != "ascend"
+		nameFilter := c.Query("name")
+		pvcFilter := c.Query("pvc")
+		scFilter := c.Query("sc")
+		required := func(pv *corev1.PersistentVolume) bool {
+			pvcName := types.NamespacedName{}
+			if pv.Spec.ClaimRef != nil {
+				pvcName = types.NamespacedName{
+					Namespace: pv.Spec.ClaimRef.Namespace,
+					Name:      pv.Spec.ClaimRef.Name,
+				}
+			}
+			return (nameFilter == "" || strings.Contains(pv.Name, nameFilter)) &&
+				(pvcFilter == "" || strings.Contains(pvcName.String(), pvcFilter)) &&
+				(scFilter == "" || strings.Contains(pv.Spec.StorageClassName, scFilter))
+
+		}
 		api.pvsLock.RLock()
-		for _, pv := range api.pvs {
-			pvs = append(pvs, pv)
+		pvs := make([]*corev1.PersistentVolume, 0, api.pvIndexes.length())
+		for name := range api.pvIndexes.iterate(c, descend) {
+			if pv, ok := api.pvs[name]; ok && required(pv) {
+				pvs = append(pvs, pv)
+			}
 		}
 		api.pvsLock.RUnlock()
-		c.IndentedJSON(200, pvs)
+		result := &ListPVPodResult{len(pvs), make([]*corev1.PersistentVolume, 0)}
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(pvs)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(pvs)) {
+			endIndex = uint64(len(pvs))
+		}
+		result.PVS = pvs[startIndex:endIndex]
+		c.IndentedJSON(200, result)
 	}
 }
 

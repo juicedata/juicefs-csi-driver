@@ -35,10 +35,30 @@ export type PVC = PersistentVolumeClaim & {
     failedReason?: string,
 }
 
-export const listPV = async () => {
-    let data: PV[] = []
+export interface PVPagingListArgs {
+    pageSize?: number;
+    current?: number;
+    name?: string;
+    pvc?: string;
+    sc?: string;
+    sort: Record<string, 'descend' | 'ascend' | null>;
+    filter: Record<string, (string | number)[] | null>
+}
+
+
+export const listPV = async (args: PVPagingListArgs) => {
+    let data: {
+        pvs: PV[]
+        total: number
+    }
     try {
-        const rawPV = await fetch(`http://localhost:8088/api/v1/pvs`)
+        const order = args.sort['time'] || 'descend'
+        const name = args.name || ""
+        const pvc = args.pvc || ""
+        const sc = args.sc || ""
+        const pageSize = args.pageSize || 20
+        const current = args.current || 1
+        const rawPV = await fetch(`http://localhost:8088/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await rawPV.text())
     } catch (e) {
         console.log(`fail to list pv`)
@@ -48,19 +68,13 @@ export const listPV = async () => {
         const failedReason = failedReasonOfPV(pv)
         return {failedReason}
     }
-
-    const tasks = []
-    for (const pv of data) {
-        tasks.push(getMore(pv))
-    }
-    const results = await Promise.all(tasks)
-    for (const i in results) {
-        const {failedReason} = results[i]
-        data[i].failedReason = failedReason || ""
-    }
+    data.pvs.forEach(pv => {
+        pv.failedReason = failedReasonOfPV(pv)
+    })
     return {
-        data,
+        pvs: data.pvs,
         success: true,
+        total: data.total,
     }
 }
 
