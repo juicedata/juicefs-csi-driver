@@ -14,19 +14,19 @@
  limitations under the License.
  */
 
-import { PageContainer, ProCard, ProDescriptions } from '@ant-design/pro-components';
-import React, { useEffect, useState } from 'react';
-import { useMatch } from '@umijs/max';
-import { useParams, useSearchParams, useLocation } from '@umijs/max';
-import { getSC, getPVOfSC } from '@/services/pv';
+import {PageContainer, ProCard, ProDescriptions} from '@ant-design/pro-components';
+import React, {useEffect, useState} from 'react';
+import {useMatch} from '@umijs/max';
+import {useParams, useSearchParams, useLocation} from '@umijs/max';
+import {getSC, getPVOfSC} from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import { Empty, List, Table, TabsProps, Tag } from "antd";
-import { StorageClass } from "kubernetes-types/storage/v1";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { PersistentVolume } from "kubernetes-types/core/v1";
-import { Link } from "@@/exports";
-import { PVStatusEnum } from "@/services/common";
-import { formatData } from '../utils';
+import {Empty, List, Table, TabsProps, Tag} from "antd";
+import {StorageClass} from "kubernetes-types/storage/v1";
+import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
+import {PersistentVolume} from "kubernetes-types/core/v1";
+import {Link} from "@@/exports";
+import {PVStatusEnum} from "@/services/common";
+import {formatData} from '../utils';
 
 const DetailedSC: React.FC<unknown> = () => {
     const location = useLocation()
@@ -167,9 +167,9 @@ const DetailedSC: React.FC<unknown> = () => {
                         key: 'startAt',
                     },
                 ]}
-                    dataSource={pvs}
-                    rowKey={c => c.metadata?.uid!}
-                    pagination={false}
+                       dataSource={pvs}
+                       rowKey={c => c.metadata?.uid!}
+                       pagination={false}
                 />
             </ProCard>
         </div>
@@ -181,10 +181,10 @@ const DetailedSC: React.FC<unknown> = () => {
             <ProCard
                 direction="column"
                 gutter={[0, 16]}
-                style={{ marginBlockStart: 8 }}>
+                style={{marginBlockStart: 8}}>
                 {pvs.map((pv) => (
                     <ProCard title={`${pv.metadata?.name}`} type="inner" bordered
-                        extra={<Link to={`/pv/${pv.metadata?.name}/`}> 查看详情 </Link>}>
+                             extra={<Link to={`/pv/${pv.metadata?.name}/`}> 查看详情 </Link>}>
                         <ProDescriptions
                             column={2}
                             dataSource={{
@@ -215,7 +215,7 @@ const DetailedSC: React.FC<unknown> = () => {
 
     let contents
     if (!sc) {
-        return <Empty />
+        return <Empty/>
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
         contents = formatData(sc, format)
     } else {
@@ -229,7 +229,9 @@ const DetailedSC: React.FC<unknown> = () => {
         <PageContainer
             fixedHeader
             header={{
-                title: `StorageClass: ${sc?.metadata?.name}`,
+                title: <Link to={`/storageclass/${sc.metadata?.name}`}>
+                    {sc.metadata?.name}
+                </Link>
             }}
         >
             {contents}

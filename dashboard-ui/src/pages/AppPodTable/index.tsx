@@ -29,6 +29,7 @@ import {Badge} from 'antd/lib';
 import {PodStatusEnum} from "@/services/common";
 import {AlertTwoTone} from "@ant-design/icons";
 import {red} from "@ant-design/colors";
+import {getNodeStatusBadge} from "@/pages/SystemPodTable";
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);

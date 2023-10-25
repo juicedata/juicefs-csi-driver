@@ -26,6 +26,7 @@ import (
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -37,6 +38,7 @@ type PodExtra struct {
 	Pvcs        []*corev1.PersistentVolumeClaim `json:"pvcs"`
 	MountPods   []*corev1.Pod                   `json:"mountPods"`
 	CsiNode     *corev1.Pod                     `json:"csiNode"`
+	Node        *corev1.Node                    `json:"node"`
 }
 
 type ListAppPodResult struct {
@@ -45,8 +47,8 @@ type ListAppPodResult struct {
 }
 
 type ListSysPodResult struct {
-	Total int           `json:"total"`
-	Pods  []*corev1.Pod `json:"pods"`
+	Total int         `json:"total"`
+	Pods  []*PodExtra `json:"pods"`
 }
 
 func (api *API) listAppPod() gin.HandlerFunc {
@@ -107,6 +109,13 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			}
 			if pod.CsiNode == nil {
 				pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
+			}
+			if pod.Spec.NodeName != "" {
+				pod.Node, err = api.getNode(c, pod.Spec.NodeName)
+				if err != nil {
+					c.String(500, "get node %s error: %v", pod.Spec.NodeName, err)
+					return
+				}
 			}
 			pod.Pvcs = api.listPVCsOfPod(c, pod.Pod)
 		}
@@ -193,7 +202,7 @@ func (api *API) listSysPod() gin.HandlerFunc {
 			}
 		}
 		api.componentsLock.RUnlock()
-		result := &ListSysPodResult{len(pods), make([]*corev1.Pod, 0)}
+		result := &ListSysPodResult{len(pods), make([]*PodExtra, 0)}
 		startIndex := (current - 1) * pageSize
 		if startIndex >= uint64(len(pods)) {
 			c.IndentedJSON(200, result)
@@ -203,7 +212,17 @@ func (api *API) listSysPod() gin.HandlerFunc {
 		if endIndex > uint64(len(pods)) {
 			endIndex = uint64(len(pods))
 		}
-		result.Pods = pods[startIndex:endIndex]
+		for i := startIndex; i < endIndex; i++ {
+			node, err := api.getNode(c, pods[i].Spec.NodeName)
+			if err != nil {
+				c.String(500, "get node %s, error: %v", pods[i].Spec.NodeName, err)
+				return
+			}
+			result.Pods = append(result.Pods, &PodExtra{
+				Pod:  pods[i],
+				Node: node,
+			})
+		}
 		c.IndentedJSON(200, result)
 	}
 }
@@ -268,7 +287,30 @@ func (api *API) getAppPod(name types.NamespacedName) *corev1.Pod {
 func (api *API) getCSINode(nodeName string) *corev1.Pod {
 	api.componentsLock.RLock()
 	defer api.componentsLock.RUnlock()
-	return api.nodeindex[nodeName]
+	return api.csiNodeIndex[nodeName]
+}
+
+func (api *API) getNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
+	if node := func() *corev1.Node {
+		api.componentsLock.RLock()
+		defer api.componentsLock.RUnlock()
+		node, ok := api.nodes[nodeName]
+		if ok {
+			return node
+		}
+		return nil
+	}(); node != nil {
+		return node, nil
+	}
+
+	node, err := api.k8sClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	api.componentsLock.RLock()
+	defer api.componentsLock.RUnlock()
+	api.nodes[nodeName] = node
+	return api.nodes[nodeName], nil
 }
 
 func (api *API) getPodMiddileware() gin.HandlerFunc {
@@ -318,6 +360,24 @@ func (api *API) getPodEvents() gin.HandlerFunc {
 		}
 		api.eventsLock.RUnlock()
 		c.IndentedJSON(200, list)
+	}
+}
+
+func (api *API) getPodNode() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pod, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		rawPod := pod.(*corev1.Pod)
+		nodeName := rawPod.Spec.NodeName
+		node, err := api.k8sClient.CoreV1().Nodes().Get(c, nodeName, metav1.GetOptions{})
+		if err != nil {
+			c.String(500, "Get node %s error %v", nodeName, err)
+			return
+		}
+		c.IndentedJSON(200, node)
 	}
 }
 

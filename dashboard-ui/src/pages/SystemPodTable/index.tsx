@@ -27,6 +27,8 @@ import {Pod, listSystemPods} from '@/services/pod';
 import {Link} from 'umi';
 import {AlertTwoTone} from "@ant-design/icons";
 import {PodStatusEnum} from "@/services/common";
+import {Node} from "kubernetes-types/core/v1";
+import {Badge} from "antd/lib";
 
 const SystemPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -94,6 +96,14 @@ const SystemPodTable: React.FC<unknown> = () => {
             key: 'node',
             dataIndex: ['spec', 'nodeName'],
             valueType: 'text',
+            render: (_, pod) => {
+                if (!pod.node) {
+                    return "-"
+                }
+                return (
+                    <Badge color={getNodeStatusBadge(pod.node)} text={pod.spec?.nodeName}/>
+                )
+            }
         },
     ];
     return (
@@ -161,4 +171,12 @@ const SystemPodTable: React.FC<unknown> = () => {
     );
 };
 
+export const getNodeStatusBadge = (node: Node) => {
+    node.status?.conditions?.forEach(condition => {
+        if (condition.type === "Ready" && condition.status !== "True") {
+            return "green"
+        }
+    })
+    return "red"
+}
 export default SystemPodTable;

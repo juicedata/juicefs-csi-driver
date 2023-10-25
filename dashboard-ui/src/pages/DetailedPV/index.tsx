@@ -14,19 +14,19 @@
  limitations under the License.
  */
 
-import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
-import React, { useEffect, useState } from 'react';
-import { useMatch } from '@umijs/max';
-import { useParams, useSearchParams, useLocation } from '@umijs/max';
-import { getMountPodOfPV, getPVC, getPV, getPVEvents } from '@/services/pv';
+import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
+import React, {useEffect, useState} from 'react';
+import {useMatch} from '@umijs/max';
+import {useParams, useSearchParams, useLocation} from '@umijs/max';
+import {getMountPodOfPV, getPVC, getPV, getPVEvents} from '@/services/pv';
 import * as jsyaml from "js-yaml";
-import { Empty, List, TabsProps } from "antd";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { PVStatusEnum } from "@/services/common"
-import { Pod as RawPod, PersistentVolume, Event } from "kubernetes-types/core/v1"
-import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
-import { Link } from 'umi';
-import { formatData } from '../utils';
+import {Empty, List, TabsProps} from "antd";
+import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
+import {PVStatusEnum} from "@/services/common"
+import {Pod as RawPod, PersistentVolume, Event} from "kubernetes-types/core/v1"
+import {EventTable, getPodTableContent} from "@/pages/DetailedPod";
+import {Link} from 'umi';
+import {formatData} from '../utils';
 
 const DetailedPV: React.FC<unknown> = () => {
     const location = useLocation()
@@ -91,7 +91,7 @@ const DetailedPV: React.FC<unknown> = () => {
                 <ProDescriptions
                     column={2}
                     dataSource={{
-                        pvc: `${pvcNamespace}/${pvcName}`,  // todo: link
+                        pvc: `${pvcNamespace}/${pvcName}`,
                         capacity: pv.spec?.capacity?.storage,
                         accessMode: pv.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
                         reclaimPolicy: pv.spec?.persistentVolumeReclaimPolicy,
@@ -128,6 +128,9 @@ const DetailedPV: React.FC<unknown> = () => {
                             title: 'StorageClass',
                             key: 'storageClass',
                             render: (_, record) => {
+                                if (!record.storageClass) {
+                                    return "-"
+                                }
                                 return <Link to={`/storageclass/${record.storageClass}`}>{record.storageClass}</Link>
                             }
                         },
@@ -186,7 +189,7 @@ const DetailedPV: React.FC<unknown> = () => {
 
     let contents
     if (!pv) {
-        return <PageLoading />
+        return <PageLoading/>
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
         contents = formatData(pv, format)
     } else {
@@ -200,7 +203,9 @@ const DetailedPV: React.FC<unknown> = () => {
         <PageContainer
             fixedHeader
             header={{
-                title: `PersistentVolume: ${pv?.metadata?.name}`,
+                title: <Link to={`/pv/${pv?.metadata?.name}`}>
+                    {pv?.metadata?.name}
+                </Link>,
             }}
         >
             {contents}

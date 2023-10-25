@@ -14,17 +14,19 @@
  limitations under the License.
  */
 
-import { PageContainer, ProCard, ProDescriptions, FooterToolbar } from '@ant-design/pro-components';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { Pod as RawPod, Event } from 'kubernetes-types/core/v1'
-import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useLocation } from '@umijs/max';
-import { getPod, getLog, Pod } from '@/services/pod';
-import { TabsProps, Select, Empty, Table, Button, Tag, Typography, Space } from "antd";
-import { Link } from 'umi';
-import { PodStatusEnum } from "@/services/common";
-import { SyncOutlined, DownloadOutlined } from '@ant-design/icons';
-import { formatData } from '../utils';
+import {PageContainer, ProCard, ProDescriptions, FooterToolbar} from '@ant-design/pro-components';
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
+import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
+import React, {useEffect, useState} from 'react';
+import {useParams, useSearchParams, useLocation} from '@umijs/max';
+import {getPod, getLog, Pod} from '@/services/pod';
+import {TabsProps, Select, Empty, Table, Button, Tag, Typography, Space} from "antd";
+import {Link} from 'umi';
+import {PodStatusEnum} from "@/services/common";
+import {SyncOutlined, DownloadOutlined} from '@ant-design/icons';
+import {formatData} from '../utils';
+import {Badge} from "antd/lib";
+import {getNodeStatusBadge} from "@/pages/SystemPodTable";
 
 type LogToolProps = {
     pod: Pod
@@ -39,7 +41,7 @@ const LogTools: React.FC<LogToolProps> = (props) => {
             <Button
                 loading={logLoading}
                 type="link"
-                icon={<SyncOutlined />}
+                icon={<SyncOutlined/>}
                 onClick={() => {
                     setLogLoading(true)
                     getLog(props.pod, props.container).then((log) => {
@@ -55,8 +57,9 @@ const LogTools: React.FC<LogToolProps> = (props) => {
             >
                 刷新
             </Button>
-            <Typography.Link href={URL.createObjectURL(props.data)} download={`${props.pod.metadata?.name}-${props.container}.log`}>
-                <Button type="link" icon={<DownloadOutlined />} >
+            <Typography.Link href={URL.createObjectURL(props.data)}
+                             download={`${props.pod.metadata?.name}-${props.container}.log`}>
+                <Button type="link" icon={<DownloadOutlined/>}>
                     下载完整日志
                 </Button>
             </Typography.Link>
@@ -160,7 +163,7 @@ const DetailedPod: React.FC<unknown> = () => {
                     column={2}
                     dataSource={{
                         namespace: pod.metadata?.namespace,
-                        node: pod.spec?.nodeName,
+                        node: pod.node,
                         status: pod.status?.phase,
                         time: pod.metadata?.creationTimestamp,
                     }}
@@ -174,6 +177,14 @@ const DetailedPod: React.FC<unknown> = () => {
                             title: '所在节点',
                             key: 'node',
                             dataIndex: 'node',
+                            render: (_, record) => {
+                                if (!record.node) {
+                                    return "-"
+                                }
+                                return (
+                                    <Badge color={getNodeStatusBadge(record.node)} text={record.node.metadata?.name}/>
+                                )
+                            }
                         },
                         {
                             title: '状态',
@@ -239,9 +250,9 @@ const DetailedPod: React.FC<unknown> = () => {
                         )
                     }
                 ]}
-                    dataSource={containers}
-                    rowKey={c => c.name}
-                    pagination={false}
+                       dataSource={containers}
+                       rowKey={c => c.name}
+                       pagination={false}
                 />
             </ProCard>
 
@@ -252,7 +263,7 @@ const DetailedPod: React.FC<unknown> = () => {
         return content
     }
 
-    let content = <Empty />
+    let content = <Empty/>
     let subtitle
     let logTools
     if (!pod) {
@@ -268,18 +279,20 @@ const DetailedPod: React.FC<unknown> = () => {
         subtitle = container
         const log = pod.logs.get(container)
         if (!log) {
-            content = <Empty />
+            content = <Empty/>
         } else {
-            logTools = <LogTools pod={pod} setPod={setPod} container={container} data={new Blob([log], { type: 'text/plain' })} />
+            logTools =
+                <LogTools pod={pod} setPod={setPod} container={container} data={new Blob([log], {type: 'text/plain'})}/>
             let logs = log.split("\n")
             let start = 1
             if (logs.length > 1024) {
                 start = logs.length - 1023
                 logs = logs.splice(logs.length - 1024)
             }
-            content = <SyntaxHighlighter language={"log"} startingLineNumber={start} showLineNumbers wrapLongLines={true}>
-                {logs.join("\n").trim()}
-            </SyntaxHighlighter>
+            content =
+                <SyntaxHighlighter language={"log"} startingLineNumber={start} showLineNumbers wrapLongLines={true}>
+                    {logs.join("\n").trim()}
+                </SyntaxHighlighter>
         }
     } else {
         content = (
@@ -355,9 +368,9 @@ export const getPodTableContent = (pods: RawPod[], title: string, podType?: stri
                 key: 'startAt',
             },
         ]}
-            dataSource={pods}
-            rowKey={c => c.metadata?.uid!}
-            pagination={false}
+               dataSource={pods}
+               rowKey={c => c.metadata?.uid!}
+               pagination={false}
         />
     </ProCard>
 }
@@ -396,10 +409,10 @@ export const EventTable = (events: Event[]) => {
                 dataIndex: 'message',
             }
         ]}
-            dataSource={podEvents}
-            size="small"
-            pagination={false}
-            rowKey={(c) => c.metadata?.uid!}
+               dataSource={podEvents}
+               size="small"
+               pagination={false}
+               rowKey={(c) => c.metadata?.uid!}
         />
     </ProCard>
 }

@@ -54,7 +54,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		for k := range api.controllers {
 			status.Controllers = append(status.Controllers, k.String())
 		}
-		for k, v := range api.nodeindex {
+		for k, v := range api.csiNodeIndex {
 			status.Nodeindex[k] = types.NamespacedName{
 				Namespace: v.Namespace,
 				Name:      v.Name,
