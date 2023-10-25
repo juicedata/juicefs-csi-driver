@@ -12,6 +12,8 @@ export default defineConfig({
     favicons: [
         'https://static1.juicefs.com/images/favicon.d6e4afae8198.ico',
     ],
+    base: '/app/',
+    publicPath: '/app/',
     routes: [
         {
             path: '/',

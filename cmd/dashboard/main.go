@@ -103,8 +103,10 @@ func run() {
 		}))
 	}
 	if staticDir != "" {
-		router.StaticFile("/", filepath.Join(staticDir, "index.html"))
-		router.Static("/static", staticDir)
+		router.GET("/", func(c *gin.Context) {
+			c.Redirect(http.StatusMovedPermanently, "/app")
+		})
+		router.Static("/app", staticDir)
 	}
 	podApi.Handle(router.Group("/api/v1"))
 	addr := fmt.Sprintf(":%d", port)

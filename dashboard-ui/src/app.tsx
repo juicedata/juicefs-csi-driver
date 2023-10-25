@@ -14,7 +14,6 @@
  limitations under the License.
  */
 
-import { ReactComponent as Logo } from './assets/logo.svg'
 import { RuntimeConfig } from 'umi';
 
 // 运行时配置
