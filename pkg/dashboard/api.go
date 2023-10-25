@@ -35,7 +35,8 @@ type API struct {
 	mountPods      map[types.NamespacedName]*corev1.Pod
 	csiNodes       map[types.NamespacedName]*corev1.Pod
 	controllers    map[types.NamespacedName]*corev1.Pod
-	nodeindex      map[string]*corev1.Pod
+	csiNodeIndex   map[string]*corev1.Pod
+	nodes          map[string]*corev1.Node
 	sysIndexes     *timeOrderedIndexes[corev1.Pod]
 
 	appPodsLock sync.RWMutex
@@ -60,7 +61,8 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		mountPods:    make(map[types.NamespacedName]*corev1.Pod),
 		csiNodes:     make(map[types.NamespacedName]*corev1.Pod),
 		controllers:  make(map[types.NamespacedName]*corev1.Pod),
-		nodeindex:    make(map[string]*corev1.Pod),
+		csiNodeIndex: make(map[string]*corev1.Pod),
+		nodes:        make(map[string]*corev1.Node),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
 		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
@@ -101,6 +103,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/pvcs", api.listPodPVCsHandler())
 	podGroup.GET("/mountpods", api.listMountPodsOfAppPod())
 	podGroup.GET("/apppods", api.listAppPodsOfMountPod())
+	podGroup.GET("/node", api.getPodNode())
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())

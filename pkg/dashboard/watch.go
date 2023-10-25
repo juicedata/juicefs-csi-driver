@@ -275,9 +275,9 @@ func (api *API) watchComponents(ctx context.Context) {
 		func(eventType watch.EventType, pod *corev1.Pod) {
 			switch eventType {
 			case watch.Added, watch.Modified, watch.Error:
-				api.nodeindex[pod.Spec.NodeName] = pod
+				api.csiNodeIndex[pod.Spec.NodeName] = pod
 			case watch.Deleted:
-				delete(api.nodeindex, pod.Spec.NodeName)
+				delete(api.csiNodeIndex, pod.Spec.NodeName)
 			}
 		},
 		nil,

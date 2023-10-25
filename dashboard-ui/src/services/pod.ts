@@ -14,7 +14,7 @@
  limitations under the License.
  */
 
-import { Pod as RawPod, Event, PersistentVolume, PersistentVolumeClaim } from 'kubernetes-types/core/v1'
+import {Pod as RawPod, Node as RawNode, Event, PersistentVolume, PersistentVolumeClaim} from 'kubernetes-types/core/v1'
 
 export type Pod = RawPod & {
     mountPods?: RawPod[],
@@ -22,9 +22,11 @@ export type Pod = RawPod & {
     pvcs?: PersistentVolumeClaim[],
     pvs?: PersistentVolume[],
     csiNode?: RawPod,
+    node?: RawNode,
     logs: Map<string, string>,
     events?: Event[],
     failedReason?: string,
+    finalStatus: string,
 }
 
 export type SortOrder = 'descend' | 'ascend' | null;
@@ -60,7 +62,7 @@ export const listAppPods = async (args: AppPagingListArgs) => {
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
-        return { data: null, success: false }
+        return {data: null, success: false}
     }
     data.pods.forEach(pod => {
         pod.failedReason = failedReasonOfAppPod(pod)
@@ -83,6 +85,8 @@ export const getPod = async (namespace: string, podName: string) => {
         if (pod.spec?.nodeName) {
             const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
             pod.csiNode = JSON.parse(await csiNode.text())
+            const node = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`)
+            pod.node = JSON.parse(await node.text())
         }
         const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
         let podEvents: Event[] = JSON.parse(await events.text()) || []
@@ -137,7 +141,7 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
         data = JSON.parse(await podList.text())
     } catch (e) {
         console.log(`fail to list sys pods: ${e}`)
-        return { data: null, success: false }
+        return {data: null, success: false}
     }
     data.pods.forEach(pod => {
         pod.failedReason = failedReasonOfSysPod(pod)
@@ -178,8 +182,20 @@ const failedReasonOfAppPod = (pod: Pod) => {
         return reason
     }
 
+    // 3. node not ready
+    if (pod.node) {
+        pod.node.status?.conditions?.forEach(condition => {
+            if (condition.type === "Ready" && condition.status !== "True") {
+                reason = "所在节点异常，请检查节点状态。"
+            }
+        })
+    }
+    if (reason !== "") {
+        return reason
+    }
+
+    // sidecar mode
     if (pod.metadata?.labels != undefined && pod.metadata?.labels["done.sidecar.juicefs.com/inject"] === "true") {
-        // sidecar mode
         let reason = ""
         pod.status?.initContainerStatuses?.forEach(containerStatus => {
             if (!containerStatus.ready) {
@@ -195,14 +211,14 @@ const failedReasonOfAppPod = (pod: Pod) => {
     }
 
     // mount pod mode
-    // 2. check csi node
+    // 4. check csi node
     if (csiNode === undefined) {
         return "所在节点 CSI Node 未启动成功，请检查：1. 若是 sidecar 模式，请查看其所在 namespace 是否打上需要的 label 或查看 CSI Controller 日志以确认为何 sidecar 未注入；2. 若是 Mount Pod 模式，请检查 CSI Node DaemonSet 是否未调度到该节点上。"
     }
     if (!isPodReady(csiNode)) {
         return "所在节点 CSI Node 未启动成功，请点击右方「CSI Node」查看其状态及日志。"
     }
-    // 3. check mount pod
+    // 5. check mount pod
     if (mountPods?.length == 0) {
         return "Mount Pod 未启动，请点击右方「CSI Node」检查其日志。"
     }
@@ -219,7 +235,7 @@ const failedReasonOfAppPod = (pod: Pod) => {
     return "pod 异常，请点击详情查看其 event 或日志。"
 }
 
-const failedReasonOfSysPod = (pod: RawPod) => {
+const failedReasonOfSysPod = (pod: Pod) => {
     // check if pod is ready
     if (isPodReady(pod)) {
         return ""
@@ -237,6 +253,19 @@ const failedReasonOfSysPod = (pod: RawPod) => {
         return reason
     }
 
+    // 2. node not ready
+    if (pod.node) {
+        pod.node.status?.conditions?.forEach(condition => {
+            if (condition.type === "Ready" && condition.status !== "True") {
+                reason = "所在节点异常，请检查节点状态。"
+            }
+        })
+    }
+    if (reason !== "") {
+        return reason
+    }
+
+    // 3. container error
     pod.status?.initContainerStatuses?.forEach(containerStatus => {
         if (!containerStatus.ready) {
             reason = `${containerStatus.name} 容器异常，请点击 Pod 详情查看容器状态及日志。`

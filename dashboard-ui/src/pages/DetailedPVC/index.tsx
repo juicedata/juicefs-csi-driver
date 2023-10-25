@@ -14,17 +14,17 @@
  limitations under the License.
  */
 
-import { PageContainer, PageLoading, ProCard, ProDescriptions } from '@ant-design/pro-components';
-import React, { useEffect, useState } from 'react';
-import { getMountPodOfPVC, getPVC, getPVCEvents, getPVEvents, PV, PVC } from '@/services/pv';
-import { useParams, useSearchParams, useLocation } from '@umijs/max';
-import { TabsProps } from "antd";
-import { PVStatusEnum } from "@/services/common";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { EventTable, getPodTableContent } from "@/pages/DetailedPod";
-import { Pod as RawPod, PersistentVolumeClaim, Event } from "kubernetes-types/core/v1";
-import { Link } from 'umi';
-import { formatData } from '../utils';
+import {PageContainer, PageLoading, ProCard, ProDescriptions} from '@ant-design/pro-components';
+import React, {useEffect, useState} from 'react';
+import {getMountPodOfPVC, getPVC, getPVCEvents, getPVEvents, PV, PVC} from '@/services/pv';
+import {useParams, useSearchParams, useLocation} from '@umijs/max';
+import {TabsProps} from "antd";
+import {PVStatusEnum} from "@/services/common";
+import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
+import {EventTable, getPodTableContent} from "@/pages/DetailedPod";
+import {Pod as RawPod, PersistentVolumeClaim, Event} from "kubernetes-types/core/v1";
+import {Link} from 'umi';
+import {formatData} from '../utils';
 
 const DetailedPVC: React.FC<unknown> = () => {
     const location = useLocation()
@@ -73,7 +73,7 @@ const DetailedPVC: React.FC<unknown> = () => {
                     dataSource={{
                         name: pvc.metadata?.name,
                         namespace: pvc.metadata?.namespace,
-                        pv: `${pvc.spec?.volumeName || "-"}`,  // todo: link
+                        pv: `${pvc.spec?.volumeName || "-"}`,
                         capacity: pvc.spec?.resources?.requests?.storage,
                         accessMode: pvc.spec?.accessModes?.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(","),
                         storageClass: pvc.spec?.storageClassName,
@@ -82,21 +82,16 @@ const DetailedPVC: React.FC<unknown> = () => {
                     }}
                     columns={[
                         {
-                            title: "名称",
-                            key: 'name',
-                            dataIndex: 'name',
-                        },
-                        {
-                            title: "命名空间",
-                            key: 'namespace',
-                            dataIndex: 'namespace',
-                        },
-                        {
                             title: 'PV',
                             key: 'pv',
                             render: (_, record) => {
                                 return <Link to={`/pv/${record.pv}`}>{record.pv}</Link>
                             }
+                        },
+                        {
+                            title: "命名空间",
+                            key: 'namespace',
+                            dataIndex: 'namespace',
                         },
                         {
                             title: '容量',
@@ -112,6 +107,9 @@ const DetailedPVC: React.FC<unknown> = () => {
                             title: 'StorageClass',
                             key: 'storageClass',
                             render: (_, record) => {
+                                if (!record.storageClass) {
+                                    return "-"
+                                }
                                 return <Link to={`/storageclass/${record.storageClass}`}>{record.storageClass}</Link>
                             }
                         },
@@ -149,7 +147,7 @@ const DetailedPVC: React.FC<unknown> = () => {
 
     let contents
     if (!pvc) {
-        return <PageLoading />
+        return <PageLoading/>
     } else if (typeof format === 'string' && (format === 'json' || format === 'yaml')) {
         contents = formatData(pvc, format)
     } else {
@@ -162,7 +160,9 @@ const DetailedPVC: React.FC<unknown> = () => {
     return (
         <PageContainer
             header={{
-                title: `PersistentVolumeClaim: ${pvc?.metadata?.name}`,
+                title: <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc?.metadata?.name}`}>
+                    {pvc?.metadata?.name}
+                </Link>,
             }}
             fixedHeader
         >
