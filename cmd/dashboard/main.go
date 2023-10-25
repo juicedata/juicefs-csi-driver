@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -106,7 +107,27 @@ func run() {
 		router.GET("/", func(c *gin.Context) {
 			c.Redirect(http.StatusMovedPermanently, "/app")
 		})
-		router.Static("/app", staticDir)
+		router.GET("/app/*path", func(c *gin.Context) {
+			path := c.Param("path")
+			f, err := os.Stat(filepath.Join(staticDir, path))
+			if os.IsNotExist(err) || f.IsDir() {
+				c.File(filepath.Join(staticDir, "index.html"))
+				return
+			}
+			if err != nil {
+				c.AbortWithError(http.StatusInternalServerError, err)
+			}
+			c.File(filepath.Join(staticDir, path))
+		})
+		filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
+			if info.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(info.Name(), ".png") {
+				router.StaticFile(fmt.Sprintf("/%s", info.Name()), path)
+			}
+			return nil
+		})
 	}
 	podApi.Handle(router.Group("/api/v1"))
 	addr := fmt.Sprintf(":%d", port)
