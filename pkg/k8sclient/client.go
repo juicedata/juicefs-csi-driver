@@ -162,6 +162,25 @@ func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector
 	return podList.Items, nil
 }
 
+func (k *K8sClient) ListNode(ctx context.Context, labelSelector *metav1.LabelSelector) ([]corev1.Node, error) {
+	klog.V(6).Infof("List node by labelSelector %v", labelSelector)
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		labelMap, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = labelMap.String()
+	}
+
+	nodeList, err := k.CoreV1().Nodes().List(ctx, listOptions)
+	if err != nil {
+		klog.V(6).Infof("Can't list node by labelSelector %v: %v", labelSelector, err)
+		return nil, err
+	}
+	return nodeList.Items, nil
+}
+
 func (k *K8sClient) GetPodLog(ctx context.Context, podName, namespace, containerName string) (string, error) {
 	klog.V(6).Infof("Get pod %s log", podName)
 	tailLines := int64(20)

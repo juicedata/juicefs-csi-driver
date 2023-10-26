@@ -275,7 +275,9 @@ func GetReferenceKey(target string) string {
 
 // ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
 func ParseMntPath(cmd string) (string, string, error) {
-	args := strings.Fields(cmd)
+	cmds := strings.Split(cmd, "\n")
+	mountCmd := cmds[len(cmds)-1]
+	args := strings.Fields(mountCmd)
 	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
 		return "", "", fmt.Errorf("err cmd:%s", cmd)
 	}

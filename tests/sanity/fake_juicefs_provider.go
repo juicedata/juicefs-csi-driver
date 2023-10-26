@@ -37,6 +37,8 @@ type fakeJfsProvider struct {
 	fs map[string]fakeJfs
 }
 
+var _ juicefs.Interface = &fakeJfsProvider{}
+
 func (j *fakeJfsProvider) CreateTarget(ctx context.Context, target string) error {
 	return nil
 }
@@ -53,7 +55,7 @@ func (j *fakeJfsProvider) JfsCreateVol(ctx context.Context, volumeID string, sub
 	return nil
 }
 
-func (j *fakeJfsProvider) JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string) error {
+func (j *fakeJfsProvider) JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) error {
 	return nil
 }
 

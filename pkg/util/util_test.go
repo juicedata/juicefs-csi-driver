@@ -158,28 +158,46 @@ func TestParseMntPath(t *testing.T) {
 	}{
 		{
 			name:    "get sourcePath from pod cmd success",
+			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name:    "without init cmd",
 			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 			want:    "/jfs/pvc-xxx",
 			want1:   "pvc-xxx",
 			wantErr: false,
 		},
 		{
+			name: "with create subpath",
+			args: args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n" +
+				"/bin/mount.juicefs ${metaurl} /mnt/jfs -o buffer-size=300,cache-size=100,enable-xattr\n" +
+				"if [ ! -d /mnt/jfs/pvc-fb2ec20c-474f-4804-9504-966da4af9b73 ]; then mkdir -m 777 /mnt/jfs/pvc-fb2ec20c-474f-4804-9504-966da4af9b73; fi;\n" +
+				"umount /mnt/jfs\n" +
+				"/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
 			name:    "err-pod cmd args <3",
-			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379"},
+			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379"},
 			want:    "",
 			want1:   "",
 			wantErr: true,
 		},
 		{
 			name:    "err-cmd sourcePath no MountBase prefix",
-			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx"},
+			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx"},
 			want:    "",
 			want1:   "",
 			wantErr: true,
 		},
 		{
 			name:    "err-cmd sourcePath length err",
-			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs"},
+			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /jfs"},
 			want:    "",
 			want1:   "",
 			wantErr: true,

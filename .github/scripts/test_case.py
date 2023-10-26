@@ -164,6 +164,7 @@ def test_quota_using_storage_rw():
     return
 
 
+# this case is not valid.
 def test_deployment_using_storage_ro():
     LOG.info("[test case] Deployment using storageClass with rom begin..")
     # deploy pvc

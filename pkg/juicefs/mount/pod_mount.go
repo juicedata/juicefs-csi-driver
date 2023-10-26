@@ -34,7 +34,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
@@ -221,7 +220,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForCreateVolume()
 	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -253,7 +252,7 @@ func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 
 func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	var exist *batchv1.Job
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForDeleteVolume()
 	exist, err := p.K8sClient.GetJob(ctx, job.Name, job.Namespace)
 	if err != nil && k8serrors.IsNotFound(err) {
@@ -283,7 +282,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	return err
 }
 
-func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (podName string, err error) {
+func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
 		klog.Errorf("Generate hash of jfsSetting error: %v", err)
@@ -295,18 +294,17 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
 		jfsConfig.PodJuiceHashLabelKey: hashVal,
 	}}
-	fieldSelector := &fields.Set{"spec.nodeName": jfsConfig.NodeName}
-	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
 		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, hashVal, err)
 		return "", err
 	}
-	if len(pods) > 0 {
-		podName = pods[0].Name
-	} else {
-		podName = GenPodNameByUniqueId(jfsSetting.UniqueId, true)
+	for _, pod := range pods {
+		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {
+			return pod.Name, nil
+		}
 	}
-	return
+	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }
 
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting) (err error) {
@@ -323,7 +321,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	defer lock.Unlock()
 
 	jfsSetting.SecretName = podName + "-secret"
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
@@ -343,7 +341,18 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
-				_, err := p.K8sClient.CreatePod(ctx, newPod)
+				nodeSelector := map[string]string{
+					"kubernetes.io/hostname": newPod.Spec.NodeName,
+				}
+				nodes, err := p.K8sClient.ListNode(ctx, &metav1.LabelSelector{MatchLabels: nodeSelector})
+				if err != nil || len(nodes) != 1 || nodes[0].Name != newPod.Spec.NodeName {
+					klog.Warningf("cannot select node %s by label selector: %v", newPod.Spec.NodeName, err)
+				} else {
+					newPod.Spec.NodeName = ""
+					newPod.Spec.NodeSelector = nodeSelector
+				}
+
+				_, err = p.K8sClient.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
 				}
@@ -544,7 +553,7 @@ func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volu
 	jfsSetting.VolumeId = volumeId
 	jfsSetting.CacheDirs = cacheDirs
 	jfsSetting.UUID = id
-	r := builder.NewBuilder(jfsSetting, 0)
+	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForCleanCache()
 	klog.V(6).Infof("Clean cache job: %v", job)
 	_, err = p.K8sClient.GetJob(ctx, job.Name, job.Namespace)

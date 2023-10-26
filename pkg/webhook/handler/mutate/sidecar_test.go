@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
@@ -65,6 +66,10 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 								},
 							},
 						},
+						Containers: []corev1.Container{{
+							Name:         "test",
+							VolumeMounts: []corev1.VolumeMount{{Name: "app-volume", MountPath: "data"}},
+						}},
 					},
 				},
 				volumes: []corev1.Volume{{
@@ -128,6 +133,10 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 								},
 							},
 						},
+						Containers: []corev1.Container{{
+							Name:         "test",
+							VolumeMounts: []corev1.VolumeMount{{Name: "app-volume", MountPath: "data"}},
+						}},
 					},
 				},
 				volumes: []corev1.Volume{{
@@ -155,7 +164,8 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 			s := &SidecarMutate{
 				jfsSetting: tt.fields.jfsSetting,
 			}
-			s.injectVolume(tt.args.pod, tt.args.volumes, tt.args.mountPath, tt.fields.pair)
+			r := builder.NewContainerBuilder(tt.fields.jfsSetting, 0)
+			s.injectVolume(tt.args.pod, r, tt.args.volumes, tt.args.mountPath, tt.fields.pair)
 			if len(tt.args.pod.Spec.Volumes) != len(tt.wantPodVolume) {
 				t.Errorf("injectVolume() = %v, want %v", tt.args.pod.Spec.Volumes, tt.wantPodVolume)
 			}
@@ -175,39 +185,6 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				if volume.HostPath != nil && wantVolume.HostPath == nil && volume.HostPath.Path != wantVolume.HostPath.Path {
 					t.Errorf("injectVolume() = %v, want %v", volume.HostPath.Path, wantVolume.HostPath.Path)
 				}
-			}
-		})
-	}
-}
-
-func TestSidecarMutate_injectInitContainer(t *testing.T) {
-	type args struct {
-		pod       *corev1.Pod
-		container corev1.Container
-	}
-	tests := []struct {
-		name                 string
-		args                 args
-		wantInitContainerLen int
-	}{
-		{
-			name: "test inject init container",
-			args: args{
-				pod: &corev1.Pod{},
-				container: corev1.Container{
-					Name:  "format",
-					Image: "juicedata/mount:latest",
-				},
-			},
-			wantInitContainerLen: 1,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SidecarMutate{}
-			s.injectInitContainer(tt.args.pod, tt.args.container)
-			if len(tt.args.pod.Spec.InitContainers) != tt.wantInitContainerLen {
-				t.Errorf("injectInitContainer() = %v, want %v", tt.args.pod.Spec.InitContainers, tt.wantInitContainerLen)
 			}
 		})
 	}

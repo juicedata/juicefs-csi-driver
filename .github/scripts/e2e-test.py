@@ -25,7 +25,6 @@ from test_case import (
     test_static_delete_policy,
     test_deployment_using_storage_rw,
     test_quota_using_storage_rw,
-    test_deployment_using_storage_ro,
     test_deployment_use_pv_rw,
     test_deployment_use_pv_ro,
     test_delete_all,
@@ -52,6 +51,7 @@ from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret
 
 if __name__ == "__main__":
     test_mode = os.getenv("TEST_MODE")
+    without_kubelet = os.getenv("WITHOUT_KUBELET") == "true"
     if check_do_test():
         config.load_kube_config()
         # clear juicefs volume first.
@@ -66,7 +66,6 @@ if __name__ == "__main__":
                 test_dynamic_cache_clean_upon_umount()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
-                test_deployment_using_storage_ro()
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
                 test_delete_one()
@@ -78,10 +77,11 @@ if __name__ == "__main__":
                 test_deployment_static_patch_pv()
                 test_dynamic_mount_image()
                 test_static_mount_image()
-                test_pod_resource_err()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                if without_kubelet:
+                    test_pod_resource_err()
 
             elif test_mode == "pod-mount-share":
                 test_share_mount()
@@ -107,7 +107,6 @@ if __name__ == "__main__":
                 test_job_complete_using_storage()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
-                test_deployment_using_storage_ro()
                 test_dynamic_mount_image_with_webhook()
                 test_static_mount_image_with_webhook()
                 test_deployment_dynamic_patch_pv_with_webhook()
@@ -119,7 +118,6 @@ if __name__ == "__main__":
                 test_webhook_two_volume()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
-                test_deployment_using_storage_ro()
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
                 test_deployment_dynamic_patch_pv_with_webhook()
@@ -136,7 +134,6 @@ if __name__ == "__main__":
                 test_static_cache_clean_upon_umount()
                 test_dynamic_cache_clean_upon_umount()
                 test_deployment_using_storage_rw()
-                test_deployment_using_storage_ro()
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
                 test_delete_pvc()

@@ -42,3 +42,14 @@ patches:
     version: v1
     kind: MutatingWebhookConfiguration
     name: juicefs-admission-webhook
+- patch: |-
+    $patch: delete
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    metadata:
+      name: juicefs-admission-serverless-webhook
+  target:
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: MutatingWebhookConfiguration
+    name: juicefs-admission-serverless-webhook

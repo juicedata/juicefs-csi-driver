@@ -84,6 +84,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	for k, v := range req.Parameters {
 		volCtx[k] = v
 	}
+	// return error if set readonly in dynamic provisioner
+	for _, vc := range req.VolumeCapabilities {
+		if vc.AccessMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+			return nil, status.Errorf(codes.InvalidArgument, "Dynamic mounting uses the sub-path named pv name as data isolation, so read-only mode cannot be used.")
+		}
+	}
 	// create volume
 	//err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
 	//if err != nil {
@@ -134,7 +140,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
-	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets, nil)
+	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets, nil, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delVol in juicefs: %v", err)
 	}

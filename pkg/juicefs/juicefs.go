@@ -60,7 +60,7 @@ type Interface interface {
 	mount.Interface
 	JfsMount(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (Jfs, error)
 	JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error
-	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string) error
+	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) error
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
@@ -284,16 +284,17 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 	return j.processMount.JCreateVolume(ctx, jfsSetting)
 }
 
-func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
+func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string, options []string) error {
 	// if not process mode, get pv by volumeId
-	if !config.ByProcess && volCtx == nil {
+	if !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
 		if err != nil {
 			return err
 		}
 		volCtx = pv.Spec.CSI.VolumeAttributes
+		options = pv.Spec.MountOptions
 	}
-	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, []string{})
+	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, options)
 	if err != nil {
 		return err
 	}
