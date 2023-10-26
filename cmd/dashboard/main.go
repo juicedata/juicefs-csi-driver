@@ -119,7 +119,10 @@ func run() {
 			}
 			c.File(filepath.Join(staticDir, path))
 		})
-		filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 			if info.IsDir() {
 				return nil
 			}
