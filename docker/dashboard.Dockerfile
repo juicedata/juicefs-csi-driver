@@ -22,7 +22,12 @@ ENV HTTPS_PROXY=${HTTPS_PROXY:-}
 ENV HTTP_PROXY=${HTTP_PROXY:-}
 
 WORKDIR /workspace
-COPY . .
+COPY **/*.go ./
+COPY cmd ./cmd
+COPY pkg ./pkg
+COPY go.mod .
+COPY go.sum .
+COPY Makefile .
 RUN apk add --no-cache make && make dashboard
 
 FROM alpine:3.18
