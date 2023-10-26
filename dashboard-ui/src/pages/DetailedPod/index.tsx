@@ -19,7 +19,7 @@ import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
 import {Pod as RawPod, Event} from 'kubernetes-types/core/v1'
 import React, {useEffect, useState} from 'react';
 import {useParams, useSearchParams, useLocation} from '@umijs/max';
-import {getPod, getLog, Pod} from '@/services/pod';
+import {getPod, getLog, Pod, podStatus} from '@/services/pod';
 import {TabsProps, Select, Empty, Table, Button, Tag, Typography, Space} from "antd";
 import {Link} from 'umi';
 import {PodStatusEnum} from "@/services/common";
@@ -164,7 +164,7 @@ const DetailedPod: React.FC<unknown> = () => {
                     dataSource={{
                         namespace: pod.metadata?.namespace,
                         node: pod.node,
-                        status: pod.status?.phase,
+                        status: pod.finalStatus,
                         time: pod.metadata?.creationTimestamp,
                     }}
                     columns={[
@@ -332,30 +332,29 @@ export const getPodTableContent = (pods: RawPod[], title: string, podType?: stri
             {
                 title: '状态',
                 key: 'status',
-                dataIndex: ['status', "phase"],
-                render: (status) => {
+                render: (pod) => {
+                    const finalStatus = podStatus(pod)
                     let color = "grey"
-                    let text = "未知"
-                    switch (status) {
+                    let text = finalStatus
+                    switch (finalStatus) {
                         case "Pending":
+                        case "ContainerCreating":
+                        case "PodInitializing":
                             color = 'yellow'
-                            text = '等待运行'
                             break
                         case "Running":
-                            text = "运行中"
                             color = "green"
                             break
                         case "Succeed":
-                            text = "已完成"
                             color = "blue"
                             break
                         case "Failed":
-                            text = "失败"
+                        case "Error":
                             color = "red"
                             break
                         case "Unknown":
+                        case "Terminating":
                         default:
-                            text = "未知"
                             color = "grey"
                             break
                     }

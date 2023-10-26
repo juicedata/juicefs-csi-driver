@@ -44,7 +44,6 @@ export interface AppPagingListArgs {
 }
 
 export const listAppPods = async (args: AppPagingListArgs) => {
-    console.log(`list pods with args: ${JSON.stringify(args)}`)
     let data: {
         pods: Pod[]
         total: number
@@ -66,6 +65,9 @@ export const listAppPods = async (args: AppPagingListArgs) => {
     }
     data.pods.forEach(pod => {
         pod.failedReason = failedReasonOfAppPod(pod)
+    })
+    data.pods.forEach(pod => {
+        pod.finalStatus = podStatus(pod) || "Unknown"
     })
     return {
         pods: data.pods,
@@ -97,6 +99,7 @@ export const getPod = async (namespace: string, podName: string) => {
         })
         pod.events = podEvents
         pod.logs = new Map()
+        pod.finalStatus = podStatus(pod) || "Unknown"
         return pod
     } catch (e) {
         console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
@@ -146,11 +149,37 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
     data.pods.forEach(pod => {
         pod.failedReason = failedReasonOfSysPod(pod)
     })
+    data.pods.forEach(pod => {
+        pod.finalStatus = podStatus(pod) || "Unknown"
+    })
     return {
         pods: data.pods,
         success: true,
         total: data.total,
     }
+}
+
+export const podStatus = (pod: Pod) => {
+    if (pod.metadata?.deletionTimestamp) {
+        return "Terminating"
+    }
+    if (!pod.status) {
+        return "Unknown"
+    }
+    if (pod.status?.phase === "Pending") {
+        return "Pending"
+    }
+    pod.status?.containerStatuses?.forEach(containerStatus => {
+        if (!containerStatus.ready) {
+            if (containerStatus.state?.waiting) {
+                return containerStatus.state.waiting.reason
+            }
+            if (containerStatus.state?.terminated) {
+                return "Error"
+            }
+        }
+    })
+    return pod.status.phase
 }
 
 const failedReasonOfAppPod = (pod: Pod) => {
