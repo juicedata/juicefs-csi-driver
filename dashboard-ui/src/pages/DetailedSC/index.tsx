@@ -134,27 +134,22 @@ const DetailedSC: React.FC<unknown> = () => {
                         dataIndex: ['status', "phase"],
                         render: (status) => {
                             let color = "grey"
-                            let text = "未知"
+                            let text = status
                             switch (status) {
                                 case "Pending":
                                     color = 'yellow'
-                                    text = '等待运行'
                                     break
                                 case "Bound":
-                                    text = "已绑定"
                                     color = "green"
                                     break
                                 case "Available":
-                                    text = "可绑定"
                                     color = "blue"
                                     break
                                 case "Failed":
-                                    text = "失败"
                                     color = "red"
                                     break
                                 case "Released":
                                 default:
-                                    text = "已释放"
                                     color = "grey"
                                     break
                             }

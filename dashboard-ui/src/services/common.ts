@@ -18,23 +18,23 @@
 export const PVStatusEnum = () => {
     return {
         Pending: {
-            text: '等待运行',
+            text: 'Pending',
             color: 'yellow',
         },
         Bound: {
-            text: '已绑定',
+            text: 'Bound',
             color: 'green',
         },
         Available: {
-            text: '可绑定',
+            text: 'Available',
             color: 'blue',
         },
         Released: {
-            text: '已释放',
+            text: 'Released',
             color: 'grey',
         },
         Failed: {
-            text: '失败',
+            text: 'Failed',
             color: 'red',
         }
     }
@@ -43,24 +43,40 @@ export const PVStatusEnum = () => {
 export const PodStatusEnum = () => {
     return {
         Pending: {
-            text: '等待运行',
+            text: 'Pending',
             color: 'yellow',
         },
         Running: {
-            text: '运行中',
+            text: 'Running',
             color: 'green',
         },
         Succeeded: {
-            text: '已完成',
+            text: 'Succeeded',
             color: 'blue',
         },
         Failed: {
-            text: '失败',
+            text: 'Failed',
             color: 'red',
         },
         Unknown: {
-            text: '未知',
+            text: 'Unknown',
             color: 'grey',
         },
+        Terminating: {
+            text: 'Terminating',
+            color: 'grey',
+        },
+        ContainerCreating: {
+            text: 'ContainerCreating',
+            color: 'yellow',
+        },
+        PodInitializing: {
+            text: 'PodInitializing',
+            color: 'yellow',
+        },
+        Error: {
+            text: 'Error',
+            color: 'red',
+        }
     }
 }
