@@ -17,37 +17,37 @@ export default defineConfig({
     routes: [
         {
             path: '/',
-            redirect: '/pods',
+            redirect: '/app/pods',
         },
         {
             name: '应用 Pod',
             path: '/pods',
             component: './AppPodTable',
-            icon: '/pod-256.png'
+            icon: '/app/pod-256.png'
         },
         {
             name: '系统 Pod',
             path: '/syspods',
             component: './SystemPodTable',
-            icon: '/ds-256.png'
+            icon: '/app/ds-256.png'
         },
         {
             name: 'PV',
             path: '/pvs',
             component: './PVTable',
-            icon: '/pv-256.png'
+            icon: '/app/pv-256.png'
         },
         {
             name: 'PVC',
             path: '/pvcs',
             component: './PVCTable',
-            icon: '/pvc-256.png'
+            icon: '/app/pvc-256.png'
         },
         {
             name: 'StorageClass',
             path: '/storageclasses',
             component: './SCTable',
-            icon: '/sc-256.png'
+            icon: '/app/sc-256.png'
         },
         {
             path: '/pod/:namespace/:podName',

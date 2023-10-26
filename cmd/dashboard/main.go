@@ -26,7 +26,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -118,18 +117,6 @@ func run() {
 				c.AbortWithError(http.StatusInternalServerError, err)
 			}
 			c.File(filepath.Join(staticDir, path))
-		})
-		_ = filepath.Walk(staticDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if strings.HasSuffix(info.Name(), ".png") {
-				router.StaticFile(fmt.Sprintf("/%s", info.Name()), path)
-			}
-			return nil
 		})
 	}
 	podApi.Handle(router.Group("/api/v1"))
