@@ -62,7 +62,7 @@ dashboard-dev: dashboard
 .PHONY: dashboard-image
 dashboard-image:
 	docker build --build-arg HTTP_PROXY=$(HTTP_PROXY) --build-arg HTTPS_PROXY=$(HTTPS_PROXY) --build-arg GOPROXY=$(GOPROXY) \
-		-t $(IMAGE):dashboard-$(VERSION) -f docker/dashboard.Dockerfile .
+		-t $(REGISTRY)/juicedata/csi-dashboard:$(VERSION) -f docker/dashboard.Dockerfile .
 
 # build deploy yaml
 yaml:
