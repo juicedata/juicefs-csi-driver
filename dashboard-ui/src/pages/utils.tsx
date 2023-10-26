@@ -17,6 +17,7 @@
 import { ObjectMeta } from "kubernetes-types/meta/v1"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import * as jsyaml from "js-yaml";
+import {Node} from "kubernetes-types/core/v1";
 
 export interface Source {
     metadata?: ObjectMeta
@@ -32,4 +33,14 @@ export const formatData = (src: Source, format: string) => {
             {data.trim()}
         </SyntaxHighlighter>
     )
+}
+
+export const getNodeStatusBadge = (node: Node) => {
+    const ready = node.status?.conditions?.find(condition => {
+        if (condition.type === "Ready" && condition.status === "True") {
+            return true
+        }
+        return false
+    })
+    return ready ? "green" : "red"
 }

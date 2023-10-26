@@ -26,7 +26,7 @@ import {PodStatusEnum} from "@/services/common";
 import {SyncOutlined, DownloadOutlined} from '@ant-design/icons';
 import {formatData} from '../utils';
 import {Badge} from "antd/lib";
-import {getNodeStatusBadge} from "@/pages/SystemPodTable";
+import {getNodeStatusBadge} from "@/pages/utils";
 
 type LogToolProps = {
     pod: Pod
