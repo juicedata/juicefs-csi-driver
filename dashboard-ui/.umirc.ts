@@ -17,7 +17,7 @@ export default defineConfig({
     routes: [
         {
             path: '/',
-            redirect: '/app/pods',
+            redirect: '/pods',
         },
         {
             name: '应用 Pod',
