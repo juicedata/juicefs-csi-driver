@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -108,6 +109,10 @@ func run() {
 		})
 		router.GET("/app/*path", func(c *gin.Context) {
 			path := c.Param("path")
+			if strings.Contains(path, "..") {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
 			f, err := os.Stat(filepath.Join(staticDir, path))
 			if os.IsNotExist(err) || f.IsDir() {
 				c.File(filepath.Join(staticDir, "index.html"))
