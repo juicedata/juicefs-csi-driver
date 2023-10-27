@@ -75,8 +75,10 @@ func (api *API) watchAppPod(ctx context.Context) {
 				Name:      pod.Name,
 			}
 			switch event.Type {
-			case watch.Added, watch.Modified, watch.Error:
-				api.updateAppPod(name, pod, event.Type == watch.Added)
+			case watch.Added:
+				api.indexAppPod(name, pod)
+			case watch.Modified, watch.Error:
+				api.updateAppPod(name, pod)
 			case watch.Deleted:
 				api.removeAppPod(name)
 			}
@@ -84,13 +86,20 @@ func (api *API) watchAppPod(ctx context.Context) {
 	}
 }
 
-func (api *API) updateAppPod(name types.NamespacedName, pod *corev1.Pod, indexing bool) {
+func (api *API) indexAppPod(name types.NamespacedName, pod *corev1.Pod) {
+	api.appPodsLock.Lock()
+	defer api.appPodsLock.Unlock()
+	if _, ok := api.appPods[name]; ok {
+		return
+	}
+	api.appPods[name] = pod
+	api.appIndexes.addIndex(name, pod, api.appPods)
+}
+
+func (api *API) updateAppPod(name types.NamespacedName, pod *corev1.Pod) {
 	api.appPodsLock.Lock()
 	defer api.appPodsLock.Unlock()
 	api.appPods[name] = pod
-	if indexing {
-		api.appIndexes.addIndex(name, pod, api.appPods)
-	}
 }
 
 func (api *API) removeAppPod(name types.NamespacedName) {
@@ -131,23 +140,26 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 				defer api.pvsLock.Unlock()
 				name := api.sysNamespaced(pv.Name)
 				switch event.Type {
-				case watch.Added, watch.Modified, watch.Error:
-					api.pvs[name] = pv
-					if event.Type == watch.Added {
-						api.pvIndexes.addIndex(name, pv, api.pvs)
+				case watch.Added:
+					if _, ok := api.pvs[name]; ok {
+						return
 					}
+					api.pvs[name] = pv
+					api.pvIndexes.addIndex(name, pv, api.pvs)
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
-						if _, ok := api.pairs[pvcName]; !ok {
-							api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+						if _, ok := api.pvcs[pvcName]; ok {
+							return
 						}
 						api.pairs[pvcName] = name
 						api.pvcs[pvcName] = pvc
-
+						api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
 					}
+				case watch.Modified, watch.Error:
+					api.pvs[name] = pv
 				case watch.Deleted:
 					delete(api.pvs, name)
 					api.pvIndexes.removeIndex(name)
@@ -193,11 +205,14 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 			}
 
 			switch event.Type {
-			case watch.Added, watch.Modified, watch.Error:
-				api.pvcs[pvcName] = pvc
-				if event.Type == watch.Added {
-					api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+			case watch.Added:
+				if _, ok := api.pvcs[pvcName]; ok {
+					return
 				}
+				api.pvcs[pvcName] = pvc
+				api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+			case watch.Modified, watch.Error:
+				api.pvcs[pvcName] = pvc
 			case watch.Deleted:
 				delete(api.pvcs, pvcName)
 				delete(api.pairs, pvcName)
@@ -345,11 +360,14 @@ func (api *API) processSysEvent(ctx context.Context, table map[types.NamespacedN
 	}
 	spacedName := api.sysNamespaced(pod.Name)
 	switch event.Type {
-	case watch.Added, watch.Modified, watch.Error:
-		table[spacedName] = pod
-		if event.Type == watch.Added {
-			api.sysIndexes.addIndex(spacedName, pod, api.mountPods, api.csiNodes, api.controllers)
+	case watch.Added:
+		if _, ok := table[spacedName]; ok {
+			return
 		}
+		table[spacedName] = pod
+		api.sysIndexes.addIndex(spacedName, pod, api.mountPods, api.csiNodes, api.controllers)
+	case watch.Modified, watch.Error:
+		table[spacedName] = pod
 	case watch.Deleted:
 		delete(table, api.sysNamespaced(pod.Name))
 		api.sysIndexes.removeIndex(spacedName)

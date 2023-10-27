@@ -31,9 +31,11 @@ type APIStatus struct {
 	AppIndexes   []types.NamespacedName
 	Nodeindex    map[string]types.NamespacedName
 	Events       map[string]int
-	Pvs          map[string]types.NamespacedName
+	Pvs          []types.NamespacedName
+	Pvcs         []types.NamespacedName
 	PvIndexes    []types.NamespacedName
 	PvcIndexes   []types.NamespacedName
+	Pairs        map[string]types.NamespacedName
 }
 
 func (api *API) debugAPIStatus() gin.HandlerFunc {
@@ -42,7 +44,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 			SysNamespace: api.sysNamespace,
 			Nodeindex:    make(map[string]types.NamespacedName),
 			Events:       make(map[string]int),
-			Pvs:          make(map[string]types.NamespacedName),
+			Pairs:        make(map[string]types.NamespacedName),
 		}
 		api.componentsLock.RLock()
 		for k := range api.mountPods {
@@ -74,11 +76,14 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		}
 		api.eventsLock.RUnlock()
 		api.pvsLock.RLock()
-		for k, v := range api.pvs {
-			status.Pvs[k.String()] = types.NamespacedName{
-				Namespace: v.Namespace,
-				Name:      v.Name,
-			}
+		for k := range api.pvs {
+			status.Pvs = append(status.Pvs, k)
+		}
+		for k := range api.pvcs {
+			status.Pvcs = append(status.Pvcs, k)
+		}
+		for k, v := range api.pairs {
+			status.Pairs[k.String()] = v
 		}
 		status.PvIndexes = api.pvIndexes.debug()
 		status.PvcIndexes = api.pvcIndexes.debug()
