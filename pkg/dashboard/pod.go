@@ -19,7 +19,6 @@ package dashboard
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -28,6 +27,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -441,19 +441,19 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.P
 		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
 		mountPodName, ok := pod.Annotations[key]
 		if !ok {
-			log.Printf("can't find mount pod name by annotation `%s`\n", key)
+			klog.V(0).Infof("can't find mount pod name by annotation `%s`\n", key)
 			continue
 		}
 		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
 		if len(pair) != 2 {
-			log.Printf("invalid mount pod name %s\n", mountPodName)
+			klog.V(0).Infof("invalid mount pod name %s\n", mountPodName)
 			continue
 		}
 		api.componentsLock.RLock()
 		mountPod, exist := api.mountPods[types.NamespacedName{pair[0], pair[1]}]
 		api.componentsLock.RUnlock()
 		if !exist {
-			log.Printf("mount pod %s not found\n", mountPodName)
+			klog.V(0).Infof("mount pod %s not found\n", mountPodName)
 			continue
 		}
 		mountPods = append(mountPods, mountPod)

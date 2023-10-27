@@ -18,7 +18,6 @@ package dashboard
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,6 +25,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -33,13 +33,14 @@ import (
 func (api *API) watchAppPod(ctx context.Context) {
 	watcher, err := api.watchPod(ctx)
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("can't watch pods: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(event watch.Event) {
 			pod, ok := event.Object.(*corev1.Pod)
 			if !ok {
-				log.Printf("unknown type: %v", event.Object)
+				klog.V(0).Infof("unknown type: %v", event.Object)
 				return
 			}
 
@@ -112,13 +113,14 @@ func (api *API) removeAppPod(name types.NamespacedName) {
 func (api *API) watchRelatedPV(ctx context.Context) {
 	watcher, err := api.watchPV(ctx)
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch pv: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(event watch.Event) {
 			pv, ok := event.Object.(*corev1.PersistentVolume)
 			if !ok {
-				log.Printf("unknown type: %v", event.Object)
+				klog.V(0).Infof("unknown type: %v", event.Object)
 				return
 			}
 
@@ -132,7 +134,7 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 			if pv.Spec.ClaimRef != nil {
 				pvc, err = api.k8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 				if err != nil {
-					log.Printf("get pvc error %v", err)
+					klog.V(0).Infof("get pvc error %v", err)
 				}
 			}
 			func() {
@@ -180,7 +182,8 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 func (api *API) watchRelatedPVC(ctx context.Context) {
 	watcher, err := api.watchPVC(ctx)
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch pvc: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(event watch.Event) {
@@ -189,7 +192,7 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 
 			pvc, ok := event.Object.(*corev1.PersistentVolumeClaim)
 			if !ok {
-				log.Printf("unknown type: %v", event.Object)
+				klog.V(0).Infof("unknown type: %v", event.Object)
 				return
 			}
 
@@ -225,7 +228,8 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 func (api *API) watchNodes(ctx context.Context) {
 	watcher, err := api.watchNode(ctx)
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch node: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(event watch.Event) {
@@ -234,7 +238,7 @@ func (api *API) watchNodes(ctx context.Context) {
 
 			node, ok := event.Object.(*corev1.Node)
 			if !ok {
-				log.Printf("unknown type: %v", event.Object)
+				klog.V(0).Infof("unknown type: %v", event.Object)
 				return
 			}
 
@@ -310,21 +314,24 @@ func (api *API) watchNode(ctx context.Context) (watch.Interface, error) {
 func (api *API) watchComponents(ctx context.Context) {
 	mountPodWatcher, err := api.watchPodByLabels(ctx, map[string]string{"app.kubernetes.io/name": "juicefs-mount"})
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch mount pod: %v", err)
+		return
 	}
 	csiNodeWatcher, err := api.watchPodByLabels(ctx, map[string]string{
 		"app.kubernetes.io/name": "juicefs-csi-driver",
 		"app":                    "juicefs-csi-node",
 	})
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch csi-nodes: %v", err)
+		return
 	}
 	csiControllerWatcher, err := api.watchPodByLabels(ctx, map[string]string{
 		"app.kubernetes.io/name": "juicefs-csi-driver",
 		"app":                    "juicefs-csi-controller",
 	})
 	if err != nil {
-		log.Fatalf("%v", err)
+		klog.V(0).Infof("fail to watch controllers: %v", err)
+		return
 	}
 	for {
 		select {
@@ -352,7 +359,7 @@ func (api *API) processSysEvent(ctx context.Context, table map[types.NamespacedN
 	defer api.componentsLock.Unlock()
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
-		log.Printf("unknown type: %v", event.Object)
+		klog.V(0).Infof("unknown type: %v", event.Object)
 		return
 	}
 	if nodeIndex != nil {
@@ -380,7 +387,8 @@ func (api *API) watchPodEvents(ctx context.Context) {
 		Watch:    true,
 	})
 	if err != nil {
-		log.Fatalf("can't watch event of pods: %v", err)
+		klog.V(0).Infof("can't watch event of pods: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(we watch.Event) {
@@ -388,7 +396,7 @@ func (api *API) watchPodEvents(ctx context.Context) {
 			event, ok := we.Object.(*corev1.Event)
 			if !ok {
 				api.eventsLock.Unlock()
-				log.Printf("unknown type: %v", we.Object)
+				klog.V(0).Infof("unknown type: %v", we.Object)
 				return
 			}
 			objName := types.NamespacedName{
@@ -416,7 +424,8 @@ func (api *API) watchPVEvents(ctx context.Context) {
 		Watch:    true,
 	})
 	if err != nil {
-		log.Fatalf("can't watch event of PV: %v", err)
+		klog.V(0).Infof("can't watch event of PV: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(we watch.Event) {
@@ -424,7 +433,7 @@ func (api *API) watchPVEvents(ctx context.Context) {
 			event, ok := we.Object.(*corev1.Event)
 			if !ok {
 				api.eventsLock.Unlock()
-				log.Printf("unknown type: %v", we.Object)
+				klog.V(0).Infof("unknown type: %v", we.Object)
 				return
 			}
 			objName := types.NamespacedName{
@@ -452,7 +461,8 @@ func (api *API) watchPVCEvents(ctx context.Context) {
 		Watch:    true,
 	})
 	if err != nil {
-		log.Fatalf("can't watch event of PVC: %v", err)
+		klog.V(0).Infof("can't watch event of PVC: %v", err)
+		return
 	}
 	for e := range watcher.ResultChan() {
 		go func(we watch.Event) {
@@ -460,7 +470,7 @@ func (api *API) watchPVCEvents(ctx context.Context) {
 			event, ok := we.Object.(*corev1.Event)
 			if !ok {
 				api.eventsLock.Unlock()
-				log.Printf("unknown type: %v", we.Object)
+				klog.V(0).Infof("unknown type: %v", we.Object)
 				return
 			}
 			objName := types.NamespacedName{
@@ -495,7 +505,7 @@ func (api *API) cleanupEvents(ctx context.Context) {
 			for name := range api.events {
 				if !api.isComponents(name.Name) && !api.isApp(name) && !api.isPV(name) && !api.isPVC(name) {
 					delete(api.events, name)
-					log.Printf("delete all events of pod %s\n", name)
+					klog.V(3).Infof("delete all events of pod %s\n", name)
 				}
 			}
 			api.eventsLock.Unlock()
