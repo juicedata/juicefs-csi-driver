@@ -22,14 +22,12 @@ import {
 } from '@ant-design/pro-components';
 import {Button, Tooltip} from 'antd';
 import React, {useRef, useState} from 'react';
-import {Pod, listAppPods} from '@/services/pod';
-import {PersistentVolume, Pod as RawPod} from 'kubernetes-types/core/v1'
+import {Pod, listAppPods, podStatus} from '@/services/pod';
 import {Link} from 'umi';
 import {Badge} from 'antd/lib';
 import {PodStatusEnum} from "@/services/common";
 import {AlertTwoTone} from "@ant-design/icons";
-import {red} from "@ant-design/colors";
-import {getNodeStatusBadge} from "@/pages/SystemPodTable";
+import {getPodStatusBadge, getPVStatusBadge} from "@/pages/utils";
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -118,7 +116,7 @@ const AppPodTable: React.FC<unknown> = () => {
                         return
                     }
                     return (
-                        <Badge color={getPodStatusBadge(mountPod)} text={
+                        <Badge color={getPodStatusBadge(podStatus(mountPod) || "")} text={
                             <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
                                 {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
                             </Link>
@@ -129,7 +127,7 @@ const AppPodTable: React.FC<unknown> = () => {
                         <div>
                             {pod.mountPods.map((mountPod) => (
                                 <div>
-                                    <Badge color={getPodStatusBadge(mountPod)} text={
+                                    <Badge color={getPodStatusBadge(podStatus(mountPod) || "")} text={
                                         <Link
                                             to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
                                             {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
@@ -175,11 +173,11 @@ const AppPodTable: React.FC<unknown> = () => {
             title: 'CSI Node',
             key: 'csiNode',
             render: (_, pod) => {
-                if (pod.csiNode === undefined || pod.csiNode === null) {
+                if (!pod.csiNode) {
                     return
                 }
                 return (
-                    <Badge color={getPodStatusBadge(pod.csiNode)} text={
+                    <Badge color={getPodStatusBadge(podStatus(pod.csiNode) || "")} text={
                         <Link to={`/pod/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}>
                             {pod.csiNode.metadata?.name}
                         </Link>
@@ -254,42 +252,5 @@ const AppPodTable: React.FC<unknown> = () => {
     );
 };
 
-function getPodStatusBadge(pod: RawPod): string {
-    if (pod.status === undefined || pod.status.phase === undefined) {
-        return "grey"
-    }
-    switch (pod.status.phase) {
-        case "Running":
-            return "green"
-        case "Succeeded":
-            return "blue"
-        case "Pending":
-            return "yellow"
-        case "Failed":
-            return "red"
-        case "Unknown":
-        default:
-            return "grey"
-    }
-}
-
-function getPVStatusBadge(pv: PersistentVolume): string {
-    if (pv.status === undefined || pv.status.phase === undefined) {
-        return "grey"
-    }
-    switch (pv.status.phase) {
-        case "Bound":
-            return "green"
-        case "Available":
-            return "blue"
-        case "Pending":
-            return "yellow"
-        case "Failed":
-            return "red"
-        case "Released":
-        default:
-            return "grey"
-    }
-}
 
 export default AppPodTable;

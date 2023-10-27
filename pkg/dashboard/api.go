@@ -36,8 +36,10 @@ type API struct {
 	csiNodes       map[types.NamespacedName]*corev1.Pod
 	controllers    map[types.NamespacedName]*corev1.Pod
 	csiNodeIndex   map[string]*corev1.Pod
-	nodes          map[string]*corev1.Node
 	sysIndexes     *timeOrderedIndexes[corev1.Pod]
+
+	nodes     map[string]*corev1.Node
+	nodesLock sync.RWMutex
 
 	appPodsLock sync.RWMutex
 	appPods     map[types.NamespacedName]*corev1.Pod
@@ -77,6 +79,7 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 	go api.watchAppPod(ctx)
 	go api.watchRelatedPV(ctx)
 	go api.watchRelatedPVC(ctx)
+	go api.watchNodes(ctx)
 	go api.watchPodEvents(ctx)
 	go api.watchPVEvents(ctx)
 	go api.watchPVCEvents(ctx)
