@@ -317,6 +317,9 @@ const DetailedPod: React.FC<unknown> = () => {
 }
 
 export const getPodTableContent = (pods: RawPod[], title: string, podType?: string) => {
+    if (!title){
+        return
+    }
     return <ProCard title={title}>
         <Table columns={[
             {
