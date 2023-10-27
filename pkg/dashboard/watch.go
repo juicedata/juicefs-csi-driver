@@ -133,15 +133,20 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 				switch event.Type {
 				case watch.Added, watch.Modified, watch.Error:
 					api.pvs[name] = pv
-					api.pvIndexes.addIndex(name, pv, api.pvs)
+					if event.Type == watch.Added {
+						api.pvIndexes.addIndex(name, pv, api.pvs)
+					}
 					if pvc != nil {
 						pvcName := types.NamespacedName{
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
+						if _, ok := api.pairs[pvcName]; !ok {
+							api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+						}
 						api.pairs[pvcName] = name
 						api.pvcs[pvcName] = pvc
-						api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+
 					}
 				case watch.Deleted:
 					delete(api.pvs, name)
@@ -190,7 +195,9 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 			switch event.Type {
 			case watch.Added, watch.Modified, watch.Error:
 				api.pvcs[pvcName] = pvc
-				api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+				if event.Type == watch.Added {
+					api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
+				}
 			case watch.Deleted:
 				delete(api.pvcs, pvcName)
 				delete(api.pairs, pvcName)
@@ -304,45 +311,48 @@ func (api *API) watchComponents(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	watchers := []watch.Interface{mountPodWatcher, csiNodeWatcher, csiControllerWatcher}
-	tables := []map[types.NamespacedName]*corev1.Pod{api.mountPods, api.csiNodes, api.controllers}
-	indexes := []func(watch.EventType, *corev1.Pod){
-		nil,
-		func(eventType watch.EventType, pod *corev1.Pod) {
-			switch eventType {
-			case watch.Added, watch.Modified, watch.Error:
-				api.csiNodeIndex[pod.Spec.NodeName] = pod
-			case watch.Deleted:
-				delete(api.csiNodeIndex, pod.Spec.NodeName)
-			}
-		},
-		nil,
-	}
-	for i := range watchers {
-		go func(watcher watch.Interface, table map[types.NamespacedName]*corev1.Pod, index func(watch.EventType, *corev1.Pod)) {
-			for event := range watcher.ResultChan() {
-				api.componentsLock.Lock()
-				pod, ok := event.Object.(*corev1.Pod)
-				if !ok {
-					api.componentsLock.Unlock()
-					log.Printf("unknown type: %v", event.Object)
-					continue
-				}
-				if index != nil {
-					index(event.Type, pod)
-				}
-				spacedName := api.sysNamespaced(pod.Name)
-				switch event.Type {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case e := <-mountPodWatcher.ResultChan():
+			go api.processSysEvent(ctx, api.mountPods, e, nil)
+		case e := <-csiNodeWatcher.ResultChan():
+			go api.processSysEvent(ctx, api.csiNodes, e, func(eventType watch.EventType, pod *corev1.Pod) {
+				switch eventType {
 				case watch.Added, watch.Modified, watch.Error:
-					table[spacedName] = pod
-					api.sysIndexes.addIndex(spacedName, pod, api.mountPods, api.csiNodes, api.controllers)
+					api.csiNodeIndex[pod.Spec.NodeName] = pod
 				case watch.Deleted:
-					delete(table, api.sysNamespaced(pod.Name))
-					api.sysIndexes.removeIndex(spacedName)
+					delete(api.csiNodeIndex, pod.Spec.NodeName)
 				}
-				api.componentsLock.Unlock()
-			}
-		}(watchers[i], tables[i], indexes[i])
+			})
+		case e := <-csiControllerWatcher.ResultChan():
+			go api.processSysEvent(ctx, api.controllers, e, nil)
+		}
+	}
+}
+
+func (api *API) processSysEvent(ctx context.Context, table map[types.NamespacedName]*corev1.Pod, event watch.Event, nodeIndex func(watch.EventType, *corev1.Pod)) {
+	api.componentsLock.Lock()
+	defer api.componentsLock.Unlock()
+	pod, ok := event.Object.(*corev1.Pod)
+	if !ok {
+		log.Printf("unknown type: %v", event.Object)
+		return
+	}
+	if nodeIndex != nil {
+		nodeIndex(event.Type, pod)
+	}
+	spacedName := api.sysNamespaced(pod.Name)
+	switch event.Type {
+	case watch.Added, watch.Modified, watch.Error:
+		table[spacedName] = pod
+		if event.Type == watch.Added {
+			api.sysIndexes.addIndex(spacedName, pod, api.mountPods, api.csiNodes, api.controllers)
+		}
+	case watch.Deleted:
+		delete(table, api.sysNamespaced(pod.Name))
+		api.sysIndexes.removeIndex(spacedName)
 	}
 }
 
