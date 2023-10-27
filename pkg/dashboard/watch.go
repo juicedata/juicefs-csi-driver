@@ -141,9 +141,6 @@ func (api *API) watchRelatedPV(ctx context.Context) {
 							Namespace: pvc.Namespace,
 							Name:      pvc.Name,
 						}
-						if _, ok := api.pairs[pvcName]; !ok {
-							api.pvcIndexes.addIndex(pvcName, pvc, api.pvcs)
-						}
 						api.pairs[pvcName] = name
 						api.pvcs[pvcName] = pvc
 
