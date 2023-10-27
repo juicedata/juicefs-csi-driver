@@ -78,7 +78,7 @@ const PVTable: React.FC<unknown> = () => {
             key: 'pvc',
             render: (_, pv) => {
                 if (!pv.spec?.claimRef) {
-                    return <span>无</span>
+                    return <span>-</span>
                 } else {
                     return (
                         <Link to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>

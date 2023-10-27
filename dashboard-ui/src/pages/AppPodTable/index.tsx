@@ -76,7 +76,7 @@ const AppPodTable: React.FC<unknown> = () => {
             key: 'pv',
             render: (_, pod) => {
                 if (!pod.pvs || pod.pvs.length == 0) {
-                    return <span>无</span>
+                    return <span>-</span>
                 } else if (pod.pvs.length == 1) {
                     const pv = pod.pvs[0]
                     return (
@@ -109,7 +109,7 @@ const AppPodTable: React.FC<unknown> = () => {
             key: 'mountPod',
             render: (_, pod) => {
                 if (!pod.mountPods || pod.mountPods.length == 0) {
-                    return <span>无</span>
+                    return <span>-</span>
                 } else if (pod.mountPods.length == 1) {
                     const mountPod = pod.mountPods[0]
                     if (mountPod === undefined) {

@@ -82,7 +82,7 @@ const PVCTable: React.FC<unknown> = () => {
             key: 'pv',
             render: (_, pvc) => {
                 if (!pvc.spec?.volumeName) {
-                    return <span>无</span>
+                    return <span>-</span>
                 } else {
                     return (
                         <Link to={`/pv/${pvc.spec.volumeName}`}>
