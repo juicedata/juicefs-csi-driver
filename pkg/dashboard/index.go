@@ -77,8 +77,12 @@ func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T,
 			i.list.Remove(e)
 			continue
 		}
-
-		if getCreateTime(*resource).After(getCreateTime(*currentResource).Time) {
+		meta := getMeta(*resource)
+		currentMeta := getMeta(*currentResource)
+		if meta.UID == currentMeta.UID && meta.CreationTimestamp.Equal(&currentMeta.CreationTimestamp) {
+			break
+		}
+		if meta.CreationTimestamp.After(currentMeta.CreationTimestamp.Time) {
 			i.list.InsertAfter(name, e)
 			return
 		}
@@ -103,18 +107,18 @@ func (i *timeOrderedIndexes[T]) debug() []types.NamespacedName {
 	return names
 }
 
-func getCreateTime(r any) metav1.Time {
+func getMeta(r any) metav1.ObjectMeta {
 	switch resource := r.(type) {
 	case corev1.Pod:
-		return resource.CreationTimestamp
+		return resource.ObjectMeta
 	case corev1.PersistentVolume:
-		return resource.CreationTimestamp
+		return resource.ObjectMeta
 	case corev1.PersistentVolumeClaim:
-		return resource.CreationTimestamp
+		return resource.ObjectMeta
 	case storagev1.StorageClass:
-		return resource.CreationTimestamp
+		return resource.ObjectMeta
 	default:
 		log.Panicf("unsupported resouce type by time indexes: %s", reflect.TypeOf(r).String())
-		return metav1.Time{}
+		return metav1.ObjectMeta{}
 	}
 }
