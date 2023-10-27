@@ -159,26 +159,29 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
     }
 }
 
-export const podStatus = (pod: Pod) => {
+export const podStatus = (pod: RawPod) => {
     if (pod.metadata?.deletionTimestamp) {
         return "Terminating"
     }
     if (!pod.status) {
         return "Unknown"
     }
-    if (pod.status?.phase === "Pending") {
-        return "Pending"
-    }
+    let status: string = ""
     pod.status?.containerStatuses?.forEach(containerStatus => {
         if (!containerStatus.ready) {
-            if (containerStatus.state?.waiting) {
-                return containerStatus.state.waiting.reason
+            if (containerStatus.state?.waiting && containerStatus.state.waiting.message) {
+                status = "Error"
+                return
             }
-            if (containerStatus.state?.terminated) {
-                return "Error"
+            if (containerStatus.state?.terminated && containerStatus.state.terminated.message) {
+                status = "Error"
+                return
             }
         }
     })
+    if (status !== "") {
+        return status
+    }
     return pod.status.phase
 }
 

@@ -111,11 +111,7 @@ func (api *API) listAppPod() gin.HandlerFunc {
 				pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
 			}
 			if pod.Spec.NodeName != "" {
-				pod.Node, err = api.getNode(c, pod.Spec.NodeName)
-				if err != nil {
-					c.String(500, "get node %s error: %v", pod.Spec.NodeName, err)
-					return
-				}
+				pod.Node = api.getNode(pod.Spec.NodeName)
 			}
 			pod.Pvcs = api.listPVCsOfPod(c, pod.Pod)
 		}
@@ -213,11 +209,7 @@ func (api *API) listSysPod() gin.HandlerFunc {
 			endIndex = uint64(len(pods))
 		}
 		for i := startIndex; i < endIndex; i++ {
-			node, err := api.getNode(c, pods[i].Spec.NodeName)
-			if err != nil {
-				c.String(500, "get node %s, error: %v", pods[i].Spec.NodeName, err)
-				return
-			}
+			node := api.getNode(pods[i].Spec.NodeName)
 			result.Pods = append(result.Pods, &PodExtra{
 				Pod:  pods[i],
 				Node: node,
@@ -290,27 +282,10 @@ func (api *API) getCSINode(nodeName string) *corev1.Pod {
 	return api.csiNodeIndex[nodeName]
 }
 
-func (api *API) getNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
-	if node := func() *corev1.Node {
-		api.componentsLock.RLock()
-		defer api.componentsLock.RUnlock()
-		node, ok := api.nodes[nodeName]
-		if ok {
-			return node
-		}
-		return nil
-	}(); node != nil {
-		return node, nil
-	}
-
-	node, err := api.k8sClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	api.componentsLock.RLock()
-	defer api.componentsLock.RUnlock()
-	api.nodes[nodeName] = node
-	return api.nodes[nodeName], nil
+func (api *API) getNode(nodeName string) *corev1.Node {
+	api.nodesLock.RLock()
+	defer api.nodesLock.RUnlock()
+	return api.nodes[nodeName]
 }
 
 func (api *API) getPodMiddileware() gin.HandlerFunc {

@@ -222,6 +222,32 @@ func (api *API) watchRelatedPVC(ctx context.Context) {
 	}
 }
 
+func (api *API) watchNodes(ctx context.Context) {
+	watcher, err := api.watchNode(ctx)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for e := range watcher.ResultChan() {
+		go func(event watch.Event) {
+			api.nodesLock.Lock()
+			defer api.nodesLock.Unlock()
+
+			node, ok := event.Object.(*corev1.Node)
+			if !ok {
+				log.Printf("unknown type: %v", event.Object)
+				return
+			}
+
+			switch event.Type {
+			case watch.Added, watch.Modified, watch.Error:
+				api.nodes[node.Name] = node
+			case watch.Deleted:
+				delete(api.nodes, node.Name)
+			}
+		}(e)
+	}
+}
+
 func (api *API) watchPodByLabels(ctx context.Context, labels map[string]string) (watch.Interface, error) {
 	return api.watchPodByLabelSelector(ctx, &v1.LabelSelector{MatchLabels: labels})
 }
@@ -263,6 +289,16 @@ func (api *API) watchPV(ctx context.Context) (watch.Interface, error) {
 
 func (api *API) watchPVC(ctx context.Context) (watch.Interface, error) {
 	watcher, err := api.k8sClient.CoreV1().PersistentVolumeClaims("").Watch(ctx, v1.ListOptions{
+		Watch: true,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "can't watch pods")
+	}
+	return watcher, nil
+}
+
+func (api *API) watchNode(ctx context.Context) (watch.Interface, error) {
+	watcher, err := api.k8sClient.CoreV1().Nodes().Watch(ctx, v1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {

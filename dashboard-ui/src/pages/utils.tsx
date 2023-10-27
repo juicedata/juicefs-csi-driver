@@ -14,10 +14,11 @@
  limitations under the License.
  */
 
-import { ObjectMeta } from "kubernetes-types/meta/v1"
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import {ObjectMeta} from "kubernetes-types/meta/v1"
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
 import * as jsyaml from "js-yaml";
-import {Node} from "kubernetes-types/core/v1";
+import {Node, PersistentVolume, Pod as RawPod} from "kubernetes-types/core/v1";
+import {Pod} from "@/services/pod";
 
 export interface Source {
     metadata?: ObjectMeta
@@ -29,7 +30,7 @@ export const formatData = (src: Source, format: string) => {
     })
     const data = format === 'json' ? JSON.stringify(src, null, "\t") : jsyaml.dump(src)
     return (
-        <SyntaxHighlighter language={format} showLineNumbers >
+        <SyntaxHighlighter language={format} showLineNumbers>
             {data.trim()}
         </SyntaxHighlighter>
     )
@@ -43,4 +44,43 @@ export const getNodeStatusBadge = (node: Node) => {
         return false
     })
     return ready ? "green" : "red"
+}
+
+export const getPodStatusBadge = (finalStatus: string) => {
+    switch (finalStatus) {
+        case "Pending":
+        case "ContainerCreating":
+        case "PodInitializing":
+            return 'yellow'
+        case "Running":
+            return "green"
+        case "Succeed":
+            return "blue"
+        case "Failed":
+        case "Error":
+            return "red"
+        case "Unknown":
+        case "Terminating":
+        default:
+            return "grey"
+    }
+}
+
+export const getPVStatusBadge = (pv: PersistentVolume) => {
+    if (pv.status === undefined || pv.status.phase === undefined) {
+        return "grey"
+    }
+    switch (pv.status.phase) {
+        case "Bound":
+            return "green"
+        case "Available":
+            return "blue"
+        case "Pending":
+            return "yellow"
+        case "Failed":
+            return "red"
+        case "Released":
+        default:
+            return "grey"
+    }
 }
