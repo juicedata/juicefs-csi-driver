@@ -28,8 +28,6 @@ import {Link} from 'umi';
 import {Badge} from 'antd/lib';
 import {PodStatusEnum} from "@/services/common";
 import {AlertTwoTone} from "@ant-design/icons";
-import {red} from "@ant-design/colors";
-import {getNodeStatusBadge} from "@/pages/SystemPodTable";
 
 const AppPodTable: React.FC<unknown> = () => {
     const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -119,8 +117,8 @@ const AppPodTable: React.FC<unknown> = () => {
                     }
                     return (
                         <Badge color={getPodStatusBadge(mountPod)} text={
-                            <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
-                                {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
+                            <Link to={`/mountpod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
+                                {mountPod?.metadata?.name}
                             </Link>
                         }/>
                     )
