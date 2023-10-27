@@ -79,7 +79,7 @@ func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T,
 		}
 		meta := getMeta(*resource)
 		currentMeta := getMeta(*currentResource)
-		if meta.UID == currentMeta.UID && meta.CreationTimestamp.Equal(&currentMeta.CreationTimestamp) {
+		if meta.UID == currentMeta.UID {
 			break
 		}
 		if meta.CreationTimestamp.After(currentMeta.CreationTimestamp.Time) {
