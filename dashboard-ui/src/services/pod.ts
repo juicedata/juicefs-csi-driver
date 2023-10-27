@@ -169,13 +169,19 @@ export const podStatus = (pod: RawPod) => {
     let status: string = ""
     pod.status?.containerStatuses?.forEach(containerStatus => {
         if (!containerStatus.ready) {
-            if (containerStatus.state?.waiting && containerStatus.state.waiting.message) {
-                status = "Error"
-                return
+            if (containerStatus.state?.waiting) {
+                if (containerStatus.state.waiting.message) {
+                    status = "Error"
+                    return;
+                }
+                if (containerStatus.state.waiting.reason === "ContainerCreating" || containerStatus.state.waiting.reason === "PodInitializing") {
+                    status = containerStatus.state.waiting.reason
+                    return;
+                }
             }
             if (containerStatus.state?.terminated && containerStatus.state.terminated.message) {
                 status = "Error"
-                return
+                return;
             }
         }
     })

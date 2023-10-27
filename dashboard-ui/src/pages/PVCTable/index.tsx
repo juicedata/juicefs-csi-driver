@@ -62,12 +62,12 @@ const PVCTable: React.FC<unknown> = () => {
                 }
                 return (
                     <div>
-                        <Tooltip title={pvc.failedReason}>
-                            <AlertTwoTone twoToneColor='#cf1322'/>
-                        </Tooltip>
                         <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
                             {pvc.metadata?.name}
                         </Link>
+                        <Tooltip title={pvc.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
                     </div>
                 )
             },

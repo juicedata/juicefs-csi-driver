@@ -56,12 +56,12 @@ const AppPodTable: React.FC<unknown> = () => {
                 }
                 return (
                     <div>
-                        <Tooltip title={pod.failedReason}>
-                            <AlertTwoTone twoToneColor='#cf1322'/>
-                        </Tooltip>
                         <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
                             {pod.metadata?.name}
                         </Link>
+                        <Tooltip title={pod.failedReason}>
+                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        </Tooltip>
                     </div>
                 )
             },
