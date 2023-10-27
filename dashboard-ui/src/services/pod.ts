@@ -166,16 +166,22 @@ export const podStatus = (pod: RawPod) => {
     if (!pod.status) {
         return "Unknown"
     }
+    let status: string = ""
     pod.status?.containerStatuses?.forEach(containerStatus => {
         if (!containerStatus.ready) {
-            if (containerStatus.state?.waiting && containerStatus.state.waiting.reason) {
-                return "Error"
+            if (containerStatus.state?.waiting && containerStatus.state.waiting.message) {
+                status = "Error"
+                return
             }
-            if (containerStatus.state?.terminated && containerStatus.state.terminated.reason) {
-                return "Error"
+            if (containerStatus.state?.terminated && containerStatus.state.terminated.message) {
+                status = "Error"
+                return
             }
         }
     })
+    if (status !== "") {
+        return status
+    }
     return pod.status.phase
 }
 

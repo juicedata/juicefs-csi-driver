@@ -118,7 +118,7 @@ const AppPodTable: React.FC<unknown> = () => {
                     return (
                         <Badge color={getPodStatusBadge(podStatus(mountPod) || "")} text={
                             <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
-                                {mountPod?.metadata?.namespace}/{mountPod?.metadata?.name}
+                                {mountPod?.metadata?.name}
                             </Link>
                         }/>
                     )
@@ -130,7 +130,7 @@ const AppPodTable: React.FC<unknown> = () => {
                                     <Badge color={getPodStatusBadge(podStatus(mountPod) || "")} text={
                                         <Link
                                             to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
-                                            {mountPod.metadata?.namespace}/{mountPod?.metadata?.name}
+                                            {mountPod?.metadata?.name}
                                         </Link>
                                     }/>
                                     <br/>
@@ -174,7 +174,7 @@ const AppPodTable: React.FC<unknown> = () => {
             key: 'csiNode',
             render: (_, pod) => {
                 if (!pod.csiNode) {
-                    return
+                    return "-"
                 }
                 return (
                     <Badge color={getPodStatusBadge(podStatus(pod.csiNode) || "")} text={
