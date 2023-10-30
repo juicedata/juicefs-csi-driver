@@ -19,13 +19,13 @@ package dashboard
 import (
 	"container/list"
 	"context"
-	"log"
-	"reflect"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 )
 
 type k8sResource interface {
@@ -33,16 +33,21 @@ type k8sResource interface {
 }
 
 type timeOrderedIndexes[T k8sResource] struct {
+	sync.RWMutex
 	list *list.List
 }
 
 func newTimeIndexes[T k8sResource]() *timeOrderedIndexes[T] {
-	return &timeOrderedIndexes[T]{list.New()}
+	return &timeOrderedIndexes[T]{
+		list: list.New(),
+	}
 }
 
 func (i *timeOrderedIndexes[T]) iterate(ctx context.Context, descend bool) <-chan types.NamespacedName {
 	ch := make(chan types.NamespacedName)
 	go func() {
+		i.RLock()
+		defer i.RUnlock()
 		if descend {
 			for e := i.list.Back(); e != nil && ctx.Err() == nil; e = e.Prev() {
 				ch <- e.Value.(types.NamespacedName)
@@ -58,27 +63,27 @@ func (i *timeOrderedIndexes[T]) iterate(ctx context.Context, descend bool) <-cha
 }
 
 func (i *timeOrderedIndexes[T]) length() int {
+	i.RLock()
+	defer i.RUnlock()
 	return i.list.Len()
 }
 
-func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T, maps ...map[types.NamespacedName]*T) {
+func (i *timeOrderedIndexes[T]) addIndex(resource *T, metaGetter func(*T) metav1.ObjectMeta, resourceGetter func(types.NamespacedName) (*T, error)) {
+	i.Lock()
+	defer i.Unlock()
+	meta := metaGetter(resource)
+	name := types.NamespacedName{
+		Namespace: meta.Namespace,
+		Name:      meta.Name,
+	}
 	for e := i.list.Back(); e != nil; e = e.Prev() {
-		currentName := e.Value.(types.NamespacedName)
-		var (
-			currentResource *T
-		)
-		for _, m := range maps {
-			if r, exist := m[currentName]; exist {
-				currentResource = r
-				break
-			}
-		}
-		if currentResource == nil {
+		currentResource, err := resourceGetter(e.Value.(types.NamespacedName))
+		if err != nil || currentResource == nil {
+			klog.V(1).Infof("failed to get resource %s: %v", e.Value.(types.NamespacedName), err)
 			i.list.Remove(e)
 			continue
 		}
-		meta := getMeta(*resource)
-		currentMeta := getMeta(*currentResource)
+		currentMeta := metaGetter(currentResource)
 		if meta.UID == currentMeta.UID {
 			break
 		}
@@ -91,34 +96,22 @@ func (i *timeOrderedIndexes[T]) addIndex(name types.NamespacedName, resource *T,
 }
 
 func (i *timeOrderedIndexes[T]) removeIndex(name types.NamespacedName) {
+	i.Lock()
+	defer i.Unlock()
 	for e := i.list.Front(); e != nil; e = e.Next() {
 		if e.Value.(types.NamespacedName) == name {
 			i.list.Remove(e)
-			break
+			return
 		}
 	}
 }
 
 func (i *timeOrderedIndexes[T]) debug() []types.NamespacedName {
+	i.RLock()
+	defer i.RUnlock()
 	var names []types.NamespacedName
 	for e := i.list.Front(); e != nil; e = e.Next() {
 		names = append(names, e.Value.(types.NamespacedName))
 	}
 	return names
-}
-
-func getMeta(r any) metav1.ObjectMeta {
-	switch resource := r.(type) {
-	case corev1.Pod:
-		return resource.ObjectMeta
-	case corev1.PersistentVolume:
-		return resource.ObjectMeta
-	case corev1.PersistentVolumeClaim:
-		return resource.ObjectMeta
-	case storagev1.StorageClass:
-		return resource.ObjectMeta
-	default:
-		log.Panicf("unsupported resouce type by time indexes: %s", reflect.TypeOf(r).String())
-		return metav1.ObjectMeta{}
-	}
 }

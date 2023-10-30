@@ -32,22 +32,34 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
+
+func init() {
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+}
 
 const (
 	SysNamespaceKey = "SYS_NAMESPACE"
 )
 
 var (
+	scheme = runtime.NewScheme()
+
 	port      uint16
 	devMode   bool
 	staticDir string
@@ -75,23 +87,30 @@ func main() {
 }
 
 func run() {
-	var client *k8sclient.K8sClient
+	var config *rest.Config
 	var err error
 	sysNamespace := "kube-system"
 	if devMode {
-		client, err = getLocalClient()
+		config, err = getLocalConfig()
 	} else {
 		sysNamespace = os.Getenv(SysNamespaceKey)
 		gin.SetMode(gin.ReleaseMode)
-		client, err = k8sclient.NewClient()
+		config = ctrl.GetConfigOrDie()
 	}
 	if err != nil {
-		log.Fatalf("can't get k8s client: %v", err)
+		log.Fatalf("can't get k8s config: %v", err)
 	}
-
+	mgr, err := newManager(config)
+	if err != nil {
+		log.Fatalf("can't create manager: %v", err)
+	}
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("can't create k8s client: %v", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := dashboard.NewAPI(ctx, sysNamespace, client)
+	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), client)
 	router := gin.Default()
 	if devMode {
 		router.Use(cors.New(cors.Config{
@@ -141,8 +160,14 @@ func run() {
 		// pprof server
 		log.Println(http.ListenAndServe("localhost:8089", nil))
 	}()
-
 	quit := make(chan os.Signal, 1)
+	go func() {
+		if err := podApi.StartManager(ctx, mgr); err != nil {
+			klog.Errorf("manager start error: %v", err)
+		}
+		quit <- syscall.SIGTERM
+	}()
+
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutdown Server ...")
@@ -151,18 +176,22 @@ func run() {
 	}
 }
 
-func getLocalClient() (*k8sclient.K8sClient, error) {
+func getLocalConfig() (*rest.Config, error) {
 	home := homedir.HomeDir()
 	if home == "" {
 		home = "/root"
 	}
-	config, err := clientcmd.BuildConfigFromFlags("", filepath.Join(home, ".kube", "config"))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build config from flags")
-	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create client from config")
-	}
-	return &k8sclient.K8sClient{Interface: client}, nil
+	return clientcmd.BuildConfigFromFlags("", filepath.Join(home, ".kube", "config"))
+}
+
+func newManager(conf *rest.Config) (ctrl.Manager, error) {
+	return ctrl.NewManager(conf, ctrl.Options{
+		Scheme:             scheme,
+		Port:               9442,
+		MetricsBindAddress: "0.0.0.0:8082",
+		LeaderElectionID:   "pod.juicefs.com",
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			Scheme: scheme,
+		}),
+	})
 }

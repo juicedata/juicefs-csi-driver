@@ -25,9 +25,13 @@ import (
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -70,16 +74,15 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		mountpodFilter := c.Query("mountpod")
 		csiNodeFilter := c.Query("csinode")
 
-		api.appPodsLock.RLock()
 		pods := make([]*PodExtra, 0, api.appIndexes.length())
 		for name := range api.appIndexes.iterate(c, descend) {
-			if pod, ok := api.appPods[name]; ok &&
+			var pod corev1.Pod
+			if err := api.cachedReader.Get(c, name, &pod); err == nil &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
 				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
-				pods = append(pods, &PodExtra{Pod: pod})
+				pods = append(pods, &PodExtra{Pod: &pod})
 			}
 		}
-		api.appPodsLock.RUnlock()
 		if pvFilter != "" || mountpodFilter != "" || csiNodeFilter != "" {
 			filterdPods := make([]*PodExtra, 0, len(pods))
 			for _, pod := range pods {
@@ -108,7 +111,10 @@ func (api *API) listAppPod() gin.HandlerFunc {
 				pod.MountPods = api.listMountPodOf(c, pod.Pod)
 			}
 			if pod.CsiNode == nil {
-				pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
+				pod.CsiNode, err = api.getCSINode(c, pod.Spec.NodeName)
+				if err != nil {
+					klog.Errorf("get csi node %s error %v", pod.Spec.NodeName, err)
+				}
 			}
 			if pod.Spec.NodeName != "" {
 				pod.Node = api.getNode(pod.Spec.NodeName)
@@ -152,8 +158,9 @@ func (api *API) filterCSINodeOfPod(ctx context.Context, pod *PodExtra, filter st
 	if pod.Spec.NodeName == "" {
 		return false
 	}
-	pod.CsiNode = api.getCSINode(pod.Spec.NodeName)
-	if pod.CsiNode == nil {
+	var err error
+	pod.CsiNode, err = api.getCSINode(ctx, pod.Spec.NodeName)
+	if err != nil || pod.CsiNode == nil {
 		return false
 	}
 	return strings.Contains(pod.CsiNode.Name, filter)
@@ -181,23 +188,13 @@ func (api *API) listSysPod() gin.HandlerFunc {
 				(nodeFilter == "" || strings.Contains(pod.Spec.NodeName, nodeFilter))
 
 		}
-		api.componentsLock.RLock()
 		pods := make([]*corev1.Pod, 0, api.sysIndexes.length())
-		appendPod := func(pod *corev1.Pod) {
-			if required(pod) {
-				pods = append(pods, pod)
-			}
-		}
 		for name := range api.sysIndexes.iterate(c, descend) {
-			if pod, ok := api.mountPods[name]; ok {
-				appendPod(pod)
-			} else if pod, ok := api.csiNodes[name]; ok {
-				appendPod(pod)
-			} else if pod, ok := api.controllers[name]; ok {
-				appendPod(pod)
+			var pod corev1.Pod
+			if err := api.cachedReader.Get(c, name, &pod); err == nil && required(&pod) {
+				pods = append(pods, &pod)
 			}
 		}
-		api.componentsLock.RUnlock()
 		result := &ListSysPodResult{len(pods), make([]*PodExtra, 0)}
 		startIndex := (current - 1) * pageSize
 		if startIndex >= uint64(len(pods)) {
@@ -221,65 +218,85 @@ func (api *API) listSysPod() gin.HandlerFunc {
 
 func (api *API) listMountPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.mountPods))
-		api.componentsLock.RLock()
-		for _, pod := range api.mountPods {
-			pods = append(pods, pod)
+		var pods corev1.PodList
+		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/name": "juicefs-mount",
+			},
+		})
+		if err != nil {
+			c.String(500, "parse label selector error %v", err)
+			return
 		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
+		err = api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: s,
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods.Items)
 	}
 }
 
 func (api *API) listCSINodePod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.csiNodes))
-		api.componentsLock.RLock()
-		for _, pod := range api.csiNodes {
-			pods = append(pods, pod)
+		var pods corev1.PodList
+		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/name": "juicefs-csi-driver",
+				"app":                    "juicefs-csi-node",
+			},
+		})
+		if err != nil {
+			c.String(500, "parse label selector error %v", err)
+			return
 		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
+		err = api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: s,
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods.Items)
 	}
 }
 
 func (api *API) listCSIControllerPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pods := make([]*corev1.Pod, 0, len(api.controllers))
-		api.componentsLock.RLock()
-		for _, pod := range api.controllers {
-			pods = append(pods, pod)
+		var pods corev1.PodList
+		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/name": "juicefs-csi-driver",
+				"app":                    "juicefs-csi-controller",
+			},
+		})
+		if err != nil {
+			c.String(500, "parse label selector error %v", err)
+			return
 		}
-		api.componentsLock.RUnlock()
-		c.IndentedJSON(200, pods)
+		err = api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: s,
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods.Items)
 	}
 }
 
-func (api *API) getComponentPod(name types.NamespacedName) (*corev1.Pod, bool) {
-	var pod *corev1.Pod
-	var exist bool
-	api.componentsLock.RLock()
-	pod, exist = api.mountPods[name]
-	if !exist {
-		pod, exist = api.csiNodes[name]
+func (api *API) getCSINode(ctx context.Context, nodeName string) (*corev1.Pod, error) {
+	api.csiNodeLock.RLock()
+	defer api.csiNodeLock.RUnlock()
+	name := api.csiNodeIndex[nodeName]
+	if name == (types.NamespacedName{}) {
+		return nil, nil
 	}
-	if !exist {
-		pod, exist = api.controllers[name]
-	}
-	api.componentsLock.RUnlock()
-	return pod, exist
-}
-
-func (api *API) getAppPod(name types.NamespacedName) *corev1.Pod {
-	api.appPodsLock.RLock()
-	defer api.appPodsLock.RUnlock()
-	return api.appPods[name]
-}
-
-func (api *API) getCSINode(nodeName string) *corev1.Pod {
-	api.componentsLock.RLock()
-	defer api.componentsLock.RUnlock()
-	return api.csiNodeIndex[nodeName]
+	var pod corev1.Pod
+	err := api.cachedReader.Get(ctx, name, &pod)
+	return &pod, err
 }
 
 func (api *API) getNode(nodeName string) *corev1.Node {
@@ -292,12 +309,16 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
-		pod, exist := api.getComponentPod(api.sysNamespaced(name))
-		if !exist {
-			pod = api.getAppPod(types.NamespacedName{Namespace: namespace, Name: name})
-		}
-		if pod == nil {
+		var pod corev1.Pod
+		err := api.cachedReader.Get(c, types.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		}, &pod)
+		if k8serrors.IsNotFound(err) {
 			c.AbortWithStatus(404)
+			return
+		} else if err != nil {
+			c.String(500, "get pod error %v", err)
 			return
 		}
 		c.Set("pod", pod)
@@ -347,8 +368,13 @@ func (api *API) getPodNode() gin.HandlerFunc {
 		}
 		rawPod := pod.(*corev1.Pod)
 		nodeName := rawPod.Spec.NodeName
-		node, err := api.k8sClient.CoreV1().Nodes().Get(c, nodeName, metav1.GetOptions{})
+		var node corev1.Node
+		err := api.cachedReader.Get(c, types.NamespacedName{Name: nodeName}, &node)
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.String(404, "not found")
+				return
+			}
 			c.String(500, "Get node %s error %v", nodeName, err)
 			return
 		}
@@ -423,7 +449,7 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 			return
 		}
 
-		logs, err := api.k8sClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
+		logs, err := api.client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container: container,
 		}).DoRaw(c)
 		if err != nil {
@@ -449,14 +475,17 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.P
 			klog.V(0).Infof("invalid mount pod name %s\n", mountPodName)
 			continue
 		}
-		api.componentsLock.RLock()
-		mountPod, exist := api.mountPods[types.NamespacedName{pair[0], pair[1]}]
-		api.componentsLock.RUnlock()
-		if !exist {
-			klog.V(0).Infof("mount pod %s not found\n", mountPodName)
+		name := types.NamespacedName{
+			Namespace: pair[0],
+			Name:      pair[1],
+		}
+		var mountPod corev1.Pod
+		err := api.cachedReader.Get(ctx, name, &mountPod)
+		if err != nil {
+			klog.Errorf("mount pod %s not found", mountPodName)
 			continue
 		}
-		mountPods = append(mountPods, mountPod)
+		mountPods = append(mountPods, &mountPod)
 	}
 	return mountPods
 }
@@ -497,22 +526,20 @@ func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
 		pod := obj.(*corev1.Pod)
 		appPods := make([]*corev1.Pod, 0)
 		if pod.Annotations != nil {
-			api.appPodsLock.Lock()
-			allPods := api.appPods
-			api.appPodsLock.Unlock()
-
-			podsByUid := make(map[string]*corev1.Pod)
-			for _, po := range allPods {
-				podsByUid[string(po.UID)] = po
-			}
 			for _, v := range pod.Annotations {
 				uid := getUidFunc(v)
 				if uid == "" {
 					continue
 				}
-				if po, ok := podsByUid[uid]; ok {
-					appPods = append(appPods, po)
+				var podList corev1.PodList
+				err := api.cachedReader.List(c, &podList, &client.ListOptions{
+					FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.uid": uid}),
+				})
+				if err != nil || len(podList.Items) == 0 {
+					klog.Errorf("list pod by uid %s error %v", uid, err)
+					continue
 				}
+				appPods = append(appPods, &podList.Items[0])
 			}
 		}
 		c.IndentedJSON(200, appPods)
@@ -526,7 +553,11 @@ func (api *API) getCSINodeByName() gin.HandlerFunc {
 			c.String(404, "not found")
 			return
 		}
-		pod := api.getCSINode(nodeName)
+		pod, err := api.getCSINode(c, nodeName)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			c.String(500, "get csi node %s error %v", nodeName, err)
+			return
+		}
 		if pod == nil {
 			c.String(404, "not found")
 			return
@@ -545,15 +576,17 @@ func (api *API) getMountPodsOfPV() gin.HandlerFunc {
 		pv := obj.(*corev1.PersistentVolume)
 
 		// todo: if unique id is sc name (mount pod shared by sc)
-		api.componentsLock.RLock()
-		defer api.componentsLock.RUnlock()
-		var mountPods = make([]*corev1.Pod, 0)
-		for _, pod := range api.mountPods {
-			if pod.Labels != nil && pod.Labels[config.PodUniqueIdLabelKey] == pv.Spec.CSI.VolumeHandle {
-				mountPods = append(mountPods, pod)
-			}
+		var pods corev1.PodList
+		err := api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
+			}),
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
 		}
-		c.IndentedJSON(200, mountPods)
+		c.IndentedJSON(200, pods.Items)
 	}
 }
 
@@ -580,15 +613,17 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 		}
 
 		// todo: if unique id is sc name (mount pod shared by sc)
-		api.componentsLock.RLock()
-		defer api.componentsLock.RUnlock()
-		var mountPods = make([]*corev1.Pod, 0)
-		for _, pod := range api.mountPods {
-			if pod.Labels != nil && pod.Labels[config.PodUniqueIdLabelKey] == pv.Spec.CSI.VolumeHandle {
-				mountPods = append(mountPods, pod)
-			}
+		var pods corev1.PodList
+		err := api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
+			}),
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
 		}
-		c.IndentedJSON(200, mountPods)
+		c.IndentedJSON(200, pods.Items)
 	}
 }
 

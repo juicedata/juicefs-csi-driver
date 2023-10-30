@@ -23,27 +23,25 @@ import (
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type API struct {
 	sysNamespace string
-	k8sClient    *k8sclient.K8sClient
+	// for cached resources
+	cachedReader client.Reader
+	// for logs and events
+	client kubernetes.Interface
 
-	componentsLock sync.RWMutex
-	mountPods      map[types.NamespacedName]*corev1.Pod
-	csiNodes       map[types.NamespacedName]*corev1.Pod
-	controllers    map[types.NamespacedName]*corev1.Pod
-	csiNodeIndex   map[string]*corev1.Pod
-	sysIndexes     *timeOrderedIndexes[corev1.Pod]
+	csiNodeLock  sync.RWMutex
+	csiNodeIndex map[string]types.NamespacedName
+	sysIndexes   *timeOrderedIndexes[corev1.Pod]
 
 	nodes     map[string]*corev1.Node
 	nodesLock sync.RWMutex
 
-	appPodsLock sync.RWMutex
-	appPods     map[types.NamespacedName]*corev1.Pod
-	appIndexes  *timeOrderedIndexes[corev1.Pod]
+	appIndexes *timeOrderedIndexes[corev1.Pod]
 
 	eventsLock sync.RWMutex
 	events     map[types.NamespacedName]map[string]*corev1.Event
@@ -56,17 +54,14 @@ type API struct {
 	pairs      map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sClient) *API {
+func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, client kubernetes.Interface) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
-		k8sClient:    k8sClient,
-		mountPods:    make(map[types.NamespacedName]*corev1.Pod),
-		csiNodes:     make(map[types.NamespacedName]*corev1.Pod),
-		controllers:  make(map[types.NamespacedName]*corev1.Pod),
-		csiNodeIndex: make(map[string]*corev1.Pod),
+		cachedReader: cachedReader,
+		client:       client,
+		csiNodeIndex: make(map[string]types.NamespacedName),
 		nodes:        make(map[string]*corev1.Node),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
-		appPods:      make(map[types.NamespacedName]*corev1.Pod),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
 		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
 		pvs:          make(map[types.NamespacedName]*corev1.PersistentVolume),
@@ -75,15 +70,6 @@ func NewAPI(ctx context.Context, sysNamespace string, k8sClient *k8sclient.K8sCl
 		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
 		pairs:        make(map[types.NamespacedName]types.NamespacedName),
 	}
-	go api.watchComponents(ctx)
-	go api.watchAppPod(ctx)
-	go api.watchRelatedPV(ctx)
-	go api.watchRelatedPVC(ctx)
-	go api.watchNodes(ctx)
-	go api.watchPodEvents(ctx)
-	go api.watchPVEvents(ctx)
-	go api.watchPVCEvents(ctx)
-	go api.cleanupEvents(ctx)
 	return api
 }
 

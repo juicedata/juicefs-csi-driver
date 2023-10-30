@@ -56,18 +56,18 @@ func (api *API) listPodPVCsHandler() gin.HandlerFunc {
 
 func (api *API) listSCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		scs := make([]storagev1.StorageClass, 0)
-		rawSc, err := api.k8sClient.ListStorageClasses(c)
+		scs := storagev1.StorageClassList{}
+		err := api.cachedReader.List(c, &scs)
 		if err != nil {
 			c.String(500, "get storageClass error: %v", err)
 			return
 		}
-		for _, sc := range rawSc {
+		for _, sc := range scs.Items {
 			if sc.Provisioner == config.DriverName {
-				scs = append(scs, sc)
+				scs.Items = append(scs.Items, sc)
 			}
 		}
-		c.IndentedJSON(200, scs)
+		c.IndentedJSON(200, scs.Items)
 	}
 }
 
@@ -278,14 +278,15 @@ func (api *API) getPVC(namespace, name string) *corev1.PersistentVolumeClaim {
 }
 
 func (api *API) getStorageClass(ctx *gin.Context, name string) (*storagev1.StorageClass, error) {
-	sc, err := api.k8sClient.GetStorageClass(ctx, name)
+	var sc storagev1.StorageClass
+	err := api.cachedReader.Get(ctx, types.NamespacedName{Name: name}, &sc)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return sc, nil
+	return &sc, nil
 }
 
 func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolume {

@@ -57,7 +57,7 @@ dashboard:
 
 .PHONY: dashboard-dev
 dashboard-dev: dashboard
-	./bin/juicefs-csi-dashboard --dev --static-dir=./dashboard-ui/dist
+	./bin/juicefs-csi-dashboard -v=6 --dev --static-dir=./dashboard-ui/dist
 
 .PHONY: dashboard-image
 dashboard-image:
