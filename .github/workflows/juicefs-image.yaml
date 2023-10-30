@@ -75,7 +75,7 @@ jobs:
         timeout-minutes: 60
         uses: lhotari/action-upterm@v1
 
-  publish-ee-4.0-mount-image:
+  publish-ee-4_0-mount-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -119,7 +119,7 @@ jobs:
         timeout-minutes: 60
         uses: lhotari/action-upterm@v1
 
-  publish-ee-5.0-mount-image:
+  publish-ee-5_0-mount-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
