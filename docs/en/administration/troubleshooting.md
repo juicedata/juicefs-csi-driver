@@ -184,6 +184,22 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
+#### Debug mount pod {#debug-mount-pod}
+
+A pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `kubectl debug` to create an environment that's available for interactive debugging:
+
+```shell
+kubectl -n <namespace> debug <mount-pod> -it  --copy-to=jfs-mount-debug --container=jfs-mount --image=<mount-image> -- bash
+```
+
+In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug pod.
+
+After troubleshooting, don't forget to clean up:
+
+```shell
+kubectl -n <namespace> delete po jfs-mount-debug
+```
+
 ### Performance issue
 
 When performance issues are encountered when using CSI Driver, with all components running normally, refer to the troubleshooting methods in this section.
