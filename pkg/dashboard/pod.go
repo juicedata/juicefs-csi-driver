@@ -338,7 +338,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 			c.String(500, "get pod error %v", err)
 			return
 		}
-		c.Set("pod", pod)
+		c.Set("pod", &pod)
 	}
 }
 
