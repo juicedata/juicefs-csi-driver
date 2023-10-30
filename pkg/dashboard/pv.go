@@ -153,7 +153,7 @@ func (api *API) getPVMiddileware() gin.HandlerFunc {
 			c.AbortWithStatus(500)
 			return
 		}
-		if pv == nil {
+		if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
 			c.AbortWithStatus(404)
 			return
 		}
@@ -186,7 +186,7 @@ func (api *API) getSCMiddileware() gin.HandlerFunc {
 			c.AbortWithStatus(500)
 			return
 		}
-		if sc == nil {
+		if sc == nil || sc.Provisioner != config.DriverName {
 			c.AbortWithStatus(404)
 			return
 		}

@@ -337,6 +337,9 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
 			return
+		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodUnready(c, &pod) {
+			c.String(404, "not found")
+			return
 		}
 		c.Set("pod", &pod)
 	}
