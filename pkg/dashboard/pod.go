@@ -355,24 +355,23 @@ func (api *API) getPodHandler() gin.HandlerFunc {
 
 func (api *API) getPodEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pod, ok := c.Get("pod")
+		p, ok := c.Get("pod")
 		if !ok {
 			c.String(404, "not found")
 			return
 		}
-		api.eventsLock.RLock()
-		events := api.events[types.NamespacedName{
-			Namespace: pod.(*corev1.Pod).Namespace,
-			Name:      pod.(*corev1.Pod).Name,
-		}]
-		list := make([]*corev1.Event, 0, len(events))
-		for _, e := range events {
-			if e.InvolvedObject.UID == pod.(*corev1.Pod).UID {
-				list = append(list, e)
-			}
+		pod := p.(*corev1.Pod)
+		list, err := api.client.CoreV1().Events(pod.Namespace).List(c, metav1.ListOptions{
+			TypeMeta: metav1.TypeMeta{Kind: "Pod"},
+			FieldSelector: fields.SelectorFromSet(fields.Set{
+				"involvedObject.uid": string(pod.UID),
+			}).String(),
+		})
+		if err != nil {
+			c.String(500, "list events error %v", err)
+			return
 		}
-		api.eventsLock.RUnlock()
-		c.IndentedJSON(200, list)
+		c.IndentedJSON(200, list.Items)
 	}
 }
 
@@ -401,47 +400,45 @@ func (api *API) getPodNode() gin.HandlerFunc {
 
 func (api *API) getPVEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pv, ok := c.Get("pv")
+		p, ok := c.Get("pv")
 		if !ok {
 			c.String(404, "not found")
 			return
 		}
-		api.eventsLock.RLock()
-		events := api.events[types.NamespacedName{
-			Namespace: pv.(*corev1.PersistentVolume).Namespace,
-			Name:      pv.(*corev1.PersistentVolume).Name,
-		}]
-		list := make([]*corev1.Event, 0, len(events))
-		for _, e := range events {
-			if e.InvolvedObject.UID == pv.(*corev1.PersistentVolume).UID {
-				list = append(list, e)
-			}
+		pv := p.(*corev1.PersistentVolume)
+		list, err := api.client.CoreV1().Events("").List(c, metav1.ListOptions{
+			TypeMeta: metav1.TypeMeta{Kind: "PersistentVolume"},
+			FieldSelector: fields.SelectorFromSet(fields.Set{
+				"involvedObject.uid": string(pv.UID),
+			}).String(),
+		})
+		if err != nil {
+			c.String(500, "list events error %v", err)
+			return
 		}
-		api.eventsLock.RUnlock()
-		c.IndentedJSON(200, list)
+		c.IndentedJSON(200, list.Items)
 	}
 }
 
 func (api *API) getPVCEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pvc, ok := c.Get("pvc")
+		p, ok := c.Get("pvc")
 		if !ok {
 			c.String(404, "not found")
 			return
 		}
-		api.eventsLock.RLock()
-		events := api.events[types.NamespacedName{
-			Namespace: pvc.(*corev1.PersistentVolumeClaim).Namespace,
-			Name:      pvc.(*corev1.PersistentVolumeClaim).Name,
-		}]
-		list := make([]*corev1.Event, 0, len(events))
-		for _, e := range events {
-			if e.InvolvedObject.UID == pvc.(*corev1.PersistentVolumeClaim).UID {
-				list = append(list, e)
-			}
+		pvc := p.(*corev1.PersistentVolumeClaim)
+		list, err := api.client.CoreV1().Events(pvc.Namespace).List(c, metav1.ListOptions{
+			TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim"},
+			FieldSelector: fields.SelectorFromSet(fields.Set{
+				"involvedObject.uid": string(pvc.UID),
+			}).String(),
+		})
+		if err != nil {
+			c.String(500, "list events error %v", err)
+			return
 		}
-		api.eventsLock.RUnlock()
-		c.IndentedJSON(200, list)
+		c.IndentedJSON(200, list.Items)
 	}
 }
 
