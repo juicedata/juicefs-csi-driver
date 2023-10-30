@@ -165,7 +165,7 @@ package dashboard
 // 			}
 // 			// if PVC bound and is not JuiceFS PVC, return
 // 			if pvc.Status.Phase == corev1.ClaimBound {
-// 				if _, ok = api.pvcs[pvcName]; !ok {
+// 				if _, ok = api.pairs[pvcName]; !ok {
 // 					return
 // 				}
 // 			}
