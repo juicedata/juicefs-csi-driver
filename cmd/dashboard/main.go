@@ -189,7 +189,7 @@ func newManager(conf *rest.Config) (ctrl.Manager, error) {
 		Scheme:             scheme,
 		Port:               9442,
 		MetricsBindAddress: "0.0.0.0:8082",
-		LeaderElectionID:   "pod.juicefs.com",
+		LeaderElectionID:   "dashboard.juicefs.com",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 		}),

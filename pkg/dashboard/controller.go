@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,13 +35,21 @@ import (
 
 func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	podCtr := PodController{api}
+	pvCtr := PVController{api}
 	if err := podCtr.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := pvCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	return mgr.Start(ctx)
 }
 
 type PodController struct {
+	*API
+}
+
+type PVController struct {
 	*API
 }
 
@@ -51,11 +60,12 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, nil
 	}
 	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodUnready(ctx, pod) {
-		klog.V(6).Infof("pod %s is not required", req.NamespacedName)
+		// skip
 		return reconcile.Result{}, nil
 	}
 	if pod.DeletionTimestamp != nil {
 		c.appIndexes.removeIndex(req.NamespacedName)
+		klog.V(6).Infof("pod %s deleted", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	indexes := c.appIndexes
@@ -70,17 +80,16 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 			c.csiNodeLock.Unlock()
 		}
 	}
-	if indexes != nil {
-		indexes.addIndex(
-			pod,
-			func(p *corev1.Pod) metav1.ObjectMeta { return p.ObjectMeta },
-			func(name types.NamespacedName) (*corev1.Pod, error) {
-				var pod corev1.Pod
-				err := c.cachedReader.Get(ctx, name, &pod)
-				return &pod, err
-			},
-		)
-	}
+	indexes.addIndex(
+		pod,
+		func(p *corev1.Pod) metav1.ObjectMeta { return p.ObjectMeta },
+		func(name types.NamespacedName) (*corev1.Pod, error) {
+			var pod corev1.Pod
+			err := c.cachedReader.Get(ctx, name, &pod)
+			return &pod, err
+		},
+	)
+	klog.V(6).Infof("pod %s created", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
 
@@ -92,8 +101,6 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 
 	return ctr.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
-			pod := event.Object.(*corev1.Pod)
-			klog.V(6).Infof("watch pod %s/%s created", pod.GetNamespace(), pod.GetName())
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
@@ -101,7 +108,6 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pod := deleteEvent.Object.(*corev1.Pod)
-			klog.V(6).Infof("watch pod %s%s deleted", pod.GetNamespace(), pod.GetName())
 			var indexes *timeOrderedIndexes[corev1.Pod]
 			if isAppPod(pod) {
 				indexes = c.appIndexes
@@ -113,9 +119,76 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 					Namespace: pod.GetNamespace(),
 					Name:      pod.GetName(),
 				})
+				klog.V(6).Infof("pod %s%s deleted", pod.GetNamespace(), pod.GetName())
 				return false
 			}
 			return true
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	})
+}
+
+func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	pv := &corev1.PersistentVolume{}
+	if err := c.cachedReader.Get(ctx, req.NamespacedName, pv); err != nil {
+		klog.Errorf("get pv %s failed: %v", req.NamespacedName, err)
+		return reconcile.Result{}, nil
+	}
+	if pv.DeletionTimestamp != nil {
+		return reconcile.Result{}, nil
+	}
+	c.pvIndexes.addIndex(
+		pv,
+		func(p *corev1.PersistentVolume) metav1.ObjectMeta { return p.ObjectMeta },
+		func(name types.NamespacedName) (*corev1.PersistentVolume, error) {
+			var p corev1.PersistentVolume
+			err := c.cachedReader.Get(ctx, name, &p)
+			return &p, err
+		},
+	)
+	pvcName := types.NamespacedName{
+		Namespace: pv.Spec.ClaimRef.Namespace,
+		Name:      pv.Spec.ClaimRef.Name,
+	}
+	c.pvsLock.Lock()
+	c.pairs[pvcName] = req.NamespacedName
+	c.pvsLock.Unlock()
+	klog.V(6).Infof("pv %s created", req.NamespacedName)
+	return reconcile.Result{}, nil
+}
+
+func (c *PVController) SetupWithManager(mgr manager.Manager) error {
+	ctr, err := controller.New("pv", mgr, controller.Options{Reconciler: c})
+	if err != nil {
+		return err
+	}
+
+	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolume{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
+		CreateFunc: func(event event.CreateEvent) bool {
+			pv := event.Object.(*corev1.PersistentVolume)
+			if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+				return false
+			}
+			klog.V(6).Infof("watch pv %s/%s created", pv.GetNamespace(), pv.GetName())
+			return true
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			pv := deleteEvent.Object.(*corev1.PersistentVolume)
+			if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+				return false
+			}
+			name := types.NamespacedName{
+				Namespace: pv.GetNamespace(),
+				Name:      pv.GetName(),
+			}
+			klog.V(6).Infof("watch pv %s deleted", name)
+			c.pvIndexes.removeIndex(name)
+			return false
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false

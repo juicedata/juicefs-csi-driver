@@ -105,10 +105,16 @@ func (api *API) listAppPod() gin.HandlerFunc {
 		result.Pods = pods[startIndex:endIndex]
 		for _, pod := range result.Pods {
 			if pod.Pvs == nil {
-				pod.Pvs = api.listPVsOfPod(c, pod.Pod)
+				pod.Pvs, err = api.listPVsOfPod(c, pod.Pod)
+				if err != nil {
+					klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+				}
 			}
 			if pod.MountPods == nil {
-				pod.MountPods = api.listMountPodOf(c, pod.Pod)
+				pod.MountPods, err = api.listMountPodOf(c, pod.Pod)
+				if err != nil {
+					klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+				}
 			}
 			if pod.CsiNode == nil {
 				pod.CsiNode, err = api.getCSINode(c, pod.Spec.NodeName)
@@ -129,7 +135,11 @@ func (api *API) filterPVsOfPod(ctx context.Context, pod *PodExtra, filter string
 	if filter == "" {
 		return true
 	}
-	pod.Pvs = api.listPVsOfPod(ctx, pod.Pod)
+	var err error
+	pod.Pvs, err = api.listPVsOfPod(ctx, pod.Pod)
+	if err != nil {
+		klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+	}
 	for _, pv := range pod.Pvs {
 		if strings.Contains(pv.Name, filter) {
 			return true
@@ -142,7 +152,11 @@ func (api *API) filterMountPodsOfPod(ctx context.Context, pod *PodExtra, filter 
 	if filter == "" {
 		return true
 	}
-	pod.MountPods = api.listMountPodOf(ctx, pod.Pod)
+	var err error
+	pod.MountPods, err = api.listMountPodOf(ctx, pod.Pod)
+	if err != nil {
+		klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+	}
 	for _, mountPod := range pod.MountPods {
 		if strings.Contains(mountPod.Name, filter) {
 			return true
@@ -460,8 +474,11 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 	}
 }
 
-func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.Pod {
-	pvs := api.listPVsOfPod(ctx, pod)
+func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.Pod, error) {
+	pvs, err := api.listPVsOfPod(ctx, pod)
+	if err != nil {
+		return nil, err
+	}
 	mountPods := make([]*corev1.Pod, 0)
 	for _, pv := range pvs {
 		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
@@ -487,7 +504,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) []*corev1.P
 		}
 		mountPods = append(mountPods, &mountPod)
 	}
-	return mountPods
+	return mountPods, nil
 }
 
 func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
@@ -498,7 +515,12 @@ func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		c.IndentedJSON(200, api.listMountPodOf(c, pod))
+		pods, err := api.listMountPodOf(c, pod)
+		if err != nil {
+			c.String(500, "list mount pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods)
 	}
 }
 
@@ -606,9 +628,13 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			c.String(404, "not found")
 			return
 		}
-		pv := api.pvs[pvName]
-		if pv == nil {
-			c.String(404, "not found")
+		var pv corev1.PersistentVolume
+		if err := api.cachedReader.Get(c, pvName, &pv); err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.String(404, "not found")
+			} else {
+				c.String(500, "get pv %s error %v", pvName, err)
+			}
 			return
 		}
 
@@ -638,12 +664,16 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 
 		api.pvsLock.RLock()
 		defer api.pvsLock.RUnlock()
-		var pvs = make([]*corev1.PersistentVolume, 0)
-		for _, pv := range api.pvs {
-			if pv.Spec.StorageClassName == sc.Name {
-				pvs = append(pvs, pv)
-			}
+		var pvs corev1.PersistentVolumeList
+		err := api.cachedReader.List(c, &pvs, &client.ListOptions{
+			FieldSelector: fields.SelectorFromSet(fields.Set{
+				"spec.storageClassName": sc.Name,
+			}),
+		})
+		if err != nil {
+			c.String(500, "list pvs error %v", err)
+			return
 		}
-		c.IndentedJSON(200, pvs)
+		c.IndentedJSON(200, pvs.Items)
 	}
 }

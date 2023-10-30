@@ -26,6 +26,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -38,7 +39,12 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		c.IndentedJSON(200, api.listPVsOfPod(c, pod))
+		pvs, err := api.listPVsOfPod(c, pod)
+		if err != nil {
+			c.String(500, "get pod persistent volumes error: %v", err)
+			return
+		}
+		c.IndentedJSON(200, pvs)
 	}
 }
 
@@ -113,8 +119,9 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 		api.pvsLock.RLock()
 		pvs := make([]*corev1.PersistentVolume, 0, api.pvIndexes.length())
 		for name := range api.pvIndexes.iterate(c, descend) {
-			if pv, ok := api.pvs[name]; ok && required(pv) {
-				pvs = append(pvs, pv)
+			var pv corev1.PersistentVolume
+			if err := api.cachedReader.Get(c, name, &pv); err == nil && required(&pv) {
+				pvs = append(pvs, &pv)
 			}
 		}
 		api.pvsLock.RUnlock()
@@ -136,7 +143,11 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 func (api *API) getPVMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
-		pv := api.getPV(name)
+		pv, err := api.getPV(c, name)
+		if err != nil {
+			c.AbortWithStatus(500)
+			return
+		}
 		if pv == nil {
 			c.AbortWithStatus(404)
 			return
@@ -262,10 +273,16 @@ func (api *API) getSCHandler() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getPV(name string) *corev1.PersistentVolume {
-	api.pvsLock.RLock()
-	defer api.pvsLock.RUnlock()
-	return api.pvs[api.sysNamespaced(name)]
+func (api *API) getPV(ctx context.Context, name string) (*corev1.PersistentVolume, error) {
+	var pv corev1.PersistentVolume
+	if err := api.cachedReader.Get(ctx, api.sysNamespaced(name), &pv); err != nil {
+		if k8serrors.IsNotFound(err) {
+			klog.Errorf("get pv %s error: %v", name, err)
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pv, nil
 }
 
 func (api *API) getPVC(namespace, name string) *corev1.PersistentVolumeClaim {
@@ -289,21 +306,22 @@ func (api *API) getStorageClass(ctx *gin.Context, name string) (*storagev1.Stora
 	return &sc, nil
 }
 
-func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolume {
+func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolume, error) {
 	pvs := make([]*corev1.PersistentVolume, 0)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
 			continue
 		}
-		api.pvsLock.RLock()
 		pvName := api.pairs[types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName}]
-		pv, ok := api.pvs[pvName]
-		if ok {
+		pv, err := api.getPV(ctx, pvName.Name)
+		if err != nil {
+			return nil, err
+		}
+		if pv != nil {
 			pvs = append(pvs, pv)
 		}
-		api.pvsLock.RUnlock()
 	}
-	return pvs
+	return pvs, nil
 }
 
 func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolumeClaim {
