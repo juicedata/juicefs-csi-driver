@@ -131,6 +131,12 @@ ee-image-buildx:
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
 
+.PHONY: ee-image-4.0-buildx
+ee-image-4.0-buildx:
+	docker buildx build -f ee.juicefs-4.0.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
+	    --build-arg JFSCHAN=$(JFS_CHAN) \
+		--platform linux/amd64,linux/arm64 . --push
+
 ################# JuiceFS image for fluid fuse #######################
 .PHONY: fuse-ce-image
 fuse-ce-image:
@@ -153,5 +159,11 @@ fuse-ee-image:
 .PHONY: fuse-ee-image-buildx
 fuse-ee-image-buildx:
 	docker buildx build -f fuse/fuse.ee.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
+	    --build-arg JFSCHAN=$(JFS_CHAN) \
+		--platform linux/amd64,linux/arm64 . --push
+
+.PHONY: fuse-ee-image-4.0-buildx
+fuse-ee-image-4.0-buildx:
+	docker buildx build -f fuse/fuse.ee.juicefs-4.0.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
