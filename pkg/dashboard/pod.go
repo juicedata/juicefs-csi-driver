@@ -664,17 +664,19 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 			return
 		}
 		sc := obj.(*storagev1.StorageClass)
-
-		var pvs corev1.PersistentVolumeList
-		err := api.cachedReader.List(c, &pvs, &client.ListOptions{
-			FieldSelector: fields.SelectorFromSet(fields.Set{
-				"spec.storageClassName": sc.Name,
-			}),
-		})
+		var pvList corev1.PersistentVolumeList
+		err := api.cachedReader.List(c, &pvList)
 		if err != nil {
 			c.String(500, "list pvs error %v", err)
 			return
 		}
-		c.IndentedJSON(200, pvs.Items)
+		var pvs []*corev1.PersistentVolume
+		for i := range pvList.Items {
+			pv := &pvList.Items[i]
+			if pv.Spec.StorageClassName == sc.Name {
+				pvs = append(pvs, pv)
+			}
+		}
+		c.IndentedJSON(200, pvs)
 	}
 }

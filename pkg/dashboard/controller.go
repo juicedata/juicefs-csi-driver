@@ -37,10 +37,14 @@ import (
 func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	podCtr := PodController{api}
 	pvCtr := PVController{api}
+	pvcCtr := PVCController{api}
 	if err := podCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	if err := pvCtr.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := pvcCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	return mgr.Start(ctx)
