@@ -219,74 +219,98 @@ func (c *PVController) SetupWithManager(mgr manager.Manager) error {
 	})
 }
 
-// func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-// 	pv := &corev1.PersistentVolume{}
-// 	if err := c.cachedReader.Get(ctx, req.NamespacedName, pv); err != nil {
-// 		klog.Errorf("get pv %s failed: %v", req.NamespacedName, err)
-// 		return reconcile.Result{}, nil
-// 	}
-// 	if pv.DeletionTimestamp != nil {
-// 		return reconcile.Result{}, nil
-// 	}
-// 	c.pvIndexes.addIndex(
-// 		pv,
-// 		func(p *corev1.PersistentVolume) metav1.ObjectMeta { return p.ObjectMeta },
-// 		func(name types.NamespacedName) (*corev1.PersistentVolume, error) {
-// 			var p corev1.PersistentVolume
-// 			err := c.cachedReader.Get(ctx, name, &p)
-// 			return &p, err
-// 		},
-// 	)
-// 	if pv.Spec.ClaimRef != nil {
-// 		pvcName := types.NamespacedName{
-// 			Namespace: pv.Spec.ClaimRef.Namespace,
-// 			Name:      pv.Spec.ClaimRef.Name,
-// 		}
-// 		c.pairLock.Lock()
-// 		c.pairs[pvcName] = req.NamespacedName
-// 		c.pairLock.Unlock()
-// 	}
-// 	klog.V(6).Infof("pv %s created", req.NamespacedName)
-// 	return reconcile.Result{}, nil
-// }
+func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	pvc := &corev1.PersistentVolumeClaim{}
+	if err := c.cachedReader.Get(ctx, req.NamespacedName, pvc); err != nil {
+		klog.Errorf("get pvc %s failed: %v", req.NamespacedName, err)
+		return reconcile.Result{}, nil
+	}
+	if pvc.DeletionTimestamp != nil {
+		return reconcile.Result{}, nil
+	}
+	if pvc.Status.Phase == corev1.ClaimPending {
+		// created
+		c.pvcIndexes.addIndex(
+			pvc,
+			func(p *corev1.PersistentVolumeClaim) metav1.ObjectMeta { return p.ObjectMeta },
+			func(name types.NamespacedName) (*corev1.PersistentVolumeClaim, error) {
+				var p corev1.PersistentVolumeClaim
+				err := c.cachedReader.Get(ctx, name, &p)
+				return &p, err
+			},
+		)
+		return reconcile.Result{}, nil
+	}
+	if pvc.Status.Phase == corev1.ClaimBound {
+		// updated
+		c.pairLock.RLock()
+		p, ok := c.pairs[req.NamespacedName]
+		c.pairLock.RUnlock()
+		if ok && p.Name == pvc.Spec.VolumeName {
+			return reconcile.Result{}, nil
+		}
+		pvName := types.NamespacedName{
+			Name: pvc.Spec.VolumeName,
+		}
+		var pv corev1.PersistentVolume
+		if err := c.cachedReader.Get(ctx, pvName, &pv); err != nil {
+			klog.Errorf("get pv %s failed: %v", pvName, err)
+			return reconcile.Result{}, err
+		}
+		c.pairLock.Lock()
+		defer c.pairLock.Unlock()
+		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+			c.pairs[req.NamespacedName] = pvName
+		} else {
+			delete(c.pairs, req.NamespacedName)
+		}
+	}
+	return reconcile.Result{}, nil
+}
 
-// func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
-// 	ctr, err := controller.New("pvc", mgr, controller.Options{Reconciler: c})
-// 	if err != nil {
-// 		return err
-// 	}
+func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
+	ctr, err := controller.New("pvc", mgr, controller.Options{Reconciler: c})
+	if err != nil {
+		return err
+	}
 
-// 	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-// 		CreateFunc: func(event event.CreateEvent) bool {
-// 			pvc := event.Object.(*corev1.PersistentVolumeClaim)
-
-// 			klog.V(6).Infof("watch pvc %s/%s created", pvc.GetNamespace(), pvc.GetName())
-// 			return true
-// 		},
-// 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-// 			return false
-// 		},
-// 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-// 			pvc := deleteEvent.Object.(*corev1.PersistentVolumeClaim)
-// 			name := types.NamespacedName{
-// 				Namespace: pvc.GetNamespace(),
-// 				Name:      pvc.GetName(),
-// 			}
-// 			klog.V(6).Infof("watch pv %s deleted", name)
-// 			c.pvIndexes.removeIndex(name)
-// 			if pv.Spec.ClaimRef != nil {
-// 				pvcName := types.NamespacedName{
-// 					Namespace: pv.Spec.ClaimRef.Namespace,
-// 					Name:      pv.Spec.ClaimRef.Name,
-// 				}
-// 				c.pairLock.Lock()
-// 				delete(c.pairs, pvcName)
-// 				c.pairLock.Unlock()
-// 			}
-// 			return false
-// 		},
-// 		GenericFunc: func(genericEvent event.GenericEvent) bool {
-// 			return false
-// 		},
-// 	})
-// }
+	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
+		CreateFunc: func(event event.CreateEvent) bool {
+			pvc := event.Object.(*corev1.PersistentVolumeClaim)
+			// bound pvc should be added by pv controller
+			return pvc.Status.Phase == corev1.ClaimPending
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			oldPvc := updateEvent.ObjectOld.(*corev1.PersistentVolumeClaim)
+			newPvc := updateEvent.ObjectNew.(*corev1.PersistentVolumeClaim)
+			if oldPvc.Status.Phase == corev1.ClaimBound && newPvc.Status.Phase != corev1.ClaimBound {
+				// pvc unbound
+				c.pairLock.Lock()
+				delete(c.pairs, types.NamespacedName{Namespace: oldPvc.GetNamespace(), Name: oldPvc.GetName()})
+				c.pairLock.Unlock()
+				return false
+			}
+			if oldPvc.Status.Phase == corev1.ClaimPending && newPvc.Status.Phase == corev1.ClaimBound {
+				// pvc bound
+				return true
+			}
+			return false
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			pvc := deleteEvent.Object.(*corev1.PersistentVolumeClaim)
+			name := types.NamespacedName{
+				Namespace: pvc.GetNamespace(),
+				Name:      pvc.GetName(),
+			}
+			klog.V(6).Infof("watch pvc %s deleted", name)
+			c.pvcIndexes.removeIndex(name)
+			c.pairLock.Lock()
+			delete(c.pairs, name)
+			c.pairLock.Unlock()
+			return false
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	})
+}
