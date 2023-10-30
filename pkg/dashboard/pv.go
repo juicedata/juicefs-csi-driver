@@ -67,18 +67,20 @@ func (api *API) listPodPVCsHandler() gin.HandlerFunc {
 
 func (api *API) listSCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		scs := storagev1.StorageClassList{}
-		err := api.cachedReader.List(c, &scs)
+		scList := storagev1.StorageClassList{}
+		err := api.cachedReader.List(c, &scList)
 		if err != nil {
 			c.String(500, "get storageClass error: %v", err)
 			return
 		}
-		for _, sc := range scs.Items {
+		var scs []*storagev1.StorageClass
+		for i := range scList.Items {
+			sc := &scList.Items[i]
 			if sc.Provisioner == config.DriverName {
-				scs.Items = append(scs.Items, sc)
+				scs = append(scs, sc)
 			}
 		}
-		c.IndentedJSON(200, scs.Items)
+		c.IndentedJSON(200, scs)
 	}
 }
 
