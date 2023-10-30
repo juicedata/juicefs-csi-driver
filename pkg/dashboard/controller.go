@@ -148,13 +148,15 @@ func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (re
 			return &p, err
 		},
 	)
-	pvcName := types.NamespacedName{
-		Namespace: pv.Spec.ClaimRef.Namespace,
-		Name:      pv.Spec.ClaimRef.Name,
+	if pv.Spec.ClaimRef != nil {
+		pvcName := types.NamespacedName{
+			Namespace: pv.Spec.ClaimRef.Namespace,
+			Name:      pv.Spec.ClaimRef.Name,
+		}
+		c.pairLock.Lock()
+		c.pairs[pvcName] = req.NamespacedName
+		c.pairLock.Unlock()
 	}
-	c.pvsLock.Lock()
-	c.pairs[pvcName] = req.NamespacedName
-	c.pvsLock.Unlock()
 	klog.V(6).Infof("pv %s created", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
@@ -188,6 +190,15 @@ func (c *PVController) SetupWithManager(mgr manager.Manager) error {
 			}
 			klog.V(6).Infof("watch pv %s deleted", name)
 			c.pvIndexes.removeIndex(name)
+			if pv.Spec.ClaimRef != nil {
+				pvcName := types.NamespacedName{
+					Namespace: pv.Spec.ClaimRef.Namespace,
+					Name:      pv.Spec.ClaimRef.Name,
+				}
+				c.pairLock.Lock()
+				delete(c.pairs, pvcName)
+				c.pairLock.Unlock()
+			}
 			return false
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {

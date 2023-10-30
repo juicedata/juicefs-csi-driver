@@ -116,7 +116,6 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 				(scFilter == "" || strings.Contains(pv.Spec.StorageClassName, scFilter))
 
 		}
-		api.pvsLock.RLock()
 		pvs := make([]*corev1.PersistentVolume, 0, api.pvIndexes.length())
 		for name := range api.pvIndexes.iterate(c, descend) {
 			var pv corev1.PersistentVolume
@@ -124,7 +123,6 @@ func (api *API) listPVsHandler() gin.HandlerFunc {
 				pvs = append(pvs, &pv)
 			}
 		}
-		api.pvsLock.RUnlock()
 		result := &ListPVPodResult{len(pvs), make([]*corev1.PersistentVolume, 0)}
 		startIndex := (current - 1) * pageSize
 		if startIndex >= uint64(len(pvs)) {
@@ -217,14 +215,12 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 				(scFilter == "" || strings.Contains(scName, scFilter))
 
 		}
-		api.pvsLock.RLock()
 		pvcs := make([]*corev1.PersistentVolumeClaim, 0, api.pvcIndexes.length())
 		for name := range api.pvcIndexes.iterate(c, descend) {
 			if pvc, ok := api.pvcs[name]; ok && required(pvc) {
 				pvcs = append(pvcs, pvc)
 			}
 		}
-		api.pvsLock.RUnlock()
 		result := &ListPVCPodResult{len(pvcs), make([]*corev1.PersistentVolumeClaim, 0)}
 		startIndex := (current - 1) * pageSize
 		if startIndex >= uint64(len(pvcs)) {
@@ -286,8 +282,6 @@ func (api *API) getPV(ctx context.Context, name string) (*corev1.PersistentVolum
 }
 
 func (api *API) getPVC(namespace, name string) *corev1.PersistentVolumeClaim {
-	api.pvsLock.RLock()
-	defer api.pvsLock.RUnlock()
 	return api.pvcs[types.NamespacedName{
 		Namespace: namespace,
 		Name:      name,
@@ -330,7 +324,6 @@ func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.Pe
 		if v.PersistentVolumeClaim == nil {
 			continue
 		}
-		api.pvsLock.RLock()
 		pvc, ok := api.pvcs[types.NamespacedName{
 			Name:      v.PersistentVolumeClaim.ClaimName,
 			Namespace: pod.Namespace,
@@ -338,7 +331,6 @@ func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.Pe
 		if ok {
 			pvcs = append(pvcs, pvc)
 		}
-		api.pvsLock.RUnlock()
 	}
 	return pvcs
 }

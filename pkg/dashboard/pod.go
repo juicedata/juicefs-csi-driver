@@ -662,8 +662,6 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 		}
 		sc := obj.(*storagev1.StorageClass)
 
-		api.pvsLock.RLock()
-		defer api.pvsLock.RUnlock()
 		var pvs corev1.PersistentVolumeList
 		err := api.cachedReader.List(c, &pvs, &client.ListOptions{
 			FieldSelector: fields.SelectorFromSet(fields.Set{

@@ -46,7 +46,7 @@ type API struct {
 	eventsLock sync.RWMutex
 	events     map[types.NamespacedName]map[string]*corev1.Event
 
-	pvsLock    sync.RWMutex
+	pairLock   sync.RWMutex
 	pvcs       map[types.NamespacedName]*corev1.PersistentVolumeClaim
 	pvIndexes  *timeOrderedIndexes[corev1.PersistentVolume]
 	pvcIndexes *timeOrderedIndexes[corev1.PersistentVolumeClaim]

@@ -56,7 +56,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 			status.Events[k.String()] = len(v)
 		}
 		api.eventsLock.RUnlock()
-		api.pvsLock.RLock()
+		api.pairLock.RLock()
 		for k := range api.pvcs {
 			status.Pvcs = append(status.Pvcs, k)
 		}
@@ -65,7 +65,7 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		}
 		status.PvIndexes = api.pvIndexes.debug()
 		status.PvcIndexes = api.pvcIndexes.debug()
-		api.pvsLock.RUnlock()
+		api.pairLock.RUnlock()
 		c.IndentedJSON(200, status)
 	}
 }
