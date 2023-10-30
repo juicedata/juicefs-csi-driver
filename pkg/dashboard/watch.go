@@ -352,7 +352,7 @@ func (api *API) processSysEvents(ctx context.Context, events <-chan watch.Event,
 			return
 		case event := <-events:
 			if event.Object == nil {
-				klog.V(0).Infoln("get nil event")
+				klog.V(0).Infof("get nil event: %s", event.Type)
 				continue
 			}
 			func() {
