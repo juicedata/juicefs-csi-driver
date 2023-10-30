@@ -56,7 +56,12 @@ func (api *API) listPodPVCsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		c.IndentedJSON(200, api.listPVCsOfPod(c, pod))
+		pvcs, err := api.listPVCsOfPod(c, pod)
+		if err != nil {
+			c.String(500, "get pod persistent volume claims error: %v", err)
+			return
+		}
+		c.IndentedJSON(200, pvcs)
 	}
 }
 
@@ -158,7 +163,11 @@ func (api *API) getPVCMiddileware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		namespace := c.Param("namespace")
-		pvc := api.getPVC(namespace, name)
+		pvc, err := api.getPVC(namespace, name)
+		if err != nil {
+			c.AbortWithStatus(500)
+			return
+		}
 		if pvc == nil {
 			c.AbortWithStatus(404)
 			return
@@ -217,8 +226,9 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 		}
 		pvcs := make([]*corev1.PersistentVolumeClaim, 0, api.pvcIndexes.length())
 		for name := range api.pvcIndexes.iterate(c, descend) {
-			if pvc, ok := api.pvcs[name]; ok && required(pvc) {
-				pvcs = append(pvcs, pvc)
+			var pvc corev1.PersistentVolumeClaim
+			if err := api.cachedReader.Get(c, name, &pvc); err == nil && required(&pvc) {
+				pvcs = append(pvcs, &pvc)
 			}
 		}
 		result := &ListPVCPodResult{len(pvcs), make([]*corev1.PersistentVolumeClaim, 0)}
@@ -281,11 +291,16 @@ func (api *API) getPV(ctx context.Context, name string) (*corev1.PersistentVolum
 	return &pv, nil
 }
 
-func (api *API) getPVC(namespace, name string) *corev1.PersistentVolumeClaim {
-	return api.pvcs[types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}]
+func (api *API) getPVC(namespace, name string) (*corev1.PersistentVolumeClaim, error) {
+	var pvc corev1.PersistentVolumeClaim
+	if err := api.cachedReader.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, &pvc); err != nil {
+		if k8serrors.IsNotFound(err) {
+			klog.Errorf("get pvc %s/%s error: %v", namespace, name, err)
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pvc, nil
 }
 
 func (api *API) getStorageClass(ctx *gin.Context, name string) (*storagev1.StorageClass, error) {
@@ -318,19 +333,19 @@ func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) ([]*corev1.Pe
 	return pvs, nil
 }
 
-func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) []*corev1.PersistentVolumeClaim {
+func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolumeClaim, error) {
 	pvcs := make([]*corev1.PersistentVolumeClaim, 0)
 	for _, v := range pod.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
 			continue
 		}
-		pvc, ok := api.pvcs[types.NamespacedName{
-			Name:      v.PersistentVolumeClaim.ClaimName,
-			Namespace: pod.Namespace,
-		}]
-		if ok {
+		pvc, err := api.getPVC(pod.Namespace, v.PersistentVolumeClaim.ClaimName)
+		if err != nil {
+			return nil, err
+		}
+		if pvc != nil {
 			pvcs = append(pvcs, pvc)
 		}
 	}
-	return pvcs
+	return pvcs, nil
 }

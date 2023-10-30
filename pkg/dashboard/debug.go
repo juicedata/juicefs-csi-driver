@@ -27,7 +27,6 @@ type APIStatus struct {
 	AppIndexes   []types.NamespacedName
 	Nodeindex    map[string]types.NamespacedName
 	Events       map[string]int
-	Pvcs         []types.NamespacedName
 	PvIndexes    []types.NamespacedName
 	PvcIndexes   []types.NamespacedName
 	Pairs        map[string]types.NamespacedName
@@ -57,9 +56,6 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		}
 		api.eventsLock.RUnlock()
 		api.pairLock.RLock()
-		for k := range api.pvcs {
-			status.Pvcs = append(status.Pvcs, k)
-		}
 		for k, v := range api.pairs {
 			status.Pairs[k.String()] = v
 		}

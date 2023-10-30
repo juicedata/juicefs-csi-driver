@@ -125,7 +125,10 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			if pod.Spec.NodeName != "" {
 				pod.Node = api.getNode(pod.Spec.NodeName)
 			}
-			pod.Pvcs = api.listPVCsOfPod(c, pod.Pod)
+			pod.Pvcs, err = api.listPVCsOfPod(c, pod.Pod)
+			if err != nil {
+				c.String(500, "list pvcs of pod %s error %v", pod.Name, err)
+			}
 		}
 		c.IndentedJSON(200, result)
 	}
