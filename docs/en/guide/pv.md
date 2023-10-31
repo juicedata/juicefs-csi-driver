@@ -10,6 +10,8 @@ In JuiceFS, a Volume is a file system. With JuiceFS CSI Driver, Volume credentia
 * For Community Edition, volume credentials include metadata engine URL, object storage keys, and other options supported by the [`juicefs format`](https://juicefs.com/docs/community/command_reference#format) command.
 * For Cloud Service, volume credentials include Token, object storage keys, and other options supported by the [`juicefs auth`](https://juicefs.com/docs/cloud/reference/commands_reference/#auth) command.
 
+Although in the examples below, secrets are usually named `juicefs-secret`, they can actually be freely named, and you can create multiples to store credentials for different file systems. This allows using multiple different JuiceFS volumes within the same Kubernetes cluster. Read [using multiple file systems](#multiple-volumes) for more.
+
 :::tip
 
 * If you're already [managing StorageClass via Helm](#helm-sc), you can skip this step as the Kubernetes Secret is already created along the way.
@@ -117,6 +119,90 @@ Fields description:
 - `access-key`/`secret-key`: Object storage credentials
 - `envs`：Mount pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
+
+### Using multiple file systems {#multiple-volumes}
+
+Secret name can be customized, you can create multiple secrets with different names, or even put in different namespaces, in order to use multiple JuiceFS volumes, or use the same volume across different Kubernetes namespaces.
+
+```yaml {4-5,11-12}
+---
+apiVersion: v1
+metadata:
+  name: vol-secret-1
+  namespace: default
+kind: Secret
+...
+---
+apiVersion: v1
+metadata:
+  name: vol-secret-2
+  namespace: kube-system
+kind: Secret
+...
+```
+
+Depending on whether you're using static or dynamic provisioning, the secrets created above have to be referenced in the PV or StorageClass definition, in order to correctly mount. Taking the above volume credentials for an example, the corresponding static / dynamic provisioning config may look look like below.
+
+For static provisioning (if you aren't yet familiar, read [static provisioning](#static-provisioning)).
+
+```yaml {10-11,14-15,25,28-29}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vol-1
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    # This field should be globally unique, thus it's recommended to use the PV name
+    volumeHandle: vol-1
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: vol-secret-1
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vol-2
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: vol-2
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: vol-secret-2
+      namespace: kube-system
+```
+
+For dynamic provisioning (if you aren't yet familiar, read [dynamic provisioning](#static-provisioning)).
+
+```yaml {8-11,19-22}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vol-1
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: vol-1
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: vol-1
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vol-2
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: vol-2
+  csi.storage.k8s.io/provisioner-secret-namespace: kube-system
+  csi.storage.k8s.io/node-publish-secret-name: vol-2
+  csi.storage.k8s.io/node-publish-secret-namespace: kube-system
+```
 
 ### Adding extra files / environment variables into mount pod {#mount-pod-extra-files}
 

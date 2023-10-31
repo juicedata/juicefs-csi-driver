@@ -10,6 +10,8 @@ sidebar_position: 1
 * 对于社区版而言，「认证信息」包含元数据引擎 URL、对象存储密钥，以及 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 命令所支持的其他参数。
 * 对于云服务而言，「认证信息」包含文件系统名称、Token、对象存储密钥，以及 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#auth) 命令所支持的其他参数。
 
+虽然下方的示范中，Secret 都命名为了 `juicefs-secret`，但事实上命名是自定义的，你可以创建出多个 Secret，存储不同的文件系统认证信息，这样便可以在同一个 Kubernetes 集群中使用多个不同的文件系统。详见[「使用多个文件系统」](#multiple-volumes)。
+
 :::note 注意
 
 * 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，不需要再用 kubectl 单独创建和管理 Secret。
@@ -117,6 +119,90 @@ stringData:
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
+
+### 使用多个文件系统 {#multiple-volumes}
+
+Secret 是可以自由命名的，你可以自由创建多个 Secret，每一个都采用不同的命名，甚至放在不同的命名空间，来使用多个 JuiceFS 文件系统，或者在不同命名空间下使用同一个文件系统。
+
+```yaml {4-5,11-12}
+---
+apiVersion: v1
+metadata:
+  name: vol-secret-1
+  namespace: default
+kind: Secret
+...
+---
+apiVersion: v1
+metadata:
+  name: vol-secret-2
+  namespace: kube-system
+kind: Secret
+...
+```
+
+创建好这些认证信息以后，取决于你是静态还是动态配置，还需要在 PV 或者 StorageClass 中正确引用这些认证信息，才能正确挂载。以上方创建好的认证信息为例，静态和动态配置示范如下。
+
+静态配置（如果你尚不清楚什么是静态配置，先阅读[「静态配置」](#static-provisioning)）：
+
+```yaml {10-11,14-15,25,28-29}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vol-1
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    # 该字段必须全局唯一，建议直接设置为 PV 名称
+    volumeHandle: vol-1
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: vol-secret-1
+      namespace: default
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vol-2
+spec:
+  ...
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: vol-2
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: vol-secret-2
+      namespace: kube-system
+```
+
+动态配置（如果你尚不清楚什么是动态配置，先阅读[「动态配置」](#dynamic-provisioning)）：
+
+```yaml {8-11,19-22}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vol-1
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: vol-1
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: vol-1
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vol-2
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: vol-2
+  csi.storage.k8s.io/provisioner-secret-namespace: kube-system
+  csi.storage.k8s.io/node-publish-secret-name: vol-2
+  csi.storage.k8s.io/node-publish-secret-namespace: kube-system
+```
 
 ### 为 Mount Pod 额外添加文件、环境变量 {#mount-pod-extra-files}
 
