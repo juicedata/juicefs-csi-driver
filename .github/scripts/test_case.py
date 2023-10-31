@@ -20,7 +20,7 @@ from kubernetes import client
 
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
-    LOG, PVs, META_URL, MOUNT_MODE
+    LOG, PVs, META_URL, MOUNT_MODE, STORAGECLASS_ENCRYPT_NAME, ENCRYPT_GLOBAL_MOUNTPOINT
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
@@ -895,7 +895,11 @@ def test_static_cache_clean_upon_umount():
     uuid = SECRET_NAME
     if IS_CE:
         if not by_process:
-            mount_pod_name = get_only_mount_pod_name(volume_id)
+            unique_id = volume_id
+            test_mode = os.getenv("TEST_MODE")
+            if test_mode == "pod-mount-share":
+                unique_id = STORAGECLASS_NAME
+            mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
             if annotations is None or annotations.get("juicefs-uuid") is None:
@@ -974,7 +978,11 @@ def test_dynamic_cache_clean_upon_umount():
     uuid = SECRET_NAME
     if IS_CE:
         if not by_process:
-            mount_pod_name = get_only_mount_pod_name(volume_id)
+            unique_id = volume_id
+            test_mode = os.getenv("TEST_MODE")
+            if test_mode == "pod-mount-share":
+                unique_id = STORAGECLASS_NAME
+            mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
             if annotations is None or annotations.get("juicefs-uuid") is None:

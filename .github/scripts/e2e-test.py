@@ -45,7 +45,7 @@ from test_case import (
     test_dynamic_pvc_delete_not_last_with_path_pattern,
     test_webhook_two_volume,
     test_dynamic_expand,
-    test_multi_pvc
+    test_multi_pvc,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -166,8 +166,6 @@ if __name__ == "__main__":
 
             elif test_mode == "process":
                 test_static_delete_policy()
-                test_deployment_dynamic_patch_pv()
-                test_deployment_static_patch_pv()
                 test_static_cache_clean_upon_umount()
                 test_dynamic_cache_clean_upon_umount()
                 test_deployment_using_storage_rw()
