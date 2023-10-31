@@ -84,14 +84,40 @@ if __name__ == "__main__":
                     test_pod_resource_err()
 
             elif test_mode == "pod-mount-share":
+                test_static_cache_clean_upon_umount()
+                test_dynamic_cache_clean_upon_umount()
+                test_deployment_using_storage_rw()
+                test_deployment_use_pv_rw()
+                test_deployment_use_pv_ro()
+                test_static_delete_policy()
+                test_delete_pvc()
                 test_share_mount()
                 test_delete_one()
                 test_delete_all()
                 test_dynamic_delete_pod()
                 test_static_delete_pod()
+                test_deployment_dynamic_patch_pv()
+                test_deployment_static_patch_pv()
+                test_dynamic_mount_image()
+                test_static_mount_image()
+                test_quota_using_storage_rw()
+                test_dynamic_expand()
+                test_multi_pvc()
+                if without_kubelet:
+                    test_pod_resource_err()
 
             elif test_mode == "pod-provisioner":
+                test_static_cache_clean_upon_umount()
+                test_dynamic_cache_clean_upon_umount()
+                test_deployment_using_storage_rw()
+                test_deployment_use_pv_rw()
+                test_deployment_use_pv_ro()
+                test_static_delete_policy()
+                test_delete_pvc()
+                test_deployment_dynamic_patch_pv()
+                test_deployment_static_patch_pv()
                 test_dynamic_mount_image()
+                test_static_mount_image()
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
                 test_dynamic_pvc_delete_not_last_with_path_pattern()
@@ -101,8 +127,14 @@ if __name__ == "__main__":
                 test_static_delete_pod()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
+                test_multi_pvc()
+                if without_kubelet:
+                    test_pod_resource_err()
 
             elif test_mode == "webhook":
+                test_deployment_use_pv_rw()
+                test_deployment_use_pv_ro()
+                test_delete_pvc()
                 test_webhook_two_volume()
                 test_job_complete_using_storage()
                 test_static_delete_policy()
@@ -115,6 +147,7 @@ if __name__ == "__main__":
                 test_dynamic_expand()
 
             elif test_mode == "webhook-provisioner":
+                test_delete_pvc()
                 test_webhook_two_volume()
                 test_static_delete_policy()
                 test_deployment_using_storage_rw()
@@ -126,11 +159,15 @@ if __name__ == "__main__":
                 test_static_mount_image_with_webhook()
                 test_path_pattern_in_storage_class()
                 test_dynamic_pvc_delete_with_path_pattern()
+                test_dynamic_pvc_delete_not_last_with_path_pattern()
                 test_job_complete_using_storage()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
 
             elif test_mode == "process":
+                test_static_delete_policy()
+                test_deployment_dynamic_patch_pv()
+                test_deployment_static_patch_pv()
                 test_static_cache_clean_upon_umount()
                 test_dynamic_cache_clean_upon_umount()
                 test_deployment_using_storage_rw()
@@ -139,6 +176,7 @@ if __name__ == "__main__":
                 test_delete_pvc()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
+                test_multi_pvc()
             else:
                 raise Exception("unknown test mode: %s" % test_mode)
         except Exception as e:
