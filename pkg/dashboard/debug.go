@@ -50,11 +50,6 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		api.csiNodeLock.RUnlock()
 		status.SysIndexes = api.sysIndexes.debug()
 		status.AppIndexes = api.appIndexes.debug()
-		api.eventsLock.RLock()
-		for k, v := range api.events {
-			status.Events[k.String()] = len(v)
-		}
-		api.eventsLock.RUnlock()
 		api.pairLock.RLock()
 		for k, v := range api.pairs {
 			status.Pairs[k.String()] = v

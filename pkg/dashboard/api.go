@@ -37,19 +37,11 @@ type API struct {
 	csiNodeLock  sync.RWMutex
 	csiNodeIndex map[string]types.NamespacedName
 	sysIndexes   *timeOrderedIndexes[corev1.Pod]
-
-	nodes     map[string]*corev1.Node
-	nodesLock sync.RWMutex
-
-	appIndexes *timeOrderedIndexes[corev1.Pod]
-
-	eventsLock sync.RWMutex
-	events     map[types.NamespacedName]map[string]*corev1.Event
-
-	pairLock   sync.RWMutex
-	pvIndexes  *timeOrderedIndexes[corev1.PersistentVolume]
-	pvcIndexes *timeOrderedIndexes[corev1.PersistentVolumeClaim]
-	pairs      map[types.NamespacedName]types.NamespacedName
+	appIndexes   *timeOrderedIndexes[corev1.Pod]
+	pvIndexes    *timeOrderedIndexes[corev1.PersistentVolume]
+	pvcIndexes   *timeOrderedIndexes[corev1.PersistentVolumeClaim]
+	pairLock     sync.RWMutex
+	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, client kubernetes.Interface) *API {
@@ -58,10 +50,8 @@ func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader
 		cachedReader: cachedReader,
 		client:       client,
 		csiNodeIndex: make(map[string]types.NamespacedName),
-		nodes:        make(map[string]*corev1.Node),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
-		events:       make(map[types.NamespacedName]map[string]*corev1.Event),
 		pvIndexes:    newTimeIndexes[corev1.PersistentVolume](),
 		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
 		pairs:        make(map[types.NamespacedName]types.NamespacedName),

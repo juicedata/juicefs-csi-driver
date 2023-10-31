@@ -123,7 +123,13 @@ func (api *API) listAppPod() gin.HandlerFunc {
 				}
 			}
 			if pod.Spec.NodeName != "" {
-				pod.Node = api.getNode(pod.Spec.NodeName)
+				var node corev1.Node
+				err := api.cachedReader.Get(c, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
+				if err != nil {
+					klog.Errorf("get node %s error %v", pod.Spec.NodeName, err)
+				} else {
+					pod.Node = &node
+				}
 			}
 			pod.Pvcs, err = api.listPVCsOfPod(c, pod.Pod)
 			if err != nil {
@@ -223,10 +229,15 @@ func (api *API) listSysPod() gin.HandlerFunc {
 			endIndex = uint64(len(pods))
 		}
 		for i := startIndex; i < endIndex; i++ {
-			node := api.getNode(pods[i].Spec.NodeName)
+			var node corev1.Node
+			err := api.cachedReader.Get(c, types.NamespacedName{Name: pods[i].Spec.NodeName}, &node)
+			if err != nil {
+				klog.Errorf("get node %s error %v", pods[i].Spec.NodeName, err)
+				continue
+			}
 			result.Pods = append(result.Pods, &PodExtra{
 				Pod:  pods[i],
-				Node: node,
+				Node: &node,
 			})
 		}
 		c.IndentedJSON(200, result)
@@ -314,12 +325,6 @@ func (api *API) getCSINode(ctx context.Context, nodeName string) (*corev1.Pod, e
 	var pod corev1.Pod
 	err := api.cachedReader.Get(ctx, name, &pod)
 	return &pod, err
-}
-
-func (api *API) getNode(nodeName string) *corev1.Node {
-	api.nodesLock.RLock()
-	defer api.nodesLock.RUnlock()
-	return api.nodes[nodeName]
 }
 
 func (api *API) getPodMiddileware() gin.HandlerFunc {
