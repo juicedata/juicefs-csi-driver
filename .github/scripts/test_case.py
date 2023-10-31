@@ -20,7 +20,7 @@ from kubernetes import client
 
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
-    LOG, PVs, META_URL, MOUNT_MODE, STORAGECLASS_ENCRYPT_NAME, ENCRYPT_GLOBAL_MOUNTPOINT
+    LOG, PVs, META_URL, MOUNT_MODE
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
