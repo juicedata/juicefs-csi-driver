@@ -58,7 +58,7 @@ export const listPV = async (args: PVPagingListArgs) => {
         const sc = args.sc || ""
         const pageSize = args.pageSize || 20
         const current = args.current || 1
-        const rawPV = await fetch(`http://localhost:8088/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
+        const rawPV = await fetch(`/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await rawPV.text())
     } catch (e) {
         console.log(`fail to list pv`)
@@ -98,7 +98,7 @@ export const listPVC = async (args: PVCPagingListArgs) => {
         const sc = args.sc || ""
         const pageSize = args.pageSize || 20
         const current = args.current || 1
-        const rawPVC = await fetch(`http://localhost:8088/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
+        const rawPVC = await fetch(`/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await rawPVC.text())
     } catch (e) {
         console.log(`fail to list pvc`)
@@ -122,7 +122,7 @@ export interface SCPagingListArgs {
 export const listStorageClass = async (args: SCPagingListArgs) => {
     let data: StorageClass[] = []
     try {
-        const rawSC = await fetch(`http://localhost:8088/api/v1/storageclasses`)
+        const rawSC = await fetch(`/api/v1/storageclasses`)
         data = JSON.parse(await rawSC.text())
     } catch (e) {
         console.log(`fail to list sc`)
@@ -154,7 +154,7 @@ export const listStorageClass = async (args: SCPagingListArgs) => {
 
 export const getPV = async (pvName: string) => {
     try {
-        const rawPV = await fetch(`http://localhost:8088/api/v1/pv/${pvName}/`)
+        const rawPV = await fetch(`/api/v1/pv/${pvName}/`)
         return JSON.parse(await rawPV.text())
     } catch (e) {
         console.log(`fail to get pv(${pvName}): ${e}`)
@@ -164,7 +164,7 @@ export const getPV = async (pvName: string) => {
 
 export const getPVEvents = async (pvName: string) => {
     try {
-        const events = await fetch(`http://localhost:8088/api/v1/pv/${pvName}/events`)
+        const events = await fetch(`/api/v1/pv/${pvName}/events`)
         return JSON.parse(await events.text())
     } catch (e) {
         console.log(`fail to get pv events (${pvName}): ${e}`)
@@ -174,7 +174,7 @@ export const getPVEvents = async (pvName: string) => {
 
 export const getPVC = async (namespace: string, pvcName: string) => {
     try {
-        const rawPV = await fetch(`http://localhost:8088/api/v1/pvc/${namespace}/${pvcName}/`)
+        const rawPV = await fetch(`/api/v1/pvc/${namespace}/${pvcName}/`)
         return JSON.parse(await rawPV.text())
     } catch (e) {
         console.log(`fail to get pvc(${namespace}/${pvcName}): ${e}`)
@@ -184,7 +184,7 @@ export const getPVC = async (namespace: string, pvcName: string) => {
 
 export const getPVCEvents = async (namespace: string, pvcName: string) => {
     try {
-        const events = await fetch(`http://localhost:8088/api/v1/pvc/${namespace}/${pvcName}/events`)
+        const events = await fetch(`/api/v1/pvc/${namespace}/${pvcName}/events`)
         return JSON.parse(await events.text())
     } catch (e) {
         console.log(`fail to get pvc(${namespace}/${pvcName}): ${e}`)
@@ -194,7 +194,7 @@ export const getPVCEvents = async (namespace: string, pvcName: string) => {
 
 export const getSC = async (scName: string) => {
     try {
-        const rawSC = await fetch(`http://localhost:8088/api/v1/storageclass/${scName}/`)
+        const rawSC = await fetch(`/api/v1/storageclass/${scName}/`)
         return JSON.parse(await rawSC.text())
     } catch (e) {
         console.log(`fail to get sc (${scName}): ${e}`)
@@ -204,7 +204,7 @@ export const getSC = async (scName: string) => {
 
 export const getMountPodOfPVC = async (namespace: string, pvcName: string) => {
     try {
-        const rawPod = await fetch(`http://localhost:8088/api/v1/pvc/${namespace}/${pvcName}/mountpods`)
+        const rawPod = await fetch(`/api/v1/pvc/${namespace}/${pvcName}/mountpods`)
         return JSON.parse(await rawPod.text())
     } catch (e) {
         console.log(`fail to get mountpod of pvc(${namespace}/${pvcName}): ${e}`)
@@ -214,7 +214,7 @@ export const getMountPodOfPVC = async (namespace: string, pvcName: string) => {
 
 export const getMountPodOfPV = async (pvName: string) => {
     try {
-        const rawPod = await fetch(`http://localhost:8088/api/v1/pv/${pvName}/mountpods`)
+        const rawPod = await fetch(`/api/v1/pv/${pvName}/mountpods`)
         return JSON.parse(await rawPod.text())
     } catch (e) {
         console.log(`fail to get mountpod of pv (${pvName}): ${e}`)
@@ -224,7 +224,7 @@ export const getMountPodOfPV = async (pvName: string) => {
 
 export const getPVOfSC = async (scName: string) => {
     try {
-        const pvs = await fetch(`http://localhost:8088/api/v1/storageclass/${scName}/pvs`)
+        const pvs = await fetch(`/api/v1/storageclass/${scName}/pvs`)
         return JSON.parse(await pvs.text())
     } catch (e) {
         console.log(`fail to get pvs of sc (${scName}): ${e}`)

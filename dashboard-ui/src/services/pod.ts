@@ -57,7 +57,7 @@ export const listAppPods = async (args: AppPagingListArgs) => {
         const mountPod = args.mountPod || ""
         const pageSize = args.pageSize || 20
         const current = args.current || 1
-        const pods = await fetch(`http://localhost:8088/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`)
+        const pods = await fetch(`/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await pods.text())
     } catch (e) {
         console.log(`fail to list pods: ${e}`)
@@ -78,19 +78,19 @@ export const listAppPods = async (args: AppPagingListArgs) => {
 
 export const getPod = async (namespace: string, podName: string) => {
     try {
-        const rawPod = await fetch(`http://localhost:8088/api/v1/pod/${namespace}/${podName}/`)
+        const rawPod = await fetch(`/api/v1/pod/${namespace}/${podName}/`)
         const pod: Pod = JSON.parse(await rawPod.text())
-        const mountPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
+        const mountPods = await fetch(`/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`)
         pod.mountPods = JSON.parse(await mountPods.text())
-        const appPods = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`)
+        const appPods = await fetch(`/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`)
         pod.appPods = JSON.parse(await appPods.text())
         if (pod.spec?.nodeName) {
-            const csiNode = await fetch(`http://localhost:8088/api/v1/csi-node/${pod.spec?.nodeName}`)
+            const csiNode = await fetch(`/api/v1/csi-node/${pod.spec?.nodeName}`)
             pod.csiNode = JSON.parse(await csiNode.text())
-            const node = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`)
+            const node = await fetch(`/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`)
             pod.node = JSON.parse(await node.text())
         }
-        const events = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
+        const events = await fetch(`/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`)
         let podEvents: Event[] = JSON.parse(await events.text()) || []
         podEvents.sort((a, b) => {
             const aTime = new Date(a.firstTimestamp || a.eventTime || 0).getTime()
@@ -109,7 +109,7 @@ export const getPod = async (namespace: string, podName: string) => {
 
 export const getLog = async (pod: Pod, container: string) => {
     try {
-        const log = await fetch(`http://localhost:8088/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`)
+        const log = await fetch(`/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`)
         return await log.text()
     } catch (e) {
         console.log(`fail to get log of pod(${pod.metadata?.namespace}/${pod.metadata?.name}/${container}): ${e}`)
@@ -140,7 +140,7 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
         const node = args.node || ""
         const pageSize = args.pageSize || 20
         const current = args.current || 1
-        const podList = await fetch(`http://localhost:8088/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
+        const podList = await fetch(`/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`)
         data = JSON.parse(await podList.text())
     } catch (e) {
         console.log(`fail to list sys pods: ${e}`)
