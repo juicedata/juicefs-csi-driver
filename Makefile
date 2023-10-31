@@ -24,7 +24,7 @@ PKG=github.com/juicedata/juicefs-csi-driver
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
 
-GOPROXY=https://goproxy.io
+GOPROXY?=https://goproxy.io
 GOPATH=$(shell go env GOPATH)
 GOOS=$(shell go env GOOS)
 GOBIN=$(shell pwd)/bin
