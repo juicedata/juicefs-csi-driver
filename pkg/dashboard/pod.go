@@ -553,22 +553,27 @@ func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
+		var podList corev1.PodList
+		err := api.cachedReader.List(c, &podList)
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+		}
+		podMap := make(map[string]*corev1.Pod)
+		for i := range podList.Items {
+			p := &podList.Items[i]
+			podMap[string(p.UID)] = p
+		}
 		appPods := make([]*corev1.Pod, 0)
 		if pod.Annotations != nil {
 			for _, v := range pod.Annotations {
 				uid := getUidFunc(v)
 				if uid == "" {
+					klog.V(6).Infof("annotation %s skipped", v)
 					continue
 				}
-				var podList corev1.PodList
-				err := api.cachedReader.List(c, &podList, &client.ListOptions{
-					FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.uid": uid}),
-				})
-				if err != nil || len(podList.Items) == 0 {
-					klog.Errorf("list pod by uid %s error %v", uid, err)
-					continue
+				if p, ok := podMap[uid]; ok {
+					appPods = append(appPods, p)
 				}
-				appPods = append(appPods, &podList.Items[0])
 			}
 		}
 		c.IndentedJSON(200, appPods)
