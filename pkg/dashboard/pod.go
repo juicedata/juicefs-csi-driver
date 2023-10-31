@@ -487,8 +487,12 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
 		mountPodName, ok := pod.Annotations[key]
 		if !ok {
-			klog.V(0).Infof("can't find mount pod name by annotation `%s`\n", key)
-			continue
+			// old app pod
+			mountPodName, ok = pod.Annotations[config.JuiceFSMountPod]
+			if !ok {
+				klog.Errorf("mount pod not found for %s/%s", pod.Namespace, pod.Name)
+				continue
+			}
 		}
 		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
 		if len(pair) != 2 {
