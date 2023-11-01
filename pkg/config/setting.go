@@ -371,19 +371,13 @@ func (s *JfsSetting) ParseFormatOptions() ([][]string, error) {
 	options := strings.Split(s.FormatOptions, ",")
 	parsedFormatOptions := make([][]string, 0, len(options))
 	for _, option := range options {
-		pair := strings.Split(strings.TrimSpace(option), "=")
-		if len(pair) != 1 && len(pair) != 2 {
-			return nil, fmt.Errorf("invalid format options: %s", s.FormatOptions)
-		}
+		pair := strings.SplitN(strings.TrimSpace(option), "=", 2)
 		key := strings.TrimSpace(pair[0])
 		if key == "" {
 			// ignore empty key
 			continue
 		}
-		value := ""
-		if len(pair) == 2 {
-			value = strings.TrimSpace(pair[1])
-		}
+		value := strings.TrimSpace(pair[1])
 		parsedFormatOptions = append(parsedFormatOptions, []string{key, value})
 	}
 	return parsedFormatOptions, nil
