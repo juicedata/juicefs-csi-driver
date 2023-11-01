@@ -84,7 +84,7 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 		return err
 	}
 
-	podStatus := p.getPodStatus(current)
+	podStatus := getPodStatus(current)
 	if podStatus != podError && podStatus != podDeleted {
 		return p.handlers[podStatus](ctx, current)
 	}
@@ -97,11 +97,11 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
 	}
 	// set mount pod status in mit again, maybe deleted
 	p.mit.setPodStatus(pod)
-	return p.handlers[p.getPodStatus(pod)](ctx, pod)
+	return p.handlers[getPodStatus(pod)](ctx, pod)
 }
 
 // getPodStatus get pod status
-func (p *PodDriver) getPodStatus(pod *corev1.Pod) podStatus {
+func getPodStatus(pod *corev1.Pod) podStatus {
 	if pod == nil {
 		return podError
 	}
