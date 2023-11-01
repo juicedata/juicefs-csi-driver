@@ -162,6 +162,7 @@ fuse-ee-image-buildx:
 dashboard-build:
 	docker build --build-context project=../ --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) .
+	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG)
 		
 .PHONY: dashboard-buildx
 dashboard-buildx:
