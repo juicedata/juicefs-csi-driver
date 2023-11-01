@@ -69,7 +69,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 		}
 	}
 
-	err = p.createOrAddRef(ctx, podName, jfsSetting)
+	err = p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }
 
-func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting) (err error) {
+func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
 	hashVal, err := GenHashOfSetting(*jfsSetting)
 	if err != nil {
@@ -350,6 +350,16 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				} else {
 					newPod.Spec.NodeName = ""
 					newPod.Spec.NodeSelector = nodeSelector
+					if appinfo != nil && appinfo.Name != "" {
+						appPod, err := p.K8sClient.GetPod(ctx, appinfo.Name, appinfo.Namespace)
+						if err != nil {
+							klog.Warningf("get app pod %s/%s: %v", appinfo.Namespace, appinfo.Name, err)
+						} else {
+							newPod.Spec.Affinity = appPod.Spec.Affinity
+							newPod.Spec.SchedulerName = appPod.Spec.SchedulerName
+							newPod.Spec.Tolerations = appPod.Spec.Tolerations
+						}
+					}
 				}
 
 				_, err = p.K8sClient.CreatePod(ctx, newPod)
