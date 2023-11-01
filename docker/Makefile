@@ -167,3 +167,8 @@ fuse-ee-image-4.0-buildx:
 	docker buildx build -f fuse/fuse.ee.juicefs-4.0.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
+
+.PHONY: dashboard-buildx
+dashboard-buildx:
+	docker buildx build --build-context project=../ -f dashboard.Dockerfile -t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) \
+		--platform linux/amd64,linux/arm64 . --push

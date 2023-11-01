@@ -214,7 +214,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 
 	klog.V(5).Infof("Provisioner Delete: Deleting volume subpath %q", subPath)
-	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, volume.Spec.CSI.VolumeAttributes); err != nil {
+	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, volume.Spec.CSI.VolumeAttributes, volume.Spec.MountOptions); err != nil {
 		klog.Errorf("provisioner: delete vol error %v", err)
 		return errors.New("unable to provision delete volume: " + err.Error())
 	}
