@@ -63,6 +63,10 @@ var (
 	port      uint16
 	devMode   bool
 	staticDir string
+
+	leaderElection              bool
+	leaderElectionNamespace     string
+	leaderElectionLeaseDuration time.Duration
 )
 
 func main() {
@@ -77,6 +81,9 @@ func main() {
 	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
 	cmd.PersistentFlags().StringVar(&staticDir, "static-dir", "", "static files to serve")
+	cmd.PersistentFlags().BoolVar(&leaderElection, "leader-election", false, "Enables leader election. If leader election is enabled, additional RBAC rules are required. ")
+	cmd.PersistentFlags().StringVar(&leaderElectionNamespace, "leader-election-namespace", "", "Namespace where the leader election resource lives. Defaults to the pod namespace if not set.")
+	cmd.PersistentFlags().DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
@@ -186,10 +193,13 @@ func getLocalConfig() (*rest.Config, error) {
 
 func newManager(conf *rest.Config) (ctrl.Manager, error) {
 	return ctrl.NewManager(conf, ctrl.Options{
-		Scheme:             scheme,
-		Port:               9442,
-		MetricsBindAddress: "0.0.0.0:8082",
-		LeaderElectionID:   "dashboard.juicefs.com",
+		Scheme:                  scheme,
+		Port:                    9442,
+		MetricsBindAddress:      "0.0.0.0:8082",
+		LeaderElection:          leaderElection,
+		LeaderElectionID:        "dashboard.juicefs.com",
+		LeaderElectionNamespace: leaderElectionNamespace,
+		LeaseDuration:           &leaderElectionLeaseDuration,
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			Scheme: scheme,
 		}),
