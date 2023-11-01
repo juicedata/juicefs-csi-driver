@@ -8,7 +8,7 @@ JuiceFS CSI Driver requires Kubernetes 1.14 and above, follow below steps to ins
 No special steps is required to install CSI Driver in an on-premises environment, however, you'll need to specify the Web Console address in [volume credentials](./guide/pv.md#enterprise-edition), within the `envs` field.
 :::
 
-## Helm
+## Helm {#helm}
 
 In comparison to kubectl, Helm allows you to manage CSI Driver resources as a whole, and also makes it easier to modify configurations, or enable advanced features. Overall, Helm is recommended over kubectl, but if you are not familiar with Helm, and are simply trying to evaluate CSI Driver, it's OK to [install using kubectl](#kubectl).
 
@@ -66,7 +66,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 It's recommended that you include the CSI Driver Helm chart in the version control system, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
 
-## kubectl
+## kubectl {#kubectl}
 
 kubectl is the simpler installation method compared to Helm, if you are simply trying to evaluate CSI Driver, this is recommended, **but in a production environment, installing via kubectl is strongly advised against**, because any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
 
@@ -118,6 +118,8 @@ CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker no
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
 ## Installing in sidecar mode {#sidecar}
+
+Sidecar is very different from the mount pod
 
 ### Helm
 

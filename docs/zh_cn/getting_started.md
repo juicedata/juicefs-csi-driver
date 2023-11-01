@@ -11,7 +11,7 @@ title: 安装
 在 JuiceFS 企业版私有部署环境下，CSI 驱动的安装并没有特殊步骤。不过请注意，由于使用私有部署控制台，你需要在[「文件系统认证信息」](./guide/pv.md#enterprise-edition)中需要填写 `envs` 字段，指定私有部署的控制台地址。
 :::
 
-## Helm
+## Helm {#helm}
 
 相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
 
@@ -50,7 +50,7 @@ title: 安装
 
 我们推荐将 CSI 驱动的 Helm chart 纳入版本控制系统管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
 
-## kubectl
+## kubectl {#kubectl}
 
 kubectl 是较为简单直接的安装方式，如果你只是希望体验和评估 CSI 驱动，推荐这种安装方式，**但在生产环境则不推荐这样安装**：用 kubectl 直接安装的话，意味着后续对 CSI 驱动的任何配置修改都需要手动操作，若不熟悉极容易出错。如果你希望开启某些 CSI 驱动的高级特性（例如[「启用 pathPattern」](./guide/pv.md#using-path-pattern)），或者想要更加体系化地管理资源，请优先选用 [Helm 安装方式](#helm)。
 
@@ -102,6 +102,8 @@ CSI Node Service 是一个 DaemonSet，默认在所有节点部署，因此在�
 如果你对各组件功能仍有疑惑，请详读[「架构」](./introduction.md#architecture)。
 
 ## 以 Sidecar 模式安装 {#sidecar}
+
+Sidecar 与默认的容器挂载方式有很大不同，包括无法复用挂载客户端，以及无法设置[挂载点自动恢复](./guide/pv.md#automatic-mount-point-recovery)。决定采纳之前，务必仔细阅读[「Sidecar 模式注意事项」](./introduction.md#sidecar)。
 
 ### Helm
 
@@ -165,7 +167,7 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 # 一键安装
-./juicefs-csi-webhook-install.sh install --with-certmanager 
+./juicefs-csi-webhook-install.sh install --with-certmanager
 ```
 
 如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
