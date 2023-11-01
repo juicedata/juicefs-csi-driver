@@ -7,9 +7,6 @@ on:
         description: 'dashboard image tag'
         required: false
         type: string
-  release:
-    types:
-      - created
 
 jobs:
   publish-image:
