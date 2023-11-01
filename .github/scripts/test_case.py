@@ -1105,7 +1105,11 @@ def test_deployment_dynamic_patch_pv():
 
     # check mount pod
     LOG.info("Check 2 mount pods.")
-    mount_pods = get_mount_pods(volume_id)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 2:
         raise Exception("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
 
