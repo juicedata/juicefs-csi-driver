@@ -158,7 +158,13 @@ fuse-ee-image-buildx:
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
 
+.PHONY: dashboard-build
+dashboard-build:
+	docker build --build-context project=../ --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
+		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) .
+	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG)
+		
 .PHONY: dashboard-buildx
 dashboard-buildx:
-	docker buildx build --build-context project=../ -f dashboard.Dockerfile -t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) \
-		--platform linux/amd64,linux/arm64 . --push
+	docker buildx build --build-context project=../ --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
+	 	-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) --platform linux/amd64,linux/arm64 . --push
