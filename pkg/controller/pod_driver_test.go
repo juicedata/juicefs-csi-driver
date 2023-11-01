@@ -393,10 +393,7 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &PodDriver{
-				Client: tt.fields.Client,
-			}
-			if got := p.getPodStatus(tt.args.pod); got != tt.want {
+			if got := getPodStatus(tt.args.pod); got != tt.want {
 				t.Errorf("getPodStatus() = %v, want %v", got, tt.want)
 			}
 		})
