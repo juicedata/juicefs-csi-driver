@@ -1,5 +1,0 @@
-#!/usr/bin/env sh
-cd dashboard-ui
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx --no-install max verify-commit $1
