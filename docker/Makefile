@@ -18,6 +18,8 @@ TARGETARCH?=amd64
 FUSE_IMAGE=juicedata/juicefs-fuse
 JUICEFS_IMAGE?=juicedata/mount
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
+DASHBOARD_IMAGE?=juicedata/csi-dashboard
+DASHBOARD_TAG?=$(VERSION)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DEV_TAG=dev-$(shell git describe --always --dirty)
@@ -168,7 +170,13 @@ fuse-ee-image-4.0-buildx:
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
 
+.PHONY: dashboard-build
+dashboard-build:
+	docker build --build-context project=../ --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
+		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) .
+	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG)
+
 .PHONY: dashboard-buildx
 dashboard-buildx:
-	docker buildx build --build-context project=../ -f dashboard.Dockerfile -t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) \
-		--platform linux/amd64,linux/arm64 . --push
+	docker buildx build --build-context project=../ --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
+	 	-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) --platform linux/amd64,linux/arm64 . --push
