@@ -119,7 +119,7 @@ Learn about JuiceFS CSI Driver architecture, and components functionality in [In
 
 ## Installing in sidecar mode {#sidecar}
 
-Sidecar is very different from the mount pod
+Sidecar is very different from the default mount pod mode, for example, sharing JuiceFS Client is not available, neither does it support [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery).
 
 ### Helm
 
