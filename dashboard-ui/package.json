@@ -5,7 +5,7 @@
     "dev": "max dev",
     "build": "max build",
     "format": "prettier --cache --write .",
-    "prepare": "husky install",
+    "prepare": "cd .. && husky install dashboard-ui/.husky",
     "postinstall": "max setup",
     "setup": "max setup",
     "start": "npm run dev"
