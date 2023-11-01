@@ -38,6 +38,7 @@ import (
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -341,23 +342,25 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
-				nodeSelector := map[string]string{
-					"kubernetes.io/hostname": newPod.Spec.NodeName,
-				}
-				nodes, err := p.K8sClient.ListNode(ctx, &metav1.LabelSelector{MatchLabels: nodeSelector})
-				if err != nil || len(nodes) != 1 || nodes[0].Name != newPod.Spec.NodeName {
-					klog.Warningf("cannot select node %s by label selector: %v", newPod.Spec.NodeName, err)
-				} else {
-					newPod.Spec.NodeName = ""
-					newPod.Spec.NodeSelector = nodeSelector
-					if appinfo != nil && appinfo.Name != "" {
-						appPod, err := p.K8sClient.GetPod(ctx, appinfo.Name, appinfo.Namespace)
-						if err != nil {
-							klog.Warningf("get app pod %s/%s: %v", appinfo.Namespace, appinfo.Name, err)
-						} else {
-							newPod.Spec.Affinity = appPod.Spec.Affinity
-							newPod.Spec.SchedulerName = appPod.Spec.SchedulerName
-							newPod.Spec.Tolerations = appPod.Spec.Tolerations
+				if config.EnableNodeSelector {
+					nodeSelector := map[string]string{
+						"kubernetes.io/hostname": newPod.Spec.NodeName,
+					}
+					nodes, err := p.K8sClient.ListNode(ctx, &metav1.LabelSelector{MatchLabels: nodeSelector})
+					if err != nil || len(nodes) != 1 || nodes[0].Name != newPod.Spec.NodeName {
+						klog.Warningf("cannot select node %s by label selector: %v", newPod.Spec.NodeName, err)
+					} else {
+						newPod.Spec.NodeName = ""
+						newPod.Spec.NodeSelector = nodeSelector
+						if appinfo != nil && appinfo.Name != "" {
+							appPod, err := p.K8sClient.GetPod(ctx, appinfo.Name, appinfo.Namespace)
+							if err != nil {
+								klog.Warningf("get app pod %s/%s: %v", appinfo.Namespace, appinfo.Name, err)
+							} else {
+								newPod.Spec.Affinity = appPod.Spec.Affinity
+								newPod.Spec.SchedulerName = appPod.Spec.SchedulerName
+								newPod.Spec.Tolerations = appPod.Spec.Tolerations
+							}
 						}
 					}
 				}
