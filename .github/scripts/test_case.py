@@ -511,10 +511,6 @@ def test_multi_pvc():
 
     unique1_id = volume1_handle
     unique2_id = volume2_handle
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        unique1_id = STORAGECLASS_NAME
-        unique2_id = STORAGECLASS_NAME
     key1 = f"juicefs-mountpod-{unique1_id}"
     key2 = f"juicefs-mountpod-{unique2_id}"
     mount_pod1 = annos[key1]

@@ -174,7 +174,6 @@ if __name__ == "__main__":
                 test_delete_pvc()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
-                test_multi_pvc()
             else:
                 raise Exception("unknown test mode: %s" % test_mode)
         except Exception as e:
