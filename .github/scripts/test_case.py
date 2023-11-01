@@ -978,7 +978,7 @@ def test_dynamic_cache_clean_upon_umount():
             unique_id = volume_id
             test_mode = os.getenv("TEST_MODE")
             if test_mode == "pod-mount-share":
-                unique_id = STORAGECLASS_NAME
+                unique_id = sc_name
             mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
