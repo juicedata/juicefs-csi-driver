@@ -11,7 +11,7 @@ sidebar_position: 6
 安装 CSI 驱动时，能够可选地安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
 
 :::tips
-目前 CSI 控制台处于公测阶段，尚在积极开发和迅速完善，如果遇到问题，欢迎在 [GitHub](https://github.com/juicedata/juicefs-csi-driver/issues/) 进行反馈。
+目前 CSI 控制台处于公测阶段，尚在积极开发和迅速完善，如果遇到问题，欢迎在 [GitHub](https://github.com/juicedata/juicefs-csi-driver/issues) 进行反馈。
 :::
 
 ### 安装

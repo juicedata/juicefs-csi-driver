@@ -43,7 +43,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 1. Go through [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) and see if there's other items that need adjustment. Add them to the above `values-mycluster.yaml` as well. The common configs are:
 
-    * Search for `repository` and optionally change to your private image repository. If this is in need, you'll also need to [copy the docker images](./administration/offline.md)
+    * Search for `repository` and optionally change to your private image repository. If this is in need, you'll also need to [copy the Docker images](./administration/offline.md)
     * Search for `resources` and optionally adjust resource definitions for components
 
   After the above adjustments, your values file may look like:
