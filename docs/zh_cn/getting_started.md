@@ -49,23 +49,23 @@ title: 安装
 
   修改结果示范：
 
-    ```yaml title="values-mycluster.yaml"
-    kubeletDir: <kubelet-dir>
+   ```yaml title="values-mycluster.yaml"
+   kubeletDir: <kubelet-dir>
 
-    image:
-      repository: registry.example.com/juicefs-csi-driver
-    dashboardImage:
-      repository: registry.example.com/csi-dashboard
-    sidecars:
-      livenessProbeImage:
-        repository: registry.example.com/k8scsi/livenessprobe
-      nodeDriverRegistrarImage:
-        repository: registry.example.com/k8scsi/csi-node-driver-registrar
-      csiProvisionerImage:
-        repository: registry.example.com/k8scsi/csi-provisioner
-      csiResizerImage:
-        repository: registry.example.com/k8scsi/csi-resizer
-    ```
+   image:
+     repository: registry.example.com/juicefs-csi-driver
+   dashboardImage:
+     repository: registry.example.com/csi-dashboard
+   sidecars:
+     livenessProbeImage:
+       repository: registry.example.com/k8scsi/livenessprobe
+     nodeDriverRegistrarImage:
+       repository: registry.example.com/k8scsi/csi-node-driver-registrar
+     csiProvisionerImage:
+       repository: registry.example.com/k8scsi/csi-provisioner
+     csiResizerImage:
+       repository: registry.example.com/k8scsi/csi-resizer
+   ```
 
 1. 安装 CSI 驱动：
 
