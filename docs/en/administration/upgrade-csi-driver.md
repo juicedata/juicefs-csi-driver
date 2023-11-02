@@ -22,11 +22,13 @@ Another thing to keep in mind, if you have [overwritten mount pod image](../guid
 
 ### Upgrade via Helm {#helm-upgrade}
 
-Run below commands:
+When using Helm to manage CSI Driver installations, all cluster-specific configs goes into a dedicated values file, it's your responsibility to manage this file. Upgrading is simple, just re-install CSI Driver using the latest Helm chart:
 
 ```bash
 helm repo update
-helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+
+# Assuming the cluster config is saved as values-mycluster.yaml
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
 ### Upgrade via kubectl {#kubectl-upgrade}
