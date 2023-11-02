@@ -8,21 +8,23 @@ sidebar_position: 6
 
 ## CSI 控制台 {#csi-dashboard}
 
-使用 CSI 控制台（CSI Dashboard）能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
+安装 CSI 驱动时，能够可选地安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
+
+:::tips
+目前 CSI 控制台处于公测阶段，尚在积极开发和迅速完善，如果遇到问题，欢迎在 [GitHub](https://github.com/juicedata/juicefs-csi-driver/issues/) 进行反馈。
+:::
 
 ### 安装
 
 CSI 控制台必须[通过 Helm Chart 安装](../getting_started.md#helm)，首先拉取开发版本的 Helm Chart：
 
 ```shell
-helm fetch --untar juicefs/juicefs-csi-driver --devel
+helm repo update
 ```
 
-如果你本地已经将 Helm Chart 以 Git 仓库的方式管理，则需要用上方下载的新版 Chart 进行覆盖，确保所有改动都进入源码管理。
+使用 Helm 时，推荐把不同集群的配置书写在单独的 values 文件。假设当前集群名为 mycluster，那么编辑 `values-mycluster.yaml`，修改内容见下方示范：
 
-编辑 `values.yaml`，修改内容见下方示范：
-
-```yaml title='values.yaml'
+```yaml title='values-mycluster.yaml'
 dashboard:
   # 启用 CSI Dashboard
   enabled: true
@@ -44,7 +46,7 @@ dashboard:
 然后重装 CSI 驱动，确认 CSI 控制台正常运行：
 
 ```shell
-helm upgrade --install juicefs-csi-driver .
+helm upgrade --install juicefs-csi-driver --devel juicefs/juicefs-csi-driver
 
 # 确认容器创建、正常运行
 kubectl get po -A -l app=juicefs-csi-dashboard

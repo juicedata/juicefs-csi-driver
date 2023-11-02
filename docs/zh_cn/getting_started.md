@@ -13,42 +13,67 @@ title: 安装
 
 ## Helm {#helm}
 
-相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 `values.yaml` 做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
+相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 values 文件做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
 
 安装需要 Helm 3.1.0 及以上版本，请参照 [Helm 文档](https://helm.sh/zh/docs/intro/install)进行安装。
 
-1. 下载 JuiceFS CSI 驱动的 Helm chart
+1. 加入 JuiceFS CSI 驱动的 Helm 仓库，并且创建出集群专属的配置文件，比方说当前集群名为 mycluster，那么推荐在 `values-mycluster.yaml` 中撰写该集群专属的配置。这份文件中的内容，会递归覆盖到原始的 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml)。
 
-   ```shell
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
-   helm fetch --untar juicefs/juicefs-csi-driver
-   cd juicefs-csi-driver
-   # values.yaml 中包含安装 CSI 驱动的所有配置，安装前可以进行梳理，并按需修改
-   cat values.yaml
-   ```
+    ```shell
+    helm repo add juicefs https://juicedata.github.io/charts/
+    helm repo update
+
+    mkdir juicefs-csi-driver && cd juicefs-csi-driver
+
+    vi values-mycluster.yaml
+    ```
 
 1. 检查 kubelet 根目录
 
-   执行以下命令
+    执行以下命令
 
-   ```shell
-   ps -ef | grep kubelet | grep root-dir
-   ```
+    ```shell
+    ps -ef | grep kubelet | grep root-dir
+    ```
 
-   如果结果不为空或者 `/var/lib/kubelet`，则代表该集群的 kubelet 的根目录（`--root-dir`）做了定制，需要在 `values.yaml` 中将 `kubeletDir` 根据实际情况进行设置：
+    如果结果不为空或者 `/var/lib/kubelet`，则代表该集群的 kubelet 的根目录（`--root-dir`）做了定制，需要在 values 中将 `kubeletDir` 根据实际情况进行设置：
 
-   ```yaml title="values.yaml"
-   kubeletDir: <kubelet-dir>
-   ```
+    ```yaml title="values-mycluster.yaml"
+    kubeletDir: <kubelet-dir>
+    ```
+
+1. 继续阅读 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml)，如果有其他需要修改的地方，一并在上方创建的 `values-mycluster.yaml` 中进行覆盖。常见需要根据集群调整的项目有：
+
+    * 搜索 `repository` 字样，可选地调整各组件的镜像仓库，如果需要修改为集群私有镜像仓库，那么还伴随着[镜像搬运工作](./administration/offline.md)
+    * 搜索 `resources` 字样，可选地调整各组件的资源占用
+
+  修改结果示范：
+
+    ```yaml title="values-mycluster.yaml"
+    kubeletDir: <kubelet-dir>
+
+    image:
+      repository: registry.example.com/juicefs-csi-driver
+    dashboardImage:
+      repository: registry.example.com/csi-dashboard
+    sidecars:
+      livenessProbeImage:
+        repository: registry.example.com/k8scsi/livenessprobe
+      nodeDriverRegistrarImage:
+        repository: registry.example.com/k8scsi/csi-node-driver-registrar
+      csiProvisionerImage:
+        repository: registry.example.com/k8scsi/csi-provisioner
+      csiResizerImage:
+        repository: registry.example.com/k8scsi/csi-resizer
+    ```
 
 1. 安装 CSI 驱动：
 
    ```shell
-   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
    ```
 
-我们推荐将 CSI 驱动的 Helm chart 纳入版本控制系统管理。这样一来，就算 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的配置不断变化，也能对其进行追溯和回滚。
+推荐将上方的 values 文件进行源码管理，这样一来就算配置不断变化，也能对其进行追溯和回滚。
 
 ## kubectl {#kubectl}
 

@@ -16,16 +16,16 @@ Helm is a tool for managing Kubernetes charts. Charts are packages of pre-config
 
 Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guide](https://helm.sh/docs/intro/install).
 
-1. Download the Helm chart for JuiceFS CSI Driver
+1. Add the Helm repo, and then create a values file to store your cluster-specific configs, for example, if your cluster is named mycluster, then it's recommended to create a `values-mycluster.yaml` and put your configs there. The contents in this file will be recursively updated to the original [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml).
 
-   ```shell
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
-   helm fetch --untar juicefs/juicefs-csi-driver
-   cd juicefs-csi-driver
-   # Installation configurations is included in values.yaml, review this file and modify to your needs
-   cat values.yaml
-   ```
+     ```shell
+     helm repo add juicefs https://juicedata.github.io/charts/
+     helm repo update
+
+     mkdir juicefs-csi-driver && cd juicefs-csi-driver
+
+     vi values-mycluster.yaml
+     ```
 
 1. Check kubelet root directory
 
@@ -41,30 +41,38 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    kubeletDir: <kubelet-dir>
    ```
 
-1. Deploy
+1. Go through [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) and see if there's other items that need adjustment. Add them to the above `values-mycluster.yaml` as well. The common configs are:
 
-   Execute below commands to deploy JuiceFS CSI Driver:
+    * Search for `repository` and optionally change to your private image repository. If this is in need, you'll also need to [copy the docker images](./administration/offline.md)
+    * Search for `resources` and optionally adjust resource definitions for components
 
-   ```shell
-   helm repo add juicefs https://juicedata.github.io/charts/
-   helm repo update
-   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
-   ```
+  After the above adjustments, your values file may look like:
 
-1. Verify installation
+    ```yaml title="values-mycluster.yaml"
+    kubeletDir: <kubelet-dir>
 
-   Verify all CSI Driver components are running:
+    image:
+      repository: registry.example.com/juicefs-csi-driver
+    dashboardImage:
+      repository: registry.example.com/csi-dashboard
+    sidecars:
+      livenessProbeImage:
+        repository: registry.example.com/k8scsi/livenessprobe
+      nodeDriverRegistrarImage:
+        repository: registry.example.com/k8scsi/csi-node-driver-registrar
+      csiProvisionerImage:
+        repository: registry.example.com/k8scsi/csi-provisioner
+      csiResizerImage:
+        repository: registry.example.com/k8scsi/csi-resizer
+    ```
 
-   ```shell
-   $ kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
-   NAME                       READY   STATUS    RESTARTS   AGE
-   juicefs-csi-controller-0   3/3     Running   0          22m
-   juicefs-csi-node-v9tzb     3/3     Running   0          14m
-   ```
+1. Execute below commands to deploy JuiceFS CSI Driver:
 
-   Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md).
+    ```shell
+    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
+    ```
 
-It's recommended that you include the CSI Driver Helm chart in the version control system, so that any changes to [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) can be restored.
+It's recommended that you include the values file used above in the version control system, so that any changes to the config can be restored.
 
 ## kubectl {#kubectl}
 
