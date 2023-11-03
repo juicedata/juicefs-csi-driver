@@ -511,10 +511,6 @@ def test_multi_pvc():
 
     unique1_id = volume1_handle
     unique2_id = volume2_handle
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        unique1_id = STORAGECLASS_NAME
-        unique2_id = STORAGECLASS_NAME
     key1 = f"juicefs-mountpod-{unique1_id}"
     key2 = f"juicefs-mountpod-{unique2_id}"
     mount_pod1 = annos[key1]
@@ -895,7 +891,8 @@ def test_static_cache_clean_upon_umount():
     uuid = SECRET_NAME
     if IS_CE:
         if not by_process:
-            mount_pod_name = get_only_mount_pod_name(volume_id)
+            unique_id = volume_id
+            mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
             if annotations is None or annotations.get("juicefs-uuid") is None:
@@ -974,7 +971,11 @@ def test_dynamic_cache_clean_upon_umount():
     uuid = SECRET_NAME
     if IS_CE:
         if not by_process:
-            mount_pod_name = get_only_mount_pod_name(volume_id)
+            unique_id = volume_id
+            test_mode = os.getenv("TEST_MODE")
+            if test_mode == "pod-mount-share":
+                unique_id = sc_name
+            mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
             if annotations is None or annotations.get("juicefs-uuid") is None:
@@ -1104,7 +1105,11 @@ def test_deployment_dynamic_patch_pv():
 
     # check mount pod
     LOG.info("Check 2 mount pods.")
-    mount_pods = get_mount_pods(volume_id)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 2:
         raise Exception("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
 
@@ -1324,7 +1329,11 @@ def test_dynamic_mount_image():
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
     LOG.info("Check mount pod image")
-    mount_pods = get_mount_pods(volume_id)
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = sc.name
+    mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 1:
         raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
     mount_pod = mount_pods.items[0]
