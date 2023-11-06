@@ -27,16 +27,16 @@ RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 &
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
     echo deb https://download.ceph.com/debian-17.2.6/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi"
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados-dev libcephfs-dev librbd-dev; fi"
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && \
-    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs.ceph && mv juicefs.ceph juicefs; fi"
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs; fi"
 
 FROM python:3.8-slim-bullseye
 
@@ -64,9 +64,9 @@ RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 &&
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
     echo deb https://download.ceph.com/debian-17.2.6/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi"
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev libcephfs-dev librbd-dev; fi"
 
-RUN apt-get update && apt-get install -y librados2 librados-dev libcephfs-dev librbd-dev curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
+RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
     ln -s /usr/local/bin/python /usr/bin/python && \
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \

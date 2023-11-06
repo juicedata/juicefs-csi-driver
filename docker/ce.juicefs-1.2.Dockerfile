@@ -25,14 +25,14 @@ RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && 
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi"
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados-dev libcephfs-dev librbd-dev; fi"
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
+RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && \
-    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs && upx juicefs; else make juicefs.ceph && mv juicefs.ceph juicefs; fi" && \
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs && upx juicefs; else make juicefs; fi" && \
     mv juicefs /usr/local/bin/juicefs
 
 # ----------
@@ -40,11 +40,11 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libceph
 FROM debian:buster-slim
 ARG TARGETARCH
 COPY --from=binaryimage /usr/local/bin/juicefs /usr/local/bin/juicefs
-RUN apt-get update && apt-get install -y wget librados-dev fuse3 gnupg2
+RUN apt-get update && apt-get install -y wget fuse3 gnupg2
 RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi"
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados-dev; fi"
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
