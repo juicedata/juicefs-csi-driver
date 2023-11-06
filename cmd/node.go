@@ -51,7 +51,7 @@ func parseNodeConfig() {
 			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
 		}
 	}
-
+	config.EnableNodeSelector = os.Getenv("ENABLE_NODE_SELECTOR") == "1"
 	config.NodeName = os.Getenv("NODE_NAME")
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.PodName = os.Getenv("POD_NAME")

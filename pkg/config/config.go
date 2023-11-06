@@ -26,12 +26,13 @@ import (
 )
 
 var (
-	ByProcess    = false // csi driver runs juicefs in process or not
-	FormatInPod  = false // put format/auth in pod (only in k8s)
-	Provisioner  = false // provisioner in controller
-	MountManager = false // manage mount pod in controller (only in k8s)
-	Webhook      = false // inject juicefs client as sidecar in pod (only in k8s)
-	Immutable    = false // csi driver is running in an immutable environment
+	ByProcess          = false // csi driver runs juicefs in process or not
+	FormatInPod        = false // put format/auth in pod (only in k8s)
+	Provisioner        = false // provisioner in controller
+	MountManager       = false // manage mount pod in controller (only in k8s)
+	Webhook            = false // inject juicefs client as sidecar in pod (only in k8s)
+	Immutable          = false // csi driver is running in an immutable environment
+	EnableNodeSelector = false // arrange mount pod to node with node selector instead nodeName
 
 	NodeName           = ""
 	Namespace          = ""
