@@ -110,6 +110,12 @@ ce-image-buildx:
 	    --build-arg=JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
+.PHONY: ce-image-1.2
+ce-image-1.2:
+	docker build -f ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
+	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION)
+
 .PHONY: ce-image-1.2-buildx
 ce-image-1.2-buildx:
 	docker buildx build -f ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
@@ -140,6 +146,12 @@ ee-image-4.0-buildx:
 .PHONY: fuse-ce-image
 fuse-ce-image:
 	docker build -f fuse/fuse.ce.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION) \
+        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
+	docker push $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION)
+
+.PHONY: fuse-ce-image-1.2
+fuse-ce-image-1.2:
+	docker build -f fuse/fuse.ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION) \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
 	docker push $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION)
 
