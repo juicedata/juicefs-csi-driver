@@ -903,7 +903,7 @@ def test_static_cache_clean_upon_umount():
     LOG.info("Get volume uuid {}".format(uuid))
 
     # check cache dir not empty
-    time.sleep(5)
+    time.sleep(10)
     LOG.info("Check cache dir..")
     for cache in cache_dirs:
         not_empty = wait_dir_not_empty(f"{cache}/{uuid}/raw")
