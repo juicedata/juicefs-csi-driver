@@ -130,7 +130,7 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         run: |
-          curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable.tar.gz | tar -xz
+          curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_fullpkg.tar.gz | tar -xz
           JUICEFS_EE_LATEST_VERSION=$(grep -oP 'mount_version=\K.*' version.ini)
           if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
             echo "Failed to get juicefs ee version"
