@@ -86,7 +86,7 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         run: |
-          JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
+          JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/Linux/mount.4.9 -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee -V | cut -d' ' -f3)
           if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
             echo "Failed to get juicefs ee version"
             exit 1
