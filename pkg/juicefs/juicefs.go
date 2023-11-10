@@ -763,6 +763,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
+	envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	authCmd.SetEnv(envs)
 	res, err := authCmd.CombinedOutput()
 	klog.Infof("Auth output is %s", res)
