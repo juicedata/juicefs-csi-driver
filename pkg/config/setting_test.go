@@ -834,10 +834,16 @@ func Test_ParseFormatOptions(t *testing.T) {
 			stripKeys:   []string{"trash-days", "block-size"},
 			stripped:    "--trash-days=${trash-days} --block-size=${block-size} --format-in-pod --quiet",
 		},
-
+		{
+			description: "test multiple '='",
+			origin:      "session-token=xxx=xx=",
+			args:        "--session-token=xxx=xx=",
+			stripKeys:   []string{"session-token"},
+			stripped:    "--session-token=${session-token}",
+		},
 		{
 			description: "test error",
-			origin:      "trash-days=1=2",
+			origin:      "trash-days=",
 			parseFail:   true,
 		},
 	}

@@ -6,6 +6,60 @@ sidebar_position: 6
 
 阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
 
+## CSI 控制台 {#csi-dashboard}
+
+安装 CSI 驱动时，能够可选地安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
+
+:::tips
+目前 CSI 控制台处于公测阶段，尚在积极开发和迅速完善，如果遇到问题，欢迎在 [GitHub](https://github.com/juicedata/juicefs-csi-driver/issues) 进行反馈。
+:::
+
+### 安装
+
+CSI 控制台必须[通过 Helm Chart 安装](../getting_started.md#helm)，首先拉取开发版本的 Helm Chart：
+
+```shell
+helm repo update
+```
+
+使用 Helm 时，推荐把不同集群的配置书写在单独的 values 文件。假设当前集群名为 mycluster，那么编辑 `values-mycluster.yaml`，修改内容见下方示范：
+
+```yaml title='values-mycluster.yaml'
+dashboard:
+  # 启用 CSI Dashboard
+  enabled: true
+  ingress:
+    # 如果需要通过 Ingress 访问，则创建 Ingress
+    enabled: true
+    className: "nginx"
+    hosts:
+      - host: "juicefs-csi-dashboard.example.com"
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+    #  - secretName: chart-example-tls
+    #    hosts:
+    #      - chart-example.local
+```
+
+然后重装 CSI 驱动，确认 CSI 控制台正常运行：
+
+```shell
+helm upgrade --install juicefs-csi-driver --devel juicefs/juicefs-csi-driver
+
+# 确认容器创建、正常运行
+kubectl get po -A -l app=juicefs-csi-dashboard
+```
+
+### 使用
+
+访问控制台地址，会看到如下界面：
+
+![CSI Dashboard](../images/csi-dashboard.png)
+
+如图所示，所有的相关资源都在网页中直接呈现，本章后续介绍的所有采集排查信息的操作，都可以在这个网页中简单点选就能实现，大大简化了 CSI 驱动的问题排查。
+
 ## 诊断脚本 {#csi-doctor}
 
 推荐使用诊断脚本 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息，本章所介绍的排查手段中，大部分采集信息的命令，都在脚本中进行了集成，使用起来更为便捷。
@@ -182,6 +236,22 @@ kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_N
 
 # 进入 mount pod 中，交互式运行命令
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
+```
+
+#### 排查 Mount Pod {#debug-mount-pod}
+
+一个处于 `CrashLoopBackOff` 状态的容器是无法进行交互式排查的，此时可以使用 `kubectl debug` 命令，创建一个可交互排查的副本：
+
+```shell
+kubectl -n <namespace> debug <mount-pod> -it  --copy-to=jfs-mount-debug --container=jfs-mount --image=<mount-image> -- bash
+```
+
+在上方示范中，`<mount-image>` 设置为该 Mount Pod 的镜像，这样一来，`debug` 命令会创建一个一模一样的专供交互式排查的容器，你可以在这个环境中尝试复现、排查问题。
+
+排查完毕以后，记得清理环境：
+
+```shell
+kubectl -n <namespace> delete po jfs-mount-debug
 ```
 
 ### 性能问题

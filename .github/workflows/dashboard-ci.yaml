@@ -1,0 +1,44 @@
+name: Dashboard CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'Makefile'
+      - 'docker/Makefile'
+      - 'docker/dashboard.Dockerfile'
+      - 'dashboard-ui/*'
+      - 'cmd/dashboard/*'
+      - 'pkg/dashboard/*'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'Makefile'
+      - 'docker/Makefile'
+      - 'docker/dashboard.Dockerfile'
+      - 'dashboard-ui/*'
+      - 'cmd/dashboard/*'
+      - 'pkg/dashboard/*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set Node.js 18.18.0
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.18.0
+      - name: Run install
+        uses: borales/actions-yarn@v4
+        with:
+          dir: dashboard-ui
+          cmd: install # will run `yarn install` command
+      - name: Build dashboard
+        run: make dashboard-dist
+
+
+

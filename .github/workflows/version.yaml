@@ -7,6 +7,10 @@ on:
         description: 'ce juicefs version for image build'
         required: false
         type: string
+      ee_juicefs_latest_tag:
+        description: 'ee juicefs latest tag (without ee-) of mount image in csi image'
+        required: false
+        type: string
       csi_build_version:
         description: 'csi version for image build'
         required: false
@@ -20,6 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Set Node.js 18.18.0
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.18.0
+    - name: Run yarn install
+      uses: borales/actions-yarn@v4
+      with:
+        dir: dashboard-ui
+        cmd: install # will run `yarn install` command
+    - name: Build dashboard
+      run: make dashboard-dist
     - name: Login Docker Hub
       run: docker login --username chnliyong --password ${PASSWORD}
       env:
@@ -27,6 +42,7 @@ jobs:
     - name: Confirm juicefs version
       env:
         JUICEFS_BUILD_VERSION: ${{ inputs.ce_juicefs_build_version }}
+        EE_JUICEFS_LATEST_VERSION: ${{ inputs.ee_juicefs_latest_tag }}
         CSI_BUILD_VERSION: ${{ inputs.csi_build_version }}
       run: |
         if [ ${{ env.JUICEFS_BUILD_VERSION }} ]; then
@@ -36,8 +52,12 @@ jobs:
           echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
         fi
         
-        JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
-        echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
+        if [ ${{ env.ee_juicefs_latest_tag }} ]; then
+          echo "JUICEFS_EE_LATEST_VERSION=${{ env.ee_juicefs_latest_tag }}" >> $GITHUB_ENV
+        else
+          JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/Linux/mount.4.9 -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee -V | cut -d' ' -f3)
+          echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
+        fi
         
         if [ ${{ env.CSI_BUILD_VERSION }} ]; then
           echo "CSI_LATEST_VERSION=${{ env.CSI_BUILD_VERSION }}" >> $GITHUB_ENV
@@ -45,17 +65,19 @@ jobs:
           CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
           echo "CSI_LATEST_VERSION=$CSI_LATEST_VERSION" >> $GITHUB_ENV
         fi
-    - name: Build docker image & push
+    - name: Build docker images and push
       env:
         CEVERSION: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
         CEJUICEFS_VERSION: ${{ env.JUICEFS_CE_LATEST_VERSION }}
         EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
         CSIVERSION: ${{ env.CSI_LATEST_VERSION }}
+        DASHBOARD_TAG: ${{ env.CSI_LATEST_VERSION }}
       run: |
         export DOCKER_CLI_EXPERIMENTAL=enabled
         docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
         docker buildx create --use --name mybuilder
         make -C docker image-version
+        make -C docker dashboard-buildx
     - name: Setup upterm session
       if: ${{ failure() }}
       timeout-minutes: 60

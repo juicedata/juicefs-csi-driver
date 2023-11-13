@@ -24,7 +24,7 @@ PKG=github.com/juicedata/juicefs-csi-driver
 LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
 GO111MODULE=on
 
-GOPROXY=https://goproxy.io
+GOPROXY?=https://goproxy.io
 GOPATH=$(shell go env GOPATH)
 GOOS=$(shell go env GOOS)
 GOBIN=$(shell pwd)/bin
@@ -45,6 +45,24 @@ test:
 .PHONY: test-sanity
 test-sanity:
 	go test -v -cover ./tests/sanity/... -coverprofile=cov2.out
+
+.PHONY: dashboard-dist
+dashboard-dist:
+	cd dashboard-ui && yarn run build
+
+.PHONY: dashboard
+dashboard:
+	mkdir -p bin
+	go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
+
+.PHONY: dashboard-dev
+dashboard-dev: dashboard
+	./bin/juicefs-csi-dashboard -v=6 --dev --static-dir=./dashboard-ui/dist
+
+.PHONY: dashboard-image
+dashboard-image:
+	docker build --build-arg HTTP_PROXY=$(HTTP_PROXY) --build-arg HTTPS_PROXY=$(HTTPS_PROXY) --build-arg GOPROXY=$(GOPROXY) \
+		-t $(REGISTRY)/juicedata/csi-dashboard:$(VERSION) -f docker/dashboard.Dockerfile .
 
 # build deploy yaml
 yaml:
