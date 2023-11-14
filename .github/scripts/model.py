@@ -17,8 +17,8 @@ import time
 from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
-from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, LOG, \
-    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
+from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, \
+    IN_CCI, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -293,6 +293,18 @@ class Deployment:
                 volumes=volumes,
             )
         )
+        if IN_CCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={
+                    "deployment": self.name,
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+        if IN_VCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={"deployment": self.name},
+                annotations={"vke.volcengine.com/burst-to-vci": "enforce"}
+            )
         deploySpec = client.V1DeploymentSpec(
             replicas=self.replicas,
             template=template,
@@ -362,6 +374,18 @@ class Job:
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
                 )]),
         )
+        if IN_CCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={
+                    "deployment": self.name,
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+        if IN_VCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={"deployment": self.name, },
+                annotations={"vke.volcengine.com/burst-to-vci": "enforce", }
+            )
         job_spec = client.V1JobSpec(
             template=template,
         )
@@ -511,7 +535,10 @@ class Pod:
             )]
         )
         pod = client.V1Pod(
-            metadata=client.V1ObjectMeta(name=self.name, namespace=self.namespace),
+            metadata=client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+            ),
             spec=client.V1PodSpec(
                 containers=[container],
                 volumes=[client.V1Volume(
@@ -519,6 +546,22 @@ class Pod:
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
                 )]),
         )
+        if IN_CCI:
+            pod.metadata = client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                labels={
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+        if IN_VCI:
+            pod.metadata = client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                annotations={
+                    "vke.volcengine.com/burst-to-vci": "enforce",
+                }
+            )
         client.CoreV1Api().create_namespaced_pod(namespace=self.namespace, body=pod)
         PODS.append(self)
 

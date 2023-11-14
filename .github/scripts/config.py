@@ -28,6 +28,8 @@ Beta = os.getenv("JFSCHAN") == "beta"
 MOUNT_MODE = "pod" if "pod" in os.getenv("TEST_MODE") else (
     "process" if "process" in os.getenv("TEST_MODE") else "webhook")
 RESOURCE_PREFIX = "{}-{}-".format(MOUNT_MODE, JUICEFS_MODE)
+IN_CCI = os.getenv("IN_CCI") == "1"
+IN_VCI = os.getenv("IN_VCI") == "1"
 
 GLOBAL_MOUNTPOINT = "/mnt/jfs"
 FORMAT = '%(asctime)s %(message)s'
