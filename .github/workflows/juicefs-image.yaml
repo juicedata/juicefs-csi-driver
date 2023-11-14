@@ -131,7 +131,9 @@ jobs:
         continue-on-error: true
         run: |
           curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_fullpkg.tar.gz | tar -xz
-          JUICEFS_EE_LATEST_VERSION=$(grep -oP 'mount_version=\K.*' version.ini)
+          version=$(grep -oP 'mount_version=\K.*' version.ini)
+          hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
+          JUICEFS_EE_LATEST_VERSION=$version-$hash
           if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
             echo "Failed to get juicefs ee version"
             exit 1
