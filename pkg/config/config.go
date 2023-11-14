@@ -77,6 +77,7 @@ const (
 	MountContainerName   = "jfs-mount"
 	JuiceFSMountPod      = "juicefs-mountpod"
 	JobTypeValue         = "juicefs-job"
+	JfsInsideContainer   = "JFS_INSIDE_CONTAINER"
 
 	// CSI Secret
 	ProvisionerSecretName           = "csi.storage.k8s.io/provisioner-secret-name"

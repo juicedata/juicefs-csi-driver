@@ -168,6 +168,11 @@ func (r *CCIBuilder) genNonPrivilegedContainer() corev1.Container {
 			},
 			RunAsUser: &rootUser,
 		},
-		Env: []corev1.EnvVar{},
+		Env: []corev1.EnvVar{
+			{
+				Name:  config.JfsInsideContainer,
+				Value: "1",
+			},
+		},
 	}
 }

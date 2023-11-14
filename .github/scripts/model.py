@@ -300,6 +300,17 @@ class Deployment:
                     "virtual-kubelet.io/burst-to-cci": "enforce",
                 }
             )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            template.spec.containers = [container]
         if IN_VCI:
             template.metadata = client.V1ObjectMeta(
                 labels={"deployment": self.name},
@@ -381,6 +392,17 @@ class Job:
                     "virtual-kubelet.io/burst-to-cci": "enforce",
                 }
             )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            template.spec.containers = [container]
         if IN_VCI:
             template.metadata = client.V1ObjectMeta(
                 labels={"deployment": self.name, },
@@ -554,6 +576,17 @@ class Pod:
                     "virtual-kubelet.io/burst-to-cci": "enforce",
                 }
             )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            pod.spec.containers = [container]
         if IN_VCI:
             pod.metadata = client.V1ObjectMeta(
                 name=self.name,

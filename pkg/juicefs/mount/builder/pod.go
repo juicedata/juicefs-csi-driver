@@ -86,7 +86,12 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 			Privileged: &isPrivileged,
 			RunAsUser:  &rootUser,
 		},
-		Env: []corev1.EnvVar{},
+		Env: []corev1.EnvVar{
+			{
+				Name:  config.JfsInsideContainer,
+				Value: "1",
+			},
+		},
 	}
 }
 
