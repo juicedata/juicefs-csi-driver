@@ -2300,7 +2300,7 @@ def test_static_job_complete():
     pv.create()
 
     # deploy pvc
-    pvc = PVC(name="pvc-job-static", access_mode="ReadWriteMany", storage_name="", pv=pv_name)
+    pvc = PVC(name="pvc-job-static", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
