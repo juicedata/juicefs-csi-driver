@@ -14,6 +14,7 @@
 
 IMAGE?=juicedata/juicefs-csi-driver
 REGISTRY?=docker.io
+DASHBOARD_IMAGE?=juicedata/csi-dashboard
 TARGETARCH?=amd64
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
@@ -89,6 +90,8 @@ uninstall: yaml
 .PHONY: image-dev
 image-dev: juicefs-csi-driver
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
+	docker build --build-context project=../ --build-context ui=../dashboard-ui/ -f docker/dashboard.Dockerfile \
+		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push dev image
 .PHONY: push-dev
@@ -97,6 +100,9 @@ ifeq ("$(DEV_K8S)", "microk8s")
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
 	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
+	docker image save -o juicefs-csi-dashboard-$(DEV_TAG).tar $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG)
+	sudo microk8s.ctr image import juicefs-csi-dashboard-$(DEV_TAG).tar
+	rm -f juicefs-csi-dashboard-$(DEV_TAG).tar
 else ifeq ("$(DEV_K8S)", "kubeadm")
 	docker tag $(IMAGE):$(DEV_TAG) $(DEV_REGISTRY):$(DEV_TAG)
 	docker push $(DEV_REGISTRY):$(DEV_TAG)
