@@ -2293,7 +2293,7 @@ def test_job_complete_using_storage():
 def test_static_job_complete():
     LOG.info("[test case] Job static with rwm begin..")
     # deploy pv
-    pv_name = "pv-one"
+    pv_name = "pv-for-job"
     pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name, secret_name=SECRET_NAME,
              options=[f"subdir={pv_name}"])
     LOG.info("Deploy pv {}".format(pv.name))
