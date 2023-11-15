@@ -61,7 +61,7 @@ function deploy_csi() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 3 ]; then
+    if [ $count = 3 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
@@ -98,7 +98,7 @@ function deploy_csi_without_kubelet() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 3 ]; then
+    if [ $count = 3 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
@@ -138,7 +138,7 @@ function deploy_webhook() {
     # The juicefs-csi-controller pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi-controller | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 2 ] && [ $all_count = 2 ]; then
+    if [ $count = 2 ] && [ $all_count = 4 ]; then
       ctrl_pod=juicefs-csi-controller-0
       sudo microk8s.kubectl cp kube-system/$ctrl_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
         sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
@@ -177,7 +177,7 @@ function deploy_webhook_provisioner() {
     # The juicefs-csi-controller pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi-controller | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 2 ] && [ $all_count = 2 ]; then
+    if [ $count = 2 ] && [ $all_count = 4 ]; then
       ctrl_pod=juicefs-csi-controller-0
       sudo microk8s.kubectl cp kube-system/$ctrl_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
         sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
