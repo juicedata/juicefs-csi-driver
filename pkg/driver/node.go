@@ -167,9 +167,9 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		output, err := d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
 		if err != nil {
 			klog.Error("set quota: ", err)
-			return nil, status.Errorf(codes.Internal, "set quota: %v", err)
+		} else {
+			klog.V(5).Infof("set quota: %s", output)
 		}
-		klog.V(5).Infof("set quota: %s", output)
 	}
 
 	klog.V(5).Infof("NodePublishVolume: mounted %s at %s with options %v", volumeID, target, mountOptions)

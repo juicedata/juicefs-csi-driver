@@ -806,13 +806,33 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		cmdArgs = []string{config.CliPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 10*defaultCheckTimeout)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
 	defer cmdCancel()
 
 	var res []byte
 	var err error
 	if jfsSetting.IsCe {
-		res, err = j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...).CombinedOutput()
+		done := make(chan struct{})
+		go func() {
+			// ce cli will block until quota is set
+			res, err = j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
+			close(done)
+		}()
+		select {
+		case <-cmdCtx.Done():
+			go func() {
+				klog.Warningf("quota set timeout, runs in background")
+				<-done
+				if err := wrapSetQuotaErr(string(res), err); err != nil {
+					klog.Warningf("quota set error: %v", err)
+				} else {
+					klog.V(5).Infof("quota set success: %s", string(res))
+				}
+
+			}()
+			return "", nil
+		case <-done:
+		}
 	} else {
 		var authRes string
 		authRes, err = j.AuthFs(ctx, secrets, jfsSetting, true)
@@ -821,20 +841,24 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		}
 		res, err = j.Exec.CommandContext(cmdCtx, config.CliPath, args...).CombinedOutput()
 	}
+	err = wrapSetQuotaErr(string(res), err)
+	if err != nil && cmdCtx.Err() == context.DeadlineExceeded {
+		re := fmt.Sprintf("juicefs set quota %s timed out", defaultCheckTimeout)
+		return "", errors.New(re)
+	}
+	return string(res), err
+}
+
+func wrapSetQuotaErr(res string, err error) error {
 	if err != nil {
 		re := string(res)
 		if strings.Contains(re, "invalid command: quota") || strings.Contains(re, "No help topic for 'quota'") {
 			klog.Info("juicefs inside do not support quota, skip it.")
-			return "", nil
+			return nil
 		}
-		klog.Errorf("SetQuota error: %v", err)
-		if cmdCtx.Err() == context.DeadlineExceeded {
-			re = fmt.Sprintf("juicefs set quota %s timed out", 10*defaultCheckTimeout)
-			return "", errors.New(re)
-		}
-		return "", errors.Wrap(err, re)
+		return errors.Wrap(err, re)
 	}
-	return string(res), nil
+	return err
 }
 
 func (j *juicefs) GetSubPath(ctx context.Context, volumeID string) (string, error) {
