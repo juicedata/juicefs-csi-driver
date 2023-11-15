@@ -27,11 +27,11 @@ RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 &
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
     echo deb https://download.ceph.com/debian-17.2.6/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev upx-ucl; fi"
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
+RUN apt-get update && apt-get install -y musl-tools && \
     git clone https://github.com/juicedata/juicefs-csi-driver && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
