@@ -80,6 +80,82 @@ metadata:
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - persistentvolumes
+  - persistentvolumeclaims
+  - persistentvolumeclaims/status
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/proxy
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -246,6 +322,23 @@ metadata:
     app.kubernetes.io/instance: juicefs-csi-driver
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-csi-dashboard-role
+subjects:
+- kind: ServiceAccount
+  name: juicefs-csi-dashboard-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-provisioner-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -291,6 +384,80 @@ spec:
     app.kubernetes.io/instance: juicefs-csi-driver
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/version: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+spec:
+  ports:
+  - name: http
+    port: 8088
+    protocol: TCP
+    targetPort: 8088
+  selector:
+    app: juicefs-csi-dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: juicefs-csi-dashboard
+      app.kubernetes.io/instance: juicefs-csi-driver
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/version: master
+  template:
+    metadata:
+      labels:
+        app: juicefs-csi-dashboard
+        app.kubernetes.io/instance: juicefs-csi-driver
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/version: master
+    spec:
+      containers:
+      - args:
+        - --static-dir=/dist
+        - --leader-election
+        env:
+        - name: SYS_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: juicedata/csi-dashboard:v0.23.0
+        name: dashboard
+        ports:
+        - containerPort: 8088
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      serviceAccountName: juicefs-csi-dashboard-sa
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -346,7 +513,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.22.1
+        image: juicedata/juicefs-csi-driver:v0.23.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -545,6 +712,82 @@ metadata:
   name: juicefs-csi-controller-sa
   namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - persistentvolumes
+  - persistentvolumeclaims
+  - persistentvolumeclaims/status
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/proxy
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -699,6 +942,23 @@ metadata:
     app.kubernetes.io/instance: juicefs-csi-driver
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-csi-dashboard-role
+subjects:
+- kind: ServiceAccount
+  name: juicefs-csi-dashboard-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
   name: juicefs-csi-provisioner-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -728,6 +988,80 @@ spec:
     app.kubernetes.io/instance: juicefs-csi-driver
     app.kubernetes.io/name: juicefs-csi-driver
     app.kubernetes.io/version: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+spec:
+  ports:
+  - name: http
+    port: 8088
+    protocol: TCP
+    targetPort: 8088
+  selector:
+    app: juicefs-csi-dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: juicefs-csi-dashboard
+      app.kubernetes.io/instance: juicefs-csi-driver
+      app.kubernetes.io/name: juicefs-csi-driver
+      app.kubernetes.io/version: master
+  template:
+    metadata:
+      labels:
+        app: juicefs-csi-dashboard
+        app.kubernetes.io/instance: juicefs-csi-driver
+        app.kubernetes.io/name: juicefs-csi-driver
+        app.kubernetes.io/version: master
+    spec:
+      containers:
+      - args:
+        - --static-dir=/dist
+        - --leader-election
+        env:
+        - name: SYS_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: juicedata/csi-dashboard:v0.23.0
+        name: dashboard
+        ports:
+        - containerPort: 8088
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      serviceAccountName: juicefs-csi-dashboard-sa
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -783,7 +1117,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.22.1
+        image: juicedata/juicefs-csi-driver:v0.23.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
