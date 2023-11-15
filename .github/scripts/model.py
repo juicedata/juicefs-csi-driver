@@ -18,7 +18,7 @@ from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
 from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, \
-    IN_CCI, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
+    IN_CCI, CCI_APP_IMAGE, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -253,6 +253,8 @@ class Deployment:
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.replicas = replicas
         self.out_put = out_put
         self.pvcs = [pvc]
@@ -267,11 +269,17 @@ class Deployment:
         volumes = []
         date_cmds = []
         for i, pvc in enumerate(self.pvcs):
-            volume_mounts.append(client.V1VolumeMount(
-                name="juicefs-pv-{}".format(i),
-                mount_path="/data-{}".format(i),
-                mount_propagation="HostToContainer",
-            ))
+            if not IN_CCI:
+                volume_mounts.append(client.V1VolumeMount(
+                    name="juicefs-pv-{}".format(i),
+                    mount_path="/data-{}".format(i),
+                    mount_propagation="HostToContainer",
+                ))
+            else:
+                volume_mounts.append(client.V1VolumeMount(
+                    name="juicefs-pv-{}".format(i),
+                    mount_path="/data-{}".format(i),
+                ))
             volumes.append(client.V1Volume(
                 name="juicefs-pv-{}".format(i),
                 persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc)
@@ -281,7 +289,7 @@ class Deployment:
         cmd = "while true; do {} sleep 1; done".format(date_cmd)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["/bin/sh"],
             args=["-c", cmd],
             volume_mounts=volume_mounts,
@@ -358,6 +366,8 @@ class Job:
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.pvc = pvc
         self.out_put = out_put
 
@@ -367,7 +377,7 @@ class Job:
             cmd = "echo $(date -u) >> /data/{}; sleep 10;".format(self.out_put)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["/bin/sh"],
             args=["-c", cmd],
             volume_mounts=[client.V1VolumeMount(
@@ -448,6 +458,8 @@ class Pod:
         self.pods = []
         self.replicas = replicas
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.pvc = pvc
         self.replicas = replicas
         self.out_put = out_put
@@ -548,7 +560,7 @@ class Pod:
             cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["sh", "-c", cmd],
             volume_mounts=[client.V1VolumeMount(
                 name="juicefs-pv",
@@ -556,6 +568,11 @@ class Pod:
                 mount_propagation="HostToContainer",
             )]
         )
+        if IN_CCI:
+            container.volume_mounts = [client.V1VolumeMount(
+                name="juicefs-pv",
+                mount_path="/data",
+            )]
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
                 name=self.name,

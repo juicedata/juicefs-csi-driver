@@ -29,6 +29,8 @@ MOUNT_MODE = "pod" if "pod" in os.getenv("TEST_MODE") else (
     "process" if "process" in os.getenv("TEST_MODE") else "webhook")
 RESOURCE_PREFIX = "{}-{}-".format(MOUNT_MODE, JUICEFS_MODE)
 IN_CCI = os.getenv("IN_CCI") == "1"
+CCI_APP_IMAGE = os.getenv("CCI_APP_IMAGE")
+CCI_MOUNT_IMAGE = os.getenv("CCI_MOUNT_IMAGE")
 IN_VCI = os.getenv("IN_VCI") == "1"
 
 GLOBAL_MOUNTPOINT = "/mnt/jfs"
