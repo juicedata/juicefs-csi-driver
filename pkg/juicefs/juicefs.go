@@ -806,7 +806,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		cmdArgs = []string{config.CliPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
 	defer cmdCancel()
 
 	var res []byte
@@ -843,7 +843,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	}
 	err = wrapSetQuotaErr(string(res), err)
 	if err != nil && cmdCtx.Err() == context.DeadlineExceeded {
-		re := fmt.Sprintf("juicefs set quota %s timed out", defaultCheckTimeout)
+		re := fmt.Sprintf("juicefs set quota %s timed out", 2*defaultCheckTimeout)
 		return "", errors.New(re)
 	}
 	return string(res), err
