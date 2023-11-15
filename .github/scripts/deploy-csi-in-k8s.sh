@@ -61,7 +61,7 @@ function deploy_csi() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 5 ]; then
+    if [ $count = 5 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
@@ -98,7 +98,7 @@ function deploy_csi_without_kubelet() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 5 ]; then
+    if [ $count = 5 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
