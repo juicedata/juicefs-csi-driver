@@ -269,17 +269,11 @@ class Deployment:
         volumes = []
         date_cmds = []
         for i, pvc in enumerate(self.pvcs):
-            if not IN_CCI:
-                volume_mounts.append(client.V1VolumeMount(
-                    name="juicefs-pv-{}".format(i),
-                    mount_path="/data-{}".format(i),
-                    mount_propagation="HostToContainer",
-                ))
-            else:
-                volume_mounts.append(client.V1VolumeMount(
-                    name="juicefs-pv-{}".format(i),
-                    mount_path="/data-{}".format(i),
-                ))
+            volume_mounts.append(client.V1VolumeMount(
+                name="juicefs-pv-{}".format(i),
+                mount_path="/data-{}".format(i),
+                mount_propagation="HostToContainer",
+            ))
             volumes.append(client.V1Volume(
                 name="juicefs-pv-{}".format(i),
                 persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc)
@@ -568,11 +562,6 @@ class Pod:
                 mount_propagation="HostToContainer",
             )]
         )
-        if IN_CCI:
-            container.volume_mounts = [client.V1VolumeMount(
-                name="juicefs-pv",
-                mount_path="/data",
-            )]
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
                 name=self.name,

@@ -124,6 +124,8 @@ func (r *CCIBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {
 }
 
 func (r *CCIBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
+	none := corev1.MountPropagationNone
+	mount.MountPropagation = &none
 }
 
 // genCCIServerlessVolumes generates volumes and volumeMounts for serverless sidecar
