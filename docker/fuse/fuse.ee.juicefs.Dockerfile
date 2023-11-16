@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace ip
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
 RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
-    bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \
+    bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_fullpkg.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \
     else curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_fullpkg.tar.gz | tar -xz; fi;" && \
     bash -c "mkdir -p /usr/local/juicefs/mount; if [[ '${TARGETARCH}' == amd64 ]]; then cp Linux/mount.ceph $jfs_mount_path; else cp Linux/mount.aarch64 $jfs_mount_path; fi;" && \
     chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}

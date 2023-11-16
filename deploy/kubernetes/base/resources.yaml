@@ -200,6 +200,87 @@ subjects:
     name: juicefs-csi-node-sa
     namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: juicefs-csi-dashboard-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: juicefs-csi-dashboard-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - persistentvolumeclaims/status
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/proxy
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: juicefs-csi-dashboard-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-csi-dashboard-role
+subjects:
+  - kind: ServiceAccount
+    name: juicefs-csi-dashboard-sa
+    namespace: kube-system
+---
 kind: CSIDriver
 apiVersion: storage.k8s.io/v1
 metadata:
@@ -235,7 +316,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.22.1
+          image: juicedata/juicefs-csi-driver:v0.23.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -372,7 +453,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.22.1
+          image: juicedata/juicefs-csi-driver:v0.23.0
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -567,3 +648,63 @@ data:
   ca.crt: CA_BUNDLE
   tls.crt: TLS_CRT
   tls.key: TLS_KEY
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: dashboard
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: juicefs-csi-dashboard
+  template:
+    metadata:
+      labels:
+        app: juicefs-csi-dashboard
+    spec:
+      serviceAccountName: juicefs-csi-dashboard-sa
+      containers:
+        - name: dashboard
+          image: juicedata/csi-dashboard:v0.23.0
+          args:
+            - --static-dir=/dist
+            - --leader-election
+          env:
+            - name: SYS_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 8088
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juicefs-csi-dashboard
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/component: dashboard
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8088
+      targetPort: 8088
+      protocol: TCP
+      name: http
+  selector:
+    app: juicefs-csi-dashboard
+
