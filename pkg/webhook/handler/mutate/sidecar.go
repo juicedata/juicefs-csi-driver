@@ -226,11 +226,13 @@ func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInter
 			build.OverwriteVolumes(&volume, mountPath)
 			pod.Spec.Volumes[i] = volume
 
-			for j, vm := range pod.Spec.Containers[0].VolumeMounts {
-				// overwrite volumeMount
-				if vm.Name == volume.Name {
-					build.OverwriteVolumeMounts(&vm)
-					pod.Spec.Containers[0].VolumeMounts[j] = vm
+			for cni, cn := range pod.Spec.Containers {
+				for j, vm := range cn.VolumeMounts {
+					// overwrite volumeMount
+					if vm.Name == volume.Name {
+						build.OverwriteVolumeMounts(&vm)
+						pod.Spec.Containers[cni].VolumeMounts[j] = vm
+					}
 				}
 			}
 		}
