@@ -130,7 +130,7 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         run: |
-          curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_fullpkg.tar.gz | tar -xz
+          curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz
           version=$(grep -oP 'mount_version=\K.*' version.ini)
           hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
           JUICEFS_EE_LATEST_VERSION=$version-$hash
