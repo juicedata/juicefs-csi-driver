@@ -85,7 +85,6 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		}
 		if uniqueId != "" && (p.Spec.CSI.VolumeHandle == uniqueId || p.Spec.StorageClassName == uniqueId) {
 			relatedPVs = append(relatedPVs, &p)
-			break
 		}
 	}
 	for _, pv := range relatedPVs {
