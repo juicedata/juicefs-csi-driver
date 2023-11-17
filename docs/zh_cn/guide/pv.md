@@ -549,39 +549,48 @@ mountOptions:
 
 #### 挂载子目录 {#mount-subdirectory}
 
-修改[「挂载参数」](#mount-options)，用 `subdir` 参数挂载子目录。如果子目录尚不存在，CSI Controller 会在挂载前自动创建。
+挂载子目录有两种方式，一种是通过 `--subdir` 挂载选项，另一种是通过 [`volumeMounts.subPath` 属性](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#using-subpath)，下面分别介绍。
 
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - subdir=/my/sub/dir
-  ...
-```
+- **使用 `--subdir` 挂载选项**
 
-除此外，还可以使用 `csi.volumeAttributes.subPath` 来指定 PV 在 JuiceFS 上的目录名称，例如：
+  修改[「挂载参数」](#mount-options)，用 `subdir` 参数挂载子目录。如果子目录尚不存在，CSI Controller 会在挂载前自动创建。
 
-```yaml {10-11}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  csi:
-    volumeAttributes:
-      # 不支持多级目录，只能填写一个根目录名称
-      subPath: my-sub-dir
-  ...
-```
+  ```yaml {8-9}
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: juicefs-pv
+    labels:
+      juicefs-name: ten-pb-fs
+  spec:
+    mountOptions:
+      - subdir=/my/sub/dir
+    ...
+  ```
 
-需要指出的是，调整 `subdir` 挂载参数，是更为推荐的方式。`subPath` 方式灵活性较差，除了不支持多级目录外，在缓存预热场景中，或者子目录存在权限限制，`subPath` 方式均会遭遇错误，此参数多用于 CSI 内部调试，请勿用于生产环境。
+- **使用 `volumeMounts.subPath` 属性**
+
+  ```yaml {11}
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: juicefs-app
+    namespace: default
+  spec:
+    containers:
+      - volumeMounts:
+          - name: data
+            mountPath: /data
+            subPath: /my/sub/dir
+        ...
+    volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: juicefs-pvc
+  ```
+
+  如果在同一台宿主机上可能会运行多个应用 Pod，并且这些应用 Pod 需要挂载同一个文件系统的不同子目录，那么建议使用 `volumeMounts.subPath` 属性来挂载，因为这种方式只会创建 1 个 Mount Pod，可以大大节省宿主机的资源。
+
 
 #### 跨命名空间（namespace）共享同一个文件系统 {#sharing-same-file-system-across-namespaces}
 
