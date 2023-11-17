@@ -70,9 +70,14 @@ func StartReconciler() error {
 	return nil
 }
 
+type PodStatus struct {
+	podStatus
+	syncAt time.Time
+}
+
 func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 	backOff := flowcontrol.NewBackOff(retryPeriod, maxRetryPeriod)
-	lastPodStatus := make(map[string]podStatus)
+	lastPodStatus := make(map[string]PodStatus)
 	for {
 		ctx := context.TODO()
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
@@ -98,12 +103,17 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
 				continue
 			}
-			podStatus := getPodStatus(pod)
-			if lastStatus, ok := lastPodStatus[pod.Name]; ok && lastStatus == podStatus {
-				// skipped
-				continue
+			crtPodStatus := getPodStatus(pod)
+			if lastStatus, ok := lastPodStatus[pod.Name]; ok {
+				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.syncAt.Add(10*time.Minute)) {
+					// skipped
+					continue
+				}
 			}
-			lastPodStatus[pod.Name] = podStatus
+			lastPodStatus[pod.Name] = PodStatus{
+				podStatus: crtPodStatus,
+				syncAt:    time.Now(),
+			}
 
 			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
 			g.Go(func() error {
