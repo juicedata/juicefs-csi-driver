@@ -154,7 +154,8 @@ jobs:
           if [ $image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             export DOCKER_CLI_EXPERIMENTAL=enabled
-            docker run --rm --privileged moby/buildkit:buildx-stable-1
+            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
+            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
             docker buildx create --use --name mybuilder
             make -C docker ee-image
             make -C docker fuse-ee-image
