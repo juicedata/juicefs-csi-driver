@@ -73,6 +73,9 @@ jobs:
         CSIVERSION: ${{ env.CSI_LATEST_VERSION }}
         DASHBOARD_TAG: ${{ env.CSI_LATEST_VERSION }}
       run: |
+        export DOCKER_CLI_EXPERIMENTAL=enabled
+        docker run --rm --privileged moby/buildkit:buildx-stable-1
+        docker buildx create --use --name mybuilder
         make -C docker image-version
         make -C docker dashboard-buildx
     - name: Setup upterm session
