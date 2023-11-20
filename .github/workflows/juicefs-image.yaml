@@ -157,8 +157,8 @@ jobs:
             docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
             docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
             docker buildx create --use --name mybuilder
-            make -C docker ee-image
-            make -C docker fuse-ee-image
+            make -C docker ee-image-buildx
+            make -C docker fuse-ee-image-buildx
           else
             echo "JuiceFS mount ee version image already exists"
           fi
