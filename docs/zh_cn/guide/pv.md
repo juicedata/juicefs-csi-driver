@@ -592,7 +592,6 @@ mountOptions:
 
   如果在同一台宿主机上可能会运行多个应用 Pod，并且这些应用 Pod 需要挂载同一个文件系统的不同子目录，那么建议使用 `volumeMounts.subPath` 属性来挂载，因为这种方式只会创建 1 个 Mount Pod，可以大大节省宿主机的资源。
 
-
 #### 跨命名空间（namespace）共享同一个文件系统 {#sharing-same-file-system-across-namespaces}
 
 如果想要在不同命名空间中共享同一个文件系统，只需要让不同 PV 使用相同的文件系统认证信息（Secret）即可：
