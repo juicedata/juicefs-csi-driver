@@ -549,39 +549,48 @@ If you have existing data in JuiceFS, and would like to mount into container for
 
 #### Mount subdirectory {#mount-subdirectory}
 
-Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
+There are two ways to mount subdirectory, one is through the `--subdir` mount option, the other is through the [`volumeMounts.subPath` property](https://kubernetes.io/docs/concepts/storage/volumes/#using-subpath), which are introduced below.
 
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - subdir=/my/sub/dir
-  ...
-```
+- **Use the `--subdir` mount option**
 
-Apart from this, you can also achieve this by specifying the directory name using `csi.volumeAttributes.subPath`:
+  Modify [mount options](#mount-options), specify the subdirectory name using the `subdir` option. CSI Controller will automatically create the directory if not exists.
 
-```yaml {10-11}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  csi:
-    volumeAttributes:
-      # Does not support multi-level directory, use only a single root directory name
-      subPath: my-sub-dir
-  ...
-```
+  ```yaml {8-9}
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: juicefs-pv
+    labels:
+      juicefs-name: ten-pb-fs
+  spec:
+    mountOptions:
+      - subdir=/my/sub/dir
+    ...
+  ```
 
-Note that `subPath` is considered inflexible and harmful, it doesn't support multi-level directory, and will not work when running cache warmups, or faced with subdirectory permission restrictions. Hence, `subdir` is the more recommended way, and `subPath` should only be used for debugging.
+- **Use the `volumeMounts.subPath` property**
+
+  ```yaml {11-12}
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: juicefs-app
+    namespace: default
+  spec:
+    containers:
+      - volumeMounts:
+          - name: data
+            mountPath: /data
+            # Note that subPath can only use relative path, not absolute path.
+            subPath: my/sub/dir
+        ...
+    volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: juicefs-pvc
+  ```
+
+  If multiple application Pods may be running on the same host, and these application Pods need to mount different subdirectories of the same file system, it is recommended to use the `volumeMounts.subPath` property for mounting as this way only 1 Mount Pod will be created, which saves the resources of the host.
 
 #### Sharing the same file system across different namespaces {#sharing-same-file-system-across-namespaces}
 
