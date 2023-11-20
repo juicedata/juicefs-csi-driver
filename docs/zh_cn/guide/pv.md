@@ -581,7 +581,8 @@ mountOptions:
       - volumeMounts:
           - name: data
             mountPath: /data
-            subPath: /my/sub/dir
+            # 注意 subPath 只能用相对路径，不能用绝对路径。
+            subPath: my/sub/dir
         ...
     volumes:
       - name: data

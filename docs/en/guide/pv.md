@@ -581,7 +581,8 @@ There are two ways to mount subdirectory, one is through the `--subdir` mount op
       - volumeMounts:
           - name: data
             mountPath: /data
-            subPath: /my/sub/dir
+            # Note that subPath can only use relative path, not absolute path.
+            subPath: my/sub/dir
         ...
     volumes:
       - name: data
