@@ -570,7 +570,7 @@ mountOptions:
 
 - **使用 `volumeMounts.subPath` 属性**
 
-  ```yaml {11}
+  ```yaml {11-12}
   apiVersion: v1
   kind: Pod
   metadata:

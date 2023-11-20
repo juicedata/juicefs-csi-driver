@@ -570,7 +570,7 @@ There are two ways to mount subdirectory, one is through the `--subdir` mount op
 
 - **Use the `volumeMounts.subPath` property**
 
-  ```yaml {11}
+  ```yaml {11-12}
   apiVersion: v1
   kind: Pod
   metadata:
