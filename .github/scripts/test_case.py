@@ -2290,12 +2290,12 @@ def test_job_complete_using_storage():
     pvc.delete()
     return
 
+
 def test_static_job_complete():
     LOG.info("[test case] Job static with rwm begin..")
     # deploy pv
     pv_name = "pv-for-job"
-    pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name, secret_name=SECRET_NAME,
-             options=[f"subdir={pv_name}"])
+    pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name, secret_name=SECRET_NAME)
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
@@ -2311,7 +2311,8 @@ def test_static_job_complete():
         time.sleep(1)
 
     # deploy pod
-    job = Job(name="job-static", pvc=pvc.name)
+    out_put = gen_random_string(6) + ".txt"
+    job = Job(name="job-static", pvc=pvc.name, out_put=out_put)
     LOG.info("Deploy Job {}".format(job.name))
     job.create()
     pod = Pod(name="", deployment_name=job.name, replicas=1)
@@ -2332,7 +2333,7 @@ def test_static_job_complete():
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
-    check_path = volume_id + "/out.txt"
+    check_path = out_put
     result = check_mount_point(check_path)
     if not result:
         pods = client.CoreV1Api().list_namespaced_pod(
