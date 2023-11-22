@@ -53,6 +53,7 @@ rules:
   resources:
   - events
   verbs:
+  - get
   - list
   - watch
   - create

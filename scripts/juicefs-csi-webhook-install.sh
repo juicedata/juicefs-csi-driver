@@ -124,6 +124,7 @@ rules:
   resources:
   - events
   verbs:
+  - get
   - list
   - watch
   - create
@@ -780,6 +781,7 @@ rules:
   resources:
   - events
   verbs:
+  - get
   - list
   - watch
   - create
