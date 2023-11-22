@@ -2242,8 +2242,7 @@ def test_job_complete_using_storage():
         time.sleep(1)
 
     # deploy pod
-    out_put = gen_random_string(6) + ".txt"
-    job = Job(name="job-dynamic", pvc=pvc.name, out_put=out_put)
+    job = Job(name="job-dynamic", pvc=pvc.name)
     LOG.info("Deploy Job {}".format(job.name))
     job.create()
     pod = Pod(name="", deployment_name=job.name, replicas=1)
