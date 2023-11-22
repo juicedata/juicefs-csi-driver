@@ -17,8 +17,8 @@ import time
 from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
-from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, LOG, \
-    SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
+from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, \
+    IN_CCI, CCI_APP_IMAGE, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -253,6 +253,8 @@ class Deployment:
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.replicas = replicas
         self.out_put = out_put
         self.pvcs = [pvc]
@@ -281,7 +283,7 @@ class Deployment:
         cmd = "while true; do {} sleep 1; done".format(date_cmd)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["/bin/sh"],
             args=["-c", cmd],
             volume_mounts=volume_mounts,
@@ -293,6 +295,29 @@ class Deployment:
                 volumes=volumes,
             )
         )
+        if IN_CCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={
+                    "deployment": self.name,
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            template.spec.containers = [container]
+        if IN_VCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={"deployment": self.name},
+                annotations={"vke.volcengine.com/burst-to-vci": "enforce"}
+            )
         deploySpec = client.V1DeploymentSpec(
             replicas=self.replicas,
             template=template,
@@ -335,6 +360,8 @@ class Job:
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.pvc = pvc
         self.out_put = out_put
 
@@ -344,7 +371,7 @@ class Job:
             cmd = "echo $(date -u) >> /data/{}; sleep 10;".format(self.out_put)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["/bin/sh"],
             args=["-c", cmd],
             volume_mounts=[client.V1VolumeMount(
@@ -362,6 +389,29 @@ class Job:
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
                 )]),
         )
+        if IN_CCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={
+                    "deployment": self.name,
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            template.spec.containers = [container]
+        if IN_VCI:
+            template.metadata = client.V1ObjectMeta(
+                labels={"deployment": self.name, },
+                annotations={"vke.volcengine.com/burst-to-vci": "enforce", }
+            )
         job_spec = client.V1JobSpec(
             template=template,
         )
@@ -402,6 +452,8 @@ class Pod:
         self.pods = []
         self.replicas = replicas
         self.image = "centos"
+        if IN_CCI:
+            self.image = CCI_APP_IMAGE
         self.pvc = pvc
         self.replicas = replicas
         self.out_put = out_put
@@ -502,7 +554,7 @@ class Pod:
             cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
         container = client.V1Container(
             name="app",
-            image="centos",
+            image=self.image,
             command=["sh", "-c", cmd],
             volume_mounts=[client.V1VolumeMount(
                 name="juicefs-pv",
@@ -511,7 +563,10 @@ class Pod:
             )]
         )
         pod = client.V1Pod(
-            metadata=client.V1ObjectMeta(name=self.name, namespace=self.namespace),
+            metadata=client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+            ),
             spec=client.V1PodSpec(
                 containers=[container],
                 volumes=[client.V1Volume(
@@ -519,6 +574,33 @@ class Pod:
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=self.pvc)
                 )]),
         )
+        if IN_CCI:
+            pod.metadata = client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                labels={
+                    "virtual-kubelet.io/burst-to-cci": "enforce",
+                }
+            )
+            container.resources = client.V1ResourceRequirements(
+                limits={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                },
+                requests={
+                    "cpu": "1",
+                    "memory": "1Gi",
+                }
+            )
+            pod.spec.containers = [container]
+        if IN_VCI:
+            pod.metadata = client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                annotations={
+                    "vke.volcengine.com/burst-to-vci": "enforce",
+                }
+            )
         client.CoreV1Api().create_namespaced_pod(namespace=self.namespace, body=pod)
         PODS.append(self)
 

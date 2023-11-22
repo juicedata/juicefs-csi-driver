@@ -86,7 +86,12 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 			Privileged: &isPrivileged,
 			RunAsUser:  &rootUser,
 		},
-		Env: []corev1.EnvVar{},
+		Env: []corev1.EnvVar{
+			{
+				Name:  config.JfsInsideContainer,
+				Value: "1",
+			},
+		},
 	}
 }
 
@@ -137,6 +142,42 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 			MountPath: cache.Path,
 		}
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	if r.jfsSetting.CacheEmptyDir != nil {
+		name := "cachedir-empty-dir"
+		emptyVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					Medium:    corev1.StorageMedium(r.jfsSetting.CacheEmptyDir.Medium),
+					SizeLimit: &r.jfsSetting.CacheEmptyDir.SizeLimit,
+				},
+			},
+		}
+		cacheVolumes = append(cacheVolumes, emptyVolume)
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: r.jfsSetting.CacheEmptyDir.Path,
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	if r.jfsSetting.CacheInlineVolumes != nil {
+		for i, inlineVolume := range r.jfsSetting.CacheInlineVolumes {
+			name := fmt.Sprintf("cachedir-inline-volume-%d", i)
+			cacheVolumes = append(cacheVolumes, corev1.Volume{
+				Name:         name,
+				VolumeSource: corev1.VolumeSource{CSI: inlineVolume.CSI},
+			})
+			volumeMount := corev1.VolumeMount{
+				Name:      name,
+				ReadOnly:  false,
+				MountPath: inlineVolume.Path,
+			}
+			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+		}
 	}
 
 	return cacheVolumes, cacheVolumeMounts

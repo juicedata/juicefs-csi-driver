@@ -162,7 +162,7 @@ func (r *ServerlessBuilder) genServerlessVolumes() ([]corev1.Volume, []corev1.Vo
 	return volumes, volumeMounts
 }
 
-// genCacheDirVolumes: in serverless, only support PVC cache, do not support hostpath cache
+// genCacheDirVolumes: in serverless, only support PVC and emptyDir cache, do not support hostpath cache
 func (r *ServerlessBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	cacheVolumes := []corev1.Volume{}
 	cacheVolumeMounts := []corev1.VolumeMount{}
@@ -185,6 +185,42 @@ func (r *ServerlessBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.Volu
 			MountPath: cache.Path,
 		}
 		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	if r.jfsSetting.CacheEmptyDir != nil {
+		name := "cachedir-empty-dir"
+		emptyVolume := corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					Medium:    corev1.StorageMedium(r.jfsSetting.CacheEmptyDir.Medium),
+					SizeLimit: &r.jfsSetting.CacheEmptyDir.SizeLimit,
+				},
+			},
+		}
+		cacheVolumes = append(cacheVolumes, emptyVolume)
+		volumeMount := corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: r.jfsSetting.CacheEmptyDir.Path,
+		}
+		cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+	}
+
+	if r.jfsSetting.CacheInlineVolumes != nil {
+		for i, inlineVolume := range r.jfsSetting.CacheInlineVolumes {
+			name := fmt.Sprintf("cachedir-inline-volume-%d", i)
+			cacheVolumes = append(cacheVolumes, corev1.Volume{
+				Name:         name,
+				VolumeSource: corev1.VolumeSource{CSI: inlineVolume.CSI},
+			})
+			volumeMount := corev1.VolumeMount{
+				Name:      name,
+				ReadOnly:  false,
+				MountPath: inlineVolume.Path,
+			}
+			cacheVolumeMounts = append(cacheVolumeMounts, volumeMount)
+		}
 	}
 
 	return cacheVolumes, cacheVolumeMounts
