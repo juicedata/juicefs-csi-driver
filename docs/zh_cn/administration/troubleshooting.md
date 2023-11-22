@@ -10,8 +10,6 @@ sidebar_position: 6
 
 安装 CSI 驱动时，默认会一同安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
 
-### 使用
-
 访问控制台地址，会看到如下界面：
 
 ![CSI Dashboard](../images/csi-dashboard.png)
