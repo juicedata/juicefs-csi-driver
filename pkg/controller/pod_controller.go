@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -86,6 +87,9 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		if uniqueId != "" && (p.Spec.CSI.VolumeHandle == uniqueId || p.Spec.StorageClassName == uniqueId) {
 			relatedPVs = append(relatedPVs, &p)
 		}
+	}
+	if len(relatedPVs) == 0 {
+		return reconcile.Result{}, fmt.Errorf("can not get pv by uniqueId %s, mount pod: %s", uniqueId, mountPod.Name)
 	}
 	for _, pv := range relatedPVs {
 		if pv != nil {
