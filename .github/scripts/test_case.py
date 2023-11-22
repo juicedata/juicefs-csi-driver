@@ -20,7 +20,7 @@ from kubernetes import client
 
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
-    LOG, PVs, META_URL, MOUNT_MODE
+    LOG, PVs, META_URL, MOUNT_MODE, CCI_MOUNT_IMAGE, IN_CCI
 from model import PVC, PV, Pod, StorageClass, Deployment, Job
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
@@ -1291,6 +1291,8 @@ def test_dynamic_mount_image():
     mount_image = "juicedata/mount:ee-nightly"
     if IS_CE:
         mount_image = "juicedata/mount:ce-nightly"
+    if IN_CCI:
+        mount_image = CCI_MOUNT_IMAGE
     # deploy sc
     sc_name = "mount-image-dynamic"
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
@@ -1369,6 +1371,8 @@ def test_static_mount_image():
     mount_image = "juicedata/mount:ee-nightly"
     if IS_CE:
         mount_image = "juicedata/mount:ce-nightly"
+    if IN_CCI:
+        mount_image = CCI_MOUNT_IMAGE
     # deploy pv
     pv_name = "mount-image-pv"
     pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name,
@@ -2033,6 +2037,8 @@ def test_dynamic_mount_image_with_webhook():
     mount_image = "juicedata/mount:ee-nightly"
     if IS_CE:
         mount_image = "juicedata/mount:ce-nightly"
+    if IN_CCI:
+        mount_image = CCI_MOUNT_IMAGE
     # deploy sc
     sc_name = "mount-image-dynamic-webhook"
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
@@ -2132,6 +2138,8 @@ def test_static_mount_image_with_webhook():
     mount_image = "juicedata/mount:ee-nightly"
     if IS_CE:
         mount_image = "juicedata/mount:ce-nightly"
+    if IN_CCI:
+        mount_image = CCI_MOUNT_IMAGE
     # deploy pv
     pv_name = "mount-image-pv-webhook"
     pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name,
@@ -2256,6 +2264,76 @@ def test_job_complete_using_storage():
     volume_id = pvc.get_volume_id()
     LOG.info("Get volume_id {}".format(volume_id))
     check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(job.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "jfs-mount", "-n", "default"])
+            subprocess.check_call(["kubectl", "logs", pod_name, "-c", "app", "-n", "default"])
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    # check job complete
+    LOG.info("Check job complete..")
+    result = job.watch_for_complete()
+    if not result:
+        raise Exception("Job {} is not complete within 1 min.".format(job.name))
+    LOG.info("Test pass.")
+
+    # delete test resources
+    LOG.info("Remove job {}".format(job.name))
+    job.delete()
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    return
+
+
+def test_static_job_complete():
+    LOG.info("[test case] Job static with rwm begin..")
+    # deploy pv
+    pv_name = "pv-for-job"
+    pv = PV(name=pv_name, access_mode="ReadWriteMany", volume_handle=pv_name, secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pvc
+    pvc = PVC(name="pvc-job-static", access_mode="ReadWriteMany", storage_name="", pv=pv.name)
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    # deploy pod
+    out_put = gen_random_string(6) + ".txt"
+    job = Job(name="job-static", pvc=pvc.name, out_put=out_put)
+    LOG.info("Deploy Job {}".format(job.name))
+    job.create()
+    pod = Pod(name="", deployment_name=job.name, replicas=1)
+    LOG.info("Watch for pods of {} for success.".format(job.name))
+    result = pod.watch_for_success()
+    if not result:
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(job.name)
+        )
+        for po in pods.items:
+            pod_name = po.metadata.name
+            if not check_pod_ready(po):
+                subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        raise Exception("Pods of job {} are not ready within 10 min.".format(job.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = out_put
     result = check_mount_point(check_path)
     if not result:
         pods = client.CoreV1Api().list_namespaced_pod(
