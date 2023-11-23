@@ -194,7 +194,7 @@ spec:
                 cat /var/log/juicefs.log
               fi
               exit $code
-          image: juicedata/mount:ee-4.9.16
+          image: juicedata/mount:ee-5.0.2-69f82b3
           securityContext:
             privileged: true
           env:
@@ -382,7 +382,7 @@ spec:
           name: jfs-root-dir
         # Use the mount pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
           # Unmount file system when exiting
           preStop:

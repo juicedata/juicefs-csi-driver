@@ -194,7 +194,7 @@ spec:
                 cat /var/log/juicefs.log
               fi
               exit $code
-          image: juicedata/mount:ee-4.9.16
+          image: juicedata/mount:ee-5.0.2-69f82b3
           securityContext:
             privileged: true
           env:
@@ -379,7 +379,7 @@ spec:
               name: juicefs-secret
         # 使用 Mount Pod 的容器镜像，社区版与商业版 tag 有别
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
           # 容器退出时卸载文件系统
           preStop:
