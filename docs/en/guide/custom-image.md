@@ -16,10 +16,10 @@ To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image i
 
 ```shell
 # Tag of community mount image begin with ce-
-juicedata/mount:ce-v1.0.4
+juicedata/mount:ce-v1.1.0
 
 # Tag of enterprise mount image begin with ee-
-juicedata/mount:ee-4.9.1
+juicedata/mount:ee-5.0.2-69f82b3
 
 # Prior to 0.19.0, tag contains both CE and EE version string
 # This won't be maintained and updated in the future
@@ -44,15 +44,15 @@ Change CSI Node settings so that mount pod image is overwritten globally, choose
 If you use JuiceFS community edition, you need to set the `JUICEFS_CE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
 
 ```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.0.4
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
 ```
 
 If you use JuiceFS enterprise edition, you need to set the `JUICEFS_EE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
 
 ```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-4.9.1
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
 ```
 
 When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), since it has higher precedence over CSI Node environment settings.
@@ -72,7 +72,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.0.4
+  juicefs/mount-image: juicedata/mount:ce-v1.1.0
 ```
 
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
@@ -103,7 +103,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:ce-v1.0.4
+      juicefs/mount-image: juicedata/mount:ce-v1.1.0
 ```
 
 ## Build image
