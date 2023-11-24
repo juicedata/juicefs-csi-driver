@@ -28,23 +28,22 @@ import (
 )
 
 const (
-	VCIANNOKey                = "vke.volcengine.com/burst-to-vci"
-	VCIANNOValue              = "enforce"
-	VCIPropagation            = "vci.vke.volcengine.com/config-bidirectional-mount-propagation"
-	VCIPropagationConfig      = "vke.al.vci-enable-bidirectional-mount-propagation"
-	VCIPropagationConfigValue = "vke.al.vci-enable-bidirectional-mount-propagation"
+	CCIANNOKey    = "virtual-kubelet.io/burst-to-cci"
+	CCIANNOValue  = "enforce"
+	CCIDriverName = "juicefs.csi.everest.io"
+	CCIDriverType = "gpath"
 )
 
-type VCIBuilder struct {
+type CCIBuilder struct {
 	ServerlessBuilder
 	pvc corev1.PersistentVolumeClaim
 	app corev1.Pod
 }
 
-var _ SidecarInterface = &VCIBuilder{}
+var _ SidecarInterface = &CCIBuilder{}
 
-func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, pvc corev1.PersistentVolumeClaim) SidecarInterface {
-	return &VCIBuilder{
+func NewCCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, pvc corev1.PersistentVolumeClaim) SidecarInterface {
+	return &CCIBuilder{
 		ServerlessBuilder: ServerlessBuilder{PodBuilder{BaseBuilder{
 			jfsSetting: setting,
 			capacity:   capacity,
@@ -59,17 +58,9 @@ func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, p
 // 2. without privileged container
 // 3. no propagationBidirectional
 // 4. with env JFS_NO_UMOUNT=1
-// 5. annotations for VCI
-func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
+// 5. annotations for CCI
+func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
 	pod := r.genCommonJuicePod(r.genNonPrivilegedContainer)
-	// overwrite annotation
-	pod.Annotations = map[string]string{
-		VCIPropagationConfig: VCIPropagationConfigValue,
-		VCIPropagation: fmt.Sprintf(`[{
-			"container": "jfs-mount",
-			"mountPath" : "%s"
-		}]`, r.jfsSetting.MountPath),
-	}
 
 	// check mount & create subpath & set quota
 	capacity := strconv.FormatInt(r.capacity, 10)
@@ -92,10 +83,15 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 				r.jfsSetting.MountPath,
 			)}},
 	}
-	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, []corev1.EnvVar{{Name: "JFS_NO_UMOUNT", Value: "1"}, {Name: "JFS_FOREGROUND", Value: "1"}}...)
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, []corev1.EnvVar{
+		{Name: "JFS_NO_UMOUNT", Value: "1"},
+		{Name: "JFS_FOREGROUND", Value: "1"},
+		{Name: "JUICEFS_CLIENT_SIDERCAR_CONTAINER", Value: "true"},
+		{Name: "JUICEFS_CLIENT_PATH", Value: "/jfs"},
+	}...)
 
-	// generate volumes and volumeMounts only used in VCI serverless sidecar
-	volumes, volumeMounts := r.genVCIServerlessVolumes()
+	// generate volumes and volumeMounts only used in CCI serverless sidecar
+	volumes, volumeMounts := r.genCCIServerlessVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
 
@@ -116,31 +112,27 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 	return pod
 }
 
-func (r *VCIBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {
+func (r *CCIBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {
+	driverType := CCIDriverType
 	volume.VolumeSource = corev1.VolumeSource{
-		EmptyDir: &corev1.EmptyDirVolumeSource{},
+		CSI: &corev1.CSIVolumeSource{
+			Driver:           CCIDriverName,
+			FSType:           &driverType,
+			VolumeAttributes: map[string]string{"mountpoint": mountPath},
+		},
 	}
 }
 
-func (r *VCIBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
-	hostToContainer := corev1.MountPropagationHostToContainer
-	mount.MountPropagation = &hostToContainer
+func (r *CCIBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
+	none := corev1.MountPropagationNone
+	mount.MountPropagation = &none
 }
 
-// genVCIServerlessVolumes generates volumes and volumeMounts for serverless sidecar
-// 1. jfs dir: mount point as emptyDir, used to propagate the mount point in the mount container to the business container
-// 2. jfs-check-mount: secret volume, used to check if the mount point is mounted
-func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
+// genCCIServerlessVolumes generates volumes and volumeMounts for serverless sidecar
+// 1. jfs-check-mount: secret volume, used to check if the mount point is mounted
+func (r *CCIBuilder) genCCIServerlessVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	var mode int32 = 0755
-	var sharedVolumeName string
 	secretName := r.jfsSetting.SecretName
-
-	// get shared volume name
-	for _, volume := range r.app.Spec.Volumes {
-		if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == r.pvc.Name {
-			sharedVolumeName = volume.Name
-		}
-	}
 
 	volumes := []corev1.Volume{
 		{
@@ -155,10 +147,6 @@ func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 	}
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name:      sharedVolumeName,
-			MountPath: r.jfsSetting.MountPath,
-		},
-		{
 			Name:      "jfs-check-mount",
 			MountPath: checkMountScriptPath,
 			SubPath:   checkMountScriptName,
@@ -168,12 +156,18 @@ func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 	return volumes, volumeMounts
 }
 
-func (r *VCIBuilder) genNonPrivilegedContainer() corev1.Container {
+func (r *CCIBuilder) genNonPrivilegedContainer() corev1.Container {
 	rootUser := int64(0)
 	return corev1.Container{
 		Name:  config.MountContainerName,
 		Image: r.BaseBuilder.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{
+					"SYS_ADMIN",
+					"MKNOD",
+				},
+			},
 			RunAsUser: &rootUser,
 		},
 		Env: []corev1.EnvVar{

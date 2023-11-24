@@ -44,7 +44,7 @@ function deploy_csi() {
   sudo microk8s.kubectl label ns default juicefs.com/enable-injection=false
   deployMode=$1
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/$deployMode | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
@@ -61,7 +61,7 @@ function deploy_csi() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 3 ]; then
+    if [ $count = 5 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
@@ -81,7 +81,7 @@ function deploy_csi_without_kubelet() {
   sudo microk8s.kubectl label ns default juicefs.com/enable-injection=false
   deployMode=$1
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/without-kubelet/$deployMode | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
@@ -98,7 +98,7 @@ function deploy_csi_without_kubelet() {
     # The juicefs-csi-{node|controller} pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 3 ] && [ $all_count = 3 ]; then
+    if [ $count = 5 ] && [ $all_count = 5 ]; then
       node_pod=$(sudo microk8s.kubectl -n kube-system get pods | grep Running | grep juicefs-csi-node | awk '{print $1}' | cut -d/ -f2)
       echo "JUICEFS_CSI_NODE_POD:" $node_pod
       echo "JUICEFS_CSI_NODE_POD=$node_pod" >>$GITHUB_ENV
@@ -122,7 +122,7 @@ function deploy_webhook() {
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook >> ${GITHUB_WORKSPACE}/deploy/webhook.yaml
   sudo ${GITHUB_WORKSPACE}/hack/update_install_script.sh
   sudo ${GITHUB_WORKSPACE}/scripts/juicefs-csi-webhook-install.sh print | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
@@ -138,7 +138,7 @@ function deploy_webhook() {
     # The juicefs-csi-controller pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi-controller | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 2 ] && [ $all_count = 2 ]; then
+    if [ $count = 4 ] && [ $all_count = 2 ]; then
       ctrl_pod=juicefs-csi-controller-0
       sudo microk8s.kubectl cp kube-system/$ctrl_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
         sudo chmod a+x /usr/local/bin/juicefs && juicefs -V
@@ -161,7 +161,7 @@ function deploy_webhook_provisioner() {
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook-provisioner > ${GITHUB_WORKSPACE}/deploy/webhook.yaml
   sudo ${GITHUB_WORKSPACE}/hack/update_install_script.sh
   sudo ${GITHUB_WORKSPACE}/scripts/juicefs-csi-webhook-install.sh print | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
@@ -177,7 +177,7 @@ function deploy_webhook_provisioner() {
     # The juicefs-csi-controller pods' containers should be all ready
     all_count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi-controller | wc -l)
     count=$(sudo microk8s.kubectl -n kube-system get pods | grep juicefs-csi | grep Running | awk '{print $2}' | tr '/' '-' | bc | grep '^0$' | wc -l)
-    if [ $count = 2 ] && [ $all_count = 2 ]; then
+    if [ $count = 4 ] && [ $all_count = 2 ]; then
       ctrl_pod=juicefs-csi-controller-0
       sudo microk8s.kubectl cp kube-system/$ctrl_pod:/usr/local/bin/juicefs /usr/local/bin/juicefs -c juicefs-plugin &&
         sudo chmod a+x /usr/local/bin/juicefs && juicefs -V

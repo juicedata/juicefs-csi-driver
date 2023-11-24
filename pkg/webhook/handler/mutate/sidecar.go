@@ -97,6 +97,8 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 		r = builder.NewContainerBuilder(jfsSetting, cap)
 	} else if pod.Annotations != nil && pod.Annotations[builder.VCIANNOKey] == builder.VCIANNOValue {
 		r = builder.NewVCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
+	} else if pod.Labels != nil && pod.Labels[builder.CCIANNOKey] == builder.CCIANNOValue {
+		r = builder.NewCCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	} else {
 		r = builder.NewServerlessBuilder(jfsSetting, cap)
 	}
@@ -224,11 +226,13 @@ func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInter
 			build.OverwriteVolumes(&volume, mountPath)
 			pod.Spec.Volumes[i] = volume
 
-			for j, vm := range pod.Spec.Containers[0].VolumeMounts {
-				// overwrite volumeMount
-				if vm.Name == volume.Name {
-					build.OverwriteVolumeMounts(&vm)
-					pod.Spec.Containers[0].VolumeMounts[j] = vm
+			for cni, cn := range pod.Spec.Containers {
+				for j, vm := range cn.VolumeMounts {
+					// overwrite volumeMount
+					if vm.Name == volume.Name {
+						build.OverwriteVolumeMounts(&vm)
+						pod.Spec.Containers[cni].VolumeMounts[j] = vm
+					}
 				}
 			}
 		}

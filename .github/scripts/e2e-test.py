@@ -15,13 +15,14 @@ import os
 
 from kubernetes import config
 
-from config import GLOBAL_MOUNTPOINT, LOG
+from config import GLOBAL_MOUNTPOINT, LOG, IN_CCI
 from test_case import (
     test_dynamic_mount_image_with_webhook,
     test_static_mount_image_with_webhook,
     test_deployment_dynamic_patch_pv_with_webhook,
     test_deployment_static_patch_pv_with_webhook,
     test_job_complete_using_storage,
+    test_static_job_complete,
     test_static_delete_policy,
     test_deployment_using_storage_rw,
     test_quota_using_storage_rw,
@@ -134,35 +135,40 @@ if __name__ == "__main__":
             elif test_mode == "webhook":
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
-                test_delete_pvc()
                 test_webhook_two_volume()
-                test_job_complete_using_storage()
                 test_static_delete_policy()
-                test_deployment_using_storage_rw()
-                test_dynamic_mount_image_with_webhook()
                 test_static_mount_image_with_webhook()
-                test_deployment_dynamic_patch_pv_with_webhook()
                 test_deployment_static_patch_pv_with_webhook()
-                test_quota_using_storage_rw()
-                test_dynamic_expand()
+                test_static_job_complete()
+                if not IN_CCI:
+                    test_delete_pvc()
+                    test_job_complete_using_storage()
+                    test_deployment_using_storage_rw()
+                    test_dynamic_mount_image_with_webhook()
+                    test_deployment_dynamic_patch_pv_with_webhook()
+                    test_quota_using_storage_rw()
+                    test_dynamic_expand()
+
 
             elif test_mode == "webhook-provisioner":
-                test_delete_pvc()
                 test_webhook_two_volume()
                 test_static_delete_policy()
-                test_deployment_using_storage_rw()
                 test_deployment_use_pv_rw()
                 test_deployment_use_pv_ro()
-                test_deployment_dynamic_patch_pv_with_webhook()
                 test_deployment_static_patch_pv_with_webhook()
-                test_dynamic_mount_image_with_webhook()
                 test_static_mount_image_with_webhook()
-                test_path_pattern_in_storage_class()
-                test_dynamic_pvc_delete_with_path_pattern()
-                test_dynamic_pvc_delete_not_last_with_path_pattern()
-                test_job_complete_using_storage()
-                test_quota_using_storage_rw()
-                test_dynamic_expand()
+                test_static_job_complete()
+                if not IN_CCI:
+                    test_delete_pvc()
+                    test_deployment_using_storage_rw()
+                    test_deployment_dynamic_patch_pv_with_webhook()
+                    test_dynamic_mount_image_with_webhook()
+                    test_path_pattern_in_storage_class()
+                    test_dynamic_pvc_delete_with_path_pattern()
+                    test_dynamic_pvc_delete_not_last_with_path_pattern()
+                    test_job_complete_using_storage()
+                    test_quota_using_storage_rw()
+                    test_dynamic_expand()
 
             elif test_mode == "process":
                 test_static_delete_policy()

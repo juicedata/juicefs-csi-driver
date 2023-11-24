@@ -110,7 +110,7 @@ spec:
 
 ### Build mount pod image {#build-mount-pod-image}
 
-JuiceFS CSI Driver adopt a [decoupled architecture](../introduction.md#architecture), mount pod image defaults to [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), built using [`docker/dev.juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/dev.juicefs.Dockerfile).
+JuiceFS CSI Driver adopt a [decoupled architecture](../introduction.md#architecture), mount pod image defaults to [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and community edition built using [`docker/ce.juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/ce.juicefs.Dockerfile).
 
 If you were to build your own mount pod image, refer to below code to clone the JuiceFS Community Edition repository, and then build the image using the provided Dockerfile:
 
@@ -123,18 +123,18 @@ cd juicefs
 git checkout ...
 
 # The corresponding Dockerfile resides in the CSI Driver repository
-curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/dev.juicefs.Dockerfile
+curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/ce.juicefs.Dockerfile
 
 # Build the Docker image, and then push to your private registry
-docker build -t registry.example.com/juicefs-csi-mount:latest -f dev.juicefs.Dockerfile .
-docker push registry.example.com/juicefs-csi-mount:latest
+docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f ce.juicefs.Dockerfile .
+docker push registry.example.com/juicefs-csi-mount:ce-latest
 ```
 
 To use the newly built image, refer to [Overwrite mount pod image](#overwrite-mount-pod-image).
 
 ### Build CSI Driver component image
 
-JuiceFS CSI Controller / JuiceFS CSI Node pod image default to [`juicedata/juicefs-csi-driver`](https://hub.docker.com/r/juicedata/juicefs-csi-driver), built using [`docker/Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/Dockerfile).
+JuiceFS CSI Controller / JuiceFS CSI Node pod image default to [`juicedata/juicefs-csi-driver`](https://hub.docker.com/r/juicedata/juicefs-csi-driver), built using [`docker/csi.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/csi.Dockerfile).
 
 If you wish to make modifications and build your own JuiceFS CSI Driver, use below commands to clone the repository, and build the Docker image using the provided script:
 
