@@ -377,9 +377,9 @@ spec:
             secretKeyRef:
               key: envs
               name: juicefs-secret
-        # 使用 Mount Pod 的容器镜像，社区版与商业版 tag 有别
+        # 使用 Mount Pod 的容器镜像
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2
         lifecycle:
           # 容器退出时卸载文件系统
           preStop:

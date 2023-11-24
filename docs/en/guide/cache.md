@@ -382,7 +382,7 @@ spec:
           name: jfs-root-dir
         # Use the mount pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2
         lifecycle:
           # Unmount file system when exiting
           preStop:
