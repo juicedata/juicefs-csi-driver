@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -71,8 +72,8 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	// get app pod list
-	var pv *corev1.PersistentVolume
-	var pvcNamespace string
+	relatedPVs := []*corev1.PersistentVolume{}
+	pvcNamespaces := []string{}
 	pvs, err := m.K8sClient.ListPersistentVolumes(ctx, nil, nil)
 	if err != nil {
 		klog.Errorf("doReconcile ListPV: %v", err)
@@ -84,16 +85,21 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			continue
 		}
 		if uniqueId != "" && (p.Spec.CSI.VolumeHandle == uniqueId || p.Spec.StorageClassName == uniqueId) {
-			pv = &p
-			break
+			relatedPVs = append(relatedPVs, &p)
 		}
 	}
-	if pv != nil {
-		if pv.Spec.ClaimRef != nil {
-			pvcNamespace = pv.Spec.ClaimRef.Namespace
+	if len(relatedPVs) == 0 {
+		return reconcile.Result{}, fmt.Errorf("can not get pv by uniqueId %s, mount pod: %s", uniqueId, mountPod.Name)
+	}
+	for _, pv := range relatedPVs {
+		if pv != nil {
+			if pv.Spec.ClaimRef != nil {
+				pvcNamespaces = append(pvcNamespaces, pv.Spec.ClaimRef.Namespace)
+			}
 		}
 	}
-	if pvcNamespace == "" {
+
+	if len(pvcNamespaces) == 0 {
 		klog.Errorf("can not get pvc based on mount pod %s/%s: %v", mountPod.Namespace, mountPod.Name, err)
 		return reconcile.Result{}, err
 	}
@@ -104,10 +110,14 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
-	podList, err := m.K8sClient.ListPod(ctx, pvcNamespace, &labelSelector, nil)
-	if err != nil {
-		klog.Errorf("doReconcile ListPod: %v", err)
-		return reconcile.Result{}, err
+	podLists := []corev1.Pod{}
+	for _, pvcNamespace := range pvcNamespaces {
+		podList, err := m.K8sClient.ListPod(ctx, pvcNamespace, &labelSelector, nil)
+		if err != nil {
+			klog.Errorf("doReconcile ListPod: %v", err)
+			return reconcile.Result{}, err
+		}
+		podLists = append(podLists, podList...)
 	}
 
 	mounter := mount.SafeFormatAndMount{
@@ -117,7 +127,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 
 	podDriver := NewPodDriver(m.K8sClient, mounter)
 	podDriver.SetMountInfo(*mit)
-	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podList})
+	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podLists})
 
 	err = podDriver.Run(ctx, mountPod)
 	if err != nil {
@@ -141,7 +151,10 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			RequeueAfter: requeueAfter,
 		}, nil
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{
+		Requeue:      true,
+		RequeueAfter: 10 * time.Minute,
+	}, nil
 }
 
 func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
