@@ -14,210 +14,209 @@
  limitations under the License.
  */
 
+import { PVStatusEnum } from '@/services/common';
+import { PV, listPV } from '@/services/pv';
+import { FormattedMessage } from '@@/exports';
+import { AlertTwoTone } from '@ant-design/icons';
 import {
-    ActionType,
-    FooterToolbar,
-    PageContainer,
-    ProColumns,
-    ProTable,
+  ActionType,
+  PageContainer,
+  ProColumns,
+  ProTable,
 } from '@ant-design/pro-components';
-import {Button, Tooltip} from 'antd';
-import React, {useRef, useState} from 'react';
-import {PV, listPV} from '@/services/pv';
-import {Link} from 'umi';
-import {PVStatusEnum} from "@/services/common";
-import {AlertTwoTone} from "@ant-design/icons";
+import { Button, Tooltip } from 'antd';
+import React, { useRef, useState } from 'react';
+import { Link } from 'umi';
 
 const PVTable: React.FC<unknown> = () => {
-    const [createModalVisible, handleModalVisible] = useState<boolean>(false);
-    const [updateModalVisible, handleUpdateModalVisible] =
-        useState<boolean>(false);
-    const [stepFormValues, setStepFormValues] = useState({});
-    const actionRef = useRef<ActionType>();
-    const [selectedRowsState, setSelectedRows] = useState<PV[]>([]);
-    const accessModeMap: { [key: string]: string } = {
-        ReadWriteOnce: 'RWO',
-        ReadWriteMany: 'RWM',
-        ReadOnlyMany: 'ROM',
-        ReadWriteOncePod: 'RWOP',
-    };
-    const columns: ProColumns<PV>[] = [
-        {
-            title: '名称',
-            key: 'name',
-            formItemProps: {
-                rules: [
-                    {
-                        required: true,
-                        message: '名称为必填项',
-                    },
-                ],
+  const [, handleModalVisible] = useState<boolean>(false);
+  const actionRef = useRef<ActionType>();
+  const [, setSelectedRows] = useState<PV[]>([]);
+  const accessModeMap: { [key: string]: string } = {
+    ReadWriteOnce: 'RWO',
+    ReadWriteMany: 'RWM',
+    ReadOnlyMany: 'ROM',
+    ReadWriteOncePod: 'RWOP',
+  };
+  const columns: ProColumns<PV>[] = [
+    {
+      title: <FormattedMessage id="name" />,
+      key: 'name',
+      formItemProps: {
+        rules: [
+          {
+            required: true,
+            message: '名称为必填项',
+          },
+        ],
+      },
+      render: (_, pv) => {
+        if (pv.failedReason === '') {
+          return (
+            <Link to={`/pv/${pv.metadata?.name}/`}>{pv.metadata?.name}</Link>
+          );
+        }
+        return (
+          <div>
+            <Link to={`/pv/${pv.metadata?.name}/`}>{pv.metadata?.name}</Link>
+            <Tooltip title={pv.failedReason}>
+              <AlertTwoTone twoToneColor="#cf1322" />
+            </Tooltip>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'PVC',
+      key: 'pvc',
+      render: (_, pv) => {
+        if (!pv.spec?.claimRef) {
+          return <span>-</span>;
+        } else {
+          return (
+            <Link
+              to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}
+            >
+              {pv.spec.claimRef.namespace}/{pv.spec.claimRef.name}
+            </Link>
+          );
+        }
+      },
+    },
+    {
+      title: <FormattedMessage id="capacity" />,
+      key: 'storage',
+      search: false,
+      dataIndex: ['spec', 'capacity', 'storage'],
+    },
+    {
+      title: <FormattedMessage id="accessMode" />,
+      key: 'accessModes',
+      search: false,
+      render: (_, pv) => {
+        let accessModes: string;
+        if (pv.spec?.accessModes) {
+          accessModes = pv.spec.accessModes
+            .map((accessMode) => accessModeMap[accessMode] || 'Unknown')
+            .join(',');
+          return <div>{accessModes}</div>;
+        }
+      },
+    },
+    {
+      title: <FormattedMessage id="reclaimPolicy" />,
+      key: 'persistentVolumeReclaimPolicy',
+      search: false,
+      dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
+    },
+    {
+      title: 'StorageClass',
+      key: 'sc',
+      render: (_, pv) => {
+        if (pv.spec?.storageClassName) {
+          return (
+            <Link to={`/storageclass/${pv.spec?.storageClassName}/`}>
+              {pv.spec?.storageClassName}
+            </Link>
+          );
+        }
+        return '-';
+      },
+    },
+    {
+      title: <FormattedMessage id="status" />,
+      dataIndex: ['status', 'phase'],
+      hideInForm: true,
+      valueType: 'select',
+      disable: true,
+      search: false,
+      filters: true,
+      onFilter: true,
+      key: 'status',
+      valueEnum: PVStatusEnum,
+    },
+    {
+      title: <FormattedMessage id="createAt" />,
+      key: 'time',
+      sorter: 'time',
+      search: false,
+      render: (_, pv) => (
+        <span>
+          {new Date(pv.metadata?.creationTimestamp || '').toLocaleDateString(
+            'en-US',
+            {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
             },
-            render: (_, pv) => {
-                if (pv.failedReason === "") {
-                    return (
-                        <Link to={`/pv/${pv.metadata?.name}/`}>
-                            {pv.metadata?.name}
-                        </Link>
-                    )
-                }
-                return (
-                    <div>
-                        <Link to={`/pv/${pv.metadata?.name}/`}>
-                            {pv.metadata?.name}
-                        </Link>
-                        <Tooltip title={pv.failedReason}>
-                            <AlertTwoTone twoToneColor='#cf1322'/>
-                        </Tooltip>
-                    </div>
-                )
-            },
-        },
-        {
-            title: 'PVC',
-            key: 'pvc',
-            render: (_, pv) => {
-                if (!pv.spec?.claimRef) {
-                    return <span>-</span>
-                } else {
-                    return (
-                        <Link to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
-                            {pv.spec.claimRef.namespace}/{pv.spec.claimRef.name}
-                        </Link>
-                    )
-                }
-            }
-        },
-        {
-            title: '容量',
-            key: 'storage',
-            search: false,
-            dataIndex: ['spec', 'capacity', 'storage'],
-        },
-        {
-            title: '访问模式',
-            key: 'accessModes',
-            search: false,
-            render: (_, pv) => {
-                let accessModes: string
-                if (pv.spec?.accessModes) {
-                    accessModes = pv.spec.accessModes.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(",")
-                    return (
-                        <div>{accessModes}</div>
-                    )
-                }
-            }
-        },
-        {
-            title: '回收策略',
-            key: 'persistentVolumeReclaimPolicy',
-            search: false,
-            dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
-        },
-        {
-            title: 'StorageClass',
-            key: 'sc',
-            render: (_, pv) => {
-                if (pv.spec?.storageClassName) {
-                    return (
-                        <Link to={`/storageclass/${pv.spec?.storageClassName}/`}>{pv.spec?.storageClassName}</Link>
-                    )
-                }
-                return "-"
-            }
-        },
-        {
-            title: '状态',
-            dataIndex: ['status', 'phase'],
-            hideInForm: true,
-            valueType: 'select',
-            disable: true,
-            search: false,
-            filters: true,
-            onFilter: true,
-            key: 'status',
-            valueEnum: PVStatusEnum,
-        },
-        {
-            title: '创建时间',
-            key: 'time',
-            sorter: 'time',
-            search: false,
-            render: (_, pv) => (
-                <span>{
-                    (new Date(pv.metadata?.creationTimestamp || "")).toLocaleDateString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                    })
-                }</span>
-            ),
-        },
-    ];
-    return (
-        <PageContainer
-            header={{
-                title: 'PV 管理',
-            }}
-        >
-            <ProTable<PV>
-                headerTitle="查询表格"
-                actionRef={actionRef}
-                rowKey={(record) => record.metadata?.uid!}
-                search={{
-                    labelWidth: 120,
-                }}
-                toolBarRender={() => [
-                    <Button
-                        key="1"
-                        type="primary"
-                        onClick={() => handleModalVisible(true)}
-                        hidden={true}
-                    >
-                        新建
-                    </Button>,
-                ]}
-                request={async (params, sort, filter) => {
-                    const {pvs, success, total} = await listPV({
-                        ...params,
-                        sort,
-                        filter,
-                    });
-                    return {
-                        data: pvs || [],
-                        success,
-                        total,
-                    };
-                }}
-                columns={columns}
-                rowSelection={{
-                    onChange: (_, selectedRows) => setSelectedRows(selectedRows),
-                }}
-            />
-            {/*{selectedRowsState?.length > 0 && (*/}
-            {/*    <FooterToolbar*/}
-            {/*        extra={*/}
-            {/*            <div>*/}
-            {/*                已选择{' '}*/}
-            {/*                <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}*/}
-            {/*                项&nbsp;&nbsp;*/}
-            {/*            </div>*/}
-            {/*        }*/}
-            {/*    >*/}
-            {/*        <Button*/}
-            {/*            onClick={async () => {*/}
-            {/*                setSelectedRows([]);*/}
-            {/*                actionRef.current?.reloadAndRest?.();*/}
-            {/*            }}*/}
-            {/*        >*/}
-            {/*            批量删除*/}
-            {/*        </Button>*/}
-            {/*        <Button type="primary">批量审批</Button>*/}
-            {/*    </FooterToolbar>*/}
-            {/*)}*/}
-        </PageContainer>
-    );
+          )}
+        </span>
+      ),
+    },
+  ];
+  return (
+    <PageContainer
+      header={{
+        title: <FormattedMessage id="pvTablePageName" />,
+      }}
+    >
+      <ProTable<PV>
+        headerTitle={<FormattedMessage id="pvTableName" />}
+        actionRef={actionRef}
+        rowKey={(record) => record.metadata?.uid || ''}
+        search={{
+          labelWidth: 120,
+        }}
+        toolBarRender={() => [
+          <Button
+            key="1"
+            type="primary"
+            onClick={() => handleModalVisible(true)}
+            hidden={true}
+          >
+            新建
+          </Button>,
+        ]}
+        request={async (params, sort, filter) => {
+          const { pvs, success, total } = await listPV({
+            ...params,
+            sort,
+            filter,
+          });
+          return {
+            data: pvs || [],
+            success,
+            total,
+          };
+        }}
+        columns={columns}
+        rowSelection={{
+          onChange: (_, selectedRows) => setSelectedRows(selectedRows),
+        }}
+      />
+      {/*{selectedRowsState?.length > 0 && (*/}
+      {/*    <FooterToolbar*/}
+      {/*        extra={*/}
+      {/*            <div>*/}
+      {/*                已选择{' '}*/}
+      {/*                <a style={{fontWeight: 600}}>{selectedRowsState.length}</a>{' '}*/}
+      {/*                项&nbsp;&nbsp;*/}
+      {/*            </div>*/}
+      {/*        }*/}
+      {/*    >*/}
+      {/*        <Button*/}
+      {/*            onClick={async () => {*/}
+      {/*                setSelectedRows([]);*/}
+      {/*                actionRef.current?.reloadAndRest?.();*/}
+      {/*            }}*/}
+      {/*        >*/}
+      {/*            批量删除*/}
+      {/*        </Button>*/}
+      {/*        <Button type="primary">批量审批</Button>*/}
+      {/*    </FooterToolbar>*/}
+      {/*)}*/}
+    </PageContainer>
+  );
 };
-
 
 export default PVTable;
