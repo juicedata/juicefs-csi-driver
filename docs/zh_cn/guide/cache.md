@@ -194,7 +194,7 @@ spec:
                 cat /var/log/juicefs.log
               fi
               exit $code
-          image: juicedata/mount:ee-4.9.16
+          image: juicedata/mount:ee-5.0.2-69f82b3
           securityContext:
             privileged: true
           env:
@@ -287,7 +287,7 @@ parameters:
 独立缓存集群功能目前仅在 JuiceFS 云服务和企业版中提供，社区版暂不支持。
 :::
 
-Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](https://juicefs.com/docs/zh/cloud/guide/cache#client-cache-sharing)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](https://juicefs.com/docs/zh/cloud/guide/cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
+Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「分布式缓存」](/docs/zh/cloud/guide/distributed-cache)，会由于缓存组成员不断更替，导致缓存利用率走低。也正因如此，JuiceFS 云服务还支持[「独立缓存集群」](/docs/zh/cloud/guide/distributed-cache#dedicated-cache-cluster)，用于优化此种场景下的缓存利用率。
 
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，用 StatefulSet 在集群内挂载 JuiceFS 客户端，形成一个稳定的缓存组。
 
@@ -377,9 +377,9 @@ spec:
             secretKeyRef:
               key: envs
               name: juicefs-secret
-        # 使用 Mount Pod 的容器镜像，社区版与商业版 tag 有别
+        # 使用 Mount Pod 的容器镜像
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
           # 容器退出时卸载文件系统
           preStop:

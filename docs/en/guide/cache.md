@@ -194,7 +194,7 @@ spec:
                 cat /var/log/juicefs.log
               fi
               exit $code
-          image: juicedata/mount:ee-4.9.16
+          image: juicedata/mount:ee-5.0.2-69f82b3
           securityContext:
             privileged: true
           env:
@@ -284,10 +284,10 @@ parameters:
 ## Dedicated cache cluster {#dedicated-cache-cluster}
 
 :::note
-Dedicated cluster is only supported in JuiceFS Cloud Service & Enterprise, Community Edition is not supported.
+Dedicated cache cluster is only supported in JuiceFS Cloud Service & Enterprise Edition, Community Edition is not supported.
 :::
 
-Kubernetes containers are usually ephemeral, a [distributed cache cluster](https://juicefs.com/docs/cloud/guide/cache#client-cache-sharing) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](https://juicefs.com/docs/cloud/guide/cache#dedicated-cache-cluster) to achieve a stable cache service.
+Kubernetes containers are usually ephemeral, a [distributed cache cluster](/docs/cloud/guide/distributed-cache) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](/docs/cloud/guide/distributed-cache#dedicated-cache-cluster) to achieve a stable cache service.
 
 Use below example to deploy a StatefulSet of JuiceFS clients, together they form a stable JuiceFS cache group.
 
@@ -382,7 +382,7 @@ spec:
           name: jfs-root-dir
         # Use the mount pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
-        image: juicedata/mount:ce-v1.0.4
+        image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
           # Unmount file system when exiting
           preStop:

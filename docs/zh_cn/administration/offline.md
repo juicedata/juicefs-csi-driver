@@ -33,10 +33,10 @@ sidebar_position: 5
 
   ```shell
   # 社区版镜像
-  echo juicedata/mount:ce-v1.0.4 >> images.txt
+  echo juicedata/mount:ce-v1.1.0 >> images.txt
 
   # 商业版镜像
-  echo juicedata/mount:ee-4.9.14 >> images.txt
+  echo juicedata/mount:ee-5.0.2-69f82b3 >> images.txt
   ```
 
 1. 将所有镜像下载到本地，并统一重命名。注意**拉取镜像的机器，CPU 架构需要和线上环境相同**，否则需要使用 [`--platform`](https://docs.docker.com/engine/reference/commandline/pull/#options) 参数指定运行环境。
