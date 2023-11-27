@@ -64,7 +64,7 @@ type Interface interface {
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
 	GetJfsVolUUID(ctx context.Context, name string) (string, error)
-	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error)
+	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
 	CreateTarget(ctx context.Context, target string) error
@@ -791,10 +791,10 @@ func (j *juicefs) version(ctx context.Context, jfsSetting *config.JfsSetting) (*
 	return parseRawVersion(string(res))
 }
 
-func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) (string, error) {
+func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error {
 	cap := capacity / 1024 / 1024 / 1024
 	if cap <= 0 {
-		return "", fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
+		return fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
 	}
 
 	var args, cmdArgs []string
@@ -809,44 +809,37 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
 	defer cmdCancel()
 
-	var res []byte
 	var err error
-	if jfsSetting.IsCe {
-		done := make(chan struct{})
-		go func() {
-			// ce cli will block until quota is set
-			res, err = j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
-			close(done)
-		}()
-		select {
-		case <-cmdCtx.Done():
-			go func() {
-				klog.Warningf("quota set timeout, runs in background")
-				<-done
-				if err := wrapSetQuotaErr(string(res), err); err != nil {
-					klog.Warningf("quota set error: %v", err)
-				} else {
-					klog.V(5).Infof("quota set success: %s", string(res))
-				}
-
-			}()
-			return "", nil
-		case <-done:
-		}
-	} else {
+	if !jfsSetting.IsCe {
 		var authRes string
 		authRes, err = j.AuthFs(ctx, secrets, jfsSetting, true)
 		if err != nil {
-			return authRes, err
+			return errors.Wrap(err, authRes)
 		}
-		res, err = j.Exec.CommandContext(cmdCtx, config.CliPath, args...).CombinedOutput()
+		res, err := j.Exec.CommandContext(cmdCtx, config.CliPath, args...).CombinedOutput()
+		if err == nil {
+			klog.V(5).Infof("quota set success: %s", string(res))
+		}
+		return wrapSetQuotaErr(string(res), err)
 	}
-	err = wrapSetQuotaErr(string(res), err)
-	if err != nil && cmdCtx.Err() == context.DeadlineExceeded {
-		re := fmt.Sprintf("juicefs set quota %s timed out", 2*defaultCheckTimeout)
-		return "", errors.New(re)
+
+	done := make(chan error, 1)
+	go func() {
+		// ce cli will block until quota is set
+		res, err := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
+		if err == nil {
+			klog.V(5).Infof("quota set success: %s", string(res))
+		}
+		done <- wrapSetQuotaErr(string(res), err)
+		close(done)
+	}()
+	select {
+	case <-cmdCtx.Done():
+		klog.Warningf("quota set timeout, runs in background")
+		return nil
+	case err = <-done:
+		return err
 	}
-	return string(res), err
 }
 
 func wrapSetQuotaErr(res string, err error) error {
