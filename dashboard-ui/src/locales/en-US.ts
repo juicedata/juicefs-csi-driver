@@ -56,4 +56,28 @@ export default {
   mountOptions: 'Mount Options',
   pvcNotFound: 'PVC not found',
   scNotFound: 'StorageClass not found',
+  pvcUnboundErrMsg:
+    'was not successfully bound, please click "PVC" to view details.',
+  unScheduledMsg:
+    'The Pod was not scheduled successfully. Please click Pod details to view the specific reasons for the scheduling failure.',
+  nodeErrMsg: 'The node is abnormal, please check the node status.',
+  containerErrMsg:
+    'container is abnormal. Please click Pod details to view the container status and logs.',
+  csiNodeNullMsg:
+    'CSI Node in the node did not start, please check: 1. If it is in sidecar mode, please check whether the namespace has set the required label or check the CSI Controller log to confirm why the sidecar is not injected; 2. If it is in Mount Pod mode, please check Whether CSI Node DaemonSet has been scheduled to this node.',
+  csiNodeErrMsg:
+    'CSI Node in the node is not ready, please click "CSI Node" on the right to view its status and logs.',
+  mountPodNullMsg:
+    'Mount Pod did not start, please click "CSI Node" on the right to check its log.',
+  mountPodErrMsg:
+    'Mount Pod is not ready. Please click "Mount Pods" on the right to check its status and logs.',
+  podErrMsg:
+    'The pod is abnormal, please click details to view its event or log.',
+  pvNotCreatedMsg:
+    'The corresponding PV is not automatically created. Please click "System Pod" to view the log of CSI Controller.',
+  pvcSelectorErrMsg: 'PVC selector is not set.',
+  pvOfPVCNotFoundErrMsg:
+    'No matching PV was found. Please click "PV" to check whether it has been created.',
+  pvcOfPVNotFoundErrMsg:
+    'No matching PVC was found. Please click "PVC" to check whether it has been created.',
 };

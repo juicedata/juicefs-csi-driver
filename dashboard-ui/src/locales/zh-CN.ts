@@ -56,4 +56,23 @@ export default {
   mountOptions: '挂载参数',
   pvcNotFound: 'PVC 不存在',
   scNotFound: 'StorageClass 不存在',
+  pvcUnboundErrMsg: '未成功绑定，请点击「PVC」查看详情。',
+  unScheduledMsg: '未调度成功，请点击 Pod 详情查看调度失败的具体原因。',
+  nodeErrMsg: '所在节点异常，请检查节点状态。',
+  containerErrMsg: '容器异常，请点击 Pod 详情查看容器状态及日志。',
+  csiNodeNullMsg:
+    '所在节点 CSI Node 未启动，请检查：1. 若是 sidecar 模式，请查看其所在 namespace 是否打上需要的 label 或查看 CSI Controller 日志以确认为何 sidecar 未注入；2. 若是 Mount Pod 模式，请检查 CSI Node DaemonSet 是否未调度到该节点上。',
+  csiNodeErrMsg:
+    '所在节点 CSI Node 未启动成功，请点击右方「CSI Node」查看其状态及日志。',
+  mountPodNullMsg: 'Mount Pod 未启动，请点击右方「CSI Node」检查其日志。',
+  mountPodErrMsg:
+    'Mount Pod 未启动成功，请点击右方「Mount Pods」检查其状态及日志。',
+  podErrMsg: 'pod 异常，请点击详情查看其 event 或日志。',
+  pvNotCreatedMsg:
+    '对应的 PV 未自动创建，请点击「系统 Pod」查看 CSI Controller 日志。',
+  pvcSelectorErrMsg: '未设置 PVC 的 selector。',
+  pvOfPVCNotFoundErrMsg:
+    '未找到符合 PVC 条件的 PV，请点击「PV」查看其是否被创建。',
+  pvcOfPVNotFoundErrMsg:
+    '未找到符合 PV 条件的 PVC，请点击「PVC」查看其是否被创建。',
 };
