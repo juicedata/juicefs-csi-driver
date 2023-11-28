@@ -51,22 +51,22 @@ const failedReasonOfPVC = (pvc: PersistentVolumeClaim) => {
     return '';
   }
   if (pvc.spec?.storageClassName !== '') {
-    return `{<FormattedMessage id="pvNotCreatedMsg" />}`;
+    return 'pvNotCreatedMsg';
   }
   if (pvc.spec.volumeName) {
-    return `{<FormattedMessage id="pvOfPVCNotFoundErrMsg" />}`;
+    return 'pvOfPVCNotFoundErrMsg';
   }
   if (pvc.spec.selector === undefined) {
-    return `{<FormattedMessage id="pvcSelectorErrMsg" />}`;
+    return 'pvcSelectorErrMsg';
   }
-  return `{<FormattedMessage id="pvOfPVCNotFoundErrMsg" />}`;
+  return 'pvOfPVCNotFoundErrMsg';
 };
 
 const failedReasonOfPV = (pv: PersistentVolume) => {
   if (pv.status?.phase === 'Bound') {
     return '';
   }
-  return `{<FormattedMessage id="pvcOfPVNotFoundErrMsg" />}`;
+  return 'pvcOfPVNotFoundErrMsg';
 };
 
 export const listPV = async (args: PVPagingListArgs) => {

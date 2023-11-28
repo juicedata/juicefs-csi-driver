@@ -50,19 +50,21 @@ const PVCTable: React.FC<unknown> = () => {
         ],
       },
       render: (_, pvc) => {
-        if (pvc.failedReason === '') {
+        let pvcFailReason = pvc.failedReason || '';
+        if (pvcFailReason === '') {
           return (
             <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
               {pvc.metadata?.name}
             </Link>
           );
         }
+        const failReason = <FormattedMessage id={pvcFailReason} />;
         return (
           <div>
             <Link to={`/pvc/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
               {pvc.metadata?.name}
             </Link>
-            <Tooltip title={pvc.failedReason}>
+            <Tooltip title={failReason}>
               <AlertTwoTone twoToneColor="#cf1322" />
             </Tooltip>
           </div>

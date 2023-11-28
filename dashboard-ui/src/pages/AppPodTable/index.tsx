@@ -47,6 +47,7 @@ const AppPodTable: React.FC<unknown> = () => {
         ],
       },
       render: (_, pod) => {
+        const podFailReason = pod.failedReason || '';
         if (pod.failedReason === '') {
           return (
             <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
@@ -54,12 +55,13 @@ const AppPodTable: React.FC<unknown> = () => {
             </Link>
           );
         }
+        const failReason = <FormattedMessage id={podFailReason} />;
         return (
           <div>
             <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
               {pod.metadata?.name}
             </Link>
-            <Tooltip title={pod.failedReason}>
+            <Tooltip title={failReason}>
               <AlertTwoTone twoToneColor="#cf1322" />
             </Tooltip>
           </div>

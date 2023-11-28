@@ -223,7 +223,7 @@ const DetailedPod: React.FC<unknown> = () => {
       }
     });
   }, [setPod]);
-  if (namespace !== '' || name !== '') {
+  if (namespace === '' || name === '') {
     return (
       <PageContainer
         header={{

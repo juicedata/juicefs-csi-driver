@@ -73,7 +73,7 @@ const failedReasonOfAppPod = (pod: Pod) => {
   // 1. PVC pending
   pvcs?.forEach((pvc) => {
     if (pvc.status?.phase !== 'Bound') {
-      reason = `PVC "${pvc.metadata?.name}" {<FormattedMessage id="pvcUnboundErrMsg" />}`;
+      reason = 'pvcUnboundErrMsg';
     }
   });
   if (reason !== '') {
@@ -83,7 +83,7 @@ const failedReasonOfAppPod = (pod: Pod) => {
   // 2. not scheduled
   pod.status?.conditions?.forEach((condition) => {
     if (condition.type === 'PodScheduled' && condition.status !== 'True') {
-      reason = `{<FormattedMessage id="unScheduledMsg" />}`;
+      reason = 'unScheduledMsg';
       return;
     }
   });
@@ -95,7 +95,7 @@ const failedReasonOfAppPod = (pod: Pod) => {
   if (pod.node) {
     pod.node.status?.conditions?.forEach((condition) => {
       if (condition.type === 'Ready' && condition.status !== 'True') {
-        reason = `{<FormattedMessage id="nodeErrMsg" />}`;
+        reason = 'nodeErrMsg';
       }
     });
   }
@@ -111,12 +111,12 @@ const failedReasonOfAppPod = (pod: Pod) => {
     let reason = '';
     pod.status?.initContainerStatuses?.forEach((containerStatus) => {
       if (!containerStatus.ready) {
-        reason = `${containerStatus.name} {<FormattedMessage id="containerErrMsg" />}`;
+        reason = 'containerErrMsg';
       }
     });
     pod.status?.containerStatuses?.forEach((containerStatus) => {
       if (!containerStatus.ready) {
-        reason = `${containerStatus.name} {<FormattedMessage id="containerErrMsg" />}`;
+        reason = 'containerErrMsg';
       }
     });
     return reason;
@@ -125,18 +125,18 @@ const failedReasonOfAppPod = (pod: Pod) => {
   // mount pod mode
   // 4. check csi node
   if (csiNode === undefined) {
-    return `{<FormattedMessage id="csiNodeNullMsg" />}`;
+    return 'csiNodeNullMsg';
   }
   if (!isPodReady(csiNode)) {
-    return `{<FormattedMessage id="csiNodeErrMsg" />}`;
+    return 'csiNodeErrMsg';
   }
   // 5. check mount pod
   if (mountPods?.length === 0) {
-    return `{<FormattedMessage id="mountPodNullMsg" />}`;
+    return 'mountPodNullMsg';
   }
   mountPods?.forEach((mountPod) => {
     if (!isPodReady(mountPod)) {
-      reason = `{<FormattedMessage id="mountPodErrMsg" />}`;
+      reason = 'mountPodErrMsg';
       return;
     }
   });
@@ -144,7 +144,7 @@ const failedReasonOfAppPod = (pod: Pod) => {
     return reason;
   }
 
-  return `{<FormattedMessage id="podErrMsg" />}`;
+  return 'podErrMsg';
 };
 
 export const podStatus = (pod: RawPod) => {
@@ -195,7 +195,7 @@ const failedReasonOfSysPod = (pod: Pod) => {
   // 1. not scheduled
   pod.status?.conditions?.forEach((condition) => {
     if (condition.type === 'PodScheduled' && condition.status !== 'True') {
-      reason = `{<FormattedMessage id="unScheduledMsg" />}`;
+      reason = 'unScheduledMsg';
       return;
     }
   });
@@ -207,7 +207,7 @@ const failedReasonOfSysPod = (pod: Pod) => {
   if (pod.node) {
     pod.node.status?.conditions?.forEach((condition) => {
       if (condition.type === 'Ready' && condition.status !== 'True') {
-        reason = `{<FormattedMessage id="nodeErrMsg" />}`;
+        reason = 'nodeErrMsg';
       }
     });
   }
@@ -218,7 +218,7 @@ const failedReasonOfSysPod = (pod: Pod) => {
   // 3. container error
   pod.status?.initContainerStatuses?.forEach((containerStatus) => {
     if (!containerStatus.ready) {
-      reason = `${containerStatus.name} {<FormattedMessage id="containerErrMsg" />}`;
+      reason = 'containerErrMsg';
     }
   });
   if (reason !== '') {
@@ -226,14 +226,14 @@ const failedReasonOfSysPod = (pod: Pod) => {
   }
   pod.status?.containerStatuses?.forEach((containerStatus) => {
     if (!containerStatus.ready) {
-      reason = `${containerStatus.name} {<FormattedMessage id="containerErrMsg" />}`;
+      reason = 'containerErrMsg';
     }
   });
   if (reason !== '') {
     return reason;
   }
 
-  return `{<FormattedMessage id="podErrMsg" />}`;
+  return 'podErrMsg';
 };
 
 export const listAppPods = async (args: AppPagingListArgs) => {

@@ -54,7 +54,7 @@ const DetailedPVC: React.FC<unknown> = () => {
     getPVCEvents(namespace, name).then(setEvents);
   }, [setEvents]);
 
-  if (namespace !== '' || name !== '') {
+  if (namespace === '' || name === '') {
     return (
       <PageContainer
         header={{
@@ -95,6 +95,9 @@ const DetailedPVC: React.FC<unknown> = () => {
                 title: 'PV',
                 key: 'pv',
                 render: (_, record) => {
+                  if (record.pv === '-') {
+                    return '-';
+                  }
                   return <Link to={`/pv/${record.pv}`}>{record.pv}</Link>;
                 },
               },

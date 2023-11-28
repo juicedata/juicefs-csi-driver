@@ -51,15 +51,17 @@ const PVTable: React.FC<unknown> = () => {
         ],
       },
       render: (_, pv) => {
+        const pvFailReason = pv.failedReason || '';
         if (pv.failedReason === '') {
           return (
             <Link to={`/pv/${pv.metadata?.name}/`}>{pv.metadata?.name}</Link>
           );
         }
+        const failReason = <FormattedMessage id={pvFailReason} />;
         return (
           <div>
             <Link to={`/pv/${pv.metadata?.name}/`}>{pv.metadata?.name}</Link>
-            <Tooltip title={pv.failedReason}>
+            <Tooltip title={failReason}>
               <AlertTwoTone twoToneColor="#cf1322" />
             </Tooltip>
           </div>

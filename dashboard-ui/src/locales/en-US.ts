@@ -57,12 +57,12 @@ export default {
   pvcNotFound: 'PVC not found',
   scNotFound: 'StorageClass not found',
   pvcUnboundErrMsg:
-    'was not successfully bound, please click "PVC" to view details.',
+    'PVC which it uses was not successfully bound, please click "PVC" to view details.',
   unScheduledMsg:
     'The Pod was not scheduled successfully. Please click Pod details to view the specific reasons for the scheduling failure.',
   nodeErrMsg: 'The node is abnormal, please check the node status.',
   containerErrMsg:
-    'container is abnormal. Please click Pod details to view the container status and logs.',
+    'Some container is abnormal. Please click Pod details to view the container status and logs.',
   csiNodeNullMsg:
     'CSI Node in the node did not start, please check: 1. If it is in sidecar mode, please check whether the namespace has set the required label or check the CSI Controller log to confirm why the sidecar is not injected; 2. If it is in Mount Pod mode, please check Whether CSI Node DaemonSet has been scheduled to this node.',
   csiNodeErrMsg:

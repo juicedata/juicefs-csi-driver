@@ -54,7 +54,7 @@ const DetailedPV: React.FC<unknown> = () => {
     getPVEvents(pvName).then(setEvents);
   }, [setEvents]);
 
-  if (pvName !== '') {
+  if (pvName === '') {
     return (
       <PageContainer
         header={{
@@ -114,6 +114,9 @@ const DetailedPV: React.FC<unknown> = () => {
                 title: 'PVC',
                 key: 'pvc',
                 render: (_, record) => {
+                  if (record.pvc === '/') {
+                    return '-';
+                  }
                   const [namespace, name] = record.pvc.split('/');
                   return (
                     <Link to={`/pvc/${namespace}/${name}`}>{record.pvc}</Link>

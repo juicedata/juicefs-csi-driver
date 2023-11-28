@@ -45,7 +45,7 @@ const DetailedSC: React.FC<unknown> = () => {
     getPVOfSC(scName).then(setPVs);
   }, [setPVs]);
 
-  if (scName !== '') {
+  if (scName === '') {
     return (
       <PageContainer
         header={{
