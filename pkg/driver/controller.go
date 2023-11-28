@@ -306,13 +306,10 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 		}
 	}
 
-	output, err := d.juicefs.SetQuota(ctx, req.GetSecrets(), settings, path.Join(subdir, quotaPath), capacity)
+	err = d.juicefs.SetQuota(ctx, req.GetSecrets(), settings, path.Join(subdir, quotaPath), capacity)
 	if err != nil {
-		klog.Error("set quota: ", err)
 		return nil, status.Errorf(codes.Internal, "set quota: %v", err)
 	}
-	klog.V(5).Infof("set quota: %s", output)
-
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         newSize,
 		NodeExpansionRequired: false,
