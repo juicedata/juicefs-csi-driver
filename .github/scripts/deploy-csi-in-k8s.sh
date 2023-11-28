@@ -6,7 +6,7 @@ function main() {
   prepare_pkg
   echo "deployMode: " $deployMode
   echo "withoutKubelet: " $withoutKubelet
-  if [ $withoutKubelet == "withoutkubelet" ]; then
+  if [ "${withoutKubelet}" == "withoutkubelet" ]; then
     deploy_csi_without_kubelet $deployMode
   elif [ $deployMode == "webhook" ]; then
     deploy_webhook
