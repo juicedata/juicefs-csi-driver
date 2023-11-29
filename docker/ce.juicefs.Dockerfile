@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libceph
 FROM debian:buster-slim
 ARG TARGETARCH
 COPY --from=binaryimage /usr/local/bin/juicefs /usr/local/bin/juicefs
-RUN apt-get update && apt-get install -y wget librados-dev fuse3 gnupg2
+RUN apt-get update && apt-get install -y wget librados-dev fuse3 gnupg2 curl
 RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
