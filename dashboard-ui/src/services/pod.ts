@@ -14,6 +14,7 @@
  limitations under the License.
  */
 
+import { host } from '@/services/common';
 import {
   Event,
   PersistentVolume,
@@ -251,7 +252,7 @@ export const listAppPods = async (args: AppPagingListArgs) => {
     const pageSize = args.pageSize || 20;
     const current = args.current || 1;
     const pods = await fetch(
-      `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`,
+      `${host}/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`,
     );
     data = JSON.parse(await pods.text());
   } catch (e) {
@@ -273,26 +274,28 @@ export const listAppPods = async (args: AppPagingListArgs) => {
 
 export const getPod = async (namespace: string, podName: string) => {
   try {
-    const rawPod = await fetch(`/api/v1/pod/${namespace}/${podName}/`);
+    const rawPod = await fetch(`${host}/api/v1/pod/${namespace}/${podName}/`);
     const pod: Pod = JSON.parse(await rawPod.text());
     const mountPods = await fetch(
-      `/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`,
+      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`,
     );
     pod.mountPods = JSON.parse(await mountPods.text());
     const appPods = await fetch(
-      `/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`,
+      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`,
     );
     pod.appPods = JSON.parse(await appPods.text());
     if (pod.spec?.nodeName) {
-      const csiNode = await fetch(`/api/v1/csi-node/${pod.spec?.nodeName}`);
+      const csiNode = await fetch(
+        `${host}/api/v1/csi-node/${pod.spec?.nodeName}`,
+      );
       pod.csiNode = JSON.parse(await csiNode.text());
       const node = await fetch(
-        `/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`,
+        `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`,
       );
       pod.node = JSON.parse(await node.text());
     }
     const events = await fetch(
-      `/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`,
+      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`,
     );
     let podEvents: Event[] = JSON.parse(await events.text()) || [];
     podEvents.sort((a, b) => {
@@ -313,7 +316,7 @@ export const getPod = async (namespace: string, podName: string) => {
 export const getLog = async (pod: Pod, container: string) => {
   try {
     const log = await fetch(
-      `/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`,
+      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`,
     );
     return await log.text();
   } catch (e) {
@@ -348,7 +351,7 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
     const pageSize = args.pageSize || 20;
     const current = args.current || 1;
     const podList = await fetch(
-      `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
+      `${host}/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
     );
     data = JSON.parse(await podList.text());
   } catch (e) {
