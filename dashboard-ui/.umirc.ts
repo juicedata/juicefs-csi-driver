@@ -82,4 +82,7 @@ export default defineConfig({
     default: 'en-US',
     baseSeparator: '-',
   },
+  define: {
+    HOST: '',
+  },
 });
