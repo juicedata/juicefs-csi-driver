@@ -14,6 +14,8 @@
  limitations under the License.
  */
 
+// @ts-ignore
+export const host = HOST || '';
 
 export const PVStatusEnum = () => {
     return {
@@ -36,9 +38,9 @@ export const PVStatusEnum = () => {
         Failed: {
             text: 'Failed',
             color: 'red',
-        }
-    }
-}
+        },
+    };
+};
 
 export const PodStatusEnum = () => {
     return {
@@ -77,6 +79,6 @@ export const PodStatusEnum = () => {
         Error: {
             text: 'Error',
             color: 'red',
-        }
-    }
-}
+        },
+    };
+};

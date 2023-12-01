@@ -14,26 +14,31 @@
  limitations under the License.
  */
 
+import { Question, SelectLang } from '@/components/RightContent';
 import { RuntimeConfig } from 'umi';
 
 // 运行时配置
 
 // 全局初始化数据配置，用于 Layout 用户信息和权限初始化
 // 更多信息见文档：https://umijs.org/docs/api/runtime-config#getinitialstate
-export async function getInitialState(): Promise<{}> {
-  return {};
+export async function getInitialState(): Promise<object> {
+    return {};
 }
 
 export const layout: RuntimeConfig['layout'] = () => {
-  return {
-    // navTheme: "realDark",
-    layout: "mix",
-    title: "JuiceFS CSI",
-    logo: false,
-    menu: {
-      locale: false,
-    },
-    rightContentRender: false,
-    colorPrimary: '#0ABD59',
-  };
+    return {
+        // navTheme: "realDark",
+        actionsRender: () => [
+            <SelectLang key="SelectLang" />,
+            <Question key="doc" />,
+        ],
+        layout: 'mix',
+        title: 'JuiceFS CSI',
+        logo: false,
+        menu: {
+            locale: false,
+        },
+        rightContentRender: false,
+        colorPrimary: '#0ABD59',
+    };
 };

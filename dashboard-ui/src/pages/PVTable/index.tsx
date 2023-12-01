@@ -14,27 +14,24 @@
  limitations under the License.
  */
 
+import { PVStatusEnum } from '@/services/common';
+import { PV, listPV } from '@/services/pv';
+import { FormattedMessage } from '@@/exports';
+import { AlertTwoTone } from '@ant-design/icons';
 import {
     ActionType,
-    FooterToolbar,
     PageContainer,
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button, Tooltip} from 'antd';
-import React, {useRef, useState} from 'react';
-import {PV, listPV} from '@/services/pv';
-import {Link} from 'umi';
-import {PVStatusEnum} from "@/services/common";
-import {AlertTwoTone} from "@ant-design/icons";
+import { Button, Tooltip } from 'antd';
+import React, { useRef, useState } from 'react';
+import { Link } from 'umi';
 
 const PVTable: React.FC<unknown> = () => {
-    const [createModalVisible, handleModalVisible] = useState<boolean>(false);
-    const [updateModalVisible, handleUpdateModalVisible] =
-        useState<boolean>(false);
-    const [stepFormValues, setStepFormValues] = useState({});
+    const [, handleModalVisible] = useState<boolean>(false);
     const actionRef = useRef<ActionType>();
-    const [selectedRowsState, setSelectedRows] = useState<PV[]>([]);
+    const [, setSelectedRows] = useState<PV[]>([]);
     const accessModeMap: { [key: string]: string } = {
         ReadWriteOnce: 'RWO',
         ReadWriteMany: 'RWM',
@@ -43,7 +40,7 @@ const PVTable: React.FC<unknown> = () => {
     };
     const columns: ProColumns<PV>[] = [
         {
-            title: '名称',
+            title: <FormattedMessage id="name" />,
             key: 'name',
             formItemProps: {
                 rules: [
@@ -54,23 +51,25 @@ const PVTable: React.FC<unknown> = () => {
                 ],
             },
             render: (_, pv) => {
-                if (pv.failedReason === "") {
+                const pvFailReason = pv.failedReason || '';
+                if (pv.failedReason === '') {
                     return (
                         <Link to={`/pv/${pv.metadata?.name}/`}>
                             {pv.metadata?.name}
                         </Link>
-                    )
+                    );
                 }
+                const failReason = <FormattedMessage id={pvFailReason} />;
                 return (
                     <div>
                         <Link to={`/pv/${pv.metadata?.name}/`}>
                             {pv.metadata?.name}
                         </Link>
-                        <Tooltip title={pv.failedReason}>
-                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        <Tooltip title={failReason}>
+                            <AlertTwoTone twoToneColor="#cf1322" />
                         </Tooltip>
                     </div>
-                )
+                );
             },
         },
         {
@@ -78,38 +77,43 @@ const PVTable: React.FC<unknown> = () => {
             key: 'pvc',
             render: (_, pv) => {
                 if (!pv.spec?.claimRef) {
-                    return <span>-</span>
+                    return <span>-</span>;
                 } else {
                     return (
-                        <Link to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}>
+                        <Link
+                            to={`/pvc/${pv.spec.claimRef.namespace}/${pv.spec.claimRef.name}`}
+                        >
                             {pv.spec.claimRef.namespace}/{pv.spec.claimRef.name}
                         </Link>
-                    )
+                    );
                 }
-            }
+            },
         },
         {
-            title: '容量',
+            title: <FormattedMessage id="capacity" />,
             key: 'storage',
             search: false,
             dataIndex: ['spec', 'capacity', 'storage'],
         },
         {
-            title: '访问模式',
+            title: <FormattedMessage id="accessMode" />,
             key: 'accessModes',
             search: false,
             render: (_, pv) => {
-                let accessModes: string
+                let accessModes: string;
                 if (pv.spec?.accessModes) {
-                    accessModes = pv.spec.accessModes.map(accessMode => accessModeMap[accessMode] || 'Unknown').join(",")
-                    return (
-                        <div>{accessModes}</div>
-                    )
+                    accessModes = pv.spec.accessModes
+                        .map(
+                            (accessMode) =>
+                                accessModeMap[accessMode] || 'Unknown',
+                        )
+                        .join(',');
+                    return <div>{accessModes}</div>;
                 }
-            }
+            },
         },
         {
-            title: '回收策略',
+            title: <FormattedMessage id="reclaimPolicy" />,
             key: 'persistentVolumeReclaimPolicy',
             search: false,
             dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
@@ -120,14 +124,18 @@ const PVTable: React.FC<unknown> = () => {
             render: (_, pv) => {
                 if (pv.spec?.storageClassName) {
                     return (
-                        <Link to={`/storageclass/${pv.spec?.storageClassName}/`}>{pv.spec?.storageClassName}</Link>
-                    )
+                        <Link
+                            to={`/storageclass/${pv.spec?.storageClassName}/`}
+                        >
+                            {pv.spec?.storageClassName}
+                        </Link>
+                    );
                 }
-                return "-"
-            }
+                return '-';
+            },
         },
         {
-            title: '状态',
+            title: <FormattedMessage id="status" />,
             dataIndex: ['status', 'phase'],
             hideInForm: true,
             valueType: 'select',
@@ -139,31 +147,33 @@ const PVTable: React.FC<unknown> = () => {
             valueEnum: PVStatusEnum,
         },
         {
-            title: '创建时间',
+            title: <FormattedMessage id="createAt" />,
             key: 'time',
             sorter: 'time',
             search: false,
             render: (_, pv) => (
-                <span>{
-                    (new Date(pv.metadata?.creationTimestamp || "")).toLocaleDateString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                    })
-                }</span>
+                <span>
+                    {new Date(
+                        pv.metadata?.creationTimestamp || '',
+                    ).toLocaleDateString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                    })}
+                </span>
             ),
         },
     ];
     return (
         <PageContainer
             header={{
-                title: 'PV 管理',
+                title: <FormattedMessage id="pvTablePageName" />,
             }}
         >
             <ProTable<PV>
-                headerTitle="查询表格"
+                headerTitle={<FormattedMessage id="pvTableName" />}
                 actionRef={actionRef}
-                rowKey={(record) => record.metadata?.uid!}
+                rowKey={(record) => record.metadata?.uid || ''}
                 search={{
                     labelWidth: 120,
                 }}
@@ -178,7 +188,7 @@ const PVTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {pvs, success, total} = await listPV({
+                    const { pvs, success, total } = await listPV({
                         ...params,
                         sort,
                         filter,
@@ -191,7 +201,8 @@ const PVTable: React.FC<unknown> = () => {
                 }}
                 columns={columns}
                 rowSelection={{
-                    onChange: (_, selectedRows) => setSelectedRows(selectedRows),
+                    onChange: (_, selectedRows) =>
+                        setSelectedRows(selectedRows),
                 }}
             />
             {/*{selectedRowsState?.length > 0 && (*/}
@@ -218,6 +229,5 @@ const PVTable: React.FC<unknown> = () => {
         </PageContainer>
     );
 };
-
 
 export default PVTable;

@@ -8,10 +8,9 @@ export default defineConfig({
     request: {},
     layout: {
         title: 'JuiceFS',
+        locale: true,
     },
-    favicons: [
-        'https://static1.juicefs.com/images/favicon.d6e4afae8198.ico',
-    ],
+    favicons: ['https://static1.juicefs.com/images/favicon.d6e4afae8198.ico'],
     base: '/app/',
     publicPath: '/app/',
     routes: [
@@ -20,34 +19,34 @@ export default defineConfig({
             redirect: '/pods',
         },
         {
-            name: '应用 Pod',
+            title: 'appPodTable',
             path: '/pods',
             component: './AppPodTable',
-            icon: '/app/pod-256.png'
+            icon: '/app/pod-256.png',
         },
         {
-            name: '系统 Pod',
+            title: 'sysPodTable',
             path: '/syspods',
             component: './SystemPodTable',
-            icon: '/app/ds-256.png'
+            icon: '/app/ds-256.png',
         },
         {
             name: 'PV',
             path: '/pvs',
             component: './PVTable',
-            icon: '/app/pv-256.png'
+            icon: '/app/pv-256.png',
         },
         {
             name: 'PVC',
             path: '/pvcs',
             component: './PVCTable',
-            icon: '/app/pvc-256.png'
+            icon: '/app/pvc-256.png',
         },
         {
             name: 'StorageClass',
             path: '/storageclasses',
             component: './SCTable',
-            icon: '/app/sc-256.png'
+            icon: '/app/sc-256.png',
         },
         {
             path: '/pod/:namespace/:podName',
@@ -75,5 +74,15 @@ export default defineConfig({
         },
     ],
     npmClient: 'yarn',
+    locale: {
+        antd: true,
+        baseNavigator: true,
+        title: true,
+        // useLocalStorage: true,
+        default: 'en-US',
+        baseSeparator: '-',
+    },
+    define: {
+        HOST: '',
+    },
 });
-

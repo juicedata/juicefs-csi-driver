@@ -14,58 +14,63 @@
  limitations under the License.
  */
 
+import { getNodeStatusBadge } from '@/pages/utils';
+import { PodStatusEnum } from '@/services/common';
+import { Pod, listSystemPods } from '@/services/pod';
+import { AlertTwoTone } from '@ant-design/icons';
 import {
     ActionType,
-    FooterToolbar,
     PageContainer,
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button, Tooltip} from 'antd';
-import React, {useRef, useState} from 'react';
-import {Pod, listSystemPods} from '@/services/pod';
-import {Link} from 'umi';
-import {AlertTwoTone} from "@ant-design/icons";
-import {PodStatusEnum} from "@/services/common";
-import {Badge} from "antd/lib";
-import {getNodeStatusBadge} from "@/pages/utils";
+import { Button, Tooltip } from 'antd';
+import { Badge } from 'antd/lib';
+import React, { useRef, useState } from 'react';
+import { FormattedMessage, Link } from 'umi';
 
 const SystemPodTable: React.FC<unknown> = () => {
-    const [createModalVisible, handleModalVisible] = useState<boolean>(false);
+    const [, handleModalVisible] = useState<boolean>(false);
     const actionRef = useRef<ActionType>();
-    const [selectedRowsState, setSelectedRows] = useState<Pod[]>([]);
+    const [, setSelectedRows] = useState<Pod[]>([]);
     const columns: ProColumns<Pod>[] = [
         {
-            title: '名称',
+            title: <FormattedMessage id="name" />,
             disable: true,
             key: 'name',
             render: (_, pod) => {
-                if (pod.failedReason === "") {
+                const podFailReason = pod.failedReason || '';
+                if (pod.failedReason === '') {
                     return (
-                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                        <Link
+                            to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}
+                        >
                             {pod.metadata?.name}
                         </Link>
-                    )
+                    );
                 }
+                const failReason = <FormattedMessage id={podFailReason} />;
                 return (
                     <div>
-                        <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+                        <Link
+                            to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}
+                        >
                             {pod.metadata?.name}
                         </Link>
-                        <Tooltip title={pod.failedReason}>
-                            <AlertTwoTone twoToneColor='#cf1322'/>
+                        <Tooltip title={failReason}>
+                            <AlertTwoTone twoToneColor="#cf1322" />
                         </Tooltip>
                     </div>
-                )
+                );
             },
         },
         {
-            title: '命名空间',
+            title: <FormattedMessage id="namespace" />,
             key: 'namespace',
             dataIndex: ['metadata', 'namespace'],
         },
         {
-            title: '状态',
+            title: <FormattedMessage id="status" />,
             disable: true,
             search: false,
             filters: true,
@@ -76,46 +81,51 @@ const SystemPodTable: React.FC<unknown> = () => {
             valueEnum: PodStatusEnum,
         },
         {
-            title: '创建时间',
+            title: <FormattedMessage id="createAt" />,
             key: 'time',
             sorter: 'time',
             defaultSortOrder: 'ascend',
             search: false,
             render: (_, pod) => (
-                <span>{
-                    (new Date(pod.metadata?.creationTimestamp || "")).toLocaleDateString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                    })
-                }</span>
+                <span>
+                    {new Date(
+                        pod.metadata?.creationTimestamp || '',
+                    ).toLocaleDateString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                    })}
+                </span>
             ),
         },
         {
-            title: '所在节点',
+            title: <FormattedMessage id="node" />,
             key: 'node',
             dataIndex: ['spec', 'nodeName'],
             valueType: 'text',
             render: (_, pod) => {
                 if (!pod.node) {
-                    return "-"
+                    return '-';
                 }
                 return (
-                    <Badge color={getNodeStatusBadge(pod.node)} text={pod.spec?.nodeName}/>
-                )
-            }
+                    <Badge
+                        color={getNodeStatusBadge(pod.node)}
+                        text={pod.spec?.nodeName}
+                    />
+                );
+            },
         },
     ];
     return (
         <PageContainer
             header={{
-                title: '系统 Pod 管理',
+                title: <FormattedMessage id="systemPodTablePageName" />,
             }}
         >
             <ProTable<Pod>
-                headerTitle="查询表格"
+                headerTitle={<FormattedMessage id="sysPodTableName" />}
                 actionRef={actionRef}
-                rowKey={(record) => record.metadata?.uid!}
+                rowKey={(record) => record.metadata?.uid || ''}
                 search={{
                     labelWidth: 120,
                 }}
@@ -130,7 +140,7 @@ const SystemPodTable: React.FC<unknown> = () => {
                     </Button>,
                 ]}
                 request={async (params, sort, filter) => {
-                    const {pods, success, total} = await listSystemPods({
+                    const { pods, success, total } = await listSystemPods({
                         ...params,
                         sort,
                         filter,
@@ -143,7 +153,8 @@ const SystemPodTable: React.FC<unknown> = () => {
                 }}
                 columns={columns}
                 rowSelection={{
-                    onChange: (_, selectedRows) => setSelectedRows(selectedRows),
+                    onChange: (_, selectedRows) =>
+                        setSelectedRows(selectedRows),
                 }}
             />
             {/*{selectedRowsState?.length > 0 && (*/}

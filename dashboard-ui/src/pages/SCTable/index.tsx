@@ -14,29 +14,25 @@
  limitations under the License.
  */
 
+import { listStorageClass } from '@/services/pv';
 import {
     ActionType,
-    FooterToolbar,
     PageContainer,
     ProColumns,
     ProTable,
 } from '@ant-design/pro-components';
-import {Button} from 'antd';
-import React, {useRef, useState} from 'react';
-import {listStorageClass} from '@/services/pv';
-import {Link} from 'umi';
-import {StorageClass} from "kubernetes-types/storage/v1";
+import { Button } from 'antd';
+import { StorageClass } from 'kubernetes-types/storage/v1';
+import React, { useRef, useState } from 'react';
+import { FormattedMessage, Link } from 'umi';
 
 const SCTable: React.FC<unknown> = () => {
-    const [createModalVisible, handleModalVisible] = useState<boolean>(false);
-    const [updateModalVisible, handleUpdateModalVisible] =
-        useState<boolean>(false);
-    const [stepFormValues, setStepFormValues] = useState({});
+    const [, handleModalVisible] = useState<boolean>(false);
     const actionRef = useRef<ActionType>();
-    const [selectedRowsState, setSelectedRows] = useState<StorageClass[]>([]);
+    const [, setSelectedRows] = useState<StorageClass[]>([]);
     const columns: ProColumns<StorageClass>[] = [
         {
-            title: '名称',
+            title: <FormattedMessage id="name" />,
             key: 'name',
             render: (_, sc) => (
                 <Link to={`/storageclass/${sc.metadata?.name}/`}>
@@ -45,53 +41,55 @@ const SCTable: React.FC<unknown> = () => {
             ),
         },
         {
-            title: '回收策略',
+            title: <FormattedMessage id="reclaimPolicy" />,
             key: 'reclaimPolicy',
             search: false,
             dataIndex: ['reclaimPolicy'],
         },
         {
-            title: '支持扩容',
+            title: <FormattedMessage id="allowVolumeExpansion" />,
             key: 'allowVolumeExpansion',
             search: false,
             render: (_, sc) => {
                 if (sc.allowVolumeExpansion) {
-                    return (
-                        <div>支持</div>
-                    )
+                    return <div>{<FormattedMessage id="true" />}</div>;
                 } else {
                     return (
-                        <div>不支持</div>
-                    )
+                        <div>
+                            <FormattedMessage id="false" />,
+                        </div>
+                    );
                 }
-            }
+            },
         },
         {
-            title: '创建时间',
+            title: <FormattedMessage id="createAt" />,
             key: 'time',
             sorter: 'time',
             search: false,
             render: (_, sc) => (
-                <span>{
-                    (new Date(sc.metadata?.creationTimestamp || "")).toLocaleDateString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                    })
-                }</span>
+                <span>
+                    {new Date(
+                        sc.metadata?.creationTimestamp || '',
+                    ).toLocaleDateString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                    })}
+                </span>
             ),
         },
     ];
     return (
         <PageContainer
             header={{
-                title: 'StorageClass 管理',
+                title: <FormattedMessage id="scTablePageName" />,
             }}
         >
             <ProTable<StorageClass>
-                headerTitle="查询表格"
+                headerTitle={<FormattedMessage id="scTableName" />}
                 actionRef={actionRef}
-                rowKey={(record) => record.metadata?.uid!}
+                rowKey={(record) => record.metadata?.uid || ''}
                 search={{
                     labelWidth: 120,
                 }}
@@ -105,8 +103,8 @@ const SCTable: React.FC<unknown> = () => {
                         新建
                     </Button>,
                 ]}
-                request={async (params, sort, filter) => {
-                    const {data, success} = await listStorageClass({
+                request={async (params, sort) => {
+                    const { data, success } = await listStorageClass({
                         ...params,
                         sort,
                     });
@@ -117,7 +115,8 @@ const SCTable: React.FC<unknown> = () => {
                 }}
                 columns={columns}
                 rowSelection={{
-                    onChange: (_, selectedRows) => setSelectedRows(selectedRows),
+                    onChange: (_, selectedRows) =>
+                        setSelectedRows(selectedRows),
                 }}
             />
             {/*{selectedRowsState?.length > 0 && (*/}
@@ -143,6 +142,5 @@ const SCTable: React.FC<unknown> = () => {
         </PageContainer>
     );
 };
-
 
 export default SCTable;
