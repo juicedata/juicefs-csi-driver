@@ -444,7 +444,7 @@ metadata:
   name: juicefs-csi-dashboard
   namespace: kube-system
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: juicefs-csi-dashboard
@@ -462,7 +462,6 @@ spec:
       containers:
       - args:
         - --static-dir=/dist
-        - --leader-election
         env:
         - name: SYS_NAMESPACE
           valueFrom:
@@ -1073,7 +1072,7 @@ metadata:
   name: juicefs-csi-dashboard
   namespace: kube-system
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: juicefs-csi-dashboard
@@ -1091,7 +1090,6 @@ spec:
       containers:
       - args:
         - --static-dir=/dist
-        - --leader-election
         env:
         - name: SYS_NAMESPACE
           valueFrom:
