@@ -57,7 +57,7 @@ dashboard:
 	go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
 
 .PHONY: dashboard-dev
-dashboard-dev: dashboard dashboard-dist
+dashboard-dev: dashboard
 	./bin/juicefs-csi-dashboard -v=6 --dev --static-dir=./dashboard-ui/dist
 
 .PHONY: dashboard-image
