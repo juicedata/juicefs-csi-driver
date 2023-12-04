@@ -74,13 +74,18 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 	}
 	if pod.DeletionTimestamp != nil {
 		c.appIndexes.removeIndex(req.NamespacedName)
+		if isCsiNode(pod) {
+			c.csiNodeLock.Lock()
+			delete(c.csiNodeIndex, pod.Spec.NodeName)
+			c.csiNodeLock.Unlock()
+		}
 		klog.V(6).Infof("pod %s deleted", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	indexes := c.appIndexes
 	if isSysPod(pod) {
 		indexes = c.sysIndexes
-		if isCsiNode(pod) {
+		if isCsiNode(pod) && pod.Spec.NodeName != "" {
 			c.csiNodeLock.Lock()
 			c.csiNodeIndex[pod.Spec.NodeName] = types.NamespacedName{
 				Namespace: pod.GetNamespace(),
@@ -113,7 +118,7 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return false
+			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pod := deleteEvent.Object.(*corev1.Pod)
@@ -128,6 +133,11 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 					Namespace: pod.GetNamespace(),
 					Name:      pod.GetName(),
 				})
+				if isCsiNode(pod) {
+					c.csiNodeLock.Lock()
+					delete(c.csiNodeIndex, pod.Spec.NodeName)
+					c.csiNodeLock.Unlock()
+				}
 				klog.V(6).Infof("pod %s%s deleted", pod.GetNamespace(), pod.GetName())
 				return false
 			}
@@ -282,7 +292,7 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 		CreateFunc: func(event event.CreateEvent) bool {
 			pvc := event.Object.(*corev1.PersistentVolumeClaim)
 			// bound pvc should be added by pv controller
-			return pvc.Status.Phase == corev1.ClaimPending
+			return pvc.Status.Phase == corev1.ClaimPending || pvc.Status.Phase == corev1.ClaimBound
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			oldPvc := updateEvent.ObjectOld.(*corev1.PersistentVolumeClaim)
