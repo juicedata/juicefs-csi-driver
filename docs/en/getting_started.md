@@ -29,7 +29,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 1. Check kubelet root directory
 
-   Execute the following command.
+   Execute the following command on any non-Master node in the Kubernetes cluster.
 
    ```shell
    ps -ef | grep kubelet | grep root-dir

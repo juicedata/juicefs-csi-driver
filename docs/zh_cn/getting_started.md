@@ -30,7 +30,7 @@ title: 安装
 
 1. 检查 kubelet 根目录
 
-    执行以下命令
+    在 Kubernetes 集群中任意一个非 Master 节点上执行以下命令：
 
     ```shell
     ps -ef | grep kubelet | grep root-dir
