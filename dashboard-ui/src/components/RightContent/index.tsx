@@ -16,25 +16,69 @@
 
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { SelectLang as UmiSelectLang } from '@umijs/max';
-
-export type SiderTheme = 'light' | 'dark';
+import {
+    disable as darkreaderDisable,
+    enable as darkreaderEnable,
+    setFetchMethod as setFetch,
+} from '@umijs/ssr-darkreader';
+import { Switch } from 'antd';
 
 export const SelectLang = () => {
-  return <UmiSelectLang style={{ padding: 4 }} />;
+    return <UmiSelectLang style={{ padding: 4 }} />;
 };
 
 export const Question = () => {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        height: 26,
-      }}
-      onClick={() => {
-        window.open('https://juicefs.com/docs/csi/introduction/');
-      }}
-    >
-      <QuestionCircleOutlined />
-    </div>
-  );
+    return (
+        <div
+            style={{
+                display: 'flex',
+                height: 26,
+            }}
+            onClick={() => {
+                window.open('https://juicefs.com/docs/csi/introduction/');
+            }}
+        >
+            <QuestionCircleOutlined />
+        </div>
+    );
+};
+
+const updateTheme = async (dark: boolean) => {
+    if (typeof window === 'undefined') return;
+    if (typeof window.MutationObserver === 'undefined') return;
+
+    if (dark) {
+        const defaultTheme = {
+            brightness: 100,
+            contrast: 90,
+            sepia: 10,
+        };
+
+        const defaultFixes = {
+            invert: [],
+            css: '',
+            ignoreInlineStyle: ['.react-switch-handle'],
+            ignoreImageAnalysis: [],
+            disableStyleSheetsProxy: true,
+        };
+        if (window.MutationObserver && window.fetch) {
+            setFetch(window.fetch);
+            darkreaderEnable(defaultTheme, defaultFixes);
+        }
+    } else {
+        if (window.MutationObserver) darkreaderDisable();
+    }
+};
+
+export const DarkMode = () => {
+    return (
+        <div>
+            <Switch
+                checkedChildren="🌛"
+                unCheckedChildren="☀️"
+                onClick={updateTheme}
+                size="small"
+            ></Switch>
+        </div>
+    );
 };
