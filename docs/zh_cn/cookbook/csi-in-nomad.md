@@ -3,7 +3,7 @@ slug: /csi-in-nomad
 sidebar_label: 在 Nomad 中使用
 ---
 
-# 如何在 Nomad 中使用 JuiceFS CSI 驱动
+# 在 Nomad 中使用 CSI 驱动
 
 :::note 注意
 此特性需使用 0.13.2 及以上版本的 JuiceFS CSI 驱动

@@ -1,9 +1,9 @@
 ---
 slug: /csi-in-serverless
-sidebar_label: 在 Serverless 环境中使用
+sidebar_label: 在 Serverless 中使用
 ---
 
-# 如何在 Serverless 环境中使用 JuiceFS CSI 驱动
+# 在 Serverless 环境使用 CSI 驱动
 
 :::note 注意
 此特性需使用 0.23.1 及以上版本的 JuiceFS CSI 驱动
