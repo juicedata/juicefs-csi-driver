@@ -260,3 +260,17 @@ sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@r
 sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 ```
+
+## Uninstall
+
+Uninstalling is the reverse operation of installation. For Helm-installed applications, you can execute the following command:
+
+```shell
+helm uninstall juicefs-csi-driver
+```
+
+If you used the kubectl installation method, you just need to replace the `apply` with `delete` in the corresponding installation command. For example:
+
+```shell
+kubectl delete -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
+```
