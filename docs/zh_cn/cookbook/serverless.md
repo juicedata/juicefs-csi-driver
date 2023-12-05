@@ -9,7 +9,7 @@ sidebar_label: 在 Serverless 环境中使用
 此特性需使用 0.23.1 及以上版本的 JuiceFS CSI 驱动
 :::
 
-不同的云厂商的 Serverless 环境实现不尽相同，本篇文档会详细描述在不同的云厂商的 Serverless 环境中如何使用 JuiceFS CSI 驱动，包括[华为云 CCI](https://www.huaweicloud.com/product/cci.html)、[火山引擎 VCI](https://www.volcengine.com/theme/1224494-D-7-1) 
+不同的云厂商的 Serverless 环境实现不尽相同，本篇文档会详细描述在不同的云厂商的 Serverless 环境中如何使用 JuiceFS CSI 驱动，包括[华为云 CCI](https://www.huaweicloud.com/product/cci.html)、[火山引擎 VCI](https://www.volcengine.com/theme/1224494-D-7-1)
 以及[腾讯云 Serverless 容器服务](https://cloud.tencent.com/product/tkeserverless)，[阿里云 ECI](https://www.aliyun.com/product/eci) 还不支持使用 JuiceFS CSI 驱动，需要通过 Fluid，请参考文档 [《以 Serverless Container 的方式在 ACK 使用 JuiceFS》](https://juicefs.com/docs/zh/cloud/kubernetes/use_in_eci)。
 
 ## 安装 {#install}
