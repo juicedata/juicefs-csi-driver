@@ -198,6 +198,8 @@ If you had to use this installation method in a production environment, be sure 
 
 ## Install in by-process mode {#by-process}
 
+In the process mount mode, the JuiceFS client no longer runs in a separate Pod, but runs in the CSI Node Service container. All JuiceFS PVs that need to be mounted will be mounted in the CSI Node Service container in process mode. For more details, please refer to the [Process Mount Mode](./introduction.md#by-process).
+
 ### Helm
 
 Modify `values.yaml`:

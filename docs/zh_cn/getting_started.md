@@ -199,6 +199,8 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ## 以进程挂载模式安装 {#by-process}
 
+在进程挂载模式下，JuiceFS 客户端不再运行在独立的 Pod 中，而是运行在 CSI Node Service 容器中，所有需要挂载的 JuiceFS PV 都会在 CSI Node Service 容器中以进程模式挂载。详情可以参考[「进程挂载模式」](./introduction.md#by-process)。
+
 ### Helm
 
 在 `values.yaml` 中修改配置：
