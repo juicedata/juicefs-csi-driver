@@ -30,7 +30,7 @@ title: 安装
 
 1. 检查 kubelet 根目录
 
-    执行以下命令
+    在 Kubernetes 集群中任意一个非 Master 节点上执行以下命令：
 
     ```shell
     ps -ef | grep kubelet | grep root-dir
@@ -199,6 +199,8 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ## 以进程挂载模式安装 {#by-process}
 
+在进程挂载模式下，JuiceFS 客户端不再运行在独立的 Pod 中，而是运行在 CSI Node Service 容器中，所有需要挂载的 JuiceFS PV 都会在 CSI Node Service 容器中以进程模式挂载。详情可以参考[「进程挂载模式」](./introduction.md#by-process)。
+
 ### Helm
 
 在 `values.yaml` 中修改配置：
@@ -260,4 +262,18 @@ sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@registry.k8
 sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
+```
+
+## 卸载
+
+删除是安装的逆向操作，对于 Helm 安装的，执行以下命令即可：
+
+```shell
+helm uninstall juicefs-csi-driver
+```
+
+如果使用的是 kubectl 安装方式，只需将相应安装命令中的 `apply` 替换为 `delete` 即可，例如：
+
+```shell
+kubectl delete -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
