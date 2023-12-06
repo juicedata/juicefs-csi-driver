@@ -67,6 +67,7 @@ jobs:
       - name: Build juicefs image
         env:
           CEVERSION: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
+          IMAGE_TAG: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
           CEJUICEFS_VERSION: ${{ env.JUICEFS_CE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
@@ -132,6 +133,7 @@ jobs:
       - name: Buildx and Push juicefs image
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
@@ -201,6 +203,7 @@ jobs:
       - name: Buildx and Push juicefs image
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
