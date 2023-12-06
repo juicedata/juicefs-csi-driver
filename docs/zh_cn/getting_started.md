@@ -153,10 +153,13 @@ webhook:
 helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签：
+对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
 
 ```shell
+# 普通集群
 kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+# Serverless 集群
+kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
 ```
 
 ### kubectl
@@ -164,9 +167,6 @@ kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 考虑到安装文件需要用脚本生成，不便于源码管理、以及未来升级 CSI 驱动时的配置梳理，生产环境不建议用 kubectl 进行安装。
 
 ```shell
-# 对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
-kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
-
 # Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
 wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
 chmod +x ./juicefs-csi-webhook-install.sh
@@ -182,6 +182,15 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ```shell
 ./juicefs-csi-webhook-install.sh install
+```
+
+对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
+
+```shell
+# 普通集群
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+# Serverless 集群
+kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
 ```
 
 若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，可以使用下方命令生成安装文件或直接安装：
