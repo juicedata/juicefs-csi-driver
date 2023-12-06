@@ -227,7 +227,7 @@ jobs:
             cd ${GITHUB_WORKSPACE}/.github/scripts/
             ./sync.sh
           else
-            echo "JuiceFS mount ee version image already exists"
+            echo "JuiceFS fuse ee version image already exists"
           fi
       - name: Setup upterm session
         if: ${{ failure() }}
