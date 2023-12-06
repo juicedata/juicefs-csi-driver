@@ -43,6 +43,7 @@ for REGION in ${REGIONS[@]};
 do
 	echo ${REGION}
     docker login --username=${username} --password=${passwd} ${REGION}
+    docker pull juicedata/juicefs-fuse:${tag}
 	  docker tag juicedata/juicefs-fuse:${tag} ${REGION}/juicefs/juicefs-fuse:${tag}
     docker push ${REGION}/juicefs/juicefs-fuse:${tag}
 done
