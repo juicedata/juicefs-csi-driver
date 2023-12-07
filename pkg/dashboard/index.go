@@ -85,7 +85,7 @@ func (i *timeOrderedIndexes[T]) addIndex(resource *T, metaGetter func(*T) metav1
 		}
 		currentMeta := metaGetter(currentResource)
 		if meta.UID == currentMeta.UID {
-			break
+			return
 		}
 		if meta.CreationTimestamp.After(currentMeta.CreationTimestamp.Time) {
 			i.list.InsertAfter(name, e)
