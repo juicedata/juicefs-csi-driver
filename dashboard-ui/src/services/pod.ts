@@ -275,29 +275,61 @@ export const listAppPods = async (args: AppPagingListArgs) => {
 };
 
 export const getPod = async (namespace: string, podName: string) => {
+    let pod: Pod;
     try {
         const rawPod = await fetch(
             `${host}/api/v1/pod/${namespace}/${podName}/`,
         );
-        const pod: Pod = JSON.parse(await rawPod.text());
+        pod = JSON.parse(await rawPod.text());
+    } catch (e) {
+        console.log(`fail to get pod(${namespace}/${podName}): ${e}`);
+        return null;
+    }
+    try {
         const mountPods = await fetch(
             `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`,
         );
         pod.mountPods = JSON.parse(await mountPods.text());
+    } catch (e) {
+        console.log(
+            `fail to get mount pod for pod(${namespace}/${podName}): ${e}`,
+        );
+    }
+    try {
         const appPods = await fetch(
             `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`,
         );
         pod.appPods = JSON.parse(await appPods.text());
-        if (pod.spec?.nodeName) {
+    } catch (e) {
+        console.log(
+            `fail to get app pod for pod(${namespace}/${podName}): ${e}`,
+        );
+    }
+
+    if (pod.spec?.nodeName) {
+        try {
             const csiNode = await fetch(
                 `${host}/api/v1/csi-node/${pod.spec?.nodeName}`,
             );
             pod.csiNode = JSON.parse(await csiNode.text());
+        } catch (e) {
+            console.log(
+                `fail to get csi node for pod(${namespace}/${podName}): ${e}`,
+            );
+        }
+        try {
             const node = await fetch(
                 `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`,
             );
             pod.node = JSON.parse(await node.text());
+        } catch (e) {
+            console.log(
+                `fail to get node for pod(${namespace}/${podName}): ${e}`,
+            );
         }
+    }
+
+    try {
         const events = await fetch(
             `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`,
         );
@@ -314,11 +346,13 @@ export const getPod = async (namespace: string, podName: string) => {
         pod.events = podEvents;
         pod.logs = new Map();
         pod.finalStatus = podStatus(pod) || 'Unknown';
-        return pod;
     } catch (e) {
-        console.log(`fail to get pod(${namespace}/${podName}): ${e}`);
-        return null;
+        console.log(
+            `fail to get events for pod(${namespace}/${podName}): ${e}`,
+        );
     }
+
+    return pod;
 };
 
 export const getLog = async (pod: Pod, container: string) => {
