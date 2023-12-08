@@ -30,7 +30,7 @@ title: 安装
 
 1. 检查 kubelet 根目录
 
-    执行以下命令
+    在 Kubernetes 集群中任意一个非 Master 节点上执行以下命令：
 
     ```shell
     ps -ef | grep kubelet | grep root-dir
@@ -153,10 +153,13 @@ webhook:
 helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
 ```
 
-对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签：
+对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
 
 ```shell
+# 普通集群
 kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+# Serverless 集群
+kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
 ```
 
 ### kubectl
@@ -164,9 +167,6 @@ kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 考虑到安装文件需要用脚本生成，不便于源码管理、以及未来升级 CSI 驱动时的配置梳理，生产环境不建议用 kubectl 进行安装。
 
 ```shell
-# 对所有需要使用 JuiceFS CSI 驱动的命名空间打上该标签
-kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
-
 # Sidecar 模式需要在安装过程中生成和使用证书，渲染对应的 YAML 资源，请直接使用安装脚本
 wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
 chmod +x ./juicefs-csi-webhook-install.sh
@@ -184,6 +184,15 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 ./juicefs-csi-webhook-install.sh install
 ```
 
+对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
+
+```shell
+# 普通集群
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+# Serverless 集群
+kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
+```
+
 若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，可以使用下方命令生成安装文件或直接安装：
 
 ```shell
@@ -198,6 +207,8 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 如果你不得不在生产集群使用此种方式进行安装，那么一定要将生成的 `juicefs-csi-sidecar.yaml` 进行源码管理，方便追踪配置变更的同时，也方便未来升级 CSI 驱动时，进行配置对比梳理。
 
 ## 以进程挂载模式安装 {#by-process}
+
+在进程挂载模式下，JuiceFS 客户端不再运行在独立的 Pod 中，而是运行在 CSI Node Service 容器中，所有需要挂载的 JuiceFS PV 都会在 CSI Node Service 容器中以进程模式挂载。详情可以参考[「进程挂载模式」](./introduction.md#by-process)。
 
 ### Helm
 
@@ -260,4 +271,18 @@ sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@registry.k8
 sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
+```
+
+## 卸载
+
+删除是安装的逆向操作，对于 Helm 安装的，执行以下命令即可：
+
+```shell
+helm uninstall juicefs-csi-driver
+```
+
+如果使用的是 kubectl 安装方式，只需将相应安装命令中的 `apply` 替换为 `delete` 即可，例如：
+
+```shell
+kubectl delete -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```

@@ -29,7 +29,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
 1. Check kubelet root directory
 
-   Execute the following command.
+   Execute the following command on any non-Master node in the Kubernetes cluster.
 
    ```shell
    ps -ef | grep kubelet | grep root-dir
@@ -198,6 +198,8 @@ If you had to use this installation method in a production environment, be sure 
 
 ## Install in by-process mode {#by-process}
 
+In the process mount mode, the JuiceFS client no longer runs in a separate Pod, but runs in the CSI Node Service container. All JuiceFS PVs that need to be mounted will be mounted in the CSI Node Service container in process mode. For more details, please refer to the [Process Mount Mode](./introduction.md#by-process).
+
 ### Helm
 
 Modify `values.yaml`:
@@ -259,4 +261,18 @@ sed --in-place --expression='s@quay.io/k8scsi/csi-provisioner:v1.6.0@registry.k8
 sed --in-place --expression='s@quay.io/k8scsi/csi-node-driver-registrar:v1.3.0@registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0@' k8s.yaml
 sed --in-place --expression='s@quay.io/k8scsi/csi-resizer:v1.0.1@registry.k8s.io/sig-storage/csi-resizer:v1.8.0@' k8s.yaml
 sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
+```
+
+## Uninstall
+
+Uninstalling is the reverse operation of installation. For Helm-installed applications, you can execute the following command:
+
+```shell
+helm uninstall juicefs-csi-driver
+```
+
+If you used the kubectl installation method, you just need to replace the `apply` with `delete` in the corresponding installation command. For example:
+
+```shell
+kubectl delete -f https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/deploy/k8s.yaml
 ```
