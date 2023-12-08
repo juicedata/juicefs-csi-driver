@@ -16,7 +16,8 @@
     "@types/js-yaml": "^4.0.6",
     "@types/react-syntax-highlighter": "^15.5.7",
     "@umijs/max": "^4.0.81",
-    "antd": "^5.4.0",
+    "@umijs/ssr-darkreader": "^4.9.45",
+    "antd": "5.10.0",
     "kubernetes-types": "^1.26.0",
     "query-string": "^8.1.0",
     "react-syntax-highlighter": "^15.5.0"

@@ -14,7 +14,8 @@
  limitations under the License.
  */
 
-import { Question, SelectLang } from '@/components/RightContent';
+import { DarkMode, Question, SelectLang } from '@/components/RightContent';
+import { Flex } from 'antd';
 import { RuntimeConfig } from 'umi';
 
 // 运行时配置
@@ -29,8 +30,11 @@ export const layout: RuntimeConfig['layout'] = () => {
     return {
         // navTheme: "realDark",
         actionsRender: () => [
-            <SelectLang key="SelectLang" />,
-            <Question key="doc" />,
+            <Flex align="center" gap="small" key="ar-flex">
+                <Question key="doc" />
+                <SelectLang key="SelectLang" />
+                <DarkMode key="darkMode" />
+            </Flex>,
         ],
         layout: 'mix',
         title: 'JuiceFS CSI',
