@@ -33,8 +33,8 @@ const PVCTable: React.FC<unknown> = () => {
     const [, setSelectedRows] = useState<PVC[]>([]);
     const accessModeMap: { [key: string]: string } = {
         ReadWriteOnce: 'RWO',
-        ReadWriteMany: 'RWX',
-        ReadOnlyMany: 'ROX',
+        ReadWriteMany: 'RWM',
+        ReadOnlyMany: 'ROM',
         ReadWriteOncePod: 'RWOP',
     };
     const columns: ProColumns<PVC>[] = [

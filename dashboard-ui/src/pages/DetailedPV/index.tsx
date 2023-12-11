@@ -76,8 +76,8 @@ const DetailedPV: React.FC<unknown> = () => {
         });
         const accessModeMap: { [key: string]: string } = {
             ReadWriteOnce: 'RWO',
-            ReadWriteMany: 'RWX',
-            ReadOnlyMany: 'ROX',
+            ReadWriteMany: 'RWM',
+            ReadOnlyMany: 'ROM',
             ReadWriteOncePod: 'RWOP',
         };
 

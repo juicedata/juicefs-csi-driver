@@ -34,8 +34,8 @@ const PVTable: React.FC<unknown> = () => {
     const [, setSelectedRows] = useState<PV[]>([]);
     const accessModeMap: { [key: string]: string } = {
         ReadWriteOnce: 'RWO',
-        ReadWriteMany: 'RWX',
-        ReadOnlyMany: 'ROX',
+        ReadWriteMany: 'RWM',
+        ReadOnlyMany: 'ROM',
         ReadWriteOncePod: 'RWOP',
     };
     const columns: ProColumns<PV>[] = [
