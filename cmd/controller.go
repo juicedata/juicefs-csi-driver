@@ -48,6 +48,9 @@ func parseControllerConfig() {
 	config.Webhook = webhook
 	config.Provisioner = provisioner
 	config.FormatInPod = formatInPod
+	if os.Getenv("DRIVER_NAME") != "" {
+		config.DriverName = os.Getenv("DRIVER_NAME")
+	}
 	// enable mount manager by default in csi controller
 	config.MountManager = true
 	if process {
