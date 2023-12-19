@@ -67,8 +67,8 @@ const DetailedPVC: React.FC<unknown> = () => {
     const getPVCTabsContent = (pvc: PersistentVolumeClaim) => {
         const accessModeMap: { [key: string]: string } = {
             ReadWriteOnce: 'RWO',
-            ReadWriteMany: 'RWM',
-            ReadOnlyMany: 'ROM',
+            ReadWriteMany: 'RWX',
+            ReadOnlyMany: 'ROX',
             ReadWriteOncePod: 'RWOP',
         };
 
