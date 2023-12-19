@@ -53,7 +53,15 @@ func TestGetVolumes(t *testing.T) {
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "pv-3"},
 	}
-	pvcs := []corev1.PersistentVolumeClaim{pvc1, pvc2, pvc3}
+	fakeScName := "fake"
+	pvc4 := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-4",
+			Namespace: "default",
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "pv-4", StorageClassName: &fakeScName},
+	}
+	pvcs := []corev1.PersistentVolumeClaim{pvc1, pvc2, pvc3, pvc4}
 	pv1 := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{Name: "pv-1"},
 		Spec: corev1.PersistentVolumeSpec{PersistentVolumeSource: corev1.PersistentVolumeSource{
@@ -80,7 +88,16 @@ func TestGetVolumes(t *testing.T) {
 			},
 		}},
 	}
-	pvs := []corev1.PersistentVolume{pv1, pv2, pv3}
+	pv4 := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{Name: "pv-4"},
+		Spec: corev1.PersistentVolumeSpec{PersistentVolumeSource: corev1.PersistentVolumeSource{
+			CSI: &corev1.CSIPersistentVolumeSource{
+				Driver:       "csi.juicefs.com",
+				VolumeHandle: "pv-4",
+			},
+		}},
+	}
+	pvs := []corev1.PersistentVolume{pv1, pv2, pv3, pv4}
 	k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 	for _, pvc := range pvcs {
 		k8sClient.Interface.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
@@ -187,6 +204,33 @@ func TestGetVolumes(t *testing.T) {
 					PVC: &pvc3,
 				},
 			},
+			wantErr: false,
+		},
+		{
+			name: "test pvc with fake scName",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-4",
+						Namespace: "default",
+					},
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{{
+							Name: "test",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "pvc-4",
+								},
+							},
+						}},
+					},
+				},
+			},
+			wantUsed: true,
+			wantPair: []PVPair{{
+				PV:  &pv4,
+				PVC: &pvc4,
+			}},
 			wantErr: false,
 		},
 	}
