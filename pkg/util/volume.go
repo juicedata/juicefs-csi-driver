@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -68,11 +69,12 @@ func getVol(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, n
 			if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
 				var sc *storagev1.StorageClass
 				sc, err = client.GetStorageClass(ctx, *pvc.Spec.StorageClassName)
-				if err != nil {
+				if err != nil && !k8serrors.IsNotFound(err) {
+					// if pvc.storageClassName do not exist, do not return error, and check if it has been bound with static PV.
 					return
 				}
 				// if storageclass is juicefs
-				if sc.Provisioner == config.DriverName {
+				if sc != nil && sc.Provisioner == config.DriverName {
 					used = true
 				}
 			}
