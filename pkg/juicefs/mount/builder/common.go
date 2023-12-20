@@ -97,7 +97,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-				"umount %s && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+				"umount %s -l && rmdir %s", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 		},
 	}
 

@@ -87,7 +87,7 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 	ttlSecond := DefaultJobTTLSecond
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs && rmdir /mnt/jfs"}},
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs -l && rmdir /mnt/jfs"}},
 		},
 	}
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
