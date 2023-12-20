@@ -33,6 +33,7 @@ var (
 	Immutable          = false // csi driver is running in an immutable environment
 	EnableNodeSelector = false // arrange mount pod to node with node selector instead nodeName
 
+	DriverName         = "csi.juicefs.com"
 	NodeName           = ""
 	Namespace          = ""
 	PodName            = ""
@@ -63,7 +64,6 @@ var (
 
 const (
 	// DriverName to be registered
-	DriverName           = "csi.juicefs.com"
 	CSINodeLabelKey      = "app"
 	CSINodeLabelValue    = "juicefs-csi-node"
 	PodTypeKey           = "app.kubernetes.io/name"
