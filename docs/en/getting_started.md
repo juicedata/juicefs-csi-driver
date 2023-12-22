@@ -131,26 +131,30 @@ Sidecar is very different from the default mount pod mode, for example, sharing 
 
 ### Helm
 
-Modify `values.yaml`:
+Modify your cluster values:
 
-```yaml title='values.yaml'
+```yaml title='values-mycluster.yaml'
 mountMode: sidecar
 ```
 
-If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, add the following configuration in `values.yaml`:
+If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, add the following configuration in values:
 
-```yaml title='values.yaml'
+```yaml title='values-mycluster.yaml'
 mountMode: sidecar
 webhook:
-   certManager:
-      enabled: true
+  certManager:
+    enabled: true
 ```
 
 Reinstall to apply:
 
 ```shell
-helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
+
+:::warning
+After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all pods within the namespace will stuck on creating, waiting for the webhook injection check.
+:::
 
 Label all namespaces that need to use JuiceFS CSI Driver:
 
@@ -163,9 +167,6 @@ kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
 The files used for installation are generated using a script, which isn't ideal for source code management, while making it difficult to upgrade CSI Driver. Please don't install via kubectl in a production environment.
 
 ```shell
-# Label all namespaces that need to use JuiceFS CSI Driver
-kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
-
 # Sidecar mode uses local generated certificates, rendered into the YAML files, this is all handled in the installation script
 wget https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/scripts/juicefs-csi-webhook-install.sh
 chmod +x ./juicefs-csi-webhook-install.sh
@@ -181,6 +182,19 @@ Or directly install using this command:
 
 ```shell
 ./juicefs-csi-webhook-install.sh install
+```
+
+:::warning
+After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all pods within the namespace will stuck on creating, waiting for the webhook injection check.
+:::
+
+Label all namespaces that need to use JuiceFS CSI Driver, note that the label is different for serverless.
+
+```shell
+# Normal Kubernetes cluster
+kubectl label namespace $NS juicefs.com/enable-injection=true --overwrite
+# Serverless cluster
+kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
 ```
 
 If [CertManager](https://github.com/cert-manager/cert-manager) is used to manage certificates in the cluster, use the following command to generate an installation file or install it directly:

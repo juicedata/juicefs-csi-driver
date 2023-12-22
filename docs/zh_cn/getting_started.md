@@ -132,26 +132,30 @@ Sidecar 与默认的容器挂载方式有很大不同，包括无法复用挂载
 
 ### Helm
 
-在 `values.yaml` 中修改配置：
+在 values 中修改配置：
 
-```yaml title='values.yaml'
+```yaml title='values-mycluster.yaml'
 mountMode: sidecar
 ```
 
-若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 `values.yaml` 中添加如下配置：
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 values 中添加如下配置：
 
-```yaml title='values.yaml'
+```yaml title='values-mycluster.yaml'
 mountMode: sidecar
 webhook:
-   certManager:
-      enabled: true
+  certManager:
+    enabled: true
 ```
 
 重新安装，令配置生效：
 
 ```shell
-helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
+
+:::warning
+安装以后，必须等待所有组件运行正常以后，才能继续执行下一步打标签。如果 Controller 容器尚未健康运行，就为命名空间打好标签，该命名空间的所有 Pod 都将无法创建，卡死在 Webhook 的注入检查这一关。
+:::
 
 对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
 
@@ -183,6 +187,10 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 ```shell
 ./juicefs-csi-webhook-install.sh install
 ```
+
+:::warning
+安装以后，必须等待所有组件运行正常以后，才能继续执行下一步打标签。如果 Controller 容器尚未健康运行，就为命名空间打好标签，该命名空间的所有 Pod 都将无法创建，卡死在 Webhook 的注入检查这一关。
+:::
 
 对所有需要使用 JuiceFS CSI 驱动的命名空间打上下述标签，需要注意的是普通集群和 Serverless 的标签有所不同：
 
