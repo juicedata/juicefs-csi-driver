@@ -37,7 +37,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-const defaultCheckoutTimeout = 1 * time.Second
+const (
+	defaultCheckoutTimeout   = 1 * time.Second
+	defaultTargetMountCounts = 10
+)
 
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
@@ -547,12 +550,14 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 		}
 		// if not umountTarget, mountinfo file will increase unlimited
 		// if we umount all the target items, `mountPropagation` will lose efficacy
-		p.umountTarget(ti.target, ti.count-1)
+		klog.V(5).Infof("umount pod %s target %s before recover and ignore when count < %d, count in mountinfo is %d", podName, ti.target, defaultTargetMountCounts, ti.count)
+		// avoid umount target all, it will cause pod to write files in disk.
+		p.umountTarget(ti.target, ti.count-defaultTargetMountCounts)
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
 			_, err := os.Stat(sourcePath)
 			if err != nil {
-				klog.Errorf("pod %s target %s, stat volPath:%s err:%v, don't do recovery", podName, ti.target, sourcePath, err)
+				klog.Errorf("pod %s target %s, stat volPath: %s err: %v, don't do recovery", podName, ti.target, sourcePath, err)
 				break
 			}
 		}
@@ -569,6 +574,10 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 
 // umountTarget umount target path
 func (p *PodDriver) umountTarget(target string, count int) {
+	if count <= 0 {
+		return
+	}
+	klog.V(5).Infof("umount target %d times", count)
 	for i := 0; i < count; i++ {
 		// ignore error
 		p.Unmount(target)
