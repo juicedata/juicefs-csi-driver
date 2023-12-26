@@ -39,7 +39,7 @@ import (
 
 const (
 	defaultCheckoutTimeout   = 1 * time.Second
-	defaultTargetMountCounts = 10
+	defaultTargetMountCounts = 5
 )
 
 type PodDriver struct {
@@ -550,9 +550,9 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 		}
 		// if not umountTarget, mountinfo file will increase unlimited
 		// if we umount all the target items, `mountPropagation` will lose efficacy
-		klog.V(5).Infof("umount pod %s target %s before recover and ignore when count < %d, count in mountinfo is %d", podName, ti.target, defaultTargetMountCounts, ti.count)
+		klog.V(5).Infof("umount pod %s target %s before recover and remain mount count %d", podName, ti.target, defaultTargetMountCounts)
 		// avoid umount target all, it will cause pod to write files in disk.
-		p.umountTarget(ti.target, ti.count-defaultTargetMountCounts)
+		p.umountTargetUntilRemain(mi, ti.target, defaultTargetMountCounts)
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
 			_, err := os.Stat(sourcePath)
@@ -581,6 +581,38 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	for i := 0; i < count; i++ {
 		// ignore error
 		p.Unmount(target)
+	}
+}
+
+// umountTargetUntilRemain umount target path with remaining count
+func (p *PodDriver) umountTargetUntilRemain(basemi *mountItem, target string, remainCount int) {
+	for {
+		// parse mountinfo everytime before umount target
+		mit := newMountInfoTable()
+		if err := mit.parse(); err != nil {
+			klog.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
+			return
+		}
+
+		mi := mit.resolveTarget(basemi.baseTarget.target)
+		if mi == nil {
+			klog.Errorf("pod target %s resolve fail", target)
+			return
+		}
+		count := mi.baseTarget.count
+		if mi.baseTarget.target != target {
+			for _, t := range mi.subPathTarget {
+				if t.target == target {
+					count = t.count
+				}
+			}
+		}
+		// return if target count in mountinfo is less than remainCount
+		if count < remainCount {
+			return
+		}
+
+		util.UmountPath(context.TODO(), target)
 	}
 }
 
