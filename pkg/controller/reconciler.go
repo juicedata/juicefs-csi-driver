@@ -79,7 +79,6 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 	backOff := flowcontrol.NewBackOff(retryPeriod, maxRetryPeriod)
 	lastPodStatus := make(map[string]PodStatus)
 	for {
-		ctx := context.TODO()
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
 		g, ctx := errgroup.WithContext(timeoutCtx)
 
