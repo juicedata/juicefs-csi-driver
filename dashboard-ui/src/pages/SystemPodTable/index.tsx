@@ -67,6 +67,7 @@ const SystemPodTable: React.FC<unknown> = () => {
         {
             title: <FormattedMessage id="namespace" />,
             key: 'namespace',
+            search: false,
             dataIndex: ['metadata', 'namespace'],
         },
         {
