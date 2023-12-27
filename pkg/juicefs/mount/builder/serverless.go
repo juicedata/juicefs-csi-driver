@@ -26,6 +26,7 @@ import (
 	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 type ServerlessBuilder struct {
@@ -66,13 +67,13 @@ func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
-				subpath,
-				name,
+				security.EscapeBashStr(subpath),
+				security.EscapeBashStr(name),
 				capacity,
 				community,
-				quotaPath,
+				security.EscapeBashStr(quotaPath),
 				checkMountScriptPath,
-				r.jfsSetting.MountPath,
+				security.EscapeBashStr(r.jfsSetting.MountPath),
 			)}},
 	}
 	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
