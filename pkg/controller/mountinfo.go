@@ -70,6 +70,7 @@ const (
 	containerCsiDirectory = "volumes/kubernetes.io~csi"
 )
 
+// resolve target path with subPath(volumeMount.subPath) in container
 // return nil if not a valid csi target path
 func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
 	pair := strings.Split(target, containerCsiDirectory)
@@ -159,6 +160,31 @@ const (
 	targetStatusUnexpect
 )
 
+/*
+when target is not subPath: /var/lib/kubelet/pods/<pod-id>/volumes/kubernetes.io~csi/<pv-volumeHandle>/mount
+
+	item in mountinfo: 3952 3905 0:864 / /var/lib/kubelet/pods/<pod-id>/volumes/kubernetes.io~csi/<pv-volumeHandle>/mount rw,nosuid,nodev,relatime shared:449 - fuse.juicefs JuiceFS:xxx rw
+	targetItem: {
+		target: /var/lib/kubelet/pods/<pod-id>/volumes/kubernetes.io~csi/<pv-volumeHandle>/mount
+		subpath: /
+	}
+	mis: {
+		MountPoint: /var/lib/kubelet/pods/<pod-id>/volumes/kubernetes.io~csi/<pv-volumeHandle>/mount
+		Root: /
+	}
+
+when target is subPath: /var/lib/kubelet/pods/<pod-id>/volume-subpaths/<pv-volumeHandle>/tools/0
+
+	item in mountinfo: 3955 3905 0:864 /abc /var/lib/kubelet/pods/<pod-id>/volume-subpaths/<pv-volumeHandle>/tools/0 rw,relatime shared:449 - fuse.juicefs JuiceFS:test-fluid-2 rw,user_id=0,group_id=0,default_permissions,allow_other
+	targetItem: {
+		target: /var/lib/kubelet/pods/<pod-id>/volume-subpaths/<pv-volumeHandle>/tools/0
+		subpath: abc
+	}
+	mis: {
+		MountPoint: /var/lib/kubelet/pods/<pod-id>/volume-subpaths/<pv-volumeHandle>/tools/0
+		Root: /abc
+	}
+*/
 type targetItem struct {
 	target       string
 	subpath      string
@@ -200,8 +226,8 @@ func (ti *targetItem) check(mounted bool) {
 type mountItem struct {
 	podExist      bool
 	podDeleted    bool
-	baseTarget    *targetItem
-	subPathTarget []*targetItem
+	baseTarget    *targetItem   // target path in container which is bind to mount point
+	subPathTarget []*targetItem // subPath of target path in container which is .spec.container[].volumeMount.subPath
 }
 
 func getPodUid(target string) string {

@@ -433,6 +433,8 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -502,6 +504,8 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			outputs := []OutputCell{
 				{Values: Params{nil, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
+				{Values: Params{nil, nil}},
+				{Values: Params{nil, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()

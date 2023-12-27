@@ -37,7 +37,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-const defaultCheckoutTimeout = 1 * time.Second
+const (
+	defaultCheckoutTimeout   = 1 * time.Second
+	defaultTargetMountCounts = 5
+)
 
 type PodDriver struct {
 	Client   *k8sclient.K8sClient
@@ -503,9 +506,9 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 				continue
 			}
 
-			p.recoverTarget(pod.Name, mntPath, mi.baseTarget, mi)
+			p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi)
 			for _, ti := range mi.subPathTarget {
-				p.recoverTarget(pod.Name, mntPath, ti, mi)
+				p.recoverTarget(ctx, pod.Name, mntPath, ti, mi)
 			}
 		}
 	}
@@ -514,7 +517,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 }
 
 // recoverTarget recovers target path
-func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi *mountItem) {
+func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) {
 	switch ti.status {
 	case targetStatusNotExist:
 		klog.Errorf("pod %s target %s not exists, item count:%d", podName, ti.target, ti.count)
@@ -547,12 +550,18 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 		}
 		// if not umountTarget, mountinfo file will increase unlimited
 		// if we umount all the target items, `mountPropagation` will lose efficacy
-		p.umountTarget(ti.target, ti.count-1)
+		klog.V(5).Infof("umount pod %s target %s before recover and remain mount count %d", podName, ti.target, defaultTargetMountCounts)
+		// avoid umount target all, it will cause pod to write files in disk.
+		err := p.umountTargetUntilRemain(ctx, mi, ti.target, defaultTargetMountCounts)
+		if err != nil {
+			klog.Error(err)
+			break
+		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
 			_, err := os.Stat(sourcePath)
 			if err != nil {
-				klog.Errorf("pod %s target %s, stat volPath:%s err:%v, don't do recovery", podName, ti.target, sourcePath, err)
+				klog.Errorf("pod %s target %s, stat volPath: %s err: %v, don't do recovery", podName, ti.target, sourcePath, err)
 				break
 			}
 		}
@@ -569,9 +578,49 @@ func (p *PodDriver) recoverTarget(podName, sourcePath string, ti *targetItem, mi
 
 // umountTarget umount target path
 func (p *PodDriver) umountTarget(target string, count int) {
+	if count <= 0 {
+		return
+	}
+	klog.V(5).Infof("umount target %d times", count)
 	for i := 0; i < count; i++ {
 		// ignore error
 		p.Unmount(target)
+	}
+}
+
+// umountTargetUntilRemain umount target path with remaining count
+func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountItem, target string, remainCount int) error {
+	subCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	for {
+		// parse mountinfo everytime before umount target
+		mit := newMountInfoTable()
+		if err := mit.parse(); err != nil {
+			return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
+		}
+
+		mi := mit.resolveTarget(basemi.baseTarget.target)
+		if mi == nil {
+			return fmt.Errorf("pod target %s resolve fail", target)
+		}
+		count := mi.baseTarget.count
+		if mi.baseTarget.target != target {
+			for _, t := range mi.subPathTarget {
+				if t.target == target {
+					count = t.count
+				}
+			}
+		}
+		// return if target count in mountinfo is less than remainCount
+		if count < remainCount {
+			return nil
+		}
+
+		util.UmountPath(subCtx, target)
+		select {
+		case <-subCtx.Done():
+			return fmt.Errorf("umountTargetWithRemain timeout")
+		}
 	}
 }
 
