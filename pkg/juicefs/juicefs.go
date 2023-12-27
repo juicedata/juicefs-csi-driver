@@ -47,6 +47,7 @@ import (
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 const (
@@ -670,8 +671,8 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return "", status.Errorf(codes.InvalidArgument, "Empty name")
 	}
 
-	args := []string{"auth", secrets["name"]}
-	cmdArgs := []string{config.CliPath, "auth", secrets["name"]}
+	args := []string{"auth", security.EscapeBashStr(secrets["name"])}
+	cmdArgs := []string{config.CliPath, "auth", security.EscapeBashStr(secrets["name"])}
 
 	keysCompatible := map[string]string{
 		"accesskey":  "access-key",
@@ -707,8 +708,9 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	}
 	for _, k := range keys {
 		if secrets[k] != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
-			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			v := security.EscapeBashStr(secrets[k])
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, v))
+			args = append(args, fmt.Sprintf("--%s=%s", k, v))
 		}
 	}
 	for _, k := range keysStripped {
@@ -718,7 +720,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 				argKey = v
 			}
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, argKey))
-			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			args = append(args, fmt.Sprintf("--%s=%s", k, security.EscapeBashStr(secrets[k])))
 		}
 	}
 	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
@@ -761,7 +763,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
 	}
 	envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
 	authCmd.SetEnv(envs)
@@ -947,18 +949,19 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	keysStripped := map[string]string{"secret-key": "secretkey"}
 	for _, k := range keys {
 		if secrets[k] != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, secrets[k]))
-			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			v := security.EscapeBashStr(secrets[k])
+			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, v))
+			args = append(args, fmt.Sprintf("--%s=%s", k, v))
 		}
 	}
 	for k, v := range keysStripped {
 		if secrets[k] != "" {
 			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, v))
-			args = append(args, fmt.Sprintf("--%s=%s", k, secrets[k]))
+			args = append(args, fmt.Sprintf("--%s=%s", k, security.EscapeBashStr(secrets[k])))
 		}
 	}
 	cmdArgs = append(cmdArgs, "${metaurl}", secrets["name"])
-	args = append(args, secrets["metaurl"], secrets["name"])
+	args = append(args, security.EscapeBashStr(secrets["metaurl"]), security.EscapeBashStr(secrets["name"]))
 
 	if setting.FormatOptions != "" {
 		options, err := setting.ParseFormatOptions()
@@ -983,7 +986,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	formatCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
 	}
 	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")

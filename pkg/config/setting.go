@@ -31,6 +31,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 const (
@@ -458,11 +459,11 @@ func (s *JfsSetting) ParseFormatOptions() ([][]string, error) {
 func (s *JfsSetting) RepresentFormatOptions(parsedOptions [][]string) []string {
 	options := make([]string, 0)
 	for _, pair := range parsedOptions {
-		option := fmt.Sprintf("--%s", pair[0])
+		option := security.EscapeBashStr(pair[0])
 		if pair[1] != "" {
-			option = fmt.Sprintf("%s=%s", option, pair[1])
+			option = fmt.Sprintf("%s=%s", option, security.EscapeBashStr(pair[1]))
 		}
-		options = append(options, option)
+		options = append(options, "--"+option)
 	}
 	return options
 }
@@ -475,15 +476,15 @@ func (s *JfsSetting) StripFormatOptions(parsedOptions [][]string, strippedKeys [
 	}
 
 	for _, pair := range parsedOptions {
-		option := fmt.Sprintf("--%s", pair[0])
+		option := security.EscapeBashStr(pair[0])
 		if pair[1] != "" {
 			if strippedMap[pair[0]] {
 				option = fmt.Sprintf("%s=${%s}", option, pair[0])
 			} else {
-				option = fmt.Sprintf("%s=%s", option, pair[1])
+				option = fmt.Sprintf("%s=%s", option, security.EscapeBashStr(pair[1]))
 			}
 		}
-		options = append(options, option)
+		options = append(options, "--"+option)
 	}
 	return options
 }

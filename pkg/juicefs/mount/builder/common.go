@@ -30,6 +30,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 const (
@@ -121,7 +122,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, "${metaurl}", r.jfsSetting.MountPath}
+		mountArgs := []string{config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
 				// Pick up a random (useable) port for hostNetwork MountPods.
@@ -130,17 +131,17 @@ func (r *BaseBuilder) genMountCommand() string {
 				options = append(options, "metrics=0.0.0.0:9567")
 			}
 		}
-		mountArgs = append(mountArgs, "-o", strings.Join(options, ","))
+		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
 		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.JfsMountPath, r.jfsSetting.Source, r.jfsSetting.MountPath}
+		mountArgs := []string{config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {
 			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
 		mountOptions = append(mountOptions, options...)
-		mountArgs = append(mountArgs, "-o", strings.Join(mountOptions, ","))
+		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(mountOptions, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	}
 	return util.QuoteForShell(cmd)
@@ -202,16 +203,16 @@ func (r *BaseBuilder) getJobCommand() string {
 	if r.jfsSetting.IsCe {
 		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
 		if len(options) != 0 {
-			args = append(args, "-o", strings.Join(options, ","))
+			args = append(args, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		}
 		cmd = strings.Join(args, " ")
 	} else {
-		args := []string{config.JfsMountPath, r.jfsSetting.Source, "/mnt/jfs"}
+		args := []string{config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), "/mnt/jfs"}
 		if r.jfsSetting.EncryptRsaKey != "" {
 			options = append(options, "rsa-key=/root/.rsa/rsa-key.pem")
 		}
 		options = append(options, "background")
-		args = append(args, "-o", strings.Join(options, ","))
+		args = append(args, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(args, " ")
 	}
 	return util.QuoteForShell(cmd)
