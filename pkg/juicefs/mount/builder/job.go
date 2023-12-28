@@ -156,5 +156,5 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 		jfsPath = config.CliPath
 	}
 	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
