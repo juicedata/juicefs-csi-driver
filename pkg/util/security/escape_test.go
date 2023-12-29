@@ -16,7 +16,12 @@
 
 package security
 
-import "testing"
+import (
+	"fmt"
+	"os/exec"
+	"strings"
+	"testing"
+)
 
 func TestEscapeBashStr(t *testing.T) {
 	cases := [][]string{
@@ -25,17 +30,24 @@ func TestEscapeBashStr(t *testing.T) {
 		{"http://minio.kube-system:9000/minio/dynamic-ce", "http://minio.kube-system:9000/minio/dynamic-ce"},
 		{"$(cat /proc/self/status | grep CapEff > /test.txt)", "$'$(cat /proc/self/status | grep CapEff > /test.txt)'"},
 		{"hel`cat /proc/self/status`lo", "$'hel`cat /proc/self/status`lo'"},
-		{"'h'el`cat /proc/self/status`lo", "$'\\'h\\'el`cat /proc/self/status`lo'"},
-		{"\\'h\\'el`cat /proc/self/status`lo", "$'\\'h\\'el`cat /proc/self/status`lo'"},
-		{"$'h'el`cat /proc/self/status`lo", "$'$\\'h\\'el`cat /proc/self/status`lo'"},
-		{"hel\\`cat /proc/self/status`lo", "$'hel\\\\`cat /proc/self/status`lo'"},
-		{"hel\\\\`cat /proc/self/status`lo", "$'hel\\\\`cat /proc/self/status`lo'"},
-		{"hel\\'`cat /proc/self/status`lo", "$'hel\\'`cat /proc/self/status`lo'"},
+		{`'h'el$(cat /proc/self/status)lo`, `$'\'h\'el$(cat /proc/self/status)lo'`},
+		{`\'h\'el$(cat /proc/self/status)lo`, `$'\\\'h\\\'el$(cat /proc/self/status)lo'`},
+		{`$'h'el$(cat /proc/self/status)lo`, `$'$\'h\'el$(cat /proc/self/status)lo'`},
+		{`hel\$(cat /proc/self/status)lo`, `$'hel\\$(cat /proc/self/status)lo'`},
+		{`hel\\$(cat /proc/self/status)lo`, `$'hel\\\\$(cat /proc/self/status)lo'`},
 	}
 	for _, c := range cases {
 		escaped := EscapeBashStr(c[0])
 		if escaped != c[1] {
 			t.Errorf("escapeBashVar(%s) = %s, want %s", c[0], escaped, c[1])
+		}
+		output, err := exec.Command("bash", "-c", fmt.Sprintf("echo %s", escaped)).CombinedOutput()
+		if err != nil {
+			t.Errorf("exec `bash -c echo %s`: %s", escaped, err)
+		}
+		outStr := strings.TrimSpace(string(output))
+		if c[0] != outStr {
+			t.Errorf(`echo(%s) = %s, want %s`, escaped, outStr, c[0])
 		}
 	}
 }
