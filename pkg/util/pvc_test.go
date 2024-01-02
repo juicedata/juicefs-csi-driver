@@ -184,6 +184,18 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 			},
 			want: "-a",
 		},
+		{
+			name: "test-node-real-annotation",
+			node: fields{
+				annotations: map[string]string{
+					"fs1.juicefs.com/cacheGroup": "region-1",
+				},
+			},
+			args: args{
+				str: "${.NODE.annotations.fs1.juicefs.com/cacheGroup}-a",
+			},
+			want: "region-1-a",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
