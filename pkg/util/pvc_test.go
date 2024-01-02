@@ -37,14 +37,14 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		str string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
+		name string
+		pvc  fields
+		args args
+		want string
 	}{
 		{
 			name: "test-name",
-			fields: fields{
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -57,7 +57,7 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		},
 		{
 			name: "test-namespace",
-			fields: fields{
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -70,7 +70,7 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		},
 		{
 			name: "test-label",
-			fields: fields{
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -86,7 +86,7 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		},
 		{
 			name: "test-annotation",
-			fields: fields{
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -102,7 +102,7 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		},
 		{
 			name: "test-nil",
-			fields: fields{
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -116,10 +116,12 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meta := &PVCMetadata{
-				data:        tt.fields.data,
-				labels:      tt.fields.labels,
-				annotations: tt.fields.annotations,
+			meta := &ObjectMeta{
+				pvc: &objectMetadata{
+					data:        tt.pvc.data,
+					labels:      tt.pvc.labels,
+					annotations: tt.pvc.annotations,
+				},
 			}
 			if got := meta.StringParser(tt.args.str); got != tt.want {
 				t.Errorf("StringParser() = %v, want %v", got, tt.want)
@@ -347,10 +349,12 @@ func TestResolveSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meta := &PVCMetadata{
-				data:        tt.fields.data,
-				labels:      tt.fields.labels,
-				annotations: tt.fields.annotations,
+			meta := &ObjectMeta{
+				pvc: &objectMetadata{
+					data:        tt.fields.data,
+					labels:      tt.fields.labels,
+					annotations: tt.fields.annotations,
+				},
 			}
 			if got := meta.ResolveSecret(tt.args.str, tt.args.pvname); got != tt.want {
 				t.Errorf("ResolveSecret() = %v, want %v", got, tt.want)

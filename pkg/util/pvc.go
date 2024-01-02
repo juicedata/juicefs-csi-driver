@@ -19,11 +19,12 @@ package util
 import (
 	"context"
 	"encoding/json"
-	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"regexp"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -33,39 +34,63 @@ import (
 )
 
 var (
-	pattern = regexp.MustCompile(`\${\.PVC\.((labels|annotations)\.(.*?)|.*?)}`)
+	pattern = regexp.MustCompile(`\${\.(PVC|NODE)\.((labels|annotations)\.(.*?)|.*?)}`)
 )
 
-type PVCMetadata struct {
+type objectMetadata struct {
 	data        map[string]string
 	labels      map[string]string
 	annotations map[string]string
 }
 
-func NewPVCMeta(pvc v1.PersistentVolumeClaim) *PVCMetadata {
-	return &PVCMetadata{
-		data: map[string]string{
-			"name":      pvc.Name,
-			"namespace": pvc.Namespace,
+type ObjectMeta struct {
+	pvc, node *objectMetadata
+}
+
+func NewObjectMeta(pvc v1.PersistentVolumeClaim, node v1.Node) *ObjectMeta {
+	return &ObjectMeta{
+		pvc: &objectMetadata{
+			data: map[string]string{
+				"name":      pvc.Name,
+				"namespace": pvc.Namespace,
+			},
+			labels:      pvc.Labels,
+			annotations: pvc.Annotations,
 		},
-		labels:      pvc.Labels,
-		annotations: pvc.Annotations,
+		node: &objectMetadata{
+			data: map[string]string{
+				"name":    node.Name,
+				"podCIDR": node.Spec.PodCIDR,
+			},
+			labels:      node.Labels,
+			annotations: node.Annotations,
+		},
 	}
 }
 
-func (meta *PVCMetadata) StringParser(str string) string {
+func (meta *ObjectMeta) StringParser(str string) string {
 	result := pattern.FindAllStringSubmatch(str, -1)
 	for _, r := range result {
-		switch r[2] {
-		case "labels":
-			str = strings.ReplaceAll(str, r[0], meta.labels[r[3]])
-		case "annotations":
-			str = strings.ReplaceAll(str, r[0], meta.annotations[r[3]])
+		switch r[1] {
+		case "PVC":
+			str = meta.pvc.stringParser(str, r)
+		case "NODE":
+			str = meta.node.stringParser(str, r)
 		default:
-			str = strings.ReplaceAll(str, r[0], meta.data[r[1]])
 		}
 	}
 	return str
+}
+
+func (meta *objectMetadata) stringParser(str string, matches []string) string {
+	switch matches[3] {
+	case "labels":
+		return strings.ReplaceAll(str, matches[0], meta.labels[matches[4]])
+	case "annotations":
+		return strings.ReplaceAll(str, matches[0], meta.annotations[matches[4]])
+	default:
+		return strings.ReplaceAll(str, matches[0], meta.data[matches[2]])
+	}
 }
 
 func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.PersistentVolume, pathPattern string) (shouldDeleted bool, err error) {
@@ -97,17 +122,17 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 	return true, nil
 }
 
-func (meta *PVCMetadata) ResolveSecret(str string, pvName string) string {
+func (meta *ObjectMeta) ResolveSecret(str string, pvName string) string {
 	resolved := os.Expand(str, func(k string) string {
 		switch k {
 		case "pvc.name":
-			return meta.data["name"]
+			return meta.pvc.data["name"]
 		case "pvc.namespace":
-			return meta.data["namespace"]
+			return meta.pvc.data["namespace"]
 		case "pv.name":
 			return pvName
 		}
-		for ak, av := range meta.annotations {
+		for ak, av := range meta.pvc.annotations {
 			if k == "pvc.annotations['"+ak+"']" {
 				return av
 			}

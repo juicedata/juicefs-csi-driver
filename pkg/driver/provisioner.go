@@ -85,7 +85,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
 	}
 
-	pvMeta := util.NewPVCMeta(*options.PVC)
+	pvMeta := util.NewObjectMeta(*options.PVC, *options.SelectedNode)
 	subPath := options.PVName
 	if options.StorageClass.Parameters["pathPattern"] != "" {
 		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
