@@ -115,6 +115,19 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 			want: "-a",
 		},
 		{
+			name: "test-pvc-lowercase",
+			pvc: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${.pvc.name}-a",
+			},
+			want: "test-a",
+		},
+		{
 			name: "test-node-name",
 			node: fields{
 				data: map[string]string{
@@ -122,7 +135,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.name}-a",
+				str: "${.node.name}-a",
 			},
 			want: "test-a",
 		},
@@ -135,7 +148,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.podCIDR}-a",
+				str: "${.node.podCIDR}-a",
 			},
 			want: "10.244.0.0/24-a",
 		},
@@ -151,7 +164,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.labels.a.a}-a",
+				str: "${.node.labels.a.a}-a",
 			},
 			want: "b-a",
 		},
@@ -167,7 +180,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.annotations.a.a}-a",
+				str: "${.node.annotations.a.a}-a",
 			},
 			want: "b-a",
 		},
@@ -180,7 +193,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.annotations.a}-a",
+				str: "${.node.annotations.a}-a",
 			},
 			want: "-a",
 		},
@@ -192,7 +205,7 @@ func TestObjectMetadata_StringParser(t *testing.T) {
 				},
 			},
 			args: args{
-				str: "${.NODE.annotations.fs1.juicefs.com/cacheGroup}-a",
+				str: "${.node.annotations.fs1.juicefs.com/cacheGroup}-a",
 			},
 			want: "region-1-a",
 		},

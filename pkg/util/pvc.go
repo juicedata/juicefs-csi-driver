@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	pattern = regexp.MustCompile(`\${\.(PVC|NODE)\.((labels|annotations)\.(.*?)|.*?)}`)
+	pattern = regexp.MustCompile(`\${\.(PVC|pvc|node)\.((labels|annotations)\.(.*?)|.*?)}`)
 )
 
 type objectMetadata struct {
@@ -74,9 +74,9 @@ func (meta *ObjectMeta) StringParser(str string) string {
 	result := pattern.FindAllStringSubmatch(str, -1)
 	for _, r := range result {
 		switch r[1] {
-		case "PVC":
+		case "PVC", "pvc":
 			str = meta.pvc.stringParser(str, r)
-		case "NODE":
+		case "node":
 			str = meta.node.stringParser(str, r)
 		default:
 		}
