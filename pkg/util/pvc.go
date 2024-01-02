@@ -47,8 +47,8 @@ type ObjectMeta struct {
 	pvc, node *objectMetadata
 }
 
-func NewObjectMeta(pvc v1.PersistentVolumeClaim, node v1.Node) *ObjectMeta {
-	return &ObjectMeta{
+func NewObjectMeta(pvc v1.PersistentVolumeClaim, node *v1.Node) *ObjectMeta {
+	meta := &ObjectMeta{
 		pvc: &objectMetadata{
 			data: map[string]string{
 				"name":      pvc.Name,
@@ -57,15 +57,17 @@ func NewObjectMeta(pvc v1.PersistentVolumeClaim, node v1.Node) *ObjectMeta {
 			labels:      pvc.Labels,
 			annotations: pvc.Annotations,
 		},
-		node: &objectMetadata{
-			data: map[string]string{
-				"name":    node.Name,
-				"podCIDR": node.Spec.PodCIDR,
-			},
-			labels:      node.Labels,
-			annotations: node.Annotations,
-		},
+		node: &objectMetadata{},
 	}
+	if node != nil {
+		meta.node.data = map[string]string{
+			"name":    node.Name,
+			"podCIDR": node.Spec.PodCIDR,
+		}
+		meta.node.labels = node.Labels
+		meta.node.annotations = node.Annotations
+	}
+	return meta
 }
 
 func (meta *ObjectMeta) StringParser(str string) string {
