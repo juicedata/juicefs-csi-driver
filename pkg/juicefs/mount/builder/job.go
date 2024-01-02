@@ -28,6 +28,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 const DefaultJobTTLSecond = int32(5)
@@ -142,7 +143,8 @@ func (r *JobBuilder) newCleanJob(jobName string) *batchv1.Job {
 
 func (r *JobBuilder) getCreateVolumeCmd() string {
 	cmd := r.getJobCommand()
-	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, r.jfsSetting.SubPath)
+	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
+	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, subpath, subpath)
 }
 
 func (r *JobBuilder) getDeleteVolumeCmd() string {
@@ -153,5 +155,6 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 	} else {
 		jfsPath = config.CliPath
 	}
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, r.jfsSetting.SubPath, jfsPath, r.jfsSetting.SubPath)
+	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
