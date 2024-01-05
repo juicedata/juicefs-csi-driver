@@ -27,7 +27,7 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-func TestPVCMetadata_StringParser(t *testing.T) {
+func TestObjectMetadata_StringParser(t *testing.T) {
 	type fields struct {
 		data        map[string]string
 		labels      map[string]string
@@ -37,14 +37,15 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 		str string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
+		name string
+		pvc  fields
+		node fields
+		args args
+		want string
 	}{
 		{
-			name: "test-name",
-			fields: fields{
+			name: "test-pvc-name",
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -56,8 +57,8 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			want: "test-a",
 		},
 		{
-			name: "test-namespace",
-			fields: fields{
+			name: "test-pvc-namespace",
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -69,8 +70,8 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			want: "default-a",
 		},
 		{
-			name: "test-label",
-			fields: fields{
+			name: "test-pvc-label",
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -85,8 +86,8 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			want: "b-a",
 		},
 		{
-			name: "test-annotation",
-			fields: fields{
+			name: "test-pvc-annotation",
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -101,8 +102,8 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			want: "b-a",
 		},
 		{
-			name: "test-nil",
-			fields: fields{
+			name: "test-pvc-nil",
+			pvc: fields{
 				data: map[string]string{
 					"name":      "test",
 					"namespace": "default",
@@ -113,13 +114,115 @@ func TestPVCMetadata_StringParser(t *testing.T) {
 			},
 			want: "-a",
 		},
+		{
+			name: "test-pvc-lowercase",
+			pvc: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${.pvc.name}-a",
+			},
+			want: "test-a",
+		},
+		{
+			name: "test-node-name",
+			node: fields{
+				data: map[string]string{
+					"name": "test",
+				},
+			},
+			args: args{
+				str: "${.node.name}-a",
+			},
+			want: "test-a",
+		},
+		{
+			name: "test-node-cidr",
+			node: fields{
+				data: map[string]string{
+					"name":    "test",
+					"podCIDR": "10.244.0.0/24",
+				},
+			},
+			args: args{
+				str: "${.node.podCIDR}-a",
+			},
+			want: "10.244.0.0/24-a",
+		},
+		{
+			name: "test-node-label",
+			node: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+				labels: map[string]string{
+					"a.a": "b",
+				},
+			},
+			args: args{
+				str: "${.node.labels.a.a}-a",
+			},
+			want: "b-a",
+		},
+		{
+			name: "test-node-annotation",
+			node: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+				annotations: map[string]string{
+					"a.a": "b",
+				},
+			},
+			args: args{
+				str: "${.node.annotations.a.a}-a",
+			},
+			want: "b-a",
+		},
+		{
+			name: "test-node-nil",
+			node: fields{
+				data: map[string]string{
+					"name":      "test",
+					"namespace": "default",
+				},
+			},
+			args: args{
+				str: "${.node.annotations.a}-a",
+			},
+			want: "-a",
+		},
+		{
+			name: "test-node-real-annotation",
+			node: fields{
+				annotations: map[string]string{
+					"fs1.juicefs.com/cacheGroup": "region-1",
+				},
+			},
+			args: args{
+				str: "${.node.annotations.fs1.juicefs.com/cacheGroup}-a",
+			},
+			want: "region-1-a",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meta := &PVCMetadata{
-				data:        tt.fields.data,
-				labels:      tt.fields.labels,
-				annotations: tt.fields.annotations,
+			meta := &ObjectMeta{
+				pvc: &objectMetadata{
+					data:        tt.pvc.data,
+					labels:      tt.pvc.labels,
+					annotations: tt.pvc.annotations,
+				},
+				node: &objectMetadata{
+					data:        tt.node.data,
+					labels:      tt.node.labels,
+					annotations: tt.node.annotations,
+				},
 			}
 			if got := meta.StringParser(tt.args.str); got != tt.want {
 				t.Errorf("StringParser() = %v, want %v", got, tt.want)
@@ -347,10 +450,12 @@ func TestResolveSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			meta := &PVCMetadata{
-				data:        tt.fields.data,
-				labels:      tt.fields.labels,
-				annotations: tt.fields.annotations,
+			meta := &ObjectMeta{
+				pvc: &objectMetadata{
+					data:        tt.fields.data,
+					labels:      tt.fields.labels,
+					annotations: tt.fields.annotations,
+				},
 			}
 			if got := meta.ResolveSecret(tt.args.str, tt.args.pvname); got != tt.want {
 				t.Errorf("ResolveSecret() = %v, want %v", got, tt.want)
