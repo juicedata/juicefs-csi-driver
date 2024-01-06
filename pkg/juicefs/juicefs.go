@@ -69,6 +69,7 @@ type Interface interface {
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
 	CreateTarget(ctx context.Context, target string) error
+	AuthFs(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, force bool) (string, error)
 }
 
 type juicefs struct {
@@ -345,7 +346,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 	}
 	jfsSetting, err := config.ParseSetting(secrets, volCtx, mountOptions, !config.ByProcess)
 	if err != nil {
-		klog.V(5).Infof("Parse config error: %v", err)
+		klog.V(5).Infof("Parse config for %s error: %v", secrets["name"], err)
 		return nil, err
 	}
 	jfsSetting.VolumeId = volumeID
@@ -731,7 +732,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		}
 		if config.ByProcess && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
-			confPath := filepath.Join("/root/.juicefs", conf)
+			confPath := filepath.Join(config.ClientConfPath, conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {

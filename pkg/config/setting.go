@@ -81,7 +81,7 @@ type JfsSetting struct {
 	Options    []string // mount options
 	FormatCmd  string   // format or auth
 	SubPath    string   // subPath which is to be created or deleted
-	SecretName string   // secret name which is set env in pod
+	SecretName string   // secret with JuiceFS volume credentials
 
 	Attr PodAttr
 }

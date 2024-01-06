@@ -105,6 +105,10 @@ func (m *MountManager) Start(ctx context.Context) {
 		klog.Errorf("Register job controller error: %v", err)
 		return
 	}
+	if err := (mountctrl.NewSecretController(m.client)).SetupWithManager(m.mgr); err != nil {
+		klog.Errorf("Register secret controller error: %v", err)
+		return
+	}
 	klog.Info("Mount manager started.")
 	if err := m.mgr.Start(ctx); err != nil {
 		klog.Errorf("Mount manager start error: %v", err)
