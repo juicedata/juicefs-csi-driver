@@ -80,6 +80,9 @@ func (j *fakeJfsProvider) JfsCleanupMountPoint(ctx context.Context, mountPath st
 	return nil
 }
 
+func (j *fakeJfsProvider) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
+	return "", nil
+}
 func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	return nil
 }
