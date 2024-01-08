@@ -37,6 +37,21 @@ func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
 	return m.recorder
 }
 
+// AuthFs mocks base method.
+func (m *MockInterface) AuthFs(arg0 context.Context, arg1 map[string]string, arg2 *config.JfsSetting, arg3 bool) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthFs", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthFs indicates an expected call of AuthFs.
+func (mr *MockInterfaceMockRecorder) AuthFs(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthFs", reflect.TypeOf((*MockInterface)(nil).AuthFs), arg0, arg1, arg2, arg3)
+}
+
 // CreateTarget mocks base method.
 func (m *MockInterface) CreateTarget(arg0 context.Context, arg1 string) error {
 	m.ctrl.T.Helper()
