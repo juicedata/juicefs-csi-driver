@@ -38,6 +38,9 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 const (
@@ -447,4 +450,13 @@ func ImageResol(image string) (hasCE, hasEE bool) {
 		return true, false
 	}
 	return true, true
+}
+
+func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry) {
+	registry := prometheus.NewRegistry() // replace default so only JuiceFS metrics are exposed
+	registerer := prometheus.WrapRegistererWithPrefix("juicefs_",
+		prometheus.WrapRegistererWith(prometheus.Labels{"node_name": nodeName}, registry))
+	registerer.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	registerer.MustRegister(collectors.NewGoCollector())
+	return registerer, registry
 }

@@ -33,6 +33,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -44,20 +45,37 @@ type nodeService struct {
 	juicefs   juicefs.Interface
 	nodeID    string
 	k8sClient *k8sclient.K8sClient
+	metrics   *nodeServiceManagerMetrics
 }
 
-func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient) (*nodeService, error) {
+// nodeService Metrics
+type nodeServiceManagerMetrics struct {
+	volumeErrors prometheus.Counter
+}
+
+func newMetrics(reg prometheus.Registerer) *nodeServiceManagerMetrics {
+	metrics := &nodeServiceManagerMetrics{}
+	metrics.volumeErrors = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "mount_pod_errors",
+		Help: "number of volume errors",
+	})
+	reg.MustRegister(metrics.volumeErrors)
+	return metrics
+}
+
+func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheus.Registerer) (*nodeService, error) {
 	mounter := &mount.SafeFormatAndMount{
 		Interface: mount.New(""),
 		Exec:      k8sexec.New(),
 	}
+	metrics := newMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
-
 	return &nodeService{
 		SafeFormatAndMount: *mounter,
 		juicefs:            jfsProvider,
 		nodeID:             nodeID,
 		k8sClient:          k8sClient,
+		metrics:            metrics,
 	}, nil
 }
 
@@ -122,6 +140,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
 	jfs, err := d.juicefs.JfsMount(ctx, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
+		d.metrics.volumeErrors.Add(1)
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
