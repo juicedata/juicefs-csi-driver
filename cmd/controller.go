@@ -34,6 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -144,6 +145,14 @@ func controllerRun() {
 			port++
 		}
 	}()
+	registerer, registry := util.NewPrometheus(config.NodeName)
+	http.Handle("/metrics", promhttp.HandlerFor(
+		registry,
+		promhttp.HandlerOpts{
+			// Opt into OpenMetrics to support exemplars.
+			EnableOpenMetrics: true,
+		},
+	))
 
 	// enable mount manager in csi controller
 	if config.MountManager {
@@ -173,7 +182,7 @@ func controllerRun() {
 		}()
 	}
 
-	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
+	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
 		klog.Fatalln(err)
 	}
