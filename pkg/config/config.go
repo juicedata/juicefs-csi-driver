@@ -60,6 +60,8 @@ var (
 	CeCliPath       = "/usr/local/bin/juicefs"
 	CeMountPath     = "/bin/mount.juicefs"
 	JfsMountPath    = "/sbin/mount.juicefs"
+	ClientConfPath  = "/root/.juicefs"
+	ROConfPath      = "/etc/juicefs"
 )
 
 const (

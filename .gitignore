@@ -3,7 +3,6 @@ bin/
 vendor/
 profile.cov
 Secret-*
-secret*
 /deploy-dev/
 .idea
 .DS_Store
