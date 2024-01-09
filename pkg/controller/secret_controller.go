@@ -95,7 +95,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 }
 
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
-	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
+	c, err := controller.New("secret", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err
 	}
