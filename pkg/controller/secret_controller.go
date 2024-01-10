@@ -85,7 +85,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 	confs := string(b)
-	secretsMap["initConfig"] = confs
+	secretsMap["initconfig"] = confs
 	secrets.StringData = secretsMap
 	err = m.UpdateSecret(ctx, secrets)
 	if err != nil {
@@ -108,11 +108,11 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			secretNew, ok := updateEvent.ObjectNew.(*corev1.Secret)
-			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
 			if !ok {
 				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
 				return false
 			}
+			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
 
 			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
 			if !ok {
@@ -124,12 +124,18 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 				klog.V(6).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
+
+			_, existsNew := secretNew.Data["initconfig"]
+			if existsNew {
+				klog.V(6).Info("secret.onUpdateFunc Skip due to initconfig already injected")
+				return false
+			}
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			secret := deleteEvent.Object.(*corev1.Secret)
 			klog.V(6).Infof("watch secret %s deleted", secret.GetName())
-			return true
+			return false
 		},
 	})
 }

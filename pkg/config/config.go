@@ -28,6 +28,7 @@ var (
 	ByProcess          = false // csi driver runs juicefs in process or not
 	FormatInPod        = false // put format/auth in pod (only in k8s)
 	Provisioner        = false // provisioner in controller
+	CacheClientConf    = false // cache client config files and use directly in mount containers
 	MountManager       = false // manage mount pod in controller (only in k8s)
 	Webhook            = false // inject juicefs client as sidecar in pod (only in k8s)
 	Immutable          = false // csi driver is running in an immutable environment

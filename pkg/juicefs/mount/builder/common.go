@@ -269,7 +269,7 @@ func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[
 
 // _genJuiceVolumes generates volumes & volumeMounts
 // 1. if encrypt_rsa_key is set, mount secret to /root/.rsa
-// 2. if init_config is set, mount secret to /root/.config
+// 2. if initconfig is set, mount secret to /etc/juicefs
 // 3. configs in secret
 func (r *BaseBuilder) _genJuiceVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{}
@@ -302,7 +302,7 @@ func (r *BaseBuilder) _genJuiceVolumes() ([]corev1.Volume, []corev1.VolumeMount)
 			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
 				SecretName: secretName,
 				Items: []corev1.KeyToPath{{
-					Key:  "init_config",
+					Key:  "initconfig",
 					Path: r.jfsSetting.Name + ".conf",
 				}},
 			}},
