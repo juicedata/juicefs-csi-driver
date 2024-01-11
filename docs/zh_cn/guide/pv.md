@@ -770,15 +770,6 @@ spec:
   - cache-group="region-1"
 ```
 
-模板中可以注入 Node 和 PVC 的元数据，比如：
-
-1. `${.node.name}-${.node.podCIDR}`，注入 Node 的 `metadata.name` 和 `spec.podCIDR`，例如 `minikube-10.244.0.0/24`。
-2. `${.node.labels.foo}`，注入 Node 的 `metadata.labels["foo"]`。
-3. `${.node.annotations.bar}`，注入 Node 的 `metadata.annotations["bar"]`。
-4. `${.pvc.namespace}/${.pvc.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default/dynamic-pvc`。
-5. `${.pvc.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
-6. `${.pvc.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
-
 #### 配置更加易读的 PV 目录名称 {#using-path-pattern}
 
 在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
@@ -815,6 +806,24 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   pathPattern: "${.pvc.namespace}-${.pvc.name}"
 ```
+
+### 可注入值与版本差异
+
+在 0.23.3 版本中，挂载参数和 `pathPattern` 中均可注入 Node 和 PVC 的元数据，比如：
+
+1. `${.node.name}-${.node.podCIDR}`，注入 Node 的 `metadata.name` 和 `spec.podCIDR`，例如 `minikube-10.244.0.0/24`。
+2. `${.node.labels.foo}`，注入 Node 的 `metadata.labels["foo"]`。
+3. `${.node.annotations.bar}`，注入 Node 的 `metadata.annotations["bar"]`。
+4. `${.pvc.namespace}-${.pvc.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default-dynamic-pvc`。
+5. `${.PVC.namespace}-${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`（与旧版本兼容）。
+6. `${.pvc.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
+7. `${.pvc.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
+
+而在更早版本中（>=0.13.3）只有 `pathPattern` 支持注入，且仅支持注入 PVC 的元数据，比如：
+
+1. `${.PVC.namespace}/${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default/dynamic-pvc`。
+2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
+3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
 
 ## 常用 PV 设置
 
