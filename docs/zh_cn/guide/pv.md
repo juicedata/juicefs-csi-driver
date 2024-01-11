@@ -728,7 +728,7 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
 
 #### 根据网络区域设置 `cache-group`
 
-借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的 node 设置 annotation 以标记区域：
+借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的 Node 设置 annotation 以标记区域：
 
 ```bash
 $ kubectl annotate --overwrite node minikube fs1.juicefs.com/cacheGroup=region-1
