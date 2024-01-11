@@ -734,6 +734,7 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
 $ kubectl annotate --overwrite node minikube fs1.juicefs.com/cacheGroup=region-1
 node/minikube annotated
 ```
+
 然后在 `StorageClass` 中这样设置 `mountOptions` 和 `volumeBindingMode`：
 
 ```yaml {11-13}
@@ -794,6 +795,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
+
 :::tip 提示
 如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
 :::
