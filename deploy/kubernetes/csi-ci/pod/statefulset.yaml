@@ -13,4 +13,5 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
+            - --cache-client-conf
             - --v=6
