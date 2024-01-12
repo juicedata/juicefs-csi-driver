@@ -630,28 +630,13 @@ spec:
 
 严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
 
-## 配置更加易读的 PV 目录名称 {#using-path-pattern}
+## 使用挂载参数模版 {#using-options-template}
 
 :::tip 提示
 [进程挂载模式](../introduction.md#by-process)不支持该功能。
 :::
 
-在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
-
-```shell
-$ ls /jfs
-pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
-...
-```
-
-在 JuiceFS CSI 驱动 0.13.3 及以上版本，支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
-
-```shell
-$ ls /jfs
-default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
-```
-
-如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+在「动态配置」方式下，我们使用不同 PVC 时 Provisoner 组件会根据 StorageClass 中的配置创建相应的 PV。所以默认情况下这些 PV 的挂载参数时固定的（继承自 StorageClass）。但当使用自定义 Provisoner 时，我们可以为不同 PVC 创建使用不同挂载参数的 PV。
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
@@ -739,7 +724,72 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
   -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
 ```
 
-### 使用方式
+### 使用场景
+
+#### 根据网络区域设置 `cache-group`
+
+借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的 Node 设置 annotation 以标记区域：
+
+```bash
+$ kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
+node/minikube annotated
+```
+
+然后在 `StorageClass` 中这样设置 `mountOptions` 和 `volumeBindingMode`：
+
+```yaml {11-13}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+mountOptions:
+  - cache-group="${.node.annotations.myjfs.juicefs.com/cacheGroup}"
+volumeBindingMode: WaitForFirstConsumer
+```
+
+:::tip 提示
+注意此处 `volumeBindingMode` 必须设置为 `WaitForFirstConsumer`，否则 PV 会提前创建，此时不确定被分配的 Node，`cache-group` 注入不生效。
+:::
+
+当创建 PVC 和使用它的 Pod 后，可以看到我们的 Provisioner 把 Node 的 annotation 注入了相应的 PV：
+
+```bash {8}
+$ kubectl get pv pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b -o yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b
+spec:
+  mountOptions:
+  - cache-group="region-1"
+```
+
+#### 配置更加易读的 PV 目录名称 {#using-path-pattern}
+
+在「动态配置」方式下，CSI 驱动在 JuiceFS 创建的子目录名称形如 `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`，如果有众多应用同时使用 CSI 驱动，更会造成 JuiceFS 文件系统中创建大量此类 PV 目录，让人难以辨别：
+
+```shell
+$ ls /jfs
+pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
+...
+```
+
+在 JuiceFS CSI 驱动 0.13.3 及以上版本，支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
+
+```shell
+$ ls /jfs
+default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
+```
+
+:::tip 提示
+如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+:::
 
 在 `StorageClass` 中这样使用 `pathPattern`：
 
@@ -754,14 +804,26 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  pathPattern: "${.PVC.namespace}-${.PVC.name}"
+  pathPattern: "${.pvc.namespace}-${.pvc.name}"
 ```
 
-命名模板中可以引用任意 PVC 元数据，例如标签、注解、名称或命名空间，比如：
+### 可注入值与版本差异
 
-1. `${.PVC.namespace}-${.PVC.name}`，则 PV 目录为 `<PVC 命名空间>-<PVC 名称>`。
-1. `${.PVC.labels.foo}`，则 PV 目录为 PVC 中 `foo` 标签的值。
-1. `${.PVC.annotations.bar}`，则 PV 目录为 PVC 中 `bar` 注解（annotation）的值。
+在 0.23.3 版本中，挂载参数和 `pathPattern` 中均可注入 Node 和 PVC 的元数据，比如：
+
+1. `${.node.name}-${.node.podCIDR}`，注入 Node 的 `metadata.name` 和 `spec.podCIDR`，例如 `minikube-10.244.0.0/24`。
+2. `${.node.labels.foo}`，注入 Node 的 `metadata.labels["foo"]`。
+3. `${.node.annotations.bar}`，注入 Node 的 `metadata.annotations["bar"]`。
+4. `${.pvc.namespace}-${.pvc.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default-dynamic-pvc`。
+5. `${.PVC.namespace}-${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`（与旧版本兼容）。
+6. `${.pvc.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
+7. `${.pvc.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
+
+而在更早版本中（>=0.13.3）只有 `pathPattern` 支持注入，且仅支持注入 PVC 的元数据，比如：
+
+1. `${.PVC.namespace}/${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default/dynamic-pvc`。
+2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
+3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
 
 ## 常用 PV 设置
 
