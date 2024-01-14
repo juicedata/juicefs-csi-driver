@@ -85,7 +85,7 @@ jobs:
           python3 e2e-test.py
       - name: Setup upterm session
         if: ${{ failure() }}
-        timeout-minutes: 60
+        timeout-minutes: 20
         uses: lhotari/action-upterm@v1
 
   success-all-test:

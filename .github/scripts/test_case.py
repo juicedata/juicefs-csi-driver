@@ -21,7 +21,7 @@ from kubernetes import client
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
     LOG, PVs, META_URL, MOUNT_MODE, CCI_MOUNT_IMAGE, IN_CCI
-from model import PVC, PV, Pod, StorageClass, Deployment, Job
+from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
     get_voldel_job, check_quota, is_quota_supported
@@ -847,6 +847,11 @@ def test_pod_resource_err():
     pvc.delete()
     LOG.info("Test pass.")
 
+
+def test_cache_client_conf():
+    LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
+    secret = Secret(secret_name=SECRET_NAME)
+    secret.watch_for_initconfig_injection()
 
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")

@@ -60,6 +60,18 @@ class Secret:
         client.CoreV1Api().create_namespaced_secret(namespace=self.namespace, body=sec)
         SECRETs.append(self)
 
+    def watch_for_initconfig_injection(self):
+        injected = False
+        for _ in range(3):
+            secret = client.CoreV1Api().read_namespaced_secret(name=self.secret_name, namespace=self.namespace)
+            injected = "initconfig" in secret.data
+            if injected:
+                break
+            time.sleep(1)
+
+        if not injected:
+            raise Exception(f"init config not found in {self.namespace}/{self.secret_name}")
+
     def delete(self):
         client.CoreV1Api().delete_namespaced_secret(name=self.secret_name, namespace=self.namespace)
         SECRETs.remove(self)

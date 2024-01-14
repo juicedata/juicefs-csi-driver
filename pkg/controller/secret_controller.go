@@ -74,14 +74,15 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
-	klog.V(6).Infof("auth output: %s.", output)
 	if err != nil {
+		klog.Errorf("auth failed: %s, %v", output, err)
 		return reconcile.Result{}, err
 	}
 	conf := jfsSetting.Name + ".conf"
 	confPath := filepath.Join(config.ClientConfPath, conf)
 	b, err := os.ReadFile(confPath)
 	if err != nil {
+		klog.Errorf("read initconfig %s failed: %v", conf, err)
 		return reconcile.Result{}, err
 	}
 	confs := string(b)
@@ -89,6 +90,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	secrets.StringData = secretsMap
 	err = m.UpdateSecret(ctx, secrets)
 	if err != nil {
+		klog.Errorf("inject initconfig into %s failed: %v", request.Name, err)
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
