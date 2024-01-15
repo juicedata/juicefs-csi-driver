@@ -83,7 +83,7 @@ func (r *BaseBuilder) NewSecret() corev1.Secret {
 		data["encrypt_rsa_key"] = r.jfsSetting.EncryptRsaKey
 	}
 	if r.jfsSetting.InitConfig != "" {
-		data["init_config"] = r.jfsSetting.InitConfig
+		data["initconfig"] = r.jfsSetting.InitConfig
 	}
 	replacer := strings.NewReplacer("¬", "`")
 	data[checkMountScriptName] = replacer.Replace(checkMountScriptContent)

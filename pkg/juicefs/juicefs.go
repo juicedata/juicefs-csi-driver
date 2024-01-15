@@ -361,6 +361,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 			jfsSetting.FormatCmd = res
 		}
 		jfsSetting.UUID = secrets["name"]
+		jfsSetting.InitConfig = secrets["initconfig"]
 	} else {
 		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {

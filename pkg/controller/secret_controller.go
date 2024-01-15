@@ -74,21 +74,23 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
-	klog.V(6).Infof("auth output: %s.", output)
 	if err != nil {
+		klog.Errorf("auth failed: %s, %v", output, err)
 		return reconcile.Result{}, err
 	}
 	conf := jfsSetting.Name + ".conf"
 	confPath := filepath.Join(config.ClientConfPath, conf)
 	b, err := os.ReadFile(confPath)
 	if err != nil {
+		klog.Errorf("read initconfig %s failed: %v", conf, err)
 		return reconcile.Result{}, err
 	}
 	confs := string(b)
-	secretsMap["initConfig"] = confs
+	secretsMap["initconfig"] = confs
 	secrets.StringData = secretsMap
 	err = m.UpdateSecret(ctx, secrets)
 	if err != nil {
+		klog.Errorf("inject initconfig into %s failed: %v", request.Name, err)
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
@@ -108,11 +110,11 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			secretNew, ok := updateEvent.ObjectNew.(*corev1.Secret)
-			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
 			if !ok {
 				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
 				return false
 			}
+			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
 
 			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
 			if !ok {
@@ -120,16 +122,23 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 				return false
 			}
 
+			_, exists := secretOld.Data["initconfig"]
+			if exists {
+				klog.V(6).Info("secret.onUpdateFunc Skip due to initconfig already injected")
+				return false
+			}
+
 			if secretNew.GetResourceVersion() == secretOld.GetResourceVersion() {
 				klog.V(6).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
+
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			secret := deleteEvent.Object.(*corev1.Secret)
 			klog.V(6).Infof("watch secret %s deleted", secret.GetName())
-			return true
+			return false
 		},
 	})
 }

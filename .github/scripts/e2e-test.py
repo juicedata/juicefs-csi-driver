@@ -15,7 +15,7 @@ import os
 
 from kubernetes import config
 
-from config import GLOBAL_MOUNTPOINT, LOG, IN_CCI
+from config import GLOBAL_MOUNTPOINT, LOG, IN_CCI, IS_CE
 from test_case import (
     test_dynamic_mount_image_with_webhook,
     test_static_mount_image_with_webhook,
@@ -40,6 +40,7 @@ from test_case import (
     test_dynamic_mount_image,
     test_static_mount_image,
     test_pod_resource_err,
+    test_cache_client_conf,
     test_share_mount,
     test_path_pattern_in_storage_class,
     test_dynamic_pvc_delete_with_path_pattern,
@@ -85,6 +86,9 @@ if __name__ == "__main__":
                     test_pod_resource_err()
 
             elif test_mode == "pod-mount-share":
+                if not IS_CE:
+                    test_cache_client_conf()
+
                 test_static_cache_clean_upon_umount()
                 test_dynamic_cache_clean_upon_umount()
                 test_deployment_using_storage_rw()
