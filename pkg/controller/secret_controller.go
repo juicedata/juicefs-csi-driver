@@ -122,16 +122,17 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 				return false
 			}
 
+			_, exists := secretOld.Data["initconfig"]
+			if exists {
+				klog.V(6).Info("secret.onUpdateFunc Skip due to initconfig already injected")
+				return false
+			}
+
 			if secretNew.GetResourceVersion() == secretOld.GetResourceVersion() {
 				klog.V(6).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
 
-			_, existsNew := secretNew.Data["initconfig"]
-			if existsNew {
-				klog.V(6).Info("secret.onUpdateFunc Skip due to initconfig already injected")
-				return false
-			}
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
