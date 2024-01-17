@@ -104,9 +104,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	mountOptions := make([]string, 0)
 	for _, mo := range options.StorageClass.MountOptions {
 		parsedStr := pvMeta.StringParser(mo)
-		for _, sp := range strings.Split(strings.TrimSpace(parsedStr), ",") {
-			mountOptions = append(mountOptions, sp)
-		}
+		mountOptions = append(mountOptions, strings.Split(strings.TrimSpace(parsedStr), ",")...)
 	}
 	klog.V(6).Infof("Provisioner Resolved MountOptions: %v", mountOptions)
 
@@ -124,10 +122,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	if err != nil {
 		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
 		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
-	}
-	secretData := make(map[string]string)
-	for k, v := range secret.Data {
-		secretData[k] = string(v)
 	}
 	// set volume context
 	volCtx := make(map[string]string)

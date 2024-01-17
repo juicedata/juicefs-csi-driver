@@ -247,7 +247,7 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-// ControllerExpandVolume unimplemented
+// ControllerExpandVolume adjusts quota according to capacity settings
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	klog.V(6).Infof("ControllerExpandVolume request: %+v", *req)
 
