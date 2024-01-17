@@ -70,6 +70,7 @@ func newMetrics(reg prometheus.Registerer) *nodeServiceManagerMetrics {
 		Help: "number of volume delete errors",
 	})
 	reg.MustRegister(metrics.volumeDelErrors)
+	klog.V(6).Infof("prometheus registered to %v", reg)
 	return metrics
 }
 

@@ -137,11 +137,7 @@ func nodeRun() {
 	}
 
 	go func() {
-		port := 6060
-		for {
-			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
-			port++
-		}
+		http.ListenAndServe(fmt.Sprintf("localhost:%d", config.WebPort), nil)
 	}()
 	registerer, registry := util.NewPrometheus(config.NodeName)
 	http.Handle("/metrics", promhttp.HandlerFor(

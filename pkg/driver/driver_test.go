@@ -30,6 +30,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestNewDriver(t *testing.T) {
@@ -62,7 +63,8 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch5.Reset()
 
-			driver, err := NewDriver(endpoint, nodeId, false, "", time.Second)
+			registerer, _ := util.NewPrometheus(config.NodeName)
+			driver, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldBeNil)
 			if driver.endpoint != endpoint {
 				t.Fatalf("expected driver endpoint: %s, got: %s", endpoint, driver.endpoint)
@@ -94,7 +96,8 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			_, err := NewDriver(endpoint, nodeId, false, "", time.Second)
+			registerer, _ := util.NewPrometheus(config.NodeName)
+			_, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("by process", func() {
@@ -114,7 +117,8 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			_, err := NewDriver(endpoint, nodeId, false, "", time.Second)
+			registerer, _ := util.NewPrometheus(config.NodeName)
+			_, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldBeNil)
 		})
 	})

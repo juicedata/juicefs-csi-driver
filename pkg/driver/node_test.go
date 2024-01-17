@@ -32,9 +32,11 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestNodePublishVolume(t *testing.T) {
@@ -647,7 +649,8 @@ func Test_newNodeService(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			_, err := newNodeService("test", nil)
+			registerer, _ := util.NewPrometheus(config.NodeName)
+			_, err := newNodeService("test", nil, registerer)
 			So(err, ShouldBeNil)
 		})
 	})
