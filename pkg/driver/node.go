@@ -49,17 +49,16 @@ type nodeService struct {
 	juicefs   juicefs.Interface
 	nodeID    string
 	k8sClient *k8sclient.K8sClient
-	metrics   *nodeServiceManagerMetrics
+	metrics   *nodeMetrics
 }
 
-// nodeService Metrics
-type nodeServiceManagerMetrics struct {
+type nodeMetrics struct {
 	volumeErrors    prometheus.Counter
 	volumeDelErrors prometheus.Counter
 }
 
-func newMetrics(reg prometheus.Registerer) *nodeServiceManagerMetrics {
-	metrics := &nodeServiceManagerMetrics{}
+func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
+	metrics := &nodeMetrics{}
 	metrics.volumeErrors = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "volume_errors",
 		Help: "number of volume errors",
@@ -70,7 +69,6 @@ func newMetrics(reg prometheus.Registerer) *nodeServiceManagerMetrics {
 		Help: "number of volume delete errors",
 	})
 	reg.MustRegister(metrics.volumeDelErrors)
-	klog.V(6).Infof("prometheus registered to %v", reg)
 	return metrics
 }
 
@@ -79,7 +77,7 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 		Interface: mount.New(""),
 		Exec:      k8sexec.New(),
 	}
-	metrics := newMetrics(reg)
+	metrics := newNodeMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
 	return &nodeService{
 		SafeFormatAndMount: *mounter,
@@ -151,18 +149,18 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.V(5).Infof("NodePublishVolume: mounting juicefs with secret %+v, options %v", reflect.ValueOf(secrets).MapKeys(), mountOptions)
 	jfs, err := d.juicefs.JfsMount(ctx, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
-		d.metrics.volumeErrors.Add(1)
+		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
 	bindSource, err := jfs.CreateVol(ctx, volumeID, volCtx["subPath"])
 	if err != nil {
-		d.metrics.volumeErrors.Add(1)
+		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
 
 	if err := jfs.BindTarget(ctx, bindSource, target); err != nil {
-		d.metrics.volumeErrors.Add(1)
+		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
@@ -220,7 +218,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	err := d.juicefs.JfsUnmount(ctx, volumeId, target)
 	if err != nil {
-		d.metrics.volumeDelErrors.Add(1)
+		d.metrics.volumeDelErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}
 

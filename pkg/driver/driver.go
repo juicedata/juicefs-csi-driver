@@ -68,7 +68,7 @@ func NewDriver(endpoint string, nodeID string,
 		return nil, err
 	}
 
-	ps, err := newProvisionerService(k8sClient, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
+	ps, err := newProvisionerService(k8sClient, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, reg)
 	if err != nil {
 		return nil, err
 	}

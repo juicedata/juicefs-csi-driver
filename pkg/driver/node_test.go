@@ -49,7 +49,7 @@ func TestNodePublishVolume(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	testCases := []struct {
 		name     string
 		testFunc func(t *testing.T)
@@ -476,7 +476,7 @@ func TestNodePublishVolume(t *testing.T) {
 
 func TestNodeUnpublishVolume(t *testing.T) {
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
@@ -589,7 +589,7 @@ func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
@@ -638,7 +638,7 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
@@ -704,7 +704,7 @@ func Test_nodeService_NodeExpandVolume(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
@@ -751,7 +751,7 @@ func Test_nodeService_NodeGetVolumeStats(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
@@ -798,7 +798,7 @@ func Test_nodeService_NodeStageVolume(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
@@ -845,7 +845,7 @@ func Test_nodeService_NodeUnstageVolume(t *testing.T) {
 		},
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{

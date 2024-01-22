@@ -28,7 +28,7 @@ import (
 // NewFakeDriver creates a new mock driver used for testing
 func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newMetrics(registerer)
+	metrics := newNodeMetrics(registerer)
 	return &Driver{
 		endpoint: endpoint,
 		controllerService: controllerService{
