@@ -18,7 +18,6 @@ package dashboard
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -489,32 +488,18 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	}
 	mountPods := make([]*corev1.Pod, 0)
 	for _, pv := range pvs {
-		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
-		mountPodName, ok := pod.Annotations[key]
-		if !ok {
-			// old app pod
-			mountPodName, ok = pod.Annotations[config.JuiceFSMountPod]
-			if !ok {
-				klog.Errorf("mount pod not found for %s/%s", pod.Namespace, pod.Name)
-				continue
-			}
-		}
-		pair := strings.SplitN(mountPodName, string(types.Separator), 2)
-		if len(pair) != 2 {
-			klog.V(0).Infof("invalid mount pod name %s\n", mountPodName)
-			continue
-		}
-		name := types.NamespacedName{
-			Namespace: pair[0],
-			Name:      pair[1],
-		}
-		var mountPod corev1.Pod
-		err := api.cachedReader.Get(ctx, name, &mountPod)
+		var pods corev1.PodList
+		err := api.cachedReader.List(ctx, &pods, &client.ListOptions{
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
+			}),
+		})
 		if err != nil {
-			klog.Errorf("mount pod %s not found", mountPodName)
 			continue
 		}
-		mountPods = append(mountPods, &mountPod)
+		for i := range pods.Items {
+			mountPods = append(mountPods, &pods.Items[i])
+		}
 	}
 	return mountPods, nil
 }
