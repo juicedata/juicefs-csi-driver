@@ -529,8 +529,9 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 	}
 
 	klog.Infof("setMountAnnotation: set mount info %s/%s in pod %s", jfsConfig.Namespace, mountPodName, podName)
+	key := util.CutPodLabelKey(fmt.Sprintf("%s-%s", jfsConfig.JuiceFSMountPod, uniqueId))
 	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{
-		fmt.Sprintf("%s-%s", jfsConfig.JuiceFSMountPod, uniqueId): fmt.Sprintf("%s/%s", jfsConfig.Namespace, mountPodName),
+		key: fmt.Sprintf("%s/%s", jfsConfig.Namespace, mountPodName),
 	})
 }
 

@@ -42,6 +42,7 @@ import (
 
 const (
 	maxListTries                         = 3
+	maxPodLabelKeyLength                 = 63
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
 )
@@ -447,4 +448,12 @@ func ImageResol(image string) (hasCE, hasEE bool) {
 		return true, false
 	}
 	return true, true
+}
+
+// CutPodLabelKey removes the suffix of the key if the length is greater than `maxPodLabelKeyLength`
+func CutPodLabelKey(key string) string {
+	if len(key) > maxPodLabelKeyLength {
+		return key[:maxPodLabelKeyLength]
+	}
+	return key
 }

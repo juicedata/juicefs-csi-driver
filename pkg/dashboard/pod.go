@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodExtra struct {
@@ -489,7 +490,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	}
 	mountPods := make([]*corev1.Pod, 0)
 	for _, pv := range pvs {
-		key := fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle)
+		key := util.CutPodLabelKey(fmt.Sprintf("%s-%s", config.JuiceFSMountPod, pv.Spec.CSI.VolumeHandle))
 		mountPodName, ok := pod.Annotations[key]
 		if !ok {
 			// old app pod

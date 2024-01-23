@@ -625,3 +625,22 @@ func TestImageResol(t *testing.T) {
 		})
 	}
 }
+
+func TestCutPodLabelKey(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		want string
+	}{
+		{"normal length of key label", "label_key_1", "label_key_1"},
+		{"longest length of key label ", "label_key_test-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "label_key_test-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CutPodLabelKey(tt.key); got != tt.want {
+				t.Errorf("CutPodLabelKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
