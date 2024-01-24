@@ -132,6 +132,7 @@ ifeq ("$(DEV_K8S)", "kubeadm")
 	sed -i.orig 's@juicedata/juicefs-csi-driver.*$$@$(DEV_REGISTRY):$(DEV_TAG)@g' $@
 else
 	sed -i.orig 's@juicedata/juicefs-csi-driver.*$$@juicedata/juicefs-csi-driver:$(DEV_TAG)@g' $@
+	sed -i.orig 's@juicedata/csi-dashboard.*$$@juicedata/csi-dashboard:$(DEV_TAG)@g' $@
 endif
 
 .PHONY: deploy-dev
