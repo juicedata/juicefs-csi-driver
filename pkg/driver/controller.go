@@ -82,6 +82,9 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// set volume context
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
+		if strings.HasPrefix(v, "$") {
+			klog.Warningf("CreateVolume: volume %s parameters %s uses template pattern, please enable provisioner in CSI Controller, not works in default mode.", volumeId, k)
+		}
 		volCtx[k] = v
 	}
 	// return error if set readonly in dynamic provisioner

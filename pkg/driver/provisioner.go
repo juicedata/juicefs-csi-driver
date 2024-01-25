@@ -86,9 +86,21 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 
 	pvMeta := util.NewObjectMeta(*options.PVC, options.SelectedNode)
-	subPath := options.PVName
-	if options.StorageClass.Parameters["pathPattern"] != "" {
-		subPath = pvMeta.StringParser(options.StorageClass.Parameters["pathPattern"])
+
+	pvName := options.PVName
+	scParams := make(map[string]string)
+	for k, v := range options.StorageClass.Parameters {
+		if strings.HasPrefix(k, "csi.storage.k8s.io/") {
+			scParams[k] = pvMeta.ResolveSecret(v, pvName)
+		} else {
+			scParams[k] = pvMeta.StringParser(options.StorageClass.Parameters[k])
+		}
+	}
+	klog.V(6).Infof("Provisioner Resolved StorageClass.Parameters: %v", scParams)
+
+	subPath := pvName
+	if scParams["pathPattern"] != "" {
+		subPath = scParams["pathPattern"]
 	}
 	// return error if set readonly in dynamic provisioner
 	for _, am := range options.PVC.Spec.AccessModes {
@@ -107,16 +119,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		mountOptions = append(mountOptions, strings.Split(strings.TrimSpace(parsedStr), ",")...)
 	}
 	klog.V(6).Infof("Provisioner Resolved MountOptions: %v", mountOptions)
-
-	pvName := options.PVName
-	scParams := make(map[string]string)
-	for k, v := range options.StorageClass.Parameters {
-		if strings.HasPrefix(k, "csi.storage.k8s.io/") {
-			scParams[k] = pvMeta.ResolveSecret(v, pvName)
-		} else {
-			scParams[k] = v
-		}
-	}
 
 	secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
 	if err != nil {
