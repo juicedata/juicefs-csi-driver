@@ -807,6 +807,27 @@ parameters:
   pathPattern: "${.pvc.namespace}-${.pvc.name}"
 ```
 
+### 动态调整 MountPod 的 Resources {#mountpod-resources}
+
+在 0.23.4 以及之后的版本中 `parameters` 参数支持模版配置。
+
+```yaml {11-14}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
+  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
+  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
+  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
+```
+
 ### 可注入值与版本差异
 
 在 0.23.3 版本中，挂载参数和 `pathPattern` 中均可注入 Node 和 PVC 的元数据，比如：
