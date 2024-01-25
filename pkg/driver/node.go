@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -33,11 +34,14 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
-	nodeCaps = []csi.NodeServiceCapability_RPC_Type{}
+	nodeCaps = []csi.NodeServiceCapability_RPC_Type{csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}
 )
+
+const defaultCheckTimeout = 2 * time.Second
 
 type nodeService struct {
 	mount.SafeFormatAndMount
@@ -226,5 +230,67 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 }
 
 func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats is not implemented yet")
+	klog.V(6).Infof("NodeGetVolumeStats: called with args %+v", req)
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+	}
+
+	volumePath := req.GetVolumePath()
+	if len(volumePath) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume path not provided")
+	}
+
+	var exists bool
+
+	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		exists, err = mount.PathExists(volumePath)
+		return
+	})
+	if err == nil {
+		if !exists {
+			klog.V(5).Infof("NodeGetVolumeStats: %s Volume path not exists", volumePath)
+			return nil, status.Error(codes.NotFound, "Volume path not exists")
+		}
+		if d.SafeFormatAndMount.Interface != nil {
+			var notMnt bool
+			err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+				notMnt, err = mount.IsNotMountPoint(d.SafeFormatAndMount.Interface, volumePath)
+				return err
+			})
+			if err != nil {
+				klog.V(5).Infof("NodeGetVolumeStats: Check volume path %s is mountpoint failed: %s", volumePath, err)
+				return nil, status.Errorf(codes.Internal, "Check volume path is mountpoint failed: %s", err)
+			}
+			if notMnt { // target exists but not a mountpoint
+				klog.V(5).Infof("NodeGetVolumeStats: %s volume path not mounted", volumePath)
+				return nil, status.Error(codes.Internal, "Volume path not mounted")
+			}
+		}
+	} else {
+		klog.V(5).Infof("NodeGetVolumeStats: Check volume path %s, err: %s", volumePath, err)
+		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)
+	}
+
+	totalSize, freeSize, totalInodes, freeInodes := util.GetDiskUsage(volumePath)
+	usedSize := int64(totalSize) - int64(freeSize)
+	usedInodes := int64(totalInodes) - int64(freeInodes)
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Available: int64(freeSize),
+				Total:     int64(totalSize),
+				Used:      usedSize,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Available: int64(freeInodes),
+				Total:     int64(totalInodes),
+				Used:      usedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
 }

@@ -553,10 +553,20 @@ func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    &csi.NodeGetCapabilitiesResponse{},
+			name:   "test",
+			fields: fields{},
+			args:   args{},
+			want: &csi.NodeGetCapabilitiesResponse{
+				Capabilities: []*csi.NodeServiceCapability{
+					{
+						Type: &csi.NodeServiceCapability_Rpc{
+							Rpc: &csi.NodeServiceCapability_RPC{
+								Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+							},
+						},
+					},
+				},
+			},
 			wantErr: false,
 		},
 	}

@@ -31,6 +31,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -447,4 +448,20 @@ func ImageResol(image string) (hasCE, hasEE bool) {
 		return true, false
 	}
 	return true, true
+}
+
+func GetDiskUsage(path string) (uint64, uint64, uint64, uint64) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err == nil {
+		// in bytes
+		blockSize := uint64(stat.Bsize)
+		totalSize := blockSize * stat.Blocks
+		freeSize := blockSize * stat.Bfree
+		totalFiles := stat.Files
+		freeFiles := stat.Ffree
+		return totalSize, freeSize, totalFiles, freeFiles
+	} else {
+		klog.Errorf("GetDiskUsage: syscall.Statfs failed: %v", err)
+		return 1, 1, 1, 1
+	}
 }
