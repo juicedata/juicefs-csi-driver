@@ -811,7 +811,7 @@ parameters:
 
 在 0.23.4 以及之后的版本中 `parameters` 参数支持模版配置。
 
-```yaml {14}
+```yaml {11-14}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
