@@ -35,6 +35,7 @@ var (
 	CacheClientConf    = false            // cache client config files and use directly in mount containers
 	MountManager       = false            // manage mount pod in controller (only in k8s)
 	Webhook            = false            // inject juicefs client as sidecar in pod (only in k8s)
+	ValidatingWebhook  = false            // start validating webhook, applicable to ee only
 	Immutable          = false            // csi driver is running in an immutable environment
 	EnableNodeSelector = false            // arrange mount pod to node with node selector instead nodeName
 

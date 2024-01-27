@@ -18,11 +18,15 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 
+	"k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -141,4 +145,38 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 			return false
 		},
 	})
+}
+
+// SecretValidationHandler handler accepts or rejects based on request contents
+func SecretValidationHandler(w http.ResponseWriter, r *http.Request) {
+	arReview := v1.AdmissionReview{}
+	if err := json.NewDecoder(r.Body).Decode(&arReview); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else if arReview.Request == nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	raw := arReview.Request.Object.Raw
+
+	secret := corev1.Secret{}
+	if err := json.Unmarshal(raw, &secret); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	klog.V(6).Infof("validating secret %v", secret)
+
+	arReview.Response = &v1.AdmissionResponse{
+		UID:     arReview.Request.UID,
+		Allowed: true,
+	}
+
+	arReview.Response.Allowed = false
+	arReview.Response.Result = &metav1.Status{
+		Message: "invalid haha",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(&arReview)
 }
