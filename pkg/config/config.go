@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	WebPort            = MustGetWebPort() // web port used by metrics & pprof
+	WebPort            = MustGetWebPort() // web port used by metrics
 	ByProcess          = false            // csi driver runs juicefs in process or not
 	FormatInPod        = false            // put format/auth in pod (only in k8s)
 	Provisioner        = false            // provisioner in controller
@@ -147,5 +147,5 @@ func MustGetWebPort() int {
 		}
 		return port
 	}
-	return 6060
+	return 8080
 }

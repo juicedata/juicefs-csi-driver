@@ -138,17 +138,32 @@ func controllerRun() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
+	// http server for pprof
 	go func() {
-		http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), nil)
+		port := 6060
+		for {
+			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
+			port++
+		}
 	}()
+
 	registerer, registry := util.NewPrometheus(config.NodeName)
-	http.Handle("/metrics", promhttp.HandlerFor(
-		registry,
-		promhttp.HandlerOpts{
-			// Opt into OpenMetrics to support exemplars.
-			EnableOpenMetrics: true,
-		},
-	))
+	// http server for metrics
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.HandlerFor(
+			registry,
+			promhttp.HandlerOpts{
+				// Opt into OpenMetrics to support exemplars.
+				EnableOpenMetrics: true,
+			},
+		))
+		server := &http.Server{
+			Addr:    fmt.Sprintf(":%d", config.WebPort),
+			Handler: mux,
+		}
+		server.ListenAndServe()
+	}()
 
 	// enable mount manager in csi controller
 	if config.MountManager {
