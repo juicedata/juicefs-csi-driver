@@ -77,6 +77,12 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 		klog.V(5).Infof("Could not create k8s client %v", err)
 		return nil, err
 	}
+	if config.CacheClientConf {
+		if err := (mountctrl.NewSecretController(k8sClient)).SetupWithManager(mgr); err != nil {
+			klog.Errorf("Register secret controller error: %v", err)
+			return nil, err
+		}
+	}
 	return &WebhookManager{
 		mgr:    mgr,
 		client: k8sClient,
