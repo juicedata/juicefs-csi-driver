@@ -83,11 +83,6 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 			return nil, err
 		}
 	}
-	if config.ValidatingWebhook {
-		klog.V(5).Infof("Register validating webhook")
-		server := mgr.GetWebhookServer()
-		server.WebhookMux.HandleFunc("/validate-secret", mountctrl.SecretValidationHandler)
-	}
 	return &WebhookManager{
 		mgr:    mgr,
 		client: k8sClient,

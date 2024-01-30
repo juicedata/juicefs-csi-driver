@@ -103,3 +103,29 @@ func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 	s.decoder = d
 	return nil
 }
+
+type SecretHandler struct {
+	Client *k8sclient.K8sClient
+	// A decoder will be automatically injected
+	decoder *admission.Decoder
+}
+
+func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
+	return &SecretHandler{
+		Client:     client,
+	}
+}
+
+func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
+	secret := &corev1.Secret{}
+	raw := request.Object.Raw
+	klog.V(6).Infof("[SecretHandler] got secret: %s", string(raw))
+	err := s.decoder.Decode(request, secret)
+	if err != nil {
+		klog.Error(err, "unable to decoder secret from req")
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	resp := admission.ValidationResponse(false, "me no like")
+	return resp
+}
