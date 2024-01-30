@@ -142,10 +142,10 @@ func MustGetWebPort() int {
 	value, exists := os.LookupEnv("JUICEFS_CSI_WEB_PORT")
 	if exists {
 		port, err := strconv.Atoi(value)
-		if err != nil {
-			klog.Fatalf("Fail to parse JUICEFS_CSI_WEB_PORT %s, %v", value, err)
+		if err == nil {
+			return port
 		}
-		return port
+		klog.Errorf("Fail to parse JUICEFS_CSI_WEB_PORT %s: %v", value, err)
 	}
 	return 8080
 }
