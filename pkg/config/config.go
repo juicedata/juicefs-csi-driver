@@ -18,6 +18,9 @@ package config
 
 import (
 	"hash/fnv"
+	"k8s.io/klog"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,14 +28,15 @@ import (
 )
 
 var (
-	ByProcess          = false // csi driver runs juicefs in process or not
-	FormatInPod        = false // put format/auth in pod (only in k8s)
-	Provisioner        = false // provisioner in controller
-	CacheClientConf    = false // cache client config files and use directly in mount containers
-	MountManager       = false // manage mount pod in controller (only in k8s)
-	Webhook            = false // inject juicefs client as sidecar in pod (only in k8s)
-	Immutable          = false // csi driver is running in an immutable environment
-	EnableNodeSelector = false // arrange mount pod to node with node selector instead nodeName
+	WebPort            = MustGetWebPort() // web port used by metrics
+	ByProcess          = false            // csi driver runs juicefs in process or not
+	FormatInPod        = false            // put format/auth in pod (only in k8s)
+	Provisioner        = false            // provisioner in controller
+	CacheClientConf    = false            // cache client config files and use directly in mount containers
+	MountManager       = false            // manage mount pod in controller (only in k8s)
+	Webhook            = false            // inject juicefs client as sidecar in pod (only in k8s)
+	Immutable          = false            // csi driver is running in an immutable environment
+	EnableNodeSelector = false            // arrange mount pod to node with node selector instead nodeName
 
 	DriverName         = "csi.juicefs.com"
 	NodeName           = ""
@@ -132,4 +136,16 @@ func GetPodLock(podName string) *sync.Mutex {
 	h.Write([]byte(podName))
 	index := int(h.Sum32())
 	return &PodLocks[index%1024]
+}
+
+func MustGetWebPort() int {
+	value, exists := os.LookupEnv("JUICEFS_CSI_WEB_PORT")
+	if exists {
+		port, err := strconv.Atoi(value)
+		if err == nil {
+			return port
+		}
+		klog.Errorf("Fail to parse JUICEFS_CSI_WEB_PORT %s: %v", value, err)
+	}
+	return 8080
 }

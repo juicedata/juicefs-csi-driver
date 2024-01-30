@@ -39,6 +39,8 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -464,4 +466,10 @@ func GetDiskUsage(path string) (uint64, uint64, uint64, uint64) {
 		klog.Errorf("GetDiskUsage: syscall.Statfs failed: %v", err)
 		return 1, 1, 1, 1
 	}
+}
+
+func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry) {
+	registry := prometheus.NewRegistry() // replace default so only JuiceFS metrics are exposed
+	registerer := prometheus.WrapRegistererWithPrefix("juicefs_", prometheus.WrapRegistererWith(prometheus.Labels{"node_name": nodeName}, registry))
+	return registerer, registry
 }

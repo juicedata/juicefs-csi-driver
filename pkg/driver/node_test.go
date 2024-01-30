@@ -32,9 +32,11 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestNodePublishVolume(t *testing.T) {
@@ -46,6 +48,8 @@ func TestNodePublishVolume(t *testing.T) {
 			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	testCases := []struct {
 		name     string
 		testFunc func(t *testing.T)
@@ -76,11 +80,11 @@ func TestNodePublishVolume(t *testing.T) {
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
 						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
 						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
-
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -128,6 +132,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -174,6 +179,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						stdVolCapWithMount := &csi.VolumeCapability{
@@ -224,6 +230,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -266,6 +273,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -309,6 +317,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
 							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -352,6 +361,7 @@ func TestNodePublishVolume(t *testing.T) {
 							juicefs:   jfs,
 							nodeID:    "fake_node_id",
 							k8sClient: client,
+							metrics:   metrics,
 						}
 
 						req := &csi.NodePublishVolumeRequest{
@@ -383,6 +393,7 @@ func TestNodePublishVolume(t *testing.T) {
 					juicefs:   mockJuicefs,
 					nodeID:    "fake_node_id",
 					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+					metrics:   metrics,
 				}
 
 				req := &csi.NodePublishVolumeRequest{
@@ -408,6 +419,7 @@ func TestNodePublishVolume(t *testing.T) {
 					juicefs:   mockJuicefs,
 					nodeID:    "fake_node_id",
 					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+					metrics:   metrics,
 				}
 
 				req := &csi.NodePublishVolumeRequest{
@@ -433,6 +445,7 @@ func TestNodePublishVolume(t *testing.T) {
 					juicefs:   mockJuicefs,
 					nodeID:    "fake_node_id",
 					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+					metrics:   metrics,
 				}
 
 				invalidVolumeCaps := &csi.VolumeCapability{
@@ -462,6 +475,8 @@ func TestNodePublishVolume(t *testing.T) {
 }
 
 func TestNodeUnpublishVolume(t *testing.T) {
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
 			targetPath := "/test/path"
@@ -477,6 +492,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				juicefs:   mockJuicefs,
 				nodeID:    "fake_node_id",
 				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+				metrics:   metrics,
 			}
 
 			req := &csi.NodeUnpublishVolumeRequest{
@@ -503,6 +519,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				juicefs:   mockJuicefs,
 				nodeID:    "fake_node_id",
 				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+				metrics:   metrics,
 			}
 
 			req := &csi.NodeUnpublishVolumeRequest{
@@ -520,6 +537,7 @@ func TestNodeUnpublishVolume(t *testing.T) {
 				juicefs:   nil,
 				nodeID:    "fake_node_id",
 				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+				metrics:   metrics,
 			}
 
 			req := &csi.NodeUnpublishVolumeRequest{
@@ -570,12 +588,15 @@ func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeGetCapabilities(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -616,12 +637,15 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeGetInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -647,7 +671,8 @@ func Test_newNodeService(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			_, err := newNodeService("test", nil)
+			registerer, _ := util.NewPrometheus(config.NodeName)
+			_, err := newNodeService("test", nil, registerer)
 			So(err, ShouldBeNil)
 		})
 	})
@@ -678,12 +703,15 @@ func Test_nodeService_NodeExpandVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeExpandVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -722,12 +750,15 @@ func Test_nodeService_NodeGetVolumeStats(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeGetVolumeStats(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -766,12 +797,15 @@ func Test_nodeService_NodeStageVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeStageVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -810,12 +844,15 @@ func Test_nodeService_NodeUnstageVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	registerer, _ := util.NewPrometheus(config.NodeName)
+	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &nodeService{
 				juicefs:   tt.fields.juicefs,
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
+				metrics:   metrics,
 			}
 			got, err := d.NodeUnstageVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {

@@ -484,6 +484,7 @@ func TestUmountTarget(t *testing.T) {
 					Interface: fakeClient,
 				},
 			}
+			t.Logf("PodMount %T %v", p, p)
 			podName := GenPodNameByUniqueId("ttt", true)
 			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{

@@ -28,6 +28,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Driver struct
@@ -44,7 +46,7 @@ type Driver struct {
 func NewDriver(endpoint string, nodeID string,
 	leaderElection bool,
 	leaderElectionNamespace string,
-	leaderElectionLeaseDuration time.Duration) (*Driver, error) {
+	leaderElectionLeaseDuration time.Duration, reg prometheus.Registerer) (*Driver, error) {
 	klog.Infof("Driver: %v version %v commit %v date %v", config.DriverName, driverVersion, gitCommit, buildDate)
 
 	var k8sClient *k8sclient.K8sClient
@@ -61,12 +63,12 @@ func NewDriver(endpoint string, nodeID string,
 		return nil, err
 	}
 
-	ns, err := newNodeService(nodeID, k8sClient)
+	ns, err := newNodeService(nodeID, k8sClient, reg)
 	if err != nil {
 		return nil, err
 	}
 
-	ps, err := newProvisionerService(k8sClient, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
+	ps, err := newProvisionerService(k8sClient, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, reg)
 	if err != nil {
 		return nil, err
 	}

@@ -34,6 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -137,12 +138,31 @@ func controllerRun() {
 		klog.Fatalln("nodeID must be provided")
 	}
 
+	// http server for pprof
 	go func() {
 		port := 6060
 		for {
 			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
 			port++
 		}
+	}()
+
+	registerer, registry := util.NewPrometheus(config.NodeName)
+	// http server for metrics
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.HandlerFor(
+			registry,
+			promhttp.HandlerOpts{
+				// Opt into OpenMetrics to support exemplars.
+				EnableOpenMetrics: true,
+			},
+		))
+		server := &http.Server{
+			Addr:    fmt.Sprintf(":%d", config.WebPort),
+			Handler: mux,
+		}
+		server.ListenAndServe()
 	}()
 
 	// enable mount manager in csi controller
@@ -173,7 +193,7 @@ func controllerRun() {
 		}()
 	}
 
-	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
+	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
 		klog.Fatalln(err)
 	}
