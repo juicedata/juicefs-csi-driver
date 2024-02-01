@@ -14,9 +14,9 @@ RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then apt update && apt install -
     echo deb https://download.ceph.com/debian-15.2.17/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
-RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
+RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client && \
     rm -rf /var/cache/apt/* && \
-    mkdir -p /root/.juicefs && \
+    mkdir -p /root/.juicefs /var/run/sshd && \
     ln -s /usr/local/bin/python /usr/bin/python && \
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group

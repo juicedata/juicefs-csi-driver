@@ -13,10 +13,10 @@ RUN apt update && apt install -y software-properties-common wget gnupg gnupg2 &&
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common; fi"
 
-RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof librados-dev libcephfs-dev librbd-dev && \
+RUN apt-get update && apt-get install -y librados2 curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof librados-dev libcephfs-dev librbd-dev openssh-server openssh-client && \
     rm -rf /var/cache/apt/* && \
     curl -sSL https://juicefs.com/static/juicefs.4.9 -o ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && \
-    mkdir -p /root/.juicefs && \
+    mkdir -p /root/.juicefs /var/run/sshd && \
     ln -s /usr/local/bin/python /usr/bin/python && \
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
