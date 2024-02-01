@@ -30,6 +30,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
+	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/validator"
 )
 
 type SidecarHandler struct {
@@ -125,6 +126,7 @@ func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
 func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	secret := &corev1.Secret{}
 	raw := request.Object.Raw
+	// TODO: strip log?
 	klog.V(6).Infof("[SecretHandler] got secret: %s", string(raw))
 	err := s.decoder.Decode(request, secret)
 	if err != nil {
@@ -133,23 +135,9 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, nil)
-
-	secretsMap := make(map[string]string)
-	for k, v := range secret.Data {
-		secretsMap[k] = string(v[:])
-	}
-
-	jfsSetting, err := jfs.Settings(ctx, "", secretsMap, nil, nil)
-	if err != nil {
+	secretValidateor := validator.NewSecretValidator(jfs)
+	if err := secretValidateor.Validate(ctx, *secret); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	// ignore ce secrets
-	if !jfsSetting.IsCe {
-		_, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-	}
-
 	return admission.Allowed("")
 }

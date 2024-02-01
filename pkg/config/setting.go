@@ -499,6 +499,10 @@ func parseYamlOrJson(source string, dst interface{}) error {
 	return nil
 }
 
+func ParseYamlOrJson(source string, dst interface{}) error {
+	return parseYamlOrJson(source, dst)
+}
+
 func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) (corev1.ResourceRequirements, error) {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
