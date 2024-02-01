@@ -112,8 +112,14 @@ type SecretHandler struct {
 
 func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
 	return &SecretHandler{
-		Client:     client,
+		Client: client,
 	}
+}
+
+// InjectDecoder injects the decoder.
+func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
+	s.decoder = d
+	return nil
 }
 
 func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
@@ -126,6 +132,24 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	resp := admission.ValidationResponse(false, "me no like")
-	return resp
+	jfs := juicefs.NewJfsProvider(nil, nil)
+
+	secretsMap := make(map[string]string)
+	for k, v := range secret.Data {
+		secretsMap[k] = string(v[:])
+	}
+
+	jfsSetting, err := jfs.Settings(ctx, "", secretsMap, nil, nil)
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	// ignore ce secrets
+	if !jfsSetting.IsCe {
+		_, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+	}
+
+	return admission.Allowed("")
 }

@@ -71,6 +71,12 @@ patches:
     version: v1
     kind: MutatingWebhookConfiguration
     name: juicefs-admission-webhook
+- path: validating_webhookconfiguration.yaml
+  target:
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: ValidatingWebhookConfiguration
+    name: juicefs-admission-webhook
 resources:
 - ../base
 - certificate.yaml

@@ -28,7 +28,7 @@ import (
 const (
 	SidecarPath    = "/juicefs/inject-v1-pod"
 	ServerlessPath = "/juicefs/serverless/inject-v1-pod"
-	SecretPath     = "/validate-secret"
+	SecretPath     = "/juicefs/validate-secret"
 )
 
 // Register registers the handlers to the manager
