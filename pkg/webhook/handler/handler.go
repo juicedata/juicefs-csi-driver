@@ -125,9 +125,6 @@ func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
 
 func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	secret := &corev1.Secret{}
-	raw := request.Object.Raw
-	// TODO: strip log?
-	klog.V(6).Infof("[SecretHandler] got secret: %s", string(raw))
 	err := s.decoder.Decode(request, secret)
 	if err != nil {
 		klog.Error(err, "unable to decoder secret from req")
@@ -137,6 +134,7 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 	jfs := juicefs.NewJfsProvider(nil, nil)
 	secretValidateor := validator.NewSecretValidator(jfs)
 	if err := secretValidateor.Validate(ctx, *secret); err != nil {
+		klog.Error(err, "secret validation failed")
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	return admission.Allowed("")

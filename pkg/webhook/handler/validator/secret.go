@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -46,7 +47,12 @@ func (s *SecretValidator) Validate(ctx context.Context, secret corev1.Secret) er
 		return err
 	}
 
-	// ignore ce secrets
+	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempConfDir)
+	jfsSetting.ClientConfPath = tempConfDir
 	if !jfsSetting.IsCe {
 		_, err := s.jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
 		if err != nil {

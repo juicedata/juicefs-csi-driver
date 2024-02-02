@@ -733,7 +733,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		}
 		if config.ByProcess && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
-			confPath := filepath.Join(config.ClientConfPath, conf)
+			confPath := filepath.Join(setting.ClientConfPath, conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
@@ -752,6 +752,12 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		stripped := setting.StripFormatOptions(options, []string{"session-token"})
 		cmdArgs = append(cmdArgs, stripped...)
 	}
+
+	if setting.ClientConfPath != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
+		args = append(args, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
+	}
+
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	// only run command when in process mode

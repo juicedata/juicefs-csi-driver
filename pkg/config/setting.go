@@ -53,6 +53,7 @@ type JfsSetting struct {
 	CacheEmptyDir      *CacheEmptyDir       // EmptyDir using by mount pod
 	CacheInlineVolumes []*CacheInlineVolume // InlineVolume using by mount pod
 	CacheDirs          []string             // hostPath using by mount pod
+	ClientConfPath     string               `json:"-"`
 
 	// put in secret
 	SecretKey     string            `json:"secret-key,omitempty"`
@@ -153,6 +154,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	jfsSetting.Storage = secrets["storage"]
 	jfsSetting.Envs = make(map[string]string)
 	jfsSetting.Configs = make(map[string]string)
+	jfsSetting.ClientConfPath = DefaultClientConfPath
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
 

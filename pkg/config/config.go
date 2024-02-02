@@ -18,11 +18,12 @@ package config
 
 import (
 	"hash/fnv"
-	"k8s.io/klog"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -58,16 +59,16 @@ var (
 	JFSMountPriorityName     = "system-node-critical"
 	JFSMountPreemptionPolicy = ""
 
-	TmpPodMountBase = "/tmp"
-	PodMountBase    = "/jfs"
-	MountBase       = "/var/lib/jfs"
-	FsType          = "juicefs"
-	CliPath         = "/usr/bin/juicefs"
-	CeCliPath       = "/usr/local/bin/juicefs"
-	CeMountPath     = "/bin/mount.juicefs"
-	JfsMountPath    = "/sbin/mount.juicefs"
-	ClientConfPath  = "/root/.juicefs"
-	ROConfPath      = "/etc/juicefs"
+	TmpPodMountBase       = "/tmp"
+	PodMountBase          = "/jfs"
+	MountBase             = "/var/lib/jfs"
+	FsType                = "juicefs"
+	CliPath               = "/usr/bin/juicefs"
+	CeCliPath             = "/usr/local/bin/juicefs"
+	CeMountPath           = "/bin/mount.juicefs"
+	JfsMountPath          = "/sbin/mount.juicefs"
+	DefaultClientConfPath = "/root/.juicefs"
+	ROConfPath            = "/etc/juicefs"
 )
 
 const (
