@@ -24,6 +24,7 @@ jobs:
         env:
           JUICEFS_BUILD_VERSION: ${{ inputs.ce_juicefs_build_version }}
         run: |
+          set +e
           if [ ${{ env.JUICEFS_BUILD_VERSION }} ]; then
             echo "JUICEFS_CE_LATEST_VERSION=${{ env.JUICEFS_BUILD_VERSION }}" >> $GITHUB_ENV
             echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
@@ -35,7 +36,7 @@ jobs:
               exit 1
             fi
             echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
-          
+
             echo "mount image is juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
             echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
             docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
@@ -43,7 +44,7 @@ jobs:
             if [ $rst -eq 0 ]; then
               echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
             fi
-          
+
             echo "fuse image is juicedata/juicefs-fuse:ce-${JUICEFS_CE_LATEST_VERSION}"
             echo "FUSE_IMAGE_EXIST=false" >> $GITHUB_ENV
             docker pull juicedata/juicefs-fuse:ce-${JUICEFS_CE_LATEST_VERSION}
@@ -108,13 +109,14 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         run: |
+          set +e
           JUICEFS_EE_LATEST_VERSION=$(curl -sSL https://juicefs.com/static/Linux/mount.4.9 -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee -V | cut -d' ' -f3)
           if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
             echo "Failed to get juicefs ee version"
             exit 1
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
-          
+
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
@@ -122,7 +124,7 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
-          
+
           echo "fuse image is juicedata/juicefs-fuse:ee-${JUICEFS_EE_LATEST_VERSION}"
           echo "FUSE_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/juicefs-fuse:ee-${JUICEFS_EE_LATEST_VERSION}
@@ -142,14 +144,14 @@ jobs:
           export DOCKER_CLI_EXPERIMENTAL=enabled
           docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
           docker buildx create --use --name mybuilder
-          
+
           if [ $mount_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker ee-image-4.0-buildx
           else
             echo "JuiceFS mount ee version image already exists"
           fi
-          
+
           if [ $fuse_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker fuse-ee-image-4.0-buildx
@@ -175,6 +177,7 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         run: |
+          set +e
           curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz
           version=$(grep -oP 'mount_version=\K.*' version.ini)
           hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
@@ -184,7 +187,7 @@ jobs:
             exit 1
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
-          
+
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
@@ -192,7 +195,7 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
-          
+
           echo "fuse image is juicedata/juicefs-fuse:ee-${JUICEFS_EE_LATEST_VERSION}"
           echo "FUSE_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/juicefs-fuse:ee-${JUICEFS_EE_LATEST_VERSION}
@@ -213,14 +216,14 @@ jobs:
           docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
           docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
           docker buildx create --use --name mybuilder
-          
+
           if [ $mount_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker ee-image-buildx
           else
             echo "JuiceFS mount ee version image already exists"
           fi
-          
+
           if [ $fuse_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker fuse-ee-image-buildx
