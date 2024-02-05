@@ -681,4 +681,4 @@ webhooks:
     resources:
     - secrets
   sideEffects: None
-  timeoutSeconds: 20
+  timeoutSeconds: 5

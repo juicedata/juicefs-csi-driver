@@ -669,7 +669,7 @@ webhooks:
         name: juicefs-admission-webhook
         path: "/juicefs/validate-secret"
       caBundle: CA_BUNDLE
-    timeoutSeconds: 20
+    timeoutSeconds: 5
     failurePolicy: Ignore
     sideEffects: None
     admissionReviewVersions: ["v1"]
