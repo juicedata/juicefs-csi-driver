@@ -70,6 +70,7 @@ type Interface interface {
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
 	CreateTarget(ctx context.Context, target string) error
 	AuthFs(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, force bool) (string, error)
+	Status(ctx context.Context, metaUrl string) error
 }
 
 type juicefs struct {
@@ -1012,4 +1013,29 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
+}
+
+// Status checks the status of JuiceFS, only for community edition
+func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
+	args := []string{"status", metaUrl}
+	cmdArgs := []string{config.CeCliPath, "status", "${metaurl}"}
+
+	klog.Infof("Status cmd: %s", strings.Join(cmdArgs, " "))
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
+	defer cmdCancel()
+
+	done := make(chan error, 1)
+	go func() {
+		res, err := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
+		done <- wrapSetQuotaErr(string(res), err)
+		close(done)
+	}()
+
+	select {
+	case <-cmdCtx.Done():
+		klog.Warningf("quota set timeout, runs in background")
+		return nil
+	case err := <-done:
+		return err
+	}
 }

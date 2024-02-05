@@ -53,7 +53,15 @@ func (s *SecretValidator) Validate(ctx context.Context, secret corev1.Secret) er
 	}
 	defer os.RemoveAll(tempConfDir)
 	jfsSetting.ClientConfPath = tempConfDir
-	if !jfsSetting.IsCe {
+	if jfsSetting.IsCe {
+		metaUrl := secretsMap["metaurl"]
+		if metaUrl == "" {
+			return fmt.Errorf("metaurl is empty")
+		}
+		if err := s.jfs.Status(ctx, metaUrl); err != nil {
+			return err
+		}
+	} else {
 		_, err := s.jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
 		if err != nil {
 			return err

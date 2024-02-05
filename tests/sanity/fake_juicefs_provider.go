@@ -120,3 +120,7 @@ func (fs *fakeJfs) GetBasePath() string {
 func (fs *fakeJfs) BindTarget(ctx context.Context, bindSource, target string) error {
 	return nil
 }
+
+func (j *fakeJfsProvider) Status(ctx context.Context, metaUrl string) error {
+	return nil
+}
