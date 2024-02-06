@@ -127,14 +127,14 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 	secret := &corev1.Secret{}
 	err := s.decoder.Decode(request, secret)
 	if err != nil {
-		klog.Error(err, "unable to decoder secret from req")
+		klog.Errorf("unable to decoder secret from req, %v", err)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	jfs := juicefs.NewJfsProvider(nil, nil)
 	secretValidateor := validator.NewSecretValidator(jfs)
 	if err := secretValidateor.Validate(ctx, *secret); err != nil {
-		klog.Error(err, "secret validation failed")
+		klog.Errorf("secret validation failed, secret: %s, err: %v", secret.Name, err)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	return admission.Allowed("")

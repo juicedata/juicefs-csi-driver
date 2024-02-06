@@ -865,6 +865,18 @@ func wrapSetQuotaErr(res string, err error) error {
 	return err
 }
 
+func wrapStatusErr(res string, err error) error {
+	if err != nil {
+		re := string(res)
+		if strings.Contains(re, "database is not formatted") {
+			klog.Infof("juicefs not formatted, ignore status command error")
+			return nil
+		}
+		return errors.Wrap(err, re)
+	}
+	return err
+}
+
 func (j *juicefs) GetSubPath(ctx context.Context, volumeID string) (string, error) {
 	if config.Provisioner {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
@@ -1027,14 +1039,14 @@ func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
 	done := make(chan error, 1)
 	go func() {
 		res, err := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
-		done <- wrapSetQuotaErr(string(res), err)
+		done <- wrapStatusErr(string(res), err)
 		close(done)
 	}()
 
 	select {
 	case <-cmdCtx.Done():
-		klog.Warningf("quota set timeout, runs in background")
-		return nil
+		err := fmt.Errorf("juicefs status %s timed out", 2*defaultCheckTimeout)
+		return err
 	case err := <-done:
 		return err
 	}
