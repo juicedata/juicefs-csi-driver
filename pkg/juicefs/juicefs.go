@@ -317,6 +317,10 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err := j.validTarget(target); err != nil {
 		return nil, err
 	}
+
+	if err := j.overwriteVolCtxWithPVCAnnotations(ctx, volumeID, volCtx); err != nil {
+		klog.Warningf("Overwrite volCtx with PVC annotations error: %v", err)
+	}
 	jfsSetting, err := j.genJfsSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
@@ -336,6 +340,38 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 		MountPath: mountPath,
 		Options:   options,
 	}, nil
+}
+
+func (j *juicefs) overwriteVolCtxWithPVCAnnotations(ctx context.Context, volumeID string, volCtx map[string]string) error {
+	pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
+	if err != nil {
+		return err
+	}
+
+	pvc, err := j.K8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+	if err != nil {
+		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+		return err
+	}
+
+	cpuLimit := pvc.Annotations[config.MountPodCpuLimitKey]
+	memoryLimit := pvc.Annotations[config.MountPodMemLimitKey]
+	cpuRequest := pvc.Annotations[config.MountPodCpuRequestKey]
+	memoryRequest := pvc.Annotations[config.MountPodMemRequestKey]
+
+	if cpuLimit != "" {
+		volCtx[config.MountPodCpuLimitKey] = cpuLimit
+	}
+	if memoryLimit != "" {
+		volCtx[config.MountPodMemLimitKey] = memoryLimit
+	}
+	if cpuRequest != "" {
+		volCtx[config.MountPodCpuRequestKey] = cpuRequest
+	}
+	if memoryRequest != "" {
+		volCtx[config.MountPodMemRequestKey] = memoryRequest
+	}
+	return nil
 }
 
 // Settings get all jfs settings and generate format/auth command
