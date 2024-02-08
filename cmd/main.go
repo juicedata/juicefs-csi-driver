@@ -34,11 +34,12 @@ var (
 	formatInPod bool
 	process     bool
 
-	provisioner bool
-	cacheConf   bool
-	webhook     bool
-	certDir     string
-	webhookPort int
+	provisioner       bool
+	cacheConf         bool
+	webhook           bool
+	certDir           string
+	webhookPort       int
+	validationWebhook bool
 
 	podManager         bool
 	reconcilerInterval int
@@ -69,9 +70,10 @@ func main() {
 	// controller flags
 	cmd.Flags().BoolVar(&provisioner, "provisioner", false, "Enable provisioner in controller. default false.")
 	cmd.Flags().BoolVar(&cacheConf, "cache-client-conf", false, "Cache client config file. default false.")
-	cmd.Flags().BoolVar(&webhook, "webhook", false, "Enable webhook in controller. default false.")
+	cmd.Flags().BoolVar(&webhook, "webhook", false, "Enable mutating webhook in controller for sidecar mode. default false.")
 	cmd.Flags().StringVar(&certDir, "webhook-cert-dir", "/etc/webhook/certs", "Admission webhook cert/key dir.")
-	cmd.Flags().IntVar(&webhookPort, "webhook-port", 9444, "Admission webhook cert/key dir.")
+	cmd.Flags().IntVar(&webhookPort, "webhook-port", 9444, "Admission webhook port.")
+	cmd.Flags().BoolVar(&validationWebhook, "validating-webhook", false, "Enable validation webhook in controller. default false.")
 
 	// node flags
 	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")

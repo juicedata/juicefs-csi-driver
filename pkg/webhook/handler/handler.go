@@ -30,6 +30,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
+	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/validator"
 )
 
 type SidecarHandler struct {
@@ -102,4 +103,39 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 	s.decoder = d
 	return nil
+}
+
+type SecretHandler struct {
+	Client *k8sclient.K8sClient
+	// A decoder will be automatically injected
+	decoder *admission.Decoder
+}
+
+func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
+	return &SecretHandler{
+		Client: client,
+	}
+}
+
+// InjectDecoder injects the decoder.
+func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
+	s.decoder = d
+	return nil
+}
+
+func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
+	secret := &corev1.Secret{}
+	err := s.decoder.Decode(request, secret)
+	if err != nil {
+		klog.Errorf("unable to decoder secret from req, %v", err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	jfs := juicefs.NewJfsProvider(nil, nil)
+	secretValidateor := validator.NewSecretValidator(jfs)
+	if err := secretValidateor.Validate(ctx, *secret); err != nil {
+		klog.Errorf("secret validation failed, secret: %s, err: %v", secret.Name, err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	return admission.Allowed("")
 }

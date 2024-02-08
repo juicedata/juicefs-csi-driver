@@ -15,3 +15,4 @@ spec:
             - --leader-election
             - --v=5
             - --webhook=true
+            - --validating-webhook=true

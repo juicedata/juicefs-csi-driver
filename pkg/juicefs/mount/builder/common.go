@@ -158,7 +158,7 @@ func (r *BaseBuilder) genInitCommand() string {
 	}
 	if r.jfsSetting.InitConfig != "" {
 		confPath := filepath.Join(config.ROConfPath, r.jfsSetting.Name+".conf")
-		args := []string{"cp", confPath, config.ClientConfPath}
+		args := []string{"cp", confPath, r.jfsSetting.ClientConfPath}
 		confCmd := strings.Join(args, " ")
 		formatCmd = strings.Join([]string{confCmd, formatCmd}, "\n")
 	}

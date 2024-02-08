@@ -18,11 +18,12 @@ package config
 
 import (
 	"hash/fnv"
-	"k8s.io/klog"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -35,6 +36,7 @@ var (
 	CacheClientConf    = false            // cache client config files and use directly in mount containers
 	MountManager       = false            // manage mount pod in controller (only in k8s)
 	Webhook            = false            // inject juicefs client as sidecar in pod (only in k8s)
+	ValidatingWebhook  = false            // start validating webhook, applicable to ee only
 	Immutable          = false            // csi driver is running in an immutable environment
 	EnableNodeSelector = false            // arrange mount pod to node with node selector instead nodeName
 
@@ -57,16 +59,16 @@ var (
 	JFSMountPriorityName     = "system-node-critical"
 	JFSMountPreemptionPolicy = ""
 
-	TmpPodMountBase = "/tmp"
-	PodMountBase    = "/jfs"
-	MountBase       = "/var/lib/jfs"
-	FsType          = "juicefs"
-	CliPath         = "/usr/bin/juicefs"
-	CeCliPath       = "/usr/local/bin/juicefs"
-	CeMountPath     = "/bin/mount.juicefs"
-	JfsMountPath    = "/sbin/mount.juicefs"
-	ClientConfPath  = "/root/.juicefs"
-	ROConfPath      = "/etc/juicefs"
+	TmpPodMountBase       = "/tmp"
+	PodMountBase          = "/jfs"
+	MountBase             = "/var/lib/jfs"
+	FsType                = "juicefs"
+	CliPath               = "/usr/bin/juicefs"
+	CeCliPath             = "/usr/local/bin/juicefs"
+	CeMountPath           = "/bin/mount.juicefs"
+	JfsMountPath          = "/sbin/mount.juicefs"
+	DefaultClientConfPath = "/root/.juicefs"
+	ROConfPath            = "/etc/juicefs"
 )
 
 const (
