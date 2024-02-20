@@ -280,6 +280,8 @@ func Test_jfs_GetBasePath(t *testing.T) {
 }
 
 func Test_juicefs_JfsMount(t *testing.T) {
+	k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
+
 	Convey("Test JfsMount", t, func() {
 		Convey("ee normal", func() {
 			volumeId := "test-volume-id"
@@ -304,7 +306,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          nil,
+				K8sClient:          k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
@@ -342,7 +344,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 					Interface: nil,
 					Exec:      k8sexec.New(),
 				},
-				K8sClient: nil,
+				K8sClient: k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
@@ -355,7 +357,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          nil,
+				K8sClient:          k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
@@ -377,7 +379,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          nil,
+				K8sClient:          k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
@@ -403,7 +405,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 
 			jfs := juicefs{
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
-				K8sClient:          nil,
+				K8sClient:          k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)
@@ -440,7 +442,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 					Interface: nil,
 					Exec:      k8sexec.New(),
 				},
-				K8sClient: nil,
+				K8sClient: k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldBeNil)
@@ -456,7 +458,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 					Interface: nil,
 					Exec:      k8sexec.New(),
 				},
-				K8sClient: nil,
+				K8sClient: k8sClient,
 			}
 			_, err := jfs.JfsMount(context.TODO(), volumeId, targetPath, secret, map[string]string{}, []string{})
 			So(err, ShouldNotBeNil)

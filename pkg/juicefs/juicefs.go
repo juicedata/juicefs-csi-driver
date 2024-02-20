@@ -355,22 +355,13 @@ func (j *juicefs) overwriteVolCtxWithPVCAnnotations(ctx context.Context, volumeI
 		return err
 	}
 
-	cpuLimit := pvc.Annotations[config.MountPodCpuLimitKey]
-	memoryLimit := pvc.Annotations[config.MountPodMemLimitKey]
-	cpuRequest := pvc.Annotations[config.MountPodCpuRequestKey]
-	memoryRequest := pvc.Annotations[config.MountPodMemRequestKey]
-
-	if cpuLimit != "" {
-		volCtx[config.MountPodCpuLimitKey] = cpuLimit
-	}
-	if memoryLimit != "" {
-		volCtx[config.MountPodMemLimitKey] = memoryLimit
-	}
-	if cpuRequest != "" {
-		volCtx[config.MountPodCpuRequestKey] = cpuRequest
-	}
-	if memoryRequest != "" {
-		volCtx[config.MountPodMemRequestKey] = memoryRequest
+	for k, v := range pvc.Annotations {
+		if !strings.HasPrefix(k, "juicefs") {
+			continue
+		}
+		if _, ok := volCtx[k]; ok && v != "" {
+			volCtx[k] = v
+		}
 	}
 	return nil
 }
