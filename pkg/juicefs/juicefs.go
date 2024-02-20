@@ -70,6 +70,7 @@ type Interface interface {
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
 	CreateTarget(ctx context.Context, target string) error
 	AuthFs(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, force bool) (string, error)
+	Status(ctx context.Context, metaUrl string) error
 }
 
 type juicefs struct {
@@ -769,7 +770,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		}
 		if config.ByProcess && secrets["initconfig"] != "" {
 			conf := secrets["name"] + ".conf"
-			confPath := filepath.Join(config.ClientConfPath, conf)
+			confPath := filepath.Join(setting.ClientConfPath, conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
 				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
@@ -788,6 +789,12 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		stripped := setting.StripFormatOptions(options, []string{"session-token"})
 		cmdArgs = append(cmdArgs, stripped...)
 	}
+
+	if setting.ClientConfPath != "" {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
+		args = append(args, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
+	}
+
 	klog.V(5).Infof("AuthFs cmd: %v", cmdArgs)
 
 	// only run command when in process mode
@@ -887,6 +894,18 @@ func wrapSetQuotaErr(res string, err error) error {
 		re := string(res)
 		if strings.Contains(re, "invalid command: quota") || strings.Contains(re, "No help topic for 'quota'") {
 			klog.Info("juicefs inside do not support quota, skip it.")
+			return nil
+		}
+		return errors.Wrap(err, re)
+	}
+	return err
+}
+
+func wrapStatusErr(res string, err error) error {
+	if err != nil {
+		re := string(res)
+		if strings.Contains(re, "database is not formatted") {
+			klog.Infof("juicefs not formatted, ignore status command error")
 			return nil
 		}
 		return errors.Wrap(err, re)
@@ -1042,4 +1061,29 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
+}
+
+// Status checks the status of JuiceFS, only for community edition
+func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
+	args := []string{"status", metaUrl}
+	cmdArgs := []string{config.CeCliPath, "status", "${metaurl}"}
+
+	klog.Infof("Status cmd: %s", strings.Join(cmdArgs, " "))
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
+	defer cmdCancel()
+
+	done := make(chan error, 1)
+	go func() {
+		res, err := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
+		done <- wrapStatusErr(string(res), err)
+		close(done)
+	}()
+
+	select {
+	case <-cmdCtx.Done():
+		err := fmt.Errorf("juicefs status %s timed out", 2*defaultCheckTimeout)
+		return err
+	case err := <-done:
+		return err
+	}
 }

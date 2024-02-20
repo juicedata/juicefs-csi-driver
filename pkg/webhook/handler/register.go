@@ -21,12 +21,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 const (
 	SidecarPath    = "/juicefs/inject-v1-pod"
 	ServerlessPath = "/juicefs/serverless/inject-v1-pod"
+	SecretPath     = "/juicefs/validate-secret"
 )
 
 // Register registers the handlers to the manager
@@ -36,4 +38,7 @@ func Register(mgr manager.Manager, client *k8sclient.K8sClient) {
 	klog.Infof("Registered webhook handler path %s for sidecar", SidecarPath)
 	server.Register(ServerlessPath, &webhook.Admission{Handler: NewSidecarHandler(client, true)})
 	klog.Infof("Registered webhook handler path %s for serverless", ServerlessPath)
+	if config.ValidatingWebhook {
+		server.Register(SecretPath, &webhook.Admission{Handler: NewSecretHandler(client)})
+	}
 }

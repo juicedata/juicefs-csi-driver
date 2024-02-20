@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -79,7 +78,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 	conf := jfsSetting.Name + ".conf"
-	confPath := filepath.Join(config.ClientConfPath, conf)
+	confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
 	b, err := os.ReadFile(confPath)
 	if err != nil {
 		klog.Errorf("read initconfig %s failed: %v", conf, err)

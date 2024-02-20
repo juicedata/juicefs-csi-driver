@@ -50,6 +50,7 @@ func parseControllerConfig() {
 	config.Provisioner = provisioner
 	config.CacheClientConf = cacheConf
 	config.FormatInPod = formatInPod
+	config.ValidatingWebhook = validationWebhook
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
 	}

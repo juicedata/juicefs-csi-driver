@@ -1,0 +1,6 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: juicefs-admission-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: kube-system/juicefs-cert

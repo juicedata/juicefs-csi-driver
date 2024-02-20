@@ -269,6 +269,20 @@ func (mr *MockInterfaceMockRecorder) Settings(arg0, arg1, arg2, arg3, arg4 inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Settings", reflect.TypeOf((*MockInterface)(nil).Settings), arg0, arg1, arg2, arg3, arg4)
 }
 
+// Status mocks base method.
+func (m *MockInterface) Status(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Status", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Status indicates an expected call of Status.
+func (mr *MockInterfaceMockRecorder) Status(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Status", reflect.TypeOf((*MockInterface)(nil).Status), arg0, arg1)
+}
+
 // Unmount mocks base method.
 func (m *MockInterface) Unmount(arg0 string) error {
 	m.ctrl.T.Helper()
