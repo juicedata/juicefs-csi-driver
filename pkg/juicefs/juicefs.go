@@ -344,6 +344,9 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 }
 
 func (j *juicefs) overwriteVolCtxWithPVCAnnotations(ctx context.Context, volumeID string, volCtx map[string]string) error {
+	if config.ByProcess {
+		return nil
+	}
 	pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
 	if err != nil {
 		return err
