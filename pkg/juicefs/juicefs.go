@@ -320,7 +320,7 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	}
 
 	if err := j.overwriteVolCtxWithPVCAnnotations(ctx, volumeID, volCtx); err != nil {
-		klog.Warningf("Overwrite volCtx with PVC annotations error: %v", err)
+		klog.Errorf("Overwrite volCtx with PVC annotations error: %v", err)
 	}
 	jfsSetting, err := j.genJfsSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {

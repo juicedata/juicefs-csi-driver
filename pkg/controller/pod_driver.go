@@ -376,7 +376,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				controllerutil.AddFinalizer(newPod, config.Finalizer)
 				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
 				if err := p.OverwirteMountPodResourcesWithPVC(ctx, newPod); err != nil {
-					klog.Errorf("overwrite mount pod resources wiht pv error %v", err)
+					klog.Errorf("Overwrite mount pod resources wiht pvc error %v", err)
 				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
