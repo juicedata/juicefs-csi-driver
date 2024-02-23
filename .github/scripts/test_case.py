@@ -865,7 +865,7 @@ def test_static_cache_clean_upon_umount():
 
     # deploy pv
     pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
-            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
+            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}",f"free-space-ratio=0.01"])
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
@@ -944,7 +944,7 @@ def test_dynamic_cache_clean_upon_umount():
     sc_name = RESOURCE_PREFIX + "-sc-cache"
     # deploy sc
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
-                      parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}"])
+                      parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}",f"free-space-ratio=0.01"])
     LOG.info("Deploy storageClass {}".format(sc.name))
     sc.create()
 

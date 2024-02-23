@@ -375,6 +375,9 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				}
 				controllerutil.AddFinalizer(newPod, config.Finalizer)
 				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
+				if err := p.OverwirteMountPodResourcesWithPVC(ctx, newPod); err != nil {
+					klog.Errorf("Overwrite mount pod resources with pvc error %v", err)
+				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
@@ -672,4 +675,30 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	if err := podMnt.CleanCache(ctx, image, uuid, uniqueId, cacheDirs); err != nil {
 		klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s error %v", uniqueId, err)
 	}
+}
+
+func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *corev1.Pod) error {
+	pvName := pod.Annotations[config.UniqueId]
+	pv, err := p.Client.GetPersistentVolume(ctx, pvName)
+	if err != nil {
+		klog.Errorf("Get pv %s error: %v", pvName, err)
+		return err
+	}
+	pvc, err := p.Client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+	if err != nil {
+		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+		return err
+	}
+
+	cpuLimit := pvc.Annotations[config.MountPodCpuLimitKey]
+	memoryLimit := pvc.Annotations[config.MountPodMemLimitKey]
+	cpuRequest := pvc.Annotations[config.MountPodCpuRequestKey]
+	memoryRequest := pvc.Annotations[config.MountPodMemRequestKey]
+
+	resources, err := config.ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+	if err != nil {
+		return fmt.Errorf("parse pvc resources error: %v", err)
+	}
+	pod.Spec.Containers[0].Resources = resources
+	return nil
 }

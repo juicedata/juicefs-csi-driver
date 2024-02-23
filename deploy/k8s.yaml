@@ -184,6 +184,7 @@ rules:
   - ""
   resources:
   - persistentvolumes
+  - persistentvolumeclaims
   verbs:
   - get
   - list

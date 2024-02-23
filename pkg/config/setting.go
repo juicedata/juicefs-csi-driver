@@ -351,7 +351,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		memoryLimit := volCtx[MountPodMemLimitKey]
 		cpuRequest := volCtx[MountPodCpuRequestKey]
 		memoryRequest := volCtx[MountPodMemRequestKey]
-		jfsSetting.Resources, err = parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+		jfsSetting.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 		if err != nil {
 			klog.Errorf("Parse resource error: %v", err)
 			return nil, err
@@ -505,7 +505,7 @@ func ParseYamlOrJson(source string, dst interface{}) error {
 	return parseYamlOrJson(source, dst)
 }
 
-func parsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) (corev1.ResourceRequirements, error) {
+func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) (corev1.ResourceRequirements, error) {
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
 	// set default value

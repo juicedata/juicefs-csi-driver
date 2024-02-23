@@ -776,7 +776,7 @@ func Test_parsePodResources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest)
+			got, err := ParsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parsePodResources() error = %v, wantErr %v", err, tt.wantErr)
 				return
