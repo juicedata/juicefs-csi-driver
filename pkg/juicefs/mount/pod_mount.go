@@ -368,12 +368,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					}
 				}
 
+				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+					return err
+				}
 				_, err = p.K8sClient.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("createOrAddRef: Create pod %s err: %v", podName, err)
-				}
-				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
-					return err
 				}
 				return err
 			} else if k8serrors.IsTimeout(err) {
