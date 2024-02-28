@@ -362,9 +362,7 @@ func (j *juicefs) overwriteVolCtxWithPVCAnnotations(ctx context.Context, volumeI
 		if !strings.HasPrefix(k, "juicefs") {
 			continue
 		}
-		if _, ok := volCtx[k]; ok && v != "" {
-			volCtx[k] = v
-		}
+		volCtx[k] = v
 	}
 	return nil
 }
