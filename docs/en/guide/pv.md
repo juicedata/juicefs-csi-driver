@@ -873,6 +873,15 @@ spec:
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
 
+### Reclaim policy {#relaim-policy}
+
+Under static provisioning, only `persistentVolumeReclaimPolicy: Retain` is supported, static PVs cannot reclaim data with PV deletion.
+
+Dynamic provisioning supports `Delete|Retain` policies, `Delete` causes data to be deleted with PV release, if data security is a concern, remember to enable the "trash" feature of JuiceFS:
+
+* [JuiceFS Community Edition docs](https://juicefs.com/docs/community/security/trash)
+* [JuiceFS Enterprise Edition docs](https://juicefs.com/docs/zh/cloud/trash)
+
 ### Mount host's directory in Mount Pod {#mount-host-path}
 
 If you need to mount files or directories into the mount pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:

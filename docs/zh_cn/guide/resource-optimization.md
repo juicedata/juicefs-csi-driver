@@ -24,9 +24,39 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
 kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
-### 静态配置
+### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
 
-在 `PersistentVolume` 中配置资源请求和约束：
+自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这也是最灵活、我们最推荐的方式。但也要注意：
+
+* 修改以后，已有的 mount pod 并不会自动按照新的配置重建。需要删除 mount pod，才能以新的资源配置触发创建新的 mount pod。
+* 必须配置好[挂载点自动恢复](./pv.md#automatic-mount-point-recovery)，重建后 mount pod 的挂载点才能传播回应用 pod。
+* 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
+
+```yaml {6-9}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+  annotations:
+    juicefs/mount-cpu-request: 100m
+    juicefs/mount-cpu-limit: "1"  # 数字必须以引号封闭，作为字符串传入
+    juicefs/mount-memory-request: 500Mi
+    juicefs/mount-memory-limit: 1Gi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+### 其他方式（不推荐） {#deprecated-resources-definition}
+
+:::warning
+优先使用上方介绍的 PVC annotations 方式，他支持动态变更，所以是我们更为推荐的方式。而下方介绍的方式一旦设置成功，就无法修改，只能删除重建 PV，已不再推荐使用。
+:::
+
+静态配置中，可以在 `PersistentVolume` 中配置资源请求和约束：
 
 ```yaml {22-25}
 apiVersion: v1
@@ -56,9 +86,7 @@ spec:
       juicefs/mount-memory-request: 500Mi
 ```
 
-### 动态配置
-
-在 `StorageClass` 中配置资源请求和约束：
+动态配置中，可以在 `StorageClass` 中配置资源请求和约束：
 
 ```yaml {11-14}
 apiVersion: storage.k8s.io/v1
@@ -76,6 +104,24 @@ parameters:
   juicefs/mount-cpu-request: 100m
   juicefs/mount-memory-request: 500Mi
 ```
+
+在 0.23.4 以及之后的版本中，由于支持[参数模板化](./pv.md#)，可以在 StorageClass 的 `parameters` 参数支持模版配置：
+
+```yaml {8-11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
+  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
+  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
+  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
+```
+
+需要注意，由于已经支持[在 PVC annotations 定义 mount pod 资源](#mount-pod-resources-pvc)，已不需要用到此配置方法。
 
 如果你使用 Helm 管理 StorageClass，则直接在 `values.yaml` 中定义：
 

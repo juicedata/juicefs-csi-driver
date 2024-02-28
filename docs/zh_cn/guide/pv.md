@@ -630,7 +630,7 @@ spec:
 
 严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
 
-## 使用挂载参数模版 {#using-options-template}
+## 使用挂载参数模版 {#options-template}
 
 :::tip 提示
 [进程挂载模式](../introduction.md#by-process)不支持该功能。
@@ -657,7 +657,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-手动编辑 CSI Controller：
+如果是 kubectl 安装方式，启用该功能需要手动编辑 CSI Controller，操作较为复杂，因此建议[迁移到 Helm 安装方式](../administration/upgrade-csi-driver.md#migrate-to-helm)。
 
 ```shell
 kubectl edit sts -n kube-system juicefs-csi-controller
@@ -728,7 +728,7 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
 
 #### 根据网络区域设置 `cache-group`
 
-借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的 Node 设置 annotation 以标记区域：
+借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的节点设置 annotations 以标记缓存组名称：
 
 ```bash
 $ kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
@@ -750,14 +750,11 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
 mountOptions:
   - cache-group="${.node.annotations.myjfs.juicefs.com/cacheGroup}"
+# 必须设置为 `WaitForFirstConsumer`，否则 PV 会提前创建，此时不确定被分配的 Node，cache-group 注入不生效。
 volumeBindingMode: WaitForFirstConsumer
 ```
 
-:::tip 提示
-注意此处 `volumeBindingMode` 必须设置为 `WaitForFirstConsumer`，否则 PV 会提前创建，此时不确定被分配的 Node，`cache-group` 注入不生效。
-:::
-
-当创建 PVC 和使用它的 Pod 后，可以看到我们的 Provisioner 把 Node 的 annotation 注入了相应的 PV：
+当创建 PVC 和使用它的 Pod 后，可以用下方命令核实 Provisioner 把节点 annotations 注入了相应的 PV：
 
 ```bash {8}
 $ kubectl get pv pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b -o yaml
@@ -805,27 +802,6 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
   pathPattern: "${.pvc.namespace}-${.pvc.name}"
-```
-
-### 动态调整 MountPod 的 Resources {#mountpod-resources}
-
-在 0.23.4 以及之后的版本中 `parameters` 参数支持模版配置。
-
-```yaml {11-14}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
-  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
-  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
-  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
 ```
 
 ### 可注入值与版本差异
@@ -956,6 +932,15 @@ spec:
 ### 访问模式 {#access-modes}
 
 JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV／PVC（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
+
+### 回收策略 {#reclaim-policy}
+
+静态配置下仅支持 `persistentVolumeReclaimPolicy: Retain`，无法随着删除回收。
+
+动态配置支持 `Delete|Retain` 两种回收策略，按需使用。`Delete` 会导致 JuiceFS 内的 PVC 子目录随着 PV 删除一起释放，如果担心数据安全，可以配合 JuiceFS 的回收站功能一起使用：
+
+* [社区版回收站文档](https://juicefs.com/docs/zh/community/security/trash)
+* [企业版回收站文档](https://juicefs.com/docs/zh/cloud/trash)
 
 ### 给 Mount Pod 挂载宿主机目录 {#mount-host-path}
 
