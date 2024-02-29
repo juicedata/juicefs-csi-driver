@@ -18,7 +18,11 @@ sidebar_position: 1
 
 * 建议为 Mount Pod 设置非抢占式 PriorityClass，详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
 
-## 监控 Mount Pod {#monitoring}
+## 监控 Mount Pod（社区版） {#monitoring}
+
+:::tip
+本节介绍的监控相关实践仅适用于 JuiceFS 社区版，企业版客户端并不通过本地端口来暴露监控数据，而是提供中心化的抓取 API，详见[企业版文档](https://juicefs.com/docs/zh/cloud/administration/monitoring/#prometheus-api)。
+:::
 
 默认设置下（未使用 `hostNetwork`），Mount Pod 通过 9567 端口提供监控 API（也可以通过在 [`mountOptions`](../guide/pv.md#mount-options) 中添加 [`metrics`](https://juicefs.com/docs/zh/community/command_reference#mount) 选项来自定义端口号），端口名为 `metrics`，因此可以按如下方式配置 Prometheus 的监控配置。
 

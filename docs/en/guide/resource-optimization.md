@@ -24,9 +24,35 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
 kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
-### Static provisioning
+### Declare resources in PVC annotations {#mount-pod-resources-pvc}
 
-Set resource requests and limits in `PersistentVolume`:
+Since 0.23.4, users can declare mount pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage mount pod resources. But do note this:
+
+* After annotations are edited, existing mount pods won't be re-created according to the current config, you'll need to delete existing mount pods to trigger the re-creation.
+* [Automatic mount point recovery](./pv.md#automatic-mount-point-recovery) must be set up in advance so that the new mount points can be propagated back to the application pods.
+* Even with automatic mount point recovery, this process WILL cause short service abruption.
+
+```yaml {6-9}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+  annotations:
+    juicefs/mount-cpu-request: 100m
+    juicefs/mount-cpu-limit: "1"  # Enclose numbers in quotes
+    juicefs/mount-memory-request: 500Mi
+    juicefs/mount-memory-limit: 1Gi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+### Other methods (deprecated) {#deprecated-resources-definition}
+
+For static provisioning, set resource requests and limits in `PersistentVolume`:
 
 ```yaml {22-25}
 apiVersion: v1
@@ -56,9 +82,7 @@ spec:
       juicefs/mount-memory-request: 500Mi
 ```
 
-### Dynamic provisioning
-
-Set resource requests and limits in `StorageClass`:
+For dynamic provisioning, set resource requests and limits in `StorageClass`:
 
 ```yaml {11-14}
 apiVersion: storage.k8s.io/v1
