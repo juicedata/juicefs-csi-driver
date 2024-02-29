@@ -39,7 +39,7 @@ metadata:
   name: myclaim
   annotations:
     juicefs/mount-cpu-request: 100m
-    juicefs/mount-cpu-limit: "1"  # 数字必须以引号封闭，作为字符串传入
+    juicefs/mount-cpu-limit: "1"  # Enclose numbers in quotes
     juicefs/mount-memory-request: 500Mi
     juicefs/mount-memory-limit: 1Gi
 spec:
