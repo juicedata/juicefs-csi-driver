@@ -119,6 +119,7 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 			!strings.Contains(string(out), "mountpoint not found") &&
 			!strings.Contains(string(out), "no mount point specified") {
 			klog.Errorf("Could not lazy unmount %q: %v, output: %s", target, err, string(out))
+			return err
 		}
 		break
 	}
