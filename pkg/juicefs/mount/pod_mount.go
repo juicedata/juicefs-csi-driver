@@ -107,7 +107,7 @@ func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int
 func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) error {
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
-	klog.V(5).Infof("JfsUnmount: umount %s", target)
+	klog.V(5).Infof("JfsUnmount: lazy umount %s", target)
 	for {
 		command := exec.Command("umount", "-l", target)
 		out, err := command.CombinedOutput()
