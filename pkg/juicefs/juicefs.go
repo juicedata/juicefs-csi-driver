@@ -847,7 +847,10 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	klog.Infof("SetQuota cmd: %s", strings.Join(cmdArgs, " "))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
 	defer cmdCancel()
-
+	envs := syscall.Environ()
+	for key, val := range jfsSetting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+	}
 	var err error
 	if !jfsSetting.IsCe {
 		var authRes string
@@ -855,7 +858,10 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		if err != nil {
 			return errors.Wrap(err, authRes)
 		}
-		res, err := j.Exec.CommandContext(cmdCtx, config.CliPath, args...).CombinedOutput()
+		quotaCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
+		quotaCmd.SetEnv(envs)
+		res, err := quotaCmd.CombinedOutput()
+
 		if err == nil {
 			klog.V(5).Infof("quota set success: %s", string(res))
 		}
@@ -865,7 +871,9 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	done := make(chan error, 1)
 	go func() {
 		// ce cli will block until quota is set
-		res, err := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...).CombinedOutput()
+		quotaCmd := j.Exec.CommandContext(context.Background(), config.CeCliPath, args...)
+		quotaCmd.SetEnv(envs)
+		res, err := quotaCmd.CombinedOutput()
 		if err == nil {
 			klog.V(5).Infof("quota set success: %s", string(res))
 		}
