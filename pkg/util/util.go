@@ -403,18 +403,9 @@ func CheckDynamicPV(name string) (bool, error) {
 }
 
 func UmountPath(ctx context.Context, sourcePath string) {
-	cmd := exec.CommandContext(ctx, "umount", sourcePath)
-	if outBytes, err := cmd.CombinedOutput(); err != nil {
-		out := string(outBytes)
-		if !strings.Contains(out, "not mounted") &&
-			!strings.Contains(out, "mountpoint not found") &&
-			!strings.Contains(out, "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", sourcePath, err)
-			output, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
-			if err != nil {
-				klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
-			}
-		}
+	cmd := exec.CommandContext(ctx, "umount", "-l", sourcePath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		klog.Errorf("could not lazy unmount %q: %v, output: %s", sourcePath, err, string(output))
 	}
 }
 

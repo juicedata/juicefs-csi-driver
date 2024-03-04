@@ -109,7 +109,7 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 	// umount until it's not mounted.
 	klog.V(5).Infof("JfsUnmount: umount %s", target)
 	for {
-		command := exec.Command("umount", target)
+		command := exec.Command("umount", "-l", target)
 		out, err := command.CombinedOutput()
 		if err == nil {
 			continue
@@ -118,12 +118,7 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 		if !strings.Contains(string(out), "not mounted") &&
 			!strings.Contains(string(out), "mountpoint not found") &&
 			!strings.Contains(string(out), "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
-			output, err := exec.Command("umount", "-l", target).CombinedOutput()
-			if err != nil {
-				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", target, err, string(output))
-				return err
-			}
+			klog.Errorf("Could not lazy unmount %q: %v, output: %s", target, err, string(out))
 		}
 		break
 	}
