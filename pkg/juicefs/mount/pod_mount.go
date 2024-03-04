@@ -107,9 +107,9 @@ func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int
 func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) error {
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
-	klog.V(5).Infof("JfsUnmount: umount %s", target)
+	klog.V(5).Infof("JfsUnmount: lazy umount %s", target)
 	for {
-		command := exec.Command("umount", target)
+		command := exec.Command("umount", "-l", target)
 		out, err := command.CombinedOutput()
 		if err == nil {
 			continue
@@ -118,12 +118,8 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 		if !strings.Contains(string(out), "not mounted") &&
 			!strings.Contains(string(out), "mountpoint not found") &&
 			!strings.Contains(string(out), "no mount point specified") {
-			klog.V(5).Infof("Unmount %s failed: %q, try to lazy unmount", target, err)
-			output, err := exec.Command("umount", "-l", target).CombinedOutput()
-			if err != nil {
-				klog.V(5).Infof("Could not lazy unmount %q: %v, output: %s", target, err, string(output))
-				return err
-			}
+			klog.Errorf("Could not lazy unmount %q: %v, output: %s", target, err, string(out))
+			return err
 		}
 		break
 	}

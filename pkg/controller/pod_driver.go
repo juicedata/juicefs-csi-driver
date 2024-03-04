@@ -81,13 +81,14 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 }
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
+	podStatus := getPodStatus(current)
+	klog.V(6).Infof("[PodDriver] start handle pod %s/%s, status: %s", current.Namespace, current.Name,  podStatus)
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
 	if err != nil {
 		return err
 	}
 
-	podStatus := getPodStatus(current)
 	if podStatus != podError && podStatus != podDeleted {
 		return p.handlers[podStatus](ctx, current)
 	}
