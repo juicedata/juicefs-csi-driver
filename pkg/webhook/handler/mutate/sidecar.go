@@ -74,6 +74,13 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 		return
 	}
 
+	// overwrite volume context
+	for k, v := range pair.PVC.Annotations {
+		if !strings.HasPrefix(k, "juicefs") {
+			continue
+		}
+		volCtx[k] = v
+	}
 	out = pod.DeepCopy()
 	// gen jfs settings
 	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
