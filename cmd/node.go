@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -167,8 +168,10 @@ func nodeRun() {
 	if !process && podManager {
 		needStartPodManager := false
 		if config.KubeletPort != "" && config.HostIp != "" {
-			if err := controller.StartReconciler(); err != nil {
-				klog.V(5).Info("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
+			if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
+				return controller.StartReconciler()
+			}); err != nil {
+				klog.V(5).Infof("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer. err: %+v", err)
 				needStartPodManager = true
 			}
 		} else {
