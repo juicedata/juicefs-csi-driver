@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 )
 
@@ -59,6 +60,7 @@ func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
 		if pod.DeletionTimestamp != nil {
 			deleted = true
 		}
+		klog.V(6).Infof("set pod %s deleted status %v", pod.Name, deleted)
 		mit.deletedPods[string(pod.UID)] = deleted
 	}
 }
