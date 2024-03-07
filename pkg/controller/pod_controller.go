@@ -81,6 +81,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 	uniqueId := mountPod.Annotations[config.UniqueId]
 	for _, p := range pvs {
+		p := p
 		if p.Spec.CSI == nil || p.Spec.CSI.Driver != config.DriverName {
 			continue
 		}

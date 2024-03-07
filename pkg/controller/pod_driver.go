@@ -130,12 +130,6 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	lock.Lock()
 	defer lock.Unlock()
 
-	// Add a 10s delay to avoid misjudgment of deletion due to cache reasons when the pod is just created
-	if time.Now().Before(pod.GetCreationTimestamp().Time.Add(10 * time.Second)) {
-		klog.V(5).Infof("[PodDriver] pod %s is just created, skip check annotations", pod.Name)
-		return nil
-	}
-
 	delAnnotations := []string{}
 	var existTargets int
 	for k, target := range pod.Annotations {
