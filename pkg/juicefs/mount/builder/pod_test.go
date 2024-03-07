@@ -117,7 +117,7 @@ var (
 				},
 				Lifecycle: &corev1.Lifecycle{
 					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf("umount %s -l && rmdir %s", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf("umount %s -l; rmdir %s; exit 0", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
 					},
 				},
 				Ports: []corev1.ContainerPort{

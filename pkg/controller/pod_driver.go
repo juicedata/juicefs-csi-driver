@@ -135,8 +135,9 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			targetUid := getPodUid(target)
+			// Only it is not in pod lists can be seen as deleted
 			_, exists := p.mit.deletedPods[targetUid]
-			if !exists { // only it is not in pod lists can be seen as deleted
+			if !exists {
 				// target pod is deleted
 				klog.V(5).Infof("[PodDriver] get app pod %s deleted in annotations of mount pod, remove its ref.", targetUid)
 				delAnnotations = append(delAnnotations, k)
