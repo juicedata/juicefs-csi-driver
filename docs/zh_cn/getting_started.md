@@ -133,7 +133,7 @@ Sidecar 与默认的容器挂载方式有很大不同，包括无法复用挂载
 ### Helm
 
 :::tip Serverless 注意事项
-从 v0.23.4 开始，Helm chart 支持名为 `mountMode: serverless` 的特殊模式。这种模式与 sidecar 相同，但移除了各种 serverless 环境中不支持的配置，比如 hostPath 挂载点，以及 privileged 权限。
+从 v0.23.5 开始，Helm chart 支持名为 `mountMode: serverless` 的特殊模式。这种模式与 sidecar 相同，但移除了各种 serverless 环境中不支持的配置，比如 hostPath 挂载点，以及 privileged 权限。
 
 `serverless` 模式将允许在 serverless 虚拟节点上安装 JuiceFS CSI 驱动，不再需要一个实际节点。
 :::

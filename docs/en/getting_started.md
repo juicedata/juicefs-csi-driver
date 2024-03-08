@@ -128,7 +128,7 @@ Learn about JuiceFS CSI Driver architecture, and components functionality in [In
 ## Installing in sidecar mode {#sidecar}
 
 :::tip Serverless Headsup
-Since v0.23.4, Helm chart supports `mountMode: serverless`, a special form of sidecar mode which removes everything not supported in a serverless environment, e.g. hostPath mount points, and container privileges.
+Since v0.23.5, Helm chart supports `mountMode: serverless`, a special form of sidecar mode which removes everything not supported in a serverless environment, e.g. hostPath mount points, and container privileges.
 
 The `serverless` mode allows CSI Driver to be installed in full virtual nodes, in comparison, the default `sidecar` mode still requires an actual VM.
 :::
