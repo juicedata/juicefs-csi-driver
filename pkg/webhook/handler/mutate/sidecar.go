@@ -74,6 +74,13 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 		return
 	}
 
+	// overwrite volume context
+	for k, v := range pair.PVC.Annotations {
+		if !strings.HasPrefix(k, "juicefs") {
+			continue
+		}
+		volCtx[k] = v
+	}
 	out = pod.DeepCopy()
 	// gen jfs settings
 	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
@@ -131,17 +138,11 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 }
 
 func (s *SidecarMutate) Deduplicate(pod, mountPod *corev1.Pod, index int) {
-	conflict := false
 	// deduplicate container name
 	for _, c := range pod.Spec.Containers {
 		if c.Name == mountPod.Spec.Containers[0].Name {
 			mountPod.Spec.Containers[0].Name = fmt.Sprintf("%s-%d", c.Name, index)
-			conflict = true
 		}
-	}
-	if !conflict {
-		// if container name not conflict, do not check others
-		return
 	}
 
 	// deduplicate volume name

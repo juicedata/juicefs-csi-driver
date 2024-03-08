@@ -22,6 +22,8 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/klog"
 	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -40,6 +42,11 @@ type VCIBuilder struct {
 	ServerlessBuilder
 	pvc corev1.PersistentVolumeClaim
 	app corev1.Pod
+}
+
+type VCIPropagationStruct struct {
+	Container string `json:"container"`
+	MountPath string `json:"mountPath"`
 }
 
 var _ SidecarInterface = &VCIBuilder{}
@@ -64,13 +71,27 @@ func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, p
 func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 	pod := r.genCommonJuicePod(r.genNonPrivilegedContainer)
 	// overwrite annotation
-	pod.Annotations = map[string]string{
-		VCIPropagationConfig: VCIPropagationConfigValue,
-		VCIPropagation: fmt.Sprintf(`[{
-			"container": "jfs-mount",
-			"mountPath" : "%s"
-		}]`, r.jfsSetting.MountPath),
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
 	}
+	mountContainerName := r.genMountContainerName()
+	pod.Annotations[VCIPropagationConfig] = VCIPropagationConfigValue
+
+	propagations := make([]VCIPropagationStruct, 0)
+	propagations = append(propagations, VCIPropagationStruct{
+		Container: mountContainerName,
+		MountPath: r.jfsSetting.MountPath,
+	})
+	if v, ok := r.app.Annotations[VCIPropagation]; ok {
+		var vciPropagations []VCIPropagationStruct
+		if err := json.Unmarshal([]byte(v), &vciPropagations); err == nil {
+			propagations = append(propagations, vciPropagations...)
+		} else {
+			klog.Errorf("failed to unmarshal VCIPropagation annotation: %v", err)
+		}
+	}
+	VCIPropagationBytes, _ := json.Marshal(propagations)
+	pod.Annotations[VCIPropagation] = string(VCIPropagationBytes)
 
 	// check mount & create subpath & set quota
 	capacity := strconv.FormatInt(r.capacity, 10)
@@ -81,6 +102,7 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 	}
 	quotaPath := r.getQuotaPath()
 	name := r.jfsSetting.Name
+	pod.Spec.Containers[0].Name = mountContainerName
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
@@ -184,4 +206,9 @@ func (r *VCIBuilder) genNonPrivilegedContainer() corev1.Container {
 			},
 		},
 	}
+}
+
+func (r *VCIBuilder) genMountContainerName() string {
+	pvcName := r.pvc.Name
+	return fmt.Sprintf("%s-%s", config.MountContainerName, pvcName)
 }
