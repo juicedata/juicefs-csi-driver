@@ -72,6 +72,12 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	defer os.RemoveAll(tempConfDir)
+	jfsSetting.ClientConfPath = tempConfDir
 	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
 	if err != nil {
 		klog.Errorf("auth failed: %s, %v", output, err)
