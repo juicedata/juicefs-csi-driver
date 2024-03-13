@@ -126,15 +126,6 @@ func parseControllerConfig() {
 
 func controllerRun() {
 	parseControllerConfig()
-
-	if version {
-		info, err := driver.GetVersionJSON()
-		if err != nil {
-			klog.Fatalln(err)
-		}
-		fmt.Println(info)
-		os.Exit(0)
-	}
 	if nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
 	}
