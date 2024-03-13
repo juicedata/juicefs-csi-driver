@@ -160,26 +160,6 @@ func (r *ServerlessBuilder) genServerlessVolumes() ([]corev1.Volume, []corev1.Vo
 		},
 	}
 
-	if r.jfsSetting.InitConfig != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "init-config",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-					Items: []corev1.KeyToPath{{
-						Key:  "initconfig",
-						Path: r.jfsSetting.Name + ".conf",
-					}},
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts,
-			corev1.VolumeMount{
-				Name:      "init-config",
-				MountPath: config.ROConfPath,
-			},
-		)
-	}
 	return volumes, volumeMounts
 }
 
