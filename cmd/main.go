@@ -18,11 +18,13 @@ package main
 
 import (
 	goflag "flag"
+	"fmt"
 	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 )
@@ -54,6 +56,15 @@ func main() {
 		Use:   "juicefs-csi",
 		Short: "juicefs csi driver",
 		Run: func(cmd *cobra.Command, args []string) {
+			if version {
+				info, err := driver.GetVersionJSON()
+				if err != nil {
+					klog.Fatalln(err)
+				}
+				fmt.Println(info)
+				os.Exit(0)
+			}
+
 			run()
 		},
 	}
