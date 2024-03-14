@@ -319,6 +319,10 @@ kubectl label node [node-1] [node-2] app=model-training
 
 除了 `nodeSelector`，Kubernetes 还提供更多方式控制容器调度，参考[将 Pod 指派给节点](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node)。
 
+:::warning
+如果使用 nodeSelector 将 CSI-node 驱动部署到选定的节点，那么使用了 JuiceFS PV 的应用，也需要加上相同的 nodeSelector，才能保证分配到能够提供文件系统服务的节点上。
+:::
+
 #### 通过 Helm 安装
 
 在 `values.yaml` 中添加如下配置：

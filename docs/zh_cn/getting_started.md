@@ -70,7 +70,8 @@ title: 安装
 1. 安装 CSI 驱动：
 
    ```shell
-   helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
+   # 不论是初次安装还是后续的配置变更，都可以运行这一行命令达到效果
+   helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
    ```
 
 推荐将上方的 values 文件进行源码管理，这样一来就算配置不断变化，也能对其进行追溯和回滚。

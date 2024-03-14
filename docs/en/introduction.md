@@ -36,7 +36,7 @@ To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via
 
 ### Static provisioning
 
-This is the simpler approach, under static provisioning, the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
+Static provisioning is the simpler approach, which by default mounts the whole JuiceFS volume root into application pod (also supports [mounting subdirectories](./guide/pv.md#mount-subdirectory)), the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
 
 ![static-provisioning](./images/static-provisioning.svg)
 
@@ -47,7 +47,9 @@ Use static provisioning when:
 
 ### Dynamic provisioning
 
-Managing PVs can be wearisome, when using CSI Driver at scale, it's recommended to create PV dynamically via dynamic provisioning, relieving the administrator from managing the PVs, while also achieving application data isolation. Under dynamic provisioning, the Kubernetes administrator will create and manage one or more StorageClass, the user only need to create a PVC and reference it in pod definition, and JuiceFS CSI Driver will create the corresponding PV for you. The relationship between different resources:
+Managing PVs can be wearisome, when using CSI Driver at scale, it's recommended to create PV dynamically via dynamic provisioning, relieving the administrator from managing the PVs, while also achieving application data isolation. Under dynamic provisioning, the Kubernetes administrator will create and manage one or more StorageClass, the user only need to create a PVC and reference it in pod definition, and JuiceFS CSI Driver will create the corresponding PV for you, with each PV corresponding to a subdirectory inside JuiceFS.
+
+The relationship between different resources:
 
 ![dynamic-provisioning](./images/dynamic-provisioning.svg)
 

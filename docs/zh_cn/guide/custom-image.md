@@ -33,33 +33,39 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 :::tip 提示
 覆盖 Mount Pod 镜像后，注意：
 
-* JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级。
-* 需要重新创建 PVC，方可令新配置生效。
+* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者重新创建 PVC，才会采用新的镜像
+* JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级
 :::
 
-### 修改 CSI Node，全局覆盖 Mount Pod 镜像 {#overwrite-in-csi-node}
+### 全局修改 {#overwrite-in-csi-node}
 
-修改 CSI Node 配置以后，所有新启动的 Mount Pod 就一律使用指定的镜像了，如果你希望全局覆盖，则选用此法。
+如果你用 Helm 安装 CSI 驱动，修改 mount 镜像非常简单，在 values 中定义即可：
 
-如果你使用 JuiceFS 社区版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_CE_MOUNT_IMAGE` 环境变量：
-
-```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+```yaml
+defaultMountImage:
+  # 社区版
+  ce: "juicedata/mount:ce-v1.1.2"
+  # 企业版
+  ee: "juicedata/mount:ee-5.0.10-10fbc97"
 ```
 
-如果你使用 JuiceFS 商业版，需要在 CSI Controller 和 CSI Node 的 `juicefs-plugin` 容器中设置 `JUICEFS_EE_MOUNT_IMAGE` 环境变量：
+而如果是 kubectl 直接安装，那么需要在 CSI 驱动的组件中设置环境变量：
 
 ```shell
+# 社区版
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+
+# 企业版
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
 kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
 ```
 
-在全局覆盖的情况下，如果还希望为部分应用单独指定 Mount Pod 镜像，还可以参考下方小节的做法，额外地[在 StorageClass 中进行覆盖](#overwrite-in-sc)，优先级更高。
+修改完毕以后，别忘了将这些配置同时加入 `k8s.yaml`，避免下次安装时配置丢失。正因为 kubectl 的安装方式管理配置不方便，所以建议在生产集群采用 [Helm 安装方式](../getting_started.md#helm)。
 
-### 修改 StorageClass，指定 Mount Pod 镜像 {#overwrite-in-sc}
+### 动态配置 {#overwrite-in-sc}
 
-如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
+CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1

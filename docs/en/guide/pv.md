@@ -239,7 +239,7 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 ## Static provisioning {#static-provisioning}
 
-Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
+Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application pod (also refer to [mount subdirectory](#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
 Create the following Kubernetes resources, refer to YAML comments for field descriptions:
 
@@ -383,7 +383,7 @@ parameters:
 
 ## Dynamic provisioning {#dynamic-provisioning}
 
-Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
+Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, each corresponds to a sub-directory inside the JuiceFS volume, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
 Create PVC and example pod:
 

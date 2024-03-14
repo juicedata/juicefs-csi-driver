@@ -297,6 +297,10 @@ kubectl label node [node-1] [node-2] app=model-training
 
 Apart from `nodeSelector`, Kubernetes also offer other mechanisms to control pod scheduling, see [Assigning Pods to Nodes](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node).
 
+:::warning
+If you were to use nodeSelector to limit CSI-node to specified nodes, then you need to add the same nodeSelector to your applications, so that app pods are guaranteed to be scheduled on the nodes that can actually provide JuiceFS service.
+:::
+
 #### Install via Helm
 
 Add `nodeSelector` in `values.yaml`:
