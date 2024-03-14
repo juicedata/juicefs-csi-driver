@@ -40,7 +40,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 ### 静态配置
 
-静态配置方式最为简单直接，需要 Kubernetes 管理员创建 PersistentVolume（PV）以及[文件系统认证信息](./guide/pv.md#volume-credentials)（以 Kubernetes Secret 形式保存），然后用户创建 PersistentVolumeClaim（PVC），在定义中绑定该 PV，最后在 Pod 定义中引用该 PVC。资源间关系如下图所示：
+静态配置方式最为简单直接，会直接将整个文件系统的根目录作为 PV 挂载到容器里（当然，也可以指定[子目录挂载](./guide/pv.md#mount-subdirectory)）。这种方式需要 Kubernetes 管理员创建 PersistentVolume（PV）以及[文件系统认证信息](./guide/pv.md#volume-credentials)（以 Kubernetes Secret 形式保存），然后用户创建 PersistentVolumeClaim（PVC），在定义中绑定该 PV，最后在 Pod 定义中引用该 PVC。资源间关系如下图所示：
 
 ![static-provisioning](./images/static-provisioning.svg)
 
@@ -51,7 +51,9 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 ### 动态配置
 
-考虑到静态配置的管理更加复杂，规模化使用 CSI 驱动时，一般会以「动态配置」方式使用，管理员不再需要手动创建 PV，同时实现应用间的数据隔离。这种模式下，管理员会负责创建一个或多个 StorageClass，用户只需要创建 PVC，指定 StorageClass，并且在 Pod 中引用该 PVC，CSI 驱动就会按照 StorageClass 中配置好的参数，为你自动创建 PV。资源间关系如下：
+考虑到静态配置的管理比较复杂，需要手动创建 PV，所以有大量应用需要使用 CSI 驱动时，一般会以「动态配置」方式使用，管理员不再需要手动创建 PV，同时实现应用间的数据隔离。这种模式下，管理员会负责创建一个或多个 StorageClass，用户只需要创建 PVC，指定 StorageClass，并且在 Pod 中引用该 PVC，CSI 驱动就会按照 StorageClass 中配置好的参数，为你自动创建 PV，每一个 PV 对应着 JuiceFS 文件系统的一个子目录。
+
+动态配置的资源间关系如下：
 
 ![dynamic-provisioning](./images/dynamic-provisioning.svg)
 

@@ -33,33 +33,39 @@ From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image 
 :::tip
 With mount pod image overwritten, note that:
 
-* [Upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client.
-* PVCs need to be recreated for changes to take effect.
+* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or re-create PVC
+* By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 :::
 
-### Configure CSI Node to overwrite mount pod image globally {#overwrite-in-csi-node}
+### Configure mount pod image globally {#overwrite-in-csi-node}
 
-Change CSI Node settings so that mount pod image is overwritten globally, choose this method if you wish to change the image for all applications.
+If you use Helm to manage CSI Driver, changing mount image is as simple as the following one-liner:
 
-If you use JuiceFS community edition, you need to set the `JUICEFS_CE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
-
-```shell
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+```yaml
+defaultMountImage:
+  # Community Edition
+  ce: "juicedata/mount:ce-v1.1.2"
+  # Enterprise Edition
+  ee: "juicedata/mount:ee-5.0.10-10fbc97"
 ```
 
-If you use JuiceFS enterprise edition, you need to set the `JUICEFS_EE_MOUNT_IMAGE` environment variable for the `juicefs-plugin` container of CSI Controller and CSI Node:
+But if you use kubectl to directly install a `k8s.yaml`, you'll have to set environment variables into the CSI Driver components:
 
 ```shell
+# Community Edition
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+
+# Enterprise Edition
 kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
 kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
 ```
 
-When mount pod image is set globally, you can even change mount pod image for specified application pods, by [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), since it has higher precedence over CSI Node environment settings.
+Also, don't forget to put these changes into `k8s.yaml`, to avoid losing these changes after the next installation. This is why we always recommend you use [Helm installation](../getting_started.md#helm) for production environments.
 
-### Configure StorageClass to specify mount pod image {#overwrite-in-sc}
+### Dynamic provisioning {#overwrite-in-sc}
 
-If you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
+CSI Driver allows [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), if you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1

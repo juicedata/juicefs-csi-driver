@@ -12,7 +12,7 @@ sidebar_position: 1
 
 虽然下方的示范中，Secret 都命名为了 `juicefs-secret`，但事实上命名是自定义的，你可以创建出多个 Secret，存储不同的文件系统认证信息，这样便可以在同一个 Kubernetes 集群中使用多个不同的文件系统。详见[「使用多个文件系统」](#multiple-volumes)。
 
-:::note 注意
+:::tip
 
 * 如果你已经在[用 Helm 管理 StorageClass](#helm-sc)，那么 Kubernetes Secret 其实已经一并创建，不需要再用 kubectl 单独创建和管理 Secret。
 * 修改了文件系统认证信息后，还需要滚动升级或重启应用 Pod，CSI 驱动重新创建 Mount Pod，配置变更方能生效。
@@ -51,9 +51,9 @@ stringData:
 - `bucket`：对象存储 Bucket URL。更多信息参考[「如何设置对象存储」](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
-- `format-options`：创建文件系统的选项，详见 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format)。该选项仅在 v0.13.3 及以上可用。
+- `format-options`：创建文件系统的选项，详见 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format)
 
-如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
+如遇重复参数，比如 `access-key`，既可以在 `stringData.access-key`中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
 ### 云服务 {#cloud-service}
 
@@ -84,9 +84,9 @@ stringData:
 - `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
-- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
+- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件
 
-如遇重复参数（比如 `access-key`），既可以在 Kubernetes Secret 中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
+如遇重复参数，比如 `access-key`，既可以在 `stringData.access-key`中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
 云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此字段名依然叫做 `format-options`。
 
@@ -239,7 +239,7 @@ stringData:
 
 ## 静态配置 {#static-provisioning}
 
-静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
+静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，如果按照下方示范创建，会直接挂载整个文件系统的根目录（如有需要，也可以参考[挂载子目录](#mount-subdirectory)）。阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
 
 创建所需的资源定义示范如下，字段含义请参考注释：
 
@@ -383,7 +383,7 @@ parameters:
 
 ## 动态配置 {#dynamic-provisioning}
 
-阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
+阅读[「使用方式」](../introduction.md#usage)以了解什么是「动态配置」。动态配置方式会自动为你创建 PV，每一个 PV 会最终对应 JuiceFS 文件系统中的一个子目录，而创建 PV 的基础配置参数在 StorageClass 中定义，因此你需要先行[创建 StorageClass](#create-storage-class)。
 
 创建 PVC 和应用 Pod，示范如下：
 
@@ -477,6 +477,54 @@ spec:
 :::note 注意
 在回收策略方面，临时卷与动态配置一致，因此如果将[默认 PV 回收策略](./resource-optimization.md#reclaim-policy)设置为 `Retain`，那么临时存储将不再是临时存储，PV 需要手动释放。
 :::
+
+## 格式化参数/认证参数 {#format-options}
+
+「格式化参数/认证参数」是 `juicefs [format|auth]` 命令所接受的参数，其中：
+
+* 社区版的 [`format`](https://juicefs.com/docs/zh/community/command_reference/#format) 是用于创建新文件系统的命令。社区版需要用户自行用客户端 `format` 命令创建文件系统，然后才能挂载；
+* 企业版的 [`auth`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth) 命令是负责向控制台发起认证、获取客户端配置文件。他在使用流程中的作用和 `format` 有些相似，这涉及到两个版本在使用上的区别：和社区版需要先格式化创建文件系统不同，企业版需要在 Web 控制台创建文件系统，客户端并不具备创建文件系统的能力，但是挂载时需要向控制台发起认证，这也就是 `auth` 命令的功能。
+
+考虑到这两个命令的相似性，不论你使用社区版还是企业版，对应的命令运行参数都填入 `format-options`，示范如下。
+
+:::tip
+修改 `format-options` 并不影响已有的挂载客户端，即便重启 Mount Pod 也不会生效，需要滚升/重启应用 Pod，或者重建 PVC，方能生效。
+
+:::
+
+社区版：
+
+```yaml {13}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <JUICEFS_NAME>
+  metaurl: <META_URL>
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
+  format-options: trash-days=1
+```
+
+企业版：
+
+```yaml {13}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
+  format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
+```
 
 ## 挂载参数 {#mount-options}
 

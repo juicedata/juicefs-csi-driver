@@ -69,7 +69,8 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 1. Execute below commands to deploy JuiceFS CSI Driver:
 
     ```shell
-    helm install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
+    # Use this command for both initial installation, and subsequent config changes
+    helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
     ```
 
 It's recommended that you include the values file used above in the version control system, so that any changes to the config can be restored.
