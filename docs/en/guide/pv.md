@@ -478,6 +478,54 @@ spec:
 As for reclaim policy, generic ephemeral volume works the same as dynamic provisioning, so if you changed [the default PV reclaim policy](./resource-optimization.md#reclaim-policy) to `Retain`, the ephemeral volume introduced in this section will no longer be ephemeral, you'll have to manage PV lifecycle yourself.
 :::
 
+## Format options / auth options {#format-options}
+
+Format options / auth options are options used in `juicefs [format|auth]` commands, in which:
+
+* The [`format`](https://juicefs.com/docs/community/command_reference/#format) command from JuiceFS CE is used to create a new file system, only then can you mount a file system via the `mount` command;
+* The [`auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth) command from JuiceFS EE authenticates against the web console, and fetch configurations for the client. Its role is somewhat similar to the above `format` command, this due to the differences between the two editions: CE needs to create a file system using our cli, while EE users create file systems directly from the web console, and authenticate later when they need to actually mount the file systems (via the `auth` command).
+
+Considering the similarities between the two commands, options all go to the `format-options` field, as follows.
+
+:::tip
+Changing `format-options` does not affect existing mount clients, even if mount pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
+
+:::
+
+JuiceFS Community Edition:
+
+```yaml {13}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: <JUICEFS_NAME>
+  metaurl: <META_URL>
+  storage: s3
+  bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
+  access-key: <ACCESS_KEY>
+  secret-key: <SECRET_KEY>
+  format-options: trash-days=1
+```
+
+JuiceFS Enterprise Edition:
+
+```yaml {13}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
+  format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
+```
+
 ## Mount options {#mount-options}
 
 Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.

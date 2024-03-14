@@ -31,10 +31,10 @@ juicedata/mount:v1.0.3-4.8.3
 JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，根据实际情况选择合适的手段。
 
 :::tip 提示
-覆盖 Mount Pod 镜像后，注意：
+覆盖 mount 镜像后，注意：
 
 * 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者重新创建 PVC，才会采用新的镜像
-* JuiceFS 客户端将不会随着[升级 CSI 驱动](../administration/upgrade-csi-driver.md)而升级
+* [升级 CSI 驱动](../administration/upgrade-csi-driver.md)时，默认会连带升级到 mount 镜像的最新稳定版。但如果你覆盖了 mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 mount 镜像升级
 :::
 
 ### 全局修改 {#overwrite-in-csi-node}

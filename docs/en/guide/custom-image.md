@@ -34,7 +34,7 @@ From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image 
 With mount pod image overwritten, note that:
 
 * Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or re-create PVC
-* [Upgrading CSI Driver](../administration/upgrade-csi-driver.md) will no longer bring update to JuiceFS Client
+* By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 :::
 
 ### Configure mount pod image globally {#overwrite-in-csi-node}
