@@ -54,14 +54,14 @@ dashboard-dist:
 .PHONY: dashboard
 dashboard:
 	mkdir -p bin
-	go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
+	CGO_ENABLED=0 go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
 
 .PHONY: dashboard-dev
 dashboard-dev: dashboard
 	./bin/juicefs-csi-dashboard -v=6 --dev --static-dir=./dashboard-ui/dist
 
 .PHONY: dashboard-image
-dashboard-image:
+dashboard-image: dashboard
 	docker build --build-arg HTTP_PROXY=$(HTTP_PROXY) --build-arg HTTPS_PROXY=$(HTTPS_PROXY) --build-arg GOPROXY=$(GOPROXY) \
 		-t $(REGISTRY)/juicedata/csi-dashboard:$(VERSION) -f docker/dashboard.Dockerfile .
 
@@ -88,10 +88,10 @@ uninstall: yaml
 
 # build dev image
 .PHONY: image-dev
-image-dev: juicefs-csi-driver
+image-dev: juicefs-csi-driver dashboard
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
 	docker build --build-context project=. --build-context ui=dashboard-ui/ -f docker/dashboard.Dockerfile \
-		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
+		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) bin
 
 # push dev image
 .PHONY: push-dev
