@@ -56,6 +56,5 @@ func (d *Driver) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCa
 
 // Probe probes driver
 func (d *Driver) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
-	klog.V(6).Infof("Probe: called with args %+v", *req)
 	return &csi.ProbeResponse{}, nil
 }
