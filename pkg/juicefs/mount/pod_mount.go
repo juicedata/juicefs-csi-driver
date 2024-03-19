@@ -391,6 +391,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	// Wait until the mount point is ready
+	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", jfsSetting.MountPath, podName)
 	for {
 		var finfo os.FileInfo
 		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func() (err error) {
@@ -400,18 +401,16 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				break
 			}
-			klog.V(5).Infof("mount path %v not ready: %v", jfsSetting.MountPath, err)
+			klog.V(6).Infof("mount path %v not ready, mountpod: %s, err: %v", jfsSetting.MountPath, podName, err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				klog.V(5).Infof("Mount point %v is ready", jfsSetting.MountPath)
+				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", jfsSetting.MountPath, podName)
 				return nil
 			}
-			klog.V(5).Infof("Mount point %v is not ready", jfsSetting.MountPath)
-		} else {
-			klog.V(5).Info("Cannot reach here")
+			klog.V(6).Infof("Mount point %v is not ready, mountpod: %s", jfsSetting.MountPath, podName)
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -421,7 +420,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 		klog.Errorf("Get pod %s log error %v", podName, err)
 		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	}
-	return fmt.Errorf("mount %v at %v failed: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, log)
+	return fmt.Errorf("mount %v at %v failed, mountpod: %s, failed log: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, podName, log)
 }
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
