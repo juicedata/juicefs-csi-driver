@@ -266,7 +266,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 			klog.V(5).Infof("mountPod PodResourceError, but pod no resource, do nothing.")
 		}
 	}
-	klog.V(5).Infof("[podErrorHandler]: Pod %s/%s with error: %s, %s", pod.Namespace, pod.Name, pod.Status.Reason, pod.Status.Message)
+	klog.Errorf("[podErrorHandler]: Pod %s/%s with error: %s, %s", pod.Namespace, pod.Name, pod.Status.Reason, pod.Status.Message)
 	return nil
 }
 

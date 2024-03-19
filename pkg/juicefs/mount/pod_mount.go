@@ -411,8 +411,6 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 				return nil
 			}
 			klog.V(6).Infof("Mount point %v is not ready, mountpod: %s", jfsSetting.MountPath, podName)
-		} else {
-			klog.V(6).Info("Cannot reach here")
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
