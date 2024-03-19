@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -98,7 +99,8 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		klog.Errorf("inject initconfig into %s failed: %v", request.Name, err)
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, nil
+	// requeue after to make sure the initconfig is always up-to-date
+	return reconcile.Result{Requeue: true, RequeueAfter: config.SecretReconcilerInterval}, nil
 }
 
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
@@ -124,12 +126,6 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
 			if !ok {
 				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
-				return false
-			}
-
-			_, exists := secretOld.Data["initconfig"]
-			if exists {
-				klog.V(6).Info("secret.onUpdateFunc Skip due to initconfig already injected")
 				return false
 			}
 
