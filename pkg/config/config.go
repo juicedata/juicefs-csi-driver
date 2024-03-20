@@ -40,17 +40,18 @@ var (
 	Immutable          = false            // csi driver is running in an immutable environment
 	EnableNodeSelector = false            // arrange mount pod to node with node selector instead nodeName
 
-	DriverName         = "csi.juicefs.com"
-	NodeName           = ""
-	Namespace          = ""
-	PodName            = ""
-	CEMountImage       = "juicedata/mount:ce-nightly" // mount pod ce image
-	EEMountImage       = "juicedata/mount:ee-nightly" // mount pod ee image
-	MountLabels        = ""
-	HostIp             = ""
-	KubeletPort        = ""
-	ReconcileTimeout   = 5 * time.Minute
-	ReconcilerInterval = 5
+	DriverName               = "csi.juicefs.com"
+	NodeName                 = ""
+	Namespace                = ""
+	PodName                  = ""
+	CEMountImage             = "juicedata/mount:ce-nightly" // mount pod ce image
+	EEMountImage             = "juicedata/mount:ee-nightly" // mount pod ee image
+	MountLabels              = ""
+	HostIp                   = ""
+	KubeletPort              = ""
+	ReconcileTimeout         = 5 * time.Minute
+	ReconcilerInterval       = 5
+	SecretReconcilerInterval = 1 * time.Hour
 
 	CSIPod = corev1.Pod{}
 

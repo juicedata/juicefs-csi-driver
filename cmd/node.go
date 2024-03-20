@@ -74,6 +74,12 @@ func parseNodeConfig() {
 			config.ReconcileTimeout = duration
 		}
 	}
+	if interval := os.Getenv("JUICEFS_CONFIG_UPDATE_INTERVAL"); interval != "" {
+		duration, _ := time.ParseDuration(interval)
+		if duration > config.SecretReconcilerInterval {
+			config.SecretReconcilerInterval = duration
+		}
+	}
 
 	if jfsMountPriorityName != "" {
 		config.JFSMountPriorityName = jfsMountPriorityName
