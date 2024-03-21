@@ -70,6 +70,19 @@ var (
 	JfsMountPath          = "/sbin/mount.juicefs"
 	DefaultClientConfPath = "/root/.juicefs"
 	ROConfPath            = "/etc/juicefs"
+
+	// mount pod probe
+	// TODO: make these configurable
+	EnableMountPodProbe              = true
+	LivenessProbeInitialDelaySeconds = int32(30)
+	LivenessProbeTimeoutSeconds      = int32(5)
+	LivenessProbePeriodSeconds       = int32(10)
+	LivenessProbeFailureThreshold    = int32(3)
+
+	StartupProbeInitialDelaySeconds = int32(30)
+	StartupProbeTimeoutSeconds      = int32(5)
+	StartupProbePeriodSeconds       = int32(10)
+	StartupProbeFailureThreshold    = int32(3)
 )
 
 const (
