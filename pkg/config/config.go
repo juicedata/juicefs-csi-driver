@@ -125,6 +125,9 @@ const (
 	DeleteDelayTimeKey = "juicefs-delete-delay"
 	DeleteDelayAtKey   = "juicefs-delete-at"
 
+	// MountPointDevMinorKey mount pod annotation key to record the minor number from the fuse mountpoint.
+	MountPointDevMinorKey = "juicefs/mountpoint-dev-minor"
+
 	// default value
 	DefaultMountPodCpuLimit   = "2000m"
 	DefaultMountPodMemLimit   = "5Gi"

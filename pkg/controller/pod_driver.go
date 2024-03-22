@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -290,6 +291,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		return err
 	}
 
+	go p.checkingMountPodStuck(pod)
+
 	// pod with resource error
 	if util.IsPodResourceError(pod) {
 		klog.V(6).Infof("The pod is PodResourceError, podDeletedHandler skip delete the pod:%s", pod.Name)
@@ -494,7 +497,23 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 	}
 
 	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		_, e := os.Stat(mntPath)
+		finfo, e := os.Stat(mntPath)
+		if e != nil {
+			return e
+		}
+		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+			if st.Ino == 1 {
+				devMinor := fmt.Sprintf("%d", util.DevMinor(st.Dev))
+				if v, ok := pod.Annotations[config.MountPointDevMinorKey]; !ok || v != devMinor {
+					payloads := map[string]string{config.MountPointDevMinorKey: devMinor}
+					err := util.AddPodAnnotation(ctx, p.Client, pod, payloads)
+					if err != nil {
+						klog.Errorf("[podReadyHandler]: add pod annotation error %+v", err)
+					}
+				}
+				return nil
+			}
+		}
 		return e
 	})
 
@@ -704,4 +723,49 @@ func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *
 	}
 	pod.Spec.Containers[0].Resources = resources
 	return nil
+}
+
+// checkingMountPodStuck check mount pod is stuck or not
+// maybe fuse deadlock issue, they symptoms are:
+//
+// 1. pod in terminating state
+// 2. after 1 minute, the pod is still alive.
+//
+// if those conditions are true, we need to manually tear down the fuse
+// connection so the pod doesn't get stuck.
+// we can do this to abort fuse connection:
+//
+//	echo 1 >> /sys/fs/fuse/connections/$dev_minor/abort
+func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
+	if pod == nil || getPodStatus(pod) != podDeleted {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			goto abort
+		default:
+			_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+			if apierrors.IsNotFound(err) {
+				return
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}
+
+abort:
+	if devMinor, ok := pod.Annotations[config.MountPointDevMinorKey]; ok {
+		err := os.WriteFile(fmt.Sprintf("/sys/fs/fuse/connections/%s/abort", devMinor), []byte("1"), 0600)
+		if err == nil {
+			return
+		}
+		klog.Warningf(`
+		mountpod %s/%s may be stuck in terminating state, you may need manually tear down the fuse connections in node %s.
+		
+		echo 1 >> /sys/fs/fuse/connections/%s/abort
+	`, pod.Namespace, pod.Name, pod.Spec.NodeName, devMinor)
+	}
 }

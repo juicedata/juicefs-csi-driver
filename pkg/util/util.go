@@ -466,3 +466,10 @@ func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry
 	registerer := prometheus.WrapRegistererWithPrefix("juicefs_", prometheus.WrapRegistererWith(prometheus.Labels{"node_name": nodeName}, registry))
 	return registerer, registry
 }
+
+// DevMinor returns the minor component of a Linux device number.
+func DevMinor(dev uint64) uint32 {
+	minor := dev & 0xff
+	minor |= (dev >> 12) & 0xffffff00
+	return uint32(minor)
+}
