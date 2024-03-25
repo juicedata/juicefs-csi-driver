@@ -29,6 +29,14 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
+var (
+	MountPointDevMinorTable map[string]uint32
+)
+
+func init() {
+	MountPointDevMinorTable = make(map[string]uint32)
+}
+
 func IsPodReady(pod *corev1.Pod) bool {
 	conditionsTrue := 0
 	for _, cond := range pod.Status.Conditions {

@@ -503,15 +503,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				devMinor := fmt.Sprintf("%d", util.DevMinor(st.Dev))
-				if v, ok := pod.Annotations[config.MountPointDevMinorKey]; !ok || v != devMinor {
-					payloads := map[string]string{config.MountPointDevMinorKey: devMinor}
-					err := util.AddPodAnnotation(ctx, p.Client, pod, payloads)
-					if err != nil {
-						klog.Errorf("[podReadyHandler]: add pod annotation error %+v", err)
-					}
-				}
-				return nil
+				util.MountPointDevMinorTable[mntPath] = util.DevMinor(st.Dev)
 			}
 		}
 		return e
@@ -729,9 +721,10 @@ func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *
 // maybe fuse deadlock issue, they symptoms are:
 //
 // 1. pod in terminating state
-// 2. after 1 minute, the pod is still alive.
+// 2. after max(pod.spec.terminationGracePeriodSeconds, 1min), the pod is still alive
+// 3. /sys/fs/fuse/connections/$dev_minor/waiting > 0
 //
-// if those conditions are true, we need to manually tear down the fuse
+// if those conditions are true, we need to manually abort the fuse
 // connection so the pod doesn't get stuck.
 // we can do this to abort fuse connection:
 //
@@ -740,8 +733,18 @@ func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
+	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
+	defer delete(util.MountPointDevMinorTable, mountPoint)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	timeout := 1 * time.Minute
+	if pod.Spec.TerminationGracePeriodSeconds != nil {
+		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)
+		if gracePeriod > timeout {
+			timeout = gracePeriod
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	for {
 		select {
@@ -757,15 +760,25 @@ func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
 	}
 
 abort:
-	if devMinor, ok := pod.Annotations[config.MountPointDevMinorKey]; ok {
-		err := os.WriteFile(fmt.Sprintf("/sys/fs/fuse/connections/%s/abort", devMinor), []byte("1"), 0600)
+	klog.V(6).Infof("pod %s/%s may be stuck in terminating state, check fuse connection", pod.Namespace, pod.Name)
+	if devMinor, ok := util.MountPointDevMinorTable[mountPoint]; ok {
+		waiting, err := os.ReadFile(fmt.Sprintf("/sys/fs/fuse/connections/%d/waiting", devMinor))
+		if err != nil {
+			klog.Errorf("read /sys/fs/fuse/connections/%d/waiting error: %v", devMinor, err)
+			return
+		}
+		if string(waiting) == "0" {
+			return
+		}
+		err = os.WriteFile(fmt.Sprintf("/sys/fs/fuse/connections/%d/abort", devMinor), []byte("1"), 0600)
 		if err == nil {
 			return
 		}
 		klog.Warningf(`
-		mountpod %s/%s may be stuck in terminating state, you may need manually tear down the fuse connections in node %s.
-		
-		echo 1 >> /sys/fs/fuse/connections/%s/abort
-	`, pod.Namespace, pod.Name, pod.Spec.NodeName, devMinor)
+		mountpod %s/%s may be stuck in terminating state, abort fuse connection error: %v
+		you may need manually abort the fuse connections in node %s.
+
+		echo 1 >> /sys/fs/fuse/connections/%d/abort
+	`, pod.Namespace, pod.Name, err, pod.Spec.NodeName, devMinor)
 	}
 }
