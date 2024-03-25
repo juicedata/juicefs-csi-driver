@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,11 +31,11 @@ import (
 )
 
 var (
-	MountPointDevMinorTable map[string]uint32
+	MountPointDevMinorTable sync.Map
 )
 
 func init() {
-	MountPointDevMinorTable = make(map[string]uint32)
+	MountPointDevMinorTable = sync.Map{}
 }
 
 func IsPodReady(pod *corev1.Pod) bool {

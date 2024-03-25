@@ -503,7 +503,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				util.MountPointDevMinorTable[mntPath] = util.DevMinor(st.Dev)
+				util.MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
 			}
 		}
 		return e
@@ -734,7 +734,7 @@ func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
 		return
 	}
 	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
-	defer delete(util.MountPointDevMinorTable, mountPoint)
+	defer util.MountPointDevMinorTable.Delete(mountPoint)
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
@@ -761,7 +761,7 @@ func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
 
 abort:
 	klog.V(6).Infof("pod %s/%s may be stuck in terminating state, check fuse connection", pod.Namespace, pod.Name)
-	if devMinor, ok := util.MountPointDevMinorTable[mountPoint]; ok {
+	if devMinor, ok := util.MountPointDevMinorTable.Load(mountPoint); ok {
 		waiting, err := os.ReadFile(fmt.Sprintf("/sys/fs/fuse/connections/%d/waiting", devMinor))
 		if err != nil {
 			klog.Errorf("read /sys/fs/fuse/connections/%d/waiting error: %v", devMinor, err)
