@@ -291,7 +291,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		return err
 	}
 
-	go p.checkingMountPodStuck(pod)
+	go p.checkMountPodStuck(pod)
 
 	// pod with resource error
 	if util.IsPodResourceError(pod) {
@@ -717,7 +717,7 @@ func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *
 	return nil
 }
 
-// checkingMountPodStuck check mount pod is stuck or not
+// checkMountPodStuck check mount pod is stuck or not
 // maybe fuse deadlock issue, they symptoms are:
 //
 // 1. pod in terminating state
@@ -729,7 +729,7 @@ func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *
 // we can do this to abort fuse connection:
 //
 //	echo 1 >> /sys/fs/fuse/connections/$dev_minor/abort
-func (p *PodDriver) checkingMountPodStuck(pod *corev1.Pod) {
+func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
