@@ -21,12 +21,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
+
+var (
+	MountPointDevMinorTable sync.Map
 )
 
 func IsPodReady(pod *corev1.Pod) bool {

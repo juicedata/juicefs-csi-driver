@@ -407,6 +407,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
+				util.MountPointDevMinorTable.Store(jfsSetting.MountPath, util.DevMinor(st.Dev))
 				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", jfsSetting.MountPath, podName)
 				return nil
 			}
