@@ -158,3 +158,53 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
+
+func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
+	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
+	ttlSecond := DefaultJobTTLSecond
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: mountpod.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: &ttlSecond,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            "fuse-abort",
+							Image:           mountpod.Spec.Containers[0].Image,
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Command: []string{
+								"sh",
+								"-c",
+								fmt.Sprintf(
+									"if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then echo 1 > /sys/fs/fuse/connections/%d/abort; fi;",
+									devMinor, devMinor),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "fuse-connections",
+									MountPath: "/sys/fs/fuse/connections",
+								},
+							},
+						},
+					},
+					NodeName:      mountpod.Spec.NodeName,
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes: []corev1.Volume{
+						{
+							Name: "fuse-connections",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/sys/fs/fuse/connections",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}

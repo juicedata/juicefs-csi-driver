@@ -34,10 +34,6 @@ var (
 	MountPointDevMinorTable sync.Map
 )
 
-func init() {
-	MountPointDevMinorTable = sync.Map{}
-}
-
 func IsPodReady(pod *corev1.Pod) bool {
 	conditionsTrue := 0
 	for _, cond := range pod.Status.Conditions {

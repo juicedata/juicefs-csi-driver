@@ -34,6 +34,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -721,7 +722,7 @@ func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *
 // maybe fuse deadlock issue, they symptoms are:
 //
 // 1. pod in terminating state
-// 2. after max(pod.spec.terminationGracePeriodSeconds, 1min), the pod is still alive
+// 2. after max(pod.spec.terminationGracePeriodSeconds*2, 1min), the pod is still alive
 // 3. /sys/fs/fuse/connections/$dev_minor/waiting > 0
 //
 // if those conditions are true, we need to manually abort the fuse
@@ -738,7 +739,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
-		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds)
+		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * 2
 		if gracePeriod > timeout {
 			timeout = gracePeriod
 		}
@@ -749,7 +750,15 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	for {
 		select {
 		case <-ctx.Done():
-			goto abort
+			klog.V(5).Infof("pod %s/%s may be stuck in terminating state, create a job to abort fuse connection", pod.Namespace, pod.Name)
+			if devMinor, ok := util.MountPointDevMinorTable.Load(mountPoint); ok {
+				if err := p.doAbortFuse(pod, devMinor.(uint32)); err != nil {
+					klog.Errorf("abort fuse connection error: %v", err)
+				}
+			} else {
+				klog.Errorf("can't find devMinor of mountPoint %s", mountPoint)
+			}
+			return
 		default:
 			_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 			if apierrors.IsNotFound(err) {
@@ -758,27 +767,33 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			time.Sleep(10 * time.Second)
 		}
 	}
+}
 
-abort:
-	klog.V(6).Infof("pod %s/%s may be stuck in terminating state, check fuse connection", pod.Namespace, pod.Name)
-	if devMinor, ok := util.MountPointDevMinorTable.Load(mountPoint); ok {
-		waiting, err := os.ReadFile(fmt.Sprintf("/sys/fs/fuse/connections/%d/waiting", devMinor))
-		if err != nil {
-			klog.Errorf("read /sys/fs/fuse/connections/%d/waiting error: %v", devMinor, err)
-			return
-		}
-		if string(waiting) == "0" {
-			return
-		}
-		err = os.WriteFile(fmt.Sprintf("/sys/fs/fuse/connections/%d/abort", devMinor), []byte("1"), 0600)
-		if err == nil {
-			return
-		}
-		klog.Warningf(`
-		mountpod %s/%s may be stuck in terminating state, abort fuse connection error: %v
-		you may need manually abort the fuse connections in node %s.
-
-		echo 1 >> /sys/fs/fuse/connections/%d/abort
-	`, pod.Namespace, pod.Name, err, pod.Spec.NodeName, devMinor)
+func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
+	job := builder.NewFuseAbortJob(mountpod, devMinor)
+	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
+		klog.Errorf("create fuse abort job error: %v", err)
+		return err
 	}
+
+	// wait for job to finish
+	waitCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	for {
+		if waitCtx.Err() == context.Canceled {
+			klog.Errorf("fuse abort job timeout")
+			break
+		}
+		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
+		if err != nil {
+			klog.Errorf("get fuse abort job error: %v", err)
+			continue
+		}
+		if util.IsJobCompleted(job) {
+			klog.V(5).Infof("fuse abort job %s/%s completed", job.Namespace, job.Name)
+			break
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return nil
 }
