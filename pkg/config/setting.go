@@ -519,7 +519,7 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 			return corev1.ResourceRequirements{}, err
 		}
 		q := podLimit[corev1.ResourceCPU]
-		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res <= 0 {
+		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res < 0 {
 			delete(podLimit, corev1.ResourceCPU)
 		}
 	}
@@ -528,7 +528,7 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 			return corev1.ResourceRequirements{}, err
 		}
 		q := podLimit[corev1.ResourceMemory]
-		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res <= 0 {
+		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res < 0 {
 			delete(podLimit, corev1.ResourceMemory)
 		}
 	}
@@ -537,7 +537,7 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 			return corev1.ResourceRequirements{}, err
 		}
 		q := podRequest[corev1.ResourceCPU]
-		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res <= 0 {
+		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res < 0 {
 			delete(podRequest, corev1.ResourceCPU)
 		}
 	}
@@ -546,7 +546,7 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 			return corev1.ResourceRequirements{}, err
 		}
 		q := podRequest[corev1.ResourceMemory]
-		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res <= 0 {
+		if res := q.Cmp(*resource.NewQuantity(0, resource.DecimalSI)); res < 0 {
 			delete(podRequest, corev1.ResourceMemory)
 		}
 	}
