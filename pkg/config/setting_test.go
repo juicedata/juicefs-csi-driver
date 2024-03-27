@@ -625,6 +625,54 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "specify preStop command",
+			args: args{
+				secrets: map[string]string{"name": "test", "prestop-cmd": "cd /tmp && ls; echo 1"},
+			},
+			want: &JfsSetting{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				Resources: defaultResource,
+				Attr: PodAttr{
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "juicedata/mount:ee-nightly",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs:           []CachePVC{},
+				ExtraPreStopHookCmd: "cd /tmp && ls; echo 1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "specify preStop command with duplicate semicolon",
+			args: args{
+				secrets: map[string]string{"name": "test", "prestop-cmd": "cd /tmp && ls; echo 1;"},
+			},
+			want: &JfsSetting{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				Resources: defaultResource,
+				Attr: PodAttr{
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "juicedata/mount:ee-nightly",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs:           []CachePVC{},
+				ExtraPreStopHookCmd: "cd /tmp && ls; echo 1",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

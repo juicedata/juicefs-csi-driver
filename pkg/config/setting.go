@@ -56,14 +56,15 @@ type JfsSetting struct {
 	ClientConfPath     string               `json:"-"`
 
 	// put in secret
-	SecretKey     string            `json:"secret-key,omitempty"`
-	SecretKey2    string            `json:"secret-key2,omitempty"`
-	Token         string            `json:"token,omitempty"`
-	Passphrase    string            `json:"passphrase,omitempty"`
-	Envs          map[string]string `json:"envs_map,omitempty"`
-	EncryptRsaKey string            `json:"encrypt_rsa_key,omitempty"`
-	InitConfig    string            `json:"initconfig,omitempty"`
-	Configs       map[string]string `json:"configs_map,omitempty"`
+	SecretKey           string            `json:"secret-key,omitempty"`
+	SecretKey2          string            `json:"secret-key2,omitempty"`
+	Token               string            `json:"token,omitempty"`
+	Passphrase          string            `json:"passphrase,omitempty"`
+	Envs                map[string]string `json:"envs_map,omitempty"`
+	EncryptRsaKey       string            `json:"encrypt_rsa_key,omitempty"`
+	InitConfig          string            `json:"initconfig,omitempty"`
+	Configs             map[string]string `json:"configs_map,omitempty"`
+	ExtraPreStopHookCmd string            `json:"-,omitempty"`
 
 	// put in volCtx
 	MountPodLabels      map[string]string `json:"mount_pod_labels"`
@@ -295,6 +296,10 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 			return nil, err
 		}
 		jfsSetting.Envs = env
+	}
+
+	if secrets["prestop-cmd"] != "" {
+		jfsSetting.ExtraPreStopHookCmd = strings.TrimSuffix(secrets["prestop-cmd"], ";")
 	}
 
 	labels := make(map[string]string)

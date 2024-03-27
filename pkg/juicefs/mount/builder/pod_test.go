@@ -268,17 +268,22 @@ func TestNewMountPod(t *testing.T) {
 		{Name: "metrics", ContainerPort: 9999},
 	}
 
+	podExtraPreStopHookTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podExtraPreStopHookTest)
+	podExtraPreStopHookTest.Spec.Containers[0].Lifecycle.PreStop.Exec.Command = []string{"sh", "-c", "+e", "cd /tmp && ls; echo 1; umount /jfs/default-imagenet -l; rmdir /jfs/default-imagenet; exit 0"}
+
 	type args struct {
-		name           string
-		cmd            string
-		mountPath      string
-		configs        map[string]string
-		env            map[string]string
-		labels         map[string]string
-		annotations    map[string]string
-		serviceAccount string
-		options        []string
-		cacheDirs      []string
+		name                string
+		cmd                 string
+		mountPath           string
+		configs             map[string]string
+		env                 map[string]string
+		labels              map[string]string
+		annotations         map[string]string
+		serviceAccount      string
+		options             []string
+		cacheDirs           []string
+		extraPreStopHookCmd string
 	}
 	tests := []struct {
 		name string
@@ -356,6 +361,16 @@ func TestNewMountPod(t *testing.T) {
 			},
 			want: podMetricTest,
 		},
+		{
+			name: "test-extre-pre-stop-hook-cmd",
+			args: args{
+				name:                "test",
+				cmd:                 defaultCmd,
+				mountPath:           defaultMountPath,
+				extraPreStopHookCmd: "cd /tmp && ls; echo 1",
+			},
+			want: podExtraPreStopHookTest,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -374,6 +389,7 @@ func TestNewMountPod(t *testing.T) {
 				Options:             tt.args.options,
 				CacheDirs:           tt.args.cacheDirs,
 				SecretName:          podName,
+				ExtraPreStopHookCmd: tt.args.extraPreStopHookCmd,
 				Attr: config.PodAttr{
 					Namespace:      config.Namespace,
 					MountPointPath: config.MountPointPath,

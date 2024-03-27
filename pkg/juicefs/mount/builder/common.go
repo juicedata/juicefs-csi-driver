@@ -96,10 +96,14 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		},
 	}}
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Resources
+	preStopHookCmd := fmt.Sprintf(
+		"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)
+	if r.jfsSetting.ExtraPreStopHookCmd != "" {
+		preStopHookCmd = fmt.Sprintf("%s; %s", r.jfsSetting.ExtraPreStopHookCmd, preStopHookCmd)
+	}
 	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
-				"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", preStopHookCmd}},
 		},
 	}
 
