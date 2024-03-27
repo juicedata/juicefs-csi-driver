@@ -42,7 +42,7 @@ func IsJobFailed(job *batchv1.Job) bool {
 }
 
 func IsJobShouldBeRecycled(job *batchv1.Job) bool {
-	// job not completed or failed, should not be recycled
+	// job not completed or not failed, should not be recycled
 	if !IsJobCompleted(job) && !IsJobFailed(job) {
 		return false
 	}
@@ -50,10 +50,13 @@ func IsJobShouldBeRecycled(job *batchv1.Job) bool {
 	if job.Spec.TTLSecondsAfterFinished == nil {
 		return true
 	}
+
+	// job completionTime is nil, may be failed, should not be recycled. (will be recycled after ttl)
+	if job.Status.CompletionTime == nil {
+		return false
+	}
+
 	// job exits after ttl time, should be recycled (should not happen)
 	ttlTime := job.Status.CompletionTime.Add(time.Duration(*job.Spec.TTLSecondsAfterFinished) * time.Second)
-	if ttlTime.Before(time.Now()) {
-		return true
-	}
-	return false
+	return ttlTime.Before(time.Now())
 }
