@@ -62,6 +62,11 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
 
+	if config.EnableMountPodProbe {
+		pod.Spec.Containers[0].LivenessProbe = r.genLivenessProbe()
+		pod.Spec.Containers[0].StartupProbe = r.genStarupProbe()
+	}
+
 	// add cache-dir hostpath & PVC volume
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
@@ -73,6 +78,36 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
 
 	return pod
+}
+
+func (r *PodBuilder) genStarupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", fmt.Sprintf("stat %s/%s", r.jfsSetting.MountPath, r.jfsSetting.VolumeId)},
+			},
+		},
+		InitialDelaySeconds: config.StartupProbeInitialDelaySeconds,
+		TimeoutSeconds:      config.StartupProbeTimeoutSeconds,
+		PeriodSeconds:       config.StartupProbePeriodSeconds,
+		SuccessThreshold:    1,
+		FailureThreshold:    config.StartupProbeFailureThreshold,
+	}
+}
+
+func (r *PodBuilder) genLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", fmt.Sprintf("stat %s/%s", r.jfsSetting.MountPath, r.jfsSetting.VolumeId)},
+			},
+		},
+		InitialDelaySeconds: config.LivenessProbeInitialDelaySeconds,
+		TimeoutSeconds:      config.LivenessProbeTimeoutSeconds,
+		PeriodSeconds:       config.LivenessProbePeriodSeconds,
+		SuccessThreshold:    1,
+		FailureThreshold:    config.LivenessProbeFailureThreshold,
+	}
 }
 
 // genCommonContainer: generate common privileged container
