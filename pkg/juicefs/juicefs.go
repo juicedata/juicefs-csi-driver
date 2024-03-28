@@ -551,13 +551,11 @@ func (j *juicefs) validOptions(volumeId string, options []string, volCtx map[str
 			memLimitByte := memLimit.Value()
 
 			// buffer-size is in MiB, turn to byte
-			bufSize, err := strconv.Atoi(ops[1])
+			bufferSize, err := util.ParseToBytes(ops[1])
 			if err != nil {
 				return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
 			}
-			bufferSize := int64(bufSize) << 20
-
-			if bufferSize > memLimitByte {
+			if bufferSize > uint64(memLimitByte) {
 				return []string{}, fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
 			}
 		}
