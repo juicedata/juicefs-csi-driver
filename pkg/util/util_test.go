@@ -625,3 +625,46 @@ func TestImageResol(t *testing.T) {
 		})
 	}
 }
+
+func TestParseToBytes(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    string
+		want    uint64
+		wantErr bool
+	}{
+		{
+			name: "test-normal",
+			args: "1",
+			want: 1 << 20,
+		},
+		{
+			name: "test-has-uint",
+			args: "1M",
+			want: 1 << 20,
+		},
+		{
+			name: "test-has-uint-2",
+			args: "1G",
+			want: 1 << 30,
+		},
+		{
+			name:    "test-invalid",
+			args:    "1d",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseToBytes(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

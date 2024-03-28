@@ -1267,6 +1267,30 @@ func Test_juicefs_validOptions(t *testing.T) {
 			want:    []string{},
 			wantErr: true,
 		},
+		{
+			name: "test-buffersize-with-unit",
+			args: args{
+				volumeId: "test",
+				options:  []string{"buffer-size=1024M"},
+				volCtx: map[string]string{
+					config.MountPodMemLimitKey: "1Mi",
+				},
+			},
+			want:    []string{},
+			wantErr: true,
+		},
+		{
+			name: "test-buffersize-with-unit",
+			args: args{
+				volumeId: "test",
+				options:  []string{"buffer-size=10M"},
+				volCtx: map[string]string{
+					config.MountPodMemLimitKey: "20Mi",
+				},
+			},
+			want:    []string{"buffer-size=10M"},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
