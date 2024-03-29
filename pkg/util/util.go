@@ -473,3 +473,41 @@ func DevMinor(dev uint64) uint32 {
 	minor |= (dev >> 12) & 0xffffff00
 	return uint32(minor)
 }
+
+// ParseToBytes parses a string with a unit suffix (e.g. "1M", "2G") to bytes.
+// default unit is M
+func ParseToBytes(value string) (uint64, error) {
+	if len(value) == 0 {
+		return 0, nil
+	}
+	s := value
+	unit := byte('M')
+	if c := s[len(s)-1]; c < '0' || c > '9' {
+		unit = c
+		s = s[:len(s)-1]
+	}
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse %s to bytes", value)
+	}
+	var shift int
+	switch unit {
+	case 'k', 'K':
+		shift = 10
+	case 'm', 'M':
+		shift = 20
+	case 'g', 'G':
+		shift = 30
+	case 't', 'T':
+		shift = 40
+	case 'p', 'P':
+		shift = 50
+	case 'e', 'E':
+		shift = 60
+	default:
+		return 0, fmt.Errorf("cannot parse %s to bytes, invalid unit", value)
+	}
+	val *= float64(uint64(1) << shift)
+
+	return uint64(val), nil
+}
