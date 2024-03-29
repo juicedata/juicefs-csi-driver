@@ -200,6 +200,24 @@ func TestIsJobShouldBeRecycled(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "test-complete-time-is-nil",
+			args: args{
+				job: &batchv1.Job{
+					Spec: batchv1.JobSpec{
+						TTLSecondsAfterFinished: &ttl,
+					},
+					Status: batchv1.JobStatus{
+						Conditions: []batchv1.JobCondition{{
+							Type:   batchv1.JobFailed,
+							Status: corev1.ConditionTrue,
+						}},
+						CompletionTime: nil,
+					},
+				},
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
