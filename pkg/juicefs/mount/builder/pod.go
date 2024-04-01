@@ -303,7 +303,7 @@ func (r *PodBuilder) genReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"sh", "-c", fmt.Sprintf("stat %s/%s", r.jfsSetting.MountPath, r.jfsSetting.VolumeId)},
+				Command: []string{"sh", "-c", fmt.Sprintf("stat %s/%s", r.jfsSetting.MountPath, r.jfsSetting.SubPath)},
 			},
 		},
 		InitialDelaySeconds: 5,
