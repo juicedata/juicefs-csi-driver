@@ -57,6 +57,8 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 		Value: "1",
 	}}
 
+	pod.Spec.Containers[0].ReadinessProbe = r.genReadinessProbe()
+
 	// generate volumes and volumeMounts only used in mount pod
 	volumes, volumeMounts := r.genPodVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
@@ -295,4 +297,19 @@ func (r *PodBuilder) genCleanCachePod() *corev1.Pod {
 		},
 	}
 	return pod
+}
+
+func (r *PodBuilder) genReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sh", "-c", fmt.Sprintf("stat %s/%s", r.jfsSetting.MountPath, r.jfsSetting.VolumeId)},
+			},
+		},
+		InitialDelaySeconds: 5,
+		TimeoutSeconds:      5,
+		PeriodSeconds:       30,
+		SuccessThreshold:    1,
+		FailureThreshold:    3,
+	}
 }
