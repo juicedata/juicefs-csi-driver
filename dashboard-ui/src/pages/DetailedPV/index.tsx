@@ -190,7 +190,7 @@ const DetailedPV: React.FC<unknown> = () => {
                         ]}
                     />
                 </ProCard>
-                <ProCard title="VolumeAttributes">
+                <ProCard title={<FormattedMessage id="volumeAttributes" />}>
                     <List
                         dataSource={parameters}
                         split={false}
