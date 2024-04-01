@@ -761,7 +761,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			return
 		default:
 			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-			if apierrors.IsNotFound(err) || newPod.UID != pod.UID {
+			if apierrors.IsNotFound(err) || getPodStatus(newPod) != podDeleted {
 				return
 			}
 			time.Sleep(10 * time.Second)

@@ -48,6 +48,7 @@ from test_case import (
     test_webhook_two_volume,
     test_dynamic_expand,
     test_multi_pvc,
+    test_mountpod_recreated,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -82,6 +83,7 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                test_mountpod_recreated()
                 if without_kubelet:
                     test_pod_resource_err()
 
