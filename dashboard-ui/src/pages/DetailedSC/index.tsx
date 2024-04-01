@@ -108,7 +108,7 @@ const DetailedSC: React.FC<unknown> = () => {
                         ]}
                     />
                 </ProCard>
-                <ProCard title={<FormattedMessage id="Parameters" />}>
+                <ProCard title={<FormattedMessage id="parameters" />}>
                     <List
                         dataSource={parameters}
                         split={false}
