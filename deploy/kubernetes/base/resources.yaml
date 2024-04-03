@@ -6,7 +6,6 @@ metadata:
   namespace: kube-system
 
 ---
-
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -39,20 +38,19 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "create", "update", "patch", "delete", "list", "watch"]
-  - apiGroups: [ "" ]
-    resources: [ "endpoints" ]
-    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
-  - apiGroups: [ "apps" ]
-    resources: [ "daemonsets" ]
-    verbs: [ "get", "list" ]
-  - apiGroups: [ "coordination.k8s.io" ]
-    resources: [ "leases" ]
-    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
-  - apiGroups: [ "" ]
-    resources: [ "configmaps" ]
-    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
 ---
-
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -178,7 +176,7 @@ rules:
     resources:
       - nodes/proxy
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - ""
     resources:
@@ -262,7 +260,7 @@ rules:
     resources:
       - nodes/proxy
     verbs:
-      - '*'
+      - "*"
   - apiGroups:
       - ""
     resources:
@@ -315,7 +313,6 @@ spec:
   attachRequired: false
   podInfoOnMount: true
 ---
-
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -387,7 +384,7 @@ spec:
           securityContext:
             capabilities:
               add:
-              - SYS_ADMIN
+                - SYS_ADMIN
             privileged: true
           livenessProbe:
             httpGet:
@@ -398,11 +395,11 @@ spec:
             periodSeconds: 10
             failureThreshold: 5
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          image: registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
           args:
             - --csi-address=$(ADDRESS)
             - --timeout=60s
-            - --enable-leader-election
+            - --leader-election
             - --v=5
             # # NOTE: juicefs is not bound to available zones, kind of topology agnostic
             # - --feature-gates=Topology=true
@@ -413,7 +410,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v1.0.1
+          image: registry.k8s.io/sig-storage/csi-resizer:v1.9.0
           args:
             - --csi-address=$(ADDRESS)
             - --leader-election
@@ -425,7 +422,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: liveness-probe
-          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.11.0
           args:
             - --csi-address=$(ADDRESS)
             - --health-port=$(HEALTH_PORT)
@@ -545,7 +542,7 @@ spec:
             periodSeconds: 10
             failureThreshold: 5
         - name: node-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v2.1.0
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
           args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -561,7 +558,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: liveness-probe
-          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.11.0
           args:
             - --csi-address=$(ADDRESS)
             - --health-port=$(HEALTH_PORT)
@@ -606,10 +603,10 @@ metadata:
 webhooks:
   - name: sidecar.inject.juicefs.com
     rules:
-      - apiGroups:   [""]
+      - apiGroups: [""]
         apiVersions: ["v1"]
-        operations:  ["CREATE"]
-        resources:   ["pods"]
+        operations: ["CREATE"]
+        resources: ["pods"]
     clientConfig:
       service:
         namespace: kube-system
@@ -619,7 +616,7 @@ webhooks:
     timeoutSeconds: 20
     failurePolicy: Fail
     sideEffects: None
-    admissionReviewVersions: ["v1","v1beta1"]
+    admissionReviewVersions: ["v1", "v1beta1"]
     namespaceSelector:
       matchLabels:
         juicefs.com/enable-injection: "true"
@@ -631,10 +628,10 @@ metadata:
 webhooks:
   - name: sidecar.inject.serverless.juicefs.com
     rules:
-      - apiGroups:   [""]
+      - apiGroups: [""]
         apiVersions: ["v1"]
-        operations:  ["CREATE"]
-        resources:   ["pods"]
+        operations: ["CREATE"]
+        resources: ["pods"]
     clientConfig:
       service:
         namespace: kube-system
@@ -644,7 +641,7 @@ webhooks:
     timeoutSeconds: 20
     failurePolicy: Fail
     sideEffects: None
-    admissionReviewVersions: ["v1","v1beta1"]
+    admissionReviewVersions: ["v1", "v1beta1"]
     namespaceSelector:
       matchLabels:
         juicefs.com/enable-serverless-injection: "true"
@@ -660,10 +657,10 @@ webhooks:
       matchLabels:
         juicefs.com/validate-secret: "true"
     rules:
-      - apiGroups:   [""]
+      - apiGroups: [""]
         apiVersions: ["v1"]
-        operations:  ["CREATE", "UPDATE"]
-        resources:   ["secrets"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["secrets"]
     clientConfig:
       service:
         namespace: kube-system
@@ -758,4 +755,3 @@ spec:
       name: http
   selector:
     app: juicefs-csi-dashboard
-
