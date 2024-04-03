@@ -1052,3 +1052,33 @@ juicefs/host-path: "/etc/hosts"
 ```yaml
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
+
+
+## 定制 Mount Pod{#custom-mountpod}
+
+可通过以下参数定制 mount pod spec，例如 labels，annotations 资源等。
+
+可以配置在 storageClass 的 parameters 参数中，也可使用 pvc 的 annotation 覆盖。
+
+```yaml
+  # 资源参数定义
+  juicefs/mount-cpu-limit: ""
+  juicefs/mount-memory-limit: ""
+  juicefs/mount-cpu-request: ""
+  juicefs/mount-memory-request: ""  
+  
+  juicefs/mount-labels: ""
+  juicefs/mount-annotations: ""
+  juicefs/mount-service-account: ""
+  juicefs/mount-image: ""
+  juicefs/mount-delete-delay: ""  
+  
+  # cache
+  juicefs/clean-cache: ""
+  juicefs/mount-cache-pvc: ""
+  juicefs/mount-cache-emptydir: ""
+  juicefs/mount-cache-inline-volume: ""
+  
+  # 在 Mount Pod 中挂载宿主机文件或目录
+  juicefs/host-path: ""
+```

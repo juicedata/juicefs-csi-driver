@@ -992,3 +992,34 @@ If you need to mount multiple files or directories, specify them using comma:
 ```yaml
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
+
+## Custom Mount Pod{#custom-mountpod}
+
+You can customize the mount pod spec by setting parameters such as labels, annotations, and resources.
+
+You can configure it in the storageClass parameters or use the PVC annotation to cover it.
+
+
+```yaml
+  # Resource
+  juicefs/mount-cpu-limit: ""
+  juicefs/mount-memory-limit: ""
+  juicefs/mount-cpu-request: ""
+  juicefs/mount-memory-request: ""
+
+  juicefs/mount-labels: ""
+  juicefs/mount-annotations: ""
+  juicefs/mount-service-account: ""
+
+  juicefs/mount-image: ""
+  juicefs/mount-delete-delay: ""
+
+  # cache
+  juicefs/clean-cache: ""
+  juicefs/mount-cache-pvc: ""
+  juicefs/mount-cache-emptydir: ""
+  juicefs/mount-cache-inline-volume: ""
+  
+  # Mount the hosts file or directory to pod.
+  juicefs/host-path: ""
+```
