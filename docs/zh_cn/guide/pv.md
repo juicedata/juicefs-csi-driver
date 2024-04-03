@@ -1053,12 +1053,13 @@ juicefs/host-path: "/etc/hosts"
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-
 ## 定制 Mount Pod{#custom-mountpod}
 
-可通过以下参数定制 mount pod spec，例如 labels，annotations 资源等。
+mountpod 本身的 spec 大部分继承自 CSI Node，例如 hostNetwork、DNS、等配置。如果需要修改，需要修改 CSI Node 的 spec。
 
-可以配置在 storageClass 的 parameters 参数中，也可使用 pvc 的 annotation 覆盖。
+此外，还可通过以下参数定制 mount pod 的 labels，annotations 资源等。
+
+可以配置在 storageClass 的 parameters 参数中，也可使用 PVC 的 annotation 覆盖。
 
 ```yaml
   # 资源参数定义

@@ -995,10 +995,11 @@ juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 
 ## Custom Mount Pod{#custom-mountpod}
 
-You can customize the mount pod spec by setting parameters such as labels, annotations, and resources.
+The spec of mountpod mostly inherits from CSI Node, such as hostNetwork, DNS, and other configurations. If is needed modification, the spec of CSI Node needs to be modified.
+
+Additionally, you can customize the mount pod spec by setting parameters such as labels, annotations, and resources.
 
 You can configure it in the storageClass parameters or use the PVC annotation to cover it.
-
 
 ```yaml
   # Resource
