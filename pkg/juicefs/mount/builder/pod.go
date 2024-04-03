@@ -307,8 +307,8 @@ func (r *PodBuilder) genReadinessProbe() *corev1.Probe {
 			},
 		},
 		InitialDelaySeconds: 5,
-		TimeoutSeconds:      5,
-		PeriodSeconds:       30,
+		TimeoutSeconds:      1,
+		PeriodSeconds:       5,
 		SuccessThreshold:    1,
 		FailureThreshold:    3,
 	}

@@ -701,6 +701,8 @@ def test_dynamic_delete_pod():
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
+    # wait 5 second for controller to handle recovery
+    time.sleep(5)
     LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, volume_id)
@@ -775,6 +777,8 @@ def test_static_delete_pod():
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
+    # wait 5 second for controller to handle recovery
+    time.sleep(5)
     LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, pv.name)

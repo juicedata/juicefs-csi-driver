@@ -126,6 +126,16 @@ var (
 						ContainerPort: 9567,
 					},
 				},
+				ReadinessProbe: &corev1.Probe{
+					Handler: corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat /jfs/default-imagenet/"}},
+					},
+					InitialDelaySeconds: 5,
+					TimeoutSeconds:      1,
+					PeriodSeconds:       5,
+					SuccessThreshold:    1,
+					FailureThreshold:    3,
+				},
 			}},
 			TerminationGracePeriodSeconds: &gracePeriod,
 			RestartPolicy:                 corev1.RestartPolicyAlways,
