@@ -781,12 +781,15 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	defer cancel()
 	for {
 		if waitCtx.Err() == context.Canceled || waitCtx.Err() == context.DeadlineExceeded {
-			klog.Errorf("fuse abort job timeout")
+			klog.Errorf("fuse abort job %s/%s timeout", job.Namespace, job.Name)
 			break
 		}
 		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
+		if apierrors.IsNotFound(err) {
+			break
+		}
 		if err != nil {
-			klog.Errorf("get fuse abort job error: %v", err)
+			klog.Errorf("get fuse abort job %s/%s error: %v", err, job.Namespace, job.Name)
 			time.Sleep(10 * time.Second)
 			continue
 		}
