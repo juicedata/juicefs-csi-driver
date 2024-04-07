@@ -50,6 +50,50 @@ spec:
       storage: 20Gi
 ```
 
+### Omit resources definition {#omit-resources}
+
+If omitting certain resources fields is required, you can set them to "0":
+
+```yaml
+juicefs/mount-cpu-limit: "0"
+juicefs/mount-memory-limit: "0"
+# if mount pod uses little resource, use a very low value instead of 0
+juicefs/mount-cpu-requests: "1m"
+juicefs/mount-memory-requests: "4Mi"
+```
+
+Apply the above config and new mount pods will interprete "0" as omit, forming the following definition:
+
+```yaml
+resources:
+  requests:
+    cpu: 1m
+    memory: 4Mi
+```
+
+There's good reason we advise against setting requests to "0", Kubernetes itself interpretes an ommited requests as equals to limits, that is to say if you write the following resources:
+
+```yaml
+# this is BAD example, do not copy and use
+juicefs/mount-cpu-limit: "32"
+juicefs/mount-memory-limit: "64Gi"
+# zero causes csi-node to omit the requests field
+juicefs/mount-cpu-requests: "0"
+juicefs/mount-memory-requests: "0"
+```
+
+According to the requests = limits interpretation, the resulting definition is usually NOT what users expected, and mount pods cannot start.
+
+```yaml
+resources:
+  limits:
+    cpu: 32
+    memory: 64Gi
+  requests:
+    cpu: 32
+    memory: 64Gi
+```
+
 ### Other methods (deprecated) {#deprecated-resources-definition}
 
 For static provisioning, set resource requests and limits in `PersistentVolume`:
