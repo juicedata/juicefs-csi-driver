@@ -2544,3 +2544,69 @@ def test_dynamic_expand():
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
+
+
+def test_mountpod_recreated():
+    if MOUNT_MODE != "pod":
+        return
+
+    LOG.info("[test case] Test mountpod delete and recreated begin..")
+    # deploy pvc
+    pvc = PVC(name="pvc-mountpod-recreated", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    # deploy pod
+    deployment = Deployment(name="app-recreated", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    
+    LOG.info("Start to delete mountpod..")
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod.delete()
+
+    # wait for mountpod recreated
+    LOG.info("Wait for mountpod recreated..")
+    for i in range(0, 60):
+        if mount_pod.watch_for_success():
+            break
+        time.sleep(5)
+
+    # check mount point
+    LOG.info("Check mount point..")
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    LOG.info("Test pass.")
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    return

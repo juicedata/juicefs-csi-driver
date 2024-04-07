@@ -475,7 +475,7 @@ class Pod:
         w = watch.Watch()
         for event in w.stream(v1.list_pod_for_all_namespaces, timeout_seconds=10 * 60):
             resource = event['object']
-            if resource.metadata.namespace != "default":
+            if resource.metadata.namespace != self.namespace:
                 continue
             if self.name == "" and resource.metadata.labels is not None and \
                     resource.metadata.labels.get("deployment") != self.deployment:

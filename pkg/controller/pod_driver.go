@@ -760,8 +760,8 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			}
 			return
 		default:
-			_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-			if apierrors.IsNotFound(err) {
+			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+			if apierrors.IsNotFound(err) || getPodStatus(newPod) != podDeleted {
 				return
 			}
 			time.Sleep(10 * time.Second)
@@ -780,13 +780,17 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	waitCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	for {
-		if waitCtx.Err() == context.Canceled {
-			klog.Errorf("fuse abort job timeout")
+		if waitCtx.Err() == context.Canceled || waitCtx.Err() == context.DeadlineExceeded {
+			klog.Errorf("fuse abort job %s/%s timeout", job.Namespace, job.Name)
 			break
 		}
 		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
+		if apierrors.IsNotFound(err) {
+			break
+		}
 		if err != nil {
-			klog.Errorf("get fuse abort job error: %v", err)
+			klog.Errorf("get fuse abort job %s/%s error: %v", err, job.Namespace, job.Name)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 		if util.IsJobCompleted(job) {
