@@ -389,7 +389,12 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
 				}
-				return nil
+
+				if err := util.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
+					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
+					return err
+				}
+				return p.recover(ctx, newPod, sourcePath)
 			}
 			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
 			return nil
@@ -515,7 +520,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	// recovery for each target
+	return p.recover(ctx, pod, mntPath)
+}
+
+func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			mi := p.mit.resolveTarget(target)
@@ -530,7 +538,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 			}
 		}
 	}
-
 	return nil
 }
 

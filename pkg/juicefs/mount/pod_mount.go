@@ -22,11 +22,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -388,32 +386,9 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	// Wait until the mount point is ready
-	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", jfsSetting.MountPath, podName)
-	for {
-		var finfo os.FileInfo
-		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func() (err error) {
-			finfo, err = os.Stat(jfsSetting.MountPath)
-			return err
-		}); err != nil {
-			if err == context.Canceled || err == context.DeadlineExceeded {
-				break
-			}
-			klog.V(6).Infof("mount path %v not ready, mountpod: %s, err: %v", jfsSetting.MountPath, podName, err)
-			time.Sleep(time.Millisecond * 500)
-			continue
-		}
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				util.MountPointDevMinorTable.Store(jfsSetting.MountPath, util.DevMinor(st.Dev))
-				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", jfsSetting.MountPath, podName)
-				return nil
-			}
-			klog.V(6).Infof("Mount point %v is not ready, mountpod: %s", jfsSetting.MountPath, podName)
-		}
-		time.Sleep(time.Millisecond * 500)
+	err := util.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
+	if err == nil {
+		return nil
 	}
 	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(ctx, podName)

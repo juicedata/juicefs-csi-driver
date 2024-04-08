@@ -20,8 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -223,4 +226,36 @@ func GetAllRefKeys(pod corev1.Pod) map[string]string {
 		}
 	}
 	return annos
+}
+
+func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	// Wait until the mount point is ready
+	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", mntPath, podName)
+	for {
+		var finfo os.FileInfo
+		if err := DoWithTimeout(waitCtx, timeout, func() (err error) {
+			finfo, err = os.Stat(mntPath)
+			return err
+		}); err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				break
+			}
+			klog.V(6).Infof("mount path %v not ready, mountpod: %s, err: %v", mntPath, podName, err)
+			time.Sleep(time.Millisecond * 500)
+			continue
+		}
+		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+			if st.Ino == 1 {
+				MountPointDevMinorTable.Store(mntPath, DevMinor(st.Dev))
+				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", mntPath, podName)
+				return nil
+			}
+			klog.V(6).Infof("Mount point %v is not ready, mountpod: %s", mntPath, podName)
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+
+	return fmt.Errorf("mount point %v is not ready, mountpod: %s", mntPath, podName)
 }
