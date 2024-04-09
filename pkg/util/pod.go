@@ -242,7 +242,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				break
 			}
-			klog.V(6).Infof("mount path %v not ready, mountpod: %s, err: %v", mntPath, podName, err)
+			klog.V(6).Infof("Mount path %v is not ready, mountpod: %s, err: %v", mntPath, podName, err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
