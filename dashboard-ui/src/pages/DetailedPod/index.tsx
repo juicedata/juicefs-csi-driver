@@ -133,27 +133,27 @@ export const EventTable = (events: Event[]) => {
             <Table
                 columns={[
                     {
-                        title: 'Type',
+                        title: <FormattedMessage id="type" />,
                         dataIndex: 'type',
                         key: 'type',
                     },
                     {
-                        title: 'Reason',
+                        title: <FormattedMessage id="reason" />,
                         dataIndex: 'reason',
                         key: 'reason',
                     },
                     {
-                        title: 'CreatedTime',
+                        title: <FormattedMessage id="createAt" />,
                         key: 'firstTimestamp',
                         dataIndex: 'firstTimestamp',
                     },
                     {
-                        title: 'From',
+                        title: <FormattedMessage id="from" />,
                         dataIndex: 'reportingComponent',
                         key: 'reportingComponent',
                     },
                     {
-                        title: 'Message',
+                        title: <FormattedMessage id="message" />,
                         key: 'message',
                         dataIndex: 'message',
                     },

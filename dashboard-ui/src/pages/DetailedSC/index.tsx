@@ -108,7 +108,7 @@ const DetailedSC: React.FC<unknown> = () => {
                         ]}
                     />
                 </ProCard>
-                <ProCard title="Paramters">
+                <ProCard title={<FormattedMessage id="parameters" />}>
                     <List
                         dataSource={parameters}
                         split={false}
@@ -174,9 +174,9 @@ const DetailedSC: React.FC<unknown> = () => {
                                 },
                             },
                             {
-                                title: <FormattedMessage id="startStatus" />,
+                                title: <FormattedMessage id="createAt" />,
                                 dataIndex: ['metadata', 'creationTimestamp'],
-                                key: 'startAt',
+                                key: 'time',
                             },
                         ]}
                         dataSource={pvs}

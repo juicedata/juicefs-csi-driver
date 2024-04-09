@@ -75,4 +75,10 @@ export default {
     '未找到符合 PVC 条件的 PV，请点击「PV」查看其是否被创建。',
   pvcOfPVNotFoundErrMsg:
     '未找到符合 PV 条件的 PVC，请点击「PVC」查看其是否被创建。',
+  volumeAttributes: '卷属性',
+  parameters: '参数',
+  type: '类型',
+  reason: '原因',
+  from: '事件源',
+  message: '信息',
 };

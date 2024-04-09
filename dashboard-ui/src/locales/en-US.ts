@@ -80,4 +80,10 @@ export default {
     'No matching PV was found. Please click "PV" to check whether it has been created.',
   pvcOfPVNotFoundErrMsg:
     'No matching PVC was found. Please click "PVC" to check whether it has been created.',
+  volumeAttributes: 'Volume Attributes',
+  parameters: 'Parameters',
+  type: 'Type',
+  reason: 'Reason',
+  from: 'From',
+  message: 'Message',
 };
