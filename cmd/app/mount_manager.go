@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"os"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -114,6 +115,6 @@ func (m *MountManager) Start(ctx context.Context) {
 	klog.Info("Mount manager started.")
 	if err := m.mgr.Start(ctx); err != nil {
 		klog.Errorf("Mount manager start error: %v", err)
-		return
+		os.Exit(1)
 	}
 }
