@@ -299,6 +299,33 @@ var runningPod = &corev1.Pod{
 	},
 }
 
+// completed pod
+var completedPod = &corev1.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "juicefs-test-pod-completed",
+		Annotations: map[string]string{
+			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Finalizers: []string{jfsConfig.Finalizer},
+	},
+	Status: corev1.PodStatus{
+		Phase: corev1.PodPending,
+		Conditions: []corev1.PodCondition{
+			{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+			{Type: corev1.ContainersReady, Status: corev1.ConditionFalse},
+		},
+		ContainerStatuses: []corev1.ContainerStatus{
+			{
+				Name: "test",
+				State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+					ExitCode: 0,
+					Reason:   "Completed",
+				}},
+				Ready: false,
+			},
+		},
+	},
+}
+
 func TestPodDriver_getPodStatus(t *testing.T) {
 	type fields struct {
 		Client *k8sclient.K8sClient
@@ -390,6 +417,15 @@ func TestPodDriver_getPodStatus(t *testing.T) {
 				pod: runningPod,
 			},
 			want: podPending,
+		}, {
+			name: "completed",
+			fields: fields{
+				Client: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
+			},
+			args: args{
+				pod: completedPod,
+			},
+			want: podCompleted,
 		},
 	}
 	for _, tt := range tests {
@@ -1015,6 +1051,33 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			err := d.podErrorHandler(ctx, Pod)
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
+func TestPodDriver_podCompletedHandler(t *testing.T) {
+	Convey("Test pod completed handler", t, func() {
+		Convey("pod completed should be deleted", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			Pod := copyPod(completedPod)
+			Pod.Spec.Containers = nil
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := d.podCompletedHandler(ctx, Pod)
+			So(err, ShouldBeNil)
+		})
+		Convey("get nil pod", func() {
+			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := d.podCompletedHandler(ctx, nil)
 			So(err, ShouldBeNil)
 		})
 	})

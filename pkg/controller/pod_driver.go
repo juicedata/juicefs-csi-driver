@@ -65,6 +65,7 @@ func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount)
 	driver.handlers[podError] = driver.podErrorHandler
 	driver.handlers[podPending] = driver.podPendingHandler
 	driver.handlers[podDeleted] = driver.podDeletedHandler
+	driver.handlers[podCompleted] = driver.podCompletedHandler
 	return driver
 }
 
@@ -72,10 +73,11 @@ type podHandler func(ctx context.Context, pod *corev1.Pod) error
 type podStatus string
 
 const (
-	podReady   podStatus = "podReady"
-	podError   podStatus = "podError"
-	podDeleted podStatus = "podDeleted"
-	podPending podStatus = "podPending"
+	podReady     podStatus = "podReady"
+	podError     podStatus = "podError"
+	podDeleted   podStatus = "podDeleted"
+	podPending   podStatus = "podPending"
+	podCompleted podStatus = "podCompleted"
 )
 
 func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
@@ -116,6 +118,9 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 	}
 	if util.IsPodError(pod) {
 		return podError
+	}
+	if util.IsPodCompleted(pod) {
+		return podCompleted
 	}
 	if util.IsPodReady(pod) {
 		return podReady
@@ -269,6 +274,23 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 		}
 	}
 	klog.Errorf("[podErrorHandler]: Pod %s/%s with error: %s, %s", pod.Namespace, pod.Name, pod.Status.Reason, pod.Status.Message)
+	return nil
+}
+
+// podCompletedHandler handles mount pod that is completed
+// if pod is completed, it should be deleted
+func (p *PodDriver) podCompletedHandler(ctx context.Context, pod *corev1.Pod) error {
+	if pod == nil {
+		klog.Errorf("get nil pod")
+		return nil
+	}
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
+	klog.V(5).Infof("pod %s/%s enter completed status, delete it", pod.Namespace, pod.Name)
+	if err := p.Client.DeletePod(ctx, pod); err != nil {
+		klog.Errorf("delete pod %s/%s err:%v", pod.Namespace, pod.Name, err)
+	}
 	return nil
 }
 

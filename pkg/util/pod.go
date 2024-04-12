@@ -61,6 +61,15 @@ func IsPodError(pod *corev1.Pod) bool {
 	return containError(pod.Status.ContainerStatuses)
 }
 
+func IsPodCompleted(pod *corev1.Pod) bool {
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.State.Terminated != nil && status.State.Terminated.Reason == "Completed" {
+			return true
+		}
+	}
+	return false
+}
+
 func IsPodResourceError(pod *corev1.Pod) bool {
 	if pod.Status.Phase == corev1.PodFailed {
 		if strings.Contains(pod.Status.Reason, "OutOf") {
