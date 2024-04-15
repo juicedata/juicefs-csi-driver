@@ -754,6 +754,28 @@ webhooks:
     - secrets
   sideEffects: None
   timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: CA_BUNDLE
+    service:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+      path: /juicefs/validate-pv
+  failurePolicy: Ignore
+  matchPolicy: Equivalent
+  name: validate.pv.juicefs.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - persistentvolumes
+  sideEffects: None
+  timeoutSeconds: 5
 EOF
   # webhook.yaml end
 
@@ -1446,6 +1468,28 @@ webhooks:
     - UPDATE
     resources:
     - secrets
+  sideEffects: None
+  timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: CA_BUNDLE
+    service:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+      path: /juicefs/validate-pv
+  failurePolicy: Ignore
+  matchPolicy: Equivalent
+  name: validate.pv.juicefs.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - persistentvolumes
   sideEffects: None
   timeoutSeconds: 5
 EOF
