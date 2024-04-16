@@ -52,8 +52,8 @@ jobs:
           echo "JUICEFS_CE_LATEST_VERSION=$JUICEFS_CE_LATEST_VERSION" >> $GITHUB_ENV
         fi
         
-        if [ ${{ env.ee_juicefs_latest_tag }} ]; then
-          echo "JUICEFS_EE_LATEST_VERSION=${{ env.ee_juicefs_latest_tag }}" >> $GITHUB_ENV
+        if [ ${{ env.EE_JUICEFS_LATEST_VERSION }} ]; then
+          echo "JUICEFS_EE_LATEST_VERSION=${{ env.EE_JUICEFS_LATEST_VERSION }}" >> $GITHUB_ENV
         else
           curl -sSL https://juicefs.com/static/Linux/mount -o juicefs-ee && chmod +x juicefs-ee
           version=$(./juicefs-ee version | cut -d' ' -f3)
