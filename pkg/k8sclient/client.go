@@ -354,6 +354,21 @@ func (k *K8sClient) ListPersistentVolumes(ctx context.Context, labelSelector *me
 	return pvList.Items, nil
 }
 
+func (k *K8sClient) ListPersistentVolumesByVolumeHandle(ctx context.Context, volumeHandle string) ([]corev1.PersistentVolume, error) {
+	pvs, err := k.ListPersistentVolumes(ctx, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var result []corev1.PersistentVolume
+	for _, pv := range pvs {
+		pv := pv
+		if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeHandle == volumeHandle {
+			result = append(result, pv)
+		}
+	}
+	return result, nil
+}
+
 func (k *K8sClient) ListStorageClasses(ctx context.Context) ([]storagev1.StorageClass, error) {
 	klog.V(6).Info("List storageclass")
 	scList, err := k.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})

@@ -2610,3 +2610,25 @@ def test_mountpod_recreated():
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     return
+
+def test_validate_pv():
+    LOG.info("[test case] Test validate pv begin..")
+    # deploy one pv
+    pv = PV(name="pv-with-duplicate-handle", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
+
+    # deploy pv with duplicate handle
+    pv1 = PV(name="pv-with-duplicate-handle-1", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(pv1.name))
+    try:
+        pv1.create()
+    except Exception as e:
+        LOG.info(e)
+        LOG.info("Test pass.")
+        # delete test resources
+        LOG.info("Remove pv {}".format(pv.name))
+        pv.delete()
+        return
+
+    raise Exception("PV with duplicate handle should not be created.")

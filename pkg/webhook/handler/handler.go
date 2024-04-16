@@ -19,6 +19,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
@@ -136,6 +137,51 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 	if err := secretValidateor.Validate(ctx, *secret); err != nil {
 		klog.Errorf("secret validation failed, secret: %s, err: %v", secret.Name, err)
 		return admission.Errored(http.StatusBadRequest, err)
+	}
+	return admission.Allowed("")
+}
+
+type PVHandler struct {
+	Client *k8sclient.K8sClient
+	// A decoder will be automatically injected
+	decoder *admission.Decoder
+}
+
+func NewPVHandler(client *k8sclient.K8sClient) *PVHandler {
+	return &PVHandler{
+		Client: client,
+	}
+}
+
+// InjectDecoder injects the decoder.
+func (s *PVHandler) InjectDecoder(d *admission.Decoder) error {
+	s.decoder = d
+	return nil
+}
+
+func (s *PVHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
+	pv := &corev1.PersistentVolume{}
+	err := s.decoder.Decode(request, pv)
+	if err != nil {
+		klog.Errorf("unable to decoder pv from req, %v", err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+		return admission.Allowed("")
+	}
+	if pv.Spec.StorageClassName != "" {
+		return admission.Allowed("")
+	}
+
+	volumeHandle := pv.Spec.CSI.VolumeHandle
+	existPvs, err := s.Client.ListPersistentVolumesByVolumeHandle(ctx, volumeHandle)
+	if err != nil {
+		klog.Errorf("list pv by volume handle %s failed, err: %v", volumeHandle, err)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	if len(existPvs) > 0 {
+		return admission.Denied(fmt.Sprintf("pv %s with volume handle %s already exists", pv.Name, volumeHandle))
 	}
 	return admission.Allowed("")
 }

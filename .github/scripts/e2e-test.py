@@ -49,6 +49,7 @@ from test_case import (
     test_dynamic_expand,
     test_multi_pvc,
     test_mountpod_recreated,
+    test_validate_pv,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -146,6 +147,7 @@ if __name__ == "__main__":
                 test_static_mount_image_with_webhook()
                 test_deployment_static_patch_pv_with_webhook()
                 test_static_job_complete()
+                test_validate_pv()
                 if not IN_CCI:
                     test_delete_pvc()
                     test_job_complete_using_storage()
