@@ -339,7 +339,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.23.5
+          image: juicedata/juicefs-csi-driver:v0.23.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -476,7 +476,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.23.5
+          image: juicedata/juicefs-csi-driver:v0.23.6
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -735,7 +735,7 @@ spec:
       serviceAccountName: juicefs-csi-dashboard-sa
       containers:
         - name: dashboard
-          image: juicedata/csi-dashboard:v0.23.5
+          image: juicedata/csi-dashboard:v0.23.6
           args:
             - --static-dir=/dist
           env:
