@@ -692,6 +692,10 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return true, nil
 			})
 			defer patch7.Reset()
+			patch8 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+				return mocks.FakeFileInfoIno1{}, nil
+			})
+			defer patch8.Reset()
 
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
@@ -732,6 +736,10 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return true, nil
 			})
 			defer patch7.Reset()
+			patch8 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+				return mocks.FakeFileInfoIno1{}, nil
+			})
+			defer patch8.Reset()
 
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
