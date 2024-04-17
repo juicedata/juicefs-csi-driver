@@ -162,6 +162,7 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
 	ttlSecond := DefaultJobTTLSecond
+	privileged := true
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -182,6 +183,9 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 								fmt.Sprintf(
 									"if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then echo 1 > /sys/fs/fuse/connections/%d/abort; fi;",
 									devMinor, devMinor),
+							},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: &privileged,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
