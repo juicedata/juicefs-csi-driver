@@ -3,7 +3,7 @@ title: 运行其他 JuiceFS 应用
 sidebar_position: 5
 ---
 
-严格来说，本章内容与 JuiceFS CSI 驱动没有关联，而是通用的 Kubernetes 应用，因此下方介绍的各种部署方式，也完全可以脱离 CSI 驱动、独立使用。因为这些示范都是在介绍如何在 Kubernetes 中运行其他 JuiceFS 应用，比方说：
+严格来说，本章内容与 JuiceFS CSI 驱动没有关联，而是通用的 Kubernetes 应用，因此下方介绍的各种部署方式，也完全可以脱离 CSI 驱动、独立使用。比方说：
 
 * 用 `juicefs sync` 在 Kubernetes 中定时同步数据
 * 在 Kubernetes 中运行 `juicefs webdav` 或者 `juicefs gateway`（S3 网关）
@@ -52,7 +52,7 @@ spec:
               # 参考文档：https://juicefs.com/docs/zh/cloud/guide/sync/
               /usr/bin/juicefs sync oss://${ACCESS_KEY}:${SECRET_KEY}@myjfs-bucket.oss-cn-hongkong.aliyuncs.com/chaos-ee-test/juicefs_uuid jfs://$VOL_NAME
             env:
-            # 存放文件系统认证信息的 Secret，必须和该 Deployment 在同一个命名空间下
+            # 存放文件系统认证信息的 Secret，必须在同一个命名空间下
             # 参考文档：https://juicefs.com/docs/zh/csi/guide/pv#cloud-service
             - name: VOL_NAME
               valueFrom:
@@ -356,7 +356,7 @@ mountOptions:
 
 ## 运行 JuiceFS S3 网关 {#juicefs-gateway}
 
-对于企业版，建议用 Deployment 运行 S3 网关，Deployment 的写法参考下方示范。你需要自行撰写 Service 和 Ingress 来对外暴露服务。
+建议用 Deployment 运行 S3 网关，Deployment 的写法参考下方示范。你需要自行撰写 Service 和 Ingress 来对外暴露服务。
 
 ```yaml
 apiVersion: apps/v1

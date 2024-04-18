@@ -29,6 +29,10 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: juicefs-secret
+  namespace: default
+  labels:
+    # 增加该标签以启用认证信息校验
+    juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
   name: <JUICEFS_NAME>
@@ -66,6 +70,10 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: juicefs-secret
+  namespace: default
+  labels:
+    # 增加该标签以启用认证信息校验
+    juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
   name: ${JUICEFS_NAME}
@@ -99,6 +107,9 @@ apiVersion: v1
 metadata:
   name: juicefs-secret
   namespace: default
+  labels:
+    # 增加该标签以启用认证信息校验
+    juicefs.com/validate-secret: "true"
 kind: Secret
 type: Opaque
 stringData:
