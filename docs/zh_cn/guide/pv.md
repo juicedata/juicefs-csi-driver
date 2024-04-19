@@ -1053,33 +1053,46 @@ juicefs/host-path: "/etc/hosts"
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## 定制 Mount Pod{#custom-mountpod}
+## 定制 Mount Pod {#customize-moun-pod}
 
-mountpod 本身的 spec 大部分继承自 CSI Node，例如 hostNetwork、DNS、等配置。如果需要修改，需要修改 CSI Node 的 spec。
+Mount Pod 并非由用户直接创建，而是 CSI-node 负责生成。因此用户没有办法直接控制 Pod 的各种配置。但这并不表示用户就无法控制和更改 mount pod 的设置，在 CSI 驱动中提供两种方式对 mount pod 进行定制。
 
-此外，还可通过以下参数定制 mount pod 的 labels，annotations 资源等。
+### 继承 CSI Node 配置
 
-可以配置在 storageClass 的 parameters 参数中，也可使用 PVC 的 annotation 覆盖。
+Mount Pod 自身的资源定义（Kubernetes manifests，也就是 Pod YAML）大部分继承自 CSI Node，比方说如果希望给 mount pod 启用 hostNetwork，反而需要先为 CSI-node 启用 hostNetwork：
+
+```yaml name="values-mycluster.yaml"
+node:
+  hostNetwork: true
+```
+
+让配置生效，后续生成的 mount pod 就会继承 hostNetwork 配置了。
+
+之所以说「大部分」配置继承自 CSI Node，是因为 labels、annotations 等字段包含组件特定内容，无法简单继承。因此为这部分配置提供单独的定制手段，继续阅读下一小节了解。
+
+### 其他
+
+部分无法用继承方式定制的配置项，我们提供了额外的手段来单独定制。具体而言，就是下方代码块列出的字段，既可以将他们配置在 storageClass 的 parameters 参数中（动态配置），也可放在 PVC 的 annotations 中（静态配置）。
 
 ```yaml
-  # 资源参数定义
-  juicefs/mount-cpu-limit: ""
-  juicefs/mount-memory-limit: ""
-  juicefs/mount-cpu-request: ""
-  juicefs/mount-memory-request: ""  
-  
-  juicefs/mount-labels: ""
-  juicefs/mount-annotations: ""
-  juicefs/mount-service-account: ""
-  juicefs/mount-image: ""
-  juicefs/mount-delete-delay: ""  
-  
-  # cache
-  juicefs/clean-cache: ""
-  juicefs/mount-cache-pvc: ""
-  juicefs/mount-cache-emptydir: ""
-  juicefs/mount-cache-inline-volume: ""
-  
-  # 在 Mount Pod 中挂载宿主机文件或目录
-  juicefs/host-path: ""
+juicefs/mount-cpu-limit: ""
+juicefs/mount-memory-limit: ""
+juicefs/mount-cpu-request: ""
+juicefs/mount-memory-request: ""
+
+juicefs/mount-labels: ""
+juicefs/mount-annotations: ""
+juicefs/mount-service-account: ""
+juicefs/mount-image: ""
+juicefs/mount-delete-delay: ""
+
+# 退出时清理缓存
+juicefs/clean-cache: ""
+juicefs/mount-cache-pvc: ""
+juicefs/mount-cache-emptydir: ""
+juicefs/mount-cache-inline-volume: ""
+
+# 在 mount pod 中挂载宿主机文件或目录
+# 容器内路径将会等同宿主机路径，无法定制
+juicefs/host-path: "/data/file.txt"
 ```

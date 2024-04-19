@@ -993,34 +993,47 @@ If you need to mount multiple files or directories, specify them using comma:
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## Custom Mount Pod{#custom-mountpod}
+## Customize Mount Pod {#customize-moun-pod}
 
-The spec of mountpod mostly inherits from CSI Node, such as hostNetwork, DNS, and other configurations. If is needed modification, the spec of CSI Node needs to be modified.
+Since mount pods are created by CSI-node, users cannot directly control mount pod definition. However this doesn't mean you can't customize mount pod specs, CSI Driver provides two ways to customize mount pod.
 
-Additionally, you can customize the mount pod spec by setting parameters such as labels, annotations, and resources.
+### Inherit from CSI Node
 
-You can configure it in the storageClass parameters or use the PVC annotation to cover it.
+Mount pod specs are mostly inherited from CSI-node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI-node:
+
+```yaml name="values-mycluster.yaml"
+node:
+  hostNetwork: true
+```
+
+After the change, newly created mount pods will use hostNetwork.
+
+As mentioned earlier, "most" specs are inherited from CSI-node, this leaves component specific content like labels, annotations, etc. These fields will not work through inheritance so we provide separate methods for customization, read the next section for more.
+
+### Others
+
+Some of the fields that doesn't support CSI-node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
 
 ```yaml
-  # Resource
-  juicefs/mount-cpu-limit: ""
-  juicefs/mount-memory-limit: ""
-  juicefs/mount-cpu-request: ""
-  juicefs/mount-memory-request: ""
+juicefs/mount-cpu-limit: ""
+juicefs/mount-memory-limit: ""
+juicefs/mount-cpu-request: ""
+juicefs/mount-memory-request: ""
 
-  juicefs/mount-labels: ""
-  juicefs/mount-annotations: ""
-  juicefs/mount-service-account: ""
+juicefs/mount-labels: ""
+juicefs/mount-annotations: ""
+juicefs/mount-service-account: ""
 
-  juicefs/mount-image: ""
-  juicefs/mount-delete-delay: ""
+juicefs/mount-image: ""
+juicefs/mount-delete-delay: ""
 
-  # cache
-  juicefs/clean-cache: ""
-  juicefs/mount-cache-pvc: ""
-  juicefs/mount-cache-emptydir: ""
-  juicefs/mount-cache-inline-volume: ""
-  
-  # Mount the hosts file or directory to pod.
-  juicefs/host-path: ""
+# Clean cache at mount pod exit
+juicefs/clean-cache: ""
+juicefs/mount-cache-pvc: ""
+juicefs/mount-cache-emptydir: ""
+juicefs/mount-cache-inline-volume: ""
+
+# Mount the hosts file or directory to pod
+# Container mount path will be the same as host path, this doesn't support customization
+juicefs/host-path: ""
 ```
