@@ -50,6 +50,50 @@ spec:
       storage: 20Gi
 ```
 
+### 留空资源设置 {#omit-resources}
+
+如果需要在 mount pod 中省略特定的 resources 字段（不填 requests 或者 limits），那么可以将对应字段设置为“0”：
+
+```yaml
+juicefs/mount-cpu-limit: "0"
+juicefs/mount-memory-limit: "0"
+# 如果 mount pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
+juicefs/mount-cpu-requests: "1m"
+juicefs/mount-memory-requests: "4Mi"
+```
+
+应用配置以后，新创建的 mount pod 会将“0”解释为省略不填，最终效果如下：
+
+```yaml
+resources:
+  requests:
+    cpu: 1m
+    memory: 4Mi
+```
+
+之所以不建议将 requests 设置为“0”，原因是 Kubernetes 在面对缺失 requests 时，会将其解释为与 limits 相等，也就是说，如果你设置了如下 mount pod 资源：
+
+```yaml
+# 错误示范，请勿模仿
+juicefs/mount-cpu-limit: "32"
+juicefs/mount-memory-limit: "64Gi"
+# 将 requests 设为 0，导致 csi-node 将其删去、省略不填
+juicefs/mount-cpu-requests: "0"
+juicefs/mount-memory-requests: "0"
+```
+
+那么按照 requests = limits 的规则，最终渲染结果往往不符合用户预期，也无法创建 mount pod，造成资源创建失败。
+
+```yaml
+resources:
+  limits:
+    cpu: 32
+    memory: 64Gi
+  requests:
+    cpu: 32
+    memory: 64Gi
+```
+
 ### 其他方式（不推荐） {#deprecated-resources-definition}
 
 :::warning
