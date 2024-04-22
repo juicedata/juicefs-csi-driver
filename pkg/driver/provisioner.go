@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
-	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
+	"k8s.io/klog/v2"
+	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v9/controller"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -82,14 +82,9 @@ func (j *provisionerService) Run(ctx context.Context) {
 	if j.K8sClient == nil {
 		klog.Fatalf("K8sClient is nil")
 	}
-	serverVersion, err := j.K8sClient.Discovery().ServerVersion()
-	if err != nil {
-		klog.Fatalf("Error getting server version: %v", err)
-	}
 	pc := provisioncontroller.NewProvisionController(j.K8sClient,
 		config.DriverName,
 		j,
-		serverVersion.GitVersion,
 		provisioncontroller.LeaderElection(j.leaderElection),
 		provisioncontroller.LeaseDuration(j.leaderElectionLeaseDuration),
 		provisioncontroller.LeaderElectionNamespace(j.leaderElectionNamespace),

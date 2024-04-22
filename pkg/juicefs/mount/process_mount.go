@@ -27,7 +27,7 @@ import (
 	"time"
 
 	_ "github.com/golang/mock/mockgen/model"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"

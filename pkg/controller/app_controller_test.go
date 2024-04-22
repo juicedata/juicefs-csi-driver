@@ -327,7 +327,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 								Containers: []corev1.Container{{
 									Name: config.MountContainerName + "-0",
 									Lifecycle: &corev1.Lifecycle{
-										PreStop: &corev1.Handler{
+										PreStop: &corev1.LifecycleHandler{
 											Exec: &corev1.ExecAction{Command: []string{"umount"}},
 										},
 									},
@@ -347,7 +347,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 									{
 										Name: config.MountContainerName + "-0",
 										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.Handler{
+											PreStop: &corev1.LifecycleHandler{
 												Exec: &corev1.ExecAction{Command: []string{"umount"}},
 											},
 										},
@@ -355,7 +355,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 									{
 										Name: config.MountContainerName + "-1",
 										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.Handler{
+											PreStop: &corev1.LifecycleHandler{
 												Exec: &corev1.ExecAction{Command: []string{"umount"}},
 											},
 										},
@@ -419,7 +419,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 								Containers: []corev1.Container{{
 									Name: config.MountContainerName + "-0",
 									Lifecycle: &corev1.Lifecycle{
-										PreStop: &corev1.Handler{
+										PreStop: &corev1.LifecycleHandler{
 											Exec: &corev1.ExecAction{Command: []string{"umount"}},
 										},
 									},
@@ -439,7 +439,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 									{
 										Name: config.MountContainerName + "-0",
 										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.Handler{
+											PreStop: &corev1.LifecycleHandler{
 												Exec: &corev1.ExecAction{Command: []string{"umount"}},
 											},
 										},
@@ -447,7 +447,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 									{
 										Name: config.MountContainerName + "-1",
 										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.Handler{
+											PreStop: &corev1.LifecycleHandler{
 												Exec: &corev1.ExecAction{Command: []string{"umount"}},
 											},
 										},

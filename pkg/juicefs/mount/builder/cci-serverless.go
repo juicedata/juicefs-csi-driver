@@ -72,7 +72,7 @@ func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
 	}
 	quotaPath := r.getQuotaPath()
 	name := r.jfsSetting.Name
-	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
+	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.LifecycleHandler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
 				security.EscapeBashStr(subpath),
