@@ -81,4 +81,4 @@ export default {
   reason: '原因',
   from: '事件源',
   message: '信息',
-};
+}

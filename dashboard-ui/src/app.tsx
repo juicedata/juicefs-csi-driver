@@ -14,35 +14,35 @@
  limitations under the License.
  */
 
-import { DarkMode, Question, SelectLang } from '@/components/RightContent';
-import { Flex } from 'antd';
-import { RuntimeConfig } from 'umi';
+import { DarkMode, Question, SelectLang } from '@/components/RightContent'
+import { Flex } from 'antd'
+import { RuntimeConfig } from 'umi'
 
 // 运行时配置
 
 // 全局初始化数据配置，用于 Layout 用户信息和权限初始化
 // 更多信息见文档：https://umijs.org/docs/api/runtime-config#getinitialstate
 export async function getInitialState(): Promise<object> {
-    return {};
+  return {}
 }
 
 export const layout: RuntimeConfig['layout'] = () => {
-    return {
-        // navTheme: "realDark",
-        actionsRender: () => [
-            <Flex align="center" gap="small" key="ar-flex">
-                <Question key="doc" />
-                <SelectLang key="SelectLang" />
-                <DarkMode key="darkMode" />
-            </Flex>,
-        ],
-        layout: 'mix',
-        title: 'JuiceFS CSI',
-        logo: false,
-        menu: {
-            locale: false,
-        },
-        rightContentRender: false,
-        colorPrimary: '#0ABD59',
-    };
-};
+  return {
+    // navTheme: "realDark",
+    actionsRender: () => [
+      <Flex align="center" gap="small" key="ar-flex">
+        <Question key="doc" />
+        <SelectLang key="SelectLang" />
+        <DarkMode key="darkMode" />
+      </Flex>,
+    ],
+    layout: 'mix',
+    title: 'JuiceFS CSI',
+    logo: false,
+    menu: {
+      locale: false,
+    },
+    rightContentRender: false,
+    colorPrimary: '#0ABD59',
+  }
+}
