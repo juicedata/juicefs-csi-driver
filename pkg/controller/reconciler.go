@@ -24,7 +24,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
