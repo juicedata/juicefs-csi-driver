@@ -12,7 +12,7 @@ Try searching for your problems in the top right corner, using different keyword
 
 ## How to seamlessly remount JuiceFS file system? {#seamless-remount}
 
-JuiceFS file system needs to be remounted for some configuration changes to take effect. If you can accept downtime, simply delete mount pod and JuiceFS is remounted when mount pod is re-created (note that if [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
+If you can accept downtime, simply delete mount pod and JuiceFS is remounted when mount pod is re-created (note that if [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
 
 * When [upgrading or downgrading CSI Driver](./administration/upgrade-csi-driver.md), if mount pod image is changed along the way, CSI Driver will create new mount pod when you perform a rolling upgrade on application pods.
 * Modify [mount options](./guide/pv.md#mount-options) at PV level, and perform a rolling upgrade on application pods. Note that for dynamic provisioning, although you can modify mount options in [StorageClass](./guide/pv.md#create-storage-class), but the changes made will not be reflected on existing PVs, a rolling upgrade thereafter will not trigger mount pod re-creation.
@@ -20,3 +20,20 @@ JuiceFS file system needs to be remounted for some configuration changes to take
 * If no configuration has been modified, but a seamless remount is still in need, you can make some trivial, ineffective changes to mount options (e.g. increase `cache-size` by 1), and then perform a rolling upgrade on application pods.
 
 To learn about the CSI Driver implementation, and find out when will new mount pods are created to achieve seamless remount, see the `GenHashOfSetting()` function in [`pkg/juicefs/mount/pod_mount.go`](https://github.com/juicedata/juicefs-csi-driver/blob/master/pkg/juicefs/mount/pod_mount.go).
+
+## `exec format error` {#format-error}
+
+The most common cause is CPU architecture misalignment, like running ARM64 images on a x86 system. If you must transfer images using a personal computer of different architecture, remember to specify the `platform`:
+
+```shell
+# Use the architecture of the actual environment
+docker pull --platform=linux/amd64 juicedata/mount:ee-5.0.17-0c63dc5
+```
+
+Apart from architecture misalignment, we've also seen this type of errors caused by bad container runtime, in which case `exec format error` can occur even if images are of the same architecture. When this happens, you might need to purge and reinstall container runtime, take containerd as an example:
+
+```shell
+systemctl stop kubelet
+rm -rf /var/lib/containerd
+# reinstall containerd
+```

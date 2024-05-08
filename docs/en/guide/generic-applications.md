@@ -359,7 +359,7 @@ mountOptions:
 
 ## Running JuiceFS S3 Gateway {#juicefs-gateway}
 
-Running S3 Gateway via Kubernetes Deployment is recommended. Use below example as reference (Service and Ingress is ommited, you need to create them in your environment as well).
+Running S3 Gateway via our [Helm Chart](https://github.com/juicedata/charts) is recommended. Use below example as reference (Service and Ingress is ommited, you need to create them in your environment as well).
 
 ```yaml
 apiVersion: apps/v1

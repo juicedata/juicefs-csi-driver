@@ -689,15 +689,24 @@ spec:
 
 严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
 
-## 使用挂载参数模版 {#options-template}
+## 高级 PV 初始化功能 {#provisioner}
 
-:::tip 提示
-[进程挂载模式](../introduction.md#by-process)不支持该功能。
-:::
+CSI 驱动提供两种方式进行 PV 初始化：
+
+* 使用标准的 [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner)，在旧版 CSI 驱动默认按照这种方式运行，因此 JuiceFS-CSI-controller 的 Pod 内会包含 provisioner，共 4 个容器
+* （推荐）不再使用标准的 CSI provisioner，而是将 controller 作为 provisioner。从 v0.23.4 开始，如果通过我们推荐的 Helm 方式安装 CSI 驱动，那么该功能会默认启用，此时 JuiceFS-CSI-controller 的 Pod 只包含 3 个容器，没有 provisioner
+
+之所以更推荐使用我们自带的 provisioner，是因为他给一系列高级自定义功能提供了可能，包括：
+
+*
 
 在「动态配置」方式下，我们使用不同 PVC 时 Provisoner 组件会根据 StorageClass 中的配置创建相应的 PV。所以默认情况下这些 PV 的挂载参数时固定的（继承自 StorageClass）。但当使用自定义 Provisoner 时，我们可以为不同 PVC 创建使用不同挂载参数的 PV。
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
+
+:::info
+[进程挂载模式](../introduction.md#by-process)不支持该功能。
+:::
 
 ### Helm
 
@@ -1053,7 +1062,7 @@ juicefs/host-path: "/etc/hosts"
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## 定制 Mount Pod {#customize-moun-pod}
+## 定制 Mount Pod {#customize-mount-pod}
 
 Mount Pod 并非由用户直接创建，而是 CSI-node 负责生成。因此用户没有办法直接控制 Pod 的各种配置。但这并不表示用户就无法控制和更改 mount pod 的设置，在 CSI 驱动中提供两种方式对 mount pod 进行定制。
 
