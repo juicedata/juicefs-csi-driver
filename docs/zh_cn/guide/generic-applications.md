@@ -356,7 +356,7 @@ mountOptions:
 
 ## 运行 JuiceFS S3 网关 {#juicefs-gateway}
 
-建议用 Deployment 运行 S3 网关，Deployment 的写法参考下方示范。你需要自行撰写 Service 和 Ingress 来对外暴露服务。
+建议用我们的 [Helm Chart](https://github.com/juicedata/charts) 来部署 S3 网关。但出于示范目的，在这里也一并提供 Deployment 的运行示范。注意示范里并不包含 Service 和 Ingress，你需要自行创建他们来对外暴露服务。
 
 ```yaml
 apiVersion: apps/v1

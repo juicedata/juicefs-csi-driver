@@ -993,7 +993,7 @@ If you need to mount multiple files or directories, specify them using comma:
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## Customize Mount Pod {#customize-moun-pod}
+## Customize Mount Pod {#customize-mount-pod}
 
 Since mount pods are created by CSI-node, users cannot directly control mount pod definition. However this doesn't mean you can't customize mount pod specs, CSI Driver provides two ways to customize mount pod.
 
