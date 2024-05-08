@@ -34,6 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func TestNewControllerService(t *testing.T) {
@@ -287,6 +288,7 @@ func TestDeleteVolume(t *testing.T) {
 					vols: map[string]int64{
 						volumeId: int64(1),
 					},
+					volLocks: util.NewVolumeLocks(),
 				}
 
 				_, err := juicefsDriver.DeleteVolume(ctx, req)
@@ -314,8 +316,9 @@ func TestDeleteVolume(t *testing.T) {
 				ctx := context.Background()
 
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    make(map[string]int64),
+					juicefs:  nil,
+					vols:     make(map[string]int64),
+					volLocks: util.NewVolumeLocks(),
 				}
 
 				_, err := juicefsDriver.DeleteVolume(ctx, req)
@@ -349,8 +352,9 @@ func TestDeleteVolume(t *testing.T) {
 				mockJuicefs.EXPECT().JfsDeleteVol(context.TODO(), volumeId, volumeId, secret, nil, nil).Return(errors.New("test"))
 
 				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    map[string]int64{volumeId: int64(1)},
+					juicefs:  mockJuicefs,
+					vols:     map[string]int64{volumeId: int64(1)},
+					volLocks: util.NewVolumeLocks(),
 				}
 
 				_, err := juicefsDriver.DeleteVolume(ctx, req)
@@ -378,8 +382,9 @@ func TestDeleteVolume(t *testing.T) {
 				ctx := context.Background()
 
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    make(map[string]int64),
+					juicefs:  nil,
+					vols:     make(map[string]int64),
+					volLocks: util.NewVolumeLocks(),
 				}
 
 				_, err := juicefsDriver.DeleteVolume(ctx, req)

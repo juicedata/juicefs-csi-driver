@@ -91,6 +91,10 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "umount /mnt/jfs -l && rmdir /mnt/jfs"}},
 		},
 	}
+	// set node name to empty to let k8s scheduler to choose a node
+	podTemplate.Spec.NodeName = ""
+	// set priority class name to empty to make job use default priority class
+	podTemplate.Spec.PriorityClassName = ""
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

@@ -37,16 +37,18 @@ var (
 )
 
 type controllerService struct {
-	juicefs juicefs.Interface
-	vols    map[string]int64
+	juicefs  juicefs.Interface
+	vols     map[string]int64
+	volLocks *util.VolumeLocks
 }
 
 func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 
 	return controllerService{
-		juicefs: jfs,
-		vols:    make(map[string]int64),
+		juicefs:  jfs,
+		vols:     make(map[string]int64),
+		volLocks: util.NewVolumeLocks(),
 	}, nil
 }
 
@@ -141,6 +143,12 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		klog.V(5).Infof("DeleteVolume: Secrets is empty, skip.")
 		return &csi.DeleteVolumeResponse{}, nil
 	}
+
+	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
+		klog.Errorf("DeleteVolume: Volume %q is being used by another operation", volumeID)
+		return nil, status.Errorf(codes.Aborted, "DeleteVolume: Volume %q is being used by another operation", volumeID)
+	}
+	defer d.volLocks.Release(volumeID)
 
 	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
 	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets, nil, nil)

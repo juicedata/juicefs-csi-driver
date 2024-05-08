@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -101,4 +102,30 @@ func getVol(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, n
 		}
 	}
 	return
+}
+
+type VolumeLocks struct {
+	locks sync.Map
+	mux   sync.Mutex
+}
+
+func NewVolumeLocks() *VolumeLocks {
+	return &VolumeLocks{}
+}
+
+func (vl *VolumeLocks) TryAcquire(volumeID string) bool {
+	vl.mux.Lock()
+	defer vl.mux.Unlock()
+	if _, ok := vl.locks.Load(volumeID); ok {
+		return false
+	}
+	vl.locks.Store(volumeID, nil)
+	return true
+}
+
+// Release deletes the lock on volumeID.
+func (vl *VolumeLocks) Release(volumeID string) {
+	vl.mux.Lock()
+	defer vl.mux.Unlock()
+	vl.locks.Delete(volumeID)
 }

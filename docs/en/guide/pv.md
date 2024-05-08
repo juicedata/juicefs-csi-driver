@@ -1023,7 +1023,6 @@ juicefs/mount-memory-request: ""
 juicefs/mount-labels: ""
 juicefs/mount-annotations: ""
 juicefs/mount-service-account: ""
-
 juicefs/mount-image: ""
 juicefs/mount-delete-delay: ""
 
@@ -1035,5 +1034,5 @@ juicefs/mount-cache-inline-volume: ""
 
 # Mount the hosts file or directory to pod
 # Container mount path will be the same as host path, this doesn't support customization
-juicefs/host-path: ""
+juicefs/host-path: "/data/file.txt"
 ```
