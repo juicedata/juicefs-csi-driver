@@ -28,7 +28,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 * 多个 Pod 共用 PV 时，不会新建 Mount Pod，而是对已有的 Mount Pod 做引用计数，计数归零时删除 Mount Pod。
 * CSI 驱动组件与客户端解耦，方便 CSI 驱动自身的升级。详见[「升级」](./administration/upgrade-csi-driver.md)。
 
-在同一个节点上，一个 PVC 会对应一个 Mount Pod。而使用了相同 PV 的容器，则可以共享一个 Mount Pod。PVC、PV、Mount Pod 之间的关系如下图所示：
+在同一个节点上，一个 PVC 会对应一个 Mount Pod。而使用了相同 PV 的 Pod，则可以共享一个 Mount Pod。PVC、PV、Mount Pod 之间的关系如下图所示：
 
 ![mount-pod-architecture](./images/mount-pod-architecture.svg)
 
