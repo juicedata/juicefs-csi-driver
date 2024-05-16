@@ -30,6 +30,7 @@ import (
 type fakeJfs struct {
 	basePath string
 	volumes  map[string]string
+	settings *config.JfsSetting
 }
 
 type fakeJfsProvider struct {
@@ -70,6 +71,7 @@ func (j *fakeJfsProvider) JfsMount(ctx context.Context, volumeID string, target 
 	fs = fakeJfs{
 		basePath: "/jfs/fake",
 		volumes:  map[string]string{},
+		settings: &config.JfsSetting{},
 	}
 
 	j.fs[jfsName] = fs
@@ -118,7 +120,7 @@ func (fs *fakeJfs) GetBasePath() string {
 }
 
 func (fs *fakeJfs) GetSetting() *config.JfsSetting {
-	return nil
+	return fs.settings
 }
 
 func (fs *fakeJfs) BindTarget(ctx context.Context, bindSource, target string) error {
