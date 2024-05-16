@@ -1,0 +1,30 @@
+reconcileTimeout: "5s"
+
+## supoort template parse
+# ${MOUNT_POINT}
+# ${VOLUME_ID}
+# ${SUB_PATH}
+mountPodPatch:
+  # selector is nil, mean all pod will be patched
+  - ceMountImage: juicedata/mount:ce-v1.1.2
+    eeMountImage: juicedata/mount:ee-5.0.16-c62bb16
+  # only matched selector PVC will patch livenessProbe
+  - pvcSelector:
+      matchLabels:
+        app: need-liveness-pvc
+    livenessProbe:
+      exec:
+        command:
+        - stat
+        - ${MOUNT_POINT}/${SUB_PATH}
+      failureThreshold: 3
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      successThreshold: 1
+      timeoutSeconds: 1
+  # only matched selector PVC will use hostNetwork
+  - pvcSelector:
+      matchLabels:
+        app: need-hostnetwrok-pvc
+    hostNetwork: true # omit will extend csi node value
+    hostPID: false # omit will extend csi node value   

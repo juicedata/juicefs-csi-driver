@@ -117,6 +117,10 @@ func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }
 
+func (fs *fakeJfs) GetSetting() *config.JfsSetting {
+	return nil
+}
+
 func (fs *fakeJfs) BindTarget(ctx context.Context, bindSource, target string) error {
 	return nil
 }

@@ -294,6 +294,27 @@ subjects:
   namespace: kube-system
 ---
 apiVersion: v1
+data:
+  config.yaml: |-
+    mountPodPatch:
+      - lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - +e
+              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-driver-config
+  namespace: kube-system
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:

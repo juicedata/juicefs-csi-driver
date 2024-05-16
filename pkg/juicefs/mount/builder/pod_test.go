@@ -87,7 +87,7 @@ var (
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   config.CEMountImage,
+				Image:   config.DefaultCEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
@@ -183,7 +183,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 			Type: &dir,
 		}}}}
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true)
+	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true, nil, nil)
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
@@ -192,7 +192,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true)
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true, nil, nil)
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
@@ -201,7 +201,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true)
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true, nil, nil)
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
@@ -210,7 +210,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true)
+	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true, nil, nil)
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
 	volumes = append(volumes, cacheVolumes...)
@@ -250,7 +250,7 @@ func TestNewMountPod(t *testing.T) {
 		MountPath: "/test",
 	}}, podConfigTest.Spec.Containers[0].VolumeMounts...)
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true)
+	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true, nil, nil)
 	r := PodBuilder{BaseBuilder{s, 0}}
 	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
@@ -361,24 +361,24 @@ func TestNewMountPod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
 			jfsSetting := &config.JfsSetting{
-				IsCe:                true,
-				Name:                tt.args.name,
-				Source:              "redis://127.0.0.1:6379/0",
-				Configs:             tt.args.configs,
-				Envs:                tt.args.env,
-				MountPodLabels:      tt.args.labels,
-				MountPodAnnotations: tt.args.annotations,
-				ServiceAccountName:  tt.args.serviceAccount,
-				MountPath:           tt.args.mountPath,
-				VolumeId:            tt.args.name,
-				Options:             tt.args.options,
-				CacheDirs:           tt.args.cacheDirs,
-				SecretName:          podName,
-				Attr: config.PodAttr{
-					Namespace:      config.Namespace,
-					MountPointPath: config.MountPointPath,
-					JFSConfigPath:  config.JFSConfigPath,
-					Image:          config.CEMountImage,
+				IsCe:       true,
+				Name:       tt.args.name,
+				Source:     "redis://127.0.0.1:6379/0",
+				Configs:    tt.args.configs,
+				Envs:       tt.args.env,
+				MountPath:  tt.args.mountPath,
+				VolumeId:   tt.args.name,
+				Options:    tt.args.options,
+				CacheDirs:  tt.args.cacheDirs,
+				SecretName: podName,
+				Attr: &config.PodAttr{
+					Labels:             tt.args.labels,
+					Annotations:        tt.args.annotations,
+					ServiceAccountName: tt.args.serviceAccount,
+					Namespace:          config.Namespace,
+					MountPointPath:     config.MountPointPath,
+					JFSConfigPath:      config.JFSConfigPath,
+					Image:              config.DefaultCEMountImage,
 				},
 			}
 			r := PodBuilder{BaseBuilder{jfsSetting, 0}}
@@ -433,6 +433,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				IsCe:      tt.isCe,
 				MountPath: tt.args.mountPath,
 				Options:   tt.args.options,
+				Attr:      &config.PodAttr{},
 			}
 			r := PodBuilder{BaseBuilder{jfsSetting, 0}}
 			if got := r.genMountCommand(); got != tt.want {

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
@@ -35,6 +36,7 @@ var (
 	nodeID      string
 	formatInPod bool
 	process     bool
+	configPath  string
 
 	provisioner       bool
 	cacheConf         bool
@@ -73,6 +75,7 @@ func main() {
 	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "Node ID")
 	cmd.PersistentFlags().BoolVar(&formatInPod, "format-in-pod", false, "Put format/auth in pod")
 	cmd.PersistentFlags().BoolVar(&process, "by-process", false, "CSI Driver run juicefs in process or not. default false.")
+	cmd.PersistentFlags().StringVar(&configPath, "config", "", "Paths to a csi config file. default empty")
 
 	cmd.PersistentFlags().BoolVar(&leaderElection, "leader-election", false, "Enables leader election. If leader election is enabled, additional RBAC rules are required. ")
 	cmd.PersistentFlags().StringVar(&leaderElectionNamespace, "leader-election-namespace", "", "Namespace where the leader election resource lives. Defaults to the pod namespace if not set.")
@@ -100,6 +103,11 @@ func main() {
 }
 
 func run() {
+	if configPath != "" {
+		if err := config.StartConfigReloader(configPath); err != nil {
+			klog.Fatalf("fail to load config: %v", err)
+		}
+	}
 	podName := os.Getenv("POD_NAME")
 	if strings.Contains(podName, "csi-controller") {
 		klog.Info("Run CSI controller")
