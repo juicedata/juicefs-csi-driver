@@ -337,15 +337,13 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		}
 	}
 
-	attr, err := GenPodAttrWithCfg(jfsSetting, volCtx)
-	if err != nil {
+	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
-	jfsSetting.Attr = attr
 	return &jfsSetting, nil
 }
 
-func GenPodAttrWithCfg(setting JfsSetting, volCtx map[string]string) (*PodAttr, error) {
+func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	var err error
 	var attr *PodAttr
 	if setting.Attr != nil {
@@ -397,12 +395,12 @@ func GenPodAttrWithCfg(setting JfsSetting, volCtx map[string]string) (*PodAttr, 
 		attr.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 		if err != nil {
 			klog.Errorf("Parse resource error: %v", err)
-			return nil, err
+			return err
 		}
 		if v, ok := volCtx[mountPodLabelKey]; ok && v != "" {
 			ctxLabel := make(map[string]string)
 			if err := parseYamlOrJson(v, &ctxLabel); err != nil {
-				return nil, err
+				return err
 			}
 			for k, v := range ctxLabel {
 				attr.Labels[k] = v
@@ -411,7 +409,7 @@ func GenPodAttrWithCfg(setting JfsSetting, volCtx map[string]string) (*PodAttr, 
 		if v, ok := volCtx[mountPodAnnotationKey]; ok && v != "" {
 			ctxAnno := make(map[string]string)
 			if err := parseYamlOrJson(v, &ctxAnno); err != nil {
-				return nil, err
+				return err
 			}
 			for k, v := range ctxAnno {
 				attr.Annotations[k] = v
@@ -420,9 +418,12 @@ func GenPodAttrWithCfg(setting JfsSetting, volCtx map[string]string) (*PodAttr, 
 	}
 
 	// overwrite by mountpod patch
-	patch := GlobalConfig.GenMountPodPatch(setting)
+	patch := GlobalConfig.GenMountPodPatch(*setting)
 	if patch.Image != "" {
 		attr.Image = patch.Image
+	}
+	if patch.HostNetwork != nil {
+		attr.HostNetwork = *patch.HostNetwork
 	}
 	if patch.HostPID != nil {
 		attr.HostPID = *patch.HostPID
@@ -437,7 +438,8 @@ func GenPodAttrWithCfg(setting JfsSetting, volCtx map[string]string) (*PodAttr, 
 	attr.LivenessProbe = patch.LivenessProbe
 	attr.ReadinessProbe = patch.ReadinessProbe
 	attr.StartupProbe = patch.StartupProbe
-	return attr, nil
+	setting.Attr = attr
+	return nil
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {

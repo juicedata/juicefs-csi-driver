@@ -162,10 +162,10 @@ func MustGetWebPort() int {
 type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
-	PVCSelector *metav1.LabelSelector `json:"selector,omitempty"`
+	PVCSelector *metav1.LabelSelector `json:"pvcSelector,omitempty"`
 
-	CEMountImage string `env:"JUICEFS_CE_MOUNT_IMAGE" envDefault:"juicedata/mount:ce-nightly" json:"ceMountImage"`
-	EEMountImage string `env:"JUICEFS_EE_MOUNT_IMAGE" envDefault:"juicedata/mount:ee-nightly" json:"eeMountImage"`
+	CEMountImage string `json:"ceMountImage,omitempty"`
+	EEMountImage string `json:"eeMountImage,omitempty"`
 
 	Image          string            `json:"-"`
 	Labels         map[string]string `json:"labels,omitempty"`
@@ -176,6 +176,13 @@ type MountPodPatch struct {
 	ReadinessProbe *corev1.Probe     `json:"readinessProbe,omitempty"`
 	StartupProbe   *corev1.Probe     `json:"startupProbe,omitempty"`
 	Lifecycle      *corev1.Lifecycle `json:"lifecycle,omitempty"`
+}
+
+func (mpp *MountPodPatch) deepCopy() MountPodPatch {
+	var copy MountPodPatch
+	data, _ := json.Marshal(mpp)
+	json.Unmarshal(data, &copy)
+	return copy
 }
 
 func (mpp *MountPodPatch) merge(mp MountPodPatch) {
@@ -214,9 +221,8 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 // TODO: migrate more config for here
 type Config struct {
 	// arrange mount pod to node with node selector instead nodeName
-	EnableNodeSelector bool `env:"ENABLE_NODE_SELECTOR" json:"ENABLE_NODE_SELECTOR"`
-
-	MountPodPatch []MountPodPatch `json:"mountPodPatch"`
+	EnableNodeSelector bool            `json:"enableNodeSelector,omitempty"`
+	MountPodPatch      []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {
@@ -236,7 +242,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	// merge each patch
 	for _, mp := range c.MountPodPatch {
 		if mp.PVCSelector == nil {
-			patch.merge(mp)
+			patch.merge(mp.deepCopy())
 		} else {
 			if setting.PVC == nil {
 				continue
@@ -246,7 +252,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 				continue
 			}
 			if selector.Matches(labels.Set(setting.PVC.Labels)) {
-				patch.merge(mp)
+				patch.merge(mp.deepCopy())
 			}
 		}
 	}
@@ -261,8 +267,8 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
 	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
 	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
-
 	json.Unmarshal([]byte(strData), patch)
+	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
 	return *patch
 }
 

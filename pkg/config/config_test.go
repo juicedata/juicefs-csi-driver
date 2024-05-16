@@ -189,6 +189,12 @@ func TestGenMountPodPatch(t *testing.T) {
 							},
 						},
 					},
+					{
+						PVCSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						},
+						HostNetwork: toPtr(false),
+					},
 				},
 			},
 			expectedPatch: MountPodPatch{
@@ -204,6 +210,7 @@ func TestGenMountPodPatch(t *testing.T) {
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat /jfs/parse_test/sub_path"}},
 					},
 				},
+				HostNetwork: toPtr(false),
 			},
 		},
 	}
@@ -214,4 +221,49 @@ func TestGenMountPodPatch(t *testing.T) {
 			assert.Equal(t, tc.expectedPatch, actualPatch)
 		})
 	}
+}
+
+func TestGenMountPodPatchParseTwice(t *testing.T) {
+	baseConfig := &Config{
+		MountPodPatch: []MountPodPatch{
+			{
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0"}},
+					},
+				},
+			},
+		},
+	}
+
+	setting := JfsSetting{
+		MountPath: "",
+	}
+
+	expectedPatch1 := MountPodPatch{
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
+		Lifecycle: &corev1.Lifecycle{
+			PreStop: &corev1.Handler{
+				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l ; rmdir ; exit 0"}},
+			},
+		},
+	}
+
+	actualPatch := baseConfig.GenMountPodPatch(setting)
+	assert.Equal(t, expectedPatch1, actualPatch)
+
+	expectedPatch2 := MountPodPatch{
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
+		Lifecycle: &corev1.Lifecycle{
+			PreStop: &corev1.Handler{
+				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l /var/lib/juicefs/volume; rmdir /var/lib/juicefs/volume; exit 0"}},
+			},
+		},
+	}
+	setting.MountPath = "/var/lib/juicefs/volume"
+	// Call the GenMountPodPatch function again
+	actualPatch = baseConfig.GenMountPodPatch(setting)
+	assert.Equal(t, expectedPatch2, actualPatch)
 }

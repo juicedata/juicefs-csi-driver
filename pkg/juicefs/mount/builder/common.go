@@ -76,7 +76,9 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 // genCommonJuicePod generates a pod with common settings
 func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
 	// gen again to update the mount pod spec
-	r.jfsSetting.Attr, _ = config.GenPodAttrWithCfg(*r.jfsSetting, nil)
+	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil); err != nil {
+		klog.Warningf("genCommonJuicePod gen pod attr failed, mount pod may not be the expected config  %+v", err)
+	}
 	pod := r.genPodTemplate(cnGen)
 	// labels & annotations
 	pod.ObjectMeta.Labels, pod.ObjectMeta.Annotations = r._genMetadata()
