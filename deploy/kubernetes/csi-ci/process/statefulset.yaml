@@ -15,3 +15,4 @@ spec:
             - --leader-election
             - --v=6
             - --by-process=true
+            - --config=/etc/config/config.yaml

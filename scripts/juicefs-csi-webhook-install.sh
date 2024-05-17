@@ -542,6 +542,7 @@ spec:
         - --v=5
         - --webhook=true
         - --validating-webhook=true
+        - --config=/etc/config/config.yaml
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -599,6 +600,8 @@ spec:
         - mountPath: /etc/webhook/certs
           name: webhook-certs
           readOnly: true
+        - mountPath: /etc/config
+          name: juicefs-config
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
@@ -656,6 +659,10 @@ spec:
       - name: webhook-certs
         secret:
           secretName: juicefs-webhook-certs
+      - configMap:
+          defaultMode: 420
+          name: juicefs-csi-driver-config
+        name: juicefs-config
   volumeClaimTemplates: []
 ---
 apiVersion: storage.k8s.io/v1
@@ -1252,6 +1259,7 @@ spec:
         - --v=5
         - --webhook=true
         - --validating-webhook=true
+        - --config=/etc/config/config.yaml
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -1309,6 +1317,8 @@ spec:
         - mountPath: /etc/webhook/certs
           name: webhook-certs
           readOnly: true
+        - mountPath: /etc/config
+          name: juicefs-config
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
@@ -1366,6 +1376,10 @@ spec:
       - name: webhook-certs
         secret:
           secretName: juicefs-webhook-certs
+      - configMap:
+          defaultMode: 420
+          name: juicefs-csi-driver-config
+        name: juicefs-config
   volumeClaimTemplates: []
 ---
 apiVersion: cert-manager.io/v1

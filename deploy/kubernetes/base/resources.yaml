@@ -363,6 +363,7 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --leader-election
             - --v=5
+            - --config=/etc/config/config.yaml
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -394,6 +395,8 @@ spec:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
+            - mountPath: /etc/config
+              name: juicefs-config
           ports:
             - name: healthz
               containerPort: 9909
@@ -465,6 +468,10 @@ spec:
         - name: webhook-certs
           secret:
             secretName: juicefs-webhook-certs
+        - configMap:
+            defaultMode: 420
+            name: juicefs-csi-driver-config
+          name: juicefs-config
 ---
 # Node Service
 kind: DaemonSet
