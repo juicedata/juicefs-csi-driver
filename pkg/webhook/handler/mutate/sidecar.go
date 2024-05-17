@@ -74,6 +74,9 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair util.P
 		return
 	}
 
+	if volCtx == nil {
+		volCtx = make(map[string]string)
+	}
 	// overwrite volume context
 	for k, v := range pair.PVC.Annotations {
 		if !strings.HasPrefix(k, "juicefs") {
