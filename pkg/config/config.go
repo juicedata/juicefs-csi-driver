@@ -326,7 +326,7 @@ func StartConfigReloader(configPath string) error {
 			select {
 			case event, ok := <-watcher.Events:
 				if !ok {
-					fmt.Println("not ok")
+					klog.Errorf("fsnotify watcher closed")
 					continue
 				}
 				if event.Op != fsnotify.Write && event.Op != fsnotify.Remove {
@@ -353,6 +353,15 @@ func StartConfigReloader(configPath string) error {
 			}
 		}
 	}(fsnotifyWatcher)
+
+	// fallback policy: reload config every 5 minutes
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			LoadConfig(configPath)
+		}
+	}()
 
 	return nil
 }

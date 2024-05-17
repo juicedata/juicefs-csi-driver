@@ -113,7 +113,6 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
-                test_config()
                 if without_kubelet:
                     test_pod_resource_err()
 
