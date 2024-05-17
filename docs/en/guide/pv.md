@@ -689,30 +689,25 @@ spec:
 
 Strictly speaking, dynamic provisioning doesn't inherently support mounting a existing directory. But you can [configure subdirectory naming pattern (path pattern)](#using-path-pattern), and align the pattern to match with the existing directory name, to achieve the same result.
 
-## Use more readable names for PV directory {#using-path-pattern}
+## Advanced PV provisoning {#provioner}
+
+CSI Driver provides 2 types of PV provisioning:
+
+* Using standard [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner), which is the default mode for older versions of CSI Driver. When running in this mode, juicefs-csi-controller pod includes 4 containers
+* (Recommended) Move away from the standard CSI provisioner and use our own in-house controller as provisioner. Since v0.23.4, if CSI Driver is installed via Helm, then this feature is already enabled, and juicefs-csi-controller pod will only have 3 containers
+
+Our in-house provisioner is favored because it opens up a series of new functionalities:
+
+* [Use more readable names for PV directory](#using-path-pattern), instead of subdirectory names like `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b`, they can be customized for readability, e.g. `default-juicefs-myapp`
+* Use templates in mount options, this allows for advanced features like [regional cache groups](#regional-cache-group)
+
+Under dynamic provisioning, provisioner will create PVs according to its StorageClass settings. Once created, their mount options are fixed (inherited from SC). But if our in-house provisioner is used, mount options can be customized for each PVC.
+
+This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning.
 
 :::tip
-Not supported in [mount by process mode](../introduction.md#by-process).
+Advanced provisioning is not supported in [mount by process mode](../introduction.md#by-process).
 :::
-
-Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
-
-```shell
-$ ls /jfs
-pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
-...
-```
-
-From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
-
-```shell
-$ ls /jfs
-default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
-```
-
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
-
-This feature is disabled by default, to enable, you need to add the `--provisioner=true` option to CSI Controller start command, and delete the sidecar container, so that CSI Controller main process is in charge of watching for resource changes, and carrying out actual provisioning. Follow below steps to enable `pathPattern`.
 
 ### Helm
 
@@ -730,6 +725,8 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 ```
 
 ### kubectl
+
+Helm is absolutely recommended since kubectl installation means a lot of complex manual edits. Please migrate to Helm installation as soon as possible.
 
 Manually edit CSI Controller:
 
@@ -798,7 +795,68 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
   -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
 ```
 
-### Usage
+### Scenarios
+
+#### Set regional cache group {#regional-cache-group}
+
+Using mount option templates, we can customize `cache-group` names for clients scattered in different regions. First, mark the region name in node annotation:
+
+```shell
+kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
+```
+
+And then modify relevant fields in SC:
+
+```yaml {11-13}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+mountOptions:
+  - cache-group="${.node.annotations.myjfs.juicefs.com/cacheGroup}"
+# Must use WaitForFirstConsumer, otherwise PV will be provisioned prematurely, injection won't work
+volumeBindingMode: WaitForFirstConsumer
+```
+
+After PVC & PV is created, verify the injection inside PV:
+
+```bash {8}
+$ kubectl get pv pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b -o yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b
+spec:
+  mountOptions:
+  - cache-group="region-1"
+```
+
+#### Use more readable names for PV directory {#using-path-pattern}
+
+Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
+
+```shell
+$ ls /jfs
+pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d31944  pvc-d88a5e2e-7597-467a-bf42-0ed6fa783a6b
+...
+```
+
+From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
+
+```shell
+$ ls /jfs
+default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
+```
+
+:::tip
+Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+:::
 
 Define `pathPattern` in StorageClass:
 
@@ -813,14 +871,19 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  pathPattern: "${.PVC.namespace}-${.PVC.name}"
+  pathPattern: "${.pvc.namespace}-${.pvc.name}"
 ```
 
-You can reference any PVC metadata in the pattern, for example:
+### Injection field reference
 
-1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`.
-1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value.
-1. `${.PVC.annotations.bar}` results in the PV directory name being the `bar` annotation value.
+You can reference any Node / PVC metadata in the pattern, for example:
+
+1. `${.node.name}-${.node.podCIDR}`, inject node `metadata.name` and `spec.podCIDR`, e.g. `minikube-10.244.0.0/24`
+1. `${.node.labels.foo}`, inject node label `metadata.labels["foo"]`
+1. `${.node.annotations.bar}`, inject node annotation `metadata.annotations["bar"]`
+1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`
+1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value
+1. `${.PVC.annotations.bar}` results in the PV directory name being the `bar` annotation value
 
 ## Common PV settings
 

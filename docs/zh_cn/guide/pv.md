@@ -693,14 +693,15 @@ spec:
 
 CSI 驱动提供两种方式进行 PV 初始化：
 
-* 使用标准的 [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner)，在旧版 CSI 驱动默认按照这种方式运行，因此 JuiceFS-CSI-controller 的 Pod 内会包含 provisioner，共 4 个容器
-* （推荐）不再使用标准的 CSI provisioner，而是将 controller 作为 provisioner。从 v0.23.4 开始，如果通过我们推荐的 Helm 方式安装 CSI 驱动，那么该功能会默认启用，此时 JuiceFS-CSI-controller 的 Pod 只包含 3 个容器，没有 provisioner
+* 使用标准的 [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner)，在旧版 CSI 驱动默认按照这种方式运行，因此 juicefs-csi-controller 的 Pod 内会包含 provisioner，共 4 个容器
+* （推荐）不再使用标准的 CSI provisioner，而是将 controller 作为 provisioner。从 v0.23.4 开始，如果通过我们推荐的 Helm 方式安装 CSI 驱动，那么该功能会默认启用，此时 juicefs-csi-controller 的 Pod 只包含 3 个容器，没有 provisioner
 
 之所以更推荐使用我们自带的 provisioner，是因为他给一系列高级自定义功能提供了可能，包括：
 
-*
+* [配置更加易读的 PV 目录名称](#using-path-pattern)，不再面对形如 `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b` 的随机 PV 子目录，而是自定义成更易读的格式，比如 `default-juicefs-myapp`
+* 模板化方式配置挂载参数，实现类似[根据网络区域设置缓存组](#regional-cache-group)的高级功能
 
-在「动态配置」方式下，我们使用不同 PVC 时 Provisoner 组件会根据 StorageClass 中的配置创建相应的 PV。所以默认情况下这些 PV 的挂载参数时固定的（继承自 StorageClass）。但当使用自定义 Provisoner 时，我们可以为不同 PVC 创建使用不同挂载参数的 PV。
+在「动态配置」方式下，Provisoner 组件会根据 StorageClass 中的配置动态地创建的 PV。所以默认情况下这些 PV 的挂载参数是固定的（继承自 StorageClass）。但如果使用自定义 Provisoner，就可以为不同 PVC 创建使用不同挂载参数的 PV。
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
@@ -794,16 +795,15 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
 
 ### 使用场景
 
-#### 根据网络区域设置 `cache-group`
+#### 根据网络区域设置缓存组 {#regional-cache-group}
 
-借助挂载参数模版，我们可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的节点设置 annotations 以标记缓存组名称：
+挂载参数模版可以为不同网络区域的客户端设置不同的 `cache-group`。首先我们为不同网络区域的节点设置 annotations 以标记缓存组名称：
 
-```bash
-$ kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
-node/minikube annotated
+```shell
+kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
 ```
 
-然后在 `StorageClass` 中这样设置 `mountOptions` 和 `volumeBindingMode`：
+然后在 `StorageClass` 中修改相关配置：
 
 ```yaml {11-13}
 apiVersion: storage.k8s.io/v1
@@ -852,7 +852,7 @@ $ ls /jfs
 default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
-:::tip 提示
+:::tip
 如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
 :::
 
@@ -872,23 +872,23 @@ parameters:
   pathPattern: "${.pvc.namespace}-${.pvc.name}"
 ```
 
-### 可注入值与版本差异
+### 模板注入值参考
 
 在 0.23.3 版本中，挂载参数和 `pathPattern` 中均可注入 Node 和 PVC 的元数据，比如：
 
-1. `${.node.name}-${.node.podCIDR}`，注入 Node 的 `metadata.name` 和 `spec.podCIDR`，例如 `minikube-10.244.0.0/24`。
-2. `${.node.labels.foo}`，注入 Node 的 `metadata.labels["foo"]`。
-3. `${.node.annotations.bar}`，注入 Node 的 `metadata.annotations["bar"]`。
-4. `${.pvc.namespace}-${.pvc.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default-dynamic-pvc`。
-5. `${.PVC.namespace}-${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`（与旧版本兼容）。
-6. `${.pvc.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
-7. `${.pvc.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
+1. `${.node.name}-${.node.podCIDR}`，注入 Node 的 `metadata.name` 和 `spec.podCIDR`，例如 `minikube-10.244.0.0/24`
+2. `${.node.labels.foo}`，注入 Node 的 `metadata.labels["foo"]`
+3. `${.node.annotations.bar}`，注入 Node 的 `metadata.annotations["bar"]`
+4. `${.pvc.namespace}-${.pvc.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default-dynamic-pvc`
+5. `${.PVC.namespace}-${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`（与旧版本兼容）
+6. `${.pvc.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`
+7. `${.pvc.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`
 
 而在更早版本中（>=0.13.3）只有 `pathPattern` 支持注入，且仅支持注入 PVC 的元数据，比如：
 
-1. `${.PVC.namespace}/${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default/dynamic-pvc`。
-2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`。
-3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`。
+1. `${.PVC.namespace}/${.PVC.name}`，注入 PVC 的 `metadata.namespace` 和 `metadata.name`，例如 `default/dynamic-pvc`
+2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`
+3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`
 
 ## 常用 PV 设置
 

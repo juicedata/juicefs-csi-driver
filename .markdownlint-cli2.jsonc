@@ -109,6 +109,7 @@
         "JSON",
         "Java",
         "JuiceFS",
+        "juicefs-csi-controller",
         "JuiceFSRuntime",
         "Juicedata",
         "K8s",
