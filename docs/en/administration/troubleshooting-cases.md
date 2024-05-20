@@ -75,7 +75,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
   df: /jfs: Socket not connected
   ```
 
-  In this case, you'll need to enable [automatic mount point recovery](../guide/pv.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
+  In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
 
 * **Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**
 
@@ -102,7 +102,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
   kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
   ```
 
-  Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/pv.md#mount-options) and thoroughly check for any format errors.
+  Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
 
 ## PVC error {#pvc-error}
 
@@ -133,7 +133,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
     ----     ------         ----              ----                         -------
     Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
   ```
-  
+
   In addition, the application pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
 
   ```shell

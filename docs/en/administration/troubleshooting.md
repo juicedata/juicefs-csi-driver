@@ -51,7 +51,7 @@ In JuiceFS CSI Driver, most frequently encountered problems are PV creation fail
 
 ### PV creation failure
 
-Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`](../guide/pv.md#using-path-pattern)).
+Under [dynamic provisioning](../guide/pv.md#dynamic-provisioning), after PVC has been created, CSI Controller will work with kubelet to automatically create PV. During this phase, CSI Controller will create a sub-directory in JuiceFS named after the PV ID (naming pattern can be configured via [`pathPattern`](../guide/configurations.md#using-path-pattern)).
 
 #### Check PVC events
 

@@ -9,8 +9,8 @@ Best practices and recommended settings when going production.
 
 Below settings are recommended for a production environment.
 
-* [Configure more readable names for PV directory](../guide/pv.md#using-path-pattern)
-* Enable [Automatic Mount Point Recovery](../guide/pv.md#automatic-mount-point-recovery)
+* [Configure more readable names for PV directory](../guide/configurations.md#using-path-pattern)
+* Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery)
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache/#client-write-cache).
 * When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md).
 
@@ -24,7 +24,7 @@ Below settings are recommended for a production environment.
 Content in this section is only applicable to JuiceFS Community Edition, because Enterprise Edition doesn't provide metrics via local port, instead a centralized metrics API is provided, see [enterprise docs](https://juicefs.com/docs/zh/cloud/administration/monitoring/#prometheus-api).
 :::
 
-By default (not using `hostNetwork`), the mount pod provides a metrics API through port 9567 (you can also add [`metrics`](https://juicefs.com/docs/community/command_reference#mount) option in [`mountOptions`](../guide/pv.md#mount-options) to customize the port number), the port name is `metrics`, so the monitoring configuration of Prometheus can be configured as follows.
+By default (not using `hostNetwork`), the mount pod provides a metrics API through port 9567 (you can also add [`metrics`](https://juicefs.com/docs/community/command_reference#mount) option in [`mountOptions`](../guide/configurations.md#mount-options) to customize the port number), the port name is `metrics`, so the monitoring configuration of Prometheus can be configured as follows.
 
 ### Collect data in Prometheus {#collect-metrics}
 

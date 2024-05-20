@@ -9,8 +9,8 @@ sidebar_position: 1
 
 在生产环境中，推荐这样设置 PV：
 
-* [配置更加易读的 PV 目录名称](../guide/pv.md#using-path-pattern)
-* 启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)
+* [配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)
+* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache/#client-write-cache)
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优
 
@@ -24,7 +24,7 @@ sidebar_position: 1
 本节介绍的监控相关实践仅适用于 JuiceFS 社区版，企业版客户端并不通过本地端口来暴露监控数据，而是提供中心化的抓取 API，详见[企业版文档](https://juicefs.com/docs/zh/cloud/administration/monitoring/#prometheus-api)。
 :::
 
-默认设置下（未使用 `hostNetwork`），Mount Pod 通过 9567 端口提供监控 API（也可以通过在 [`mountOptions`](../guide/pv.md#mount-options) 中添加 [`metrics`](https://juicefs.com/docs/zh/community/command_reference#mount) 选项来自定义端口号），端口名为 `metrics`，因此可以按如下方式配置 Prometheus 的监控配置。
+默认设置下（未使用 `hostNetwork`），Mount Pod 通过 9567 端口提供监控 API（也可以通过在 [`mountOptions`](../guide/configurations.md#mount-options) 中添加 [`metrics`](https://juicefs.com/docs/zh/community/command_reference#mount) 选项来自定义端口号），端口名为 `metrics`，因此可以按如下方式配置 Prometheus 的监控配置。
 
 ### Prometheus 收集监控指标 {#collect-metrics}
 

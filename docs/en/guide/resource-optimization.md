@@ -1,6 +1,6 @@
 ---
 title: Resource Optimization
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI Driver, there's much to be done in this aspect. Methods on resource optimizations are introduced in this chapter.
@@ -29,7 +29,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 Since 0.23.4, users can declare mount pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage mount pod resources. But do note this:
 
 * After annotations are edited, existing mount pods won't be re-created according to the current config, you'll need to delete existing mount pods to trigger the re-creation.
-* [Automatic mount point recovery](./pv.md#automatic-mount-point-recovery) must be set up in advance so that the new mount points can be propagated back to the application pods.
+* [Automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) must be set up in advance so that the new mount points can be propagated back to the application pods.
 * Even with automatic mount point recovery, this process WILL cause short service abruption.
 
 ```yaml {6-9}
@@ -204,7 +204,7 @@ To enable mount pod sharing for the same StorageClass, add the `STORAGE_CLASS_SH
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
 ```
 
-Evidently, more aggressive sharing policy means lower isolation level, mount pod crashes will bring worse consequences, so if you do decide to use mount pod sharing, make sure to enable [automatic mount point recovery](./pv.md#automatic-mount-point-recovery) as well, and [increase mount pod resources](#mount-pod-resources).
+Evidently, more aggressive sharing policy means lower isolation level, mount pod crashes will bring worse consequences, so if you do decide to use mount pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase mount pod resources](#mount-pod-resources).
 
 ## Clean cache when mount pod exits {#clean-cache-when-mount-pod-exits}
 
