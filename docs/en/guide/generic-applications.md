@@ -1,6 +1,6 @@
 ---
 title: Running other JuiceFS applications
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 Strictly speaking, this chapter isn't directly related to JuiceFS CSI Driver, they are generic Kubernetes applications that can run without our CSI Driver. For example:

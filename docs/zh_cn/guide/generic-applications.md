@@ -1,6 +1,6 @@
 ---
 title: 运行其他 JuiceFS 应用
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 严格来说，本章内容与 JuiceFS CSI 驱动没有关联，而是通用的 Kubernetes 应用，因此下方介绍的各种部署方式，也完全可以脱离 CSI 驱动、独立使用。比方说：
