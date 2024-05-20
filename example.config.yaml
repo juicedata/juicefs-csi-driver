@@ -1,30 +1,49 @@
-reconcileTimeout: "5s"
+# Set this to `true` to arrange mount pod to node with node selector instead nodeName
+enableNodeSelector: true
 
-## supoort template parse
-# ${MOUNT_POINT}
-# ${VOLUME_ID}
-# ${SUB_PATH}
+# The `mountPodPatch` section defines the mount pod spec
+# Each item will respect the pvcSelector and be merged in order as the final configuration
+# if `pvcSelector` is not set, the configuration will be match any pvcs
+# command support template rendering, such as ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
 mountPodPatch:
-  # selector is nil, mean all pod will be patched
-  - ceMountImage: juicedata/mount:ce-v1.1.2
-    eeMountImage: juicedata/mount:ee-5.0.16-c62bb16
-  # only matched selector PVC will patch livenessProbe
-  - pvcSelector:
-      matchLabels:
-        app: need-liveness-pvc
-    livenessProbe:
-      exec:
-        command:
-        - stat
-        - ${MOUNT_POINT}/${SUB_PATH}
-      failureThreshold: 3
-      initialDelaySeconds: 5
-      periodSeconds: 5
-      successThreshold: 1
-      timeoutSeconds: 1
-  # only matched selector PVC will use hostNetwork
-  - pvcSelector:
-      matchLabels:
-        app: need-hostnetwrok-pvc
-    hostNetwork: true # omit will extend csi node value
-    hostPID: false # omit will extend csi node value   
+  - lifecycle:
+      preStop:
+        exec:
+          command:
+          - sh
+          - -c
+          - +e
+          - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+
+  # Example configurations:
+  # - pvcSelector:
+  #     matchLabels:
+  #       disable-host-network: "true"
+  #   hostNetwork: false
+
+  # - pvcSelector:
+  #     matchLabels:
+  #       apply-labels: "true"
+  #   labels:
+  #     custom-labels: "asasasa"
+
+  # - pvcSelector:
+  #     matchLabels:
+  #       apply-resources: "true"
+  #   resources:
+  #     requests:
+  #       cpu: 100m
+  #       memory: 512Mi
+
+  # - pvcSelector:
+  #     matchLabels:
+  #       apply-liveness: "true"
+  #   livenessProbe:
+  #     exec:
+  #       command:
+  #       - stat
+  #       - ${MOUNT_POINT}/${SUB_PATH}
+  #     failureThreshold: 3
+  #     initialDelaySeconds: 10
+  #     periodSeconds: 5
+  #     successThreshold: 1

@@ -434,6 +434,9 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	for k, v := range patch.Annotations {
 		attr.Annotations[k] = v
 	}
+	if patch.Resources != nil {
+		attr.Resources = *patch.Resources
+	}
 	attr.Lifecycle = patch.Lifecycle
 	attr.LivenessProbe = patch.LivenessProbe
 	attr.ReadinessProbe = patch.ReadinessProbe
