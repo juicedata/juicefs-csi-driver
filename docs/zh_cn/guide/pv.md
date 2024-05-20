@@ -699,19 +699,25 @@ CSI 驱动提供两种方式进行 PV 初始化：
 之所以更推荐使用我们自带的 provisioner，是因为他给一系列高级自定义功能提供了可能，包括：
 
 <<<<<<< HEAD
+
 * [配置更加易读的 PV 目录名称](#using-path-pattern)，不再面对形如 `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b` 的随机 PV 子目录，而是自定义成更易读的格式，比如 `default-juicefs-myapp`
 * 模板化方式配置挂载参数，实现类似[根据网络区域设置缓存组](#regional-cache-group)的高级功能
 ||||||| parent of 33ed523 (docs: translate advanced provisioning)
 *
+
 =======
+
 * [配置更加易读的 PV 目录名称](#using-path-pattern)，不再面对形如 `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b` 的随机 PV 子目录，而是自定义成更易读的格式，比如 `default-juicefs-myapp`
 <<<<<<< HEAD
 * 模板化方式配置挂载参数，实现类似[根据网络区域设置缓存组](#cache-group-name-template)的高级功能
+
 >>>>>>> 33ed523 (docs: translate advanced provisioning)
 ||||||| parent of 6305d61 (lint)
+
 * 模板化方式配置挂载参数，实现类似[根据网络区域设置缓存组](#cache-group-name-template)的高级功能
 =======
 * 模板化方式配置挂载参数，实现类似[根据网络区域设置缓存组](#regional-cache-group)的高级功能
+
 >>>>>>> 6305d61 (lint)
 
 在「动态配置」方式下，Provisoner 组件会根据 StorageClass 中的配置动态地创建的 PV。所以默认情况下这些 PV 的挂载参数是固定的（继承自 StorageClass）。但如果使用自定义 Provisoner，就可以为不同 PVC 创建使用不同挂载参数的 PV。
