@@ -12,10 +12,10 @@ Try searching for your problems in the top right corner, using different keyword
 
 ## How to seamlessly remount JuiceFS file system? {#seamless-remount}
 
-If you can accept downtime, simply delete mount pod and JuiceFS is remounted when mount pod is re-created (note that if [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
+If you can accept downtime, simply delete mount pod and JuiceFS is remounted when mount pod is re-created (note that if [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
 
 * When [upgrading or downgrading CSI Driver](./administration/upgrade-csi-driver.md), if mount pod image is changed along the way, CSI Driver will create new mount pod when you perform a rolling upgrade on application pods.
-* Modify [mount options](./guide/pv.md#mount-options) at PV level, and perform a rolling upgrade on application pods. Note that for dynamic provisioning, although you can modify mount options in [StorageClass](./guide/pv.md#create-storage-class), but the changes made will not be reflected on existing PVs, a rolling upgrade thereafter will not trigger mount pod re-creation.
+* Modify [mount options](./guide/configurations.md#mount-options) at PV level, and perform a rolling upgrade on application pods. Note that for dynamic provisioning, although you can modify mount options in [StorageClass](./guide/pv.md#create-storage-class), but the changes made will not be reflected on existing PVs, a rolling upgrade thereafter will not trigger mount pod re-creation.
 * Modify [volume credentials](./guide/pv.md#volume-credentials), and perform a rolling upgrade on application pods.
 * If no configuration has been modified, but a seamless remount is still in need, you can make some trivial, ineffective changes to mount options (e.g. increase `cache-size` by 1), and then perform a rolling upgrade on application pods.
 

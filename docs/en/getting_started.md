@@ -77,7 +77,7 @@ It's recommended that you include the values file used above in the version cont
 
 ## kubectl {#kubectl}
 
-kubectl is the simpler installation method compared to Helm, if you are simply trying to evaluate CSI Driver, this is recommended, **but in a production environment, installing via kubectl is strongly advised against**, because any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/pv.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
+kubectl is the simpler installation method compared to Helm, if you are simply trying to evaluate CSI Driver, this is recommended, **but in a production environment, installing via kubectl is strongly advised against**, because any configuration changes require manual editing, and can easily cause trouble if you are not familiar with CSI Controller. If you'd like to enable advanced features (e.g. [enable pathPattern](./guide/configurations.md#using-path-pattern)), or just want to manage resources easier, consider installing via Helm.
 
 1. Check kubelet root directory
 
@@ -134,7 +134,7 @@ Since v0.23.5, Helm chart supports `mountMode: serverless`, a special form of si
 The `serverless` mode allows CSI Driver to be installed in full virtual nodes, in comparison, the default `sidecar` mode still requires an actual VM.
 :::
 
-Sidecar is very different from the default mount pod mode, for example, sharing JuiceFS Client is not available, neither does it support [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery).
+Sidecar is very different from the default mount pod mode, for example, sharing JuiceFS Client is not available, neither does it support [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery).
 
 ### Helm
 

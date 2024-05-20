@@ -36,7 +36,7 @@ To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via
 
 ### Static provisioning
 
-Static provisioning is the simpler approach, which by default mounts the whole JuiceFS volume root into application pod (also supports [mounting subdirectories](./guide/pv.md#mount-subdirectory)), the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
+Static provisioning is the simpler approach, which by default mounts the whole JuiceFS volume root into application pod (also supports [mounting subdirectories](./guide/configurations.md#mount-subdirectory)), the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
 
 ![static-provisioning](./images/static-provisioning.svg)
 
@@ -88,7 +88,7 @@ Some sidecar caveats:
 
 * FUSE must be supported, meaning that container will run in privileged mode;
 * Different from mount by pod, a sidecar container is injected into the application pod, so sharing PV is not possible. Carefully manage resources when use at scale;
-* Mount point is shared between sidecar & application container using `hostPath`, which means sidecar container is actually stateful, so in the event of a sidecar container crash, mount point cannot automatically restore without re-creating the whole pod (in contrast, mount pod mode supports [automatic mount point recovery](./guide/pv.md#automatic-mount-point-recovery));
+* Mount point is shared between sidecar & application container using `hostPath`, which means sidecar container is actually stateful, so in the event of a sidecar container crash, mount point cannot automatically restore without re-creating the whole pod (in contrast, mount pod mode supports [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery));
 * Do not switch to sidecar mode directly from mount pod mode, as existing mount pods won't automatically migrate to sidecar mode, and just simply stagnate;
 * CSI Controller will listen for all pod change events under namespaces with sidecar injections enabled. If you'd like to minimize overhead, you can even ignore pods by labeling them with `disable.sidecar.juicefs.com/inject: true`, so that CSI Controller deliberately ignores them.
 

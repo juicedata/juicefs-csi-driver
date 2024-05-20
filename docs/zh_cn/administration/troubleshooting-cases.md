@@ -73,7 +73,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
   df: /jfs: Socket not connected
   ```
 
-  你需要启用[「挂载点自动恢复」](../guide/pv.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
+  你需要启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
 
 * **Mount Pod 正常退出（exit code 为 0），应用容器卡在 `ContainerCreateError` 状态**
 
@@ -100,7 +100,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
   kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
   ```
 
-  仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/pv.md#mount-options)，确保格式正确。
+  仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
 
 ## PVC 异常 {#pvc-error}
 
@@ -131,9 +131,9 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
     ----     ------         ----              ----                         -------
     Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
   ```
-  
+
   另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
-  
+
   ```shell
   Events:
   Type     Reason       Age    From               Message

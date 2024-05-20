@@ -12,7 +12,7 @@ JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edit
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
-After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./pv.md#mount-options).
+After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./configurations.md#mount-options).
 
 :::note
 
@@ -20,7 +20,7 @@ After cache directory is set, it'll be accessible in the mount pod via `hostPath
 * For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 :::
 
-Cache related settings is configured in [mount options](./pv.md#mount-options), you can also refer to the straightforward examples below. After PV is created and mounted, you can also [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
+Cache related settings is configured in [mount options](./configurations.md#mount-options), you can also refer to the straightforward examples below. After PV is created and mounted, you can also [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
 
 * Static provisioning
 
@@ -293,7 +293,7 @@ Use below example to deploy a StatefulSet of JuiceFS clients, together they form
 
 A JuiceFS cache cluster is deployed with the cache group name `jfscache`, in order to use this cache cluster in application JuiceFS clients, you'll need to join them into the same cache group, and additionally add the `--no-sharing` option, so that these application clients doesn't really involve in building the cache data, this is what prevents a instable cache group.
 
-Under dynamic provisioning, modify mount options according to below examples, see full description in [mount options](../guide/pv.md#mount-options).
+Under dynamic provisioning, modify mount options according to below examples, see full description in [mount options](../guide/configurations.md#mount-options).
 
 ```yaml {13-14}
 apiVersion: storage.k8s.io/v1

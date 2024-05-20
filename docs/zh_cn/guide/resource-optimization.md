@@ -29,7 +29,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这也是最灵活、我们最推荐的方式。但也要注意：
 
 * 修改以后，已有的 mount pod 并不会自动按照新的配置重建。需要删除 mount pod，才能以新的资源配置触发创建新的 mount pod。
-* 必须配置好[挂载点自动恢复](./pv.md#automatic-mount-point-recovery)，重建后 mount pod 的挂载点才能传播回应用 pod。
+* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 mount pod 的挂载点才能传播回应用 pod。
 * 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
 
 ```yaml {6-9}
@@ -226,7 +226,7 @@ CSI Node 在创建 Mount Pod 时，会默认给其设置 PriorityClass 为 `syst
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
 ```
 
-可想而知，高度复用意味着更低的隔离程度，如果 Mount Pod 发生意外，挂载点异常，影响面也会更大，因此如果你决定启用该复用策略，请务必同时启用[「挂载点自动恢复」](./pv.md#automatic-mount-point-recovery)，以及合理增加 [「Mount Pod 的资源请求」](#mount-pod-resources)。
+可想而知，高度复用意味着更低的隔离程度，如果 Mount Pod 发生意外，挂载点异常，影响面也会更大，因此如果你决定启用该复用策略，请务必同时启用[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，以及合理增加 [「Mount Pod 的资源请求」](#mount-pod-resources)。
 
 ## 配置 Mount Pod 退出时清理缓存 {#clean-cache-when-mount-pod-exits}
 
