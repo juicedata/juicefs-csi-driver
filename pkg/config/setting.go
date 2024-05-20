@@ -368,12 +368,11 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 			Labels:               make(map[string]string),
 			Annotations:          make(map[string]string),
 		}
-	}
-
-	if setting.IsCe {
-		attr.Image = DefaultCEMountImage
-	} else {
-		attr.Image = DefaultEEMountImage
+		if setting.IsCe {
+			attr.Image = DefaultCEMountImage
+		} else {
+			attr.Image = DefaultEEMountImage
+		}
 	}
 
 	if JFSMountPreemptionPolicy != "" {
