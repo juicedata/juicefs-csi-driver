@@ -297,8 +297,11 @@ func LoadConfig(configPath string) error {
 	}
 
 	cfg := newCfg()
-	// FIXME: support env `JUICEFS_MOUNT_LABELS`
-	// FIXME: support env `ENABLE_NODE_SELECTOR` == `1`
+
+	// compatible with old version
+	if os.Getenv("ENABLE_NODE_SELECTOR") == "1" {
+		cfg.EnableNodeSelector = true
+	}
 
 	err = cfg.Unmarshal(data)
 	if err != nil {
