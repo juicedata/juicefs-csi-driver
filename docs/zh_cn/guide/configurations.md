@@ -482,7 +482,7 @@ JuiceFS:myjfs       100G     0  100G   0% /data-0
 
 ### PV 扩容 {#pv-expansion}
 
-在 JuiceFS CSI 驱动 0.21.0 及以上版本，支持动态扩展 PersistentVolume 的容量（仅支持[动态配置](#dynamic-provisioning)）。需要在 [StorageClass](#create-storage-class) 中指定 `allowVolumeExpansion: true`，同时指定扩容时所需使用的 Secret，主要提供文件系统的认证信息，例如：
+在 JuiceFS CSI 驱动 0.21.0 及以上版本，支持动态扩展 PersistentVolume 的容量（仅支持[动态配置](./pv.md#dynamic-provisioning)）。需要在 [StorageClass](./pv.md#create-storage-class) 中指定 `allowVolumeExpansion: true`，同时指定扩容时所需使用的 Secret，主要提供文件系统的认证信息，例如：
 
 ```yaml {9-11}
 apiVersion: storage.k8s.io/v1
