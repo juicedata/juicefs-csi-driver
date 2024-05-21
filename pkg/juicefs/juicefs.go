@@ -91,6 +91,7 @@ type jfs struct {
 	Name      string
 	MountPath string
 	Options   []string
+	Setting   *config.JfsSetting
 }
 
 type clientVersion struct {
@@ -167,6 +168,7 @@ func (v *clientVersion) LessThan(other *clientVersion) bool {
 // Jfs is the interface of a mounted file system
 type Jfs interface {
 	GetBasePath() string
+	GetSetting() *config.JfsSetting
 	CreateVol(ctx context.Context, volumeID, subPath string) (string, error)
 	BindTarget(ctx context.Context, bindSource, target string) error
 }
@@ -250,6 +252,10 @@ func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error 
 	return nil
 }
 
+func (fs *jfs) GetSetting() *config.JfsSetting {
+	return fs.Setting
+}
+
 // NewJfsProvider creates a provider for JuiceFS file system
 func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sClient) Interface {
 	if mounter == nil {
@@ -274,6 +280,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	}
 }
 
+// unused for now
 func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {
 	jfsSetting, err := j.genJfsSettings(ctx, volumeID, "", secrets, volCtx, []string{})
 	if err != nil {
@@ -318,10 +325,6 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err := j.validTarget(target); err != nil {
 		return nil, err
 	}
-
-	if err := j.overwriteVolCtxWithPVCAnnotations(ctx, volumeID, volCtx); err != nil {
-		klog.Errorf("Overwrite volCtx with PVC annotations error: %v", err)
-	}
 	jfsSetting, err := j.genJfsSettings(ctx, volumeID, target, secrets, volCtx, options)
 	if err != nil {
 		return nil, err
@@ -340,31 +343,8 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 		Name:      secrets["name"],
 		MountPath: mountPath,
 		Options:   options,
+		Setting:   jfsSetting,
 	}, nil
-}
-
-func (j *juicefs) overwriteVolCtxWithPVCAnnotations(ctx context.Context, volumeID string, volCtx map[string]string) error {
-	if config.ByProcess {
-		return nil
-	}
-	pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)
-	if err != nil {
-		return err
-	}
-
-	pvc, err := j.K8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
-	if err != nil {
-		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
-		return err
-	}
-
-	for k, v := range pvc.Annotations {
-		if !strings.HasPrefix(k, "juicefs") {
-			continue
-		}
-		volCtx[k] = v
-	}
-	return nil
 }
 
 // Settings get all jfs settings and generate format/auth command
@@ -373,7 +353,32 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 	if err != nil {
 		return nil, err
 	}
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, mountOptions, !config.ByProcess)
+
+	var pv *corev1.PersistentVolume
+	var pvc *corev1.PersistentVolumeClaim
+	if j.K8sClient != nil {
+		pv, err = j.K8sClient.GetPersistentVolume(ctx, volumeID)
+		if err == nil {
+			pvc, err = j.K8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+			if err != nil {
+				klog.Warningf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+			}
+		}
+	}
+	// overwrite volCtx with pvc annotations
+	if pvc != nil {
+		if volCtx == nil {
+			volCtx = make(map[string]string)
+		}
+		for k, v := range pvc.Annotations {
+			if !strings.HasPrefix(k, "juicefs") {
+				continue
+			}
+			volCtx[k] = v
+		}
+	}
+
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, mountOptions, !config.ByProcess, pv, pvc)
 	if err != nil {
 		klog.V(5).Infof("Parse config for %s error: %v", secrets["name"], err)
 		return nil, err

@@ -574,7 +574,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
+			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldBeNil)
@@ -620,7 +620,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true)
+			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldNotBeNil)
@@ -670,7 +670,9 @@ func Test_juicefs_MountFs(t *testing.T) {
 			So(e, ShouldBeNil)
 		})
 		Convey("not MountPoint err", func() {
-			jfsSetting := &config.JfsSetting{}
+			jfsSetting := &config.JfsSetting{
+				Attr: &config.PodAttr{},
+			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, errors.New("test")
 			})
@@ -937,7 +939,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(context.TODO(), secret, true, setting)
 			So(err, ShouldBeNil)
@@ -981,7 +983,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true)
+			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(context.TODO(), secret, true, setting)
 			So(err, ShouldNotBeNil)

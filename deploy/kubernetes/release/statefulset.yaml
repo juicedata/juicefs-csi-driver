@@ -17,6 +17,8 @@ spec:
             - mountPath: /root/.juicefs
               mountPropagation: Bidirectional
               name: jfs-root-dir
+            - mountPath: /etc/config
+              name: juicefs-config
             - name: webhook-certs
               $patch: delete
       volumes:

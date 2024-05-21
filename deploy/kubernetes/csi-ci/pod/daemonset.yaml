@@ -14,3 +14,4 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --v=6
             - --enable-manager=true
+            - --config=/etc/config/config.yaml

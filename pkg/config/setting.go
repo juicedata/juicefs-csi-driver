@@ -66,13 +66,9 @@ type JfsSetting struct {
 	Configs       map[string]string `json:"configs_map,omitempty"`
 
 	// put in volCtx
-	MountPodLabels      map[string]string `json:"mount_pod_labels"`
-	MountPodAnnotations map[string]string `json:"mount_pod_annotations"`
-	DeletedDelay        string            `json:"deleted_delay"`
-	CleanCache          bool              `json:"clean_cache"`
-	HostPath            []string          `json:"host_path"`
-	ServiceAccountName  string
-	Resources           corev1.ResourceRequirements
+	DeletedDelay string   `json:"deleted_delay"`
+	CleanCache   bool     `json:"clean_cache"`
+	HostPath     []string `json:"host_path"`
 
 	// mount
 	VolumeId   string   // volumeHandle of PV
@@ -84,7 +80,10 @@ type JfsSetting struct {
 	SubPath    string   // subPath which is to be created or deleted
 	SecretName string   // secret with JuiceFS volume credentials
 
-	Attr PodAttr
+	Attr *PodAttr
+
+	PV  *corev1.PersistentVolume      `json:"-"`
+	PVC *corev1.PersistentVolumeClaim `json:"-"`
 }
 
 type PodAttr struct {
@@ -92,6 +91,16 @@ type PodAttr struct {
 	MountPointPath       string
 	JFSConfigPath        string
 	JFSMountPriorityName string
+	ServiceAccountName   string
+
+	Resources corev1.ResourceRequirements
+
+	Labels         map[string]string `json:"labels,omitempty"`
+	Annotations    map[string]string `json:"annotations,omitempty"`
+	LivenessProbe  *corev1.Probe     `json:"livenessProbe,omitempty"`
+	ReadinessProbe *corev1.Probe     `json:"readinessProbe,omitempty"`
+	StartupProbe   *corev1.Probe     `json:"startupProbe,omitempty"`
+	Lifecycle      *corev1.Lifecycle `json:"lifecycle,omitempty"`
 
 	// inherit from csi
 	Image            string
@@ -128,7 +137,7 @@ type CacheInlineVolume struct {
 	Path string
 }
 
-func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bool) (*JfsSetting, error) {
+func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bool, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{
 		Options: []string{},
 	}
@@ -157,6 +166,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	jfsSetting.ClientConfPath = DefaultClientConfPath
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
+	jfsSetting.PV = pv
+	jfsSetting.PVC = pvc
 
 	// parse pvc of cache
 	dirs := []string{}
@@ -297,69 +308,12 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		jfsSetting.Envs = env
 	}
 
-	labels := make(map[string]string)
-	if MountLabels != "" {
-		klog.V(6).Infof("Get MountLabels from csi env: %v", MountLabels)
-		if err := parseYamlOrJson(MountLabels, &labels); err != nil {
-			return nil, err
-		}
-	}
-
-	jfsSetting.ServiceAccountName = CSIPod.Spec.ServiceAccountName
-
-	var preemptionPolicy = CSIPod.Spec.PreemptionPolicy
-	if JFSMountPreemptionPolicy != "" {
-		policy := corev1.PreemptionPolicy(JFSMountPreemptionPolicy)
-		preemptionPolicy = &policy
-	}
-	// inherit attr from csi
-	jfsSetting.Attr = PodAttr{
-		Namespace:            Namespace,
-		MountPointPath:       MountPointPath,
-		JFSConfigPath:        JFSConfigPath,
-		JFSMountPriorityName: JFSMountPriorityName,
-		HostNetwork:          CSIPod.Spec.HostNetwork,
-		HostAliases:          CSIPod.Spec.HostAliases,
-		HostPID:              CSIPod.Spec.HostPID,
-		HostIPC:              CSIPod.Spec.HostIPC,
-		DNSConfig:            CSIPod.Spec.DNSConfig,
-		DNSPolicy:            CSIPod.Spec.DNSPolicy,
-		ImagePullSecrets:     CSIPod.Spec.ImagePullSecrets,
-		PreemptionPolicy:     preemptionPolicy,
-		Tolerations:          CSIPod.Spec.Tolerations,
-	}
-	if jfsSetting.IsCe {
-		jfsSetting.Attr.Image = CEMountImage
-	} else {
-		jfsSetting.Attr.Image = EEMountImage
-	}
-
-	if volCtx != nil && volCtx[mountPodImageKey] != "" {
-		jfsSetting.Attr.Image = volCtx[mountPodImageKey]
-	}
-
-	// set default resource limit & request
-	jfsSetting.Resources = getDefaultResource()
-
 	if volCtx != nil {
 		// subPath
 		if volCtx["subPath"] != "" {
 			jfsSetting.SubPath = volCtx["subPath"]
 		}
 
-		cpuLimit := volCtx[MountPodCpuLimitKey]
-		memoryLimit := volCtx[MountPodMemLimitKey]
-		cpuRequest := volCtx[MountPodCpuRequestKey]
-		memoryRequest := volCtx[MountPodMemRequestKey]
-		jfsSetting.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
-		if err != nil {
-			klog.Errorf("Parse resource error: %v", err)
-			return nil, err
-		}
-
-		if volCtx[mountPodServiceAccount] != "" {
-			jfsSetting.ServiceAccountName = volCtx[mountPodServiceAccount]
-		}
 		if volCtx[cleanCache] == "true" {
 			jfsSetting.CleanCache = true
 		}
@@ -369,25 +323,6 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 				return nil, fmt.Errorf("can't parse delay time %s", delay)
 			}
 			jfsSetting.DeletedDelay = delay
-		}
-
-		labelString := volCtx[mountPodLabelKey]
-		annotationSting := volCtx[mountPodAnnotationKey]
-		ctxLabel := make(map[string]string)
-		if labelString != "" {
-			if err := parseYamlOrJson(labelString, &ctxLabel); err != nil {
-				return nil, err
-			}
-		}
-		for k, v := range ctxLabel {
-			labels[k] = v
-		}
-		if annotationSting != "" {
-			annos := make(map[string]string)
-			if err := parseYamlOrJson(annotationSting, &annos); err != nil {
-				return nil, err
-			}
-			jfsSetting.MountPodAnnotations = annos
 		}
 
 		var hostPaths []string
@@ -401,10 +336,112 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 			jfsSetting.HostPath = hostPaths
 		}
 	}
-	if len(labels) != 0 {
-		jfsSetting.MountPodLabels = labels
+
+	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
+		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
 	return &jfsSetting, nil
+}
+
+func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
+	var err error
+	var attr *PodAttr
+	if setting.Attr != nil {
+		attr = setting.Attr
+	} else {
+		attr = &PodAttr{
+			Namespace:            Namespace,
+			MountPointPath:       MountPointPath,
+			JFSConfigPath:        JFSConfigPath,
+			JFSMountPriorityName: JFSMountPriorityName,
+			HostNetwork:          CSIPod.Spec.HostNetwork,
+			HostAliases:          CSIPod.Spec.HostAliases,
+			HostPID:              CSIPod.Spec.HostPID,
+			HostIPC:              CSIPod.Spec.HostIPC,
+			DNSConfig:            CSIPod.Spec.DNSConfig,
+			DNSPolicy:            CSIPod.Spec.DNSPolicy,
+			ImagePullSecrets:     CSIPod.Spec.ImagePullSecrets,
+			Tolerations:          CSIPod.Spec.Tolerations,
+			PreemptionPolicy:     CSIPod.Spec.PreemptionPolicy,
+			ServiceAccountName:   CSIPod.Spec.ServiceAccountName,
+			Resources:            getDefaultResource(),
+			Labels:               make(map[string]string),
+			Annotations:          make(map[string]string),
+		}
+		if setting.IsCe {
+			attr.Image = DefaultCEMountImage
+		} else {
+			attr.Image = DefaultEEMountImage
+		}
+	}
+
+	if JFSMountPreemptionPolicy != "" {
+		policy := corev1.PreemptionPolicy(JFSMountPreemptionPolicy)
+		attr.PreemptionPolicy = &policy
+	}
+
+	if volCtx != nil {
+		if v, ok := volCtx[mountPodImageKey]; ok && v != "" {
+			attr.Image = v
+		}
+		if v, ok := volCtx[mountPodServiceAccount]; ok && v != "" {
+			attr.ServiceAccountName = v
+		}
+		cpuLimit := volCtx[MountPodCpuLimitKey]
+		memoryLimit := volCtx[MountPodMemLimitKey]
+		cpuRequest := volCtx[MountPodCpuRequestKey]
+		memoryRequest := volCtx[MountPodMemRequestKey]
+		attr.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+		if err != nil {
+			klog.Errorf("Parse resource error: %v", err)
+			return err
+		}
+		if v, ok := volCtx[mountPodLabelKey]; ok && v != "" {
+			ctxLabel := make(map[string]string)
+			if err := parseYamlOrJson(v, &ctxLabel); err != nil {
+				return err
+			}
+			for k, v := range ctxLabel {
+				attr.Labels[k] = v
+			}
+		}
+		if v, ok := volCtx[mountPodAnnotationKey]; ok && v != "" {
+			ctxAnno := make(map[string]string)
+			if err := parseYamlOrJson(v, &ctxAnno); err != nil {
+				return err
+			}
+			for k, v := range ctxAnno {
+				attr.Annotations[k] = v
+			}
+		}
+	}
+
+	// overwrite by mountpod patch
+	patch := GlobalConfig.GenMountPodPatch(*setting)
+	if patch.Image != "" {
+		attr.Image = patch.Image
+	}
+	if patch.HostNetwork != nil {
+		attr.HostNetwork = *patch.HostNetwork
+	}
+	if patch.HostPID != nil {
+		attr.HostPID = *patch.HostPID
+	}
+	for k, v := range patch.Labels {
+		attr.Labels[k] = v
+	}
+	for k, v := range patch.Annotations {
+		attr.Annotations[k] = v
+	}
+	if patch.Resources != nil {
+		attr.Resources = *patch.Resources
+	}
+	attr.Lifecycle = patch.Lifecycle
+	attr.LivenessProbe = patch.LivenessProbe
+	attr.ReadinessProbe = patch.ReadinessProbe
+	attr.StartupProbe = patch.StartupProbe
+	setting.Attr = attr
+	return nil
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {

@@ -560,6 +560,7 @@ func TestWaitUntilMount(t *testing.T) {
 					VolumeId:   "h",
 					TargetPath: "/mnt/hhh",
 					MountPath:  "/mnt/hhh",
+					Attr:       &jfsConfig.PodAttr{},
 				},
 			},
 			pod:      testH,
@@ -573,6 +574,7 @@ func TestWaitUntilMount(t *testing.T) {
 					VolumeId:   "g",
 					TargetPath: "/mnt/ggg",
 					MountPath:  "/mnt/ggg",
+					Attr:       &jfsConfig.PodAttr{},
 				},
 			},
 			pod:     testG,
@@ -591,6 +593,7 @@ func TestWaitUntilMount(t *testing.T) {
 					VolumeId:   "i",
 					TargetPath: "/mnt/iii",
 					MountPath:  "/mnt/iii",
+					Attr:       &jfsConfig.PodAttr{},
 				},
 			},
 			pod:     nil,
@@ -664,7 +667,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 			defer cancel()
 			podName, err := p.genMountPodName(context.TODO(), &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldBeNil)
-			err = p.createOrAddRef(ctx, podName, &jfsConfig.JfsSetting{Storage: "ttt"}, nil)
+			err = p.createOrAddRef(ctx, podName, &jfsConfig.JfsSetting{Storage: "ttt", Attr: &jfsConfig.PodAttr{}}, nil)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -694,7 +697,7 @@ func TestJMount(t *testing.T) {
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{Storage: "ttt"})
+			err := p.JMount(ctx, nil, &jfsConfig.JfsSetting{Storage: "ttt", Attr: &jfsConfig.PodAttr{}})
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -809,7 +812,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Name: "test",
 				},
 			},
-			want:    "60fff489f3675b6761479ecbf61850b2489c73f9a540428e7ba16c19422fc07",
+			want:    "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 			wantErr: false,
 		},
 	}

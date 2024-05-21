@@ -27,8 +27,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -122,15 +120,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
-	var pv *corev1.PersistentVolume
-	var err error
-	if d.k8sClient != nil {
-		pv, err = d.k8sClient.GetPersistentVolume(ctx, volumeID)
-		if k8serrors.IsNotFound(err) {
-			klog.Warningf("volumeHandle %s is not the same as pv name, mount pod might not be created", volumeID)
-		}
-	}
-
 	klog.V(5).Infof("NodePublishVolume: creating dir %s", target)
 	if err := d.juicefs.CreateTarget(ctx, target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
@@ -179,12 +168,9 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
 		}
-		if pv != nil {
-			capacity = pv.Spec.Capacity.Storage().Value()
-		}
-		settings, err := d.juicefs.Settings(ctx, volumeID, secrets, volCtx, options)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+		settings := jfs.GetSetting()
+		if settings.PV != nil {
+			capacity = settings.PV.Spec.Capacity.Storage().Value()
 		}
 		quotaPath := settings.SubPath
 		var subdir string

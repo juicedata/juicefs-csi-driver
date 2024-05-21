@@ -65,7 +65,7 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 			HostIPC:            r.jfsSetting.Attr.HostIPC,
 			DNSConfig:          r.jfsSetting.Attr.DNSConfig,
 			DNSPolicy:          r.jfsSetting.Attr.DNSPolicy,
-			ServiceAccountName: r.jfsSetting.ServiceAccountName,
+			ServiceAccountName: r.jfsSetting.Attr.ServiceAccountName,
 			ImagePullSecrets:   r.jfsSetting.Attr.ImagePullSecrets,
 			PreemptionPolicy:   r.jfsSetting.Attr.PreemptionPolicy,
 			Tolerations:        r.jfsSetting.Attr.Tolerations,
@@ -75,10 +75,14 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 
 // genCommonJuicePod generates a pod with common settings
 func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
+	// gen again to update the mount pod spec
+	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil); err != nil {
+		klog.Warningf("genCommonJuicePod gen pod attr failed, mount pod may not be the expected config  %+v", err)
+	}
 	pod := r.genPodTemplate(cnGen)
 	// labels & annotations
 	pod.ObjectMeta.Labels, pod.ObjectMeta.Annotations = r._genMetadata()
-	pod.Spec.ServiceAccountName = r.jfsSetting.ServiceAccountName
+	pod.Spec.ServiceAccountName = r.jfsSetting.Attr.ServiceAccountName
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
 	gracePeriod := int64(10)
@@ -95,13 +99,21 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			},
 		},
 	}}
-	pod.Spec.Containers[0].Resources = r.jfsSetting.Resources
-	pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-		PreStop: &corev1.Handler{
-			Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
-				"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
-		},
+	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
+	if r.jfsSetting.Attr.Lifecycle == nil {
+		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+			PreStop: &corev1.Handler{
+				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
+					"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+			},
+		}
+	} else {
+		pod.Spec.Containers[0].Lifecycle = r.jfsSetting.Attr.Lifecycle
 	}
+
+	pod.Spec.Containers[0].StartupProbe = r.jfsSetting.Attr.StartupProbe
+	pod.Spec.Containers[0].LivenessProbe = r.jfsSetting.Attr.LivenessProbe
+	pod.Spec.Containers[0].ReadinessProbe = r.jfsSetting.Attr.ReadinessProbe
 
 	if r.jfsSetting.Attr.HostNetwork || !r.jfsSetting.IsCe {
 		// When using hostNetwork, the MountPod will use a random port for metrics.
@@ -250,10 +262,10 @@ func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[
 	}
 	annotations = map[string]string{}
 
-	for k, v := range r.jfsSetting.MountPodLabels {
+	for k, v := range r.jfsSetting.Attr.Labels {
 		labels[k] = v
 	}
-	for k, v := range r.jfsSetting.MountPodAnnotations {
+	for k, v := range r.jfsSetting.Attr.Annotations {
 		annotations[k] = v
 	}
 	if r.jfsSetting.DeletedDelay != "" {

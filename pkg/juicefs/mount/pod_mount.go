@@ -36,7 +36,6 @@ import (
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -295,10 +294,10 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		return "", err
 	}
 	for _, pod := range pods {
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
 		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {
-			if pod.DeletionTimestamp != nil {
-				continue
-			}
 			return pod.Name, nil
 		}
 	}
@@ -339,7 +338,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
-				if config.EnableNodeSelector {
+				if jfsConfig.GlobalConfig.EnableNodeSelector {
 					nodeSelector := map[string]string{
 						"kubernetes.io/hostname": newPod.Spec.NodeName,
 					}
@@ -528,7 +527,7 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, erro
 }
 
 func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volumeId string, cacheDirs []string) error {
-	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true)
+	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true, nil, nil)
 	if err != nil {
 		klog.Errorf("CleanCache: parse jfs setting err: %v", err)
 		return err

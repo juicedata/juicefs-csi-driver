@@ -83,22 +83,21 @@ func parseControllerConfig() {
 	config.Namespace = os.Getenv("JUICEFS_MOUNT_NAMESPACE")
 	config.MountPointPath = os.Getenv("JUICEFS_MOUNT_PATH")
 	config.JFSConfigPath = os.Getenv("JUICEFS_CONFIG_PATH")
-	config.MountLabels = os.Getenv("JUICEFS_MOUNT_LABELS")
 
 	if mountPodImage := os.Getenv("JUICEFS_CE_MOUNT_IMAGE"); mountPodImage != "" {
-		config.CEMountImage = mountPodImage
+		config.DefaultCEMountImage = mountPodImage
 	}
 	if mountPodImage := os.Getenv("JUICEFS_EE_MOUNT_IMAGE"); mountPodImage != "" {
-		config.EEMountImage = mountPodImage
+		config.DefaultEEMountImage = mountPodImage
 	}
 	if mountPodImage := os.Getenv("JUICEFS_MOUNT_IMAGE"); mountPodImage != "" {
 		// check if it's CE or EE
 		hasCE, hasEE := util.ImageResol(mountPodImage)
 		if hasCE {
-			config.CEMountImage = mountPodImage
+			config.DefaultCEMountImage = mountPodImage
 		}
 		if hasEE {
-			config.EEMountImage = mountPodImage
+			config.DefaultEEMountImage = mountPodImage
 		}
 	}
 

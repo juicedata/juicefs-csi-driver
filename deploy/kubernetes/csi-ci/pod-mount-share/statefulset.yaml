@@ -15,6 +15,7 @@ spec:
             - --leader-election
             - --cache-client-conf
             - --v=6
+            - --config=/etc/config/config.yaml
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock

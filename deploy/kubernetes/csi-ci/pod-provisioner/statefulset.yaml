@@ -15,5 +15,6 @@ spec:
             - --leader-election
             - --v=6
             - --provisioner=true
+            - --config=/etc/config/config.yaml
         - name: csi-provisioner
           $patch: delete
