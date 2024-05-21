@@ -452,6 +452,21 @@ spec:
 
 也可以使用社区开发者提供的工具，自动为应用容器添加 `mountPropagation: HostToContainer`，具体请参考[项目文档](https://github.com/breuerfelix/juicefs-volume-hook)。
 
+### 缓存客户端配置文件 {#cache-client-conf}
+
+从 v0.23.3 开始，CSI 驱动默认缓存了 JuiceFS 客户端的配置文件（配置文件是[企业版 JuiceFS 客户端的挂载配置](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth)，因此仅对 JuiceFS 企业版生效）。对这个配置文件启用缓存，能带来以下好处：
+
+* &#8203;<Badge type="primary">私有部署</Badge> 如果私有 Web 控制台发生故障，或者网络异常、造成容器无法访问控制台，客户端依然可以读取缓存好的配置文件，正常挂载和服务
+
+缓存配置文件的工作方式如下：
+
+* 用户填写或更新[文件系统认证信息](./pv.md#volume-credentials)，CSI Controller 会监听 Secret 的变化，并立刻发起认证、获取配置文件
+* CSI Controller 将配置文件注入进 Secret，保存在 `initconfig` 字段
+* 当 CSI Node 创建 mount pod，或者 CSI Controller 注入 sidecar 容器的时候，会将 `initconfig` 挂载进容器内
+* 容器内的 JuiceFS 客户端会运行 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth) 命令，但由于配置文件已经挂载进容器内，因此就算容器无法访问 JuiceFS Web 控制台，挂载也能照常继续
+
+如果希望关闭该功能，需要为 CSI Controller 删去 [`--cache-client-conf`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L73) 参数。
+
 ### PV 容量分配 {#storage-capacity}
 
 从 v0.19.3 开始，JuiceFS CSI 驱动支持在动态配置设置存储容量（要注意，仅支持动态配置）。
