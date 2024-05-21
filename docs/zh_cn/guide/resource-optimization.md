@@ -26,7 +26,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 ### 在 ConfigMap 中配置资源声明 {#resources-configmap}
 
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
 
 ```yaml {7-10}
 apiVersion: v1
