@@ -7,9 +7,9 @@ sidebar_position: 2
 
 ## ConfigMap 配置 {#configmap}
 
-从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod，也包含 CSI 驱动自身的配置。并且支持动态更新，不需要重启 CSI Node 或者 Controller。
+从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置。并且支持动态更新，不需要重启 CSI Node 或者 Controller。
 
-ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/8d9c9df7ac2683390e6c07d09dae6be27d3d721e/example.config.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
+ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
 
 ## 格式化参数/认证参数 {#format-options}
 
