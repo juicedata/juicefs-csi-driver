@@ -1,4 +1,4 @@
-# Set this to `true` to arrange mount pod to node with node selector instead nodeName
+# Set to true to schedule mount pod to node with via nodeSelector, rather than nodeName
 enableNodeSelector: true
 
 # The mountPodPatch section defines the mount pod spec
