@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,20 +37,36 @@ func TestLoadConfig(t *testing.T) {
 
 	// Write test data to the config file
 	testData := []byte(`
-CEMountImage: "juicedata/mount:ce-test"
-EEMountImage: "juicedata/mount:ee-test"
 MountPodPatch:
-  - Labels:
+  - ceMountImage: "juicedata/mount:ce-test"
+    eeMountImage: "juicedata/mount:ee-test"
+  - labels:
       app: juicefs-mount
-    Annotations:
-      juicefs.com/finalizer: juicefs.com/finalizer
+    annotations:
+      app: juicefs-mount
   - pvcSelector:
       matchLabels:
           app: juicefs-mount
-    Labels:
+    labels:
       app: juicefs-mount
-    Annotations:
+    annotations:
       juicefs.com/finalizer: juicefs.com/finalizer
+  - resources:
+      limits:
+        cpu: 64
+        memory: 128Gi
+      requests:
+        cpu: 32
+        memory: 64Gi
+  - livenessProbe:
+      exec:
+        command:
+        - stat
+        - ${MOUNT_POINT}/${SUB_PATH}
+      failureThreshold: 3
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      successThreshold: 1
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -61,6 +78,57 @@ MountPodPatch:
 	if err != nil {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
+	defer GlobalConfig.Reset()
+	// Check the loaded config
+	assert.Equal(t, len(GlobalConfig.MountPodPatch), 5)
+	assert.Equal(t, GlobalConfig.MountPodPatch[0], MountPodPatch{
+		CEMountImage: "juicedata/mount:ce-test",
+		EEMountImage: "juicedata/mount:ee-test",
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[1], MountPodPatch{
+		Labels: map[string]string{
+			"app": "juicefs-mount",
+		},
+		Annotations: map[string]string{
+			"app": "juicefs-mount",
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[2], MountPodPatch{
+		PVCSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"app": "juicefs-mount"},
+		},
+		Labels: map[string]string{
+			"app": "juicefs-mount",
+		},
+		Annotations: map[string]string{
+			"juicefs.com/finalizer": "juicefs.com/finalizer",
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[3], MountPodPatch{
+		Resources: &corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("64"),
+				corev1.ResourceMemory: resource.MustParse("128Gi"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("32"),
+				corev1.ResourceMemory: resource.MustParse("64Gi"),
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[4], MountPodPatch{
+		LivenessProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"stat", "${MOUNT_POINT}/${SUB_PATH}"},
+				},
+			},
+			FailureThreshold:    3,
+			InitialDelaySeconds: 10,
+			PeriodSeconds:       5,
+			SuccessThreshold:    1,
+		},
+	})
 }
 
 func TestGenMountPodPatch(t *testing.T) {
