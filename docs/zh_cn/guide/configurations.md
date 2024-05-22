@@ -608,62 +608,56 @@ Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar �
 
 注意，对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置。
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: juicefs-csi-driver-config
-  namespace: kube-system
-data:
-  config.yaml: |-
-    # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
-    mountPodPatch:
-      # 未定义 pvcSelector，则为全局配置
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-
-      # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
-      - pvcSelector:
-          matchLabels:
-            mylabel1: "value1"
-        # 启用 host network
-        hostNetwork: true
-
-      - pvcSelector:
-          matchLabels:
-            mylabel2: "value2"
-        # 增加 labels
-        labels:
-          custom-labels: "mylabels"
-
-      - pvcSelector:
-          matchLabels:
-            ...
-        # 修改资源定义
-        resources:
-          requests:
-            cpu: 100m
-            memory: 512Mi
-
-      - pvcSelector:
-          matchLabels:
-            ...
-        # 增加 liveness probe
-        livenessProbe:
+```yaml title="values.yaml"
+globalConfig:
+  # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
+  mountPodPatch:
+    # 未定义 pvcSelector，则为全局配置
+    - lifecycle:
+        preStop:
           exec:
             command:
-            - stat
-            - ${MOUNT_POINT}/${SUB_PATH}
-          failureThreshold: 3
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          successThreshold: 1
+            - sh
+            - -c
+            - +e
+            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+
+    # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      # 启用 host network
+      hostNetwork: true
+
+    - pvcSelector:
+        matchLabels:
+          mylabel2: "value2"
+      # 增加 labels
+      labels:
+        custom-labels: "mylabels"
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # 修改资源定义
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # 增加 liveness probe
+      livenessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
 ```
 
 ### 继承 CSI Node 配置 {#inherit-from-csi-node}
@@ -674,7 +668,7 @@ data:
 
 Mount Pod 自身的资源定义（Kubernetes manifests，也就是 Pod YAML）大部分继承自 CSI Node，比方说如果希望给 mount pod 启用 hostNetwork，可以先为 CSI Node 启用 hostNetwork：
 
-```yaml name="values-mycluster.yaml"
+```yaml title="values-mycluster.yaml"
 node:
   hostNetwork: true
 ```

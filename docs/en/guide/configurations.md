@@ -579,7 +579,7 @@ Since mount pods are created by CSI-node, users cannot directly control mount po
 
 Mount pod specs are mostly inherited from CSI-node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI-node:
 
-```yaml name="values-mycluster.yaml"
+```yaml title="values-mycluster.yaml"
 node:
   hostNetwork: true
 ```

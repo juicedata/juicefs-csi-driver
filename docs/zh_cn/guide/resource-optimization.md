@@ -28,19 +28,13 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
 
-```yaml {9-12}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: juicefs-csi-driver-config
-  namespace: kube-system
-data:
-  config.yaml: |-
-    mountPodPatch:
-      - resources:
-          requests:
-            cpu: 100m
-            memory: 512Mi
+```yaml title="values.yaml" {3-6}
+globalConfig:
+  mountPodPatch:
+    - resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
 ```
 
 修改完毕以后，滚动升级应用或者删除重建 mount pod，便会按照新的资源定义重建。
