@@ -59,11 +59,10 @@ func TestParseSecret(t *testing.T) {
 	}
 
 	type args struct {
-		secrets     map[string]string
-		volCtx      map[string]string
-		options     []string
-		usePod      bool
-		MountLabels string
+		secrets map[string]string
+		volCtx  map[string]string
+		options []string
+		usePod  bool
 	}
 	tests := []struct {
 		name    string
@@ -98,10 +97,10 @@ func TestParseSecret(t *testing.T) {
 				Envs:      s,
 				Configs:   map[string]string{},
 				Options:   []string{},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -129,10 +128,10 @@ func TestParseSecret(t *testing.T) {
 				UsePod:    true,
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -152,10 +151,10 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -179,16 +178,16 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: corev1.ResourceRequirements{
-					Limits: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
+						},
+						Requests: defaultResource.Requests,
 					},
-					Requests: defaultResource.Requests,
-				},
-				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -212,16 +211,16 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: corev1.ResourceRequirements{
-					Limits: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("1G"),
+							corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+						},
+						Requests: defaultResource.Requests,
 					},
-					Requests: defaultResource.Requests,
-				},
-				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -245,16 +244,16 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: corev1.ResourceRequirements{
-					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceMemory: resource.MustParse("1G"),
-						corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Requests: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("1G"),
+							corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+						},
+						Limits: defaultResource.Limits,
 					},
-					Limits: defaultResource.Limits,
-				},
-				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -275,16 +274,16 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
 				CachePVCs: []CachePVC{},
-				Resources: corev1.ResourceRequirements{
-					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceCPU:    resource.MustParse("1"),
-						corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Requests: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
+						},
+						Limits: defaultResource.Limits,
 					},
-					Limits: defaultResource.Limits,
-				},
-				Attr: PodAttr{
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -298,18 +297,18 @@ func TestParseSecret(t *testing.T) {
 				volCtx:  map[string]string{mountPodLabelKey: "a: b"},
 			},
 			want: &JfsSetting{
-				Name:           "test",
-				Source:         "test",
-				MountPodLabels: map[string]string{"a": "b"},
-				Configs:        map[string]string{},
-				Envs:           map[string]string{},
-				Options:        []string{},
-				CacheDirs:      []string{"/var/jfsCache"},
-				CachePVCs:      []CachePVC{},
-				Resources:      defaultResource,
-				Attr: PodAttr{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
+				Attr: &PodAttr{
+					Labels:               map[string]string{"a": "b"},
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -331,18 +330,18 @@ func TestParseSecret(t *testing.T) {
 				volCtx:  map[string]string{mountPodLabelKey: "{\"a\": \"b\"}"},
 			},
 			want: &JfsSetting{
-				Name:           "test",
-				Source:         "test",
-				MountPodLabels: map[string]string{"a": "b"},
-				Configs:        map[string]string{},
-				Envs:           map[string]string{},
-				Options:        []string{},
-				CacheDirs:      []string{"/var/jfsCache"},
-				CachePVCs:      []CachePVC{},
-				Resources:      defaultResource,
-				Attr: PodAttr{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
+				Attr: &PodAttr{
+					Resources:            defaultResource,
+					Labels:               map[string]string{"a": "b"},
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -356,18 +355,18 @@ func TestParseSecret(t *testing.T) {
 				volCtx:  map[string]string{mountPodAnnotationKey: "a: b"},
 			},
 			want: &JfsSetting{
-				Name:                "test",
-				Source:              "test",
-				MountPodAnnotations: map[string]string{"a": "b"},
-				Configs:             map[string]string{},
-				Envs:                map[string]string{},
-				Options:             []string{},
-				CacheDirs:           []string{"/var/jfsCache"},
-				CachePVCs:           []CachePVC{},
-				Resources:           defaultResource,
-				Attr: PodAttr{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
+				Attr: &PodAttr{
+					Annotations:          map[string]string{"a": "b"},
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -391,20 +390,20 @@ func TestParseSecret(t *testing.T) {
 				usePod:  true,
 			},
 			want: &JfsSetting{
-				UsePod:             true,
-				Name:               "test",
-				Source:             "test",
-				Storage:            "s3",
-				ServiceAccountName: "test",
-				Configs:            map[string]string{},
-				Envs:               map[string]string{},
-				Options:            []string{},
-				CacheDirs:          []string{"/var/jfsCache"},
-				CachePVCs:          []CachePVC{},
-				Resources:          defaultResource,
-				Attr: PodAttr{
+				UsePod:    true,
+				Name:      "test",
+				Source:    "test",
+				Storage:   "s3",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{},
+				CacheDirs: []string{"/var/jfsCache"},
+				CachePVCs: []CachePVC{},
+				Attr: &PodAttr{
+					Resources:            defaultResource,
+					ServiceAccountName:   "test",
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -421,10 +420,10 @@ func TestParseSecret(t *testing.T) {
 				Envs:      map[string]string{},
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -435,40 +434,6 @@ func TestParseSecret(t *testing.T) {
 		{
 			name:    "test-config-error",
 			args:    args{secrets: map[string]string{"configs": "-", "name": "test"}},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "test-mountLabel",
-			args: args{
-				secrets:     map[string]string{"name": "test"},
-				MountLabels: "{a: b, c: d, e: f}",
-			},
-			want: &JfsSetting{
-				Name:           "test",
-				Source:         "test",
-				MountPodLabels: map[string]string{"a": "b", "c": "d", "e": "f"},
-				Configs:        map[string]string{},
-				Envs:           map[string]string{},
-				Options:        []string{},
-				CacheDirs:      []string{"/var/jfsCache"},
-				CachePVCs:      []CachePVC{},
-				Resources:      defaultResource,
-				Attr: PodAttr{
-					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
-					MountPointPath:       MountPointPath,
-					JFSMountPriorityName: JFSMountPriorityName,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "test-mountLabel-error",
-			args: args{
-				secrets:     map[string]string{"name": "test"},
-				MountLabels: "-",
-			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -500,11 +465,11 @@ func TestParseSecret(t *testing.T) {
 				Options:       []string{},
 				FormatOptions: "xxx",
 				CacheDirs:     []string{"/var/jfsCache"},
-				Resources:     defaultResource,
 				CachePVCs:     []CachePVC{},
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -535,10 +500,10 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/abc"},
 				Envs:      map[string]string{},
 				Configs:   map[string]string{},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -566,10 +531,10 @@ func TestParseSecret(t *testing.T) {
 				Options:   []string{"cache-dir=/var/jfsCache-0"},
 				Envs:      map[string]string{},
 				Configs:   map[string]string{},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
-					Image:                EEMountImage,
+					Image:                DefaultEEMountImage,
 					MountPointPath:       MountPointPath,
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
@@ -589,8 +554,8 @@ func TestParseSecret(t *testing.T) {
 				Envs:      map[string]string{},
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
 					Image:                "abc",
 					MountPointPath:       MountPointPath,
@@ -613,8 +578,8 @@ func TestParseSecret(t *testing.T) {
 				Envs:      map[string]string{},
 				Options:   []string{},
 				CacheDirs: []string{"/var/jfsCache"},
-				Resources: defaultResource,
-				Attr: PodAttr{
+				Attr: &PodAttr{
+					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
 					Image:                "juicedata/mount:ee-nightly",
 					MountPointPath:       MountPointPath,
@@ -628,11 +593,8 @@ func TestParseSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			MountLabels = ""
-			if tt.args.MountLabels != "" {
-				MountLabels = tt.args.MountLabels
-			}
-			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.usePod)
+			GlobalConfig.Reset()
+			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.usePod, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -648,7 +610,7 @@ func TestParseSecret(t *testing.T) {
 				return
 			}
 			if string(gotStr) != string(wantStr) {
-				t.Errorf("ParseSecret() got = \n%v\n, want \n%v\n", got, tt.want)
+				t.Errorf("ParseSecret() got = \n%s\n, want \n%s\n", gotStr, wantStr)
 			}
 		})
 	}

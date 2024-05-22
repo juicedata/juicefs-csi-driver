@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	config "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 // MockJfs is a mock of Jfs interface.
@@ -75,4 +76,18 @@ func (m *MockJfs) GetBasePath() string {
 func (mr *MockJfsMockRecorder) GetBasePath() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBasePath", reflect.TypeOf((*MockJfs)(nil).GetBasePath))
+}
+
+// GetSetting mocks base method.
+func (m *MockJfs) GetSetting() *config.JfsSetting {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSetting")
+	ret0, _ := ret[0].(*config.JfsSetting)
+	return ret0
+}
+
+// GetSetting indicates an expected call of GetSetting.
+func (mr *MockJfsMockRecorder) GetSetting() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetting", reflect.TypeOf((*MockJfs)(nil).GetSetting))
 }

@@ -17,36 +17,39 @@ limitations under the License.
 package config
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 var (
-	WebPort            = MustGetWebPort() // web port used by metrics
-	ByProcess          = false            // csi driver runs juicefs in process or not
-	FormatInPod        = false            // put format/auth in pod (only in k8s)
-	Provisioner        = false            // provisioner in controller
-	CacheClientConf    = false            // cache client config files and use directly in mount containers
-	MountManager       = false            // manage mount pod in controller (only in k8s)
-	Webhook            = false            // inject juicefs client as sidecar in pod (only in k8s)
-	ValidatingWebhook  = false            // start validating webhook, applicable to ee only
-	Immutable          = false            // csi driver is running in an immutable environment
-	EnableNodeSelector = false            // arrange mount pod to node with node selector instead nodeName
+	WebPort           = MustGetWebPort() // web port used by metrics
+	ByProcess         = false            // csi driver runs juicefs in process or not
+	FormatInPod       = false            // put format/auth in pod (only in k8s)
+	Provisioner       = false            // provisioner in controller
+	CacheClientConf   = false            // cache client config files and use directly in mount containers
+	MountManager      = false            // manage mount pod in controller (only in k8s)
+	Webhook           = false            // inject juicefs client as sidecar in pod (only in k8s)
+	ValidatingWebhook = false            // start validating webhook, applicable to ee only
+	Immutable         = false            // csi driver is running in an immutable environment
 
 	DriverName               = "csi.juicefs.com"
 	NodeName                 = ""
 	Namespace                = ""
 	PodName                  = ""
-	CEMountImage             = "juicedata/mount:ce-nightly" // mount pod ce image
-	EEMountImage             = "juicedata/mount:ee-nightly" // mount pod ee image
-	MountLabels              = ""
 	HostIp                   = ""
 	KubeletPort              = ""
 	ReconcileTimeout         = 5 * time.Minute
@@ -70,6 +73,9 @@ var (
 	JfsMountPath          = "/sbin/mount.juicefs"
 	DefaultClientConfPath = "/root/.juicefs"
 	ROConfPath            = "/etc/juicefs"
+
+	DefaultCEMountImage = "juicedata/mount:ce-nightly" // mount pod ce image, override by ENV
+	DefaultEEMountImage = "juicedata/mount:ee-nightly" // mount pod ee image, override by ENV
 )
 
 const (
@@ -151,4 +157,218 @@ func MustGetWebPort() int {
 		klog.Errorf("Fail to parse JUICEFS_CSI_WEB_PORT %s: %v", value, err)
 	}
 	return 8080
+}
+
+type MountPodPatch struct {
+	// used to specify the selector for the PVC that will be patched
+	// omit will patch for all PVC
+	PVCSelector *metav1.LabelSelector `json:"pvcSelector,omitempty"`
+
+	CEMountImage string `json:"ceMountImage,omitempty"`
+	EEMountImage string `json:"eeMountImage,omitempty"`
+
+	Image          string                       `json:"-"`
+	Labels         map[string]string            `json:"labels,omitempty"`
+	Annotations    map[string]string            `json:"annotations,omitempty"`
+	HostNetwork    *bool                        `json:"hostNetwork,omitempty" `
+	HostPID        *bool                        `json:"hostPID,omitempty" `
+	LivenessProbe  *corev1.Probe                `json:"livenessProbe,omitempty"`
+	ReadinessProbe *corev1.Probe                `json:"readinessProbe,omitempty"`
+	StartupProbe   *corev1.Probe                `json:"startupProbe,omitempty"`
+	Lifecycle      *corev1.Lifecycle            `json:"lifecycle,omitempty"`
+	Resources      *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+func (mpp *MountPodPatch) deepCopy() MountPodPatch {
+	var copy MountPodPatch
+	data, _ := json.Marshal(mpp)
+	json.Unmarshal(data, &copy)
+	return copy
+}
+
+func (mpp *MountPodPatch) merge(mp MountPodPatch) {
+	if mp.CEMountImage != "" {
+		mpp.CEMountImage = mp.CEMountImage
+	}
+	if mp.EEMountImage != "" {
+		mpp.EEMountImage = mp.EEMountImage
+	}
+	if mp.HostNetwork != nil {
+		mpp.HostNetwork = mp.HostNetwork
+	}
+	if mp.HostPID != nil {
+		mpp.HostPID = mp.HostPID
+	}
+	if mp.LivenessProbe != nil {
+		mpp.LivenessProbe = mp.LivenessProbe
+	}
+	if mp.ReadinessProbe != nil {
+		mpp.ReadinessProbe = mp.ReadinessProbe
+	}
+	if mp.ReadinessProbe != nil {
+		mpp.ReadinessProbe = mp.ReadinessProbe
+	}
+	if mp.Lifecycle != nil {
+		mpp.Lifecycle = mp.Lifecycle
+	}
+	if mp.Labels != nil {
+		mpp.Labels = mp.Labels
+	}
+	if mp.Annotations != nil {
+		mpp.Annotations = mp.Annotations
+	}
+	if mp.Resources != nil {
+		mpp.Resources = mp.Resources
+	}
+}
+
+// TODO: migrate more config for here
+type Config struct {
+	// arrange mount pod to node with node selector instead nodeName
+	EnableNodeSelector bool            `json:"enableNodeSelector,omitempty"`
+	MountPodPatch      []MountPodPatch `json:"mountPodPatch"`
+}
+
+func (c *Config) Unmarshal(data []byte) error {
+	return yaml.Unmarshal(data, c)
+}
+
+// GenMountPodPatch generate mount pod patch from jfsSettting
+// 1. match pv selector
+// 2. parse template value
+// 3. return the merged mount pod patch
+func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
+	patch := &MountPodPatch{
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
+	}
+
+	// merge each patch
+	for _, mp := range c.MountPodPatch {
+		if mp.PVCSelector == nil {
+			patch.merge(mp.deepCopy())
+		} else {
+			if setting.PVC == nil {
+				continue
+			}
+			selector, err := metav1.LabelSelectorAsSelector(mp.PVCSelector)
+			if err != nil {
+				continue
+			}
+			if selector.Matches(labels.Set(setting.PVC.Labels)) {
+				patch.merge(mp.deepCopy())
+			}
+		}
+	}
+	if setting.IsCe {
+		patch.Image = patch.CEMountImage
+	} else {
+		patch.Image = patch.EEMountImage
+	}
+
+	data, _ := json.Marshal(patch)
+	strData := string(data)
+	strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
+	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
+	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
+	json.Unmarshal([]byte(strData), patch)
+	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
+	return *patch
+}
+
+// reset to default value
+// used to unit tests
+func (c *Config) Reset() {
+	*c = Config{}
+}
+
+func newCfg() *Config {
+	c := &Config{}
+	c.Reset()
+	return c
+}
+
+var GlobalConfig = newCfg()
+
+func LoadConfig(configPath string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("fail to read config file %s: %v", configPath, err)
+	}
+
+	cfg := newCfg()
+
+	// compatible with old version
+	if os.Getenv("ENABLE_NODE_SELECTOR") == "1" {
+		cfg.EnableNodeSelector = true
+	}
+
+	err = cfg.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	GlobalConfig = cfg
+	klog.V(6).Infof("config loaded: %+v", GlobalConfig)
+	return err
+}
+
+// ConfigReloader reloads config file when it is updated
+func StartConfigReloader(configPath string) error {
+	// load first
+	if err := LoadConfig(configPath); err != nil {
+		return err
+	}
+	fsnotifyWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	if err := fsnotifyWatcher.Add(configPath); err != nil {
+		return err
+	}
+
+	go func(watcher *fsnotify.Watcher) {
+		defer watcher.Close()
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					klog.Errorf("fsnotify watcher closed")
+					continue
+				}
+				if event.Op != fsnotify.Write && event.Op != fsnotify.Remove {
+					continue
+				}
+				// k8s configmaps uses symlinks, we need this workaround to detect the real file change
+				if event.Op == fsnotify.Remove {
+					watcher.Remove(event.Name)
+					// add a new watcher pointing to the new symlink/file
+					watcher.Add(configPath)
+				}
+
+				klog.Infof("config file %s updated, reload config", configPath)
+				err := LoadConfig(configPath)
+				if err != nil {
+					klog.Errorf("fail to reload config: %v", err)
+					continue
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					continue
+				}
+				klog.Errorf("fsnotify error: %v", err)
+			}
+		}
+	}(fsnotifyWatcher)
+
+	// fallback policy: reload config every 5 minutes
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			LoadConfig(configPath)
+		}
+	}()
+
+	return nil
 }

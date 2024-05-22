@@ -378,6 +378,27 @@ subjects:
 ---
 apiVersion: v1
 data:
+  config.yaml: |-
+    mountPodPatch:
+      - lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - +e
+              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-driver-config
+  namespace: kube-system
+---
+apiVersion: v1
+data:
   ca.crt: CA_BUNDLE
   tls.crt: TLS_CRT
   tls.key: TLS_KEY
@@ -521,6 +542,7 @@ spec:
         - --v=5
         - --webhook=true
         - --validating-webhook=true
+        - --config=/etc/config/config.yaml
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -578,6 +600,8 @@ spec:
         - mountPath: /etc/webhook/certs
           name: webhook-certs
           readOnly: true
+        - mountPath: /etc/config
+          name: juicefs-config
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
@@ -635,6 +659,10 @@ spec:
       - name: webhook-certs
         secret:
           secretName: juicefs-webhook-certs
+      - configMap:
+          defaultMode: 420
+          name: juicefs-csi-driver-config
+        name: juicefs-config
   volumeClaimTemplates: []
 ---
 apiVersion: storage.k8s.io/v1
@@ -1082,6 +1110,27 @@ subjects:
   namespace: kube-system
 ---
 apiVersion: v1
+data:
+  config.yaml: |-
+    mountPodPatch:
+      - lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - +e
+              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-driver-config
+  namespace: kube-system
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
@@ -1210,6 +1259,7 @@ spec:
         - --v=5
         - --webhook=true
         - --validating-webhook=true
+        - --config=/etc/config/config.yaml
         env:
         - name: CSI_ENDPOINT
           value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
@@ -1267,6 +1317,8 @@ spec:
         - mountPath: /etc/webhook/certs
           name: webhook-certs
           readOnly: true
+        - mountPath: /etc/config
+          name: juicefs-config
       - args:
         - --csi-address=$(ADDRESS)
         - --timeout=60s
@@ -1324,6 +1376,10 @@ spec:
       - name: webhook-certs
         secret:
           secretName: juicefs-webhook-certs
+      - configMap:
+          defaultMode: 420
+          name: juicefs-csi-driver-config
+        name: juicefs-config
   volumeClaimTemplates: []
 ---
 apiVersion: cert-manager.io/v1

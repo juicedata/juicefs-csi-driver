@@ -16,5 +16,6 @@ spec:
             - --v=6
             - --webhook=true
             - --provisioner=true
+            - --config=/etc/config/config.yaml
         - name: csi-provisioner
           $patch: delete

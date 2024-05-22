@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-csi-driver-config
+  namespace: kube-system
+data:
+  config.yaml: |-
+    # Set to true to schedule mount pod to node with via nodeSelector, rather than nodeName
+    enableNodeSelector: false
+    
+    # The mountPodPatch section defines the mount pod spec
+    # Each item will be recursively merged into PVC settings according to its pvcSelector
+    # If pvcSelector isn't set, the patch will be applied to all PVCs
+    # Variable templates are supported, e.g.  ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
+    mountPodPatch:
+      - lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - +e
+              - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+    
+      # Example configurations:
+      # - pvcSelector:
+      #     matchLabels:
+      #       disable-host-network: "true"
+      #   hostNetwork: false
+    
+      # - pvcSelector:
+      #     matchLabels:
+      #       apply-labels: "true"
+      #   labels:
+      #     custom-labels: "asasasa"
+    
+      # - pvcSelector:
+      #     matchLabels:
+      #       custom-resources: "true"
+      #   resources:
+      #     requests:
+      #       cpu: 100m
+      #       memory: 512Mi
+
+      # - pvcSelector:
+      #     matchLabels:
+      #       custom-image: "true"
+      #   eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
+      #   eeMountImage: "juicedata/mount:ce-v1.2.0"
+    
+      # - pvcSelector:
+      #     matchLabels:
+      #       custom-liveness: "true"
+      #   livenessProbe:
+      #     exec:
+      #       command:
+      #       - stat
+      #       - ${MOUNT_POINT}/${SUB_PATH}
+      #     failureThreshold: 3
+      #     initialDelaySeconds: 10
+      #     periodSeconds: 5
+      #     successThreshold: 1

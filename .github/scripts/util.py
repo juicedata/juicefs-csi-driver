@@ -19,12 +19,13 @@ import re
 import string
 import subprocess
 import time
+import yaml
 from pathlib import Path
 
 from kubernetes import client
 
 from config import KUBE_SYSTEM, LOG, IS_CE, SECRET_NAME, GLOBAL_MOUNTPOINT, SECRET_KEY, ACCESS_KEY, META_URL, \
-    BUCKET, TOKEN, STORAGECLASS_NAME
+    BUCKET, TOKEN, STORAGECLASS_NAME, CONFIG_NAME
 from model import Pod, Secret, STORAGE, StorageClass, PODS, DEPLOYMENTs, PVCs, PVs, SECRETs, STORAGECLASSs
 
 
@@ -319,3 +320,12 @@ def is_quota_supported():
         if "invalid command: quota" in out:
             return False
     return True
+
+def get_config() -> dict:
+    config_map = client.CoreV1Api().read_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM)
+    return yaml.load(config_map.data["config.yaml"], Loader=yaml.FullLoader)
+
+def update_config(data: dict):
+    # convert data to yaml
+    data = yaml.dump(data)
+    client.CoreV1Api().patch_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM, body={"data": {"config.yaml": data}})

@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota, is_quota_supported
+    get_voldel_job, check_quota, is_quota_supported, update_config
 
 
 def test_deployment_using_storage_rw():
@@ -2632,3 +2632,110 @@ def test_validate_pv():
         return
 
     raise Exception("PV with duplicate handle should not be created.")
+
+
+def test_config():
+    LOG.info("[test case] Test config begin..")
+    test_cfg = {
+        "mountPodPatch": [
+            {
+                "labels": {
+                    "apply": "global_labels"
+                },
+                "hostNetwork": True,
+            },
+            {
+                "pvcSelector": {
+                    "matchLabels": {
+                        "enable_liveness": "true"
+                    },
+                },
+                "livenessProbe": {
+                    "exec": {
+                        "command": [
+                            "stat",
+                            "${MOUNT_POINT}"
+                        ]
+                    },
+                    "failureThreshold": 3,
+                    "initialDelaySeconds": 10,
+                    "periodSeconds": 5,
+                    "successThreshold": 1
+                }
+            }
+        ]
+    }
+    update_config(test_cfg)
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+
+    # deploy pvc
+    pvc1 = PVC(name="pvc-config-without-labels", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc1.name))
+    pvc1.create()
+
+    pvc2 = PVC(name="pvc-config-enable-liveness", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="", labels={"enable_liveness": "true"})
+    LOG.info("Deploy pvc {}".format(pvc2.name))
+    pvc2.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc1.check_is_bound() and pvc2.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-config", replicas=1, pvc=pvc1.name, pvcs=[pvc1.name, pvc2.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+
+    volume_id_1 = pvc1.get_volume_id()
+    volume_id_2 = pvc2.get_volume_id()
+    LOG.info("Check mountpod config..")
+    mount_pod_1 = Pod(name=get_only_mount_pod_name(volume_id_1), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod_2 = Pod(name=get_only_mount_pod_name(volume_id_2), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    metadata_1 = mount_pod_1.get_metadata()
+    spce_1 = mount_pod_1.get_spec()
+    spce_2 = mount_pod_2.get_spec()
+
+    if metadata_1.labels.get("apply") != "global_labels":
+        raise Exception("mountpod config labels not set")
+
+    if spce_1.host_network != True:
+        raise Exception("mountpod config hostNetwork not set")
+
+    if volume_id_2 not in spce_2.containers[0].liveness_probe._exec.command[1]:
+        raise Exception("mountpod config livenessProbe not set")
+    
+    LOG.info("Check mount point..")
+    LOG.info("Get volume_id {}".format(volume_id_1))
+    check_path = volume_id_1 + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id_1))
+    
+    LOG.info("Get volume_id {}".format(volume_id_2))
+    check_path = volume_id_2 + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id_2))
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove pvc 1 {}".format(pvc1.name))
+    pvc1.delete()
+
+    LOG.info("Remove pvc 2 {}".format(pvc2.name))
+    pvc2.delete()
+
+    LOG.info("Test pass.")
+
+

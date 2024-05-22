@@ -16,3 +16,4 @@ spec:
             - --v=6
             - --webhook=true
             - --validating-webhook=true
+            - --config=/etc/config/config.yaml

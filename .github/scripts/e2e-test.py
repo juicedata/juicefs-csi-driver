@@ -50,6 +50,7 @@ from test_case import (
     test_multi_pvc,
     test_mountpod_recreated,
     test_validate_pv,
+    test_config,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -85,6 +86,7 @@ if __name__ == "__main__":
                 test_dynamic_expand()
                 test_multi_pvc()
                 test_mountpod_recreated()
+                test_config()
                 if without_kubelet:
                     test_pod_resource_err()
 
@@ -136,6 +138,7 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                test_config()
                 if without_kubelet:
                     test_pod_resource_err()
 
