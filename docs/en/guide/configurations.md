@@ -16,7 +16,6 @@ Considering the similarities between the two commands, options all go to the `fo
 
 :::tip
 Changing `format-options` does not affect existing mount clients, even if mount pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
-
 :::
 
 JuiceFS Community Edition:
@@ -576,7 +575,7 @@ juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 
 Since mount pods are created by CSI-node, users cannot directly control mount pod definition. However this doesn't mean you can't customize mount pod specs, CSI Driver provides two ways to customize mount pod.
 
-### Inherit from CSI Node
+### Inherit from CSI Node {#inherit-from-csi-node}
 
 Mount pod specs are mostly inherited from CSI-node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI-node:
 
@@ -589,7 +588,7 @@ After the change, newly created mount pods will use hostNetwork.
 
 As mentioned earlier, "most" specs are inherited from CSI-node, this leaves component specific content like labels, annotations, etc. These fields will not work through inheritance so we provide separate methods for customization, read the next section for more.
 
-### Others
+### Others {#others}
 
 Some of the fields that doesn't support CSI-node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
 

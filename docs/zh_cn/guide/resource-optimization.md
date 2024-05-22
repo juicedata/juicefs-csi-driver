@@ -28,17 +28,19 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
 
-```yaml {7-10}
+```yaml {9-12}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: game-demo
+  name: juicefs-csi-driver-config
+  namespace: kube-system
 data:
-  mountPodPatch:
-    - resources:
-        requests:
-          cpu: 100m
-          memory: 512Mi
+  config.yaml: |-
+    mountPodPatch:
+      - resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
 ```
 
 修改完毕以后，滚动升级应用或者删除重建 mount pod，便会按照新的资源定义重建。
@@ -46,7 +48,7 @@ data:
 ### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
 :::
 
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：

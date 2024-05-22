@@ -9,7 +9,7 @@ sidebar_position: 2
 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置。并且支持动态更新，不需要重启 CSI Node 或者 Controller。
 
-ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
+ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
 
 ## 格式化参数/认证参数 {#format-options}
 
@@ -22,7 +22,6 @@ ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/
 
 :::tip
 修改 `format-options` 并不影响已有的挂载客户端，即便重启 Mount Pod 也不会生效，需要滚升/重启应用 Pod，或者重建 PVC，方能生效。
-
 :::
 
 社区版：
@@ -460,12 +459,12 @@ spec:
 
 缓存配置文件的工作方式如下：
 
-* 用户填写或更新[文件系统认证信息](./pv.md#volume-credentials)，CSI Controller 会监听 Secret 的变化，并立刻发起认证、获取配置文件
-* CSI Controller 将配置文件注入进 Secret，保存在 `initconfig` 字段
-* 当 CSI Node 创建 mount pod，或者 CSI Controller 注入 sidecar 容器的时候，会将 `initconfig` 挂载进容器内
-* 容器内的 JuiceFS 客户端会运行 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth) 命令，但由于配置文件已经挂载进容器内，因此就算容器无法访问 JuiceFS Web 控制台，挂载也能照常继续
+1. 用户填写或更新[文件系统认证信息](./pv.md#volume-credentials)，CSI Controller 会监听 Secret 的变化，并立刻发起认证、获取配置文件；
+1. CSI Controller 将配置文件注入进 Secret，保存在 `initconfig` 字段；
+1. 当 CSI Node 创建 mount pod，或者 CSI Controller 注入 sidecar 容器的时候，会将 `initconfig` 挂载进容器内；
+1. 容器内的 JuiceFS 客户端会运行 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth) 命令，但由于配置文件已经挂载进容器内，因此就算容器无法访问 JuiceFS Web 控制台，挂载也能照常继续。
 
-如果希望关闭该功能，需要为 CSI Controller 删去 [`--cache-client-conf`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L73) 参数。
+如果希望关闭该功能，需要将 Helm chart 的 `values.yaml` 中的 [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) 字段设置为 `false`。
 
 ### PV 容量分配 {#storage-capacity}
 
@@ -599,68 +598,75 @@ juicefs/host-path: "/etc/hosts"
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## 定制 Mount Pod（Sidecar） {#customize-mount-pod}
+## 定制 Mount Pod 和 Sidecar 容器 {#customize-mount-pod}
 
 Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar 容器则是 webhook 负责注入，如果用户希望定制 mount pod 或者 sidecar 容器，需要通过下列介绍的方法进行。
 
-### 修改 ConfigMap
+### 修改 ConfigMap {#modify-configmap}
 
-在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar，可供定制的部分均已在示范中列出。
+在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。
 
-注意，对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效； `custom-labels` 的作用是为 pod 添加自定义标签，而“标签”是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置。
+注意，对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置。
 
 ```yaml
-# 支持变量模板，比如  ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
-mountPodPatch:
-  # 未定义 pvcSelector，则为全局配置
-  - lifecycle:
-      preStop:
-        exec:
-          command:
-          - sh
-          - -c
-          - +e
-          - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-csi-driver-config
+  namespace: kube-system
+data:
+  config.yaml: |-
+    # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
+    mountPodPatch:
+      # 未定义 pvcSelector，则为全局配置
+      - lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - +e
+              - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
 
-  # 如果定义了 selector，则按从前往后顺序进行递归覆盖
-  - pvcSelector:
-      matchLabels:
-        mylabel1: "value1"
-    # 启用 host network
-    hostNetwork: true
+      # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+      - pvcSelector:
+          matchLabels:
+            mylabel1: "value1"
+        # 启用 host network
+        hostNetwork: true
 
-  - pvcSelector:
-      matchLabels:
-        mylabel2: "value2"
-    # 增加 labels
-    labels:
-      custom-labels: "mylabels"
+      - pvcSelector:
+          matchLabels:
+            mylabel2: "value2"
+        # 增加 labels
+        labels:
+          custom-labels: "mylabels"
 
-  - pvcSelector:
-      matchLabels:
-        ...
-    # 修改资源定义
-    resources:
-      requests:
-        cpu: 100m
-        memory: 512Mi
+      - pvcSelector:
+          matchLabels:
+            ...
+        # 修改资源定义
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
 
-  - pvcSelector:
-      matchLabels:
-        ...
-    # 增加 liveness probe
-    livenessProbe:
-      exec:
-        command:
-        - stat
-        - ${MOUNT_POINT}/${SUB_PATH}
-      failureThreshold: 3
-      initialDelaySeconds: 10
-      periodSeconds: 5
-      successThreshold: 1
+      - pvcSelector:
+          matchLabels:
+            ...
+        # 增加 liveness probe
+        livenessProbe:
+          exec:
+            command:
+            - stat
+            - ${MOUNT_POINT}/${SUB_PATH}
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          successThreshold: 1
 ```
 
-### 继承 CSI Node 配置
+### 继承 CSI Node 配置 {#inherit-from-csi-node}
 
 :::tip
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
@@ -677,7 +683,7 @@ node:
 
 之所以说「大部分」配置继承自 CSI Node，是因为 labels、annotations 等字段包含组件特定内容，无法简单继承。因此为这部分配置提供单独的定制手段，继续阅读下一小节了解。
 
-### 其他
+### 其他 {#others}
 
 :::tip
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
