@@ -1,15 +1,26 @@
 ---
-title: 配置方法
+title: 高级功能与配置
 sidebar_position: 2
 ---
 
-使用 JuiceFS PV 的各种配置，以及 CSI 驱动自身的配置，都在本章详述。
+CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 驱动自身的配置，都在本章详述。
 
 ## ConfigMap 配置 {#configmap}
 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置。并且支持动态更新，不需要重启 CSI Node 或者 Controller。
 
-ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
+:::tip 更新时效
+修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
+
+如果希望立即生效，可以给 CSI 组件 pods 临时添加 annotation 来触发更新：
+
+```
+kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
+```
+
+:::
+
+ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
 
 ## 格式化参数/认证参数 {#format-options}
 
@@ -209,6 +220,31 @@ spec:
 ### 动态配置
 
 严格来说，由于动态配置本身的性质，并不支持挂载 JuiceFS 中已经存在的目录。但动态配置下可以[调整子目录命名模板](#using-path-pattern)，让生成的子目录名称对齐 JuiceFS 中已有的目录，来达到同样的效果。
+
+## Webhook 相关功能 {#webhook}
+
+CSI 驱动的 Controller 组件可以通过增加相关参数，令其兼具 Webhook 的功能。Webhook 启动以后将会额外支持更多高级功能，在本小节分别介绍。
+
+### Mutating webhook
+
+如果启用了 [sidecar 模式](../introduction.md#sidecar)，那么 Controller 同时会作为 mutating webhook 运行，此时 Controller 进程的启动参数里会包含 [`--webhook`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L76)，你可以通过这个参数判断目前是否启用了该特性。
+
+顾名思义，mutating 会对资源进行变更，也就是指定命名空间下的所有 pod 创建，都会经过这个 webhook，如果检测到他使用了 JuiceFS PV，便会向其中注入 sidecar 容器。
+
+### Validating webhook
+
+:::tip
+目前该功能仅对 JuiceFS 企业版生效。
+:::
+
+CSI 驱动可选地提供 Secret 校验功能，帮助用户正确填写[文件系统认证信息](./pv.md#volume-credentials)。如果填错了[文件系统令牌](https://juicefs.com/docs/zh/cloud/acl#client-token)，那么创建 Secret 将会失败，并提示用户错误信息。
+
+如果要开启 validating webhook，需要在 Helm values 中调整配置（参考默认的 [values.YAML](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L342)）：
+
+```yaml name="values-mycluster.yaml"
+validatingWebhook:
+  enabled: false
+```
 
 ## 高级 PV 初始化功能 {#provisioner}
 
@@ -604,9 +640,10 @@ Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar �
 
 ### 修改 ConfigMap {#modify-configmap}
 
-在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。
+在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。使用前需要注意：
 
-注意，对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置。
+* **修改后并不会立即生效**，Kubernetes 会定期同步 ConfigMap 的挂载。详见 [ConfigMap 的更新时效](#configmap)
+* 对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置。
 
 ```yaml title="values.yaml"
 globalConfig:
