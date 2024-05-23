@@ -5,6 +5,23 @@ sidebar_position: 2
 
 This chapter introduces JuiceFS PV configurations, as well as CSI Driver configurations.
 
+## ConfigMap {#configmap}
+
+Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically so no need to restart any CSI Driver components on update.
+
+:::tip Update delay
+When ConfigMap changes, the changes won't take effect immediately, this is because CM mounted in a pod isn't updated in real-time, but synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
+
+If you wish for a force update, try adding a temporary label to CSI components:
+
+```shell
+kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
+```
+
+:::
+
+All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml), and also introduced in detail in our docs.
+
 ## Format options / auth options {#format-options}
 
 Format options / auth options are options used in `juicefs [format|auth]` commands, in which:
@@ -203,6 +220,31 @@ spec:
 ### Dynamic provisioning
 
 Strictly speaking, dynamic provisioning doesn't inherently support mounting a existing directory. But you can [configure subdirectory naming pattern (path pattern)](#using-path-pattern), and align the pattern to match with the existing directory name, to achieve the same result.
+
+## Webhook related features {#webhook}
+
+Special options can be added to run CSI Controller as a webhook, so that more advanced features are supported.
+
+### Mutating webhook
+
+If [sidecar mount mode](../introduction.md#sidecar) is used, then Controller also runs as a mutating webhook, and its args will contain [`--webhook`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L76), you can use this argument to verify if sidecar mode is enabled.
+
+A murating webhook mutates Kubernetes resources, in our case all pod creation under the specified namespace will go through our webhook, and if JuiceFS PV is used, webhook will inject the corresponding sidecar container.
+
+### Validating webhook
+
+:::tip
+This feature only works for JuiceFS Enterprise Edition.
+:::
+
+CSI Driver can optionally run secret validation, helping users to correctly fill in their [volume credentials](./pv.md#volume-credentials). If a wrong [volume token](https://juicefs.com/docs/zh/cloud/acl#client-token) is used, the secret fails to create and user is prompted with relevant errors.
+
+To enable validating webhook, write this in your cluster values (refer to our default [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L342)):
+
+```yaml name="values-mycluster.yaml"
+validatingWebhook:
+  enabled: true
+```
 
 ## Advanced PV provisoning {#provioner}
 
@@ -440,6 +482,21 @@ spec:
 
 You can also use tools provided by a community developer to automatically add `mountPropagation: HostToContainer` to application container. For details, please refer to [Project Documentation](https://github.com/breuerfelix/juicefs-volume-hook).
 
+### Cache client config {#cache-client-conf}
+
+Starting from v0.23.3, CSI Driver by default caches the configuration file for JuiceFS Client, i.e. [mount configuration for JuiceFS Enterprise Edition](https://juicefs.com/docs/cloud/reference/command_reference/#auth), which has the following benefits:
+
+* &#8203;<Badge type="primary">On-prem</Badge> If JuiceFS Web Console suffers from an outage, or clients undergo network issue, mount pods & sidecar containers can still mount via the cached config and continue to serve
+
+Caching works like this:
+
+1. Users create or update [volume credential](./pv.md#volume-credentials), CSI Controller will watch for changes and immediately run `juicefs auth` to obtain the new config;
+1. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
+1. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
+1. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
+
+If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
+
 ### PV storage capacity {#storage-capacity}
 
 From v0.19.3, JuiceFS CSI Driver supports setting storage capacity under dynamic provisioning (and dynamic provisioning only, static provisioning isn't supported).
@@ -571,13 +628,77 @@ If you need to mount multiple files or directories, specify them using comma:
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
 ```
 
-## Customize Mount Pod {#customize-mount-pod}
+## Customize mount pod and sidecar container {#customize-mount-pod}
 
-Since mount pods are created by CSI-node, users cannot directly control mount pod definition. However this doesn't mean you can't customize mount pod specs, CSI Driver provides two ways to customize mount pod.
+Since mount pods are created by CSI Node, and sidecar containers injected by [webhook](#webhook), users cannot directly control their definition. To customize, refer to the following methods.
+
+### Modify ConfigMap {#modify-configmap}
+
+The `mountPodPatch` field from the [ConfigMap](#configmap) controls all mount pod & sidecar container customization, all supported fields are demonstrated below, but before use please notice:
+
+* **Changes do not take effect immediately**, Kubernetes periodically syncs ConfigMap mounts, see [update delay](#configmap)
+* For sidecar mount mode, if a customization field appears to be a valid sidecar setting, it'll work with sidecar. otherwise it'll be ignored. For example, `custom-labels` adds customized labels to pod, since labels are an exclusive pod attribute, this setting is not applicable to sidecar
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
+  mountPodPatch:
+    # Without a pvcSelector, the patch is global
+    - lifecycle:
+        preStop:
+          exec:
+            command:
+            - sh
+            - -c
+            - +e
+            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+
+    # If multiple pvcSelector points to the same PVC
+    # later items will recursively overwrites the former ones
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      # Enable host network
+      hostNetwork: true
+
+    - pvcSelector:
+        matchLabels:
+          mylabel2: "value2"
+      # Add labels
+      labels:
+        custom-labels: "mylabels"
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # Change resource definition
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # Add liveness probe
+      livenessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+```
 
 ### Inherit from CSI Node {#inherit-from-csi-node}
 
-Mount pod specs are mostly inherited from CSI-node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI-node:
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
+:::
+
+Mount pod specs are mostly inherited from CSI Node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI Node:
 
 ```yaml title="values-mycluster.yaml"
 node:
@@ -590,7 +711,11 @@ As mentioned earlier, "most" specs are inherited from CSI-node, this leaves comp
 
 ### Others {#others}
 
-Some of the fields that doesn't support CSI-node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
+:::
+
+Some of the fields that doesn't support CSI Node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
 
 ```yaml
 juicefs/mount-cpu-limit: ""
