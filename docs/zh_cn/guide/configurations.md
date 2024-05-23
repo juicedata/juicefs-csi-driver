@@ -20,7 +20,7 @@ kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-drive
 
 :::
 
-ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
+ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
 
 ## 格式化参数/认证参数 {#format-options}
 
