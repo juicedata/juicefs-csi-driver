@@ -329,7 +329,9 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 		oldPod, err := p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			klog.V(6).Infof("createOrAddRef: wait for old mount pod deleted.")
+			lock.Unlock()
 			time.Sleep(time.Millisecond * 500)
+			lock.Lock()
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {

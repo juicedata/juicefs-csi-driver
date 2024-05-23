@@ -147,6 +147,15 @@ func GetPodLock(podName string) *sync.Mutex {
 	return &PodLocks[index%1024]
 }
 
+var BindLocks [1024]sync.Mutex
+
+func GetBindLock(target string) *sync.Mutex {
+	h := fnv.New32a()
+	h.Write([]byte(target))
+	index := int(h.Sum32())
+	return &BindLocks[index%1024]
+}
+
 func MustGetWebPort() int {
 	value, exists := os.LookupEnv("JUICEFS_CSI_WEB_PORT")
 	if exists {

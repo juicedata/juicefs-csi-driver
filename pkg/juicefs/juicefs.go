@@ -216,6 +216,10 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 }
 
 func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error {
+	lock := config.GetBindLock(target)
+	lock.Lock()
+	defer lock.Unlock()
+
 	mountInfos, err := mount.ParseMountInfo(procMountInfoPath)
 	if err != nil {
 		return err
