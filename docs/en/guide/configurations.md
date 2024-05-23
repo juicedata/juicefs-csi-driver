@@ -20,7 +20,7 @@ kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-drive
 
 :::
 
-All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/example.config.yaml), and also introduced in detail in our docs.
+All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml), and also introduced in detail in our docs.
 
 ## Format options / auth options {#format-options}
 
