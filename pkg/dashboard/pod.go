@@ -497,8 +497,13 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 		if err != nil {
 			continue
 		}
-		for i := range pods.Items {
-			mountPods = append(mountPods, &pods.Items[i])
+		for i, item := range pods.Items {
+			for _, v := range item.Annotations {
+				if strings.Contains(v, string(pod.UID)) {
+					mountPods = append(mountPods, &pods.Items[i])
+					break
+				}
+			}
 		}
 	}
 	return mountPods, nil
