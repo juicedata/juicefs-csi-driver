@@ -42,7 +42,7 @@ After changes are applied, rollout the application pods or delete the mount pods
 ### Declare resources in PVC annotations {#mount-pod-resources-pvc}
 
 :::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](./configurations.md#configmap), legacy method introduced in this section is not recommended.
 :::
 
 Since 0.23.4, users can declare mount pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage mount pod resources. But do note this:
