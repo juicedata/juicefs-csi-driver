@@ -24,7 +24,26 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
 kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
+### Define resources in ConfigMap {#resources-configmap}
+
+Starting from v0.24, you can easily customize mount pods and sidecar containers in [ConfigMap](./configurations.md#configmap), changing resource definition is as simple as:
+
+```yaml title="values-mycluster.yaml" {3-6}
+globalConfig:
+  mountPodPatch:
+    - resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+```
+
+After changes are applied, rollout the application pods or delete the mount pods to take effect.
+
 ### Declare resources in PVC annotations {#mount-pod-resources-pvc}
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](./configurations.md#configmap), legacy method introduced in this section is not recommended.
+:::
 
 Since 0.23.4, users can declare mount pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage mount pod resources. But do note this:
 
@@ -391,20 +410,3 @@ Install JuiceFS CSI Driver:
 ```shell
 kubectl apply -f k8s.yaml
 ```
-
-## Uninstall JuiceFS CSI Controller {#uninstall-juicefs-csi-controller}
-
-The CSI Controller component exists for a single purpose: PV provisioning when using [Dynamic Provisioning](./pv.md#dynamic-provisioning). So if you have no use for dynamic provisioning, you can safely uninstall CSI Controller, leaving only CSI Node Service:
-
-```shell
-kubectl -n kube-system delete sts juicefs-csi-controller
-```
-
-If you're using Helm:
-
-```yaml title="values.yaml"
-controller:
-  enabled: false
-```
-
-Considering that CSI Controller doesn't really take up a lot of resources, this practice isn't really recommended, and only kept here as a reference.

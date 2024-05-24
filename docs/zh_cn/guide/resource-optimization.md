@@ -24,9 +24,28 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
 kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 ```
 
+### 在 ConfigMap 中配置资源声明 {#resources-configmap}
+
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
+
+```yaml title="values-mycluster.yaml" {3-6}
+globalConfig:
+  mountPodPatch:
+    - resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+```
+
+修改完毕以后，滚动升级应用或者删除重建 mount pod，便会按照新的资源定义重建。
+
 ### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
 
-自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这也是最灵活、我们最推荐的方式。但也要注意：
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+:::
+
+自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
 
 * 修改以后，已有的 mount pod 并不会自动按照新的配置重建。需要删除 mount pod，才能以新的资源配置触发创建新的 mount pod。
 * 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 mount pod 的挂载点才能传播回应用 pod。
@@ -413,20 +432,3 @@ spec:
 ```shell
 kubectl apply -f k8s.yaml
 ```
-
-## 卸载 JuiceFS CSI Controller {#uninstall-juicefs-csi-controller}
-
-CSI Controller 的作用仅仅是[动态配置](./pv.md#dynamic-provisioning)下的初始化，因此，如果你完全不需要以动态配置方式使用 CSI 驱动，可以卸载 CSI Controller，仅留下 CSI Node Service：
-
-```shell
-kubectl -n kube-system delete sts juicefs-csi-controller
-```
-
-如果你使用 Helm 管理 CSI 驱动：
-
-```yaml title="values.yaml"
-controller:
-  enabled: false
-```
-
-考虑到 CSI Controller 消耗资源并不多，并不建议卸载，该实践仅供参考。
