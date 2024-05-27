@@ -16,7 +16,9 @@
 
 import { DarkMode, Question, SelectLang } from '@/components/RightContent'
 import { Flex } from 'antd'
-import { RuntimeConfig } from 'umi'
+import { RequestConfig, RuntimeConfig } from 'umi'
+
+export const request: RequestConfig = {}
 
 // 运行时配置
 
