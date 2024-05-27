@@ -16,7 +16,7 @@ Error: Get "https://github.com/juicedata/charts/releases/doownload/helm-chart-ju
 
 如果反复重试也于事无补，只好将 Helm chart 下载到本地，转移到集群的操作节点上，作为本地目录安装。步骤如下：
 
-* 下载官方 [Helm chart](https://github.com/juicedata/charts/) 到工作电脑，既可以下载压缩包，也可以直接 `git clone`。考虑到升级维护方便，更推荐后者；
+* 下载官方 [Helm chart](https://github.com/juicedata/charts) 到工作电脑，既可以下载压缩包，也可以直接 `git clone`。考虑到升级维护方便，更推荐后者；
 * 将文档里介绍的安装命令，统统修改参数，改为以本地目录作为 chart 地址。
 
 ```shell
