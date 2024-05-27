@@ -16,8 +16,10 @@ FROM golang:1.19-buster as builder
 
 ARG GOPROXY
 ARG TARGETARCH
+ARG JUICEFS_REPO_URL=https://github.com/juicedata/juicefs
 ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
+ARG JUICEFS_CSI_REPO_URL=https://github.com/juicedata/juicefs-csi-driver
 ARG JUICEFS_CSI_REPO_REF=master
 
 RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 && \
@@ -32,9 +34,9 @@ RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 &
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools && \
-    git clone https://github.com/juicedata/juicefs-csi-driver && \
+    git clone $JUICEFS_CSI_REPO_URL && \
     cd juicefs-csi-driver && git checkout $JUICEFS_CSI_REPO_REF && make && \
-    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH https://github.com/juicedata/juicefs && \
+    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && \
     bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs; fi"
 
