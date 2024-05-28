@@ -5,6 +5,28 @@ sidebar_position: 5
 
 所谓离线集群，就是节点无法访问公网，无法下载 CSI Controller 所需的组件容器镜像。如果你的节点无法顺利访问 [Docker Hub](https://hub.docker.com) 和 [Quay](https://quay.io)，也视为离线集群，按照本章所介绍的方法处理。
 
+## 用 Helm 离线安装 {#helm}
+
+在访问 GitHub 不顺利的环境，运行 Helm 安装命令可能会出错：
+
+```shell
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
+Error: Get "https://github.com/juicedata/charts/releases/doownload/helm-chart-juicefs-csi-driver-0.20.0/juicefs-csi-driver-0.20.0.tgz": unexpected EOF
+```
+
+如果反复重试也于事无补，只好将 Helm chart 下载到本地，转移到集群的操作节点上，作为本地目录安装。步骤如下：
+
+* 下载官方 [Helm chart](https://github.com/juicedata/charts) 到工作电脑，既可以下载压缩包，也可以直接 `git clone`。考虑到升级维护方便，更推荐后者；
+* 将文档里介绍的安装命令，统统修改参数，改为以本地目录作为 chart 地址。
+
+```shell
+# 进入 chart 目录
+cd juicefs-csi-driver
+
+# 将安装目标改为 "." 代表安装当前目录的 chart，无需访问 GitHub 下载
+helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster.yaml
+```
+
 ## 搬运镜像 {#copy-images}
 
 搬运镜像指的就是将镜像从公网下载到本地，然后上传至你的私有镜像仓库的过程。为了搬运镜像，你需要一台能顺利访问外网的工作机，以及能够与之传输文件的集群内操作节点（具备 kubectl 管理员权限）。
@@ -23,20 +45,20 @@ sidebar_position: 5
 
   ``` title="image.txt"
   juicedata/juicefs-csi-driver:v0.21.0
-  quay.io/k8scsi/csi-node-driver-registrar:v2.1.0
-  quay.io/k8scsi/csi-provisioner:v1.6.0
-  quay.io/k8scsi/csi-resizer:v1.0.1
-  quay.io/k8scsi/livenessprobe:v1.1.0
+  registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
+  registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
+  registry.k8s.io/sig-storage/csi-resizer:v1.9.0
+  registry.k8s.io/sig-storage/livenessprobe:v2.12.0
   ```
 
   除此之外，由于 CSI 驱动的[「分离架构」](../introduction.md#architecture)，你还需要将 Mount Pod 镜像也纳入其中，一并搬运。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 中找到最新版，用下方命令添加镜像：
 
   ```shell
   # 社区版镜像
-  echo juicedata/mount:ce-v1.1.0 >> images.txt
+  echo juicedata/mount:ce-v1.1.2 >> images.txt
 
   # 商业版镜像
-  echo juicedata/mount:ee-5.0.2-69f82b3 >> images.txt
+  echo juicedata/mount:ee-5.0.17-8ba7611 >> images.txt
   ```
 
 1. 将所有镜像下载到本地，并统一重命名。注意**拉取镜像的机器，CPU 架构需要和线上环境相同**，否则需要使用 [`--platform`](https://docs.docker.com/engine/reference/commandline/pull/#options) 参数指定运行环境。
