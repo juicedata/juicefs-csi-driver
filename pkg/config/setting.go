@@ -95,12 +95,13 @@ type PodAttr struct {
 
 	Resources corev1.ResourceRequirements
 
-	Labels         map[string]string `json:"labels,omitempty"`
-	Annotations    map[string]string `json:"annotations,omitempty"`
-	LivenessProbe  *corev1.Probe     `json:"livenessProbe,omitempty"`
-	ReadinessProbe *corev1.Probe     `json:"readinessProbe,omitempty"`
-	StartupProbe   *corev1.Probe     `json:"startupProbe,omitempty"`
-	Lifecycle      *corev1.Lifecycle `json:"lifecycle,omitempty"`
+	Labels                        map[string]string `json:"labels,omitempty"`
+	Annotations                   map[string]string `json:"annotations,omitempty"`
+	LivenessProbe                 *corev1.Probe     `json:"livenessProbe,omitempty"`
+	ReadinessProbe                *corev1.Probe     `json:"readinessProbe,omitempty"`
+	StartupProbe                  *corev1.Probe     `json:"startupProbe,omitempty"`
+	Lifecycle                     *corev1.Lifecycle `json:"lifecycle,omitempty"`
+	TerminationGracePeriodSeconds *int64            `json:"terminationGracePeriodSeconds,omitempty"`
 
 	// inherit from csi
 	Image            string
@@ -440,6 +441,7 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	attr.LivenessProbe = patch.LivenessProbe
 	attr.ReadinessProbe = patch.ReadinessProbe
 	attr.StartupProbe = patch.StartupProbe
+	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
 	setting.Attr = attr
 	return nil
 }
