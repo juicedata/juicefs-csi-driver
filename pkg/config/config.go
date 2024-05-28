@@ -167,16 +167,17 @@ type MountPodPatch struct {
 	CEMountImage string `json:"ceMountImage,omitempty"`
 	EEMountImage string `json:"eeMountImage,omitempty"`
 
-	Image          string                       `json:"-"`
-	Labels         map[string]string            `json:"labels,omitempty"`
-	Annotations    map[string]string            `json:"annotations,omitempty"`
-	HostNetwork    *bool                        `json:"hostNetwork,omitempty" `
-	HostPID        *bool                        `json:"hostPID,omitempty" `
-	LivenessProbe  *corev1.Probe                `json:"livenessProbe,omitempty"`
-	ReadinessProbe *corev1.Probe                `json:"readinessProbe,omitempty"`
-	StartupProbe   *corev1.Probe                `json:"startupProbe,omitempty"`
-	Lifecycle      *corev1.Lifecycle            `json:"lifecycle,omitempty"`
-	Resources      *corev1.ResourceRequirements `json:"resources,omitempty"`
+	Image                         string                       `json:"-"`
+	Labels                        map[string]string            `json:"labels,omitempty"`
+	Annotations                   map[string]string            `json:"annotations,omitempty"`
+	HostNetwork                   *bool                        `json:"hostNetwork,omitempty" `
+	HostPID                       *bool                        `json:"hostPID,omitempty" `
+	LivenessProbe                 *corev1.Probe                `json:"livenessProbe,omitempty"`
+	ReadinessProbe                *corev1.Probe                `json:"readinessProbe,omitempty"`
+	StartupProbe                  *corev1.Probe                `json:"startupProbe,omitempty"`
+	Lifecycle                     *corev1.Lifecycle            `json:"lifecycle,omitempty"`
+	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
+	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
@@ -219,6 +220,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.Resources != nil {
 		mpp.Resources = mp.Resources
+	}
+	if mp.TerminationGracePeriodSeconds != nil {
+		mpp.TerminationGracePeriodSeconds = mp.TerminationGracePeriodSeconds
 	}
 }
 

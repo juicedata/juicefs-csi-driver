@@ -67,6 +67,7 @@ MountPodPatch:
       initialDelaySeconds: 10
       periodSeconds: 5
       successThreshold: 1
+  - terminationGracePeriodSeconds: 60
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -80,7 +81,7 @@ MountPodPatch:
 	}
 	defer GlobalConfig.Reset()
 	// Check the loaded config
-	assert.Equal(t, len(GlobalConfig.MountPodPatch), 5)
+	assert.Equal(t, len(GlobalConfig.MountPodPatch), 6)
 	assert.Equal(t, GlobalConfig.MountPodPatch[0], MountPodPatch{
 		CEMountImage: "juicedata/mount:ce-test",
 		EEMountImage: "juicedata/mount:ee-test",
@@ -128,6 +129,9 @@ MountPodPatch:
 			PeriodSeconds:       5,
 			SuccessThreshold:    1,
 		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[5], MountPodPatch{
+		TerminationGracePeriodSeconds: toPtr(int64(60)),
 	})
 }
 
