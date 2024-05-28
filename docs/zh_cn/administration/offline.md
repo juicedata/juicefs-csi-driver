@@ -45,10 +45,10 @@ helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster
 
   ``` title="image.txt"
   juicedata/juicefs-csi-driver:v0.21.0
-  quay.io/k8scsi/csi-node-driver-registrar:v2.9.0
-  quay.io/k8scsi/csi-provisioner:v2.2.2
-  quay.io/k8scsi/csi-resizer:v1.9.0
-  quay.io/k8scsi/livenessprobe:v2.11.0
+  registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
+  registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
+  registry.k8s.io/sig-storage/csi-resizer:v1.9.0
+  registry.k8s.io/sig-storage/livenessprobe:v2.12.0
   ```
 
   除此之外，由于 CSI 驱动的[「分离架构」](../introduction.md#architecture)，你还需要将 Mount Pod 镜像也纳入其中，一并搬运。你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 中找到最新版，用下方命令添加镜像：
