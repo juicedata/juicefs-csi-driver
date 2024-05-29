@@ -444,6 +444,8 @@ EOF
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
+挂载成功后，动态 PV 会在 JuiceFS 文件系统创建形如 `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b` 的随机命名子目录，随机命名不方便人类辨认，因此推荐用高级初始化方式，来[配置更易读的 PV 目录名称](./configurations.md#using-path-pattern)。
+
 ## 使用通用临时卷 {#general-ephemeral-storage}
 
 [通用临时卷](https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes)类似于 `emptyDir`，为每个 Pod 单独提供临时数据存放目录。当应用容器需要大容量，并且是每个 Pod 单独的临时存储时，可以考虑这样使用 JuiceFS CSI 驱动。
