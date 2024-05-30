@@ -274,6 +274,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	strData := string(data)
 	strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
 	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
+	strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
 	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
 	json.Unmarshal([]byte(strData), patch)
 	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
