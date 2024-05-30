@@ -16,10 +16,10 @@ Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」
 
 ```shell
 # 社区版镜像标签以 ce- 开头
-juicedata/mount:ce-v1.1.0
+juicedata/mount:ce-v1.1.2
 
 # 商业版镜像标签以 ee- 开头
-juicedata/mount:ee-5.0.2-69f82b3
+juicedata/mount:ee-5.0.17-8ba7611
 
 # 在 0.19.0 以前，镜像标签中包含社区版和商业版客户端的版本号
 # 该系列镜像不再继续更新维护
@@ -46,19 +46,19 @@ defaultMountImage:
   # 社区版
   ce: "juicedata/mount:ce-v1.1.2"
   # 企业版
-  ee: "juicedata/mount:ee-5.0.10-10fbc97"
+  ee: "juicedata/mount:ee-5.0.17-8ba7611"
 ```
 
 而如果是 kubectl 直接安装，那么需要在 CSI 驱动的组件中设置环境变量：
 
 ```shell
 # 社区版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
 
 # 企业版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
 ```
 
 修改完毕以后，别忘了将这些配置同时加入 `k8s.yaml`，避免下次安装时配置丢失。正因为 kubectl 的安装方式管理配置不方便，所以建议在生产集群采用 [Helm 安装方式](../getting_started.md#helm)。
@@ -78,7 +78,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.1.0
+  juicefs/mount-image: juicedata/mount:ce-v1.1.2
 ```
 
 配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
@@ -109,7 +109,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:ce-v1.1.0
+      juicefs/mount-image: juicedata/mount:ce-v1.1.2
 ```
 
 ## 构建镜像

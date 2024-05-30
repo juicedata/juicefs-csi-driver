@@ -10,7 +10,11 @@ If you did not run into problems, there's no need to rush upgrades. But we do re
 kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..image}{"\n"}{end}' --all-namespaces | head -n 1 | grep -oP 'juicefs-csi-driver:\S+'
 ```
 
-Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md).
+Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. Be aware that:
+
+* Upgrading CSI Driver accompanies JuiceFS Client upgrade (i.e. mount image), service won't be affected because existing mount pods will remain the same, newer versions take effect after application pod is re-created
+* If you already explicitedly defined mount image tag via [other approaches](../guide/custom-image.md), then upgrading CSI Driver no longer affect mount image version
+* If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md)
 
 ## Upgrade CSI Driver (mount by pod mode) {#upgrade}
 

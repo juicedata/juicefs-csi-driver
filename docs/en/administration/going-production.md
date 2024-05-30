@@ -178,11 +178,11 @@ And add the following parser plugin to the Fluentd configuration file:
 
 ## CSI Controller high availability {#leader-election}
 
-From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single points of failure.
+From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single point of failure.
 
 ### Helm
 
-HA related settings inside `values.yaml`:
+HA is enabled by default in our default [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml):
 
 ```yaml {3-5}
 controller:
@@ -190,6 +190,15 @@ controller:
     enabled: true # Enable Leader Election
     leaseDuration: "15s" # Interval between replicas competing for Leader, default to 15s
   replicas: 2 # At least 2 is required for HA
+```
+
+If faced with limited resource, or unstable SDN causing frequent election timeouts, try disabling election:
+
+```yaml title="values-mycluster.yaml"
+controller:
+  leaderElection:
+    enabled: false
+  replicas: 1
 ```
 
 ### kubectl

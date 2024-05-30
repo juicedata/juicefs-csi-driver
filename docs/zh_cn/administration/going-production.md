@@ -182,7 +182,7 @@ CSI Driver 在 0.19.0 及以上版本支持并默认启用 CSI Controller 高可
 
 ### Helm
 
-在 `values.yaml` 中，高可用相关设置如下：
+HA 已经在我们默认的 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中启用：
 
 ```yaml {3-5}
 controller:
@@ -190,6 +190,15 @@ controller:
     enabled: true # 开启 Leader 选举
     leaseDuration: "15s" # Leader 的间隔，默认为 15s
   replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+```
+
+如果资源不足，或者集群压力较大导致选举超时，那么可以尝试禁用高可用：
+
+```yaml title="values-mycluster.yaml"
+controller:
+  leaderElection:
+    enabled: false
+  replicas: 1
 ```
 
 ### kubectl
