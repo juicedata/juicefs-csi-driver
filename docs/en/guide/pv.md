@@ -444,6 +444,8 @@ Verify that pod is running, and check if data is written into JuiceFS:
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
 ```
 
+Upon mount success, a dynamic PV creates a random subdir in JuiceFS volume, directory name will look like `pvc-4f2e2384-61f2-4045-b4df-fbdabe496c1b`, which isn't exactly human friendly. We recommend [using more readable names for PV directory](./configurations.md#using-path-pattern) via advanced provisioning.
+
 ## Use generic ephemeral volume {#general-ephemeral-storage}
 
 [Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.

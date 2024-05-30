@@ -4,13 +4,17 @@ slug: /upgrade-csi-driver
 sidebar_position: 2
 ---
 
-如果你目前的使用没有遇到问题，不必急于升级新版。但我们推荐你及时跟进主要版本的升级，不要在大小版本上落后太久（patch 版本如果没有特殊需要，不必频繁升级）。如果你不清楚当前所使用的版本，只需要查询 CSI 驱动组件所使用的镜像 tag，就能确认当前版本。可以用下方一行命令快速检查：
+我们推荐你及时跟进主要版本的升级，不要在大小版本上落后太久（patch 版本如果没有特殊需要，不必频繁升级）。如果你不清楚当前所使用的版本，只需要查询 CSI 驱动组件所使用的镜像 tag，就能确认当前版本。可以用下方一行命令快速检查：
 
 ```shell
 kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..image}{"\n"}{end}' --all-namespaces | head -n 1 | grep -oP 'juicefs-csi-driver:\S+'
 ```
 
-阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。如果你希望单独升级 JuiceFS 客户端，参考[「升级 JuiceFS 客户端」](./upgrade-juicefs-client.md)。
+阅读 JuiceFS CSI 驱动的[发布说明](https://github.com/juicedata/juicefs-csi-driver/releases)以了解是否需要升级。需要注意的是：
+
+* 升级 CSI 驱动，会伴随着 JuiceFS 客户端（也就是 mount 镜像）的升级，不过不用担心，正在运行的 mount pod 并不受影响，应用滚升或重建以后才会生效
+* 如果已经通过[其他手段](../guide/custom-image.md)显式指定了 mount 镜像，那么升级 CSI 驱动就不再“顺便”升级 JuiceFS 客户端版本了
+* 若需要单独升级 JuiceFS 客户端，而不升级 CSI 驱动，参考[「升级 JuiceFS 客户端」](./upgrade-juicefs-client.md)
 
 ## 升级 CSI 驱动（容器挂载模式） {#upgrade}
 

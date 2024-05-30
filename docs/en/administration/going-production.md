@@ -7,15 +7,10 @@ Best practices and recommended settings when going production.
 
 ## PV settings {#pv-settings}
 
-Below settings are recommended for a production environment.
-
-* [Configure more readable names for PV directory](../guide/configurations.md#using-path-pattern)
-* Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery)
-* The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache/#client-write-cache).
-* When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md).
-
-## Mount Pod settings {#mount-pod-settings}
-
+* [Configure more readable names for PV directory](../guide/configurations.md#using-path-pattern);
+* Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery);
+* The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache/#client-write-cache);
+* When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md);
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
 
 ## Configure mount pod monitoring (Community Edition) {#monitoring}
@@ -183,11 +178,11 @@ And add the following parser plugin to the Fluentd configuration file:
 
 ## CSI Controller high availability {#leader-election}
 
-From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single points of failure.
+From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single point of failure.
 
 ### Helm
 
-HA related settings inside `values.yaml`:
+HA is enabled by default in our default [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml):
 
 ```yaml {3-5}
 controller:
@@ -195,6 +190,15 @@ controller:
     enabled: true # Enable Leader Election
     leaseDuration: "15s" # Interval between replicas competing for Leader, default to 15s
   replicas: 2 # At least 2 is required for HA
+```
+
+If faced with limited resource, or unstable SDN causing frequent election timeouts, try disabling election:
+
+```yaml title="values-mycluster.yaml"
+controller:
+  leaderElection:
+    enabled: false
+  replicas: 1
 ```
 
 ### kubectl
@@ -286,7 +290,7 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 * Enable `ListPod` cache: CSI Driver needs to obtain the pod list, when faced with a large number of pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
 
-  ```yaml title="values.yaml"
+  ```yaml title="values-mycluster.yaml"
   controller:
     envs:
     - name: ENABLE_APISERVER_LIST_CACHE
@@ -299,3 +303,21 @@ If however, a configuration file isn't used, then kubelet is configured purely v
   ```
 
 * Also to lower the workload on the APIServer, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
+* If CSI Driver caused excessive APIServer queries, use `[KUBE_QPS|KUBE_BURST]` to perform rate limit:
+
+  ```yaml title="values-mycluster.yaml"
+  # Default values defined in https://pkg.go.dev/k8s.io/client-go/rest#Config
+  controller:
+    envs:
+    - name: KUBE_QPS
+      value: 3
+    - name: KUBE_BURST
+      value: 5
+
+  node:
+    envs:
+    - name: KUBE_QPS
+      value: 3
+    - name: KUBE_BURST
+      value: 5
+  ```

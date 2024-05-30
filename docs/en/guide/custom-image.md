@@ -16,10 +16,10 @@ To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image i
 
 ```shell
 # Tag of community mount image begin with ce-
-juicedata/mount:ce-v1.1.0
+juicedata/mount:ce-v1.1.2
 
 # Tag of enterprise mount image begin with ee-
-juicedata/mount:ee-5.0.2-69f82b3
+juicedata/mount:ee-5.0.17-8ba7611
 
 # Prior to 0.19.0, tag contains both CE and EE version string
 # This won't be maintained and updated in the future
@@ -53,12 +53,12 @@ But if you use kubectl to directly install a `k8s.yaml`, you'll have to set envi
 
 ```shell
 # Community Edition
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.0
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
 
 # Enterprise Edition
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.2-69f82b3
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
 ```
 
 Also, don't forget to put these changes into `k8s.yaml`, to avoid losing these changes after the next installation. This is why we always recommend you use [Helm installation](../getting_started.md#helm) for production environments.
@@ -78,7 +78,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.1.0
+  juicefs/mount-image: juicedata/mount:ce-v1.1.2
 ```
 
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
@@ -109,7 +109,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:ce-v1.1.0
+      juicefs/mount-image: juicedata/mount:ce-v1.1.2
 ```
 
 ## Build image

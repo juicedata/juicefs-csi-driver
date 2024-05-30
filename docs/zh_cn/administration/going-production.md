@@ -7,16 +7,11 @@ sidebar_position: 1
 
 ## PV 设置 {#pv-settings}
 
-在生产环境中，推荐这样设置 PV：
-
-* [配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)
-* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)
-* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache/#client-write-cache)
-* 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优
-
-## Mount Pod 设置 {#mount-pod-settings}
-
-* 建议为 Mount Pod 设置非抢占式 PriorityClass，详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
+* 对于动态 PV 场景，建议[配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)；
+* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)；
+* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache/#client-write-cache)；
+* 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优；
+* 考虑为 mount pod 设置非抢占式 PriorityClass，避免资源不足时，mount pod 将业务容器驱逐。详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
 
 ## 监控 Mount Pod（社区版） {#monitoring}
 
@@ -187,7 +182,7 @@ CSI Driver 在 0.19.0 及以上版本支持并默认启用 CSI Controller 高可
 
 ### Helm
 
-在 `values.yaml` 中，高可用相关设置如下：
+HA 已经在我们默认的 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中启用：
 
 ```yaml {3-5}
 controller:
@@ -195,6 +190,15 @@ controller:
     enabled: true # 开启 Leader 选举
     leaseDuration: "15s" # Leader 的间隔，默认为 15s
   replicas: 2 # 副本数，高可用模式下至少需要 2 副本
+```
+
+如果资源不足，或者集群压力较大导致选举超时，那么可以尝试禁用高可用：
+
+```yaml title="values-mycluster.yaml"
+controller:
+  leaderElection:
+    enabled: false
+  replicas: 1
 ```
 
 ### kubectl
@@ -286,7 +290,7 @@ authorization:
 
 * 开启 `ListPod` 缓存：CSI 驱动需要获取 Pod 列表，如果 Pod 数量庞大，对 APIServer 和背后的 etcd 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
 
-  ```yaml title="values.yaml"
+  ```yaml title="values-mycluster.yaml"
   controller:
     envs:
     - name: ENABLE_APISERVER_LIST_CACHE
@@ -299,3 +303,21 @@ authorization:
   ```
 
 * 同样是为了减轻 APIServer 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
+* 如果 CSI 驱动造成的 APIServer 访问量太大，可以用 `[KUBE_QPS|KUBE_BURST]` 这两个环境变量来配置限速：
+
+  ```yaml title="values-mycluster.yaml"
+  # 默认值可以参考 https://pkg.go.dev/k8s.io/client-go/rest#Config
+  controller:
+    envs:
+    - name: KUBE_QPS
+      value: 3
+    - name: KUBE_BURST
+      value: 5
+
+  node:
+    envs:
+    - name: KUBE_QPS
+      value: 3
+    - name: KUBE_BURST
+      value: 5
+  ```
