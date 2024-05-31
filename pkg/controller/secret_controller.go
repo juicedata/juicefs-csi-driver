@@ -20,6 +20,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +47,18 @@ func NewSecretController(client *k8sclient.K8sClient) *SecretController {
 	return &SecretController{client}
 }
 
+func isMountPodSecret(secrets *corev1.Secret) bool {
+	if secrets.Namespace != config.Namespace {
+		return false
+	}
+	if !strings.HasPrefix(secrets.Name, "juicefs-") || !strings.HasSuffix(secrets.Name, "-secret") {
+		return false
+	}
+	// FIXME: we need a better way to identify the secret
+	_, found := secrets.Data["check_mount.sh"]
+	return found
+}
+
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(6).Infof("Receive secret %s %s", request.Name, request.Namespace)
 	secrets, err := m.GetSecret(ctx, request.Name, request.Namespace)
@@ -59,6 +73,18 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	if _, found := secrets.Data["token"]; !found {
 		klog.V(6).Infof("token not found in secret %s", request.Name)
 		return reconcile.Result{}, nil
+	}
+	// check orphan secret
+	if isMountPodSecret(secrets) && time.Now().After(secrets.CreationTimestamp.Add(time.Hour)) {
+		podName := strings.TrimSuffix(request.Name, "-secret")
+		if _, err := m.GetPod(ctx, podName, request.Namespace); k8serrors.IsNotFound(err) {
+			klog.V(5).Infof("orphan secret %s found, delete it", request.Name)
+			if err := m.DeleteSecret(ctx, request.Name, request.Namespace); err != nil {
+				klog.Errorf("delete secret %s error: %v", request.Name, err)
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{}, nil
+		}
 	}
 	if _, found := secrets.Data["name"]; !found {
 		klog.V(6).Infof("name not found in secret %s", request.Name)
