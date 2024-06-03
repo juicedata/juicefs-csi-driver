@@ -67,6 +67,10 @@ var (
 	leaderElection              bool
 	leaderElectionNamespace     string
 	leaderElectionLeaseDuration time.Duration
+
+	// for basic auth
+	USERNAME string
+	PASSWORD string
 )
 
 func main() {
@@ -78,6 +82,12 @@ func main() {
 		},
 	}
 
+	if v := os.Getenv("USERNAME"); v != "" {
+		USERNAME = v
+	}
+	if v := os.Getenv("PASSWORD"); v != "" {
+		PASSWORD = v
+	}
 	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
 	cmd.PersistentFlags().StringVar(&staticDir, "static-dir", "", "static files to serve")
@@ -149,6 +159,11 @@ func run() {
 			}
 			c.File(filepath.Join(staticDir, path))
 		})
+	}
+	if USERNAME != "" && PASSWORD != "" {
+		router.Use(gin.BasicAuth(gin.Accounts{
+			USERNAME: PASSWORD,
+		}))
 	}
 	podApi.Handle(router.Group("/api/v1"))
 	addr := fmt.Sprintf(":%d", port)

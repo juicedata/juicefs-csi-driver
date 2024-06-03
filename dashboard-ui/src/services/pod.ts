@@ -22,6 +22,7 @@ import {
   Node as RawNode,
   Pod as RawPod,
 } from 'kubernetes-types/core/v1'
+import { request } from 'umi'
 
 export type Pod = RawPod & {
   mountPods?: RawPod[]
@@ -251,10 +252,12 @@ export const listAppPods = async (args: AppPagingListArgs) => {
     const mountPod = args.mountPod || ''
     const pageSize = args.pageSize || 20
     const current = args.current || 1
-    const pods = await fetch(
+    data = await request<{
+      pods: Pod[]
+      total: number
+    }>(
       `${host}/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`,
     )
-    data = JSON.parse(await pods.text())
   } catch (e) {
     console.log(`fail to list pods: ${e}`)
     return { data: null, success: false }
@@ -275,63 +278,49 @@ export const listAppPods = async (args: AppPagingListArgs) => {
 export const getPod = async (namespace: string, podName: string) => {
   let pod: Pod
   try {
-    const rawPod = await fetch(`${host}/api/v1/pod/${namespace}/${podName}/`)
-    pod = JSON.parse(await rawPod.text())
+    pod = await request<Pod>(`${host}/api/v1/pod/${namespace}/${podName}/`)
   } catch (e) {
     console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
     return null
   }
-  try {
-    const mountPods = await fetch(
-      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`,
-    )
-    pod.mountPods = JSON.parse(await mountPods.text())
-  } catch (e) {
-    console.log(`fail to get mount pod for pod(${namespace}/${podName}): ${e}`)
-  }
-  try {
-    const appPods = await fetch(
-      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`,
-    )
-    pod.appPods = JSON.parse(await appPods.text())
-  } catch (e) {
-    console.log(`fail to get app pod for pod(${namespace}/${podName}): ${e}`)
-  }
-
-  if (pod.spec?.nodeName) {
-    try {
-      const csiNode = await fetch(
-        `${host}/api/v1/csi-node/${pod.spec?.nodeName}`,
-      )
-      pod.csiNode = JSON.parse(await csiNode.text())
-    } catch (e) {
-      console.log(`fail to get csi node for pod(${namespace}/${podName}): ${e}`)
-    }
-    try {
-      const node = await fetch(
-        `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`,
-      )
-      pod.node = JSON.parse(await node.text())
-    } catch (e) {
-      console.log(`fail to get node for pod(${namespace}/${podName}): ${e}`)
-    }
-  }
 
   try {
-    const events = await fetch(
-      `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`,
-    )
-    let podEvents: Event[] = JSON.parse(await events.text()) || []
-    podEvents.sort((a, b) => {
-      const aTime = new Date(a.firstTimestamp || a.eventTime || 0).getTime()
-      const bTime = new Date(b.firstTimestamp || b.eventTime || 0).getTime()
-      return bTime - aTime
-    })
-    pod.events = podEvents
+    const [mountPods, appPods, csiNodePod, node, events] = await Promise.all([
+      request<Pod[]>(
+        `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/mountpods`,
+      ),
+      request<Pod[]>(
+        `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/apppods`,
+      ),
+      pod.spec?.nodeName
+        ? request<Pod>(`${host}/api/v1/csi-node/${pod.spec?.nodeName}`)
+        : undefined,
+      pod.spec?.nodeName
+        ? request<RawNode>(
+            `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/node`,
+          )
+        : undefined,
+      request<Event[]>(
+        `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/events`,
+      ).then((podEvents) => {
+        podEvents.sort((a, b) => {
+          const aTime = new Date(a.firstTimestamp || a.eventTime || 0).getTime()
+          const bTime = new Date(b.firstTimestamp || b.eventTime || 0).getTime()
+          return bTime - aTime
+        })
+        return podEvents
+      }),
+    ])
+
+    pod.mountPods = mountPods
+    pod.appPods = appPods
+    pod.csiNode = csiNodePod
+    pod.node = node
+    pod.events = events
     pod.logs = new Map()
     pod.finalStatus = podStatus(pod) || 'Unknown'
   } catch (e) {
-    console.log(`fail to get events for pod(${namespace}/${podName}): ${e}`)
+    console.log(`fail to get pod(${namespace}/${podName}): ${e}`)
   }
 
   return pod
@@ -339,10 +328,9 @@ export const getPod = async (namespace: string, podName: string) => {
 
 export const getLog = async (pod: Pod, container: string) => {
   try {
-    const log = await fetch(
+    return await request(
       `${host}/api/v1/pod/${pod.metadata?.namespace}/${pod.metadata?.name}/logs/${container}`,
     )
-    return await log.text()
   } catch (e) {
     console.log(
       `fail to get log of pod(${pod.metadata?.namespace}/${pod.metadata?.name}/${container}): ${e}`,
@@ -374,10 +362,12 @@ export const listSystemPods = async (args: SysPagingListArgs) => {
     const node = args.node || ''
     const pageSize = args.pageSize || 20
     const current = args.current || 1
-    const podList = await fetch(
+    data = await request<{
+      pods: Pod[]
+      total: number
+    }>(
       `${host}/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
     )
-    data = JSON.parse(await podList.text())
   } catch (e) {
     console.log(`fail to list sys pods: ${e}`)
     return { data: null, success: false }
