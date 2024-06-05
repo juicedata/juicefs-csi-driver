@@ -149,9 +149,17 @@ Please refer ["Dynamic Provisioning"](../guide/pv.md#dynamic-provisioning) for h
 
 Please refer ["Static Provisioning"](../guide/pv.md#static-provisioning) for how to access JuiceFS using static provisioning. Replace `name` and `namespace` of `nodePublishSecretRef` with `juicefs-secret` and `kube-system`.
 
-## Other Ceph versions
+## Ceph compatibility
 
-JuiceFS currently supports up to Ceph 12, if you are using a version of Ceph higher than 12, please refer to the following method to build the image.
+JuiceFS currently supports the following Ceph versions:
+
+| JuiceFS Version | Ceph Version       |
+| --------------- | ------------------ |
+| v1.0.x          | v12, v13, v14, v15 |
+| v1.1.x          | v15, v16, v17      |
+| v1.2.x          | v15, v16, v17      |
+
+If the Ceph version you are using is not listed above, please refer to the following method to build the image.
 
 ### How to build Docker image
 

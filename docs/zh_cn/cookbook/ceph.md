@@ -149,9 +149,17 @@ storage:     4 bytes
 
 如何使用 Persistent Volume 访问 JuiceFS，请参考[「静态配置」](../guide/pv.md#static-provisioning)将 `nodePublishSecretRef` 的 `name` 和 `namespace` 替换为 `juicefs-sceret` 和 `kube-system`。
 
-## 其他 Ceph 版本
+## Ceph 版本 兼容
 
-JuiceFS 目前支持到 Ceph 12，如果你使用的 Ceph 版本高于 12，请参考以下方法构建镜像。
+JuiceFS 目前对 Ceph 版本支持如下：
+
+| JuiceFS 版本 | Ceph 版本          |
+| ------------ | ------------------ |
+| v1.0.x       | v12, v13, v14, v15 |
+| v1.1.x       | v15, v16, v17      |
+| v1.2.x       | v15, v16, v17      |
+
+如果你使用的 Ceph 版本不在上述列表中，请参考以下方法构建镜像。
 
 ### 如何构建镜像
 
