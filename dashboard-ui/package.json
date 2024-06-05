@@ -3,7 +3,7 @@
   "author": "",
   "scripts": {
     "build": "max build",
-    "dev": "max dev",
+    "dev": "NODE_ENV=development max dev",
     "format": "prettier --cache --write .",
     "postinstall": "max setup",
     "prepare": "cd .. && husky install dashboard-ui/.husky",

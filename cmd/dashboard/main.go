@@ -68,6 +68,9 @@ var (
 	leaderElectionNamespace     string
 	leaderElectionLeaseDuration time.Duration
 
+	// for reverse proxy access
+	rootPath = "/dashboard"
+
 	// for basic auth
 	USERNAME string
 	PASSWORD string
@@ -141,9 +144,14 @@ func run() {
 	}
 	if staticDir != "" {
 		router.GET("/", func(c *gin.Context) {
-			c.Redirect(http.StatusMovedPermanently, "/app")
+			c.Redirect(http.StatusMovedPermanently, rootPath+"/app")
 		})
-		router.GET("/app/*path", func(c *gin.Context) {
+		if rootPath != "" {
+			router.GET(rootPath, func(c *gin.Context) {
+				c.Redirect(http.StatusMovedPermanently, rootPath+"/app")
+			})
+		}
+		router.GET(rootPath+"/app/*path", func(c *gin.Context) {
 			path := c.Param("path")
 			if strings.Contains(path, "..") {
 				c.AbortWithStatus(http.StatusForbidden)
@@ -165,7 +173,7 @@ func run() {
 			USERNAME: PASSWORD,
 		}))
 	}
-	podApi.Handle(router.Group("/api/v1"))
+	podApi.Handle(router.Group(rootPath + "/api/v1"))
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
 		Addr:    addr,
