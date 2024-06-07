@@ -17,8 +17,10 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -374,8 +376,8 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 		} else {
 			attr.Image = DefaultEEMountImage
 		}
+		setting.Attr = attr
 	}
-
 	if JFSMountPreemptionPolicy != "" {
 		policy := corev1.PreemptionPolicy(JFSMountPreemptionPolicy)
 		attr.PreemptionPolicy = &policy
@@ -417,33 +419,79 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 		}
 	}
 
-	// overwrite by mountpod patch
-	patch := GlobalConfig.GenMountPodPatch(*setting)
-	if patch.Image != "" {
-		attr.Image = patch.Image
+	// apply config patch
+	applyAttrPatch(attr, setting)
+	return nil
+}
+
+// GenPodAttrWithMountPod generate pod attr with mount pod
+// Return the latest pod attributes following the priorities below:
+//
+// 1. original mount pod
+// 2. pvc annotations
+// 3. global config
+func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) (*PodAttr, error) {
+	attr := &PodAttr{
+		Namespace:            mountPod.Namespace,
+		MountPointPath:       MountPointPath,
+		JFSConfigPath:        JFSConfigPath,
+		JFSMountPriorityName: JFSMountPriorityName,
+		HostNetwork:          mountPod.Spec.HostNetwork,
+		HostAliases:          mountPod.Spec.HostAliases,
+		HostPID:              mountPod.Spec.HostPID,
+		HostIPC:              mountPod.Spec.HostIPC,
+		DNSConfig:            mountPod.Spec.DNSConfig,
+		DNSPolicy:            mountPod.Spec.DNSPolicy,
+		ImagePullSecrets:     mountPod.Spec.ImagePullSecrets,
+		Tolerations:          mountPod.Spec.Tolerations,
+		PreemptionPolicy:     mountPod.Spec.PreemptionPolicy,
+		ServiceAccountName:   mountPod.Spec.ServiceAccountName,
+		Labels:               make(map[string]string),
+		Annotations:          make(map[string]string),
 	}
-	if patch.HostNetwork != nil {
-		attr.HostNetwork = *patch.HostNetwork
+	if mountPod.Spec.Containers != nil && len(mountPod.Spec.Containers) > 0 {
+		attr.Image = mountPod.Spec.Containers[0].Image
+		attr.Resources = mountPod.Spec.Containers[0].Resources
 	}
-	if patch.HostPID != nil {
-		attr.HostPID = *patch.HostPID
-	}
-	for k, v := range patch.Labels {
+	for k, v := range mountPod.Labels {
 		attr.Labels[k] = v
 	}
-	for k, v := range patch.Annotations {
+	for k, v := range mountPod.Annotations {
 		attr.Annotations[k] = v
 	}
-	if patch.Resources != nil {
-		attr.Resources = *patch.Resources
+	pvName := mountPod.Annotations[UniqueId]
+	pv, err := client.GetPersistentVolume(ctx, pvName)
+	if err != nil {
+		klog.Errorf("Get pv %s error: %v", pvName, err)
+		return nil, err
 	}
-	attr.Lifecycle = patch.Lifecycle
-	attr.LivenessProbe = patch.LivenessProbe
-	attr.ReadinessProbe = patch.ReadinessProbe
-	attr.StartupProbe = patch.StartupProbe
-	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
-	setting.Attr = attr
-	return nil
+	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+	if err != nil {
+		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+		return nil, err
+	}
+	cpuLimit := pvc.Annotations[MountPodCpuLimitKey]
+	memoryLimit := pvc.Annotations[MountPodMemLimitKey]
+	cpuRequest := pvc.Annotations[MountPodCpuRequestKey]
+	memoryRequest := pvc.Annotations[MountPodMemRequestKey]
+	resources, err := ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+	if err != nil {
+		return nil, fmt.Errorf("parse pvc resources error: %v", err)
+	}
+	attr.Resources = resources
+	setting := &JfsSetting{
+		PV:        pv,
+		PVC:       pvc,
+		Name:      mountPod.Annotations[JuiceFSUUID],
+		VolumeId:  mountPod.Annotations[UniqueId],
+		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],
+	}
+	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
+		setting.SubPath = v
+	}
+	// apply config patch
+	applyAttrPatch(attr, setting)
+	return attr, nil
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {
@@ -606,4 +654,32 @@ func getDefaultResource() corev1.ResourceRequirements {
 			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
 		},
 	}
+}
+
+func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
+	// overwrite by mountpod patch
+	patch := GlobalConfig.GenMountPodPatch(*setting)
+	if patch.Image != "" {
+		attr.Image = patch.Image
+	}
+	if patch.HostNetwork != nil {
+		attr.HostNetwork = *patch.HostNetwork
+	}
+	if patch.HostPID != nil {
+		attr.HostPID = *patch.HostPID
+	}
+	for k, v := range patch.Labels {
+		attr.Labels[k] = v
+	}
+	for k, v := range patch.Annotations {
+		attr.Annotations[k] = v
+	}
+	if patch.Resources != nil {
+		attr.Resources = *patch.Resources
+	}
+	attr.Lifecycle = patch.Lifecycle
+	attr.LivenessProbe = patch.LivenessProbe
+	attr.ReadinessProbe = patch.ReadinessProbe
+	attr.StartupProbe = patch.StartupProbe
+	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
 }
