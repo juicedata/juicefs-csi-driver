@@ -304,7 +304,6 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: mypv1
-  namespace: ns1
   labels:
     pv-name: mypv1
 spec:
@@ -318,7 +317,6 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: mypv2
-  namespace: ns2
   labels:
     pv-name: mypv2
 spec:
