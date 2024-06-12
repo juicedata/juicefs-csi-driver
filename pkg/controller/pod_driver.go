@@ -382,8 +382,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				}
 				controllerutil.AddFinalizer(newPod, config.Finalizer)
 				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
-				if err := p.OverwirteMountPodResourcesWithPVC(ctx, newPod); err != nil {
-					klog.Errorf("Overwrite mount pod resources with pvc error %v", err)
+				if err := p.applyConfigPatch(ctx, newPod); err != nil {
+					klog.Errorf("apply config patch error, will ignore, err: %v", err)
 				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
@@ -699,29 +699,26 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	}
 }
 
-func (p *PodDriver) OverwirteMountPodResourcesWithPVC(ctx context.Context, pod *corev1.Pod) error {
-	pvName := pod.Annotations[config.UniqueId]
-	pv, err := p.Client.GetPersistentVolume(ctx, pvName)
+func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error {
+	attr, err := config.GenPodAttrWithMountPod(ctx, p.Client, pod)
 	if err != nil {
-		klog.Errorf("Get pv %s error: %v", pvName, err)
 		return err
 	}
-	pvc, err := p.Client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
-	if err != nil {
-		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
-		return err
-	}
-
-	cpuLimit := pvc.Annotations[config.MountPodCpuLimitKey]
-	memoryLimit := pvc.Annotations[config.MountPodMemLimitKey]
-	cpuRequest := pvc.Annotations[config.MountPodCpuRequestKey]
-	memoryRequest := pvc.Annotations[config.MountPodMemRequestKey]
-
-	resources, err := config.ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
-	if err != nil {
-		return fmt.Errorf("parse pvc resources error: %v", err)
-	}
-	pod.Spec.Containers[0].Resources = resources
+	// update pod spec
+	pod.Labels = attr.Labels
+	pod.Annotations = attr.Annotations
+	pod.Spec.HostAliases = attr.HostAliases
+	pod.Spec.HostNetwork = attr.HostNetwork
+	pod.Spec.HostPID = attr.HostPID
+	pod.Spec.HostIPC = attr.HostIPC
+	pod.Spec.TerminationGracePeriodSeconds = attr.TerminationGracePeriodSeconds
+	pod.Spec.Containers[0].Image = attr.Image
+	pod.Spec.Containers[0].LivenessProbe = attr.LivenessProbe
+	pod.Spec.Containers[0].ReadinessProbe = attr.ReadinessProbe
+	pod.Spec.Containers[0].StartupProbe = attr.StartupProbe
+	pod.Spec.Containers[0].Lifecycle = attr.Lifecycle
+	pod.Spec.Containers[0].Image = attr.Image
+	pod.Spec.Containers[0].Resources = attr.Resources
 	return nil
 }
 
