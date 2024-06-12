@@ -7,9 +7,11 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 
 ## ConfigMap 配置 {#configmap}
 
-从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置。并且支持动态更新，不需要重启 CSI Node 或者 Controller。
+从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 mount pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
-:::tip 更新时效
+由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，请优先在 ConfigMap 中对其进行配置，无需再使用旧版本中的实践。**
+
+:::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
 
 如果希望立即生效，可以给 CSI 组件 pods 临时添加 annotation 来触发更新：
@@ -21,6 +23,115 @@ kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-drive
 :::
 
 ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
+
+### 定制 Mount Pod 和 Sidecar 容器 {#customize-mount-pod}
+
+Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar 容器则是 [webhook](#webhook) 负责注入，如果用户希望定制 mount pod 或者 sidecar 容器，需要通过下列介绍的方法进行。
+
+在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。使用前需要注意：
+
+* **修改后并不会立即生效**，Kubernetes 会定期同步 ConfigMap 的挂载。详见 [ConfigMap 的更新时效](#configmap)
+* 对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
+  mountPodPatch:
+    # 未定义 pvcSelector，则为全局配置
+    - lifecycle:
+        preStop:
+          exec:
+            command:
+            - sh
+            - -c
+            - +e
+            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+
+    # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      # 启用 host network
+      hostNetwork: true
+
+    - pvcSelector:
+        matchLabels:
+          mylabel2: "value2"
+      # 增加 labels
+      labels:
+        custom-labels: "mylabels"
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # 修改资源定义
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # 增加 liveness probe
+      livenessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+```
+
+### 通过继承 CSI Node 配置进行定制（不推荐） {#inherit-from-csi-node}
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+:::
+
+Mount Pod 自身的资源定义（Kubernetes manifests，也就是 Pod YAML）大部分继承自 CSI Node，比方说如果希望给 mount pod 启用 hostNetwork，可以先为 CSI Node 启用 hostNetwork：
+
+```yaml title="values-mycluster.yaml"
+node:
+  hostNetwork: true
+```
+
+让配置生效，后续生成的 mount pod 就会继承 hostNetwork 配置了。
+
+之所以说「大部分」配置继承自 CSI Node，是因为 labels、annotations 等字段包含组件特定内容，无法简单继承。因此为这部分配置提供单独的定制手段，继续阅读下一小节了解。
+
+### 通过 Annotation 进行定制（不推荐） {#others}
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+:::
+
+部分无法用继承方式定制的配置项，我们提供了额外的手段来单独定制。具体而言，就是下方代码块列出的字段，既可以将他们配置在 storageClass 的 parameters 参数中（动态配置），也可放在 PVC 的 annotations 中（静态配置）。
+
+```yaml
+juicefs/mount-cpu-limit: ""
+juicefs/mount-memory-limit: ""
+juicefs/mount-cpu-request: ""
+juicefs/mount-memory-request: ""
+
+juicefs/mount-labels: ""
+juicefs/mount-annotations: ""
+juicefs/mount-service-account: ""
+juicefs/mount-image: ""
+juicefs/mount-delete-delay: ""
+
+# 退出时清理缓存
+juicefs/clean-cache: ""
+juicefs/mount-cache-pvc: ""
+juicefs/mount-cache-emptydir: ""
+juicefs/mount-cache-inline-volume: ""
+
+# 在 mount pod 中挂载宿主机文件或目录
+# 容器内路径将会等同宿主机路径，无法定制
+juicefs/host-path: "/data/file.txt"
+```
 
 ## 格式化参数/认证参数 {#format-options}
 
@@ -192,7 +303,6 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: mypv1
-  namespace: ns1
   labels:
     pv-name: mypv1
 spec:
@@ -206,7 +316,6 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: mypv2
-  namespace: ns2
   labels:
     pv-name: mypv2
 spec:
@@ -632,115 +741,4 @@ juicefs/host-path: "/etc/hosts"
 
 ```yaml
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
-```
-
-## 定制 Mount Pod 和 Sidecar 容器 {#customize-mount-pod}
-
-Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar 容器则是 [webhook](#webhook) 负责注入，如果用户希望定制 mount pod 或者 sidecar 容器，需要通过下列介绍的方法进行。
-
-### 修改 ConfigMap {#modify-configmap}
-
-在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。使用前需要注意：
-
-* **修改后并不会立即生效**，Kubernetes 会定期同步 ConfigMap 的挂载。详见 [ConfigMap 的更新时效](#configmap)
-* 对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置
-
-```yaml title="values-mycluster.yaml"
-globalConfig:
-  # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
-  mountPodPatch:
-    # 未定义 pvcSelector，则为全局配置
-    - lifecycle:
-        preStop:
-          exec:
-            command:
-            - sh
-            - -c
-            - +e
-            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-
-    # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
-    - pvcSelector:
-        matchLabels:
-          mylabel1: "value1"
-      # 启用 host network
-      hostNetwork: true
-
-    - pvcSelector:
-        matchLabels:
-          mylabel2: "value2"
-      # 增加 labels
-      labels:
-        custom-labels: "mylabels"
-
-    - pvcSelector:
-        matchLabels:
-          ...
-      # 修改资源定义
-      resources:
-        requests:
-          cpu: 100m
-          memory: 512Mi
-
-    - pvcSelector:
-        matchLabels:
-          ...
-      # 增加 liveness probe
-      livenessProbe:
-        exec:
-          command:
-          - stat
-          - ${MOUNT_POINT}/${SUB_PATH}
-        failureThreshold: 3
-        initialDelaySeconds: 10
-        periodSeconds: 5
-        successThreshold: 1
-```
-
-### 继承 CSI Node 配置 {#inherit-from-csi-node}
-
-:::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
-:::
-
-Mount Pod 自身的资源定义（Kubernetes manifests，也就是 Pod YAML）大部分继承自 CSI Node，比方说如果希望给 mount pod 启用 hostNetwork，可以先为 CSI Node 启用 hostNetwork：
-
-```yaml title="values-mycluster.yaml"
-node:
-  hostNetwork: true
-```
-
-让配置生效，后续生成的 mount pod 就会继承 hostNetwork 配置了。
-
-之所以说「大部分」配置继承自 CSI Node，是因为 labels、annotations 等字段包含组件特定内容，无法简单继承。因此为这部分配置提供单独的定制手段，继续阅读下一小节了解。
-
-### 其他 {#others}
-
-:::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
-:::
-
-部分无法用继承方式定制的配置项，我们提供了额外的手段来单独定制。具体而言，就是下方代码块列出的字段，既可以将他们配置在 storageClass 的 parameters 参数中（动态配置），也可放在 PVC 的 annotations 中（静态配置）。
-
-```yaml
-juicefs/mount-cpu-limit: ""
-juicefs/mount-memory-limit: ""
-juicefs/mount-cpu-request: ""
-juicefs/mount-memory-request: ""
-
-juicefs/mount-labels: ""
-juicefs/mount-annotations: ""
-juicefs/mount-service-account: ""
-juicefs/mount-image: ""
-juicefs/mount-delete-delay: ""
-
-# 退出时清理缓存
-juicefs/clean-cache: ""
-juicefs/mount-cache-pvc: ""
-juicefs/mount-cache-emptydir: ""
-juicefs/mount-cache-inline-volume: ""
-
-# 在 mount pod 中挂载宿主机文件或目录
-# 容器内路径将会等同宿主机路径，无法定制
-juicefs/host-path: "/data/file.txt"
 ```
