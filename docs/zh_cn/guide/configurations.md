@@ -9,7 +9,7 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 mount pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
-由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请即使弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，请优先在 ConfigMap 中对其进行配置，无需再使用旧版本中的实践。**
+由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，请优先在 ConfigMap 中对其进行配置，无需再使用旧版本中的实践。**
 
 :::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
