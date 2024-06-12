@@ -7,9 +7,11 @@ This chapter introduces JuiceFS PV configurations, as well as CSI Driver configu
 
 ## ConfigMap {#configmap}
 
-Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically so no need to restart any CSI Driver components on update.
+Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for mount pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
 
-:::tip Update delay
+ConfigMap is powerful and flexible, it will replace (or have already replaced) existing configuration methods that's been around in older versions of CSI Driver, below sections that's titled "deprecated" are all examples of outdated, less flexible methods and should be eschewed. **If something can be configured in ConfigMap, you should always prefer the ConfigMap way, rather than practices available in legacy versions.**
+
+:::info Update delay
 When ConfigMap changes, the changes won't take effect immediately, this is because CM mounted in a pod isn't updated in real-time, but synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
 
 If you wish for a force update, try adding a temporary label to CSI components:
@@ -21,6 +23,116 @@ kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-drive
 :::
 
 All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml), and also introduced in detail in our docs.
+
+### Customize mount pod and sidecar container {#customize-mount-pod}
+
+Since mount pods are created by CSI Node, and sidecar containers injected by [webhook](#webhook), users cannot directly control their definition. To customize, refer to the following methods.
+
+The `mountPodPatch` field from the [ConfigMap](#configmap) controls all mount pod & sidecar container customization, all supported fields are demonstrated below, but before use please notice:
+
+* **Changes do not take effect immediately**, Kubernetes periodically syncs ConfigMap mounts, see [update delay](#configmap)
+* For sidecar mount mode, if a customization field appears to be a valid sidecar setting, it'll work with sidecar. otherwise it'll be ignored. For example, `custom-labels` adds customized labels to pod, since labels are an exclusive pod attribute, this setting is not applicable to sidecar
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
+  mountPodPatch:
+    # Without a pvcSelector, the patch is global
+    - lifecycle:
+        preStop:
+          exec:
+            command:
+            - sh
+            - -c
+            - +e
+            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+
+    # If multiple pvcSelector points to the same PVC
+    # later items will recursively overwrites the former ones
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      # Enable host network
+      hostNetwork: true
+
+    - pvcSelector:
+        matchLabels:
+          mylabel2: "value2"
+      # Add labels
+      labels:
+        custom-labels: "mylabels"
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # Change resource definition
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # Add liveness probe
+      livenessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+```
+
+### Inherit from CSI Node (deprecated) {#inherit-from-csi-node}
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
+:::
+
+Mount pod specs are mostly inherited from CSI Node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI Node:
+
+```yaml title="values-mycluster.yaml"
+node:
+  hostNetwork: true
+```
+
+After the change, newly created mount pods will use hostNetwork.
+
+As mentioned earlier, "most" specs are inherited from CSI-node, this leaves component specific content like labels, annotations, etc. These fields will not work through inheritance so we provide separate methods for customization, read the next section for more.
+
+### Customize via annotations (deprecated) {#others}
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
+:::
+
+Some of the fields that doesn't support CSI Node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
+
+```yaml
+juicefs/mount-cpu-limit: ""
+juicefs/mount-memory-limit: ""
+juicefs/mount-cpu-request: ""
+juicefs/mount-memory-request: ""
+
+juicefs/mount-labels: ""
+juicefs/mount-annotations: ""
+juicefs/mount-service-account: ""
+juicefs/mount-image: ""
+juicefs/mount-delete-delay: ""
+
+# Clean cache at mount pod exit
+juicefs/clean-cache: ""
+juicefs/mount-cache-pvc: ""
+juicefs/mount-cache-emptydir: ""
+juicefs/mount-cache-inline-volume: ""
+
+# Mount the hosts file or directory to pod
+# Container mount path will be the same as host path, this doesn't support customization
+juicefs/host-path: "/data/file.txt"
+```
 
 ## Format options / auth options {#format-options}
 
@@ -626,116 +738,4 @@ If you need to mount multiple files or directories, specify them using comma:
 
 ```yaml
 juicefs/host-path: "/data/file1.txt,/data/file2.txt,/data/dir1"
-```
-
-## Customize mount pod and sidecar container {#customize-mount-pod}
-
-Since mount pods are created by CSI Node, and sidecar containers injected by [webhook](#webhook), users cannot directly control their definition. To customize, refer to the following methods.
-
-### Modify ConfigMap {#modify-configmap}
-
-The `mountPodPatch` field from the [ConfigMap](#configmap) controls all mount pod & sidecar container customization, all supported fields are demonstrated below, but before use please notice:
-
-* **Changes do not take effect immediately**, Kubernetes periodically syncs ConfigMap mounts, see [update delay](#configmap)
-* For sidecar mount mode, if a customization field appears to be a valid sidecar setting, it'll work with sidecar. otherwise it'll be ignored. For example, `custom-labels` adds customized labels to pod, since labels are an exclusive pod attribute, this setting is not applicable to sidecar
-
-```yaml title="values-mycluster.yaml"
-globalConfig:
-  # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
-  mountPodPatch:
-    # Without a pvcSelector, the patch is global
-    - lifecycle:
-        preStop:
-          exec:
-            command:
-            - sh
-            - -c
-            - +e
-            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-
-    # If multiple pvcSelector points to the same PVC
-    # later items will recursively overwrites the former ones
-    - pvcSelector:
-        matchLabels:
-          mylabel1: "value1"
-      # Enable host network
-      hostNetwork: true
-
-    - pvcSelector:
-        matchLabels:
-          mylabel2: "value2"
-      # Add labels
-      labels:
-        custom-labels: "mylabels"
-
-    - pvcSelector:
-        matchLabels:
-          ...
-      # Change resource definition
-      resources:
-        requests:
-          cpu: 100m
-          memory: 512Mi
-
-    - pvcSelector:
-        matchLabels:
-          ...
-      # Add liveness probe
-      livenessProbe:
-        exec:
-          command:
-          - stat
-          - ${MOUNT_POINT}/${SUB_PATH}
-        failureThreshold: 3
-        initialDelaySeconds: 10
-        periodSeconds: 5
-        successThreshold: 1
-```
-
-### Inherit from CSI Node {#inherit-from-csi-node}
-
-:::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
-:::
-
-Mount pod specs are mostly inherited from CSI Node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI Node:
-
-```yaml title="values-mycluster.yaml"
-node:
-  hostNetwork: true
-```
-
-After the change, newly created mount pods will use hostNetwork.
-
-As mentioned earlier, "most" specs are inherited from CSI-node, this leaves component specific content like labels, annotations, etc. These fields will not work through inheritance so we provide separate methods for customization, read the next section for more.
-
-### Others {#others}
-
-:::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
-:::
-
-Some of the fields that doesn't support CSI Node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
-
-```yaml
-juicefs/mount-cpu-limit: ""
-juicefs/mount-memory-limit: ""
-juicefs/mount-cpu-request: ""
-juicefs/mount-memory-request: ""
-
-juicefs/mount-labels: ""
-juicefs/mount-annotations: ""
-juicefs/mount-service-account: ""
-juicefs/mount-image: ""
-juicefs/mount-delete-delay: ""
-
-# Clean cache at mount pod exit
-juicefs/clean-cache: ""
-juicefs/mount-cache-pvc: ""
-juicefs/mount-cache-emptydir: ""
-juicefs/mount-cache-inline-volume: ""
-
-# Mount the hosts file or directory to pod
-# Container mount path will be the same as host path, this doesn't support customization
-juicefs/host-path: "/data/file.txt"
 ```
