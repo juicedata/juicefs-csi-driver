@@ -88,7 +88,7 @@ jobs:
         ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
       run: |
         cd ${GITHUB_WORKSPACE}/.github/scripts/
-        .sync.sh csi-driver ${{ env.CSI_LATEST_VERSION }}
+        ./sync.sh csi-driver ${{ env.CSI_LATEST_VERSION }}
     - name: Setup upterm session
       if: ${{ failure() }}
       timeout-minutes: 60
