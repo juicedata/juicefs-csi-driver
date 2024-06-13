@@ -60,7 +60,7 @@ jobs:
               exit 1
             fi
           
-            TAG_TO_SYNC = "ce-${JUICEFS_CE_LATEST_VERSION}"
+            TAG_TO_SYNC="ce-${JUICEFS_CE_LATEST_VERSION}"
             docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/mount:ce-${JUICEFS_CE_LATEST_VERSION}
             rst=$?
             if [ $rst -eq 0 ]; then
@@ -81,7 +81,7 @@ jobs:
               exit 1
             fi
 
-            TAG_TO_SYNC = "ee-$JUICEFS_EE_LATEST_VERSION"
+            TAG_TO_SYNC="ee-$JUICEFS_EE_LATEST_VERSION"
             docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/mount:ee-$JUICEFS_EE_LATEST_VERSION
             rst=$?
             if [ $rst -eq 0 ]; then
@@ -123,7 +123,7 @@ jobs:
               exit 1
             fi
           
-            TAG_TO_SYNC = "${JUICEFS_CSI_LATEST_VERSION}"
+            TAG_TO_SYNC="${JUICEFS_CSI_LATEST_VERSION}"
             docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}
             rst=$?
             if [ $rst -eq 0 ]; then
