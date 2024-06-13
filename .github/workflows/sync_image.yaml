@@ -1,0 +1,179 @@
+name: build juicefs image
+
+on:
+  push:
+    branches:
+      - ci/image
+  workflow_dispatch:
+    inputs:
+      mount_tag_to_sync:
+        description: 'mount image tag to be synced'
+        required: false
+        type: string
+      csi_to_sync:
+        description: 'csi image tag to be synced'
+        required: false
+        type: string
+      livenessprobe_to_sync:
+        description: 'livenessprobe image tag to be synced'
+        required: false
+        type: string
+      registrar_to_sync:
+        description: 'registrar image tag to be synced'
+        required: false
+        type: string
+      provisioner_to_sync:
+        description: 'provisioner image tag to be synced'
+        required: false
+        type: string
+      resizer_to_sync:
+        description: 'resizer image tag to be synced'
+        required: false
+        type: string
+
+jobs:
+  mount-image-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Docker Hub
+        env:
+          PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+        run: docker login --username chnliyong --password ${PASSWORD}
+      - name: check latest tag
+        continue-on-error: true
+        env:
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          set +e
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          
+          if [ ${{ inputs.mount_tag_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.mount_tag_to_sync }}
+            echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+            .sync.sh mount $TAG_TO_SYNC
+          else
+            # ce image
+            JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+            if [ -z "$JUICEFS_CE_LATEST_VERSION" ]; then
+              echo "Failed to get juicefs ce version"
+              exit 1
+            fi
+          
+            TAG_TO_SYNC = "ce-${JUICEFS_CE_LATEST_VERSION}"
+            docker pull juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
+            rst=$?
+            if [ $rst -eq 0 ]; then
+              echo "ce mount image exist"
+            else
+              echo "Sync JuiceFS ce version image: juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
+              .sync.sh mount $TAG_TO_SYNC
+            fi
+          
+          
+            # ee image 
+            curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz
+            version=$(grep -oP 'mount_version=\K.*' version.ini)
+            hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
+            JUICEFS_EE_LATEST_VERSION=$version-$hash
+            if [ -z "$JUICEFS_EE_LATEST_VERSION" ]; then
+              echo "Failed to get juicefs ee version"
+              exit 1
+            fi
+
+            TAG_TO_SYNC = "ee-$JUICEFS_EE_LATEST_VERSION"
+            docker pull juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
+            rst=$?
+            if [ $rst -eq 0 ]; then
+              echo "ee mount image exist"
+            else
+              echo "Sync JuiceFS ee version image: juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
+              .sync.sh mount $TAG_TO_SYNC
+            fi
+          fi
+
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  csi-image-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Docker Hub
+        env:
+          PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+        run: docker login --username chnliyong --password ${PASSWORD}
+      - name: check latest tag
+        continue-on-error: true
+        env:
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          set +e
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          
+          if [ ${{ inputs.csi_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.csi_to_sync }}
+            .sync.sh csi-driver $TAG_TO_SYNC
+          else
+            JUICEFS_CSI_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-csi-driver/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+            if [ -z "$JUICEFS_CSI_LATEST_VERSION" ]; then
+              echo "Failed to get juicefs csi version"
+              exit 1
+            fi
+          
+            TAG_TO_SYNC = "${JUICEFS_CSI_LATEST_VERSION}"
+            docker pull juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}
+            rst=$?
+            if [ $rst -eq 0 ]; then
+              echo "csi image exist"
+            else
+              echo "Sync JuiceFS csi version image: juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}"
+              .sync.sh csi-driver $TAG_TO_SYNC
+            fi
+          fi
+
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
+
+  sidecar-image-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Docker Hub
+        env:
+          PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
+        run: docker login --username chnliyong --password ${PASSWORD}
+      - name: check latest tag
+        continue-on-error: true
+        env:
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          set +e
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          
+          if [ ${{ inputs.livenessprobe_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.livenessprobe_to_sync }}
+            .sync.sh livenessprobe $TAG_TO_SYNC
+          elif [ ${{ inputs.registrar_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.registrar_to_sync }}
+            .sync.sh registrar $TAG_TO_SYNC
+          elif [ ${{ inputs.provisioner_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.provisioner_to_sync }}
+            .sync.sh provisioner $TAG_TO_SYNC
+          elif [ ${{ inputs.resizer_to_sync }} ]; then
+            TAG_TO_SYNC=${{ inputs.resizer_to_sync }}
+            .sync.sh resizer $TAG_TO_SYNC
+          else
+            echo "No image to sync"
+          fi
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1

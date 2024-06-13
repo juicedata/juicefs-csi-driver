@@ -22,7 +22,8 @@ set -e
 
 username=${ACR_USERNAME}
 passwd=${ACR_TOKEN}
-tag=${IMAGE_TAG}
+registryName=$1
+tag=$2
 
 REGIONS=(
 	  registry.cn-hangzhou.aliyuncs.com
@@ -39,11 +40,77 @@ REGIONS=(
     registry.cn-huhehaote.aliyuncs.com
 )
 
+sync_image() {
+  local image=$1
+  local platform=$2
+  local platform_suffix=${platform:+-$platform}
+
+  echo "Syncing image: $image, platform: ${platform:-default}"
+
+  if [ -n "$platform" ]; then
+    docker pull juicedata/$image:${tag} --platform=${platform}
+    docker tag juicedata/$image:${tag}${platform_suffix} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+  else
+    docker pull juicedata/$image:${tag}
+    docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}
+    docker push ${REGION}/juicefs/${image}:${tag}
+  fi
+}
+
+sync_sidecar_image() {
+  local image=$1
+  local platform=$2
+  local platform_suffix=${platform:+-$platform}
+
+  echo "Syncing image: $image, platform: ${platform:-default}"
+
+  if [ -n "$platform" ]; then
+    docker pull registry.k8s.io/sig-storage/$image:${tag} --platform=${platform}
+    docker tag registry.k8s.io/sig-storage/$image:${tag}${platform_suffix} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+  else
+    docker pull registry.k8s.io/sig-storage/$image:${tag}
+    docker tag registry.k8s.io/sig-storage$image:${tag} ${REGION}/juicefs/${image}:${tag}
+    docker push ${REGION}/juicefs/${image}:${tag}
+  fi
+}
+
 for REGION in ${REGIONS[@]};
 do
 	echo ${REGION}
     docker login --username=${username} --password=${passwd} ${REGION}
-    docker pull juicedata/juicefs-fuse:${tag}
-	  docker tag juicedata/juicefs-fuse:${tag} ${REGION}/juicefs/juicefs-fuse:${tag}
-    docker push ${REGION}/juicefs/juicefs-fuse:${tag}
+
+    if [ "$registryName" = "mount" ]; then
+      if [ "$tag" = "latest" ]; then
+        sync_image "mount"
+        sync_image "juicefs-fuse"
+      else
+        sync_image "mount"
+        sync_image "mount" "arm64"
+        sync_image "juicefs-fuse"
+        sync_image "juicefs-fuse" "arm64"
+      fi
+    elif [ "$registryName" = "csi-driver" ]; then
+      sync_image "juicefs-csi-driver"
+      sync_image "juicefs-csi-driver" "arm64"
+      sync_image "csi-dashboard"
+      sync_image "csi-dashboard" "arm64"
+    elif [ "$registryName" = "livenessprobe" ]; then
+      sync_image "livenessprobe"
+      sync_image "livenessprobe" "arm64"
+    elif [ "$registryName" = "registrar" ]; then
+      sync_image "csi-node-driver-registrar"
+      sync_image "csi-node-driver-registrar" "arm64"
+    elif [ "$registryName" = "provisioner" ]; then
+      sync_image "csi-provisioner"
+      sync_image "csi-provisioner" "arm64"
+    elif [ "$registryName" = "resizer" ]; then
+      sync_image "csi-resizer"
+      sync_image "csi-resizer" "arm64"
+    else
+      echo "Unknown registry name: $registryName"
+      exit 1
+    fi
+
 done

@@ -88,11 +88,17 @@ jobs:
             echo "Build JuiceFS new version image: $JUICEFS_CE_LATEST_VERSION"
             make -C docker fuse-ce-image-buildx
             echo "Sync JuiceFS version image"
-            cd ${GITHUB_WORKSPACE}/.github/scripts/
-            ./sync.sh
           else
             echo "JuiceFS fuse ce version image $JUICEFS_CE_LATEST_VERSION already exists"
           fi
+      - name: sync image
+        env:
+          IMAGE_TAG: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          .sync.sh mount ${{ env.IMAGE_TAG }}
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
@@ -155,12 +161,17 @@ jobs:
           if [ $fuse_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker fuse-ee-image-4.0-buildx
-            echo "Sync JuiceFS version image"
-            cd ${GITHUB_WORKSPACE}/.github/scripts/
-            ./sync.sh
           else
             echo "JuiceFS fuse ee version image already exists"
           fi
+      - name: sync image
+        env:
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          .sync.sh mount ${{ env.IMAGE_TAG }}
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
@@ -227,11 +238,17 @@ jobs:
           if [ $fuse_image_exist == "false" ]; then
             echo "Build JuiceFS new version image"
             make -C docker fuse-ee-image-buildx
-            cd ${GITHUB_WORKSPACE}/.github/scripts/
-            ./sync.sh
           else
             echo "JuiceFS fuse ee version image already exists"
           fi
+      - name: sync image
+        env:
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          .sync.sh mount ${{ env.IMAGE_TAG }}
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
