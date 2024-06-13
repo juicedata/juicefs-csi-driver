@@ -46,7 +46,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.mount_tag_to_sync }} ]; then
@@ -112,7 +111,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.csi_to_sync }} ]; then
@@ -155,7 +153,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.livenessprobe_to_sync }} ]; then
