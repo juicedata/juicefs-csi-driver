@@ -52,6 +52,7 @@ sync_image() {
     for REGION in ${REGIONS[@]};
     do
       echo ${REGION}
+      docker login --username=${username} --password=${passwd} ${REGION}
       docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
       docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
     done
@@ -60,6 +61,7 @@ sync_image() {
     for REGION in ${REGIONS[@]};
     do
       echo ${REGION}
+      docker login --username=${username} --password=${passwd} ${REGION}
       docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}
       docker push ${REGION}/juicefs/${image}:${tag}
     done
@@ -78,6 +80,7 @@ sync_sidecar_image() {
     for REGION in ${REGIONS[@]};
     do
       echo ${REGION}
+      docker login --username=${username} --password=${passwd} ${REGION}
       docker tag registry.k8s.io/sig-storage/$image:${tag} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
       docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
     done
@@ -86,13 +89,13 @@ sync_sidecar_image() {
     for REGION in ${REGIONS[@]};
     do
       echo ${REGION}
+      docker login --username=${username} --password=${passwd} ${REGION}
       docker tag registry.k8s.io/sig-storage$image:${tag} ${REGION}/juicefs/${image}:${tag}
       docker push ${REGION}/juicefs/${image}:${tag}
     done
   fi
 }
 
-docker login --username=${username} --password=${passwd} ${REGION}
 
 if [ "$registryName" = "mount" ]; then
   if [ "$tag" = "latest" ]; then
