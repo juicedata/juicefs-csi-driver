@@ -52,7 +52,7 @@ jobs:
           if [ ${{ inputs.mount_tag_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.mount_tag_to_sync }}
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
-            .sync.sh mount $TAG_TO_SYNC
+            ./sync.sh mount $TAG_TO_SYNC
           else
             # ce image
             JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
@@ -68,7 +68,7 @@ jobs:
               echo "ce mount image exist"
             else
               echo "Sync JuiceFS ce version image: juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
-              .sync.sh mount $TAG_TO_SYNC
+              ./sync.sh mount $TAG_TO_SYNC
             fi
           
           
@@ -89,7 +89,7 @@ jobs:
               echo "ee mount image exist"
             else
               echo "Sync JuiceFS ee version image: juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
-              .sync.sh mount $TAG_TO_SYNC
+              ./sync.sh mount $TAG_TO_SYNC
             fi
           fi
 
@@ -117,7 +117,7 @@ jobs:
           
           if [ ${{ inputs.csi_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.csi_to_sync }}
-            .sync.sh csi-driver $TAG_TO_SYNC
+            ./sync.sh csi-driver $TAG_TO_SYNC
           else
             JUICEFS_CSI_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-csi-driver/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
             if [ -z "$JUICEFS_CSI_LATEST_VERSION" ]; then
@@ -132,7 +132,7 @@ jobs:
               echo "csi image exist"
             else
               echo "Sync JuiceFS csi version image: juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}"
-              .sync.sh csi-driver $TAG_TO_SYNC
+              ./sync.sh csi-driver $TAG_TO_SYNC
             fi
           fi
 
@@ -160,16 +160,16 @@ jobs:
           
           if [ ${{ inputs.livenessprobe_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.livenessprobe_to_sync }}
-            .sync.sh livenessprobe $TAG_TO_SYNC
+            ./sync.sh livenessprobe $TAG_TO_SYNC
           elif [ ${{ inputs.registrar_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.registrar_to_sync }}
-            .sync.sh registrar $TAG_TO_SYNC
+            ./sync.sh registrar $TAG_TO_SYNC
           elif [ ${{ inputs.provisioner_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.provisioner_to_sync }}
-            .sync.sh provisioner $TAG_TO_SYNC
+            ./sync.sh provisioner $TAG_TO_SYNC
           elif [ ${{ inputs.resizer_to_sync }} ]; then
             TAG_TO_SYNC=${{ inputs.resizer_to_sync }}
-            .sync.sh resizer $TAG_TO_SYNC
+            ./sync.sh resizer $TAG_TO_SYNC
           else
             echo "No image to sync"
           fi
