@@ -1,9 +1,6 @@
 name: sync juicefs image
 
 on:
-  push:
-    branches:
-      - ci/image
   workflow_dispatch:
     inputs:
       mount_tag_to_sync:
