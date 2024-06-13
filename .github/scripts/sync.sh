@@ -49,12 +49,20 @@ sync_image() {
 
   if [ -n "$platform" ]; then
     docker pull juicedata/$image:${tag} --platform=${platform}
-    docker tag juicedata/$image:${tag}${platform_suffix} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
-    docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    for REGION in ${REGIONS[@]};
+    do
+      echo ${REGION}
+      docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+      docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    done
   else
     docker pull juicedata/$image:${tag}
-    docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}
-    docker push ${REGION}/juicefs/${image}:${tag}
+    for REGION in ${REGIONS[@]};
+    do
+      echo ${REGION}
+      docker tag juicedata/$image:${tag} ${REGION}/juicefs/${image}:${tag}
+      docker push ${REGION}/juicefs/${image}:${tag}
+    done
   fi
 }
 
@@ -67,50 +75,53 @@ sync_sidecar_image() {
 
   if [ -n "$platform" ]; then
     docker pull registry.k8s.io/sig-storage/$image:${tag} --platform=${platform}
-    docker tag registry.k8s.io/sig-storage/$image:${tag}${platform_suffix} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
-    docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    for REGION in ${REGIONS[@]};
+    do
+      echo ${REGION}
+      docker tag registry.k8s.io/sig-storage/$image:${tag} ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+      docker push ${REGION}/juicefs/${image}:${tag}${platform_suffix}
+    done
   else
     docker pull registry.k8s.io/sig-storage/$image:${tag}
-    docker tag registry.k8s.io/sig-storage$image:${tag} ${REGION}/juicefs/${image}:${tag}
-    docker push ${REGION}/juicefs/${image}:${tag}
+    for REGION in ${REGIONS[@]};
+    do
+      echo ${REGION}
+      docker tag registry.k8s.io/sig-storage$image:${tag} ${REGION}/juicefs/${image}:${tag}
+      docker push ${REGION}/juicefs/${image}:${tag}
+    done
   fi
 }
 
-for REGION in ${REGIONS[@]};
-do
-	echo ${REGION}
-    docker login --username=${username} --password=${passwd} ${REGION}
+docker login --username=${username} --password=${passwd} ${REGION}
 
-    if [ "$registryName" = "mount" ]; then
-      if [ "$tag" = "latest" ]; then
-        sync_image "mount"
-        sync_image "juicefs-fuse"
-      else
-        sync_image "mount"
-        sync_image "mount" "arm64"
-        sync_image "juicefs-fuse"
-        sync_image "juicefs-fuse" "arm64"
-      fi
-    elif [ "$registryName" = "csi-driver" ]; then
-      sync_image "juicefs-csi-driver"
-      sync_image "juicefs-csi-driver" "arm64"
-      sync_image "csi-dashboard"
-      sync_image "csi-dashboard" "arm64"
-    elif [ "$registryName" = "livenessprobe" ]; then
-      sync_image "livenessprobe"
-      sync_image "livenessprobe" "arm64"
-    elif [ "$registryName" = "registrar" ]; then
-      sync_image "csi-node-driver-registrar"
-      sync_image "csi-node-driver-registrar" "arm64"
-    elif [ "$registryName" = "provisioner" ]; then
-      sync_image "csi-provisioner"
-      sync_image "csi-provisioner" "arm64"
-    elif [ "$registryName" = "resizer" ]; then
-      sync_image "csi-resizer"
-      sync_image "csi-resizer" "arm64"
-    else
-      echo "Unknown registry name: $registryName"
-      exit 1
-    fi
-
-done
+if [ "$registryName" = "mount" ]; then
+  if [ "$tag" = "latest" ]; then
+    sync_image "mount"
+    sync_image "juicefs-fuse"
+  else
+    sync_image "mount"
+    sync_image "mount" "arm64"
+    sync_image "juicefs-fuse"
+    sync_image "juicefs-fuse" "arm64"
+  fi
+elif [ "$registryName" = "csi-driver" ]; then
+  sync_image "juicefs-csi-driver"
+  sync_image "juicefs-csi-driver" "arm64"
+  sync_image "csi-dashboard"
+  sync_image "csi-dashboard" "arm64"
+elif [ "$registryName" = "livenessprobe" ]; then
+  sync_image "livenessprobe"
+  sync_image "livenessprobe" "arm64"
+elif [ "$registryName" = "registrar" ]; then
+  sync_image "csi-node-driver-registrar"
+  sync_image "csi-node-driver-registrar" "arm64"
+elif [ "$registryName" = "provisioner" ]; then
+  sync_image "csi-provisioner"
+  sync_image "csi-provisioner" "arm64"
+elif [ "$registryName" = "resizer" ]; then
+  sync_image "csi-resizer"
+  sync_image "csi-resizer" "arm64"
+else
+  echo "Unknown registry name: $registryName"
+  exit 1
+fi
