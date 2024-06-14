@@ -549,13 +549,6 @@ spec:
               name: jfs-root-dir
             - mountPath: /etc/config
               name: juicefs-config
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - rm /csi/csi.sock
           ports:
             - name: healthz
               containerPort: 9909

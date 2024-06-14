@@ -687,13 +687,6 @@ spec:
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
         image: juicedata/juicefs-csi-driver:v0.24.0
-        lifecycle:
-          preStop:
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - rm /csi/csi.sock
         livenessProbe:
           failureThreshold: 5
           httpGet:
