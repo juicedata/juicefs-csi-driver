@@ -1,9 +1,6 @@
 name: sync juicefs image
 
 on:
-  push:
-    branches:
-      - ci/image
   workflow_dispatch:
     inputs:
       mount_tag:
@@ -159,19 +156,6 @@ jobs:
           else
             echo "No image to sync"
           fi
-          
-          echo "sync sidecar image"
-          
-          ./sync.sh registry.k8s.io/sig-storage/livenessprobe v2.12.0
-          ./sync.sh registry.k8s.io/sig-storage/csi-node-driver-registrar v2.9.0
-          ./sync.sh registry.k8s.io/sig-storage/csi-resizer v1.9.0
-          ./sync.sh registry.k8s.io/sig-storage/csi-provisioner v2.2.2
-          
-          ./sync.sh registry.k8s.io/sig-storage/livenessprobe v2.12.0 arm64
-          ./sync.sh registry.k8s.io/sig-storage/csi-node-driver-registrar v2.9.0 arm64
-          ./sync.sh registry.k8s.io/sig-storage/csi-resizer v1.9.0 arm64
-          ./sync.sh registry.k8s.io/sig-storage/csi-provisioner v2.2.2 arm64
-
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
