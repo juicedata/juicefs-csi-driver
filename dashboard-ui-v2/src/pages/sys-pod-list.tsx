@@ -1,0 +1,118 @@
+import React, { useEffect, useState } from 'react'
+import { AlertTwoTone } from '@ant-design/icons'
+import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
+import { ConfigProvider, Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import { Badge } from 'antd/lib'
+import dayjs from 'dayjs'
+import { FormattedMessage } from 'react-intl'
+import { Link } from 'react-router-dom'
+
+import { useSysAppPods } from '@/hooks/use-api'
+import { Pod, PodStatusEnum } from '@/types/k8s'
+import { failedReasonOfAppPod, getNodeStatusBadge } from '@/utils'
+
+const columns: ProColumns<Pod>[] = [
+  {
+    title: <FormattedMessage id="name" />,
+    dataIndex: ['metadata', 'name'],
+    render: (_, pod) => {
+      const podFailReason = failedReasonOfAppPod(pod) || ''
+      if (podFailReason === '') {
+        return (
+          <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+            {pod.metadata?.name}
+          </Link>
+        )
+      }
+      const failReason = <FormattedMessage id={podFailReason} />
+      return (
+        <div>
+          <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+            {pod.metadata?.namespace} / {pod.metadata?.name}
+          </Link>
+          <Tooltip title={failReason}>
+            <AlertTwoTone twoToneColor="#cf1322" />
+          </Tooltip>
+        </div>
+      )
+    },
+  },
+  {
+    title: <FormattedMessage id="status" />,
+    dataIndex: ['status', 'phase'],
+    valueType: 'select',
+    disable: true,
+    search: false,
+    filters: true,
+    onFilter: true,
+    valueEnum: PodStatusEnum,
+  },
+  {
+    title: <FormattedMessage id="createAt" />,
+    dataIndex: ['metadata', 'creationTimestamp'],
+    render: (_, row) => dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+  },
+  {
+    title: <FormattedMessage id="node" />,
+    key: 'node',
+    dataIndex: ['spec', 'nodeName'],
+    valueType: 'text',
+    render: (_, pod) => {
+      if (!pod.node) {
+        return '-'
+      }
+      return <Badge color={getNodeStatusBadge(pod.node)} text={pod.spec?.nodeName} />
+    },
+  },
+]
+
+const SysPodList: React.FC = () => {
+  const [pagination, setPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 3,
+    total: 0,
+  })
+
+  const handleTableChange: TableProps['onChange'] = (pagination) => {
+    setPagination(pagination)
+  }
+
+  const { data, isLoading } = useSysAppPods({
+    current: pagination.current,
+    pageSize: pagination.pageSize,
+  })
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
+  }, [data?.total])
+
+  return (
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#00b96b',
+          borderRadius: 4,
+          colorBgContainer: '#ffffff',
+        },
+      }}
+    >
+      <PageContainer
+        header={{
+          title: <FormattedMessage id="systemPodTablePageName" />,
+        }}
+      >
+        <ProTable<Pod>
+          headerTitle={<FormattedMessage id="sysPodTableName" />}
+          columns={columns}
+          loading={isLoading}
+          dataSource={data?.pods}
+          pagination={pagination}
+          onChange={handleTableChange}
+          rowKey={(row) => row.metadata!.uid!}
+        />
+      </PageContainer>
+    </ConfigProvider>
+  )
+}
+
+export default SysPodList

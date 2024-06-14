@@ -1,0 +1,190 @@
+import { Node, PersistentVolume, Pod as RawPod } from 'kubernetes-types/core/v1'
+import { ObjectMeta } from 'kubernetes-types/meta/v1'
+
+import { Pod } from '@/types/k8s'
+
+export interface Source {
+  metadata?: ObjectMeta
+}
+
+export const getNodeStatusBadge = (node: Node) => {
+  const ready = node.status?.conditions?.find((condition) => {
+    if (condition.type === 'Ready' && condition.status === 'True') {
+      return true
+    }
+    return false
+  })
+  return ready ? 'green' : 'red'
+}
+
+export const getPodStatusBadge = (finalStatus: string) => {
+  switch (finalStatus) {
+    case 'Pending':
+    case 'ContainerCreating':
+    case 'PodInitializing':
+      return 'yellow'
+    case 'Running':
+      return 'green'
+    case 'Succeed':
+      return 'blue'
+    case 'Failed':
+    case 'Error':
+      return 'red'
+    case 'Unknown':
+    case 'Terminating':
+    default:
+      return 'grey'
+  }
+}
+
+export const getPVStatusBadge = (pv: PersistentVolume) => {
+  if (pv.status === undefined || pv.status.phase === undefined) {
+    return 'grey'
+  }
+  switch (pv.status.phase) {
+    case 'Bound':
+      return 'green'
+    case 'Available':
+      return 'blue'
+    case 'Pending':
+      return 'yellow'
+    case 'Failed':
+      return 'red'
+    case 'Released':
+    default:
+      return 'grey'
+  }
+}
+
+export const isPodReady = (pod: RawPod) => {
+  let conditionTrue = 0
+  pod.status?.conditions?.forEach((condition) => {
+    if (
+      (condition.type === 'ContainersReady' || condition.type === 'Ready') &&
+      condition.status === 'True'
+    ) {
+      conditionTrue++
+    }
+  })
+  return conditionTrue === 2
+}
+
+export const failedReasonOfAppPod = (pod: Pod) => {
+  const { mountPods, pvcs, csiNode } = pod
+  // check if pod is ready
+  if (isPodReady(pod)) {
+    return ''
+  }
+
+  let reason = ''
+  // 1. PVC pending
+  pvcs?.forEach((pvc) => {
+    if (pvc.status?.phase !== 'Bound') {
+      reason = 'pvcUnboundErrMsg'
+    }
+  })
+  if (reason !== '') {
+    return reason
+  }
+
+  // 2. not scheduled
+  pod.status?.conditions?.forEach((condition) => {
+    if (condition.type === 'PodScheduled' && condition.status !== 'True') {
+      reason = 'unScheduledMsg'
+      return
+    }
+  })
+  if (reason !== '') {
+    return reason
+  }
+
+  // 3. node not ready
+  if (pod.node) {
+    pod.node.status?.conditions?.forEach((condition) => {
+      if (condition.type === 'Ready' && condition.status !== 'True') {
+        reason = 'nodeErrMsg'
+      }
+    })
+  }
+  if (reason !== '') {
+    return reason
+  }
+
+  // sidecar mode
+  if (
+    pod.metadata?.labels !== undefined &&
+    pod.metadata?.labels['done.sidecar.juicefs.com/inject'] === 'true'
+  ) {
+    let reason = ''
+    pod.status?.initContainerStatuses?.forEach((containerStatus) => {
+      if (!containerStatus.ready) {
+        reason = 'containerErrMsg'
+      }
+    })
+    pod.status?.containerStatuses?.forEach((containerStatus) => {
+      if (!containerStatus.ready) {
+        reason = 'containerErrMsg'
+      }
+    })
+    return reason
+  }
+
+  // mount pod mode
+  // 4. check csi node
+  if (csiNode === undefined) {
+    return 'csiNodeNullMsg'
+  }
+  if (!isPodReady(csiNode)) {
+    return 'csiNodeErrMsg'
+  }
+  // 5. check mount pod
+  if (mountPods?.length === 0) {
+    return 'mountPodNullMsg'
+  }
+  mountPods?.forEach((mountPod) => {
+    if (!isPodReady(mountPod)) {
+      reason = 'mountPodErrMsg'
+      return
+    }
+  })
+  if (reason !== '') {
+    return reason
+  }
+
+  return 'podErrMsg'
+}
+
+export const podStatus = (pod: RawPod) => {
+  if (pod.metadata?.deletionTimestamp) {
+    return 'Terminating'
+  }
+  if (!pod.status) {
+    return 'Unknown'
+  }
+  let status: string = ''
+  pod.status?.containerStatuses?.forEach((containerStatus) => {
+    if (!containerStatus.ready) {
+      if (containerStatus.state?.waiting) {
+        if (containerStatus.state.waiting.message) {
+          status = 'Error'
+          return
+        }
+        if (
+          containerStatus.state.waiting.reason === 'ContainerCreating' ||
+          containerStatus.state.waiting.reason === 'PodInitializing'
+        ) {
+          status = containerStatus.state.waiting.reason
+          return
+        }
+      }
+      if (containerStatus.state?.terminated && containerStatus.state.terminated.message) {
+        status = 'Error'
+        return
+      }
+    }
+  })
+  if (status !== '') {
+    return status
+  }
+  return pod.status.phase
+}
