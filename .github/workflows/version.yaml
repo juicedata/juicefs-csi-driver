@@ -82,6 +82,13 @@ jobs:
         docker buildx create --use --name mybuilder
         make -C docker image-version
         make -C docker dashboard-buildx
+    - name: sync image
+      env:
+        ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+        ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+      run: |
+        cd ${GITHUB_WORKSPACE}/.github/scripts/
+        ./sync.sh csi-driver ${{ env.CSI_LATEST_VERSION }}
     - name: Setup upterm session
       if: ${{ failure() }}
       timeout-minutes: 60

@@ -22,7 +22,9 @@ set -e
 
 username=${ACR_USERNAME}
 passwd=${ACR_TOKEN}
-tag=${IMAGE_TAG}
+imageName=$1
+tag=${2:-latest}
+platform=$3
 
 REGIONS=(
 	  registry.cn-hangzhou.aliyuncs.com
@@ -39,11 +41,53 @@ REGIONS=(
     registry.cn-huhehaote.aliyuncs.com
 )
 
-for REGION in ${REGIONS[@]};
-do
-	echo ${REGION}
-    docker login --username=${username} --password=${passwd} ${REGION}
-    docker pull juicedata/juicefs-fuse:${tag}
-	  docker tag juicedata/juicefs-fuse:${tag} ${REGION}/juicefs/juicefs-fuse:${tag}
-    docker push ${REGION}/juicefs/juicefs-fuse:${tag}
-done
+sync_image() {
+  local registryName=$1
+  local image=$2
+  local platform=$3
+  if [ "$platform" == "amd64" ]; then platform=""; fi
+  local platform_suffix=${platform:+-$platform}
+
+  echo "Syncing image: $image, platform: ${platform:-amd64}"
+
+  if [ -n "$platform" ]; then
+    docker pull $registryName/$image:${tag} --platform=${platform}
+    for REGION in ${REGIONS[@]};
+    do
+      echo "in ${REGION}"
+      docker login --username=${username} --password=${passwd} ${REGION}
+      docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}${platform_suffix}
+      docker push ${REGION}/juicedata/${image}:${tag}${platform_suffix}
+    done
+  else
+    docker pull $registryName/$image:${tag}
+    for REGION in ${REGIONS[@]};
+    do
+      echo "in ${REGION}"
+      docker login --username=${username} --password=${passwd} ${REGION}
+      docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}
+      docker push ${REGION}/juicedata/${image}:${tag}
+    done
+  fi
+}
+
+if [ "$imageName" = "mount" ]; then
+  if [ "$tag" = "latest" ]; then
+    sync_image "juicedata" "mount"
+    sync_image "juicedata" "juicefs-fuse"
+  else
+    sync_image "juicedata" "mount"
+    sync_image "juicedata" "mount" "arm64"
+    sync_image "juicedata" "juicefs-fuse"
+    sync_image "juicedata" "juicefs-fuse" "arm64"
+  fi
+elif [ "$imageName" = "csi-driver" ]; then
+  sync_image "juicedata" "juicefs-csi-driver"
+  sync_image "juicedata" "juicefs-csi-driver" "arm64"
+  sync_image "juicedata" "csi-dashboard"
+  sync_image "juicedata" "csi-dashboard" "arm64"
+else
+  image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)
+  registryName=$(echo $imageName | awk -F'/' '{OFS="/"; $NF=""; NF--; print $0}')
+  sync_image $registryName $image $platform
+fi
