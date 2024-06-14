@@ -58,7 +58,7 @@ jobs:
             fi
           
             TAG_TO_SYNC="ce-${JUICEFS_CE_LATEST_VERSION}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/mount:ce-${JUICEFS_CE_LATEST_VERSION}
+            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
             rst=$?
             if [ $rst -eq 0 ]; then
               echo "ce mount latest image exist"
@@ -79,7 +79,7 @@ jobs:
             fi
 
             TAG_TO_SYNC="ee-$JUICEFS_EE_LATEST_VERSION"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/mount:ee-$JUICEFS_EE_LATEST_VERSION
+            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
             rst=$?
             if [ $rst -eq 0 ]; then
               echo "ee mount latest image exist"
@@ -122,7 +122,7 @@ jobs:
             fi
           
             TAG_TO_SYNC="${JUICEFS_CSI_LATEST_VERSION}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicefs/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}
+            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}
             rst=$?
             if [ $rst -eq 0 ]; then
               echo "csi latest image exist"
