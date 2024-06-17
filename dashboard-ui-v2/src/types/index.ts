@@ -46,3 +46,10 @@ export interface SysPagingListArgs {
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
 }
+
+export interface SCPagingListArgs {
+  pageSize?: number
+  current?: number
+  name?: string
+  sort?: Record<string, 'descend' | 'ascend' | null>
+}

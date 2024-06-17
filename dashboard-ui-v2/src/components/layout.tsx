@@ -15,7 +15,7 @@
  */
 
 import { ReactNode } from 'react'
-import { Layout as AntdLayout, Menu, MenuProps, theme } from 'antd'
+import { Layout as AntdLayout, Menu, MenuProps } from 'antd'
 import { IntlProvider } from 'react-intl'
 import { Link } from 'react-router-dom'
 

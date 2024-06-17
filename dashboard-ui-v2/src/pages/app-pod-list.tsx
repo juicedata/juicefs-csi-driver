@@ -29,7 +29,7 @@ import { failedReasonOfAppPod, getPodStatusBadge, getPVStatusBadge, podStatus } 
 
 const columns: ProColumns<Pod>[] = [
   {
-    title: 'Name',
+    title: <FormattedMessage id="name"/>,
     dataIndex: ['metadata', 'name'],
     render: (_, pod) => {
       const podFailReason = failedReasonOfAppPod(pod) || ''
@@ -194,6 +194,7 @@ const PodList: React.FC = () => {
       >
         <ProTable
           headerTitle={<FormattedMessage id="appPodTableName" />}
+          tooltip={<FormattedMessage id="appPodTableTip" />}
           columns={columns}
           loading={isLoading}
           dataSource={data?.pods}
