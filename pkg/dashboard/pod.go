@@ -18,6 +18,8 @@ package dashboard
 
 import (
 	"context"
+	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -30,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"nhooyr.io/websocket"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -682,5 +685,49 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 			}
 		}
 		c.IndentedJSON(200, pvs)
+	}
+}
+
+func (api *API) watchPodLogs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		var lines int64 = 100
+		conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
+			OriginPatterns: []string{"*"},
+		})
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		defer conn.Close(websocket.StatusInternalError, "the sky is falling")
+		req := api.client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
+			Container: container,
+			TailLines: &lines,
+			Follow:    true,
+		})
+		stream, err := req.Stream(c)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		defer stream.Close()
+
+		buffer := make([]byte, 1024)
+		for {
+			n, err := stream.Read(buffer)
+			if err != nil {
+				if err != io.EOF {
+					log.Println("Error reading from ReadCloser:", err)
+				}
+				break
+			}
+			err = conn.Write(c, websocket.MessageText, buffer[:n])
+			if err != nil {
+				c.Error(err)
+				return
+			}
+		}
 	}
 }

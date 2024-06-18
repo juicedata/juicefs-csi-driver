@@ -15,7 +15,7 @@
  */
 
 import { Event } from 'kubernetes-types/core/v1'
-import useWebSocket from 'react-use-websocket'
+import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
@@ -71,10 +71,14 @@ export function usePods(
   return useSWR<Pod[]>(`/api/v1/pod/${namespace}/${name}/${type}`)
 }
 
-export function useWebsocket(uri?: string, shouldConnect = false) {
+export function useWebsocket(
+  uri?: string,
+  opts?: Options,
+  shouldConnect: boolean = false,
+) {
   return useWebSocket(
     `ws://${import.meta.env.VITE_HOST ?? window.location.host}${uri}`,
-    {},
+    opts,
     shouldConnect,
   )
 }

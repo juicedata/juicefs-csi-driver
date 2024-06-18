@@ -90,4 +90,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())
+
+	websocketAPI := group.Group("/ws")
+	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
 }
