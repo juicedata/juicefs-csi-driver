@@ -1,12 +1,11 @@
 import React from 'react'
 import { ProCard } from '@ant-design/pro-components'
-import { Table, Tag } from 'antd'
+import { Table } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { usePods } from '@/hooks/use-api'
-import { PodStatusEnum } from '@/types/k8s.ts'
 import { getPodStatusBadge, podStatus } from '@/utils'
 
 const PodsTable: React.FC<{
