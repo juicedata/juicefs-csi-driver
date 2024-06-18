@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"context"
+	"sort"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
@@ -69,4 +70,16 @@ func isCsiNode(pod *corev1.Pod) bool {
 		return pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" && pod.Labels["app"] == "juicefs-csi-node"
 	}
 	return false
+}
+
+type ReverseSort struct {
+	sort.Interface
+}
+
+func (r *ReverseSort) Less(i, j int) bool {
+	return !r.Interface.Less(i, j)
+}
+
+func Reverse(data sort.Interface) sort.Interface {
+	return &ReverseSort{data}
 }

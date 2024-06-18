@@ -17,7 +17,12 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { ConfigProvider, Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import {
+  ConfigProvider,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
@@ -25,11 +30,16 @@ import { Link } from 'react-router-dom'
 
 import { useAppPods } from '@/hooks/use-api'
 import { Pod, PodStatusEnum } from '@/types/k8s'
-import { failedReasonOfAppPod, getPodStatusBadge, getPVStatusBadge, podStatus } from '@/utils'
+import {
+  failedReasonOfAppPod,
+  getPodStatusBadge,
+  getPVStatusBadge,
+  podStatus,
+} from '@/utils'
 
 const columns: ProColumns<Pod>[] = [
   {
-    title: 'Name',
+    title: <FormattedMessage id="name" />,
     dataIndex: ['metadata', 'name'],
     render: (_, pod) => {
       const podFailReason = failedReasonOfAppPod(pod) || ''
@@ -64,7 +74,9 @@ const columns: ProColumns<Pod>[] = [
         return (
           <Badge
             color={getPVStatusBadge(pv)}
-            text={<Link to={`/pv/${pv.metadata?.name}`}>{pv.metadata?.name}</Link>}
+            text={
+              <Link to={`/pv/${pv.metadata?.name}`}>{pv.metadata?.name}</Link>
+            }
           />
         )
       } else {
@@ -74,7 +86,11 @@ const columns: ProColumns<Pod>[] = [
               <div key={key.metadata?.uid}>
                 <Badge
                   color={getPVStatusBadge(key)}
-                  text={<Link to={`/pv/${key.metadata?.name}`}>{key.metadata?.name}</Link>}
+                  text={
+                    <Link to={`/pv/${key.metadata?.name}`}>
+                      {key.metadata?.name}
+                    </Link>
+                  }
                 />
                 <br />
               </div>
@@ -99,7 +115,9 @@ const columns: ProColumns<Pod>[] = [
           <Badge
             color={getPodStatusBadge(podStatus(mountPod) || '')}
             text={
-              <Link to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}>
+              <Link
+                to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}
+              >
                 {mountPod?.metadata?.name}
               </Link>
             }
@@ -113,7 +131,9 @@ const columns: ProColumns<Pod>[] = [
                 <Badge
                   color={getPodStatusBadge(podStatus(mountPod) || '')}
                   text={
-                    <Link to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}>
+                    <Link
+                      to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}
+                    >
                       {mountPod?.metadata?.name}
                     </Link>
                   }
@@ -142,7 +162,9 @@ const columns: ProColumns<Pod>[] = [
         <Badge
           color={getPodStatusBadge(podStatus(pod.csiNode) || '')}
           text={
-            <Link to={`/pods/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}>
+            <Link
+              to={`/pods/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}
+            >
               {pod.csiNode.metadata?.name}
             </Link>
           }
@@ -153,7 +175,8 @@ const columns: ProColumns<Pod>[] = [
   {
     title: '创建时间',
     dataIndex: ['metadata', 'creationTimestamp'],
-    render: (_, row) => dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+    render: (_, row) =>
+      dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
   },
 ]
 
@@ -194,6 +217,7 @@ const PodList: React.FC = () => {
       >
         <ProTable
           headerTitle={<FormattedMessage id="appPodTableName" />}
+          tooltip={<FormattedMessage id="appPodTableTip" />}
           columns={columns}
           loading={isLoading}
           dataSource={data?.pods}

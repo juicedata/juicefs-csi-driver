@@ -193,7 +193,10 @@ export const podStatus = (pod: RawPod) => {
           return
         }
       }
-      if (containerStatus.state?.terminated && containerStatus.state.terminated.message) {
+      if (
+        containerStatus.state?.terminated &&
+        containerStatus.state.terminated.message
+      ) {
         status = 'Error'
         return
       }

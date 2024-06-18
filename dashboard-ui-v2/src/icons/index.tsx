@@ -27,22 +27,40 @@ import SC from '@/assets/sc-256.png'
 type CustomIconComponentProps = GetProps<typeof Icon>
 
 const DSIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={DS} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={DS} />}
+    {...props}
+  />
 )
 const PODIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={POD} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={POD} />}
+    {...props}
+  />
 )
 const PVIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={PV} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={PV} />}
+    {...props}
+  />
 )
 const PVCIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={PVC} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={PVC} />}
+    {...props}
+  />
 )
 const SCIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={SC} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={SC} />}
+    {...props}
+  />
 )
 const LOGOIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon component={() => <img width={props.width ?? 18} src={LOGO} />} {...props} />
+  <Icon
+    component={() => <img width={props.width ?? 18} src={LOGO} />}
+    {...props}
+  />
 )
 
 export { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon, LOGOIcon }
