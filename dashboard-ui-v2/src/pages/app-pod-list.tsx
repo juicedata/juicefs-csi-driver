@@ -17,15 +17,25 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { ConfigProvider, type TablePaginationConfig, type TableProps, Tooltip } from 'antd'
+import {
+  ConfigProvider,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { useAppPods } from '@/hooks/use-api'
-import { Pod, PodStatusEnum } from '@/types/k8s'
-import { failedReasonOfAppPod, getPodStatusBadge, getPVStatusBadge, podStatus } from '@/utils'
+import { Pod } from '@/types/k8s'
+import {
+  failedReasonOfAppPod,
+  getPodStatusBadge,
+  getPVStatusBadge,
+  podStatus,
+} from '@/utils'
 
 const columns: ProColumns<Pod>[] = [
   {

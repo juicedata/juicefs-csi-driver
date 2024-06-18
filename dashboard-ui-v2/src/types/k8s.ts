@@ -95,6 +95,6 @@ export const PodStatusEnum = () => {
     ImagePullBackOff: {
       text: 'ImagePullBackOff',
       color: 'red',
-    }
+    },
   }
 }
