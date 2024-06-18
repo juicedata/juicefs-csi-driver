@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { StorageClass } from 'kubernetes-types/storage/v1'
 import useSWR from 'swr'
 
 import { SCPagingListArgs } from '@/types'
-import { StorageClass } from 'kubernetes-types/storage/v1'
 
 export function useSCs(args: SCPagingListArgs) {
   const order = args.sort?.['time'] || 'ascend'

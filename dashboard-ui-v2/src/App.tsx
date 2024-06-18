@@ -55,7 +55,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Button> Home </Button>} />
             <Route path="/:resources" element={<ResourceList />} />
-            <Route path="/:resources/:namespace/:name" element={<ResourceDetail />} />
+            <Route
+              path="/:resources/:namespace/:name"
+              element={<ResourceDetail />}
+            />
           </Routes>
         </Layout>
       </BrowserRouter>

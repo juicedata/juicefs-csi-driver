@@ -17,7 +17,12 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { ConfigProvider, Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import {
+  ConfigProvider,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
@@ -66,7 +71,8 @@ const columns: ProColumns<Pod>[] = [
   {
     title: <FormattedMessage id="createAt" />,
     dataIndex: ['metadata', 'creationTimestamp'],
-    render: (_, row) => dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+    render: (_, row) =>
+      dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
   },
   {
     title: <FormattedMessage id="node" />,
@@ -77,7 +83,9 @@ const columns: ProColumns<Pod>[] = [
       if (!pod.node) {
         return '-'
       }
-      return <Badge color={getNodeStatusBadge(pod.node)} text={pod.spec?.nodeName} />
+      return (
+        <Badge color={getNodeStatusBadge(pod.node)} text={pod.spec?.nodeName} />
+      )
     },
   },
 ]

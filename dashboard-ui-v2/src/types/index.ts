@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {SortOrder} from "antd/es/table/interface";
+import { SortOrder } from 'antd/es/table/interface'
 
 export type Params = {
   resources: 'pods' | 'mountpods' | 'syspods' | 'pvs' | 'pvcs' | 'storageclass'
@@ -23,7 +23,6 @@ export type DetailParams = {
   namespace: string
   name: string
 } & Params
-
 
 export interface AppPagingListArgs {
   pageSize?: number

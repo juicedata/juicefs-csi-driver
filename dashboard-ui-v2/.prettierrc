@@ -5,5 +5,7 @@
   "trailingComma": "all",
   "proseWrap": "never",
   "tabWidth": 2,
-  "overrides": [{ "files": ".prettierrc", "options": { "parser": "json" } }]
+  "overrides": [{ "files": ".prettierrc", "options": { "parser": "json" } }],
+  "importOrder": ["^(react|react-dom)$", "^([a-z]|@[a-z])", "", ".*"],
+  "plugins": ["@ianvs/prettier-plugin-sort-imports"]
 }
