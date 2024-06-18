@@ -149,7 +149,7 @@ export const failedReasonOfAppPod = (pod: Pod) => {
 
   // mount pod mode
   // 4. check csi node
-  if (csiNode === undefined) {
+  if (!csiNode || csiNode === undefined) {
     return 'csiNodeNullMsg'
   }
   if (!isPodReady(csiNode)) {

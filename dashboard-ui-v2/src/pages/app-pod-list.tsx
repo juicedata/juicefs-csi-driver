@@ -64,8 +64,12 @@ const columns: ProColumns<Pod>[] = [
     },
   },
   {
+    title: <FormattedMessage id="namespace" />,
+    dataIndex: ['metadata', 'namespace'],
+  },
+  {
     title: 'PV',
-    dataIndex: 'pvs',
+    dataIndex: 'pv',
     render: (_, pod) => {
       if (!pod.pvs || pod.pvs.length === 0) {
         return <span>-</span>
@@ -102,7 +106,7 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: 'Mount Pods',
-    dataIndex: ['metadata', 'mountPods'],
+    dataIndex: ['mountPod'],
     render: (_, pod) => {
       if (!pod.mountPods || pod.mountPods.length === 0) {
         return <span>-</span>
@@ -149,6 +153,9 @@ const columns: ProColumns<Pod>[] = [
   {
     title: <FormattedMessage id="status" />,
     key: 'status',
+    filters: true,
+    onFilter: true,
+    valueType: 'select',
     render: (_, pod) => {
       const finalStatus = podStatus(pod)
       return (
@@ -161,6 +168,7 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: 'CSI Node',
+    hideInSearch: true,
     key: 'csiNode',
     render: (_, pod) => {
       if (!pod.csiNode) {
@@ -182,6 +190,7 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: '创建时间',
+    hideInSearch: true,
     dataIndex: ['metadata', 'creationTimestamp'],
     render: (_, row) =>
       dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
@@ -199,9 +208,17 @@ const PodList: React.FC = () => {
     setPagination(pagination)
   }
 
+  const [filter, setFilter] = useState<{
+    name?: string
+    pv?: string
+    mountPod?: string
+    namespace?: string
+  }>()
+
   const { data, isLoading } = useAppPods({
     current: pagination.current,
     pageSize: pagination.pageSize,
+    ...filter,
   })
 
   useEffect(() => {
@@ -231,6 +248,21 @@ const PodList: React.FC = () => {
           dataSource={data?.pods}
           pagination={pagination}
           onChange={handleTableChange}
+          search={{
+            optionRender: false,
+            collapsed: false,
+          }}
+          form={{
+            onValuesChange: (_, values) => {
+              if (values) {
+                setFilter((prev) => ({
+                  ...prev,
+                  ...values,
+                  ...values.metadata,
+                }))
+              }
+            },
+          }}
           rowKey={(row) => row.metadata!.uid!}
         />
       </PageContainer>

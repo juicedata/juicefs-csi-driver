@@ -29,8 +29,13 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { useSysAppPods } from '@/hooks/use-api'
-import { Pod, PodStatusEnum } from '@/types/k8s'
-import { failedReasonOfAppPod, getNodeStatusBadge } from '@/utils'
+import { Pod } from '@/types/k8s'
+import {
+  failedReasonOfAppPod,
+  getNodeStatusBadge,
+  getPodStatusBadge,
+  podStatus,
+} from '@/utils'
 
 const columns: ProColumns<Pod>[] = [
   {
@@ -49,7 +54,7 @@ const columns: ProColumns<Pod>[] = [
       return (
         <div>
           <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
-            {pod.metadata?.namespace} / {pod.metadata?.name}
+            {pod.metadata?.name}
           </Link>
           <Tooltip title={failReason}>
             <AlertTwoTone twoToneColor="#cf1322" />
@@ -59,18 +64,27 @@ const columns: ProColumns<Pod>[] = [
     },
   },
   {
+    title: <FormattedMessage id="namespace" />,
+    dataIndex: ['metadata', 'namespace'],
+  },
+  {
     title: <FormattedMessage id="status" />,
-    dataIndex: ['status', 'phase'],
-    valueType: 'select',
-    disable: true,
-    search: false,
-    filters: true,
-    onFilter: true,
-    valueEnum: PodStatusEnum,
+    key: 'status',
+    hideInSearch: true,
+    render: (_, pod) => {
+      const finalStatus = podStatus(pod)
+      return (
+        <Badge
+          color={getPodStatusBadge(finalStatus || '')}
+          text={finalStatus}
+        />
+      )
+    },
   },
   {
     title: <FormattedMessage id="createAt" />,
     dataIndex: ['metadata', 'creationTimestamp'],
+    hideInSearch: true,
     render: (_, row) =>
       dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
   },
@@ -101,9 +115,16 @@ const SysPodList: React.FC = () => {
     setPagination(pagination)
   }
 
+  const [filter, setFilter] = useState<{
+    name?: string
+    namespace?: string
+    node?: string
+  }>()
+
   const { data, isLoading } = useSysAppPods({
     current: pagination.current,
     pageSize: pagination.pageSize,
+    ...filter,
   })
 
   useEffect(() => {
@@ -133,6 +154,21 @@ const SysPodList: React.FC = () => {
           pagination={pagination}
           onChange={handleTableChange}
           rowKey={(row) => row.metadata!.uid!}
+          search={{
+            optionRender: false,
+            collapsed: false,
+          }}
+          form={{
+            onValuesChange: (_, values) => {
+              if (values) {
+                setFilter((prev) => ({
+                  ...prev,
+                  ...values,
+                  ...values.metadata,
+                }))
+              }
+            },
+          }}
         />
       </PageContainer>
     </ConfigProvider>
