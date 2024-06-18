@@ -19,7 +19,7 @@ import { Layout as AntdLayout, Menu, MenuProps } from 'antd'
 import { IntlProvider } from 'react-intl'
 import { Link } from 'react-router-dom'
 
-import { DSIcon, LOGOIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
+import { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
 import cn from '@/locales/zh-CN'
 
 const { Header, Sider, Content } = AntdLayout
@@ -54,19 +54,19 @@ const items: MenuProps['items'] = [
 
 export default function Layout(props: { children: ReactNode }) {
   return (
-    <AntdLayout style={{ height: '100vh', width: '100%' }}>
+    <AntdLayout>
       <Header
         style={{
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
           zIndex: 1,
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 30px',
+          fontSize: '14px',
+          padding: '0 40px',
         }}
       >
-        <LOGOIcon width={30} />
         <h2>JuiceFS CSI</h2>
       </Header>
       <IntlProvider messages={cn} locale="en" defaultLocale="en">
@@ -76,6 +76,7 @@ export default function Layout(props: { children: ReactNode }) {
               overflow: 'auto',
               height: '100vh',
               position: 'fixed',
+              marginTop: '64px',
             }}
           >
             <Menu
@@ -86,9 +87,9 @@ export default function Layout(props: { children: ReactNode }) {
               items={items}
             />
           </Sider>
-          <AntdLayout style={{ marginLeft: 200, padding: 4 }}>
-            <Content>{props.children}</Content>
-          </AntdLayout>
+        </AntdLayout>
+        <AntdLayout style={{ marginLeft: 200, marginTop: '64px' }}>
+          <Content>{props.children}</Content>
         </AntdLayout>
       </IntlProvider>
     </AntdLayout>

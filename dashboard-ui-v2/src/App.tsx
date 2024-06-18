@@ -15,8 +15,8 @@
  */
 
 import { loader } from '@monaco-editor/react'
-import { Button, ConfigProvider } from 'antd'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 import { Layout, ResourceDetail, ResourceList } from '@/components'
@@ -58,7 +58,7 @@ const App = () => (
       <BrowserRouter>
         <Layout>
           <Routes>
-            <Route path="/" element={<Button> Home </Button>} />
+            <Route path="/" element={<Navigate replace to="/pods" />} />
             <Route path="/:resources" element={<ResourceList />} />
             <Route
               path="/:resources/:namespace/:name"

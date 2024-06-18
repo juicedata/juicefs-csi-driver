@@ -57,10 +57,7 @@ const SCIcon = (props: Partial<CustomIconComponentProps>) => (
   />
 )
 const LOGOIcon = (props: Partial<CustomIconComponentProps>) => (
-  <Icon
-    component={() => <img width={props.width ?? 18} src={LOGO} />}
-    {...props}
-  />
+  <Icon component={() => <img width={props.width} src={LOGO} />} {...props} />
 )
 
 export { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon, LOGOIcon }
