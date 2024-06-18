@@ -17,12 +17,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import {
-  ConfigProvider,
-  Tooltip,
-  type TablePaginationConfig,
-  type TableProps,
-} from 'antd'
+import { ConfigProvider, type TablePaginationConfig, type TableProps, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
@@ -30,12 +25,7 @@ import { Link } from 'react-router-dom'
 
 import { useAppPods } from '@/hooks/use-api'
 import { Pod, PodStatusEnum } from '@/types/k8s'
-import {
-  failedReasonOfAppPod,
-  getPodStatusBadge,
-  getPVStatusBadge,
-  podStatus,
-} from '@/utils'
+import { failedReasonOfAppPod, getPodStatusBadge, getPVStatusBadge, podStatus } from '@/utils'
 
 const columns: ProColumns<Pod>[] = [
   {
@@ -148,8 +138,16 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: <FormattedMessage id="status" />,
-    dataIndex: ['status', 'phase'],
-    valueEnum: PodStatusEnum,
+    key: 'status',
+    render: (_, pod) => {
+      const finalStatus = podStatus(pod)
+      return (
+        <Badge
+          color={getPodStatusBadge(finalStatus || '')}
+          text={finalStatus}
+        />
+      )
+    },
   },
   {
     title: 'CSI Node',
