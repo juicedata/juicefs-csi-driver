@@ -16,6 +16,7 @@
 
 import { Node, PersistentVolume, Pod as RawPod } from 'kubernetes-types/core/v1'
 import { ObjectMeta } from 'kubernetes-types/meta/v1'
+import { omit } from 'lodash'
 
 import { Pod } from '@/types/k8s'
 
@@ -206,4 +207,15 @@ export const podStatus = (pod: RawPod) => {
     return status
   }
   return pod.status.phase
+}
+
+export const omitPod = (pod: Pod) => {
+  return omit(pod, [
+    'metadata.managedFields',
+    'pvs',
+    'pvcs',
+    'csiNode',
+    'mountPods',
+    'node',
+  ])
 }

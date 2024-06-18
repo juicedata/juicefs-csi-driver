@@ -93,7 +93,7 @@ const columns: ProColumns<Pod>[] = [
 const SysPodList: React.FC = () => {
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 3,
+    pageSize: 20,
     total: 0,
   })
 

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Event } from 'kubernetes-types/core/v1'
+import useWebSocket from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
@@ -50,5 +52,29 @@ export function useSysAppPods(args: SysPagingListArgs) {
     total: number
   }>(
     `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
+  )
+}
+
+export function useAppPod(namespace?: string, name?: string) {
+  return useSWR<Pod>(`/api/v1/pod/${namespace}/${name}/`)
+}
+
+export function usePodEvents(namespace?: string, name?: string) {
+  return useSWR<Event[]>(`/api/v1/pod/${namespace}/${name}/events`)
+}
+
+export function usePods(
+  namespace?: string,
+  name?: string,
+  type: 'mountpods' | 'apppods' = 'apppods',
+) {
+  return useSWR<Pod[]>(`/api/v1/pod/${namespace}/${name}/${type}`)
+}
+
+export function useWebsocket(uri?: string, shouldConnect = false) {
+  return useWebSocket(
+    `ws://${import.meta.env.VITE_HOST ?? window.location.host}${uri}`,
+    {},
+    shouldConnect,
   )
 }
