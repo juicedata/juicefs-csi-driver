@@ -1,11 +1,12 @@
 import React from 'react'
 import { ProCard } from '@ant-design/pro-components'
-import { Table, Tag } from 'antd'
+import { Table } from 'antd'
+import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { usePods } from '@/hooks/use-api'
-import { podStatus } from '@/utils'
+import { getPodStatusBadge, podStatus } from '@/utils'
 
 const PodsTable: React.FC<{
   title: string
@@ -42,33 +43,14 @@ const PodsTable: React.FC<{
           {
             title: <FormattedMessage id="status" />,
             key: 'status',
-            render: (pod) => {
+            render: (_, pod) => {
               const finalStatus = podStatus(pod)
-              let color = 'grey'
-              const text = finalStatus
-              switch (finalStatus) {
-                case 'Pending':
-                case 'ContainerCreating':
-                case 'PodInitializing':
-                  color = 'yellow'
-                  break
-                case 'Running':
-                  color = 'green'
-                  break
-                case 'Succeed':
-                  color = 'blue'
-                  break
-                case 'Failed':
-                case 'Error':
-                  color = 'red'
-                  break
-                case 'Unknown':
-                case 'Terminating':
-                default:
-                  color = 'grey'
-                  break
-              }
-              return <Tag color={color}>{text}</Tag>
+              return (
+                <Badge
+                  color={getPodStatusBadge(finalStatus || '')}
+                  text={finalStatus}
+                />
+              )
             },
           },
           {

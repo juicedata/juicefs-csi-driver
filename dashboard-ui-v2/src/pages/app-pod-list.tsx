@@ -29,7 +29,7 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { useAppPods } from '@/hooks/use-api'
-import { Pod, PodStatusEnum } from '@/types/k8s'
+import { Pod } from '@/types/k8s'
 import {
   failedReasonOfAppPod,
   getPodStatusBadge,
@@ -148,8 +148,16 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: <FormattedMessage id="status" />,
-    dataIndex: ['status', 'phase'],
-    valueEnum: PodStatusEnum,
+    key: 'status',
+    render: (_, pod) => {
+      const finalStatus = podStatus(pod)
+      return (
+        <Badge
+          color={getPodStatusBadge(finalStatus || '')}
+          text={finalStatus}
+        />
+      )
+    },
   },
   {
     title: 'CSI Node',

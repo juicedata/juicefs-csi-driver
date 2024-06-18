@@ -46,6 +46,7 @@ export const getPodStatusBadge = (finalStatus: string) => {
       return 'blue'
     case 'Failed':
     case 'Error':
+    case 'ImagePullBackOff':
       return 'red'
     case 'Unknown':
     case 'Terminating':
@@ -182,15 +183,16 @@ export const podStatus = (pod: RawPod) => {
   pod.status?.containerStatuses?.forEach((containerStatus) => {
     if (!containerStatus.ready) {
       if (containerStatus.state?.waiting) {
-        if (containerStatus.state.waiting.message) {
-          status = 'Error'
-          return
-        }
         if (
           containerStatus.state.waiting.reason === 'ContainerCreating' ||
-          containerStatus.state.waiting.reason === 'PodInitializing'
+          containerStatus.state.waiting.reason === 'PodInitializing' ||
+          containerStatus.state.waiting.reason === 'ImagePullBackOff'
         ) {
           status = containerStatus.state.waiting.reason
+          return
+        }
+        if (containerStatus.state.waiting.message) {
+          status = 'Error'
           return
         }
       }
