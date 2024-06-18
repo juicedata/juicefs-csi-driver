@@ -14,43 +14,43 @@
  * limitations under the License.
  */
 
-import {PageContainer, ProColumns, ProTable,} from '@ant-design/pro-components'
-import {StorageClass} from 'kubernetes-types/storage/v1'
-import React, {useEffect, useState} from 'react'
-import {Link} from 'react-router-dom'
-import {FormattedMessage} from 'react-intl'
-import {useSCs} from "@/hooks/pv-api.ts";
-import type {TablePaginationConfig, TableProps} from "antd";
-import {ConfigProvider} from "antd";
-import dayjs from "dayjs";
-import {SortOrder} from "antd/es/table/interface";
+import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
+import { StorageClass } from 'kubernetes-types/storage/v1'
+import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { FormattedMessage } from 'react-intl'
+import { useSCs } from '@/hooks/pv-api.ts'
+import type { TablePaginationConfig, TableProps } from 'antd'
+import { ConfigProvider } from 'antd'
+import dayjs from 'dayjs'
+import { SortOrder } from 'antd/es/table/interface'
 
 const columns: ProColumns<StorageClass>[] = [
   {
-    title: <FormattedMessage id="name"/>,
+    title: <FormattedMessage id="name" />,
     dataIndex: ['metadata', 'name'],
     render: (_, sc) => <Link to={`/storageclass/${sc.metadata?.name}/`}> {sc.metadata?.name} </Link>,
   },
   {
-    title: <FormattedMessage id="reclaimPolicy"/>,
+    title: <FormattedMessage id="reclaimPolicy" />,
     key: 'reclaimPolicy',
     search: false,
     dataIndex: ['reclaimPolicy'],
   },
   {
-    title: <FormattedMessage id="allowVolumeExpansion"/>,
+    title: <FormattedMessage id="allowVolumeExpansion" />,
     key: 'allowVolumeExpansion',
     search: false,
     render: (_, sc) => {
       if (sc.allowVolumeExpansion) {
-        return <div><FormattedMessage id="true"/></div>
+        return <div><FormattedMessage id="true" /></div>
       } else {
-        return <div><FormattedMessage id="false"/></div>
+        return <div><FormattedMessage id="false" /></div>
       }
     },
   },
   {
-    title: <FormattedMessage id="createAt"/>,
+    title: <FormattedMessage id="createAt" />,
     key: 'time',
     sorter: 'time',
     search: false,
@@ -64,12 +64,12 @@ const ScList: React.FC<unknown> = () => {
     pageSize: 5,
     total: 0,
   })
-  const [nameFilter, setNameFilter] = useState<string>("")
+  const [nameFilter, setNameFilter] = useState<string>('')
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
-    "time": 'ascend'
+    'time': 'ascend',
   })
 
-  const {data, isLoading} = useSCs({
+  const { data, isLoading } = useSCs({
     current: pagination.current,
     pageSize: pagination.pageSize,
     name: nameFilter,
@@ -79,14 +79,14 @@ const ScList: React.FC<unknown> = () => {
   const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
     setPagination(pagination)
     if (sorter instanceof Array) {
-      setSorter({"time": sorter[0].order || "ascend"})
+      setSorter({ 'time': sorter[0].order || 'ascend' })
     } else {
-      setSorter({"time": sorter.order || "ascend"})
+      setSorter({ 'time': sorter.order || 'ascend' })
     }
   }
 
   useEffect(() => {
-    setPagination((prev) => ({...prev, total: data?.total || 0}))
+    setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
   }, [data?.total])
 
   return (
@@ -101,11 +101,11 @@ const ScList: React.FC<unknown> = () => {
     >
       <PageContainer
         header={{
-          title: <FormattedMessage id="scTablePageName"/>,
+          title: <FormattedMessage id="scTablePageName" />,
         }}
       >
         <ProTable<StorageClass>
-          headerTitle={<FormattedMessage id="scTableName"/>}
+          headerTitle={<FormattedMessage id="scTableName" />}
           rowKey={(record) => record.metadata?.uid || ''}
           loading={isLoading}
           dataSource={data?.scs}
