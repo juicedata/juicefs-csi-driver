@@ -23,11 +23,12 @@ import {useSCs} from "@/hooks/pv-api.ts";
 import type {TablePaginationConfig, TableProps} from "antd";
 import {ConfigProvider} from "antd";
 import dayjs from "dayjs";
+import {SortOrder} from "antd/es/table/interface";
 
 const columns: ProColumns<StorageClass>[] = [
   {
     title: <FormattedMessage id="name"/>,
-    key: 'name',
+    dataIndex: ['metadata', 'name'],
     render: (_, sc) => <Link to={`/storageclass/${sc.metadata?.name}/`}> {sc.metadata?.name} </Link>,
   },
   {
@@ -64,20 +65,23 @@ const ScList: React.FC<unknown> = () => {
     total: 0,
   })
   const [nameFilter, setNameFilter] = useState<string>("")
+  const [sorter, setSorter] = useState<Record<string, SortOrder>>({
+    "time": 'ascend'
+  })
 
   const {data, isLoading} = useSCs({
     current: pagination.current,
     pageSize: pagination.pageSize,
     name: nameFilter,
+    sort: sorter,
   })
 
-  const handleTableChange: TableProps['onChange'] = (pagination, filter) => {
+  const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
     setPagination(pagination)
-    console.log(filter)
-    if (filter && filter.name && filter.name.length > 0) {
-      setNameFilter(filter.name[0] as string);
+    if (sorter instanceof Array) {
+      setSorter({"time": sorter[0].order || "ascend"})
     } else {
-      setNameFilter("");
+      setSorter({"time": sorter.order || "ascend"})
     }
   }
 
@@ -103,11 +107,18 @@ const ScList: React.FC<unknown> = () => {
         <ProTable<StorageClass>
           headerTitle={<FormattedMessage id="scTableName"/>}
           rowKey={(record) => record.metadata?.uid || ''}
-          search={{labelWidth: 120}}
           loading={isLoading}
           dataSource={data?.scs}
           columns={columns}
           onChange={handleTableChange}
+          search={{
+            optionRender: false,
+          }}
+          form={{
+            onValuesChange: (_, values) => {
+              setNameFilter(values.metadata?.name)
+            },
+          }}
           pagination={pagination}
         />
       </PageContainer>

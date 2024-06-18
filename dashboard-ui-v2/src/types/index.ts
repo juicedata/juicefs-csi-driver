@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import {SortOrder} from "antd/es/table/interface";
 
 export type Params = {
   resources: 'pods' | 'mountpods' | 'syspods' | 'pvs' | 'pvcs' | 'storageclass'
@@ -23,7 +24,6 @@ export type DetailParams = {
   name: string
 } & Params
 
-export type SortOrder = 'descend' | 'ascend' | null
 
 export interface AppPagingListArgs {
   pageSize?: number
@@ -51,5 +51,5 @@ export interface SCPagingListArgs {
   pageSize?: number
   current?: number
   name?: string
-  sort?: Record<string, 'descend' | 'ascend' | null>
+  sort?: Record<string, SortOrder>
 }

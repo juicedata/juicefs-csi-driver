@@ -101,9 +101,9 @@ func (api *API) listSCsHandler() gin.HandlerFunc {
 		}
 		result := &ListSCResult{len(scs), scs}
 		if descend {
-			sort.Sort(result)
-		} else {
 			sort.Sort(Reverse(result))
+		} else {
+			sort.Sort(result)
 		}
 
 		startIndex := (current - 1) * pageSize
