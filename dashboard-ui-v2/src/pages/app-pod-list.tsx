@@ -45,7 +45,7 @@ const columns: ProColumns<Pod>[] = [
       const podFailReason = failedReasonOfAppPod(pod) || ''
       if (podFailReason === '') {
         return (
-          <Link to={`/pod/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+          <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
             {pod.metadata?.name}
           </Link>
         )
@@ -75,7 +75,7 @@ const columns: ProColumns<Pod>[] = [
           <Badge
             color={getPVStatusBadge(pv)}
             text={
-              <Link to={`/pv/${pv.metadata?.name}`}>{pv.metadata?.name}</Link>
+              <Link to={`/pvs/${pv.metadata?.name}`}>{pv.metadata?.name}</Link>
             }
           />
         )
@@ -87,7 +87,7 @@ const columns: ProColumns<Pod>[] = [
                 <Badge
                   color={getPVStatusBadge(key)}
                   text={
-                    <Link to={`/pv/${key.metadata?.name}`}>
+                    <Link to={`/pvs/${key.metadata?.name}`}>
                       {key.metadata?.name}
                     </Link>
                   }
@@ -116,7 +116,7 @@ const columns: ProColumns<Pod>[] = [
             color={getPodStatusBadge(podStatus(mountPod) || '')}
             text={
               <Link
-                to={`/pod/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}
+                to={`/pods/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}
               >
                 {mountPod?.metadata?.name}
               </Link>
@@ -132,7 +132,7 @@ const columns: ProColumns<Pod>[] = [
                   color={getPodStatusBadge(podStatus(mountPod) || '')}
                   text={
                     <Link
-                      to={`/pod/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}
+                      to={`/pods/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}
                     >
                       {mountPod?.metadata?.name}
                     </Link>

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { loader } from '@monaco-editor/react'
 import { Button, ConfigProvider } from 'antd'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
@@ -29,6 +30,10 @@ async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   }
   return res.json()
 }
+
+loader.config({
+  paths: { vs: 'https://unpkg.com/monaco-editor@0.43.0/min/vs' },
+})
 
 const App = () => (
   <SWRConfig

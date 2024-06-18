@@ -14,8 +14,22 @@
  * limitations under the License.
  */
 
+import Containers from '@/components/containers'
+import EventTable from '@/components/event-table'
 import Layout from '@/components/layout'
+import PodBasic from '@/components/pod-basic'
+import PodsTable from '@/components/pods-table'
 import ResourceDetail from '@/components/resource-detail'
 import ResourceList from '@/components/resource-list'
+import YamlModal from '@/components/yaml-modal'
 
-export { Layout, ResourceDetail, ResourceList }
+export {
+  Layout,
+  ResourceDetail,
+  ResourceList,
+  PodBasic,
+  Containers,
+  YamlModal,
+  EventTable,
+  PodsTable,
+}
