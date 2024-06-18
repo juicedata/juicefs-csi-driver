@@ -11,9 +11,17 @@ const LogModal: React.FC<{
   children: ({ onClick }: { onClick: () => void }) => ReactNode
 }> = ({ namespace, name, container, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
-
+  const [data, setData] = useState<string>('')
   const [socketUrl, setSocketUrl] = useState('')
-  const { lastMessage } = useWebsocket(socketUrl, isModalOpen)
+  useWebsocket(
+    socketUrl,
+    {
+      onMessage: (msg) => {
+        setData((prev) => prev + msg.data)
+      },
+    },
+    isModalOpen,
+  )
 
   const showModal = () => {
     setSocketUrl(`/api/v1/ws/pod/${namespace}/${name}/${container}/logs`)
@@ -25,13 +33,6 @@ const LogModal: React.FC<{
   const handleCancel = () => {
     setIsModalOpen(false)
   }
-
-  const [data, setData] = useState<string>('')
-  useEffect(() => {
-    if (lastMessage) {
-      setData((prev) => prev + lastMessage.data)
-    }
-  }, [lastMessage])
 
   useEffect(() => {
     if (!isModalOpen) {
@@ -48,7 +49,6 @@ const LogModal: React.FC<{
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
-        footer={null}
         width="100vw"
         style={{
           maxWidth: '100vw',
@@ -58,7 +58,7 @@ const LogModal: React.FC<{
       >
         {isModalOpen && (
           <Editor
-            height="100vh"
+            height="calc(100vh - 100px)"
             defaultLanguage="yaml"
             options={{
               wordWrap: 'on',
