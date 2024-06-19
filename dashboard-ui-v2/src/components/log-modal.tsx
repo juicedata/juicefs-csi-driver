@@ -47,18 +47,12 @@ const LogModal: React.FC<{
       <Modal
         title={`Logs: ${namespace}/${name}/${container}`}
         open={isModalOpen}
+        footer={null}
         onOk={handleOk}
         onCancel={handleCancel}
-        width="100vw"
-        style={{
-          maxWidth: '100vw',
-          top: 0,
-          paddingBottom: 0,
-        }}
       >
         {isModalOpen && (
           <Editor
-            height="calc(100vh - 100px)"
             defaultLanguage="yaml"
             options={{
               wordWrap: 'on',

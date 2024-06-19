@@ -7,20 +7,8 @@ const YamlModal: React.FC<{
   content: string
 }> = ({ isOpen, onClose, content }) => {
   return (
-    <Modal
-      title="YAML"
-      open={isOpen}
-      onCancel={onClose}
-      footer={null}
-      width="100vw"
-      style={{
-        maxWidth: '100vw',
-        top: 0,
-        paddingBottom: 0,
-      }}
-    >
+    <Modal title="YAML" open={isOpen} onCancel={onClose} footer={null}>
       <Editor
-        height="100vh"
         defaultLanguage="yaml"
         options={{
           wordWrap: 'on',
