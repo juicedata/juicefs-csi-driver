@@ -76,7 +76,7 @@ const columns: ProColumns<StorageClass>[] = [
 const ScList: React.FC<unknown> = () => {
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 5,
+    pageSize: 20,
     total: 0,
   })
   const [nameFilter, setNameFilter] = useState<string>('')
@@ -128,6 +128,8 @@ const ScList: React.FC<unknown> = () => {
           onChange={handleTableChange}
           search={{
             optionRender: false,
+            labelWidth: 120,
+            collapsed: false,
           }}
           form={{
             onValuesChange: (_, values) => {

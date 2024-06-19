@@ -189,7 +189,7 @@ const columns: ProColumns<Pod>[] = [
     },
   },
   {
-    title: '创建时间',
+    title: <FormattedMessage id="createAt" />,
     hideInSearch: true,
     dataIndex: ['metadata', 'creationTimestamp'],
     render: (_, row) =>

@@ -52,3 +52,24 @@ export interface SCPagingListArgs {
   name?: string
   sort?: Record<string, SortOrder>
 }
+
+export interface PVPagingListArgs {
+  pageSize?: number
+  current?: number
+  name?: string
+  pvc?: string
+  sc?: string
+  sort: Record<string, SortOrder>
+  filter: Record<string, (string | number)[] | null>
+}
+
+export interface PVCPagingListArgs {
+  pageSize?: number
+  current?: number
+  namespace?: string
+  name?: string
+  pv?: string
+  sc?: string
+  sort: Record<string, SortOrder>
+  filter: Record<string, (string | number)[] | null>
+}

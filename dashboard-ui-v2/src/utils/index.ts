@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { Node, PersistentVolume, Pod as RawPod } from 'kubernetes-types/core/v1'
+import {
+  Node,
+  PersistentVolume,
+  PersistentVolumeClaim,
+  Pod as RawPod,
+} from 'kubernetes-types/core/v1'
 import { ObjectMeta } from 'kubernetes-types/meta/v1'
 import { omit } from 'lodash'
 
@@ -74,6 +79,25 @@ export const getPVStatusBadge = (pv: PersistentVolume) => {
   }
 }
 
+export const getPVCStatusBadge = (pvc: PersistentVolumeClaim) => {
+  if (pvc.status === undefined || pvc.status.phase === undefined) {
+    return 'grey'
+  }
+  switch (pvc.status.phase) {
+    case 'Bound':
+      return 'green'
+    case 'Available':
+      return 'blue'
+    case 'Pending':
+      return 'yellow'
+    case 'Failed':
+      return 'red'
+    case 'Released':
+    default:
+      return 'grey'
+  }
+}
+
 export const isPodReady = (pod: RawPod) => {
   let conditionTrue = 0
   pod.status?.conditions?.forEach((condition) => {
@@ -85,6 +109,29 @@ export const isPodReady = (pod: RawPod) => {
     }
   })
   return conditionTrue === 2
+}
+
+export const failedReasonOfPVC = (pvc: PersistentVolumeClaim) => {
+  if (pvc.status?.phase === 'Bound') {
+    return ''
+  }
+  if (pvc.spec?.storageClassName !== '') {
+    return 'pvNotCreatedMsg'
+  }
+  if (pvc.spec.volumeName) {
+    return 'pvOfPVCNotFoundErrMsg'
+  }
+  if (pvc.spec.selector === undefined) {
+    return 'pvcSelectorErrMsg'
+  }
+  return 'pvOfPVCNotFoundErrMsg'
+}
+
+export const failedReasonOfPV = (pv: PersistentVolume) => {
+  if (pv.status?.phase === 'Bound') {
+    return ''
+  }
+  return 'pvcOfPVNotFoundErrMsg'
 }
 
 export const failedReasonOfAppPod = (pod: Pod) => {
