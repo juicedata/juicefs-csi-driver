@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
-import { ReactNode } from 'react'
-import { Layout as AntdLayout, Menu, MenuProps } from 'antd'
-import { IntlProvider } from 'react-intl'
+import { ReactNode, useEffect, useState } from 'react'
+import { QuestionCircleOutlined } from '@ant-design/icons'
+import {
+  Layout as AntdLayout,
+  Button,
+  ConfigProvider,
+  Menu,
+  MenuProps,
+} from 'antd'
+import enUS from 'antd/locale/en_US'
+import zhCN from 'antd/locale/zh_CN'
+import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
+import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
 const { Header, Sider, Content } = AntdLayout
@@ -27,12 +37,20 @@ const { Header, Sider, Content } = AntdLayout
 const items: MenuProps['items'] = [
   {
     icon: <PODIcon />,
-    label: <Link to="/pods">应用 Pod</Link>,
+    label: (
+      <Link to="/pods">
+        <FormattedMessage id="appPodTable" />
+      </Link>
+    ),
     key: '1',
   },
   {
     icon: <DSIcon />,
-    label: <Link to="/syspods">系统 Pod</Link>,
+    label: (
+      <Link to="/syspods">
+        <FormattedMessage id="sysPodTable" />
+      </Link>
+    ),
     key: '2',
   },
   {
@@ -53,6 +71,19 @@ const items: MenuProps['items'] = [
 ]
 
 export default function Layout(props: { children: ReactNode }) {
+  const [locale, setLocale] = useState<string>()
+
+  useEffect(() => {
+    if (locale) {
+      window.localStorage.setItem('locale', locale)
+    }
+  }, [locale])
+
+  useEffect(() => {
+    const locale = window.localStorage.getItem('locale')
+    setLocale(locale ?? 'cn')
+  }, [])
+
   return (
     <AntdLayout>
       <Header
@@ -68,29 +99,53 @@ export default function Layout(props: { children: ReactNode }) {
         }}
       >
         <h2>JuiceFS CSI</h2>
-      </Header>
-      <IntlProvider messages={cn} locale="en" defaultLocale="en">
-        <AntdLayout hasSider>
-          <Sider
-            style={{
-              overflow: 'auto',
-              height: '100vh',
-              position: 'fixed',
-              marginTop: '64px',
+        <div style={{ marginLeft: 'auto', justifyContent: 'space-between' }}>
+          <QuestionCircleOutlined
+            width={20}
+            onClick={() => {
+              // open a new tab to the JuiceFS CSI documentation
+              window.open(
+                'https://juicefs.com/docs/csi/introduction/',
+                '_blank',
+              )
+            }}
+          />
+          <Button
+            style={{ marginLeft: '10px' }}
+            // shape="round"
+            size="small"
+            onClick={() => {
+              setLocale(locale === 'cn' ? 'en' : 'cn')
             }}
           >
-            <Menu
-              mode="inline"
-              defaultSelectedKeys={['1']}
-              defaultOpenKeys={['1']}
-              style={{ height: '100%' }}
-              items={items}
-            />
-          </Sider>
-        </AntdLayout>
-        <AntdLayout style={{ marginLeft: 200, marginTop: '64px' }}>
-          <Content>{props.children}</Content>
-        </AntdLayout>
+            {(locale == 'cn' ? 'en' : 'cn').toUpperCase()}
+          </Button>
+        </div>
+      </Header>
+      <IntlProvider messages={locale == 'cn' ? cn : en} locale={locale ?? 'cn'}>
+        <ConfigProvider locale={locale == 'cn' ? zhCN : enUS}>
+          <AntdLayout hasSider>
+            <Sider
+              style={{
+                overflow: 'auto',
+                height: '100vh',
+                position: 'fixed',
+                marginTop: '64px',
+              }}
+            >
+              <Menu
+                mode="inline"
+                defaultSelectedKeys={['1']}
+                defaultOpenKeys={['1']}
+                style={{ height: '100%' }}
+                items={items}
+              />
+            </Sider>
+          </AntdLayout>
+          <AntdLayout style={{ marginLeft: 200, marginTop: '64px' }}>
+            <Content>{props.children}</Content>
+          </AntdLayout>
+        </ConfigProvider>
       </IntlProvider>
     </AntdLayout>
   )

@@ -237,7 +237,7 @@ const PodList: React.FC = () => {
     >
       <PageContainer
         header={{
-          title: '应用 Pod',
+          title: <FormattedMessage id="appPodTablePageName" />,
         }}
       >
         <ProTable
