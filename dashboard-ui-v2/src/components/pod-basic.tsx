@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Button } from 'antd'
+import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
-import { Pod, PodStatusEnum } from '@/types/k8s'
-import { omitPod } from '@/utils'
+import { Pod } from '@/types/k8s'
+import { getPodStatusBadge, omitPod, podStatus } from '@/utils'
 
 const PodBasic: React.FC<{
   pod: Pod
@@ -55,8 +56,16 @@ const PodBasic: React.FC<{
           },
           {
             title: <FormattedMessage id="status" />,
-            dataIndex: ['status', 'phase'],
-            valueEnum: PodStatusEnum,
+            key: 'status',
+            render: (_, pod) => {
+              const finalStatus = podStatus(pod)
+              return (
+                <Badge
+                  color={getPodStatusBadge(finalStatus || '')}
+                  text={finalStatus}
+                />
+              )
+            },
           },
           {
             title: <FormattedMessage id="createAt" />,
