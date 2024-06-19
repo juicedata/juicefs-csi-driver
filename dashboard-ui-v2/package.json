@@ -15,7 +15,6 @@
     "@ant-design/pro-components": "^2.7.10",
     "@monaco-editor/react": "^4.6.0",
     "antd": "^5.18.0",
-    "dayjs": "^1.11.11",
     "kubernetes-types": "^1.30.0",
     "lodash": "^4.17.21",
     "react": "^18.2.0",

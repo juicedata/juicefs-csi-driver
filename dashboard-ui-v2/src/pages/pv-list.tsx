@@ -18,14 +18,13 @@ import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import {
+  Badge,
   ConfigProvider,
   Tooltip,
   type TablePaginationConfig,
   type TableProps,
 } from 'antd'
 import { SortOrder } from 'antd/es/table/interface'
-import { Badge } from 'antd/lib'
-import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
@@ -136,7 +135,7 @@ const columns: ProColumns<PV>[] = [
     sorter: 'time',
     search: false,
     render: (_, row) =>
-      dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+      new Date(row.metadata?.creationTimestamp as string).toLocaleString(),
   },
 ]
 
