@@ -24,7 +24,6 @@ import {
   type TableProps,
 } from 'antd'
 import { Badge } from 'antd/lib'
-import dayjs from 'dayjs'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
@@ -86,7 +85,7 @@ const columns: ProColumns<Pod>[] = [
     dataIndex: ['metadata', 'creationTimestamp'],
     hideInSearch: true,
     render: (_, row) =>
-      dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+      new Date(row.metadata?.creationTimestamp as string).toLocaleString(),
   },
   {
     title: <FormattedMessage id="node" />,

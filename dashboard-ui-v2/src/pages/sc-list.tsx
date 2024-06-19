@@ -19,7 +19,6 @@ import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import type { TablePaginationConfig, TableProps } from 'antd'
 import { ConfigProvider } from 'antd'
 import { SortOrder } from 'antd/es/table/interface'
-import dayjs from 'dayjs'
 import { StorageClass } from 'kubernetes-types/storage/v1'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -69,7 +68,7 @@ const columns: ProColumns<StorageClass>[] = [
     sorter: 'time',
     search: false,
     render: (_, row) =>
-      dayjs(row.metadata?.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+      new Date(row.metadata?.creationTimestamp as string).toLocaleString(),
   },
 ]
 
