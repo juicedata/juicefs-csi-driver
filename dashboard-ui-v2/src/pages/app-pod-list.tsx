@@ -54,7 +54,7 @@ const columns: ProColumns<Pod>[] = [
       return (
         <div>
           <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
-            {pod.metadata?.namespace} / {pod.metadata?.name}
+            {pod.metadata?.name}
           </Link>
           <Tooltip title={failReason}>
             <AlertTwoTone twoToneColor="#cf1322" />
