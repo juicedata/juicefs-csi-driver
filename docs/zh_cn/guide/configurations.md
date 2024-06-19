@@ -73,7 +73,21 @@ globalConfig:
     - pvcSelector:
         matchLabels:
           ...
-      # 增加 liveness probe
+      readinessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # 目前暂不推荐使用 liveness probe，请优先使用 readiness probe
+      # JuiceFS 客户端自身也会进行检活和重启，因此避免额外设置 liveness probe，从外部重启
       livenessProbe:
         exec:
           command:

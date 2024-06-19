@@ -74,7 +74,22 @@ globalConfig:
     - pvcSelector:
         matchLabels:
           ...
-      # Add liveness probe
+      readinessProbe:
+        exec:
+          command:
+          - stat
+          - ${MOUNT_POINT}/${SUB_PATH}
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      # For now, avoid actually using liveness probe, and prefer readiness probe instead
+      # JuiceFS client carries out its own liveness checks and restarts,
+      # giving no reason for additional external liveness checks
       livenessProbe:
         exec:
           command:
