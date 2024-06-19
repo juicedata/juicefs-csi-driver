@@ -89,5 +89,6 @@ elif [ "$imageName" = "csi-driver" ]; then
 else
   image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)
   registryName=$(echo $imageName | awk -F'/' '{OFS="/"; $NF=""; NF--; print $0}')
+  registryName=${registryName:-docker.io/library}
   sync_image $registryName $image $platform
 fi
