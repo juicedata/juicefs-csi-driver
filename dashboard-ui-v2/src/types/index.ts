@@ -59,8 +59,8 @@ export interface PVPagingListArgs {
   name?: string
   pvc?: string
   sc?: string
-  sort: Record<string, SortOrder>
-  filter: Record<string, (string | number)[] | null>
+  sort?: Record<string, SortOrder>
+  filter?: Record<string, (string | number)[] | null>
 }
 
 export interface PVCPagingListArgs {
@@ -70,6 +70,6 @@ export interface PVCPagingListArgs {
   name?: string
   pv?: string
   sc?: string
-  sort: Record<string, SortOrder>
-  filter: Record<string, (string | number)[] | null>
+  sort?: Record<string, SortOrder>
+  filter?: Record<string, (string | number)[] | null>
 }

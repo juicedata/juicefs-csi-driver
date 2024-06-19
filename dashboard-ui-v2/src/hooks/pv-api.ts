@@ -35,7 +35,7 @@ export function useSCs(args: SCPagingListArgs) {
 }
 
 export function usePVs(args: PVPagingListArgs) {
-  const order = args.sort['time'] || 'descend'
+  const order = args.sort?.['time'] ?? 'descend'
   const name = args.name || ''
   const pvc = args.pvc || ''
   const sc = args.sc || ''
@@ -51,7 +51,7 @@ export function usePVs(args: PVPagingListArgs) {
 }
 
 export function usePVCs(args: PVCPagingListArgs) {
-  const order = args.sort['time'] || 'descend'
+  const order = args.sort?.['time'] ?? 'descend'
   const namespace = args.namespace || ''
   const name = args.name || ''
   const pv = args.pv || ''

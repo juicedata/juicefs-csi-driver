@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import {
@@ -159,10 +159,12 @@ const PVCList: React.FC<unknown> = () => {
     pageSize: 20,
     total: 0,
   })
-  const [nameFilter, setNameFilter] = useState<string>('')
-  const [namespaceFilter, setNamespaceFilter] = useState<string>('')
-  const [pvFilter, setPVFilter] = useState<string>('')
-  const [scFilter, setSCFilter] = useState<string>('')
+  const [filter, setFilter] = useState<{
+    name?: string
+    namespace?: string
+    pv?: string
+    sc?: string
+  }>()
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
   })
@@ -177,14 +179,14 @@ const PVCList: React.FC<unknown> = () => {
   }
   const { data, isLoading } = usePVCs({
     sort: sorter,
-    namespace: namespaceFilter,
-    name: nameFilter,
-    pv: pvFilter,
-    sc: scFilter,
     pageSize: pagination.pageSize,
     current: pagination.current,
-    filter: {},
+    ...filter,
   })
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
+  }, [data?.total])
 
   return (
     <ConfigProvider
@@ -215,10 +217,15 @@ const PVCList: React.FC<unknown> = () => {
           columns={columns}
           form={{
             onValuesChange: (_, values) => {
-              setNameFilter(values.metadata?.name)
-              setPVFilter(values.spec.volumeName)
-              setSCFilter(values.spec.storageClassName)
-              setNamespaceFilter(values.metadata?.namespace)
+              if (values) {
+                setFilter((prev) => ({
+                  ...prev,
+                  ...values,
+                  ...values.metadata,
+                  pv: values.spec?.volumeName,
+                  sc: values.spec?.storageClassName,
+                }))
+              }
             },
           }}
           pagination={pagination}

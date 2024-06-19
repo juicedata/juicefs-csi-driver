@@ -146,21 +146,20 @@ const PVList: React.FC<unknown> = () => {
     pageSize: 20,
     total: 0,
   })
-  const [nameFilter, setNameFilter] = useState<string>('')
-  const [pvcFilter, setPVCFilter] = useState<string>('')
-  const [scFilter, setSCFilter] = useState<string>('')
+  const [filter, setFilter] = useState<{
+    name?: string
+    pvc?: string
+    sc?: string
+  }>()
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
   })
 
   const { data, isLoading } = usePVs({
-    sc: scFilter,
-    pvc: pvcFilter,
     current: pagination.current,
     pageSize: pagination.pageSize,
-    name: nameFilter,
     sort: sorter,
-    filter: {},
+    ...filter,
   })
 
   const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
@@ -205,9 +204,15 @@ const PVList: React.FC<unknown> = () => {
           }}
           form={{
             onValuesChange: (_, values) => {
-              setNameFilter(values.metadata?.name)
-              setPVCFilter(values.spec.claimRef.name)
-              setSCFilter(values.spec.storageClassName)
+              if (values) {
+                setFilter((prev) => ({
+                  ...prev,
+                  ...values,
+                  ...values.metadata,
+                  pvc: values.spec?.claimRef.name,
+                  sc: values.spec?.storageClassName,
+                }))
+              }
             },
           }}
           pagination={pagination}
