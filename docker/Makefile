@@ -15,7 +15,6 @@
 IMAGE?=juicedata/juicefs-csi-driver
 REGISTRY?=docker.io
 TARGETARCH?=amd64
-FUSE_IMAGE=juicedata/juicefs-fuse
 JUICEFS_IMAGE?=juicedata/mount
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
 DASHBOARD_IMAGE?=juicedata/csi-dashboard
@@ -117,15 +116,15 @@ ce-image-buildx:
 	    --build-arg=JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
-.PHONY: ce-image-1.2
-ce-image-1.2:
-	docker build -f ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
+.PHONY: ce-image-1.1
+ce-image-1.1:
+	docker build -f ce.juicefs-1.1.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION)
 
-.PHONY: ce-image-1.2-buildx
-ce-image-1.2-buildx:
-	docker buildx build -f ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
+.PHONY: ce-image-1.1-buildx
+ce-image-1.1-buildx:
+	docker buildx build -f ce.juicefs-1.1.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(CE_VERSION) \
 	    --build-arg=JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
@@ -146,43 +145,6 @@ ee-image-buildx:
 .PHONY: ee-image-4.0-buildx
 ee-image-4.0-buildx:
 	docker buildx build -f ee.juicefs-4.0.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
-	    --build-arg JFSCHAN=$(JFS_CHAN) \
-		--platform linux/amd64,linux/arm64 . --push
-
-################# JuiceFS image for fluid fuse #######################
-.PHONY: fuse-ce-image
-fuse-ce-image:
-	docker build -f fuse/fuse.ce.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION) \
-        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
-	docker push $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION)
-
-.PHONY: fuse-ce-image-1.2
-fuse-ce-image-1.2:
-	docker build -f fuse/fuse.ce.juicefs-1.2.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION) \
-        --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) --build-arg TARGETARCH=$(TARGETARCH) .
-	docker push $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION)
-
-.PHONY: fuse-ce-image-buildx
-fuse-ce-image-buildx:
-	docker buildx build -f fuse/fuse.ce.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(CE_VERSION) \
-	    --build-arg=JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
-		--platform linux/amd64,linux/arm64 . --push
-
-.PHONY: fuse-ee-image
-fuse-ee-image:
-	docker build -f fuse/fuse.ee.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
-        --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) .
-	docker push $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION)
-
-.PHONY: fuse-ee-image-buildx
-fuse-ee-image-buildx:
-	docker buildx build -f fuse/fuse.ee.juicefs.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
-	    --build-arg JFSCHAN=$(JFS_CHAN) \
-		--platform linux/amd64,linux/arm64 . --push
-
-.PHONY: fuse-ee-image-4.0-buildx
-fuse-ee-image-4.0-buildx:
-	docker buildx build -f fuse/fuse.ee.juicefs-4.0.Dockerfile -t $(REGISTRY)/$(FUSE_IMAGE):$(EE_VERSION) \
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 		--platform linux/amd64,linux/arm64 . --push
 

@@ -74,12 +74,9 @@ sync_image() {
 if [ "$imageName" = "mount" ]; then
   if [ "$tag" = "latest" ]; then
     sync_image "juicedata" "mount"
-    sync_image "juicedata" "juicefs-fuse"
   else
     sync_image "juicedata" "mount"
     sync_image "juicedata" "mount" "arm64"
-    sync_image "juicedata" "juicefs-fuse"
-    sync_image "juicedata" "juicefs-fuse" "arm64"
   fi
 elif [ "$imageName" = "csi-driver" ]; then
   sync_image "juicedata" "juicefs-csi-driver"
