@@ -20,6 +20,7 @@ import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { Pod } from '@/types/k8s'
+import { getBasePath } from '@/utils'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -77,7 +78,7 @@ export function useWebsocket(
   shouldConnect: boolean = false,
 ) {
   return useWebSocket(
-    `ws://${import.meta.env.VITE_HOST ?? window.location.host}${uri}`,
+    `ws://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
     opts,
     shouldConnect,
   )
