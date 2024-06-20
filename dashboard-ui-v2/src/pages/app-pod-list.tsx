@@ -17,12 +17,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import {
-  ConfigProvider,
-  Tooltip,
-  type TablePaginationConfig,
-  type TableProps,
-} from 'antd'
+import { Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -225,47 +220,37 @@ const PodList: React.FC = () => {
   }, [data?.total])
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#00b96b',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
-        },
+    <PageContainer
+      header={{
+        title: <FormattedMessage id="appPodTablePageName" />,
       }}
     >
-      <PageContainer
-        header={{
-          title: <FormattedMessage id="appPodTablePageName" />,
+      <ProTable
+        headerTitle={<FormattedMessage id="appPodTableName" />}
+        tooltip={<FormattedMessage id="appPodTableTip" />}
+        columns={columns}
+        loading={isLoading}
+        dataSource={data?.pods}
+        pagination={pagination}
+        onChange={handleTableChange}
+        search={{
+          optionRender: false,
+          collapsed: false,
         }}
-      >
-        <ProTable
-          headerTitle={<FormattedMessage id="appPodTableName" />}
-          tooltip={<FormattedMessage id="appPodTableTip" />}
-          columns={columns}
-          loading={isLoading}
-          dataSource={data?.pods}
-          pagination={pagination}
-          onChange={handleTableChange}
-          search={{
-            optionRender: false,
-            collapsed: false,
-          }}
-          form={{
-            onValuesChange: (_, values) => {
-              if (values) {
-                setFilter((prev) => ({
-                  ...prev,
-                  ...values,
-                  ...values.metadata,
-                }))
-              }
-            },
-          }}
-          rowKey={(row) => row.metadata!.uid!}
-        />
-      </PageContainer>
-    </ConfigProvider>
+        form={{
+          onValuesChange: (_, values) => {
+            if (values) {
+              setFilter((prev) => ({
+                ...prev,
+                ...values,
+                ...values.metadata,
+              }))
+            }
+          },
+        }}
+        rowKey={(row) => row.metadata!.uid!}
+      />
+    </PageContainer>
   )
 }
 

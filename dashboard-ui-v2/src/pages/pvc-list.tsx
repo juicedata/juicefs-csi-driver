@@ -17,12 +17,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import {
-  ConfigProvider,
-  Tooltip,
-  type TablePaginationConfig,
-  type TableProps,
-} from 'antd'
+import { Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
 import { SortOrder } from 'antd/es/table/interface'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
@@ -51,7 +46,7 @@ const columns: ProColumns<PVC>[] = [
       ],
     },
     render: (_, pvc) => {
-      let pvcFailReason = failedReasonOfPVC(pvc)
+      const pvcFailReason = failedReasonOfPVC(pvc)
       if (pvcFailReason === '') {
         return (
           <Link to={`/pvcs/${pvc.metadata?.namespace}/${pvc.metadata?.name}`}>
@@ -189,49 +184,39 @@ const PVCList: React.FC<unknown> = () => {
   }, [data?.total])
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#00b96b',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
-        },
+    <PageContainer
+      header={{
+        title: <FormattedMessage id="pvcTablePageName" />,
       }}
     >
-      <PageContainer
-        header={{
-          title: <FormattedMessage id="pvcTablePageName" />,
+      <ProTable<PVC>
+        headerTitle={<FormattedMessage id="pvcTableName" />}
+        rowKey={(record) => record.metadata?.uid || ''}
+        loading={isLoading}
+        dataSource={data?.pvcs}
+        onChange={handleTableChange}
+        search={{
+          optionRender: false,
+          labelWidth: 120,
+          collapsed: false,
         }}
-      >
-        <ProTable<PVC>
-          headerTitle={<FormattedMessage id="pvcTableName" />}
-          rowKey={(record) => record.metadata?.uid || ''}
-          loading={isLoading}
-          dataSource={data?.pvcs}
-          onChange={handleTableChange}
-          search={{
-            optionRender: false,
-            labelWidth: 120,
-            collapsed: false,
-          }}
-          columns={columns}
-          form={{
-            onValuesChange: (_, values) => {
-              if (values) {
-                setFilter((prev) => ({
-                  ...prev,
-                  ...values,
-                  ...values.metadata,
-                  pv: values.spec?.volumeName,
-                  sc: values.spec?.storageClassName,
-                }))
-              }
-            },
-          }}
-          pagination={pagination}
-        />
-      </PageContainer>
-    </ConfigProvider>
+        columns={columns}
+        form={{
+          onValuesChange: (_, values) => {
+            if (values) {
+              setFilter((prev) => ({
+                ...prev,
+                ...values,
+                ...values.metadata,
+                pv: values.spec?.volumeName,
+                sc: values.spec?.storageClassName,
+              }))
+            }
+          },
+        }}
+        pagination={pagination}
+      />
+    </PageContainer>
   )
 }
 

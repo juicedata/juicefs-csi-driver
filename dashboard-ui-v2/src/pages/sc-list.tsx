@@ -17,7 +17,6 @@
 import React, { useEffect, useState } from 'react'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import type { TablePaginationConfig, TableProps } from 'antd'
-import { ConfigProvider } from 'antd'
 import { SortOrder } from 'antd/es/table/interface'
 import { StorageClass } from 'kubernetes-types/storage/v1'
 import { FormattedMessage } from 'react-intl'
@@ -104,41 +103,31 @@ const ScList: React.FC<unknown> = () => {
   }, [data?.total])
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#00b96b',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
-        },
+    <PageContainer
+      header={{
+        title: <FormattedMessage id="scTablePageName" />,
       }}
     >
-      <PageContainer
-        header={{
-          title: <FormattedMessage id="scTablePageName" />,
+      <ProTable<StorageClass>
+        headerTitle={<FormattedMessage id="scTableName" />}
+        rowKey={(record) => record.metadata?.uid || ''}
+        loading={isLoading}
+        dataSource={data?.scs}
+        columns={columns}
+        onChange={handleTableChange}
+        search={{
+          optionRender: false,
+          labelWidth: 120,
+          collapsed: false,
         }}
-      >
-        <ProTable<StorageClass>
-          headerTitle={<FormattedMessage id="scTableName" />}
-          rowKey={(record) => record.metadata?.uid || ''}
-          loading={isLoading}
-          dataSource={data?.scs}
-          columns={columns}
-          onChange={handleTableChange}
-          search={{
-            optionRender: false,
-            labelWidth: 120,
-            collapsed: false,
-          }}
-          form={{
-            onValuesChange: (_, values) => {
-              setNameFilter(values.metadata?.name)
-            },
-          }}
-          pagination={pagination}
-        />
-      </PageContainer>
-    </ConfigProvider>
+        form={{
+          onValuesChange: (_, values) => {
+            setNameFilter(values.metadata?.name)
+          },
+        }}
+        pagination={pagination}
+      />
+    </PageContainer>
   )
 }
 

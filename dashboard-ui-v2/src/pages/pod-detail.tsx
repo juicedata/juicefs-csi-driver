@@ -15,7 +15,6 @@
  */
 
 import { PageContainer } from '@ant-design/pro-components'
-import { ConfigProvider } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
 import { Containers, EventTable, PodBasic, PodsTable } from '@/components'
@@ -39,43 +38,33 @@ const PodDetail: React.FC<{
   }
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#00b96b',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
-        },
+    <PageContainer
+      fixedHeader
+      loading={isLoading}
+      header={{
+        title: name,
+        subTitle: namespace,
       }}
     >
-      <PageContainer
-        fixedHeader
-        loading={isLoading}
-        header={{
-          title: name,
-          subTitle: namespace,
-        }}
-      >
-        <PodBasic pod={data} />
-        <Containers
-          containers={data.spec!.containers}
-          containerStatuses={data.status?.containerStatuses}
-        />
-        <PodsTable
-          title="App Pods"
-          type="apppods"
-          namespace={namespace!}
-          name={name!}
-        />
-        <PodsTable
-          title="Mount Pods"
-          type="mountpods"
-          namespace={namespace!}
-          name={name!}
-        />
-        <EventTable namespace={namespace!} name={name!} />
-      </PageContainer>
-    </ConfigProvider>
+      <PodBasic pod={data} />
+      <Containers
+        containers={data.spec!.containers}
+        containerStatuses={data.status?.containerStatuses}
+      />
+      <PodsTable
+        title="App Pods"
+        type="apppods"
+        namespace={namespace!}
+        name={name!}
+      />
+      <PodsTable
+        title="Mount Pods"
+        type="mountpods"
+        namespace={namespace!}
+        name={name!}
+      />
+      <EventTable namespace={namespace!} name={name!} />
+    </PageContainer>
   )
 }
 

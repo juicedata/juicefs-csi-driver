@@ -19,7 +19,6 @@ import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import {
   Badge,
-  ConfigProvider,
   Tooltip,
   type TablePaginationConfig,
   type TableProps,
@@ -175,49 +174,39 @@ const PVList: React.FC<unknown> = () => {
   }, [data?.total])
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#00b96b',
-          borderRadius: 4,
-          colorBgContainer: '#ffffff',
-        },
+    <PageContainer
+      header={{
+        title: <FormattedMessage id="pvTablePageName" />,
       }}
     >
-      <PageContainer
-        header={{
-          title: <FormattedMessage id="pvTablePageName" />,
+      <ProTable<PV>
+        headerTitle={<FormattedMessage id="pvTableName" />}
+        rowKey={(record) => record.metadata?.uid || ''}
+        loading={isLoading}
+        dataSource={data?.pvs}
+        columns={columns}
+        onChange={handleTableChange}
+        search={{
+          optionRender: false,
+          labelWidth: 120,
+          collapsed: false,
         }}
-      >
-        <ProTable<PV>
-          headerTitle={<FormattedMessage id="pvTableName" />}
-          rowKey={(record) => record.metadata?.uid || ''}
-          loading={isLoading}
-          dataSource={data?.pvs}
-          columns={columns}
-          onChange={handleTableChange}
-          search={{
-            optionRender: false,
-            labelWidth: 120,
-            collapsed: false,
-          }}
-          form={{
-            onValuesChange: (_, values) => {
-              if (values) {
-                setFilter((prev) => ({
-                  ...prev,
-                  ...values,
-                  ...values.metadata,
-                  pvc: values.spec?.claimRef.name,
-                  sc: values.spec?.storageClassName,
-                }))
-              }
-            },
-          }}
-          pagination={pagination}
-        />
-      </PageContainer>
-    </ConfigProvider>
+        form={{
+          onValuesChange: (_, values) => {
+            if (values) {
+              setFilter((prev) => ({
+                ...prev,
+                ...values,
+                ...values.metadata,
+                pvc: values.spec?.claimRef.name,
+                sc: values.spec?.storageClassName,
+              }))
+            }
+          },
+        }}
+        pagination={pagination}
+      />
+    </PageContainer>
   )
 }
 

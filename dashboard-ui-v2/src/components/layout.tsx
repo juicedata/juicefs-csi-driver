@@ -143,7 +143,17 @@ export default function Layout(props: { children: ReactNode }) {
             </Sider>
           </AntdLayout>
           <AntdLayout style={{ marginLeft: 200, marginTop: '64px' }}>
-            <Content>{props.children}</Content>
+            <ConfigProvider
+              theme={{
+                token: {
+                  colorPrimary: '#00b96b',
+                  borderRadius: 4,
+                  colorBgContainer: '#ffffff',
+                },
+              }}
+            >
+              <Content>{props.children}</Content>
+            </ConfigProvider>
           </AntdLayout>
         </ConfigProvider>
       </IntlProvider>
