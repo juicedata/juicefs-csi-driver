@@ -17,6 +17,8 @@
 import { useParams } from 'react-router-dom'
 
 import PodDetail from '@/pages/pod-detail'
+import PVDetail from '@/pages/pv-detail'
+import PVCDetail from '@/pages/pvc-detail'
 import SCDetail from '@/pages/sc-detail.tsx'
 import { DetailParams } from '@/types'
 
@@ -28,6 +30,10 @@ export default function ResourcesDetail() {
       return <PodDetail namespace={namespace} name={name} />
     case 'storageclass':
       return <SCDetail name={name} />
+    case 'pvs':
+      return <PVDetail name={name} />
+    case 'pvcs':
+      return <PVCDetail name={name} namespace={namespace} />
     default:
       return <div>Not Found</div>
   }

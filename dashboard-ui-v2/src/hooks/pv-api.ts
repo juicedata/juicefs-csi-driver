@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Event } from 'kubernetes-types/core/v1'
 import { StorageClass } from 'kubernetes-types/storage/v1'
 import useSWR from 'swr'
 
@@ -73,4 +74,20 @@ export function useSC(name?: string) {
 
 export function usePVOfSC(name?: string) {
   return useSWR<PV[]>(`/api/v1/storageclass/${name}/pvs`)
+}
+
+export function usePV(name?: string) {
+  return useSWR<PV>(`/api/v1/pv/${name}/`)
+}
+
+export function usePVC(namespace?: string, name?: string) {
+  return useSWR<PVC>(`/api/v1/pvc/${namespace}/${name}/`)
+}
+
+export function usePVEvents(pvName?: string) {
+  return useSWR<Event[]>(`/api/v1/pv/${pvName}/events`)
+}
+
+export function usePVCEvents(pvName?: string) {
+  return useSWR<Event[]>(`/api/v1/pvc/${pvName}/events`)
 }

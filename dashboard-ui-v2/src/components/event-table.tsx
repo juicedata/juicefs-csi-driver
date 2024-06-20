@@ -19,13 +19,14 @@ import { ProCard } from '@ant-design/pro-components'
 import { Table } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
-import { usePodEvents } from '@/hooks/use-api'
+import { useEvents } from '@/hooks/use-api'
 
 const EventTable: React.FC<{
-  namespace: string
+  source: 'pod' | 'pv' | 'pvc'
   name: string
-}> = ({ namespace, name }) => {
-  const { data } = usePodEvents(namespace, name)
+  namespace?: string
+}> = ({ source, namespace, name }) => {
+  const { data } = useEvents(source, namespace, name)
 
   useEffect(() => {
     if (data) {

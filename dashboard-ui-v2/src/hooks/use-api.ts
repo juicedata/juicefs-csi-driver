@@ -60,16 +60,29 @@ export function useAppPod(namespace?: string, name?: string) {
   return useSWR<Pod>(`/api/v1/pod/${namespace}/${name}/`)
 }
 
-export function usePodEvents(namespace?: string, name?: string) {
-  return useSWR<Event[]>(`/api/v1/pod/${namespace}/${name}/events`)
+export function useEvents(
+  source: 'pod' | 'pv' | 'pvc' = 'pod',
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<Event[]>(
+    source === 'pv'
+      ? `/api/v1/${source}/${name}/events`
+      : `/api/v1/${source}/${namespace}/${name}/events`,
+  )
 }
 
 export function usePods(
   namespace?: string,
   name?: string,
+  source: 'pod' | 'pv' | 'pvc' = 'pod',
   type: 'mountpods' | 'apppods' = 'apppods',
 ) {
-  return useSWR<Pod[]>(`/api/v1/pod/${namespace}/${name}/${type}`)
+  return useSWR<Pod[]>(
+    source === 'pv'
+      ? `/api/v1/${source}/${name}/${type}`
+      : `/api/v1/${source}/${namespace}/${name}/${type}`,
+  )
 }
 
 export function useWebsocket(
