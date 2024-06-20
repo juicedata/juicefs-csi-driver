@@ -14,14 +14,15 @@
  limitations under the License.
  */
 
+import React from 'react'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import { ConfigProvider, List } from 'antd'
 import { FormattedMessage } from 'react-intl'
+
+import PVsTable from '@/components/pvs-table.tsx'
 import SCBasic from '@/components/sc-basic.tsx'
 import { useSC } from '@/hooks/pv-api.ts'
-import React from 'react'
 import { scParameter } from '@/utils'
-import PVsTable from '@/components/pvs-table.tsx'
 
 const SCDetail: React.FC<{
   name?: string

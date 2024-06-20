@@ -19,6 +19,7 @@ import { ProCard } from '@ant-design/pro-components'
 import { Badge, Table } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
+
 import { usePVOfSC } from '@/hooks/pv-api.ts'
 import { getPVStatusBadge } from '@/utils'
 
@@ -37,9 +38,7 @@ const PVsTable: React.FC<{
             title: <FormattedMessage id="name" />,
             key: 'name',
             render: (pv) => (
-              <Link to={`/pv/${pv.metadata.name}/`}>
-                {pv.metadata.name}
-              </Link>
+              <Link to={`/pv/${pv.metadata.name}/`}>{pv.metadata.name}</Link>
             ),
           },
           {
@@ -47,7 +46,9 @@ const PVsTable: React.FC<{
             key: 'status',
             dataIndex: ['status', 'phase'],
             render: (_, pv) => {
-              return <Badge color={getPVStatusBadge(pv)} text={pv.status?.phase} />
+              return (
+                <Badge color={getPVStatusBadge(pv)} text={pv.status?.phase} />
+              )
             },
           },
           {

@@ -17,11 +17,11 @@
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Button } from 'antd'
+import { StorageClass } from 'kubernetes-types/storage/v1'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
-import { StorageClass } from 'kubernetes-types/storage/v1'
 
 const SCBasic: React.FC<{
   sc: StorageClass
@@ -53,7 +53,9 @@ const SCBasic: React.FC<{
             title: <FormattedMessage id="allowVolumeExpansion" />,
             key: 'allowVolumeExpansion',
             render: () => (
-              <FormattedMessage id={sc.allowVolumeExpansion ? "true" : "false"} />
+              <FormattedMessage
+                id={sc.allowVolumeExpansion ? 'true' : 'false'}
+              />
             ),
           },
           {

@@ -17,8 +17,8 @@
 import { useParams } from 'react-router-dom'
 
 import PodDetail from '@/pages/pod-detail'
-import { DetailParams } from '@/types'
 import SCDetail from '@/pages/sc-detail.tsx'
+import { DetailParams } from '@/types'
 
 export default function ResourcesDetail() {
   const { resources, namespace, name } = useParams<DetailParams>()
