@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { Node, PersistentVolume, PersistentVolumeClaim, Pod as RawPod } from 'kubernetes-types/core/v1'
+import {
+  Node,
+  PersistentVolume,
+  PersistentVolumeClaim,
+  Pod as RawPod,
+} from 'kubernetes-types/core/v1'
 import { ObjectMeta } from 'kubernetes-types/meta/v1'
+import { StorageClass } from 'kubernetes-types/storage/v1'
 import { omit } from 'lodash'
 
 import { Pod } from '@/types/k8s'
-import { StorageClass } from 'kubernetes-types/storage/v1'
 
 export interface Source {
   metadata?: ObjectMeta
