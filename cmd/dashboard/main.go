@@ -139,33 +139,24 @@ func run() {
 			MaxAge:           12 * time.Hour,
 		}))
 	}
-	if staticDir != "" {
-		router.GET("/", func(c *gin.Context) {
-			c.Redirect(http.StatusMovedPermanently, "/app")
-		})
-		router.GET("/app/*path", func(c *gin.Context) {
-			path := c.Param("path")
-			if strings.Contains(path, "..") {
-				c.AbortWithStatus(http.StatusForbidden)
-				return
-			}
-			f, err := os.Stat(filepath.Join(staticDir, path))
-			if os.IsNotExist(err) || f.IsDir() {
-				c.File(filepath.Join(staticDir, "index.html"))
-				return
-			}
-			if err != nil {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			c.File(filepath.Join(staticDir, path))
-		})
-	}
 	if USERNAME != "" && PASSWORD != "" {
 		router.Use(gin.BasicAuth(gin.Accounts{
 			USERNAME: PASSWORD,
 		}))
 	}
 	podApi.Handle(router.Group("/api/v1"))
+	if staticDir != "" {
+		router.NoRoute(func(c *gin.Context) {
+			if strings.Contains(c.Request.RequestURI, "assets/") {
+				assertPath := strings.Split(c.Request.RequestURI, "assets/")[1]
+				c.File(filepath.Join(staticDir, "assets", assertPath))
+			}
+			if !strings.HasPrefix(c.Request.RequestURI, "/api") {
+				c.File(filepath.Join(staticDir, "index.html"))
+			}
+		})
+	}
+
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
 		Addr:    addr,

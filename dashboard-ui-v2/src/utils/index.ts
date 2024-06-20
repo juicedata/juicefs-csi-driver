@@ -268,3 +268,14 @@ export const omitPod = (pod: Pod) => {
     'node',
   ])
 }
+
+export function getBasePath() {
+  const domain = window.location.pathname.split('/')
+  let base = ''
+  if (
+    !['', 'pods', 'syspods', 'pvcs', 'pvs', 'storageclass'].includes(domain[1])
+  ) {
+    base = `/${domain[1]}`
+  }
+  return base
+}

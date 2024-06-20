@@ -20,11 +20,12 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 import { Layout, ResourceDetail, ResourceList } from '@/components'
+import { getBasePath } from '@/utils'
 
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   const protocol = window.location.protocol === 'https:' ? 'https' : 'http'
   const host = import.meta.env.VITE_HOST ?? window.location.host
-  const res = await fetch(`${protocol}://${host}${url}`, init)
+  const res = await fetch(`${protocol}://${host}${getBasePath()}${url}`, init)
   if (!res.ok) {
     throw new Error('Failed to fetch')
   }
@@ -55,7 +56,7 @@ const App = () => (
         },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename={getBasePath()}>
         <Layout>
           <Routes>
             <Route path="/" element={<Navigate replace to="/pods" />} />
