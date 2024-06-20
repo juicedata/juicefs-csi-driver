@@ -19,6 +19,8 @@ import EventTable from '@/components/event-table'
 import Layout from '@/components/layout'
 import PodBasic from '@/components/pod-basic'
 import PodsTable from '@/components/pods-table'
+import PVBasic from '@/components/pv-basic'
+import PVCBasic from '@/components/pvc-basic'
 import ResourceDetail from '@/components/resource-detail'
 import ResourceList from '@/components/resource-list'
 import YamlModal from '@/components/yaml-modal'
@@ -32,4 +34,6 @@ export {
   YamlModal,
   EventTable,
   PodsTable,
+  PVBasic,
+  PVCBasic,
 }

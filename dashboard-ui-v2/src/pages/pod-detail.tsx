@@ -25,7 +25,6 @@ const PodDetail: React.FC<{
   namespace?: string
 }> = (props) => {
   const { name, namespace } = props
-
   const { data, isLoading } = useAppPod(namespace, name)
   if (namespace === '' || name === '' || !data) {
     return (
@@ -53,17 +52,19 @@ const PodDetail: React.FC<{
       />
       <PodsTable
         title="App Pods"
+        source="pod"
         type="apppods"
         namespace={namespace!}
         name={name!}
       />
       <PodsTable
         title="Mount Pods"
+        source="pod"
         type="mountpods"
         namespace={namespace!}
         name={name!}
       />
-      <EventTable namespace={namespace!} name={name!} />
+      <EventTable source="pod" name={name!} namespace={namespace!} />
     </PageContainer>
   )
 }

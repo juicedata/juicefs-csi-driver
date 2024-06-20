@@ -26,11 +26,12 @@ import { getPodStatusBadge, podStatus } from '@/utils'
 
 const PodsTable: React.FC<{
   title: string
+  source: 'pod' | 'pv' | 'pvc'
   type: 'mountpods' | 'apppods'
-  namespace: string
   name: string
-}> = ({ title, type, namespace, name }) => {
-  const { data } = usePods(namespace, name, type)
+  namespace?: string
+}> = ({ title, source, type, namespace, name }) => {
+  const { data } = usePods(namespace, name, source, type)
   if (!data || data.length === 0) {
     return null
   }
