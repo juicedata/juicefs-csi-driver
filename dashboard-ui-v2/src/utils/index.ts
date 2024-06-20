@@ -21,6 +21,7 @@ import {
   Pod as RawPod,
 } from 'kubernetes-types/core/v1'
 import { ObjectMeta } from 'kubernetes-types/meta/v1'
+import { StorageClass } from 'kubernetes-types/storage/v1'
 import { omit } from 'lodash'
 
 import { Pod } from '@/types/k8s'
@@ -269,6 +270,16 @@ export const omitPod = (pod: Pod) => {
   ])
 }
 
+export const scParameter = (sc: StorageClass) => {
+  let parameters: string[] = []
+  for (const key in sc.parameters) {
+    if (sc.parameters.hasOwnProperty(key)) {
+      const value = sc.parameters[key]
+      parameters.push(`${key}: ${value}`)
+    }
+  }
+  return parameters
+}
 export function getBasePath() {
   const domain = window.location.pathname.split('/')
   let base = ''

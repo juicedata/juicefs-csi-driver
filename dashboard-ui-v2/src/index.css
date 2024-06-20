@@ -41,13 +41,13 @@ body {
   height: 63px;
 }
 
-
-.ant-modal, .ant-modal-content {
+.ant-modal,
+.ant-modal-content {
   height: 100vh;
   width: 100vw;
   margin: 0;
   top: 0;
- }
- .ant-modal-body {
+}
+.ant-modal-body {
   height: calc(100vh - 110px);
- }
+}
