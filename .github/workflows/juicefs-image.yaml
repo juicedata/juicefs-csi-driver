@@ -47,6 +47,8 @@ jobs:
       - name: Build and Push juicefs latest image
         env:
           CEVERSION: latest
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
@@ -54,8 +56,8 @@ jobs:
               echo "Build JuiceFS latest image"
               export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
               make -C docker ce-image
+              ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
             fi
-            ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
           else
             echo "JuiceFS latest image already exists"
           fi
