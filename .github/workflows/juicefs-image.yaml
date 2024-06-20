@@ -50,10 +50,12 @@ jobs:
         run: |
           image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $image_exist == "false" ]; then
-            echo "Build JuiceFS latest image"
-            export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
-            make -C docker ce-image
-            ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount LATEST
+            if [[ ${JUICEFS_CE_LATEST_VERSION:0:4} != "v1.1" ]]; then
+              echo "Build JuiceFS latest image"
+              export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
+              make -C docker ce-image
+            fi
+            ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
           else
             echo "JuiceFS latest image already exists"
           fi
