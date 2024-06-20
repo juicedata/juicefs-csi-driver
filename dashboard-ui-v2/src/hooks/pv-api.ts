@@ -66,3 +66,11 @@ export function usePVCs(args: PVCPagingListArgs) {
     `/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`,
   )
 }
+
+export function useSC(name?: string) {
+  return useSWR<StorageClass>(`/api/v1/storageclass/${name}/`)
+}
+
+export function usePVOfSC(name?: string) {
+  return useSWR<PV[]>(`/api/v1/storageclass/${name}/pvs`)
+}

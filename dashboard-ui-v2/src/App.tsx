@@ -65,6 +65,10 @@ const App = () => (
               path="/:resources/:namespace/:name"
               element={<ResourceDetail />}
             />
+            <Route
+              path="/:resources/:name"
+              element={<ResourceDetail />}
+            />
           </Routes>
         </Layout>
       </BrowserRouter>
