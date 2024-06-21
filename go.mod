@@ -9,7 +9,6 @@ require (
 	github.com/go-logr/logr v1.2.0
 	github.com/golang/mock v1.6.0
 	github.com/kubernetes-csi/csi-test v1.1.1
-	github.com/liushuochen/gotable v0.0.0-20221119160816-1113793e7092
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
@@ -22,9 +21,10 @@ require (
 	google.golang.org/grpc v1.56.3
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
-	k8s.io/cli-runtime v0.0.0-00010101000000-000000000000
+	k8s.io/cli-runtime v0.22.0
 	k8s.io/client-go v0.23.0
 	k8s.io/klog v1.0.0
+	k8s.io/kubectl v0.30.2
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/controller-runtime v0.11.1
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v6 v6.3.0
@@ -39,6 +39,7 @@ require (
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect

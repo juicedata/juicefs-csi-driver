@@ -19,9 +19,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kdescribe "k8s.io/kubectl/pkg/describe"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -29,19 +34,17 @@ import (
 var podCmd = &cobra.Command{
 	Use:     "pod",
 	Aliases: []string{"po"},
-	Short:   "show pods using juicefs pvc",
+	Short:   "Show pods using juicefs pvc",
 	RunE:    jfsPod,
 }
 
-var PodTitle = []string{
-	"NAMESPACE",
-	"NAME",
-	"PVC",
-	"PV",
-	"STORAGECLASS",
-	"MOUNT_POD",
-	"NODE",
-	"CSI_NODE",
+type appPod struct {
+	namespace string
+	name      string
+	mountPods []string
+	node      string
+	csiNode   string
+	status    string
 }
 
 func init() {
@@ -55,17 +58,17 @@ func jfsPod(cmd *cobra.Command, args []string) error {
 		ns = "default"
 	}
 
-	podList, err := GetAppPods(clientSet, ns)
+	podList, err := GetPodList(clientSet, ns)
 	if err != nil {
 		return err
 	}
 
-	mountList, err := GetMountPods(clientSet)
+	mountList, err := GetMountPodList(clientSet)
 	if err != nil {
 		return err
 	}
 
-	csiNodeList, err := GetCSINode(clientSet)
+	csiNodeList, err := GetCSINodeList(clientSet)
 	if err != nil {
 		return err
 	}
@@ -83,19 +86,37 @@ func jfsPod(cmd *cobra.Command, args []string) error {
 		csiNodeMapList[csi.Spec.NodeName] = csi.Name
 	}
 
-	podMapList := []map[string]string{}
+	appPods := make([]appPod, 0, len(podList.Items))
 	t := podList.Items
 	for i := 0; i < len(t); i++ {
 		pod := t[i]
-		poMap := make(map[string]string)
 
+		if len(pod.Spec.Volumes) == 0 {
+			continue
+		}
+
+		appending := false
+		po := appPod{
+			namespace: pod.Namespace,
+			name:      pod.Name,
+			node:      pod.Spec.NodeName,
+			csiNode:   csiNodeMapList[pod.Spec.NodeName],
+			status:    string(pod.Status.Phase),
+		}
+		mounts := make([]string, 0)
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
 				pvcName := volume.PersistentVolumeClaim.ClaimName
 				pvc, err := clientSet.CoreV1().PersistentVolumeClaims(ns).Get(context.Background(), pvcName, metav1.GetOptions{})
 				if err != nil {
-					fmt.Printf("get pvc error: %s", err.Error())
-					return err
+					if !k8serrors.IsNotFound(err) {
+						fmt.Printf("get pvc error: %s", err.Error())
+						return err
+					}
+					appending = true
+				}
+				if pvc.Status.Phase != corev1.ClaimBound {
+					appending = true
 				}
 				if pvc.Spec.VolumeName != "" {
 					pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
@@ -104,35 +125,45 @@ func jfsPod(cmd *cobra.Command, args []string) error {
 						return err
 					}
 					if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
-						poMap["NAMESPACE"] = ns
-						poMap["NAME"] = pod.Name
-						poMap["PVC"] = pvc.Name
-						poMap["PV"] = pv.Name
-						poMap["STORAGECLASS"] = pv.Spec.StorageClassName
-						poMap["NODE"] = pod.Spec.NodeName
-						poMap["MOUNT_POD"] = mountMapList[pod.Spec.NodeName][pv.Spec.CSI.VolumeHandle]
-						poMap["CSI_NODE"] = csiNodeMapList[pod.Spec.NodeName]
-						podMapList = append(podMapList, poMap)
+						appending = true
+						mounts = append(mounts, mountMapList[pod.Spec.NodeName][pv.Spec.CSI.VolumeHandle])
 					}
 				}
 			}
 		}
+		po.mountPods = mounts
+		if appending {
+			appPods = append(appPods, po)
+		}
 	}
 
-	if len(podMapList) == 0 {
+	if len(appPods) == 0 {
 		fmt.Printf("No pod found using juicefs PVC in %s namespace.", ns)
 		return nil
 	}
 
-	// gen t
-	tb := GenTable(PodTitle, podMapList)
-	// json format
-	json, _ := rootCmd.Flags().GetBool("json")
-	if json {
-		jsonStr, _ := tb.JSON(2)
-		fmt.Println(jsonStr)
-		return nil
+	out, err := printAppPods(appPods)
+	if err != nil {
+		return err
 	}
-	fmt.Println(tb.String())
+	fmt.Printf("%s\n", out)
 	return nil
+}
+
+func printAppPods(pods []appPod) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := kdescribe.NewPrefixWriter(out)
+		w.Write(kdescribe.LEVEL_0, "Name\tNamespace\tMount Pods\tStatus\tCSI Node\tNode\n")
+		for _, pod := range pods {
+			w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				pod.name,
+				pod.namespace,
+				strings.Join(pod.mountPods, ","),
+				pod.status,
+				pod.csiNode,
+				pod.node,
+			)
+		}
+		return nil
+	})
 }
