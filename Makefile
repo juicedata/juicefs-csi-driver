@@ -49,12 +49,12 @@ test-sanity:
 
 .PHONY: dashboard-dist
 dashboard-dist:
-	cd dashboard-ui && yarn run build
+	cd dashboard-ui-v2 && pnpm run build
 
 .PHONY: dashboard
 dashboard:
 	mkdir -p bin
-	go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
+	CGO_ENABLED=0 go build -tags=jsoniter -ldflags ${LDFLAGS} -o bin/juicefs-csi-dashboard ./cmd/dashboard/
 
 .PHONY: dashboard-dev
 dashboard-dev: dashboard

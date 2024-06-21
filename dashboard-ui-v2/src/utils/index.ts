@@ -271,9 +271,9 @@ export const omitPod = (pod: Pod) => {
 }
 
 export const scParameter = (sc: StorageClass) => {
-  let parameters: string[] = []
+  const parameters: string[] = []
   for (const key in sc.parameters) {
-    if (sc.parameters.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(sc.parameters, key)) {
       const value = sc.parameters[key]
       parameters.push(`${key}: ${value}`)
     }
