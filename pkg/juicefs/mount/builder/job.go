@@ -96,6 +96,11 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 	// set priority class name to empty to make job use default priority class
 	podTemplate.Spec.PriorityClassName = ""
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	// set nodeSelector if set volumeJobPatch in globalConfig
+	volumeJobPatch := config.GlobalConfig.GetVolumeJobPatch()
+	for k, v := range volumeJobPatch.NodeSelector {
+		podTemplate.Spec.NodeSelector[k] = v
+	}
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,

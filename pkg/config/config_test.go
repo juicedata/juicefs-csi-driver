@@ -68,6 +68,10 @@ MountPodPatch:
       periodSeconds: 5
       successThreshold: 1
   - terminationGracePeriodSeconds: 60
+VolumeJobPatch:
+  nodeSelector:
+    juicefs.com/enabled: "true"
+    juicefs.com/volumejob: "enabled"
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -132,6 +136,10 @@ MountPodPatch:
 	})
 	assert.Equal(t, GlobalConfig.MountPodPatch[5], MountPodPatch{
 		TerminationGracePeriodSeconds: toPtr(int64(60)),
+	})
+	assert.Equal(t, len(GlobalConfig.VolumeJobPatch.NodeSelector), 2)
+	assert.Equal(t, GlobalConfig.VolumeJobPatch, VolumeJobPatch{
+		map[string]string{"juicefs.com/enabled": "true", "juicefs.com/volumejob": "enabled"},
 	})
 }
 
@@ -338,4 +346,20 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 	// Call the GenMountPodPatch function again
 	actualPatch = baseConfig.GenMountPodPatch(setting)
 	assert.Equal(t, expectedPatch2, actualPatch)
+}
+
+func TestGetVolumeJobPatchParse(t *testing.T) {
+	baseConfig := &Config{
+		VolumeJobPatch: VolumeJobPatch{
+			map[string]string{"juicefs.com/enabled": "true", "juicefs.com/volumejob": "enabled"},
+		},
+	}
+	VolumeJobPatch := baseConfig.GetVolumeJobPatch()
+	assert.Equal(t, len(VolumeJobPatch.NodeSelector), 2)
+	assert.Equal(t, VolumeJobPatch.NodeSelector["juicefs.com/enabled"], "true")
+	assert.Equal(t, VolumeJobPatch.NodeSelector["juicefs.com/volumejob"], "enabled")
+
+	emptyConfig := &Config{}
+	VolumeJobPatch = emptyConfig.GetVolumeJobPatch()
+	assert.Equal(t, len(VolumeJobPatch.NodeSelector), 0)
 }

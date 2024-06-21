@@ -226,15 +226,24 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 }
 
+type VolumeJobPatch struct {
+	NodeSelector   map[string]string   `json:"nodeSelector,omitempty"`
+}
+
 // TODO: migrate more config for here
 type Config struct {
 	// arrange mount pod to node with node selector instead nodeName
 	EnableNodeSelector bool            `json:"enableNodeSelector,omitempty"`
 	MountPodPatch      []MountPodPatch `json:"mountPodPatch"`
+	VolumeJobPatch     VolumeJobPatch  `json:"volumeJobPatch,omitempty"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {
 	return yaml.Unmarshal(data, c)
+}
+
+func (c *Config) GetVolumeJobPatch() VolumeJobPatch {
+	return c.VolumeJobPatch
 }
 
 // GenMountPodPatch generate mount pod patch from jfsSettting
