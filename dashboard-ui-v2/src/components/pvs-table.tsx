@@ -38,7 +38,7 @@ const PVsTable: React.FC<{
             title: <FormattedMessage id="name" />,
             key: 'name',
             render: (pv) => (
-              <Link to={`/pv/${pv.metadata.name}/`}>{pv.metadata.name}</Link>
+              <Link to={`/pvs/${pv.metadata.name}/`}>{pv.metadata.name}</Link>
             ),
           },
           {

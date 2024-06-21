@@ -26,7 +26,7 @@ import {
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
 import { FormattedMessage, IntlProvider } from 'react-intl'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
 import en from '@/locales/en-US'
@@ -42,7 +42,7 @@ const items: MenuProps['items'] = [
         <FormattedMessage id="appPodTable" />
       </Link>
     ),
-    key: '1',
+    key: '/pods',
   },
   {
     icon: <DSIcon />,
@@ -51,27 +51,28 @@ const items: MenuProps['items'] = [
         <FormattedMessage id="sysPodTable" />
       </Link>
     ),
-    key: '2',
+    key: '/syspods',
   },
   {
     icon: <PVIcon />,
     label: <Link to="/pvs">PV</Link>,
-    key: '3',
+    key: '/pvs',
   },
   {
     icon: <PVCIcon />,
     label: <Link to="/pvcs">PVC</Link>,
-    key: '4',
+    key: '/pvcs',
   },
   {
     icon: <SCIcon />,
     label: <Link to="/storageclass">Storage Class</Link>,
-    key: '5',
+    key: '/storageclass',
   },
 ]
 
 export default function Layout(props: { children: ReactNode }) {
   const [locale, setLocale] = useState<string>()
+  const location = useLocation()
 
   useEffect(() => {
     if (locale) {
@@ -135,8 +136,12 @@ export default function Layout(props: { children: ReactNode }) {
             >
               <Menu
                 mode="inline"
-                defaultSelectedKeys={['1']}
-                defaultOpenKeys={['1']}
+                selectedKeys={[
+                  location.pathname == '/'
+                    ? '/pods'
+                    : `/${location.pathname.split('/')[1]}`,
+                ]}
+                defaultOpenKeys={['/pods']}
                 style={{ height: '100%' }}
                 items={items}
               />
