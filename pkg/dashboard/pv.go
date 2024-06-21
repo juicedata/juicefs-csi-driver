@@ -135,15 +135,15 @@ type ListSCResult struct {
 	SCs   []*storagev1.StorageClass `json:"scs"`
 }
 
-func (r *ListSCResult) Len() int {
+func (r ListSCResult) Len() int {
 	return r.Total
 }
 
-func (r *ListSCResult) Less(i, j int) bool {
+func (r ListSCResult) Less(i, j int) bool {
 	return (&r.SCs[i].CreationTimestamp).Before(&r.SCs[j].CreationTimestamp)
 }
 
-func (r *ListSCResult) Swap(i, j int) {
+func (r ListSCResult) Swap(i, j int) {
 	r.SCs[i], r.SCs[j] = r.SCs[j], r.SCs[i]
 }
 
