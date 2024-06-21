@@ -5,23 +5,22 @@ on:
     branches:
       - master
     paths:
-      - "Makefile"
-      - "docker/Makefile"
-      - "docker/dashboard.Dockerfile"
-      - "dashboard-ui-v2/*"
-      - "cmd/dashboard/*"
-      - "pkg/dashboard/*"
+      - 'Makefile'
+      - 'docker/Makefile'
+      - 'docker/dashboard.Dockerfile'
+      - 'dashboard-ui-v2/*'
+      - 'cmd/dashboard/*'
+      - 'pkg/dashboard/*'
   pull_request:
     branches:
       - master
-      - dashboard-ui-v2 # for test purposes, delete after
     paths:
-      - "Makefile"
-      - "docker/Makefile"
-      - "docker/dashboard.Dockerfile"
-      - "dashboard-ui-v2/*"
-      - "cmd/dashboard/*"
-      - "pkg/dashboard/*"
+      - 'Makefile'
+      - 'docker/Makefile'
+      - 'docker/dashboard.Dockerfile'
+      - 'dashboard-ui-v2/*'
+      - 'cmd/dashboard/*'
+      - 'pkg/dashboard/*'
 
 jobs:
   build:
