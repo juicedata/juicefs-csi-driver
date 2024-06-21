@@ -40,15 +40,12 @@ jobs:
         run: docker login --username chnliyong --password ${PASSWORD}
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
-      - name: Set Node.js 18.18.0
-        uses: actions/setup-node@v3
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
         with:
-          node-version: 18.18.0
-      - name: Run install
-        uses: borales/actions-yarn@v4
-        with:
-          dir: dashboard-ui
-          cmd: install # will run `yarn install` command
+          version: 9
+          run_install: |
+            cwd: dashboard-ui-v2
       - name: Build dashboard
         run: make dashboard-dist
       - name: Build image
