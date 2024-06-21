@@ -235,10 +235,8 @@ jobs:
           docker login --username chnliyong --password ${PASSWORD}
           make -C docker image-nightly
           make -C docker image-nightly-push
-          make -C docker ce-image-1.2
+          make -C docker ce-image
           make -C docker ee-image
-          make -C docker fuse-ce-image-1.2
-          make -C docker fuse-ee-image
           make -C docker dashboard-build
       - name: Success
         if: ${{ success() }}
