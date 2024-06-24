@@ -90,8 +90,10 @@ export function useWebsocket(
   opts?: Options,
   shouldConnect: boolean = false,
 ) {
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+
   return useWebSocket(
-    `ws://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
+    `${protocol}://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
     opts,
     shouldConnect,
   )

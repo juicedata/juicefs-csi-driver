@@ -19,11 +19,11 @@ package dashboard
 import (
 	"context"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
-	"nhooyr.io/websocket"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -688,46 +687,70 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 	}
 }
 
+type LogPipe struct {
+	conn   *websocket.Conn
+	stream io.ReadCloser
+}
+
+func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser) *LogPipe {
+	l := &LogPipe{
+		conn:   conn,
+		stream: stream,
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				l.stream.Close()
+				return
+			default:
+				var temp []byte
+				err := websocket.Message.Receive(l.conn, &temp)
+				if err != nil {
+					l.stream.Close()
+					return
+				}
+				if string(temp) == "ping" {
+					websocket.Message.Send(l.conn, "pong")
+				}
+			}
+		}
+	}()
+	return l
+}
+
+func (l *LogPipe) Write(p []byte) (int, error) {
+	websocket.Message.Send(l.conn, string(p))
+	return len(p), nil
+}
+
+func (l *LogPipe) Read(p []byte) (int, error) {
+	return l.stream.Read(p)
+}
+
 func (api *API) watchPodLogs() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
 		container := c.Param("container")
 		var lines int64 = 100
-		conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
-			OriginPatterns: []string{"*"},
-		})
-		if err != nil {
-			c.Error(err)
-			return
-		}
-		defer conn.Close(websocket.StatusInternalError, "the sky is falling")
-		req := api.client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
-			Container: container,
-			TailLines: &lines,
-			Follow:    true,
-		})
-		stream, err := req.Stream(c)
-		if err != nil {
-			c.Error(err)
-			return
-		}
-		defer stream.Close()
 
-		buffer := make([]byte, 1024)
-		for {
-			n, err := stream.Read(buffer)
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			req := api.client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
+				Container: container,
+				TailLines: &lines,
+				Follow:    true,
+			})
+			stream, err := req.Stream(c.Request.Context())
 			if err != nil {
-				if err != io.EOF {
-					log.Println("Error reading from ReadCloser:", err)
-				}
-				break
-			}
-			err = conn.Write(c, websocket.MessageText, buffer[:n])
-			if err != nil {
-				c.Error(err)
 				return
 			}
-		}
+			wr := newLogPipe(c.Request.Context(), ws, stream)
+			_, err = io.Copy(wr, wr)
+			if err != nil {
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
 	}
 }
