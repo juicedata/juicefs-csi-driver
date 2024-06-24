@@ -471,6 +471,10 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 			c.String(404, "container %s not found", container)
 			return
 		}
+		download := c.Query("download")
+		if download == "true" {
+			c.Header("Content-Disposition", "attachment; filename="+pod.Name+"_"+container+".log")
+		}
 
 		logs, err := api.client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container: container,
@@ -734,6 +738,11 @@ func (api *API) watchPodLogs() gin.HandlerFunc {
 		name := c.Param("name")
 		container := c.Param("container")
 		var lines int64 = 100
+		previousStr := c.Query("previous")
+		previous := false
+		if previousStr == "true" {
+			previous = true
+		}
 
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
@@ -741,6 +750,7 @@ func (api *API) watchPodLogs() gin.HandlerFunc {
 				Container: container,
 				TailLines: &lines,
 				Follow:    true,
+				Previous:  previous,
 			})
 			stream, err := req.Stream(c.Request.Context())
 			if err != nil {
