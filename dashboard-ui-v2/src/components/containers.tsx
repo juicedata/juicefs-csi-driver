@@ -61,12 +61,13 @@ const Containers: React.FC<{
           {
             title: <FormattedMessage id="log" />,
             key: 'action',
-            render: (record) => (
+            render: (record, c) => (
               <>
                 <LogModal
                   namespace={namespace!}
                   name={name!}
                   container={record.name}
+                  hasPrevious={c.restartCount > 0}
                 >
                   {({ onClick }) => (
                     <Button type="primary" onClick={onClick}>

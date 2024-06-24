@@ -14,24 +14,31 @@
  * limitations under the License.
  */
 
-import { ReactNode, useEffect, useState } from 'react'
+import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import { Modal } from 'antd'
+import { Button, Modal, Space } from 'antd'
 
-import { useWebsocket } from '@/hooks/use-api'
+import { useDownloadPodLogs, useWebsocket } from '@/hooks/use-api'
 
 const LogModal: React.FC<{
   namespace: string
   name: string
   container: string
+  hasPrevious?: boolean
   children: ({ onClick }: { onClick: () => void }) => ReactNode
-}> = ({ namespace, name, container, children }) => {
+}> = memo(({ namespace, name, container, hasPrevious, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [data, setData] = useState<string>('')
-  const [socketUrl, setSocketUrl] = useState('')
+  const [previous, setPrevious] = useState<boolean>(false)
+
+  const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
+
   useWebsocket(
-    socketUrl,
+    `/api/v1/ws/pod/${namespace}/${name}/${container}/logs`,
     {
+      queryParams: {
+        previous: previous ? 'true' : 'false',
+      },
       onMessage: (msg) => {
         setData((prev) => prev + msg.data)
       },
@@ -40,7 +47,6 @@ const LogModal: React.FC<{
   )
 
   const showModal = () => {
-    setSocketUrl(`/api/v1/ws/pod/${namespace}/${name}/${container}/logs`)
     setIsModalOpen(true)
   }
   const handleOk = () => {
@@ -52,7 +58,6 @@ const LogModal: React.FC<{
 
   useEffect(() => {
     if (!isModalOpen) {
-      setSocketUrl('')
       setData('')
     }
   }, [isModalOpen])
@@ -63,7 +68,29 @@ const LogModal: React.FC<{
       <Modal
         title={`Logs: ${namespace}/${name}/${container}`}
         open={isModalOpen}
-        footer={null}
+        footer={() => (
+          <Space>
+            <Button onClick={() => setData('')}> Clear </Button>
+            <Button
+              loading={state.loading}
+              onClick={() => {
+                doFetch()
+                console.log('Download full log')
+              }}
+            >
+              Download full log
+            </Button>
+            <Button
+              onClick={() => {
+                setPrevious(!previous)
+                setData('')
+              }}
+              disabled={!hasPrevious}
+            >
+              {previous ? 'Show current log' : 'Show previous log'}
+            </Button>
+          </Space>
+        )}
         onOk={handleOk}
         onCancel={handleCancel}
       >
@@ -82,6 +109,6 @@ const LogModal: React.FC<{
       </Modal>
     </>
   )
-}
+})
 
 export default LogModal
