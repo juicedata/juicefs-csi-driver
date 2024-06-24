@@ -44,7 +44,7 @@ func ClientSet(configFlags *genericclioptions.ConfigFlags) *kubernetes.Clientset
 	return clientSet
 }
 
-func GetMountPodList(clientSet *kubernetes.Clientset) (*corev1.PodList, error) {
+func GetMountPodList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
 	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: config.PodTypeValue},
 	})
@@ -53,10 +53,10 @@ func GetMountPodList(clientSet *kubernetes.Clientset) (*corev1.PodList, error) {
 		fmt.Printf("list mount pods error: %s", err.Error())
 		return nil, err
 	}
-	return mountList, nil
+	return mountList.Items, nil
 }
 
-func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.PodList, error) {
+func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) ([]corev1.Pod, error) {
 	fieldSelector := fields.Set{"spec.nodeName": nodeName}
 	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: config.PodTypeValue},
@@ -69,19 +69,19 @@ func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) (*corev
 		fmt.Printf("list mount pods error: %s", err.Error())
 		return nil, err
 	}
-	return mountList, nil
+	return mountList.Items, nil
 }
 
-func GetPodList(clientSet *kubernetes.Clientset, ns string) (*corev1.PodList, error) {
+func GetPodList(clientSet *kubernetes.Clientset, ns string) ([]corev1.Pod, error) {
 	podList, err := clientSet.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("list pods error: %s", err.Error())
 		return nil, err
 	}
-	return podList, nil
+	return podList.Items, nil
 }
 
-func GetAppPodList(clientSet *kubernetes.Clientset, ns string) (*corev1.PodList, error) {
+func GetAppPodList(clientSet *kubernetes.Clientset, ns string) ([]corev1.Pod, error) {
 	labelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
 			Key:      config.UniqueId,
@@ -93,10 +93,10 @@ func GetAppPodList(clientSet *kubernetes.Clientset, ns string) (*corev1.PodList,
 		fmt.Printf("list pods error: %s", err.Error())
 		return nil, err
 	}
-	return podList, nil
+	return podList.Items, nil
 }
 
-func GetCSINodeList(clientSet *kubernetes.Clientset) (*corev1.PodList, error) {
+func GetCSINodeList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
 	nodeLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: "juicefs-csi-driver", "app": "juicefs-csi-node"},
 	})
@@ -105,7 +105,25 @@ func GetCSINodeList(clientSet *kubernetes.Clientset) (*corev1.PodList, error) {
 		fmt.Printf("list csi node pods error: %s", err.Error())
 		return nil, err
 	}
-	return csiNodeList, nil
+	return csiNodeList.Items, nil
+}
+
+func GetPVCList(clientSet *kubernetes.Clientset, ns string) ([]corev1.PersistentVolumeClaim, error) {
+	pvcList, err := clientSet.CoreV1().PersistentVolumeClaims(ns).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Printf("list pvcs in namespace %s error: %s", ns, err.Error())
+		return nil, err
+	}
+	return pvcList.Items, nil
+}
+
+func GetPVList(clientSet *kubernetes.Clientset) ([]corev1.PersistentVolume, error) {
+	pvList, err := clientSet.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Printf("list pvs error: %s", err.Error())
+		return nil, err
+	}
+	return pvList.Items, nil
 }
 
 func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, error) {
@@ -128,13 +146,13 @@ func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, 
 	return &csiNodeList.Items[0], nil
 }
 
-func GetNamespaceList(clientSet *kubernetes.Clientset) (*corev1.NamespaceList, error) {
+func GetNamespaceList(clientSet *kubernetes.Clientset) ([]corev1.Namespace, error) {
 	namespaces, err := clientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("list namespaces error: %s", err.Error())
 		return nil, err
 	}
-	return namespaces, nil
+	return namespaces.Items, nil
 }
 
 func tabbedString(f func(io.Writer) error) (string, error) {
@@ -151,7 +169,7 @@ func tabbedString(f func(io.Writer) error) (string, error) {
 	return buf.String(), nil
 }
 
-func isPodReady(pod *corev1.Pod) bool {
+func isPodReady(pod corev1.Pod) bool {
 	conditionsTrue := 0
 	for _, cond := range pod.Status.Conditions {
 		if cond.Status == corev1.ConditionTrue && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
@@ -159,4 +177,39 @@ func isPodReady(pod *corev1.Pod) bool {
 		}
 	}
 	return conditionsTrue == 2
+}
+
+func getPodStatus(pod corev1.Pod) string {
+	if pod.DeletionTimestamp != nil {
+		return "Terminating"
+	}
+	for _, cn := range pod.Status.ContainerStatuses {
+		if cn.State.Waiting != nil {
+			return cn.State.Waiting.Reason
+		}
+		if cn.State.Terminated != nil {
+			return cn.State.Terminated.Reason
+		}
+	}
+	return string(pod.Status.Phase)
+}
+
+func getContainerErrorMessage(pod corev1.Pod) string {
+	for _, cn := range pod.Status.InitContainerStatuses {
+		if cn.State.Waiting != nil && cn.State.Waiting.Message != "" {
+			return cn.State.Waiting.Message
+		}
+		if cn.State.Terminated != nil && cn.State.Terminated.Message != "" {
+			return cn.State.Terminated.Message
+		}
+	}
+	for _, cn := range pod.Status.ContainerStatuses {
+		if cn.State.Waiting != nil && cn.State.Waiting.Message != "" {
+			return cn.State.Waiting.Message
+		}
+		if cn.State.Terminated != nil && cn.State.Terminated.Message != "" {
+			return cn.State.Terminated.Message
+		}
+	}
+	return ""
 }

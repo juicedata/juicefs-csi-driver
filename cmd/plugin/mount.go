@@ -23,15 +23,77 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 	kdescribe "k8s.io/kubectl/pkg/describe"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var mountCmd = &cobra.Command{
 	Use:   "mount",
 	Short: "Show mount pod of juicefs",
-	RunE:  listMountPod,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ma, err := newMountAnalyzer()
+		if err != nil {
+			return err
+		}
+		return ma.listMountPod(cmd, args)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(mountCmd)
+}
+
+type mountAnalyzer struct {
+	clientSet *kubernetes.Clientset
+	apps      map[string]string
+	mountPods []corev1.Pod
+	csiNodes  map[string]string
+	pvcs      map[string]corev1.PersistentVolumeClaim
+	pvs       map[string]corev1.PersistentVolume
+
+	mounts []mountPod
+}
+
+func newMountAnalyzer() (ma *mountAnalyzer, err error) {
+	clientSet := ClientSet(KubernetesConfigFlags)
+	ma = &mountAnalyzer{
+		clientSet: clientSet,
+		apps:      make(map[string]string),
+		mountPods: make([]corev1.Pod, 0),
+		csiNodes:  map[string]string{},
+		pvcs:      map[string]corev1.PersistentVolumeClaim{},
+		pvs:       map[string]corev1.PersistentVolume{},
+		mounts:    make([]mountPod, 0),
+	}
+	var (
+		nsList      []corev1.Namespace
+		podList     []corev1.Pod
+		csiNodeList = make([]corev1.Pod, 0)
+	)
+	if nsList, err = GetNamespaceList(clientSet); err != nil {
+		return
+	}
+	for _, ns := range nsList {
+		podList, err = GetAppPodList(clientSet, ns.Name)
+		if err != nil {
+			return
+		}
+		for _, po := range podList {
+			ma.apps[string(po.UID)] = fmt.Sprintf("%s/%s", po.Namespace, po.Name)
+		}
+	}
+
+	if ma.mountPods, err = GetMountPodList(ma.clientSet); err != nil {
+		return
+	}
+
+	if csiNodeList, err = GetCSINodeList(ma.clientSet); err != nil {
+		return
+	}
+	for _, csi := range csiNodeList {
+		ma.csiNodes[csi.Spec.NodeName] = csi.Name
+	}
+	return
 }
 
 type mountPod struct {
@@ -43,59 +105,9 @@ type mountPod struct {
 	status    string
 }
 
-func init() {
-	rootCmd.AddCommand(mountCmd)
-}
-
-func listMountPod(cmd *cobra.Command, args []string) error {
-	clientSet := ClientSet(KubernetesConfigFlags)
-
-	mountList, err := GetMountPodList(clientSet)
-	if err != nil {
-		return err
-	}
-
-	csiNodeList, err := GetCSINodeList(clientSet)
-	if err != nil {
-		return err
-	}
-
-	nsList, err := GetNamespaceList(clientSet)
-	if err != nil {
-		return err
-	}
-
-	appList := make([]corev1.Pod, 0)
-	for _, ns := range nsList.Items {
-		podList, err := GetAppPodList(clientSet, ns.Name)
-		if err != nil {
-			return err
-		}
-		appList = append(appList, podList.Items...)
-	}
-
-	mountMapList := map[string]map[string]string{}
-	for _, mount := range mountList.Items {
-		if _, ok := mountMapList[mount.Spec.NodeName]; !ok {
-			mountMapList[mount.Spec.NodeName] = make(map[string]string)
-		}
-		mountMapList[mount.Spec.NodeName][mount.Annotations[config.UniqueId]] = mount.Name
-	}
-
-	csiNodeMapList := map[string]string{}
-	for _, csi := range csiNodeList.Items {
-		csiNodeMapList[csi.Spec.NodeName] = csi.Name
-	}
-
-	appMapList := map[string]string{}
-	for _, po := range appList {
-		appMapList[string(po.UID)] = fmt.Sprintf("%s/%s", po.Namespace, po.Name)
-	}
-
-	mountPods := make([]mountPod, 0, len(mountList.Items))
-	t := mountList.Items
-	for i := 0; i < len(t); i++ {
-		pod := t[i]
+func (ma *mountAnalyzer) listMountPod(cmd *cobra.Command, args []string) error {
+	for i := 0; i < len(ma.mountPods); i++ {
+		pod := ma.mountPods[i]
 		mount := mountPod{
 			namespace: pod.Namespace,
 			name:      pod.Name,
@@ -103,7 +115,7 @@ func listMountPod(cmd *cobra.Command, args []string) error {
 		}
 
 		appNames := []string{}
-		for uid, app := range appMapList {
+		for uid, app := range ma.apps {
 			for _, v := range pod.Annotations {
 				if strings.Contains(v, uid) {
 					appNames = append(appNames, app)
@@ -111,17 +123,17 @@ func listMountPod(cmd *cobra.Command, args []string) error {
 			}
 		}
 		mount.appPods = appNames
-		mount.csiNode = csiNodeMapList[pod.Spec.NodeName]
-		mount.status = string(pod.Status.Phase)
-		mountPods = append(mountPods, mount)
+		mount.csiNode = ma.csiNodes[pod.Spec.NodeName]
+		mount.status = getPodStatus(pod)
+		ma.mounts = append(ma.mounts, mount)
 	}
 
-	if len(mountPods) == 0 {
+	if len(ma.mounts) == 0 {
 		fmt.Printf("No mount pod found in %s namespace.", "kube-system")
 		return nil
 	}
 
-	out, err := printMountPods(mountPods)
+	out, err := ma.printMountPods()
 	if err != nil {
 		return err
 	}
@@ -129,12 +141,25 @@ func listMountPod(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printMountPods(pods []mountPod) (string, error) {
+func (ma *mountAnalyzer) printMountPods() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
 		w.Write(kdescribe.LEVEL_0, "Name\tNamespace\tApp Pods\tStatus\tCSI Node\tNode\n")
-		for _, pod := range pods {
-			w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", pod.name, pod.namespace, strings.Join(pod.appPods, ","), pod.status, pod.csiNode, pod.node)
+		for _, pod := range ma.mounts {
+			for i, app := range pod.appPods {
+				name, ns, status, csiNode, node := "", "", "", "", ""
+				appShow := app
+				if i < len(pod.appPods)-1 {
+					appShow = app + ","
+				}
+				if i == 0 {
+					name, ns, status, csiNode, node = pod.name, pod.namespace, pod.status, pod.csiNode, pod.node
+				}
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, ns, appShow, status, csiNode, node)
+			}
+			if len(pod.appPods) == 0 {
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", pod.name, pod.namespace, "", pod.status, pod.csiNode, pod.node)
+			}
 		}
 		return nil
 	})

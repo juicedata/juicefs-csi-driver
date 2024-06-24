@@ -17,15 +17,13 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	kdescribe "k8s.io/kubectl/pkg/describe"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -35,7 +33,78 @@ var podCmd = &cobra.Command{
 	Use:     "pod",
 	Aliases: []string{"po"},
 	Short:   "Show pods using juicefs pvc",
-	RunE:    jfsPod,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ns, _ := rootCmd.Flags().GetString("namespace")
+		if ns == "" {
+			ns = "default"
+		}
+		aa, err := newAppAnalyzer(ns)
+		if err != nil {
+			return err
+		}
+		return aa.jfsPod(cmd, args)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(podCmd)
+}
+
+type appAnalyzer struct {
+	clientSet *kubernetes.Clientset
+	ns        string
+	pods      []corev1.Pod
+	mountPods []corev1.Pod
+	csiNodes  map[string]string
+	pvcs      map[string]corev1.PersistentVolumeClaim
+	pvs       map[string]corev1.PersistentVolume
+
+	apps []appPod
+}
+
+func newAppAnalyzer(ns string) (aa *appAnalyzer, err error) {
+	clientSet := ClientSet(KubernetesConfigFlags)
+	aa = &appAnalyzer{
+		clientSet: clientSet,
+		ns:        ns,
+		pods:      make([]corev1.Pod, 0),
+		mountPods: make([]corev1.Pod, 0),
+		csiNodes:  map[string]string{},
+		pvcs:      map[string]corev1.PersistentVolumeClaim{},
+		pvs:       map[string]corev1.PersistentVolume{},
+		apps:      make([]appPod, 0),
+	}
+	var (
+		csiNodeList = make([]corev1.Pod, 0)
+		pvcList     = make([]corev1.PersistentVolumeClaim, 0)
+		pvList      = make([]corev1.PersistentVolume, 0)
+	)
+	if aa.pods, err = GetPodList(clientSet, ns); err != nil {
+		return
+	}
+	if aa.mountPods, err = GetMountPodList(clientSet); err != nil {
+		return
+	}
+	if csiNodeList, err = GetCSINodeList(clientSet); err != nil {
+		return
+	}
+	for _, csi := range csiNodeList {
+		aa.csiNodes[csi.Spec.NodeName] = csi.Name
+	}
+	if pvcList, err = GetPVCList(clientSet, ns); err != nil {
+		return
+	}
+	for _, pvc := range pvcList {
+		aa.pvcs[pvc.Name] = pvc
+	}
+	if pvList, err = GetPVList(clientSet); err != nil {
+		return
+	}
+	for _, pv := range pvList {
+		aa.pvs[pv.Name] = pv
+	}
+
+	return
 }
 
 type appPod struct {
@@ -47,49 +116,10 @@ type appPod struct {
 	status    string
 }
 
-func init() {
-	rootCmd.AddCommand(podCmd)
-}
-
-func jfsPod(cmd *cobra.Command, args []string) error {
-	clientSet := ClientSet(KubernetesConfigFlags)
-	ns, _ := rootCmd.Flags().GetString("namespace")
-	if ns == "" {
-		ns = "default"
-	}
-
-	podList, err := GetPodList(clientSet, ns)
-	if err != nil {
-		return err
-	}
-
-	mountList, err := GetMountPodList(clientSet)
-	if err != nil {
-		return err
-	}
-
-	csiNodeList, err := GetCSINodeList(clientSet)
-	if err != nil {
-		return err
-	}
-
-	mountMapList := map[string]map[string]string{}
-	for _, mount := range mountList.Items {
-		if _, ok := mountMapList[mount.Spec.NodeName]; !ok {
-			mountMapList[mount.Spec.NodeName] = make(map[string]string)
-		}
-		mountMapList[mount.Spec.NodeName][mount.Annotations[config.UniqueId]] = mount.Name
-	}
-
-	csiNodeMapList := map[string]string{}
-	for _, csi := range csiNodeList.Items {
-		csiNodeMapList[csi.Spec.NodeName] = csi.Name
-	}
-
-	appPods := make([]appPod, 0, len(podList.Items))
-	t := podList.Items
-	for i := 0; i < len(t); i++ {
-		pod := t[i]
+func (aa *appAnalyzer) jfsPod(cmd *cobra.Command, args []string) error {
+	appPods := make([]appPod, 0, len(aa.pods))
+	for i := 0; i < len(aa.pods); i++ {
+		pod := aa.pods[i]
 
 		if len(pod.Spec.Volumes) == 0 {
 			continue
@@ -100,49 +130,53 @@ func jfsPod(cmd *cobra.Command, args []string) error {
 			namespace: pod.Namespace,
 			name:      pod.Name,
 			node:      pod.Spec.NodeName,
-			csiNode:   csiNodeMapList[pod.Spec.NodeName],
-			status:    string(pod.Status.Phase),
+			csiNode:   aa.csiNodes[pod.Spec.NodeName],
+			status:    getPodStatus(pod),
 		}
-		mounts := make([]string, 0)
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
 				pvcName := volume.PersistentVolumeClaim.ClaimName
-				pvc, err := clientSet.CoreV1().PersistentVolumeClaims(ns).Get(context.Background(), pvcName, metav1.GetOptions{})
-				if err != nil {
-					if !k8serrors.IsNotFound(err) {
-						fmt.Printf("get pvc error: %s", err.Error())
-						return err
-					}
+				pvc, ok := aa.pvcs[pvcName]
+				if !ok {
 					appending = true
+					continue
 				}
 				if pvc.Status.Phase != corev1.ClaimBound {
 					appending = true
+					continue
 				}
 				if pvc.Spec.VolumeName != "" {
-					pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
-					if err != nil {
-						fmt.Printf("get pv error: %s", err.Error())
-						return err
+					pv, ok := aa.pvs[pvc.Spec.VolumeName]
+					if !ok {
+						appending = true
+						continue
 					}
 					if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
 						appending = true
-						mounts = append(mounts, mountMapList[pod.Spec.NodeName][pv.Spec.CSI.VolumeHandle])
 					}
 				}
 			}
 		}
-		po.mountPods = mounts
+		for _, mount := range aa.mountPods {
+			for _, value := range mount.Annotations {
+				if strings.Contains(value, string(pod.UID)) {
+					po.mountPods = append(po.mountPods, mount.Name)
+					appending = true
+				}
+			}
+		}
 		if appending {
 			appPods = append(appPods, po)
 		}
 	}
 
 	if len(appPods) == 0 {
-		fmt.Printf("No pod found using juicefs PVC in %s namespace.", ns)
+		fmt.Printf("No pod found using juicefs PVC in %s namespace.", aa.ns)
 		return nil
 	}
 
-	out, err := printAppPods(appPods)
+	aa.apps = appPods
+	out, err := aa.printAppPods()
 	if err != nil {
 		return err
 	}
@@ -150,19 +184,25 @@ func jfsPod(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printAppPods(pods []appPod) (string, error) {
+func (aa *appAnalyzer) printAppPods() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
 		w.Write(kdescribe.LEVEL_0, "Name\tNamespace\tMount Pods\tStatus\tCSI Node\tNode\n")
-		for _, pod := range pods {
-			w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n",
-				pod.name,
-				pod.namespace,
-				strings.Join(pod.mountPods, ","),
-				pod.status,
-				pod.csiNode,
-				pod.node,
-			)
+		for _, pod := range aa.apps {
+			for i, mount := range pod.mountPods {
+				name, namespace, status, csiNode, node := "", "", "", "", ""
+				mountShow := mount
+				if i < len(pod.mountPods)-1 {
+					mountShow = mount + ","
+				}
+				if i == 0 {
+					name, namespace, status, csiNode, node = pod.name, pod.namespace, pod.status, pod.csiNode, pod.node
+				}
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, namespace, mountShow, status, csiNode, node)
+			}
+			if len(pod.mountPods) == 0 {
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", pod.name, pod.namespace, "", pod.status, pod.csiNode, pod.node)
+			}
 		}
 		return nil
 	})
