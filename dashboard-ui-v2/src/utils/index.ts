@@ -290,3 +290,9 @@ export function getBasePath() {
   }
   return base
 }
+
+export function getHost(): string {
+  const protocol = window.location.protocol === 'https:' ? 'https' : 'http'
+  const host = import.meta.env.VITE_HOST ?? window.location.host
+  return `${protocol}://${host}`
+}

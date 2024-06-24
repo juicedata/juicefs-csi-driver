@@ -15,12 +15,13 @@
  */
 
 import { Event } from 'kubernetes-types/core/v1'
+import { useAsyncFn } from 'react-use'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { Pod } from '@/types/k8s'
-import { getBasePath } from '@/utils'
+import { getBasePath, getHost } from '@/utils'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -90,9 +91,32 @@ export function useWebsocket(
   opts?: Options,
   shouldConnect: boolean = false,
 ) {
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+
   return useWebSocket(
-    `ws://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
+    `${protocol}://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
     opts,
     shouldConnect,
   )
+}
+
+export function useDownloadPodLogs(
+  namespace?: string,
+  name?: string,
+  container?: string,
+) {
+  return useAsyncFn(async () => {
+    await fetch(
+      `${getHost()}/api/v1/pod/${namespace}/${name}/logs/${container}?download=true`,
+    )
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${namespace}-${name}-${container}.log`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  }, [namespace, name, container])
 }

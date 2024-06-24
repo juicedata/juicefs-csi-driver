@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { memo } from 'react'
 import { PageContainer } from '@ant-design/pro-components'
 import { FormattedMessage } from 'react-intl'
 
@@ -23,7 +24,7 @@ import { useAppPod } from '@/hooks/use-api'
 const PodDetail: React.FC<{
   name?: string
   namespace?: string
-}> = (props) => {
+}> = memo((props) => {
   const { name, namespace } = props
   const { data, isLoading } = useAppPod(namespace, name)
   if (namespace === '' || name === '' || !data) {
@@ -67,6 +68,6 @@ const PodDetail: React.FC<{
       <EventTable source="pod" name={name!} namespace={namespace!} />
     </PageContainer>
   )
-}
+})
 
 export default PodDetail
