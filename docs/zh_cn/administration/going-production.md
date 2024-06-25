@@ -46,17 +46,10 @@ mountPodPatch:
           - |
             set +e
             # 根据实际情况修改
-            url=http://127.0.0.1:8000
-            while :
-            do
-              res=$(curl $url)
-              if [[ "$res" == 0 ]]
-              then
-                echo "$url is still open, wait..."
-                sleep 1
-              else
-                exit 0
-              fi
+            PORT=8000
+            while [ $(netstat -plunt | grep $PORT | wc -l | xargs) -ne 0 ]; 
+            do 
+            sleep 1; 
             done
 ```
 
