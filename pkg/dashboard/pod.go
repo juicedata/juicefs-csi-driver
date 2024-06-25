@@ -18,10 +18,12 @@ package dashboard
 
 import (
 	"context"
+	"io"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -469,6 +471,10 @@ func (api *API) getPodLogs() gin.HandlerFunc {
 			c.String(404, "container %s not found", container)
 			return
 		}
+		download := c.Query("download")
+		if download == "true" {
+			c.Header("Content-Disposition", "attachment; filename="+pod.Name+"_"+container+".log")
+		}
 
 		logs, err := api.client.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container: container,
@@ -682,5 +688,79 @@ func (api *API) getPVOfSC() gin.HandlerFunc {
 			}
 		}
 		c.IndentedJSON(200, pvs)
+	}
+}
+
+type LogPipe struct {
+	conn   *websocket.Conn
+	stream io.ReadCloser
+}
+
+func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser) *LogPipe {
+	l := &LogPipe{
+		conn:   conn,
+		stream: stream,
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				l.stream.Close()
+				return
+			default:
+				var temp []byte
+				err := websocket.Message.Receive(l.conn, &temp)
+				if err != nil {
+					l.stream.Close()
+					return
+				}
+				if string(temp) == "ping" {
+					websocket.Message.Send(l.conn, "pong")
+				}
+			}
+		}
+	}()
+	return l
+}
+
+func (l *LogPipe) Write(p []byte) (int, error) {
+	websocket.Message.Send(l.conn, string(p))
+	return len(p), nil
+}
+
+func (l *LogPipe) Read(p []byte) (int, error) {
+	return l.stream.Read(p)
+}
+
+func (api *API) watchPodLogs() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		var lines int64 = 100
+		previousStr := c.Query("previous")
+		previous := false
+		if previousStr == "true" {
+			previous = true
+		}
+
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			req := api.client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
+				Container: container,
+				TailLines: &lines,
+				Follow:    true,
+				Previous:  previous,
+			})
+			stream, err := req.Stream(c.Request.Context())
+			if err != nil {
+				return
+			}
+			wr := newLogPipe(c.Request.Context(), ws, stream)
+			_, err = io.Copy(wr, wr)
+			if err != nil {
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
 	}
 }

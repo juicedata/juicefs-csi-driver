@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -67,20 +68,55 @@ func (api *API) listPodPVCsHandler() gin.HandlerFunc {
 
 func (api *API) listSCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		descend := c.Query("order") != "ascend"
+		nameFilter := c.Query("name")
+		required := func(sc *storagev1.StorageClass) bool {
+			scName := types.NamespacedName{
+				Name: sc.Name,
+			}
+			return (nameFilter == "" || strings.Contains(scName.Name, nameFilter)) && (sc.Provisioner == config.DriverName)
+		}
 		scList := storagev1.StorageClassList{}
-		err := api.cachedReader.List(c, &scList)
+		err = api.cachedReader.List(c, &scList)
 		if err != nil {
-			c.String(500, "get storageClass error: %v", err)
+			c.String(500, "list storageClass error: %v", err)
 			return
 		}
 		var scs []*storagev1.StorageClass
 		for i := range scList.Items {
 			sc := &scList.Items[i]
-			if sc.Provisioner == config.DriverName {
+			if required(sc) {
 				scs = append(scs, sc)
 			}
 		}
-		c.IndentedJSON(200, scs)
+		result := &ListSCResult{len(scs), scs}
+		if descend {
+			sort.Sort(Reverse(result))
+		} else {
+			sort.Sort(result)
+		}
+
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(scs)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(scs)) {
+			endIndex = uint64(len(scs))
+		}
+		result.SCs = scs[startIndex:endIndex]
+		c.IndentedJSON(200, result)
 	}
 }
 
@@ -92,6 +128,23 @@ type ListPVPodResult struct {
 type ListPVCPodResult struct {
 	Total int                             `json:"total"`
 	PVCs  []*corev1.PersistentVolumeClaim `json:"pvcs"`
+}
+
+type ListSCResult struct {
+	Total int                       `json:"total"`
+	SCs   []*storagev1.StorageClass `json:"scs"`
+}
+
+func (r ListSCResult) Len() int {
+	return r.Total
+}
+
+func (r ListSCResult) Less(i, j int) bool {
+	return (&r.SCs[i].CreationTimestamp).Before(&r.SCs[j].CreationTimestamp)
+}
+
+func (r ListSCResult) Swap(i, j int) {
+	r.SCs[i], r.SCs[j] = r.SCs[j], r.SCs[i]
 }
 
 func (api *API) listPVsHandler() gin.HandlerFunc {

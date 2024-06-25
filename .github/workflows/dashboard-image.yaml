@@ -14,15 +14,12 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-      - name: Set Node.js 18.18.0
-        uses: actions/setup-node@v3
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
         with:
-          node-version: 18.18.0
-      - name: Run yarn install
-        uses: borales/actions-yarn@v4
-        with:
-          dir: dashboard-ui
-          cmd: install # will run `yarn install` command
+          version: 9
+          run_install: |
+            cwd: dashboard-ui-v2
       - name: Build dashboard
         run: make dashboard-dist
       - name: Login Docker Hub
