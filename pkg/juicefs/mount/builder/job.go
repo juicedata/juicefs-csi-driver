@@ -93,6 +93,10 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 	}
 	// set node name to empty to let k8s scheduler to choose a node
 	podTemplate.Spec.NodeName = ""
+	// set NodeSelector/Affinity/Tolerations follow the csi-node
+	podTemplate.Spec.NodeSelector = config.CSIPod.Spec.NodeSelector
+	podTemplate.Spec.Affinity = config.CSIPod.Spec.Affinity
+	podTemplate.Spec.Tolerations = config.CSIPod.Spec.Tolerations
 	// set priority class name to empty to make job use default priority class
 	podTemplate.Spec.PriorityClassName = ""
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
