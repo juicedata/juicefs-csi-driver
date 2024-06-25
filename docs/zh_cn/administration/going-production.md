@@ -13,6 +13,46 @@ sidebar_position: 1
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优；
 * 考虑为 mount pod 设置非抢占式 PriorityClass，避免资源不足时，mount pod 将业务容器驱逐。详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
 
+## Sidecar 模式推荐设置 {#sidecar}
+
+目前 CSI 驱动不支持为 sidecar 模式的 mount 容器设置退出顺序，无法做到在应用容器退出以后，sidecar 才退出。这是由于 Kubernetes sidecar 自身便不支持退出顺序导致的，该特性在 [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 原生 sidecar 得到支持，因此如果你使用新版 Kubernetes 并且有相关需求，请在我们的 [GitHub 项目](https://github.com/juicedata/juicefs-csi-driver)下记录需求。
+
+因此，在用户广泛采纳 Kubernetes v1.28，让 CSI 驱动有机会实现原生 sidecar 之前，我们建议用户通过设置 `preStop` 来满足延迟退出的需求：
+
+```yaml
+mountPodPatch:
+  - terminationGracePeriodSeconds: 3600
+    lifecycle:
+      preStop:
+        exec:
+          command:
+          - sh
+          - -c
+          - |
+            sleep 30;
+```
+
+上方是最为简单的示范，sidecar（也就是 mount 容器）会等待 30 秒后才退出。如果你的应用监听了网络端口，也可以通过检测其监听端口来建立依赖关系，保证 sidecar 容器晚于业务容器退出。
+
+```yaml
+mountPodPatch:
+  - terminationGracePeriodSeconds: 3600
+    lifecycle:
+      preStop:
+        exec:
+          command:
+          - sh
+          - -c
+          - |
+            set +e
+            # 根据实际情况修改
+            PORT=8000
+            while [ $(netstat -plunt | grep $PORT | wc -l | xargs) -ne 0 ]; 
+            do 
+            sleep 1; 
+            done
+```
+
 ## 监控 Mount Pod（社区版） {#monitoring}
 
 :::tip
