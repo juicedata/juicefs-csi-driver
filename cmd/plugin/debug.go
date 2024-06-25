@@ -78,6 +78,8 @@ func debug(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		out, err = describe.debug().describePod()
+	default:
+		return fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 
 	if err != nil {

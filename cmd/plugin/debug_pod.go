@@ -29,6 +29,7 @@ import (
 	kdescribe "k8s.io/kubectl/pkg/describe"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe *podDescribe, err error) {
@@ -199,13 +200,13 @@ func (p *podDescribe) debugRunningPod() *podDescribe {
 		if p.csiNode == nil {
 			p.failed(fmt.Sprintf("CSI node not found on node [%s], please check if there are taints on node.", p.node))
 		}
-		if p.csiNodePod != nil && !isPodReady(*p.csiNodePod) {
+		if p.csiNodePod != nil && !util.IsPodReady(p.csiNodePod) {
 			p.failed(fmt.Sprintf("CSI node [%s] is not ready.", p.node))
 		}
 
 		// 5. mount pod not ready
 		for _, m := range p.mountPodList {
-			if !isPodReady(m) {
+			if !util.IsPodReady(&m) {
 				reason := fmt.Sprintf("Mount pod [%s] is not ready, please check its log.", m.Name)
 				p.failed(reason)
 			}
@@ -234,7 +235,7 @@ func (p *podDescribe) debugTerminatingPod() *podDescribe {
 		if p.csiNode == nil {
 			p.failed(fmt.Sprintf("CSI node not found on node [%s], please check if there are taints on node.", p.node))
 		}
-		if !isPodReady(*p.csiNodePod) {
+		if !util.IsPodReady(p.csiNodePod) {
 			p.failed(fmt.Sprintf("CSI node [%s] is not ready.", p.node))
 		}
 
