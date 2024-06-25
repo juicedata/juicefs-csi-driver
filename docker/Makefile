@@ -151,11 +151,11 @@ ee-image-4.0-buildx:
 ################# JuiceFS image for dashboard #######################
 .PHONY: dashboard-build
 dashboard-build:
-	docker build --build-context project=../ --build-context ui=../dashboard-ui-v2/ --build-context bin=../bin/ -f dashboard.Dockerfile \
+	docker build --build-context project=../ --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) .
 	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG)
 
 .PHONY: dashboard-buildx
 dashboard-buildx:
-	docker buildx build --build-context project=../ --build-context ui=../dashboard-ui-v2/ --build-context bin=../bin/ -f dashboard.Dockerfile \
+	docker buildx build --build-context project=../ --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
 	 	-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) --platform linux/amd64,linux/arm64 . --push
