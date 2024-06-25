@@ -90,7 +90,7 @@ uninstall: yaml
 .PHONY: image-dev
 image-dev: juicefs-csi-driver dashboard
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
-	docker build --build-context project=. --build-context ui=dashboard-ui-v2/ --build-context bin=bin/ -f docker/dashboard.Dockerfile \
+	docker build --build-context project=. --build-context ui=dashboard-ui-v2/ -f docker/dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push dev image
