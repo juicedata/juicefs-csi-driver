@@ -269,3 +269,10 @@ func hasPodReadyCondition(conditions []corev1.PodCondition) bool {
 	}
 	return false
 }
+
+func ifNil(field string) string {
+	if field == "" {
+		return "<none>"
+	}
+	return field
+}

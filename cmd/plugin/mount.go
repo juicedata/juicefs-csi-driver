@@ -153,12 +153,12 @@ func (ma *mountAnalyzer) printMountPods() (string, error) {
 					appShow = app + ","
 				}
 				if i == 0 {
-					name, ns, status, csiNode, node = pod.name, pod.namespace, pod.status, pod.csiNode, pod.node
+					name, ns, status, csiNode, node = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node)
 				}
 				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, ns, appShow, status, csiNode, node)
 			}
 			if len(pod.appPods) == 0 {
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", pod.name, pod.namespace, "", pod.status, pod.csiNode, pod.node)
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node))
 			}
 		}
 		return nil

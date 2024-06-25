@@ -196,12 +196,12 @@ func (aa *appAnalyzer) printAppPods() (string, error) {
 					mountShow = mount + ","
 				}
 				if i == 0 {
-					name, namespace, status, csiNode, node = pod.name, pod.namespace, pod.status, pod.csiNode, pod.node
+					name, namespace, status, csiNode, node = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node)
 				}
 				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, namespace, mountShow, status, csiNode, node)
 			}
 			if len(pod.mountPods) == 0 {
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", pod.name, pod.namespace, "", pod.status, pod.csiNode, pod.node)
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node))
 			}
 		}
 		return nil
