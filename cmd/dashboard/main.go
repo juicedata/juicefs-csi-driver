@@ -127,7 +127,7 @@ func run() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), client)
+	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), client, config)
 	router := gin.Default()
 	if devMode {
 		router.Use(cors.New(cors.Config{

@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,6 +34,8 @@ type API struct {
 	cachedReader client.Reader
 	// for logs and events
 	client kubernetes.Interface
+
+	kubeconfig *rest.Config
 
 	csiNodeLock  sync.RWMutex
 	csiNodeIndex map[string]types.NamespacedName
@@ -44,7 +47,7 @@ type API struct {
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, client kubernetes.Interface) *API {
+func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, client kubernetes.Interface, config *rest.Config) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
 		cachedReader: cachedReader,
@@ -55,6 +58,7 @@ func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader
 		pvIndexes:    newTimeIndexes[corev1.PersistentVolume](),
 		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
 		pairs:        make(map[types.NamespacedName]types.NamespacedName),
+		kubeconfig:   config,
 	}
 	return api
 }
@@ -93,4 +97,5 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
+	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
 }
