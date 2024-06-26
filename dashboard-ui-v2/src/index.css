@@ -51,3 +51,8 @@ body {
 .ant-modal-body {
   height: calc(100vh - 110px);
 }
+
+.xterm-screen {
+  width: 100% !important;
+  height: calc(100vh - 110px) !important;
+}
