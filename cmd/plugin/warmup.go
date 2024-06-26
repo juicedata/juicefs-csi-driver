@@ -40,7 +40,9 @@ var warmupCmd = &cobra.Command{
   # warmup all files of juicefs mount pod
   kubectl jfs warmup <pod-name>
 `,
-	RunE: warmup,
+	Run: func(cmd *cobra.Command, args []string) {
+		cobra.CheckErr(warmup(cmd, args))
+	},
 }
 
 func init() {
@@ -48,7 +50,10 @@ func init() {
 }
 
 func warmup(cmd *cobra.Command, args []string) (err error) {
-	clientSet := ClientSet(KubernetesConfigFlags)
+	clientSet, err := ClientSet(KubernetesConfigFlags)
+	if err != nil {
+		return err
+	}
 	eCli := NewExecCli(clientSet)
 
 	cmd.Flags().BoolVarP(&eCli.Stdin, "stdin", "i", eCli.Stdin, "Pass stdin to the container")
@@ -61,8 +66,7 @@ func warmup(cmd *cobra.Command, args []string) (err error) {
 
 	podName := args[0]
 	if !strings.HasPrefix(podName, "juicefs-") {
-		fmt.Printf("pod %s is not juicefs mount pod\n", podName)
-		return nil
+		return fmt.Errorf("pod %s is not juicefs mount pod\n", podName)
 	}
 	subpath := ""
 	if len(args) > 1 {
@@ -70,28 +74,21 @@ func warmup(cmd *cobra.Command, args []string) (err error) {
 	}
 	var pod *corev1.Pod
 	if pod, err = clientSet.CoreV1().Pods("kube-system").Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
-		fmt.Printf("get mount pod %s error: %s\n", podName, err.Error())
-		return nil
+		return err
 	}
 
 	if pod.Labels[config.PodTypeKey] != config.PodTypeValue {
-		fmt.Println(fmt.Errorf("pod %s is not juicefs mount pod", podName))
-		return nil
+		return fmt.Errorf("pod %s is not juicefs mount pod", podName)
 	}
 	mountPath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
-		fmt.Printf("get mount path of pod %s error: %s\n", podName, err.Error())
-		return nil
+		return fmt.Errorf("get mount path of pod %s error: %s\n", podName, err.Error())
 	}
 	warmupPath := path.Join(mountPath, subpath)
-	err = eCli.Completion().
+	return eCli.Completion().
 		SetNamespace("kube-system").
 		SetPod(podName).
 		Container(config.MountContainerName).
 		Commands([]string{"juicefs", "warmup", warmupPath}).
 		Run()
-	if err != nil {
-		fmt.Printf("warmup %s error: %s\n", warmupPath, err.Error())
-	}
-	return nil
 }

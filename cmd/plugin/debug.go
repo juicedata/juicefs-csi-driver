@@ -38,7 +38,9 @@ var debugCmd = &cobra.Command{
   # debug pv which is juicefs pv
   kubectl juicefs debug pv <pv-name> 
 `,
-	RunE: debug,
+	Run: func(cmd *cobra.Command, args []string) {
+		cobra.CheckErr(debug(cmd, args))
+	},
 }
 
 func init() {
@@ -46,8 +48,11 @@ func init() {
 }
 
 func debug(cmd *cobra.Command, args []string) error {
-	clientSet := ClientSet(KubernetesConfigFlags)
-	if len(args) != 2 {
+	clientSet, err := ClientSet(KubernetesConfigFlags)
+	if err != nil {
+		return err
+	}
+	if len(args) < 2 {
 		return fmt.Errorf("please specify the resource")
 	}
 	resourceType := args[0]
@@ -58,18 +63,15 @@ func debug(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		out string
-		err error
+		out      string
+		describe describeInterface
 	)
 
 	switch resourceType {
 	case "po":
 		fallthrough
 	case "pod":
-		var (
-			pod      *corev1.Pod
-			describe *podDescribe
-		)
+		var pod *corev1.Pod
 		if pod, err = clientSet.CoreV1().Pods(ns).Get(context.Background(), resourceName, metav1.GetOptions{}); err != nil {
 			return err
 		}
@@ -77,14 +79,29 @@ func debug(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		out, err = describe.debug().describePod()
+	case "pvc":
+		var pvc *corev1.PersistentVolumeClaim
+		if pvc, err = clientSet.CoreV1().PersistentVolumeClaims(ns).Get(context.Background(), resourceName, metav1.GetOptions{}); err != nil {
+			return err
+		}
+		describe, err = newPVCDescribe(clientSet, pvc)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 
+	out, err = describe.debug().describe()
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%s\n", out)
 	return nil
+}
+
+type describeInterface interface {
+	failed(reason string)
+	debug() describeInterface
+	describe() (string, error)
 }

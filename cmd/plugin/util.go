@@ -22,35 +22,44 @@ import (
 	"fmt"
 	"io"
 	"text/tabwriter"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
-func ClientSet(configFlags *genericclioptions.ConfigFlags) *kubernetes.Clientset {
+func ClientSet(configFlags *genericclioptions.ConfigFlags) (*kubernetes.Clientset, error) {
 	restConfig, err := configFlags.ToRESTConfig()
 	if err != nil {
-		panic("kube restConfig load error")
+		return nil, err
 	}
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		panic("gen kube restConfig error")
+		return nil, err
 	}
-	return clientSet
+	return clientSet, nil
 }
 
-func GetMountPodList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
+func GetMountPodList(clientSet *kubernetes.Clientset, volumeId string) ([]corev1.Pod, error) {
+	labelSelector := labels.Set{config.PodTypeKey: config.PodTypeValue}
+	if volumeId != "" {
+		labelSelector[config.PodUniqueIdLabelKey] = volumeId
+	}
 	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: map[string]string{config.PodTypeKey: config.PodTypeValue},
+		MatchLabels: labelSelector,
 	})
-	mountList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{LabelSelector: mountLabelMap.String()})
+	mountList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(),
+		metav1.ListOptions{LabelSelector: mountLabelMap.String()},
+	)
 	if err != nil {
-		fmt.Printf("list mount pods error: %s", err.Error())
 		return nil, err
 	}
 	return mountList.Items, nil
@@ -66,7 +75,6 @@ func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) ([]core
 		FieldSelector: fieldSelector.String(),
 	})
 	if err != nil {
-		fmt.Printf("list mount pods error: %s", err.Error())
 		return nil, err
 	}
 	return mountList.Items, nil
@@ -75,7 +83,6 @@ func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) ([]core
 func GetPodList(clientSet *kubernetes.Clientset, ns string) ([]corev1.Pod, error) {
 	podList, err := clientSet.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("list pods error: %s", err.Error())
 		return nil, err
 	}
 	return podList.Items, nil
@@ -90,7 +97,6 @@ func GetAppPodList(clientSet *kubernetes.Clientset, ns string) ([]corev1.Pod, er
 	})
 	podList, err := clientSet.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{LabelSelector: labelMap.String()})
 	if err != nil {
-		fmt.Printf("list pods error: %s", err.Error())
 		return nil, err
 	}
 	return podList.Items, nil
@@ -102,7 +108,6 @@ func GetCSINodeList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
 	})
 	csiNodeList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{LabelSelector: nodeLabelMap.String()})
 	if err != nil {
-		fmt.Printf("list csi node pods error: %s", err.Error())
 		return nil, err
 	}
 	return csiNodeList.Items, nil
@@ -111,7 +116,6 @@ func GetCSINodeList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
 func GetPVCList(clientSet *kubernetes.Clientset, ns string) ([]corev1.PersistentVolumeClaim, error) {
 	pvcList, err := clientSet.CoreV1().PersistentVolumeClaims(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("list pvcs in namespace %s error: %s", ns, err.Error())
 		return nil, err
 	}
 	return pvcList.Items, nil
@@ -120,10 +124,17 @@ func GetPVCList(clientSet *kubernetes.Clientset, ns string) ([]corev1.Persistent
 func GetPVList(clientSet *kubernetes.Clientset) ([]corev1.PersistentVolume, error) {
 	pvList, err := clientSet.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("list pvs error: %s", err.Error())
 		return nil, err
 	}
 	return pvList.Items, nil
+}
+
+func GetStorageClassList(clientSet *kubernetes.Clientset) ([]storagev1.StorageClass, error) {
+	scList, err := clientSet.StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return scList.Items, nil
 }
 
 func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, error) {
@@ -137,7 +148,6 @@ func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, 
 			FieldSelector: fieldSelector.String(),
 		})
 	if err != nil {
-		fmt.Printf("list csi node pods error: %s", err.Error())
 		return nil, err
 	}
 	if csiNodeList == nil || len(csiNodeList.Items) == 0 {
@@ -149,7 +159,6 @@ func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, 
 func GetNamespaceList(clientSet *kubernetes.Clientset) ([]corev1.Namespace, error) {
 	namespaces, err := clientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("list namespaces error: %s", err.Error())
 		return nil, err
 	}
 	return namespaces.Items, nil
@@ -275,4 +284,12 @@ func ifNil(field string) string {
 		return "<none>"
 	}
 	return field
+}
+
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
 }

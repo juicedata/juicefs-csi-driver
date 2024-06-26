@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,20 +33,23 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe *podDescribe, err error) {
+func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describeInterface, error) {
 	if pod == nil {
-		return
+		return nil, fmt.Errorf("pod not found")
 	}
-	describe = &podDescribe{}
-	describe.name = pod.Name
-	describe.namespace = pod.Namespace
-	describe.status = getPodStatus(*pod)
-	describe.pod = pod
+	describe := &podDescribe{
+		name:      pod.Name,
+		namespace: pod.Namespace,
+		status:    getPodStatus(*pod),
+		pod:       pod,
+		startAt:   pod.Status.StartTime,
+	}
 
 	var (
 		node          *corev1.Node
 		csiNode       *corev1.Pod
 		mountPodsList []corev1.Pod
+		err           error
 	)
 
 	for _, volume := range pod.Spec.Volumes {
@@ -58,12 +62,12 @@ func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe 
 		}
 		pvc, err = clientSet.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(context.Background(), volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
-			return
+			return nil, err
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
 			pv, err = clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			if err != nil && !k8serrors.IsNotFound(err) {
-				return
+				return nil, err
 			}
 			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
 				describe.pvcs = append(describe.pvcs, pvcStatus{
@@ -79,7 +83,7 @@ func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe 
 	if pod.Spec.NodeName != "" {
 		node, err = clientSet.CoreV1().Nodes().Get(context.Background(), pod.Spec.NodeName, metav1.GetOptions{})
 		if err != nil {
-			return
+			return nil, err
 		}
 		describe.node = &resourceStatus{
 			name:   node.Name,
@@ -98,7 +102,7 @@ func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe 
 		// mount pod mode
 		csiNode, err = GetCSINode(clientSet, pod.Spec.NodeName)
 		if err != nil {
-			return
+			return nil, err
 		}
 		if csiNode != nil {
 			describe.csiNodePod = csiNode
@@ -111,7 +115,7 @@ func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe 
 
 		mountPodsList, err = GetMountPodOnNode(clientSet, pod.Spec.NodeName)
 		if err != nil {
-			return
+			return nil, err
 		}
 		describe.mountPodList = make([]corev1.Pod, 0)
 		for _, mount := range mountPodsList {
@@ -127,7 +131,7 @@ func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describe 
 			}
 		}
 	}
-	return
+	return describe, nil
 }
 
 type podDescribe struct {
@@ -138,12 +142,15 @@ type podDescribe struct {
 	name         string
 	namespace    string
 	status       string
+	startAt      *metav1.Time
 	node         *resourceStatus
 	csiNode      *resourceStatus
 	pvcs         []pvcStatus
 	mountPods    []resourceStatus
 	failedReason string
 }
+
+var _ describeInterface = &podDescribe{}
 
 func (p *podDescribe) failed(reason string) {
 	if p.failedReason == "" {
@@ -164,7 +171,7 @@ type resourceStatus struct {
 	status    string
 }
 
-func (p *podDescribe) debug() *podDescribe {
+func (p *podDescribe) debug() describeInterface {
 	if p.pod.DeletionTimestamp != nil {
 		return p.debugTerminatingPod()
 	}
@@ -263,11 +270,14 @@ func (p *podDescribe) debugTerminatingPod() *podDescribe {
 	return p
 }
 
-func (p *podDescribe) describePod() (string, error) {
+func (p *podDescribe) describe() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
 		w.Write(kdescribe.LEVEL_0, "Name:\t%s\n", p.name)
 		w.Write(kdescribe.LEVEL_0, "Namespace:\t%s\n", p.namespace)
+		if p.startAt != nil {
+			w.Write(kdescribe.LEVEL_0, "Start Time:\t%s\n", p.startAt.Time.Format(time.RFC1123Z))
+		}
 		w.Write(kdescribe.LEVEL_0, "Status:\t%s\n", p.status)
 
 		w.Write(kdescribe.LEVEL_0, "Node: \n")

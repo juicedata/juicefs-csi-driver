@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kdescribe "k8s.io/kubectl/pkg/describe"
 
@@ -33,16 +34,14 @@ var podCmd = &cobra.Command{
 	Use:     "pod",
 	Aliases: []string{"po"},
 	Short:   "Show pods using juicefs pvc",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		ns, _ := rootCmd.Flags().GetString("namespace")
 		if ns == "" {
 			ns = "default"
 		}
 		aa, err := newAppAnalyzer(ns)
-		if err != nil {
-			return err
-		}
-		return aa.jfsPod(cmd, args)
+		cobra.CheckErr(err)
+		cobra.CheckErr(aa.jfsPod(cmd, args))
 	},
 }
 
@@ -55,7 +54,6 @@ type appAnalyzer struct {
 	ns        string
 	pods      []corev1.Pod
 	mountPods []corev1.Pod
-	csiNodes  map[string]string
 	pvcs      map[string]corev1.PersistentVolumeClaim
 	pvs       map[string]corev1.PersistentVolume
 
@@ -63,33 +61,28 @@ type appAnalyzer struct {
 }
 
 func newAppAnalyzer(ns string) (aa *appAnalyzer, err error) {
-	clientSet := ClientSet(KubernetesConfigFlags)
+	clientSet, err := ClientSet(KubernetesConfigFlags)
+	if err != nil {
+		return nil, err
+	}
 	aa = &appAnalyzer{
 		clientSet: clientSet,
 		ns:        ns,
 		pods:      make([]corev1.Pod, 0),
 		mountPods: make([]corev1.Pod, 0),
-		csiNodes:  map[string]string{},
 		pvcs:      map[string]corev1.PersistentVolumeClaim{},
 		pvs:       map[string]corev1.PersistentVolume{},
 		apps:      make([]appPod, 0),
 	}
 	var (
-		csiNodeList = make([]corev1.Pod, 0)
-		pvcList     = make([]corev1.PersistentVolumeClaim, 0)
-		pvList      = make([]corev1.PersistentVolume, 0)
+		pvcList = make([]corev1.PersistentVolumeClaim, 0)
+		pvList  = make([]corev1.PersistentVolume, 0)
 	)
 	if aa.pods, err = GetPodList(clientSet, ns); err != nil {
 		return
 	}
-	if aa.mountPods, err = GetMountPodList(clientSet); err != nil {
+	if aa.mountPods, err = GetMountPodList(clientSet, ""); err != nil {
 		return
-	}
-	if csiNodeList, err = GetCSINodeList(clientSet); err != nil {
-		return
-	}
-	for _, csi := range csiNodeList {
-		aa.csiNodes[csi.Spec.NodeName] = csi.Name
 	}
 	if pvcList, err = GetPVCList(clientSet, ns); err != nil {
 		return
@@ -111,9 +104,8 @@ type appPod struct {
 	namespace string
 	name      string
 	mountPods []string
-	node      string
-	csiNode   string
 	status    string
+	createAt  metav1.Time
 }
 
 func (aa *appAnalyzer) jfsPod(cmd *cobra.Command, args []string) error {
@@ -129,9 +121,8 @@ func (aa *appAnalyzer) jfsPod(cmd *cobra.Command, args []string) error {
 		po := appPod{
 			namespace: pod.Namespace,
 			name:      pod.Name,
-			node:      pod.Spec.NodeName,
-			csiNode:   aa.csiNodes[pod.Spec.NodeName],
 			status:    getPodStatus(pod),
+			createAt:  pod.CreationTimestamp,
 		}
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
@@ -146,12 +137,7 @@ func (aa *appAnalyzer) jfsPod(cmd *cobra.Command, args []string) error {
 					continue
 				}
 				if pvc.Spec.VolumeName != "" {
-					pv, ok := aa.pvs[pvc.Spec.VolumeName]
-					if !ok {
-						appending = true
-						continue
-					}
-					if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+					if pv, ok := aa.pvs[pvc.Spec.VolumeName]; ok && pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
 						appending = true
 					}
 				}
@@ -187,21 +173,21 @@ func (aa *appAnalyzer) jfsPod(cmd *cobra.Command, args []string) error {
 func (aa *appAnalyzer) printAppPods() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
-		w.Write(kdescribe.LEVEL_0, "Name\tNamespace\tMount Pods\tStatus\tCSI Node\tNode\n")
+		w.Write(kdescribe.LEVEL_0, "NAME\tNAMESPACE\tMOUNT PODS\tSTATUS\tAGE\n")
 		for _, pod := range aa.apps {
 			for i, mount := range pod.mountPods {
-				name, namespace, status, csiNode, node := "", "", "", "", ""
+				name, namespace, status, age := "", "", "", ""
 				mountShow := mount
 				if i < len(pod.mountPods)-1 {
 					mountShow = mount + ","
 				}
 				if i == 0 {
-					name, namespace, status, csiNode, node = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node)
+					name, namespace, status, age = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), translateTimestampSince(pod.createAt)
 				}
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, namespace, mountShow, status, csiNode, node)
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\n", name, namespace, mountShow, status, age)
 			}
 			if len(pod.mountPods) == 0 {
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node))
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), translateTimestampSince(pod.createAt))
 			}
 		}
 		return nil

@@ -36,7 +36,9 @@ var oplogCmd = &cobra.Command{
 	Example: `  # collect access log from mount pod
   kubectl jfs oplog <pod-name>
 `,
-	RunE: oplog,
+	Run: func(cmd *cobra.Command, args []string) {
+		cobra.CheckErr(oplog(cmd, args))
+	},
 }
 
 func init() {
@@ -44,7 +46,10 @@ func init() {
 }
 
 func oplog(cmd *cobra.Command, args []string) (err error) {
-	clientSet := ClientSet(KubernetesConfigFlags)
+	clientSet, err := ClientSet(KubernetesConfigFlags)
+	if err != nil {
+		return err
+	}
 	eCli := NewExecCli(clientSet)
 
 	cmd.Flags().BoolVarP(&eCli.Stdin, "stdin", "i", eCli.Stdin, "Pass stdin to the container")
@@ -57,24 +62,20 @@ func oplog(cmd *cobra.Command, args []string) (err error) {
 
 	podName := args[0]
 	if !strings.HasPrefix(podName, "juicefs-") {
-		fmt.Printf("pod %s is not juicefs mount pod\n", podName)
-		return nil
+		return fmt.Errorf("pod %s is not juicefs mount pod\n", podName)
 	}
 	var pod *corev1.Pod
 
 	if pod, err = clientSet.CoreV1().Pods("kube-system").Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
-		fmt.Printf("get mount pod %s error: %s\n", podName, err.Error())
-		return nil
+		return err
 	}
 	if pod.Labels[config.PodTypeKey] != config.PodTypeValue {
-		fmt.Println(fmt.Errorf("pod %s is not juicefs mount pod", podName))
-		return nil
+		return fmt.Errorf("pod %s is not juicefs mount pod", podName)
 	}
 
 	mountPath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
-		fmt.Printf("get mount path of pod %s error: %s\n", podName, err.Error())
-		return nil
+		return fmt.Errorf("get mount path of pod %s error: %s\n", podName, err.Error())
 	}
 	return eCli.Completion().
 		SetNamespace("kube-system").

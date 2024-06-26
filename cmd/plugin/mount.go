@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kdescribe "k8s.io/kubectl/pkg/describe"
 )
@@ -30,12 +31,10 @@ import (
 var mountCmd = &cobra.Command{
 	Use:   "mount",
 	Short: "Show mount pod of juicefs",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		ma, err := newMountAnalyzer()
-		if err != nil {
-			return err
-		}
-		return ma.listMountPod(cmd, args)
+		cobra.CheckErr(err)
+		cobra.CheckErr(ma.listMountPod(cmd, args))
 	},
 }
 
@@ -55,7 +54,10 @@ type mountAnalyzer struct {
 }
 
 func newMountAnalyzer() (ma *mountAnalyzer, err error) {
-	clientSet := ClientSet(KubernetesConfigFlags)
+	clientSet, err := ClientSet(KubernetesConfigFlags)
+	if err != nil {
+		return nil, err
+	}
 	ma = &mountAnalyzer{
 		clientSet: clientSet,
 		apps:      make(map[string]string),
@@ -83,7 +85,7 @@ func newMountAnalyzer() (ma *mountAnalyzer, err error) {
 		}
 	}
 
-	if ma.mountPods, err = GetMountPodList(ma.clientSet); err != nil {
+	if ma.mountPods, err = GetMountPodList(ma.clientSet, ""); err != nil {
 		return
 	}
 
@@ -100,9 +102,9 @@ type mountPod struct {
 	namespace string
 	name      string
 	appPods   []string
-	node      string
 	csiNode   string
 	status    string
+	createAt  metav1.Time
 }
 
 func (ma *mountAnalyzer) listMountPod(cmd *cobra.Command, args []string) error {
@@ -111,7 +113,7 @@ func (ma *mountAnalyzer) listMountPod(cmd *cobra.Command, args []string) error {
 		mount := mountPod{
 			namespace: pod.Namespace,
 			name:      pod.Name,
-			node:      pod.Spec.NodeName,
+			createAt:  pod.CreationTimestamp,
 		}
 
 		appNames := []string{}
@@ -144,21 +146,21 @@ func (ma *mountAnalyzer) listMountPod(cmd *cobra.Command, args []string) error {
 func (ma *mountAnalyzer) printMountPods() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
-		w.Write(kdescribe.LEVEL_0, "Name\tNamespace\tApp Pods\tStatus\tCSI Node\tNode\n")
+		w.Write(kdescribe.LEVEL_0, "NAME\tNAMESPACE\tAPP PODS\tSTATUS\tCSI NODE\tAGE\n")
 		for _, pod := range ma.mounts {
 			for i, app := range pod.appPods {
-				name, ns, status, csiNode, node := "", "", "", "", ""
+				name, ns, status, csiNode, age := "", "", "", "", ""
 				appShow := app
 				if i < len(pod.appPods)-1 {
 					appShow = app + ","
 				}
 				if i == 0 {
-					name, ns, status, csiNode, node = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node)
+					name, ns, status, csiNode, age = ifNil(pod.name), ifNil(pod.namespace), ifNil(pod.status), ifNil(pod.csiNode), translateTimestampSince(pod.createAt)
 				}
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, ns, appShow, status, csiNode, node)
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", name, ns, appShow, status, csiNode, age)
 			}
 			if len(pod.appPods) == 0 {
-				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), ifNil(pod.csiNode), ifNil(pod.node))
+				w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\t%s\n", ifNil(pod.name), ifNil(pod.namespace), "<none>", ifNil(pod.status), ifNil(pod.csiNode), translateTimestampSince(pod.createAt))
 			}
 		}
 		return nil
