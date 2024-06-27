@@ -67,10 +67,14 @@ const XTermModal: React.FC<{
 
   useEffect(() => {
     if (isModalOpen) {
-      window.addEventListener('resize', fitAddon.fit)
+      window.addEventListener('resize', () => {
+        fitAddon.fit()
+      })
     }
     return () => {
-      window.removeEventListener('resize', fitAddon.fit)
+      window.removeEventListener('resize', () => {
+        fitAddon.fit()
+      })
     }
   }, [fitAddon, isModalOpen, terminal])
 
