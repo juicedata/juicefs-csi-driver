@@ -250,6 +250,20 @@ func getPodStatus(pod corev1.Pod) string {
 	return reason
 }
 
+func getPVStatus(pv corev1.PersistentVolume) string {
+	if pv.DeletionTimestamp != nil {
+		return "Terminating"
+	}
+	return string(pv.Status.Phase)
+}
+
+func getPVCStatus(pvc corev1.PersistentVolumeClaim) string {
+	if pvc.DeletionTimestamp != nil {
+		return "Terminating"
+	}
+	return string(pvc.Status.Phase)
+}
+
 func getContainerErrorMessage(pod corev1.Pod) string {
 	for _, cn := range pod.Status.InitContainerStatuses {
 		if cn.State.Waiting != nil && cn.State.Waiting.Message != "" {

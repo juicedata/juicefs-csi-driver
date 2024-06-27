@@ -152,7 +152,8 @@ type podDescribe struct {
 
 var _ describeInterface = &podDescribe{}
 
-func (p *podDescribe) failed(reason string) {
+func (p *podDescribe) failedf(reason string, args ...interface{}) {
+	reason = fmt.Sprintf(reason, args...)
 	if p.failedReason == "" {
 		p.failedReason = reason
 	}
@@ -182,49 +183,45 @@ func (p *podDescribe) debugRunningPod() *podDescribe {
 	// 1. PVC pending
 	for _, pvc := range p.pvcs {
 		if pvc.status != string(corev1.ClaimBound) {
-			reason := fmt.Sprintf("PVC [%s] is not bound.", pvc.name)
-			p.failed(reason)
+			p.failedf("PVC [%s] is not bound.", pvc.name)
 		}
 	}
 
 	// 2. not scheduled
 	for _, condition := range p.pod.Status.Conditions {
 		if condition.Type == corev1.PodScheduled && condition.Status != corev1.ConditionTrue {
-			reason := "Pod is not scheduled."
-			p.failed(reason)
+			p.failedf("Pod is not scheduled.")
 		}
 	}
 
 	// 3. node not ready
 	if p.node != nil && p.node.status != string(corev1.NodeReady) {
-		reason := fmt.Sprintf("Node [%s] is not ready", p.node.name)
-		p.failed(reason)
+		p.failedf("Node [%s] is not ready", p.node.name)
 	}
 
 	// sidecar mode do not need
 	if p.pod.Labels == nil || p.pod.Labels["done.sidecar.juicefs.com/inject"] != "true" {
 		// 4. csi node not ready
 		if p.csiNode == nil {
-			p.failed(fmt.Sprintf("CSI node not found on node [%s], please check if there are taints on node.", p.node))
+			p.failedf("CSI node not found on node [%s], please check if there are taints on node.", p.node)
 		}
 		if p.csiNodePod != nil && !util.IsPodReady(p.csiNodePod) {
-			p.failed(fmt.Sprintf("CSI node [%s] is not ready.", p.node))
+			p.failedf("CSI node [%s] is not ready.", p.node)
 		}
 
 		// 5. mount pod not ready
 		for _, m := range p.mountPodList {
 			if !util.IsPodReady(&m) {
-				reason := fmt.Sprintf("Mount pod [%s] is not ready, please check its log.", m.Name)
-				p.failed(reason)
+				p.failedf("Mount pod [%s] is not ready, please check its log.", m.Name)
 			}
 		}
 		if len(p.pvcs) != 0 && len(p.mountPods) == 0 {
-			p.failed("Mount pod not found, please check csi node's log for detail.")
+			p.failedf("Mount pod not found, please check csi node's log for detail.")
 		}
 	}
 
 	// 6. container error
-	p.failed(getContainerErrorMessage(*p.pod))
+	p.failedf(getContainerErrorMessage(*p.pod))
 
 	return p
 }
@@ -232,28 +229,27 @@ func (p *podDescribe) debugRunningPod() *podDescribe {
 func (p *podDescribe) debugTerminatingPod() *podDescribe {
 	// 1. node not ready
 	if p.node != nil && p.node.status != string(corev1.NodeReady) {
-		reason := fmt.Sprintf("Node [%s] is not ready", p.node.name)
-		p.failed(reason)
+		p.failedf("Node [%s] is not ready", p.node.name)
 	}
 
 	// sidecar mode do not need
 	if p.pod.Labels == nil || p.pod.Labels["done.sidecar.juicefs.com/inject"] != "true" {
 		// 2. csi node not ready
 		if p.csiNode == nil {
-			p.failed(fmt.Sprintf("CSI node not found on node [%s], please check if there are taints on node.", p.node))
+			p.failedf("CSI node not found on node [%s], please check if there are taints on node.", p.node)
 		}
 		if !util.IsPodReady(p.csiNodePod) {
-			p.failed(fmt.Sprintf("CSI node [%s] is not ready.", p.node))
+			p.failedf("CSI node [%s] is not ready.", p.node)
 		}
 
 		// 3. mount pod not terminating or contain pod uid
 		for _, m := range p.mountPodList {
 			if m.DeletionTimestamp != nil {
-				p.failed(fmt.Sprintf("mount pod [%s] is still terminating", m.Name))
+				p.failedf("mount pod [%s] is still terminating", m.Name)
 			} else {
 				for _, value := range m.Annotations {
 					if strings.Contains(value, string(p.pod.UID)) {
-						p.failed(fmt.Sprintf("mount pod [%s] still contain its uid in annotations", m.Name))
+						p.failedf("mount pod [%s] still contain its uid in annotations", m.Name)
 					}
 				}
 			}
@@ -261,11 +257,11 @@ func (p *podDescribe) debugTerminatingPod() *podDescribe {
 	}
 
 	// 4. container error
-	p.failed(getContainerErrorMessage(*p.pod))
+	p.failedf(getContainerErrorMessage(*p.pod))
 
 	// 5. finalizer not delete
 	if p.pod.Finalizers != nil {
-		p.failed(fmt.Sprintf("pod still has finalizer: %v", p.pod.Finalizers))
+		p.failedf("pod still has finalizer: %v", p.pod.Finalizers)
 	}
 	return p
 }

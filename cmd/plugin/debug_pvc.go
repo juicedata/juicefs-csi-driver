@@ -37,7 +37,8 @@ func newPVCDescribe(clientSet *kubernetes.Clientset, pvc *corev1.PersistentVolum
 		pvc:       pvc,
 		name:      pvc.Name,
 		namespace: pvc.Namespace,
-		status:    string(pvc.Status.Phase),
+		status:    getPVCStatus(*pvc),
+		selector:  pvc.Spec.Selector.String(),
 	}
 	var (
 		volumeId string
@@ -106,9 +107,12 @@ type pvcDescribe struct {
 	status       string
 	scName       string
 	pvName       string
+	selector     string
 	appMountPair []appMount
 	failedReason string
 }
+
+var _ describeInterface = &pvcDescribe{}
 
 type appMount struct {
 	appName string
@@ -116,7 +120,8 @@ type appMount struct {
 	node    string
 }
 
-func (p *pvcDescribe) failed(reason string) {
+func (p *pvcDescribe) failedf(reason string, args ...interface{}) {
+	reason = fmt.Sprintf(reason, args...)
 	if p.failedReason == "" {
 		p.failedReason = reason
 	}
@@ -130,8 +135,11 @@ func (p *pvcDescribe) debug() describeInterface {
 }
 
 func (p *pvcDescribe) debugTerminatingPVC() *pvcDescribe {
+	if p.pvc.DeletionTimestamp == nil {
+		return p
+	}
 	if len(p.appMountPair) != 0 {
-		p.failed("pvc is still mounted by pod")
+		p.failedf("pvc is still mounted by pod")
 	}
 	return p
 }
@@ -141,18 +149,19 @@ func (p *pvcDescribe) debugRunningPVC() *pvcDescribe {
 		return p
 	}
 	if p.scName != "" && p.sc == nil {
-		p.failed(fmt.Sprintf("StorageClass %s not found", p.scName))
+		p.failedf("StorageClass %s not found", p.scName)
 	}
 	if p.sc != nil {
-		p.failed("The corresponding PV is not automatically created. Please check the log of juicefs csi controller.")
+		p.failedf("the corresponding PV is not automatically created. Please check the log of juicefs csi controller.")
 	}
 	if p.pv == nil {
 		if p.pvName != "" {
-			p.failed("No matching PV found")
+			p.failedf("no matching PV %s found", p.pvName)
 		}
 		if p.pvc.Spec.Selector == nil {
-			p.failed("pvc selector is not set")
+			p.failedf("pvc selector is not set")
 		}
+		p.failedf("no matching PV (%s) found", p.selector)
 	}
 	return p
 }

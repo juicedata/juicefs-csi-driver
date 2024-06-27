@@ -88,6 +88,15 @@ func debug(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	case "pv":
+		var pv *corev1.PersistentVolume
+		if pv, err = clientSet.CoreV1().PersistentVolumes().Get(context.Background(), resourceName, metav1.GetOptions{}); err != nil {
+			return err
+		}
+		describe, err = newPVDescribe(clientSet, pv)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
@@ -101,7 +110,7 @@ func debug(cmd *cobra.Command, args []string) error {
 }
 
 type describeInterface interface {
-	failed(reason string)
+	failedf(reason string, args ...interface{})
 	debug() describeInterface
 	describe() (string, error)
 }

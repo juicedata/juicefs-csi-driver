@@ -155,7 +155,7 @@ func (pa *pvcAnalyzer) listPVC(cmd *cobra.Command, args []string) error {
 func (pa *pvcAnalyzer) printPVCs() (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := kdescribe.NewPrefixWriter(out)
-		w.Write(kdescribe.LEVEL_0, "NAME\tVOLUME\tSTORAGE CLASS\tSTATUS\tAGE\n")
+		w.Write(kdescribe.LEVEL_0, "NAME\tVOLUME\tSTORAGECLASS\tSTATUS\tAGE\n")
 		for _, pvc := range pa.pvcShows {
 			w.Write(kdescribe.LEVEL_0, "%s\t%s\t%s\t%s\t%s\n", pvc.name, pvc.pv, pvc.sc, pvc.status, translateTimestampSince(pvc.createAt))
 		}
