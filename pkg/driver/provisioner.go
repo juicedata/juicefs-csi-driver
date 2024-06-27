@@ -34,7 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -103,7 +103,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
 	}
 
-	pvMeta := util.NewObjectMeta(*options.PVC, options.SelectedNode)
+	pvMeta := resource.NewObjectMeta(*options.PVC, options.SelectedNode)
 
 	pvName := options.PVName
 	scParams := make(map[string]string)
@@ -189,7 +189,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 
 	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
 		klog.V(6).Infof("Provisioner: Add Finalizer on %s/%s", secret.Namespace, secret.Name)
-		err = util.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
+		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		if err != nil {
 			klog.Warningf("Fails to add a finalizer to the secret, error: %v", err)
 		}
@@ -207,7 +207,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		return nil
 	}
 	// check all pvs of the same storageClass, if multiple pv using the same subPath, do not delete the subPath
-	shouldDeleted, err := util.CheckForSubPath(ctx, j.K8sClient, volume, volume.Spec.CSI.VolumeAttributes["pathPattern"])
+	shouldDeleted, err := resource.CheckForSubPath(ctx, j.K8sClient, volume, volume.Spec.CSI.VolumeAttributes["pathPattern"])
 	if err != nil {
 		klog.Errorf("Provisioner: CheckForSubPath error: %v", err)
 		return err
@@ -236,14 +236,14 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	}
 
 	if volume.Spec.CSI.VolumeAttributes["secretFinalizer"] == "true" {
-		shouldRemoveFinalizer, err := util.CheckForSecretFinalizer(ctx, j.K8sClient, volume)
+		shouldRemoveFinalizer, err := resource.CheckForSecretFinalizer(ctx, j.K8sClient, volume)
 		if err != nil {
 			klog.Errorf("Provisioner: CheckForSecretFinalizer error: %v", err)
 			return err
 		}
 		if shouldRemoveFinalizer {
 			klog.V(6).Infof("Provisioner: Remove Finalizer on %s/%s", secretNamespace, secretName)
-			util.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
+			resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		}
 	}
 	return nil

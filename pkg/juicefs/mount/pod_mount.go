@@ -40,6 +40,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type PodMount struct {
@@ -160,7 +161,7 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 			klog.V(5).Infof("JUmount: Target ref [%s] in pod [%s] already not exists.", target, pod.Name)
 			return nil
 		}
-		return util.DelPodAnnotation(ctx, p.K8sClient, pod, []string{key})
+		return resource.DelPodAnnotation(ctx, p.K8sClient, pod, []string{key})
 	})
 	if err != nil {
 		klog.Errorf("JUmount: Remove ref of target %s err: %v", target, err)
@@ -186,7 +187,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 		}
 
 		var shouldDelay bool
-		shouldDelay, err = util.ShouldDelay(ctx, po, p.K8sClient)
+		shouldDelay, err = resource.ShouldDelay(ctx, po, p.K8sClient)
 		if err != nil {
 			return err
 		}
@@ -385,7 +386,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	err := util.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
+	err := resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
 	if err == nil {
 		return nil
 	}
@@ -415,9 +416,9 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 			}
 			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
 		}
-		if util.IsJobCompleted(job) {
+		if resource.IsJobCompleted(job) {
 			klog.V(5).Infof("waitUtilJobCompleted: Job %s is completed", jobName)
-			if util.IsJobShouldBeRecycled(job) {
+			if resource.IsJobShouldBeRecycled(job) {
 				// try to delete job
 				klog.Infof("job %s completed but not be recycled automatically, delete it", jobName)
 				if err := p.K8sClient.DeleteJob(ctx, jobName, jfsConfig.Namespace); err != nil {
@@ -468,7 +469,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, jfsConfig.DeleteDelayAtKey)
-		return util.ReplacePodAnnotation(ctx, p.K8sClient, exist, annotation)
+		return resource.ReplacePodAnnotation(ctx, p.K8sClient, exist, annotation)
 	})
 	if err != nil {
 		klog.Errorf("addRefOfMount: Add target ref in mount pod %s error: %v", podName, err)
@@ -484,7 +485,7 @@ func (p *PodMount) setUUIDAnnotation(ctx context.Context, podName string, uuid s
 		return err
 	}
 	klog.Infof("setUUIDAnnotation: set pod %s annotation %s=%s", podName, jfsConfig.JuiceFSUUID, uuid)
-	return util.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
+	return resource.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
 }
 
 func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName string, podName, podNamespace string) (err error) {
@@ -494,7 +495,7 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 		return err
 	}
 	klog.Infof("setMountLabel: set mount info in pod %s", podName)
-	if err := util.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: ""}); err != nil {
+	if err := resource.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: ""}); err != nil {
 		return err
 	}
 

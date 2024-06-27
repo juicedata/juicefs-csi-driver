@@ -34,7 +34,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type JobController struct {
@@ -67,7 +67,7 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 	nodeName := job.Spec.Template.Spec.NodeName
 	if nodeName == "" {
 		// when job not set nodeName, don't need to check csi node
-		if util.IsJobShouldBeRecycled(job) {
+		if resource.IsJobShouldBeRecycled(job) {
 			// try to delete job
 			klog.Infof("job %s completed but not be recycled automatically, delete it", job.Name)
 			if err := m.DeleteJob(ctx, job.Name, job.Namespace); err != nil {
@@ -97,7 +97,7 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	// if csi node not exist, or job should be recycled itself, delete it
-	if needRecycled || util.IsJobShouldBeRecycled(job) {
+	if needRecycled || resource.IsJobShouldBeRecycled(job) {
 		klog.Infof("recycle job %s", job.Name)
 		err = m.DeleteJob(ctx, job.Name, job.Namespace)
 		if err != nil {

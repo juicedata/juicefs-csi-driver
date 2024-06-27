@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
@@ -72,7 +73,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pair, err := util.GetVolumes(ctx, s.Client, pod)
+	used, pair, err := resource.GetVolumes(ctx, s.Client, pod)
 	if err != nil {
 		klog.Errorf("[SidecarHandler] get pv from pod %s namespace %s err: %v", pod.Name, pod.Namespace, err)
 		return admission.Errored(http.StatusBadRequest, err)
