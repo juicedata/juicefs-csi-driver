@@ -36,7 +36,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -121,13 +120,9 @@ func run() {
 	if err != nil {
 		log.Fatalf("can't create manager: %v", err)
 	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("can't create k8s client: %v", err)
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), client, config)
+	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), config)
 	router := gin.Default()
 	if devMode {
 		router.Use(cors.New(cors.Config{

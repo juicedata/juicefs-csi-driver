@@ -47,11 +47,11 @@ type API struct {
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, client kubernetes.Interface, config *rest.Config) *API {
+func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
 		cachedReader: cachedReader,
-		client:       client,
+		client:       kubernetes.NewForConfigOrDie(config),
 		csiNodeIndex: make(map[string]types.NamespacedName),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
 		appIndexes:   newTimeIndexes[corev1.Pod](),

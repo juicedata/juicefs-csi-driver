@@ -838,7 +838,7 @@ func (api *API) execPod() gin.HandlerFunc {
 
 			executor, err := remotecommand.NewSPDYExecutor(api.kubeconfig, "POST", req.URL())
 			if err != nil {
-				klog.Info("Failed to create SPDY executor: ", err)
+				klog.Error("Failed to create SPDY executor: ", err)
 				return
 			}
 			if err := executor.Stream(remotecommand.StreamOptions{
@@ -848,7 +848,7 @@ func (api *API) execPod() gin.HandlerFunc {
 				Tty:               true,
 				TerminalSizeQueue: terminal,
 			}); err != nil {
-				klog.Info("Failed to stream: ", err)
+				klog.Error("Failed to stream: ", err)
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
