@@ -1,20 +1,20 @@
 /*
-Copyright 2021 Juicedata Inc
+ Copyright 2023 Juicedata Inc
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
-package util
+package resource
 
 import (
 	"context"
@@ -30,7 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -97,21 +100,6 @@ func IsPodHasResource(pod corev1.Pod) bool {
 		}
 	}
 	return false
-}
-
-func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
-	if len(pod.Spec.Containers) == 0 {
-		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
-	}
-	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
-		return "", "", fmt.Errorf("get error pod command:%v", cmd)
-	}
-	sourcePath, volumeId, err := ParseMntPath(cmd[2])
-	if err != nil {
-		return "", "", err
-	}
-	return sourcePath, volumeId, nil
 }
 
 func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, finalizer string) error {
@@ -221,7 +209,7 @@ func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod 
 func GetAllRefKeys(pod corev1.Pod) map[string]string {
 	annos := make(map[string]string)
 	for k, v := range pod.Annotations {
-		if k == GetReferenceKey(v) {
+		if k == util.GetReferenceKey(v) {
 			annos[k] = v
 		}
 	}
@@ -235,7 +223,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", mntPath, podName)
 	for {
 		var finfo os.FileInfo
-		if err := DoWithTimeout(waitCtx, timeout, func() (err error) {
+		if err := util.DoWithTimeout(waitCtx, timeout, func() (err error) {
 			finfo, err = os.Stat(mntPath)
 			return err
 		}); err != nil {
@@ -248,7 +236,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 		}
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				MountPointDevMinorTable.Store(mntPath, DevMinor(st.Dev))
+				MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
 				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", mntPath, podName)
 				return nil
 			}
@@ -258,4 +246,34 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 	}
 
 	return fmt.Errorf("mount point %v is not ready, mountpod: %s", mntPath, podName)
+}
+
+func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
+	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
+	if !delayExist {
+		// not set delete delay
+		return false, nil
+	}
+	delayAtStr, delayAtExist := pod.Annotations[config.DeleteDelayAtKey]
+	if !delayAtExist {
+		// need to add delayAt annotation
+		d, err := util.GetTimeAfterDelay(delayStr)
+		if err != nil {
+			klog.Errorf("delayDelete: can't parse delay time %s: %v", d, err)
+			return false, nil
+		}
+		addAnnotation := map[string]string{config.DeleteDelayAtKey: d}
+		klog.Infof("delayDelete: add annotation %v to pod %s", addAnnotation, pod.Name)
+		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
+			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
+			return true, err
+		}
+		return true, nil
+	}
+	delayAt, err := util.GetTime(delayAtStr)
+	if err != nil {
+		klog.Errorf("delayDelete: can't parse delayAt %s: %v", delayAtStr, err)
+		return false, nil
+	}
+	return time.Now().Before(delayAt), nil
 }

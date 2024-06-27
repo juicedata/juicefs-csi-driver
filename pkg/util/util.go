@@ -38,8 +38,6 @@ import (
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -276,6 +274,21 @@ func GetReferenceKey(target string) string {
 	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 }
 
+func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := ParseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
+}
+
 // ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
 func ParseMntPath(cmd string) (string, string, error) {
 	cmds := strings.Split(cmd, "\n")
@@ -303,36 +316,6 @@ func GetTimeAfterDelay(delayStr string) (string, error) {
 
 func GetTime(str string) (time.Time, error) {
 	return time.Parse("2006-01-02 15:04:05", str)
-}
-
-func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
-	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
-	if !delayExist {
-		// not set delete delay
-		return false, nil
-	}
-	delayAtStr, delayAtExist := pod.Annotations[config.DeleteDelayAtKey]
-	if !delayAtExist {
-		// need to add delayAt annotation
-		d, err := GetTimeAfterDelay(delayStr)
-		if err != nil {
-			klog.Errorf("delayDelete: can't parse delay time %s: %v", d, err)
-			return false, nil
-		}
-		addAnnotation := map[string]string{config.DeleteDelayAtKey: d}
-		klog.Infof("delayDelete: add annotation %v to pod %s", addAnnotation, pod.Name)
-		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
-			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
-			return true, err
-		}
-		return true, nil
-	}
-	delayAt, err := GetTime(delayAtStr)
-	if err != nil {
-		klog.Errorf("delayDelete: can't parse delayAt %s: %v", delayAtStr, err)
-		return false, nil
-	}
-	return time.Now().Before(delayAt), nil
 }
 
 func QuoteForShell(cmd string) string {

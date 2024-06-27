@@ -35,6 +35,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type MountController struct {
@@ -87,7 +88,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 
 	klog.Infof("csi node in %s did not exist. remove finalizer of pod %s", nodeName, mountPod.Name)
 	// remove finalizer
-	err = util.RemoveFinalizer(ctx, m.K8sClient, mountPod, config.Finalizer)
+	err = resource.RemoveFinalizer(ctx, m.K8sClient, mountPod, config.Finalizer)
 	if err != nil {
 		klog.Errorf("remove finalizer of pod %s error: %v", mountPod.Name, err)
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
@@ -39,7 +40,7 @@ var (
 type controllerService struct {
 	juicefs  juicefs.Interface
 	vols     map[string]int64
-	volLocks *util.VolumeLocks
+	volLocks *resource.VolumeLocks
 }
 
 func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
@@ -48,7 +49,7 @@ func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, er
 	return controllerService{
 		juicefs:  jfs,
 		vols:     make(map[string]int64),
-		volLocks: util.NewVolumeLocks(),
+		volLocks: resource.NewVolumeLocks(),
 	}, nil
 }
 
