@@ -15,12 +15,13 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Table, Tag } from 'antd'
+import { Button, Space, Table, Tag } from 'antd'
 import { Container, ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
 
 import LogModal from './log-modal'
+import XTermModal from './xterm-modal'
 import { DetailParams } from '@/types'
 
 const Containers: React.FC<{
@@ -62,7 +63,7 @@ const Containers: React.FC<{
             title: <FormattedMessage id="log" />,
             key: 'action',
             render: (record, c) => (
-              <>
+              <Space>
                 <LogModal
                   namespace={namespace!}
                   name={name!}
@@ -75,7 +76,18 @@ const Containers: React.FC<{
                     </Button>
                   )}
                 </LogModal>
-              </>
+                <XTermModal
+                  namespace={namespace!}
+                  name={name!}
+                  container={record.name}
+                >
+                  {({ onClick }) => (
+                    <Button type="primary" onClick={onClick}>
+                      Exec
+                    </Button>
+                  )}
+                </XTermModal>
+              </Space>
             ),
           },
         ]}
