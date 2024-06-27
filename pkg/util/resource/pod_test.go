@@ -17,6 +17,7 @@
 package resource
 
 import (
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"reflect"
 	"testing"
 
@@ -566,7 +567,7 @@ func TestGetMountPathOfPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := GetMountPathOfPod(tt.args.pod)
+			got, got1, err := util.GetMountPathOfPod(tt.args.pod)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
 				return
