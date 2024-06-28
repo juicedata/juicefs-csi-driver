@@ -21,19 +21,23 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var KubernetesConfigFlags *genericclioptions.ConfigFlags
-
-const version = "v1.0.0"
+var (
+	KubernetesConfigFlags *genericclioptions.ConfigFlags
+	mountNamespace        string
+)
 
 func init() {
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
+	rootCmd.PersistentFlags().StringVarP(&mountNamespace, "mount-namespace", "m", "kube-system", "namespace of juicefs csi driver")
 	KubernetesConfigFlags.AddFlags(rootCmd.PersistentFlags())
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "kubectl-jfs",
-	Short:   "tool for juicefs debug in kubernetes",
-	Version: version,
+	Use:   "kubectl-jfs",
+	Short: "tool for juicefs debug in kubernetes",
+	Version: func() string {
+		return Version()
+	}(),
 }
 
 func main() {

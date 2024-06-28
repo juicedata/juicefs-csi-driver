@@ -30,7 +30,6 @@ import (
 	kdescribe "k8s.io/kubectl/pkg/describe"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func newPodDescribe(clientSet *kubernetes.Clientset, pod *corev1.Pod) (describeInterface, error) {
@@ -205,13 +204,13 @@ func (p *podDescribe) debugRunningPod() *podDescribe {
 		if p.csiNode == nil {
 			p.failedf("CSI node not found on node [%s], please check if there are taints on node.", p.node)
 		}
-		if p.csiNodePod != nil && !util.IsPodReady(p.csiNodePod) {
+		if p.csiNodePod != nil && !isPodReady(p.csiNodePod) {
 			p.failedf("CSI node [%s] is not ready.", p.node)
 		}
 
 		// 5. mount pod not ready
 		for _, m := range p.mountPodList {
-			if !util.IsPodReady(&m) {
+			if !isPodReady(&m) {
 				p.failedf("Mount pod [%s] is not ready, please check its log.", m.Name)
 			}
 		}
@@ -238,7 +237,7 @@ func (p *podDescribe) debugTerminatingPod() *podDescribe {
 		if p.csiNode == nil {
 			p.failedf("CSI node not found on node [%s], please check if there are taints on node.", p.node)
 		}
-		if !util.IsPodReady(p.csiNodePod) {
+		if !isPodReady(p.csiNodePod) {
 			p.failedf("CSI node [%s] is not ready.", p.node)
 		}
 

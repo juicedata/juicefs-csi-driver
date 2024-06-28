@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"net/http"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -30,7 +32,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/validator"
 )

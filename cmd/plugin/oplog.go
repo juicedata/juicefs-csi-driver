@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var oplogCmd = &cobra.Command{
@@ -35,7 +34,9 @@ var oplogCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Example: `  # collect access log from mount pod
   kubectl jfs oplog <pod-name>
-`,
+
+  # when juicefs csi driver is not in kube-system
+  kubectl jfs oplog <pod-name> -m <mount-namespace>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cobra.CheckErr(oplog(cmd, args))
 	},
@@ -66,19 +67,19 @@ func oplog(cmd *cobra.Command, args []string) (err error) {
 	}
 	var pod *corev1.Pod
 
-	if pod, err = clientSet.CoreV1().Pods("kube-system").Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
+	if pod, err = clientSet.CoreV1().Pods(mountNamespace).Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
 		return err
 	}
 	if pod.Labels[config.PodTypeKey] != config.PodTypeValue {
 		return fmt.Errorf("pod %s is not juicefs mount pod", podName)
 	}
 
-	mountPath, _, err := util.GetMountPathOfPod(*pod)
+	mountPath, _, err := getMountPathOfPod(*pod)
 	if err != nil {
 		return fmt.Errorf("get mount path of pod %s error: %s\n", podName, err.Error())
 	}
 	return eCli.Completion().
-		SetNamespace("kube-system").
+		SetNamespace(mountNamespace).
 		SetPod(podName).
 		Container(config.MountContainerName).
 		Commands([]string{"cat", fmt.Sprintf("%s/.accesslog", mountPath)}).

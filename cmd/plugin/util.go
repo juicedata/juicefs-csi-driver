@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -56,7 +57,7 @@ func GetMountPodList(clientSet *kubernetes.Clientset, volumeId string) ([]corev1
 	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: labelSelector,
 	})
-	mountList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(),
+	mountList, err := clientSet.CoreV1().Pods(mountNamespace).List(context.Background(),
 		metav1.ListOptions{LabelSelector: mountLabelMap.String()},
 	)
 	if err != nil {
@@ -70,7 +71,7 @@ func GetMountPodOnNode(clientSet *kubernetes.Clientset, nodeName string) ([]core
 	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: config.PodTypeValue},
 	})
-	mountList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{
+	mountList, err := clientSet.CoreV1().Pods(mountNamespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: mountLabelMap.String(),
 		FieldSelector: fieldSelector.String(),
 	})
@@ -106,7 +107,7 @@ func GetCSINodeList(clientSet *kubernetes.Clientset) ([]corev1.Pod, error) {
 	nodeLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: "juicefs-csi-driver", "app": "juicefs-csi-node"},
 	})
-	csiNodeList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{LabelSelector: nodeLabelMap.String()})
+	csiNodeList, err := clientSet.CoreV1().Pods(mountNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: nodeLabelMap.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +143,7 @@ func GetCSINode(clientSet *kubernetes.Clientset, nodeName string) (*corev1.Pod, 
 	nodeLabelMap, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: map[string]string{config.PodTypeKey: "juicefs-csi-driver", "app": "juicefs-csi-node"},
 	})
-	csiNodeList, err := clientSet.CoreV1().Pods("kube-system").List(context.Background(),
+	csiNodeList, err := clientSet.CoreV1().Pods(mountNamespace).List(context.Background(),
 		metav1.ListOptions{
 			LabelSelector: nodeLabelMap.String(),
 			FieldSelector: fieldSelector.String(),
@@ -306,4 +307,44 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	}
 
 	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	conditionsTrue := 0
+	for _, cond := range pod.Status.Conditions {
+		if cond.Status == corev1.ConditionTrue && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
+			conditionsTrue++
+		}
+	}
+	return conditionsTrue == 2
+}
+
+func getMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := parseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
+}
+
+// ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
+func parseMntPath(cmd string) (string, string, error) {
+	cmds := strings.Split(cmd, "\n")
+	mc := cmds[len(cmds)-1]
+	args := strings.Fields(mc)
+	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
+		return "", "", fmt.Errorf("err cmd:%s", cmd)
+	}
+	argSlice := strings.Split(args[2], "/")
+	if len(argSlice) < 3 {
+		return "", "", fmt.Errorf("err mntPath:%s", args[2])
+	}
+	return args[2], argSlice[2], nil
 }

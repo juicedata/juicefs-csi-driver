@@ -34,6 +34,16 @@ GOBIN=$(shell pwd)/bin
 juicefs-csi-driver:
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o bin/juicefs-csi-driver ./cmd/
+    -ldflags="-s -w -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.version=${VERSION} -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.gitCommit=${GIT_COMMIT} -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.buildDate=${BUILD_DATE}" \
+
+kcl-plugin:
+	docker run -it --rm -v $(shell pwd):/go/src/github.com/juicedata/juicefs-csi-driver \
+	-e VERSION=${VERSION} \
+	-e GIT_COMMIT=${GIT_COMMIT} \
+	-e BUILD_DATE=${BUILD_DATE} \
+	-v $(shell pwd)/bin:/bin/kctl \
+	-w /go/src/github.com/juicedata/juicefs-csi-driver \
+	golang:1.20 sh ./hack/multibuild.sh ./cmd/plugin/ /bin/kctl
 
 .PHONY: verify
 verify:

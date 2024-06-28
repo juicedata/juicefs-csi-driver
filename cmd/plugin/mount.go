@@ -31,6 +31,11 @@ import (
 var mountCmd = &cobra.Command{
 	Use:   "mount",
 	Short: "Show mount pod of juicefs",
+	Example: `  # Show mount pod of juicefs
+  kubectl jfs mount
+
+  # when juicefs csi driver is not in kube-system
+  kubectl jfs mount -m <mount-namespace>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ma, err := newMountAnalyzer()
 		cobra.CheckErr(err)
@@ -131,7 +136,7 @@ func (ma *mountAnalyzer) listMountPod(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(ma.mounts) == 0 {
-		fmt.Printf("No mount pod found in %s namespace.", "kube-system")
+		fmt.Printf("No mount pod found in %s namespace.", mountNamespace)
 		return nil
 	}
 

@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var warmupCmd = &cobra.Command{
@@ -39,7 +38,9 @@ var warmupCmd = &cobra.Command{
   
   # warmup all files of juicefs mount pod
   kubectl jfs warmup <pod-name>
-`,
+
+  # when juicefs csi driver is not in kube-system
+  kubectl jfs warmup <pod-name> -m <mount-namespace>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cobra.CheckErr(warmup(cmd, args))
 	},
@@ -73,20 +74,20 @@ func warmup(cmd *cobra.Command, args []string) (err error) {
 		subpath = args[1]
 	}
 	var pod *corev1.Pod
-	if pod, err = clientSet.CoreV1().Pods("kube-system").Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
+	if pod, err = clientSet.CoreV1().Pods(mountNamespace).Get(context.Background(), podName, metav1.GetOptions{}); err != nil {
 		return err
 	}
 
 	if pod.Labels[config.PodTypeKey] != config.PodTypeValue {
 		return fmt.Errorf("pod %s is not juicefs mount pod", podName)
 	}
-	mountPath, _, err := util.GetMountPathOfPod(*pod)
+	mountPath, _, err := getMountPathOfPod(*pod)
 	if err != nil {
 		return fmt.Errorf("get mount path of pod %s error: %s\n", podName, err.Error())
 	}
 	warmupPath := path.Join(mountPath, subpath)
 	return eCli.Completion().
-		SetNamespace("kube-system").
+		SetNamespace(mountNamespace).
 		SetPod(podName).
 		Container(config.MountContainerName).
 		Commands([]string{"juicefs", "warmup", warmupPath}).

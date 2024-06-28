@@ -30,14 +30,16 @@ var debugCmd = &cobra.Command{
 	Short:                 "Debug the pod/pv/pvc which is using juicefs",
 	DisableFlagsInUseLine: true,
 	Example: `  # debug the pod which is using juicefs pvc
-  kubectl juicefs debug po <pod-name> -n <namespace>
+  kubectl jfs debug po <pod-name> -n <namespace>
+
+  # when juicefs csi driver is not in kube-system
+  kubectl jfs debug po <pod-name> -n <namespace> -m <mount-namespace>
 
   # debug pvc using juicefs pv
-  kubectl juicefs debug pvc <pvc-name> -n <namespace>
+  kubectl jfs debug pvc <pvc-name> -n <namespace>
 
   # debug pv which is juicefs pv
-  kubectl juicefs debug pv <pv-name> 
-`,
+  kubectl jfs debug pv <pv-name>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cobra.CheckErr(debug(cmd, args))
 	},
