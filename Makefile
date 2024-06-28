@@ -17,6 +17,7 @@ REGISTRY?=docker.io
 DASHBOARD_IMAGE?=juicedata/csi-dashboard
 TARGETARCH?=amd64
 VERSION=$(shell git describe --tags --match 'v*' --always --dirty)
+CSI_LATEST_VERSION=$(shell git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+)?')
 GIT_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DEV_TAG=dev-$(shell git describe --always --dirty)
@@ -34,11 +35,10 @@ GOBIN=$(shell pwd)/bin
 juicefs-csi-driver:
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o bin/juicefs-csi-driver ./cmd/
-    -ldflags="-s -w -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.version=${VERSION} -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.gitCommit=${GIT_COMMIT} -X github.com/juicedata/juicefs-csi-driver/kctl-plugin/main.buildDate=${BUILD_DATE}" \
 
 kcl-plugin:
 	docker run -it --rm -v $(shell pwd):/go/src/github.com/juicedata/juicefs-csi-driver \
-	-e VERSION=${VERSION} \
+	-e VERSION=${CSI_LATEST_VERSION} \
 	-e GIT_COMMIT=${GIT_COMMIT} \
 	-e BUILD_DATE=${BUILD_DATE} \
 	-v $(shell pwd)/bin:/bin/kctl \

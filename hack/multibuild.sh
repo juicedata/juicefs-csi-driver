@@ -28,6 +28,7 @@ build() {
   CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build \
     -ldflags="-s -w -X main.version=${VERSION} -X main.gitCommit=${GIT_COMMIT} -X main.buildDate=${BUILD_DATE}" \
     -o $BINDIR/$1-$2/kubectl-jfs $PKG
+  tar -zcvf $BINDIR/kubectl-jfs-${VERSION}-$1-$2.tar.gz $BINDIR/$1-$2/kubectl-jfs
 }
 
 main(){

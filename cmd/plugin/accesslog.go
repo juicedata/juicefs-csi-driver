@@ -28,25 +28,25 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
-var oplogCmd = &cobra.Command{
-	Use:                   "oplog <name>",
+var accesslogCmd = &cobra.Command{
+	Use:                   "accesslog <name>",
 	Short:                 "collect access log from mount pod",
 	DisableFlagsInUseLine: true,
 	Example: `  # collect access log from mount pod
-  kubectl jfs oplog <pod-name>
+  kubectl jfs accesslog <pod-name>
 
   # when juicefs csi driver is not in kube-system
-  kubectl jfs oplog <pod-name> -m <mount-namespace>`,
+  kubectl jfs accesslog <pod-name> -m <mount-namespace>`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cobra.CheckErr(oplog(cmd, args))
+		cobra.CheckErr(accesslog(cmd, args))
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(oplogCmd)
+	rootCmd.AddCommand(accesslogCmd)
 }
 
-func oplog(cmd *cobra.Command, args []string) (err error) {
+func accesslog(cmd *cobra.Command, args []string) (err error) {
 	clientSet, err := ClientSet(KubernetesConfigFlags)
 	if err != nil {
 		return err
