@@ -67,49 +67,52 @@ const LogModal: React.FC<{
     return (
       <>
         {children({ onClick: showModal })}
-        <Modal
-          title={`${type == 'accesslog' ? 'Access Log' : 'Log'}: ${namespace}/${name}/${container}`}
-          open={isModalOpen}
-          footer={() => (
-            <Space>
-              <Button onClick={() => setData('')}> Clear </Button>
-              <Button
-                loading={state.loading}
-                disabled={type === 'accesslog'}
-                onClick={() => {
-                  doFetch()
-                  console.log('Download full log')
+        {isModalOpen ? (
+          <Modal
+            title={`${type == 'accesslog' ? 'Access Log' : 'Log'}: ${namespace}/${name}/${container}`}
+            open={isModalOpen}
+            footer={() => (
+              <Space>
+                <Button onClick={() => setData('')}> Clear </Button>
+                <Button
+                  loading={state.loading}
+                  disabled={type === 'accesslog'}
+                  onClick={() => {
+                    doFetch()
+                    console.log('Download full log')
+                  }}
+                >
+                  Download full log
+                </Button>
+                <Button
+                  onClick={() => {
+                    setPrevious(!previous)
+                    setData('')
+                  }}
+                  disabled={!hasPrevious}
+                >
+                  {previous ? 'Show current log' : 'Show previous log'}
+                </Button>
+              </Space>
+            )}
+            onOk={handleOk}
+            onCancel={handleCancel}
+          >
+            {isModalOpen && (
+              <Editor
+                defaultLanguage="yaml"
+                options={{
+                  wordWrap: 'on',
+                  readOnly: true,
+                  theme: 'vs-light', // TODO dark mode
+                  folding: true,
+                  scrollBeyondLastLine: true,
                 }}
-              >
-                Download full log
-              </Button>
-              <Button
-                onClick={() => {
-                  setPrevious(!previous)
-                  setData('')
-                }}
-                disabled={!hasPrevious}
-              >
-                {previous ? 'Show current log' : 'Show previous log'}
-              </Button>
-            </Space>
-          )}
-          onOk={handleOk}
-          onCancel={handleCancel}
-        >
-          {isModalOpen && (
-            <Editor
-              defaultLanguage="yaml"
-              options={{
-                wordWrap: 'on',
-                readOnly: true,
-                theme: 'vs-light', // TODO dark mode
-                scrollBeyondLastLine: false,
-              }}
-              value={data}
-            />
-          )}
-        </Modal>
+                value={data}
+              />
+            )}
+          </Modal>
+        ) : null}
       </>
     )
   },
