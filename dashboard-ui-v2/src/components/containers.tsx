@@ -16,19 +16,21 @@
 
 import { ProCard } from '@ant-design/pro-components'
 import { Button, Space, Table, Tag } from 'antd'
-import { Container, ContainerStatus } from 'kubernetes-types/core/v1'
+import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
 
 import LogModal from './log-modal'
 import XTermModal from './xterm-modal'
 import { DetailParams } from '@/types'
+import { Pod } from '@/types/k8s'
+import { isMountPod } from '@/utils'
 
 const Containers: React.FC<{
-  containers: Array<Container>
+  pod: Pod
   containerStatuses?: Array<ContainerStatus>
 }> = (props) => {
-  const { containerStatuses } = props
+  const { pod, containerStatuses } = props
 
   const { namespace, name } = useParams<DetailParams>()
 
@@ -64,6 +66,21 @@ const Containers: React.FC<{
             key: 'action',
             render: (record, c) => (
               <Space>
+                {isMountPod(pod) ? (
+                  <LogModal
+                    namespace={namespace!}
+                    name={name!}
+                    container={record.name}
+                    hasPrevious={false}
+                    type="accesslog"
+                  >
+                    {({ onClick }) => (
+                      <Button type="primary" onClick={onClick}>
+                        Access Log
+                      </Button>
+                    )}
+                  </LogModal>
+                ) : null}
                 <LogModal
                   namespace={namespace!}
                   name={name!}
