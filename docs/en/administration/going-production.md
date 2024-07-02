@@ -13,6 +13,54 @@ Best practices and recommended settings when going production.
 * When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md);
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
 
+## Sidecar recommendations {#sidecar}
+
+Current CSI Driver doesn't support exit order of sidecar containers, this essentially means there's no guarantee that sidecar JuiceFS client exits only after application container termination. This can be rooted back to Kubernetes sidecar's own limitations, however, this changes in [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) as native sidecar is supported. So if you're using newer Kubernetes and wish to use native sidecar, mark your requests at our [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976).
+
+Hence, before our users widely adopt Kubernetes v1.28 (which allows us to implement native sidecar mount), we recommend that you use `preStop` to control exit order:
+
+```yaml
+mountPodPatch:
+  - terminationGracePeriodSeconds: 3600
+    lifecycle:
+      preStop:
+        exec:
+          command:
+          - sh
+          - -c
+          - |
+            sleep 30;
+```
+
+Above snippet does only the simplest: sidecar (our mount container) exits after 30 seconds. But if your application listens on a particular network port, you can test this port to establish dependency and ensure sidecar exit order.
+
+```yaml
+mountPodPatch:
+  - terminationGracePeriodSeconds: 3600
+    lifecycle:
+      preStop:
+        exec:
+          command:
+          - sh
+          - -c
+          - |
+            set +e
+            # Change URL address accordingly
+            url=http://127.0.0.1:8000
+            while :
+            do
+              res=$(curl -s -w '%{exitcode}' $url)
+              # Application is regarded as exited only on "Connection refused" output
+              if [[ "$res" == 7 ]]
+              then
+                exit 0
+              else
+                echo "$url is still open, wait..."
+                sleep 1
+              fi
+            done
+```
+
 ## Configure mount pod monitoring (Community Edition) {#monitoring}
 
 :::tip

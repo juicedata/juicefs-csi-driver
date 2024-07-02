@@ -15,7 +15,7 @@ sidebar_position: 1
 
 ## Sidecar 模式推荐设置 {#sidecar}
 
-目前 CSI 驱动不支持为 sidecar 模式的 mount 容器设置退出顺序，无法做到在应用容器退出以后，sidecar 才退出。这是由于 Kubernetes sidecar 自身便不支持退出顺序导致的，该特性在 [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 原生 sidecar 得到支持，因此如果你使用新版 Kubernetes 并且有相关需求，请在我们的 [GitHub 项目](https://github.com/juicedata/juicefs-csi-driver)下记录需求。
+目前 CSI 驱动不支持为 sidecar 模式的 mount 容器设置退出顺序，无法做到在应用容器退出以后，sidecar 才退出。这是由于 Kubernetes sidecar 自身便不支持退出顺序导致的，该特性在 [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 原生 sidecar 得到支持，因此如果你使用新版 Kubernetes 并且有相关需求，请在对应的 [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976)下记录需求。
 
 因此，在用户广泛采纳 Kubernetes v1.28，让 CSI 驱动有机会实现原生 sidecar 之前，我们建议用户通过设置 `preStop` 来满足延迟退出的需求：
 
@@ -46,10 +46,18 @@ mountPodPatch:
           - |
             set +e
             # 根据实际情况修改
-            PORT=8000
-            while [ $(netstat -plunt | grep $PORT | wc -l | xargs) -ne 0 ]; 
-            do 
-            sleep 1; 
+            url=http://127.0.0.1:8000
+            while :
+            do
+              res=$(curl -s -w '%{exitcode}' $url)
+              # 仅当服务端口返回 Connection refused，才视为服务退出
+              if [[ "$res" == 7 ]]
+              then
+                exit 0
+              else
+                echo "$url is still open, wait..."
+                sleep 1
+              fi
             done
 ```
 
