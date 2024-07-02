@@ -296,3 +296,11 @@ export function getHost(): string {
   const host = import.meta.env.VITE_HOST ?? window.location.host
   return `${protocol}://${host}`
 }
+
+export function isMountPod(pod: Pod): boolean {
+  return (
+    (pod.metadata?.name?.startsWith('juicefs-') &&
+      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount') ||
+    false
+  )
+}

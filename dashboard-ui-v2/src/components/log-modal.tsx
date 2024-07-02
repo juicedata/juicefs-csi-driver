@@ -25,90 +25,100 @@ const LogModal: React.FC<{
   name: string
   container: string
   hasPrevious?: boolean
+  type?: 'logs' | 'accesslog'
   children: ({ onClick }: { onClick: () => void }) => ReactNode
-}> = memo(({ namespace, name, container, hasPrevious, children }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [data, setData] = useState<string>('')
-  const [previous, setPrevious] = useState<boolean>(false)
+}> = memo(
+  ({ namespace, name, container, hasPrevious, children, type = 'logs' }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [data, setData] = useState<string>('')
+    const [previous, setPrevious] = useState<boolean>(false)
 
-  const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
+    const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
 
-  useWebsocket(
-    `/api/v1/ws/pod/${namespace}/${name}/${container}/logs`,
-    {
-      queryParams: {
-        previous: previous ? 'true' : 'false',
+    useWebsocket(
+      `/api/v1/ws/pod/${namespace}/${name}/${container}/${type}`,
+      {
+        queryParams: {
+          previous: previous ? 'true' : 'false',
+        },
+        onMessage: (msg) => {
+          setData((prev) => prev + msg.data)
+        },
       },
-      onMessage: (msg) => {
-        setData((prev) => prev + msg.data)
-      },
-    },
-    isModalOpen,
-  )
+      isModalOpen,
+    )
 
-  const showModal = () => {
-    setIsModalOpen(true)
-  }
-  const handleOk = () => {
-    setIsModalOpen(false)
-  }
-  const handleCancel = () => {
-    setIsModalOpen(false)
-  }
-
-  useEffect(() => {
-    if (!isModalOpen) {
-      setData('')
+    const showModal = () => {
+      setIsModalOpen(true)
     }
-  }, [isModalOpen])
+    const handleOk = () => {
+      setIsModalOpen(false)
+    }
+    const handleCancel = () => {
+      setIsModalOpen(false)
+    }
 
-  return (
-    <>
-      {children({ onClick: showModal })}
-      <Modal
-        title={`Logs: ${namespace}/${name}/${container}`}
-        open={isModalOpen}
-        footer={() => (
-          <Space>
-            <Button onClick={() => setData('')}> Clear </Button>
-            <Button
-              loading={state.loading}
-              onClick={() => {
-                doFetch()
-                console.log('Download full log')
-              }}
-            >
-              Download full log
-            </Button>
-            <Button
-              onClick={() => {
-                setPrevious(!previous)
-                setData('')
-              }}
-              disabled={!hasPrevious}
-            >
-              {previous ? 'Show current log' : 'Show previous log'}
-            </Button>
-          </Space>
-        )}
-        onOk={handleOk}
-        onCancel={handleCancel}
-      >
-        {isModalOpen && (
-          <Editor
-            defaultLanguage="yaml"
-            options={{
-              wordWrap: 'on',
-              readOnly: true,
-              theme: 'vs-light', // TODO dark mode
-              scrollBeyondLastLine: false,
-            }}
-            value={data}
-          />
-        )}
-      </Modal>
-    </>
-  )
-})
+    useEffect(() => {
+      if (!isModalOpen) {
+        setData('')
+      }
+    }, [isModalOpen])
+
+    return (
+      <>
+        {children({ onClick: showModal })}
+        {isModalOpen ? (
+          <Modal
+            title={`${type == 'accesslog' ? 'Access Log' : 'Log'}: ${namespace}/${name}/${container}`}
+            open={isModalOpen}
+            footer={() => (
+              <Space>
+                <Button onClick={() => setData('')}> Clear </Button>
+                {type === 'logs' ? (
+                  <>
+                    <Button
+                      loading={state.loading}
+                      onClick={() => {
+                        doFetch()
+                        console.log('Download full log')
+                      }}
+                    >
+                      Download full log
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setPrevious(!previous)
+                        setData('')
+                      }}
+                      disabled={!hasPrevious}
+                    >
+                      {previous ? 'Show current log' : 'Show previous log'}
+                    </Button>
+                  </>
+                ) : null}
+              </Space>
+            )}
+            onOk={handleOk}
+            onCancel={handleCancel}
+          >
+            {isModalOpen && (
+              <Editor
+                defaultLanguage="yaml"
+                options={{
+                  wordWrap: 'on',
+                  readOnly: true,
+                  theme: 'vs-light', // TODO dark mode
+                  folding: true,
+                  scrollBeyondLastLine: true,
+                }}
+                value={data}
+              />
+            )}
+          </Modal>
+        ) : null}
+      </>
+    )
+  },
+)
 
 export default LogModal

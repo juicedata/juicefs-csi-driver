@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodExtra struct {
@@ -847,6 +848,56 @@ func (api *API) execPod() gin.HandlerFunc {
 				Stderr:            terminal,
 				Tty:               true,
 				TerminalSizeQueue: terminal,
+			}); err != nil {
+				klog.Error("Failed to stream: ", err)
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			terminal := &terminalSession{
+				conn:   ws,
+				sizeCh: make(chan *remotecommand.TerminalSize),
+			}
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				klog.Error("Failed to get mount pod: ", err)
+				return
+			}
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				klog.Error("Failed to get mount path: ", err)
+				return
+			}
+			req := api.client.CoreV1().RESTClient().Post().
+				Resource("pods").
+				Name(name).
+				Namespace(namespace).SubResource("exec")
+			req.VersionedParams(&corev1.PodExecOptions{
+				Command:   []string{"sh", "-c", "cat " + mntPath + "/.accesslog"},
+				Container: container,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    true,
+			}, scheme.ParameterCodec)
+
+			executor, err := remotecommand.NewSPDYExecutor(api.kubeconfig, "POST", req.URL())
+			if err != nil {
+				klog.Error("Failed to create SPDY executor: ", err)
+				return
+			}
+			if err := executor.Stream(remotecommand.StreamOptions{
+				Stdin:  terminal,
+				Stdout: terminal,
+				Stderr: terminal,
 			}); err != nil {
 				klog.Error("Failed to stream: ", err)
 				return

@@ -48,7 +48,7 @@ const PodDetail: React.FC<{
     >
       <PodBasic pod={data} />
       <Containers
-        containers={data.spec!.containers}
+        pod={data}
         containerStatuses={data.status?.containerStatuses}
       />
       <PodsTable
