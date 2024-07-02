@@ -283,6 +283,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 
 	// pod with no finalizer
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+		klog.V(6).Infof("Pod %s in namespace %s has no finalizer, skip deleting", pod.Name, pod.Namespace)
 		// do nothing
 		return nil
 	}
