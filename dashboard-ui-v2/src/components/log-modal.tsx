@@ -74,25 +74,28 @@ const LogModal: React.FC<{
             footer={() => (
               <Space>
                 <Button onClick={() => setData('')}> Clear </Button>
-                <Button
-                  loading={state.loading}
-                  disabled={type === 'accesslog'}
-                  onClick={() => {
-                    doFetch()
-                    console.log('Download full log')
-                  }}
-                >
-                  Download full log
-                </Button>
-                <Button
-                  onClick={() => {
-                    setPrevious(!previous)
-                    setData('')
-                  }}
-                  disabled={!hasPrevious}
-                >
-                  {previous ? 'Show current log' : 'Show previous log'}
-                </Button>
+                {type === 'logs' ? (
+                  <>
+                    <Button
+                      loading={state.loading}
+                      onClick={() => {
+                        doFetch()
+                        console.log('Download full log')
+                      }}
+                    >
+                      Download full log
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setPrevious(!previous)
+                        setData('')
+                      }}
+                      disabled={!hasPrevious}
+                    >
+                      {previous ? 'Show current log' : 'Show previous log'}
+                    </Button>
+                  </>
+                ) : null}
               </Space>
             )}
             onOk={handleOk}
