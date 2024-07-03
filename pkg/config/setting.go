@@ -480,10 +480,9 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 	}
 	attr.Resources = resources
 	setting := &JfsSetting{
-		IsCe: IsCEMountPod(mountPod),
-		PV:   pv,
-		PVC:  pvc,
-		// FIXME: ce not has name
+		IsCe:      IsCEMountPod(mountPod),
+		PV:        pv,
+		PVC:       pvc,
 		Name:      mountPod.Annotations[JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[UniqueId],
 		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],

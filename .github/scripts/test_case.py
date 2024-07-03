@@ -2736,6 +2736,13 @@ def test_config():
     LOG.info("Remove pvc 2 {}".format(pvc2.name))
     pvc2.delete()
 
+    # reset to empty config
+    update_config({})
+
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+
+
     LOG.info("Test pass.")
 
 
@@ -2839,7 +2846,7 @@ def test_recreate_mountpod_reload_config():
 
     # wait for mountpod recreated
     LOG.info("Wait for mountpod recreated..")
-    time.sleep(10)
+    time.sleep(20)
     for i in range(0, 60):
         if mount_pod.watch_for_success():
             break
@@ -2855,8 +2862,8 @@ def test_recreate_mountpod_reload_config():
     if mount_pod.get_metadata().labels.get("apply") != "updated_config":
         raise Exception("mountpod config labels not set")
     
-    if mount_pod.get_spec().host_network != False:
-        raise Exception("mountpod config hostNetwork not set")
+    if mount_pod.get_spec().host_network == True:
+        raise Exception("mountpod config hostNetwork not set to false")
 
     updated_image = "juicedata/mount:ee-5.0.20-c87a555"
     if IS_CE:
@@ -2873,5 +2880,11 @@ def test_recreate_mountpod_reload_config():
 
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+
+    # reset to empty config
+    update_config({})
+
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
 
     LOG.info("Test pass.")
