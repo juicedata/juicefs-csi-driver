@@ -99,6 +99,16 @@ globalConfig:
         initialDelaySeconds: 10
         periodSeconds: 5
         successThreshold: 1
+
+    - pvcSelector:
+        matchLabels:
+          ...
+      annotations:
+        # delayed mount pod deletion
+        juicefs-delete-delay: 5m
+        # clean cache when mount pod exits
+        juicefs-clean-cache: "true"
+      
 ```
 
 ### Inherit from CSI Node (deprecated) {#inherit-from-csi-node}
