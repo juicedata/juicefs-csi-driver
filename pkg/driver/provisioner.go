@@ -187,7 +187,9 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		}
 	}
 
-	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
+	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete &&
+		scParams["retainVolume"] != "true" &&
+		scParams["secretFinalizer"] == "true" {
 		klog.V(6).Infof("Provisioner: Add Finalizer on %s/%s", secret.Namespace, secret.Name)
 		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		if err != nil {
@@ -204,6 +206,11 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 	policy := volume.Spec.PersistentVolumeReclaimPolicy
 	if policy != corev1.PersistentVolumeReclaimDelete {
 		klog.V(6).Infof("Provisioner: Volume %s retain, return.", volume.Name)
+		return nil
+	}
+	// Respect 'retainVolume' parameter even if `delete` reclaim policy.
+	if volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["retainVolume"] == "true" {
+		klog.V(6).Infof("Provisioner: Volume %s 'retainVolume: true', return.", volume.Name)
 		return nil
 	}
 	// check all pvs of the same storageClass, if multiple pv using the same subPath, do not delete the subPath
