@@ -2739,3 +2739,139 @@ def test_config():
     LOG.info("Test pass.")
 
 
+def test_recreate_mountpod_reload_config():
+    LOG.info("[test case] Test recreate mountpod need reload config begin..")
+
+    init_config = {
+        "mountPodPatch": [
+            {
+                "labels": {
+                    "apply": "global_labels"
+                },
+                "hostNetwork": True,
+            },
+            {
+                "ceMountImage": "juicedata/mount:ce-nightly",
+                "eeMountImage": "juicedata/mount:ee-nightly",
+            },
+            {
+                "resources": {
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "128Mi"
+                    },
+                    "limits": {
+                        "cpu": "2",
+                        "memory": "2Gi"
+                    }
+                }
+            }
+        ]
+    }
+    update_config(init_config)
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+
+    pvc = PVC(name="pvc-mountpod-recreated-reload-config", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    # deploy pod
+    deployment = Deployment(name="app-recreated-reload-config", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    
+    # update cfg
+    new_cfg = {
+        "mountPodPatch": [
+            {
+                "labels": {
+                    "apply": "updated_config"
+                },
+                "hostNetwork": False,
+            },
+            {
+                "ceMountImage": "juicedata/mount:ce-v1.2.0",
+                "eeMountImage": "juicedata/mount:ee-5.0.20-c87a555",
+            },
+            {
+                "resources": {
+                    "requests": {
+                        "cpu": "200m",
+                        "memory": "128Mi"
+                    },
+                    "limits": {
+                        "cpu": "2",
+                        "memory": "2Gi"
+                    }
+                }
+            }
+        ]
+    }
+    update_config(new_cfg)
+    
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+
+    LOG.info("Start to delete mountpod..")
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod.delete()
+
+    # wait for mountpod recreated
+    LOG.info("Wait for mountpod recreated..")
+    time.sleep(10)
+    for i in range(0, 60):
+        if mount_pod.watch_for_success():
+            break
+        time.sleep(5)
+
+    # check mount point
+    LOG.info("Check mount point..")
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    if mount_pod.get_metadata().labels.get("apply") != "updated_config":
+        raise Exception("mountpod config labels not set")
+    
+    if mount_pod.get_spec().host_network != False:
+        raise Exception("mountpod config hostNetwork not set")
+
+    updated_image = "juicedata/mount:ee-5.0.20-c87a555"
+    if IS_CE:
+        updated_image = "juicedata/mount:ce-v1.2.0"
+    if mount_pod.get_spec().containers[0].image != updated_image:
+        raise Exception("mountpod config image not set")
+
+    if mount_pod.get_spec().containers[0].resources.requests["cpu"] != "200m":
+        raise Exception("mountpod config resources not set")
+    
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+
+    LOG.info("Test pass.")

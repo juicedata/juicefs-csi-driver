@@ -51,6 +51,7 @@ from test_case import (
     test_mountpod_recreated,
     test_validate_pv,
     test_config,
+    test_recreate_mountpod_reload_config,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -87,6 +88,7 @@ if __name__ == "__main__":
                 test_multi_pvc()
                 test_mountpod_recreated()
                 test_config()
+                test_recreate_mountpod_reload_config()
                 if without_kubelet:
                     test_pod_resource_err()
 
@@ -139,6 +141,7 @@ if __name__ == "__main__":
                 test_dynamic_expand()
                 test_multi_pvc()
                 test_config()
+                test_recreate_mountpod_reload_config()
                 if without_kubelet:
                     test_pod_resource_err()
 
