@@ -17,6 +17,7 @@
 import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button, Modal, Space } from 'antd'
+import { editor } from 'monaco-editor'
 
 import { useDownloadPodLogs, useWebsocket } from '@/hooks/use-api'
 
@@ -32,7 +33,9 @@ const LogModal: React.FC<{
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [data, setData] = useState<string>('')
     const [previous, setPrevious] = useState<boolean>(false)
-
+    const [editor, setEditor] = useState<editor.IStandaloneCodeEditor | null>(
+      null,
+    )
     const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
 
     useWebsocket(
@@ -47,6 +50,13 @@ const LogModal: React.FC<{
       },
       isModalOpen,
     )
+
+    useEffect(() => {
+      if (!editor) return
+      const model = editor.getModel()
+      if (!model) return
+      editor.revealLine(model.getLineCount())
+    }, [data, editor])
 
     const showModal = () => {
       setIsModalOpen(true)
@@ -101,19 +111,19 @@ const LogModal: React.FC<{
             onOk={handleOk}
             onCancel={handleCancel}
           >
-            {isModalOpen && (
-              <Editor
-                defaultLanguage="yaml"
-                options={{
-                  wordWrap: 'on',
-                  readOnly: true,
-                  theme: 'vs-light', // TODO dark mode
-                  folding: true,
-                  scrollBeyondLastLine: true,
-                }}
-                value={data}
-              />
-            )}
+            <Editor
+              defaultLanguage="yaml"
+              onMount={(editor) => {
+                setEditor(editor)
+              }}
+              options={{
+                wordWrap: 'on',
+                readOnly: true,
+                theme: 'vs-light', // TODO dark mode
+                scrollBeyondLastLine: false,
+              }}
+              value={data}
+            />
           </Modal>
         ) : null}
       </>

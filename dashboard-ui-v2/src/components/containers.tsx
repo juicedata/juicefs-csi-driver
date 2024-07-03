@@ -43,6 +43,13 @@ const Containers: React.FC<{
             dataIndex: 'name',
           },
           {
+            title: <FormattedMessage id="image" />,
+            dataIndex: 'image',
+            render: (image) => {
+              return <div style={{ maxWidth: '400px' }}>{image}</div>
+            },
+          },
+          {
             title: <FormattedMessage id="restartCount" />,
             dataIndex: 'restartCount',
           },
