@@ -2813,7 +2813,9 @@ def test_recreate_mountpod_reload_config():
         "mountPodPatch": [
             {
                 "labels": {
-                    "apply": "updated_config"
+                    "apply": "updated_config",
+                    "volume_id": r"${VOLUME_ID}",
+                    "volume_name": r"${VOLUME_NAME}",
                 },
                 "hostNetwork": False,
             },
@@ -2861,6 +2863,10 @@ def test_recreate_mountpod_reload_config():
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     if mount_pod.get_metadata().labels.get("apply") != "updated_config":
         raise Exception("mountpod config labels not set")
+    if mount_pod.get_metadata().labels.get("volume_id") != volume_id:
+        raise Exception("mountpod config volume id not set")
+    if mount_pod.get_metadata().labels.get("volume_name") == "":
+        raise Exception("mountpod config volume name not set")
     
     if mount_pod.get_spec().host_network == True:
         raise Exception("mountpod config hostNetwork not set to false")
