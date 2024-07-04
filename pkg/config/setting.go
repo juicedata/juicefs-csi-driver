@@ -480,6 +480,7 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 	}
 	attr.Resources = resources
 	setting := &JfsSetting{
+		IsCe:      IsCEMountPod(mountPod),
 		PV:        pv,
 		PVC:       pvc,
 		Name:      mountPod.Annotations[JuiceFSUUID],
@@ -682,4 +683,15 @@ func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
 	attr.ReadinessProbe = patch.ReadinessProbe
 	attr.StartupProbe = patch.StartupProbe
 	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
+}
+
+// IsCEMountPod check if the pod is a mount pod of CE
+// check mountpod command's has metaurl
+func IsCEMountPod(pod *corev1.Pod) bool {
+	for _, cmd := range pod.Spec.Containers[0].Command {
+		if strings.Contains(cmd, "metaurl") {
+			return true
+		}
+	}
+	return false
 }

@@ -76,7 +76,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	if err != nil {
 		return err
 	}
-	if jfsSetting.CleanCache && jfsSetting.UUID == "" {
+	if jfsSetting.UUID == "" {
 		// need set uuid as label in mount pod for clean cache
 		uuid, err := p.GetJfsVolUUID(ctx, jfsSetting.Source)
 		if err != nil {
