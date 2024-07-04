@@ -106,7 +106,6 @@ globalConfig:
         juicefs-delete-delay: 5m
         # 退出时清理 cache
         juicefs-clean-cache: "true"
-      
 ```
 
 ### 通过继承 CSI Node 配置进行定制（不推荐） {#inherit-from-csi-node}
