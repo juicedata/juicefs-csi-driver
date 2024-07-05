@@ -26,7 +26,7 @@ JuiceFS 提供了一个 kubectl 插件，可以方便地在 Kubernetes 集群中
 
 ```shell
 # 默认安装到 /usr/local/bin
-curl -sSL https://d.juicefs.com/kubectl-plugin-install | sh -
+curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
 ### 使用 {#kubectl-jfs-plugin-usage}
