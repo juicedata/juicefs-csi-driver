@@ -139,12 +139,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 	klog.V(6).Infof("Provisioner Resolved MountOptions: %v", mountOptions)
 
-	secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
-	if err != nil {
-		klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
-		j.metrics.provisionErrors.Inc()
-		return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
-	}
 	// set volume context
 	volCtx := make(map[string]string)
 	volCtx["subPath"] = subPath
@@ -188,6 +182,13 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 
 	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
+		secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
+		if err != nil {
+			klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
+			j.metrics.provisionErrors.Inc()
+			return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
+		}
+
 		klog.V(6).Infof("Provisioner: Add Finalizer on %s/%s", secret.Namespace, secret.Name)
 		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		if err != nil {
