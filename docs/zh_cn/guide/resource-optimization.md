@@ -253,23 +253,36 @@ kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STOR
 
 ## 延迟删除 Mount Pod {#delayed-mount-pod-deletion}
 
-:::note 注意
-此特性需使用 0.13.0 及以上版本的 JuiceFS CSI 驱动
-:::
+Mount Pod 是支持复用的，由 JuiceFS CSI Node 以引用计数的方式进行管理：当没有任何应用 Pod 在使用该 Mount Pod 创建出来的 PV 时，JuiceFS CSI Node 会删除 Mount Pod。
 
-Mount Pod 是支持复用的，由 JuiceFS CSI Node Service 以引用计数的方式进行管理：当没有任何应用 Pod 在使用该 Mount Pod 创建出来的 PV 时，JuiceFS CSI Node Service 会删除 Mount Pod。
-
-但在 Kubernetes 不少场景中，容器转瞬即逝，调度极其频繁，这时可以为 Mount Pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，Mount Pod 能够被继续复用，免除了反复销毁创建的开销。
+但在不少场景中调度频繁，容器转瞬即逝，这时可以为 Mount Pod 配置延迟删除，这样一来，如果短时间内还有新应用 Pod 使用相同的 Volume，Mount Pod 能够被继续复用，免除了反复销毁创建的开销。
 
 控制延迟删除 Mount Pod 的配置项形如 `juicefs/mount-delete-delay: 1m`，单位支持 `ns`（纳秒）、`us`（微秒）、`ms`（毫秒）、`s`（秒）、`m`（分钟）、`h`（小时）。
 
 配置好延迟删除后，当引用计数归零，Mount Pod 会被打上 `juicefs-delete-at` 的注解（annotation），标记好删除时间，到达设置的删除时间后，Mount Pod 才会被删除。但如果在此期间有新的应用 Pod 欲使用该 PV，注解 `juicefs-delete-at` 就被清空，Mount Pod 的删除计划随之取消，得以继续复用。
 
-静态和动态配置方式中，需要在不同的地方填写该配置。
+### 配置方法
 
-### 静态配置
+建议通过 [ConfigMap](./configurations.md#configmap) 来为 mount pod 配置延迟删除。
 
-需要在 PV 定义中配置延迟删除的时长，修改 `volumeAttributes` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    # 为指定 PVC 设置延迟删除
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      annotations:
+        juicefs-delete-delay: 5m
+
+    # 为所有 PVC 设置延迟删除
+    - annotations:
+        juicefs-delete-delay: 5m
+```
+
+如果你仍在使用旧版 CSI 驱动，无法配置 ConfigMap，那么需要继续使用旧版的配置方法。取决于你所使用的是动态还是静态 PV，需要在不同的地方填写配置。
+
+静态配置需要在 PV 定义中配置延迟删除的时长，修改 `volumeAttributes` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
 
 ```yaml {22}
 apiVersion: v1
@@ -296,9 +309,7 @@ spec:
       juicefs/mount-delete-delay: 1m
 ```
 
-### 动态配置
-
-需要在 StorageClass 定义中配置延迟删除的时长，修改 `parameters` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
+动态配置则需要在 StorageClass 定义中配置延迟删除的时长，修改 `parameters` 字段，添加 `juicefs/mount-delete-delay`，设置为需要的时长：
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1

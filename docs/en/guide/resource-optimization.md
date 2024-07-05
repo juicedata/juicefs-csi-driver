@@ -231,10 +231,6 @@ Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
 ## Delayed mount pod deletion {#delayed-mount-pod-deletion}
 
-:::note
-This feature requires JuiceFS CSI Driver 0.13.0 and above.
-:::
-
 Mount pod will be re-used when multiple applications reference a same PV, JuiceFS CSI Node Service will manage mount pod life cycle using reference counting: when no application is using a JuiceFS PV anymore, JuiceFS CSI Node Service will delete the corresponding mount pod.
 
 But with Kubernetes, containers are ephemeral and sometimes scheduling happens so frequently, you may prefer to keep the mount pod for a short while after PV deletion, so that newly created pods can continue using the same mount pod without the need to re-create, further saving cluster resources.
@@ -243,11 +239,28 @@ Delayed deletion is controlled by a piece of config that looks like `juicefs/mou
 
 With delete delay set, when reference count becomes zero, the mount pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this mount pod.
 
-Config is set differently for static and dynamic provisioning.
+### Configuration
 
-### Static provisioning
+[ConfigMap](./configurations.md#configmap) is recommended for this type of customization.
 
-In PV definition, modify the `volumeAttributes` field, add `juicefs/mount-delete-delay`:
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    # Set delete delay for selected PVC
+    - pvcSelector:
+        matchLabels:
+          mylabel1: "value1"
+      annotations:
+        juicefs-delete-delay: 5m
+
+    # Use delete delay for all PVCs
+    - annotations:
+        juicefs-delete-delay: 5m
+```
+
+If you're stuck with legacy CSI Drivers that doesn't support ConfigMap, use the legacy methods, where config is set differently for static and dynamic provisioning.
+
+For static provisioning, in PV definition, add `juicefs/mount-delete-delay` to the `volumeAttributes` field:
 
 ```yaml {22}
 apiVersion: v1
@@ -274,9 +287,7 @@ spec:
       juicefs/mount-delete-delay: 1m
 ```
 
-### Dynamic provisioning
-
-In StorageClass definition, modify the `parameters` field, add `juicefs/mount-delete-delay`:
+For dynamic provisioning, in StorageClass definition, add `juicefs/mount-delete-delay` to the `parameters` field:
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
