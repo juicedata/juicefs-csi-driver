@@ -16,6 +16,95 @@ sidebar_position: 6
 
 如图所示，所有的相关资源都在网页中直接呈现，本章后续介绍的所有采集排查信息的操作，都可以在这个网页中简单点选就能实现，大大简化了 CSI 驱动的问题排查。
 
+## kubectl 插件 {#kubectl-plugin}
+
+JuiceFS 提供了一个 kubectl 插件，可以方便地在 Kubernetes 集群中进行问题排查。
+
+### 安装 {#kubectl-jfs-plugin-install}
+
+一键安装脚本适用于 Linux 和 macOS 系统，会根据你的硬件架构自动下载安装最新版插件。
+
+```shell
+# 默认安装到 /usr/local/bin
+curl -sSL https://d.juicefs.com/kubectl-plugin-install | sh -
+```
+
+### 使用 {#kubectl-jfs-plugin-usage}
+
+```shell
+# 快速列出所有使用 JuiceFS PV 的应用 pod
+$ kubectl jfs po
+NAME                       NAMESPACE  MOUNT PODS                                             STATUS             AGE
+cn-wrong-7b7577678d-7j8dc  default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  CrashLoopBackOff   10d
+image-wrong                default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  ImagePullBackOff   10d
+multi-mount-pod            default    juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy,       Running            11d
+                                      juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+normal-664f8b8846-ntfzk    default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  Running            11d
+pending                    default    <none>                                                 Pending            11d
+res-err                    default    <none>                                                 Pending            11d
+terminating                default    <none>                                                 Terminating        10d
+wrong                      default    juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             ContainerCreating  10d
+
+# 快速列出所有 JuiceFS Mount Pod。默认 Mount Pod 在 kube-system 下，可以用 -m 参数指定 Mount Pod 所在命名空间
+$ kubectl jfs mount
+NAME                                                   NAMESPACE    APP PODS                            STATUS   CSI NODE                AGE
+juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy        kube-system  default/multi-mount-pod             Running  juicefs-csi-node-v6pq5  11d
+juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  kube-system  default/cn-wrong-7b7577678d-7j8dc,  Running  juicefs-csi-node-v6pq5  11d
+                                                                    default/image-wrong,
+                                                                    default/multi-mount-pod,
+                                                                    default/normal-664f8b8846-ntfzk
+juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             kube-system  default/wrong                       Running  juicefs-csi-node-v6pq5  10d
+
+# 快速列出所有 JuiceFS PV / PVC
+$ kubectl jfs pv
+$ kubectl jfs pvc
+```
+
+对于有问题的应用 pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
+
+```shell
+# 诊断应用 pod
+$ kubectl jfs debug pod wrong
+Name:        wrong
+Namespace:   default
+Start Time:  Mon, 24 Jun 2024 15:15:52 +0800
+Status:      ContainerCreating
+Node:
+  Name:    cn-hangzhou.10.0.1.84
+  Status:  Ready
+CSI Node:
+  Name:       juicefs-csi-node-v6pq5
+  Namespace:  kube-system
+  Status:     Ready
+PVCs:
+  Name   Status  PersistentVolume
+  ----   ------  ----------------
+  wrong  Bound   wrong
+Mount Pods:
+  Name                                        Namespace    Status
+  ----                                        ---------    ------
+  juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj  kube-system  Error
+Failed Reason:
+  Mount pod [juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj] is not ready, please check its log.
+  
+# 诊断 JuiceFS PVC
+$ kubectl jfs debug pvc <pvcName>
+$ kubectl jfs debug pv <pvName>
+```
+
+另外，还提供了快速获取 Mount Pod accesslog 以及快速 warmup 的功能：
+
+```shell
+# 获取 Mount Pod accesslog: kubectl jfs accesslog <pod-name> -m <mount-namespace> 
+$ kubectl jfs accesslog juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+2024.07.05 14:09:57.392403 [uid:0,gid:0,pid:201] open (9223372032559808513): OK [fh:25] <0.000054>
+#
+
+# 快速 warmup: kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace> 
+$ kubectl jfs warmup juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+2024/07/05 14:10:52.628976 juicefs[207] <INFO>: Successfully warmed up 2 files (1090721713 bytes) [warmup.go:226]
+```
+
 ## 诊断脚本 {#csi-doctor}
 
 推荐使用诊断脚本 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息，本章所介绍的排查手段中，大部分采集信息的命令，都在脚本中进行了集成，使用起来更为便捷。
