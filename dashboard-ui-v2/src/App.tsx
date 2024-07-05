@@ -31,7 +31,7 @@ async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 loader.config({
-  paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/vs' },
+  paths: { vs: '/monaco-editor/min/vs' },
 })
 
 const App = () => (
