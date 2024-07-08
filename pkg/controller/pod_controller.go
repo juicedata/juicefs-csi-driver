@@ -18,12 +18,12 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -71,54 +71,17 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		return reconcile.Result{}, err
 	}
 
-	// get app pod list
-	relatedPVs := []*corev1.PersistentVolume{}
-	pvcNamespaces := []string{}
-	pvs, err := m.K8sClient.ListPersistentVolumes(ctx, nil, nil)
-	if err != nil {
-		klog.Errorf("doReconcile ListPV: %v", err)
-		return reconcile.Result{}, err
-	}
-	uniqueId := mountPod.Annotations[config.UniqueId]
-	for _, p := range pvs {
-		p := p
-		if p.Spec.CSI == nil || p.Spec.CSI.Driver != config.DriverName {
-			continue
-		}
-		if uniqueId != "" && (p.Spec.CSI.VolumeHandle == uniqueId || p.Spec.StorageClassName == uniqueId) {
-			relatedPVs = append(relatedPVs, &p)
-		}
-	}
-	if len(relatedPVs) == 0 {
-		return reconcile.Result{}, fmt.Errorf("can not get pv by uniqueId %s, mount pod: %s", uniqueId, mountPod.Name)
-	}
-	for _, pv := range relatedPVs {
-		if pv != nil {
-			if pv.Spec.ClaimRef != nil {
-				pvcNamespaces = append(pvcNamespaces, pv.Spec.ClaimRef.Namespace)
-			}
-		}
-	}
-
-	if len(pvcNamespaces) == 0 {
-		klog.Errorf("can not get pvc based on mount pod %s/%s: %v", mountPod.Namespace, mountPod.Name, err)
-		return reconcile.Result{}, err
-	}
-
 	labelSelector := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
 			Key:      config.UniqueId,
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
-	podLists := []corev1.Pod{}
-	for _, pvcNamespace := range pvcNamespaces {
-		podList, err := m.K8sClient.ListPod(ctx, pvcNamespace, &labelSelector, nil)
-		if err != nil {
-			klog.Errorf("doReconcile ListPod: %v", err)
-			return reconcile.Result{}, err
-		}
-		podLists = append(podLists, podList...)
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	podLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	if err != nil {
+		klog.Errorf("reconcile ListPod: %v", err)
+		return reconcile.Result{}, err
 	}
 
 	mounter := mount.SafeFormatAndMount{
