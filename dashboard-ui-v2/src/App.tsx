@@ -16,6 +16,7 @@
 
 import { loader } from '@monaco-editor/react'
 import { ConfigProvider } from 'antd'
+import * as monaco from 'monaco-editor'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
@@ -30,9 +31,7 @@ async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
-loader.config({
-  paths: { vs: '/monaco-editor/min/vs' },
-})
+loader.config({ monaco })
 
 const App = () => (
   <SWRConfig
