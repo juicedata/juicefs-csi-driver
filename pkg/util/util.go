@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -466,4 +467,89 @@ func ParseToBytes(value string) (uint64, error) {
 	val *= float64(uint64(1) << shift)
 
 	return uint64(val), nil
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err) //skip mutate
+}
+
+type ClientVersion struct {
+	IsCe  bool
+	Dev   bool
+	Major int
+	Minor int
+	Patch int
+}
+
+const ceImageRegex = `ce-v(\d+)\.(\d+)\.(\d+)`
+const eeImageRegex = `ee-(\d+)\.(\d+)\.(\d+)`
+
+func (v ClientVersion) LessThan(o ClientVersion) bool {
+	if o.Dev {
+		// dev version is always greater
+		return true
+	}
+	if o.Major > v.Major {
+		return true
+	}
+	if o.Minor > v.Minor {
+		return true
+	}
+	if o.Patch > v.Patch {
+		return true
+	}
+	return false
+}
+
+func ParseClientVersion(image string) ClientVersion {
+	imageSplits := strings.SplitN(image, ":", 2)
+	if len(imageSplits) < 2 {
+		// latest
+		return ClientVersion{IsCe: true, Major: math.MaxInt32}
+	}
+	image, tag := imageSplits[0], imageSplits[1]
+	version := ClientVersion{Dev: true}
+	var re *regexp.Regexp
+
+	if strings.HasPrefix(tag, "ce-") {
+		version.IsCe = true
+		re = regexp.MustCompile(ceImageRegex)
+	} else if strings.HasPrefix(tag, "ee-") {
+		version.IsCe = false
+		re = regexp.MustCompile(eeImageRegex)
+	}
+
+	if re != nil {
+		matches := re.FindStringSubmatch(tag)
+		if len(matches) == 4 {
+			version.Major, _ = strconv.Atoi(matches[1])
+			version.Minor, _ = strconv.Atoi(matches[2])
+			version.Patch, _ = strconv.Atoi(matches[3])
+			version.Dev = false
+		}
+	}
+
+	return version
+}
+
+func (v ClientVersion) SupportFusePass() bool {
+	ceFuseVersion := ClientVersion{
+		IsCe:  true,
+		Dev:   false,
+		Major: 1,
+		Minor: 2,
+		Patch: 1,
+	}
+	eeFuseVersion := ClientVersion{
+		IsCe:  false,
+		Dev:   false,
+		Major: 5,
+		Minor: 1,
+		Patch: 0,
+	}
+	if v.IsCe {
+		return ceFuseVersion.LessThan(v)
+	}
+	return eeFuseVersion.LessThan(v)
 }

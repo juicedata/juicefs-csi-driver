@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -194,6 +195,10 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 				return err
+			}
+			// close socket
+			if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+				fuse.GlobalFds.StopFd(pod.Labels[config.PodUniqueIdLabelKey])
 			}
 			// delete related secret
 			secretName := pod.Name + "-secret"
@@ -361,17 +366,19 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				break
 			}
 			if apierrors.IsNotFound(err) {
-				// umount mount point before recreate mount pod
-				err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-					exist, _ := mount.PathExists(sourcePath)
-					if !exist {
-						return fmt.Errorf("%s not exist", sourcePath)
+				if !util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+					// umount mount point before recreate mount pod
+					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+						exist, _ := mount.PathExists(sourcePath)
+						if !exist {
+							return fmt.Errorf("%s not exist", sourcePath)
+						}
+						return nil
+					})
+					if err == nil {
+						klog.Infof("start to umount: %s", sourcePath)
+						util.UmountPath(ctx, sourcePath)
 					}
-					return nil
-				})
-				if err == nil {
-					klog.Infof("start to umount: %s", sourcePath)
-					util.UmountPath(ctx, sourcePath)
 				}
 				// create pod
 				var newPod = &corev1.Pod{
@@ -391,6 +398,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
+				}
+
+				if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+					return nil
 				}
 
 				if err := resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
@@ -492,6 +503,10 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) erro
 func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error {
 	if pod == nil {
 		klog.Errorf("[podReadyHandler] get nil pod")
+		return nil
+	}
+
+	if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
 		return nil
 	}
 

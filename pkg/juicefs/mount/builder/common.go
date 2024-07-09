@@ -35,9 +35,12 @@ import (
 )
 
 const (
-	JfsDirName      = "jfs-dir"
-	UpdateDBDirName = "updatedb"
-	UpdateDBCfgFile = "/etc/updatedb.conf"
+	JfsDirName          = "jfs-dir"
+	UpdateDBDirName     = "updatedb"
+	UpdateDBCfgFile     = "/etc/updatedb.conf"
+	JfsFuseFdPathName   = "jfs-fuse-fd"
+	JfsFuseFsPathInPod  = "/tmp"
+	JfsFuseFsPathInHost = "/tmp/juicefs-csi"
 )
 
 type BaseBuilder struct {
@@ -104,7 +107,8 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		},
 	}}
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
-	if r.jfsSetting.Attr.Lifecycle == nil {
+	// if image support passFd from csi, do not set umount preStop
+	if r.jfsSetting.Attr.Lifecycle == nil && !util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
 		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(

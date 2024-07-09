@@ -18,6 +18,7 @@ package util
 
 import (
 	"errors"
+	"math"
 	"net/url"
 	"os"
 	"reflect"
@@ -671,6 +672,123 @@ func TestParseToBytes(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ParseBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseClientVersion(t *testing.T) {
+	type args struct {
+		image string
+	}
+	tests := []struct {
+		name string
+		args args
+		want ClientVersion
+	}{
+		{
+			name: "ce-v1.1.1",
+			args: args{
+				image: "juicedata/mount:ce-v1.1.1",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: 1,
+				Minor: 1,
+				Patch: 1,
+			},
+		},
+		{
+			name: "ce-nightly",
+			args: args{
+				image: "juicedata/mount:ce-nightly",
+			},
+			want: ClientVersion{
+				IsCe: true,
+				Dev:  true,
+			},
+		},
+		{
+			name: "ce-latest",
+			args: args{
+				image: "juicedata/mount",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: math.MaxInt32,
+			},
+		},
+		{
+			name: "ee-5.0.18-43a7d32",
+			args: args{
+				image: "juicedata/mount:ee-5.0.18-43a7d32",
+			},
+			want: ClientVersion{
+				IsCe:  false,
+				Dev:   false,
+				Major: 5,
+				Minor: 0,
+				Patch: 18,
+			},
+		},
+		{
+			name: "ee-nightly",
+			args: args{
+				image: "juicedata/mount:ee-nightly",
+			},
+			want: ClientVersion{
+				IsCe: false,
+				Dev:  true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseClientVersion(tt.args.image); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseClientVersion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClientVersion_SupportFusePass(t *testing.T) {
+	type fields struct {
+		IsCe  bool
+		Dev   bool
+		Major int
+		Minor int
+		Patch int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "dev",
+			fields: fields{
+				IsCe:  false,
+				Dev:   true,
+				Major: 0,
+				Minor: 0,
+				Patch: 0,
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := ClientVersion{
+				IsCe:  tt.fields.IsCe,
+				Dev:   tt.fields.Dev,
+				Major: tt.fields.Major,
+				Minor: tt.fields.Minor,
+				Patch: tt.fields.Patch,
+			}
+			if got := v.SupportFusePass(); got != tt.want {
+				t.Errorf("SupportFusePass() = %v, want %v", got, tt.want)
 			}
 		})
 	}

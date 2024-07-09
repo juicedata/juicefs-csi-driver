@@ -37,6 +37,7 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -197,6 +198,11 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			if err := p.K8sClient.DeletePod(ctx, po); err != nil {
 				klog.V(5).Infof("JUmount: Delete pod %s error: %v", podName, err)
 				return err
+			}
+
+			// close socket
+			if util.ParseClientVersion(po.Spec.Containers[0].Image).SupportFusePass() {
+				fuse.GlobalFds.StopFd(po.Labels[jfsConfig.PodUniqueIdLabelKey])
 			}
 
 			// delete related secret

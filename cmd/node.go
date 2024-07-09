@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -123,6 +125,7 @@ func parseNodeConfig() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
+	fuse.InitFds("/tmp")
 }
 
 func nodeRun(ctx context.Context) {
