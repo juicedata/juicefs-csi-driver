@@ -19,6 +19,7 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"reflect"
 	"testing"
 
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 )
 
 var (
@@ -63,6 +65,14 @@ var (
 						},
 					},
 				}, {
+					Name: JfsFuseFdPathName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: path.Join(JfsFuseFsPathInHost, "test"),
+							Type: &dir,
+						},
+					},
+				}, {
 					Name: UpdateDBDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -79,6 +89,9 @@ var (
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
+				}, {
+					Name:  JfsCommEnv,
+					Value: "/tmp/fuse_fd_csi_comm.sock",
 				}},
 				EnvFrom: []corev1.EnvFromSource{{
 					SecretRef: &corev1.SecretEnvSource{
@@ -93,6 +106,9 @@ var (
 						MountPath:        config.PodMountBase,
 						MountPropagation: &mp,
 					}, {
+						Name:      JfsFuseFdPathName,
+						MountPath: "/tmp",
+					}, {
 
 						Name:      UpdateDBDirName,
 						MountPath: UpdateDBCfgFile,
@@ -101,11 +117,6 @@ var (
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 					RunAsUser:  &rootUser,
-				},
-				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
-						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf("umount %s -l; rmdir %s; exit 0", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
-					},
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -191,6 +202,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 }
 
 func TestNewMountPod(t *testing.T) {
+	fuse.InitTestFds()
 	config.NodeName = "node"
 	config.Namespace = ""
 	podLabelTest := corev1.Pod{}

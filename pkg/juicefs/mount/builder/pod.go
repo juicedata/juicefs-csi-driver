@@ -61,9 +61,9 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	}}
 
 	// inject fuse fd
-	if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+	if podName != "" && util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-			Name:  "JFS_SUPER_COMM",
+			Name:  JfsCommEnv,
 			Value: fuse.GlobalFds.GetFdAddress(r.jfsSetting.VolumeId),
 		})
 	}
@@ -253,9 +253,8 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			MountPropagation: &mp,
 		},
 		{
-			Name:             JfsFuseFdPathName,
-			MountPath:        JfsFuseFsPathInPod,
-			MountPropagation: &mp,
+			Name:      JfsFuseFdPathName,
+			MountPath: JfsFuseFsPathInPod,
 		},
 	}
 

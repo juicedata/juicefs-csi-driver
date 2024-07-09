@@ -503,6 +503,9 @@ func (v ClientVersion) LessThan(o ClientVersion) bool {
 }
 
 func ParseClientVersion(image string) ClientVersion {
+	if image == "" {
+		return ClientVersion{}
+	}
 	imageSplits := strings.SplitN(image, ":", 2)
 	if len(imageSplits) < 2 {
 		// latest

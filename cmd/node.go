@@ -125,7 +125,7 @@ func parseNodeConfig() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
-	fuse.InitFds("/tmp")
+	fuse.InitGlobalFds("/tmp")
 }
 
 func nodeRun(ctx context.Context) {

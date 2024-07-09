@@ -17,6 +17,7 @@
 package fuse
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path"
@@ -37,7 +38,7 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitFds(basePath string) {
+func InitGlobalFds(basePath string) {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
 		basePath: basePath,
@@ -45,6 +46,14 @@ func InitFds(basePath string) {
 	}
 	if err := GlobalFds.ParseFuseFds(basePath); err != nil {
 		return
+	}
+	return
+}
+
+func InitTestFds() {
+	GlobalFds = &Fds{
+		globalMu: sync.Mutex{},
+		fds:      make(map[string]*fd),
 	}
 	return
 }
@@ -78,7 +87,6 @@ func (fs *Fds) ParseFuseFds(basePath string) error {
 
 func (fs *Fds) GetFdAddress(volumeId string) string {
 	if f, ok := fs.fds[volumeId]; ok {
-		fs.serveFuseFD(volumeId)
 		return f.serverAddressInPod
 	}
 
@@ -97,7 +105,6 @@ func (fs *Fds) GetFdAddress(volumeId string) string {
 	}
 	fs.globalMu.Unlock()
 
-	fs.serveFuseFD(volumeId)
 	return addressInPod
 }
 
@@ -153,6 +160,14 @@ type fd struct {
 
 	serverAddress      string // server for pod
 	serverAddressInPod string // server path in pod
+}
+
+func (fs *Fds) ServeFuseFd(volumeId string) error {
+	if _, ok := fs.fds[volumeId]; ok {
+		fs.serveFuseFD(volumeId)
+		return nil
+	}
+	return fmt.Errorf("fuse fd of volumeId %s not found in global fuse fds", volumeId)
 }
 
 func (fs *Fds) serveFuseFD(volumeId string) {

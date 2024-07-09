@@ -41,6 +41,7 @@ const (
 	JfsFuseFdPathName   = "jfs-fuse-fd"
 	JfsFuseFsPathInPod  = "/tmp"
 	JfsFuseFsPathInHost = "/tmp/juicefs-csi"
+	JfsCommEnv          = "JFS_SUPER_COMM"
 )
 
 type BaseBuilder struct {

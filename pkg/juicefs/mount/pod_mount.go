@@ -368,6 +368,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					}
 				}
 
+				if util.ParseClientVersion(jfsSetting.Attr.Image).SupportFusePass() {
+					if err := fuse.GlobalFds.ServeFuseFd(jfsSetting.VolumeId); err != nil {
+						klog.Error(err)
+					}
+				}
+
 				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 					return err
 				}
