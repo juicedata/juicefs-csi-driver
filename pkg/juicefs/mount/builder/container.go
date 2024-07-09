@@ -46,6 +46,7 @@ func NewContainerBuilder(setting *config.JfsSetting, capacity int64) SidecarInte
 
 // NewMountSidecar generates a pod with a juicefs sidecar
 // exactly the same spec as Mount Pod
+// except fuse passfd path
 func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	pod := r.NewMountPod("")
 	// no annotation and label for sidecar
@@ -55,6 +56,20 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	volumes, volumeMounts := r.genSidecarVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
+
+	// delete fuse passfd path
+	for i, vm := range pod.Spec.Containers[0].VolumeMounts {
+		if vm.Name == JfsFuseFdPathName {
+			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts[:i], pod.Spec.Containers[0].VolumeMounts[i+1:]...)
+			break
+		}
+	}
+	for i, v := range pod.Spec.Volumes {
+		if v.Name == JfsFuseFdPathName {
+			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
+			break
+		}
+	}
 
 	// check mount & create subpath & set quota
 	capacity := strconv.FormatInt(r.capacity, 10)

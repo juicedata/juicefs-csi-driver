@@ -222,6 +222,7 @@ func (r *PodBuilder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts
 // genPodVolumes: generate volumes for mount pod
 // 1. jfs dir: mount point used to propagate the mount point in the mount container to host
 // 2. update db dir: mount updatedb.conf from host to mount pod
+// 3. jfs fuse fd path: mount fuse fd pass socket to mount pod
 func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	dir := corev1.HostPathDirectoryOrCreate
 	file := corev1.HostPathFileOrCreate
