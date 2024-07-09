@@ -37,6 +37,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -47,6 +48,9 @@ var testA = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "a",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 }
 
@@ -59,6 +63,9 @@ var testB = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testC = &corev1.Pod{
@@ -70,6 +77,9 @@ var testC = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testD = &corev1.Pod{
@@ -80,6 +90,9 @@ var testD = &corev1.Pod{
 		},
 		Annotations: map[string]string{"a": "b",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def"},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 }
 
@@ -94,6 +107,9 @@ var testE = &corev1.Pod{
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testF = &corev1.Pod{
@@ -102,6 +118,9 @@ var testF = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "f",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -126,6 +145,9 @@ var testG = &corev1.Pod{
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
 		Conditions: []corev1.PodCondition{{
@@ -144,6 +166,9 @@ var testH = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "h",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -247,6 +272,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 
 func TestJUmount(t *testing.T) {
 	fakeClientSet := fake.NewSimpleClientset()
+	fuse.InitTestFds()
 
 	type args struct {
 		podName string
@@ -376,6 +402,9 @@ func TestJUmountWithMock(t *testing.T) {
 						podName: "/test",
 					},
 				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+				},
 			})
 			err := p.JUmount(context.TODO(), "/test", podName)
 			So(err, ShouldBeNil)
@@ -402,6 +431,9 @@ func TestJUmountWithMock(t *testing.T) {
 						util.GetReferenceKey("ttt"): "/test",
 					},
 				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+				},
 			})
 			err := p.JUmount(context.TODO(), "/test", podName)
 			So(err, ShouldBeNil)
@@ -425,6 +457,9 @@ func TestJUmountWithMock(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 				},
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

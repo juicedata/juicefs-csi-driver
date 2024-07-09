@@ -68,7 +68,7 @@ var readyPod = &corev1.Pod{
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
 			Name:    "test",
-			Image:   "juicedata/juicefs-csi-driver",
+			Image:   "juicedata/mount:ce-v1.2.1",
 			Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 		}},
 	},
@@ -100,7 +100,7 @@ var errCmdPod = &corev1.Pod{
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
 			Name:    "test",
-			Image:   "juicedata/juicefs-csi-driver",
+			Image:   "juicedata/mount:ce-v1.2.1",
 			Command: []string{"sh", "-c"},
 		}},
 	},
@@ -113,6 +113,9 @@ var deletedPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		Finalizers:        []string{jfsConfig.Finalizer},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -144,7 +147,7 @@ var errorPod1 = &corev1.Pod{
 		Containers: []corev1.Container{
 			{
 				Name:      "pvc-node01-xxx",
-				Image:     "juicedata/juicefs-csi-driver:v0.10.6",
+				Image:     "juicedata/mount:ce-v1.2.1",
 				Command:   []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 				Resources: testResources,
 			},
@@ -184,7 +187,7 @@ var resourceErrPod = &corev1.Pod{
 		Containers: []corev1.Container{
 			{
 				Name:      "pvc-node01-xxx",
-				Image:     "juicedata/juicefs-csi-driver:v0.10.6",
+				Image:     "juicedata/mount:ce-v1.2.1",
 				Command:   []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 				Resources: testResources,
 			},
@@ -220,6 +223,9 @@ var errorPod2 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodFailed,
 		Conditions: []corev1.PodCondition{
@@ -249,6 +255,9 @@ var errorPod3 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodUnknown,
 		Conditions: []corev1.PodCondition{
@@ -269,6 +278,9 @@ var pendingPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodPending,
 		Conditions: []corev1.PodCondition{
@@ -288,6 +300,9 @@ var runningPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Finalizers: []string{jfsConfig.Finalizer},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodPending,
@@ -539,6 +554,11 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					Annotations: nil,
 					Finalizers:  []string{jfsConfig.Finalizer},
 				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Image: "juicedata/mount:ce-v1.2.1",
+					}},
+				},
 			})
 			So(err, ShouldBeNil)
 		})
@@ -565,7 +585,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:    "test",
-						Image:   "juicedata/juicefs-csi-driver",
+						Image:   "juicedata/mount:ce-v1.2.1",
 						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379/jfs/pvc-xxx"},
 					}},
 				},
@@ -646,7 +666,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:    "test",
-						Image:   "juicedata/juicefs-csi-driver",
+						Image:   "juicedata/mount:ce-v1.2.1",
 						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 					}},
 				},
