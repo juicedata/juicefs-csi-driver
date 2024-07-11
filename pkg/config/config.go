@@ -159,10 +159,16 @@ func MustGetWebPort() int {
 	return 8080
 }
 
+type PVCSelector struct {
+	metav1.LabelSelector
+	MatchStorageClassName string `json:"matchStorageClassName,omitempty"`
+	MatchName             string `json:"matchName,omitempty"`
+}
+
 type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
-	PVCSelector *metav1.LabelSelector `json:"pvcSelector,omitempty"`
+	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
 
 	CEMountImage string `json:"ceMountImage,omitempty"`
 	EEMountImage string `json:"eeMountImage,omitempty"`
@@ -178,6 +184,26 @@ type MountPodPatch struct {
 	Lifecycle                     *corev1.Lifecycle            `json:"lifecycle,omitempty"`
 	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty"`
+}
+
+func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
+	if mpp.PVCSelector == nil {
+		return true
+	}
+	if pvc == nil {
+		return false
+	}
+	if mpp.PVCSelector.MatchName != "" && mpp.PVCSelector.MatchName != pvc.Name {
+		return false
+	}
+	if mpp.PVCSelector.MatchStorageClassName != "" && pvc.Spec.StorageClassName != nil && mpp.PVCSelector.MatchStorageClassName != *pvc.Spec.StorageClassName {
+		return false
+	}
+	selector, err := metav1.LabelSelectorAsSelector(&mpp.PVCSelector.LabelSelector)
+	if err != nil {
+		return false
+	}
+	return selector.Matches(labels.Set(pvc.Labels))
 }
 
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
@@ -249,19 +275,8 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 
 	// merge each patch
 	for _, mp := range c.MountPodPatch {
-		if mp.PVCSelector == nil {
+		if mp.isMatch(setting.PVC) {
 			patch.merge(mp.deepCopy())
-		} else {
-			if setting.PVC == nil {
-				continue
-			}
-			selector, err := metav1.LabelSelectorAsSelector(mp.PVCSelector)
-			if err != nil {
-				continue
-			}
-			if selector.Matches(labels.Set(setting.PVC.Labels)) {
-				patch.merge(mp.deepCopy())
-			}
 		}
 	}
 	if setting.IsCe {
