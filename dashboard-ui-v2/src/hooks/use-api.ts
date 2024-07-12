@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import { useAsync } from '@react-hookz/web'
 import { Event } from 'kubernetes-types/core/v1'
-import { useAsyncFn } from 'react-use'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
@@ -105,7 +105,7 @@ export function useDownloadPodLogs(
   name?: string,
   container?: string,
 ) {
-  return useAsyncFn(async () => {
+  return useAsync(async () => {
     await fetch(
       `${getHost()}/api/v1/pod/${namespace}/${name}/logs/${container}?download=true`,
     )
@@ -118,5 +118,5 @@ export function useDownloadPodLogs(
         a.click()
         window.URL.revokeObjectURL(url)
       })
-  }, [namespace, name, container])
+  })
 }

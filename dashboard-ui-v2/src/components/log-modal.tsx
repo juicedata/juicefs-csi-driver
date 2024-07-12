@@ -36,7 +36,7 @@ const LogModal: React.FC<{
     const [editor, setEditor] = useState<editor.IStandaloneCodeEditor | null>(
       null,
     )
-    const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
+    const [state, actions] = useDownloadPodLogs(namespace, name, container)
 
     useWebsocket(
       `/api/v1/ws/pod/${namespace}/${name}/${container}/${type}`,
@@ -87,9 +87,9 @@ const LogModal: React.FC<{
                 {type === 'logs' ? (
                   <>
                     <Button
-                      loading={state.loading}
+                      loading={state.status === 'loading'}
                       onClick={() => {
-                        doFetch()
+                        actions.execute()
                         console.log('Download full log')
                       }}
                     >

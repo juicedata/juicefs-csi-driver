@@ -81,4 +81,8 @@ export default {
   reason: '原因',
   from: '事件源',
   message: '信息',
+  docs: '文档',
+  save: '保存',
+  config: '配置',
+  reset: '重置',
 }
