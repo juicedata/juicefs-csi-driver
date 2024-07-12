@@ -38,9 +38,7 @@ type PVPair struct {
 // GetVolumes get juicefs pv & pvc from pod
 func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (used bool, pvPairGot []PVPair, err error) {
 	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
-	var (
-		namespace = pod.Namespace
-	)
+	var namespace string
 	pvPairGot = []PVPair{}
 	namespace, err = GetNamespace(ctx, client, pod)
 	if err != nil {

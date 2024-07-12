@@ -611,7 +611,7 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	klog.V(5).Infof("umount target %d times", count)
 	for i := 0; i < count; i++ {
 		// ignore error
-		p.Unmount(target)
+		_ = p.Unmount(target)
 	}
 }
 
@@ -644,10 +644,6 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 		}
 
 		util.UmountPath(subCtx, target)
-		select {
-		case <-subCtx.Done():
-			return fmt.Errorf("umountTargetWithRemain timeout")
-		}
 	}
 }
 

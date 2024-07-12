@@ -19,7 +19,6 @@ package juicefs
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -599,7 +598,9 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 
 				klog.V(5).Infof("Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
 				// clean cache should be done even when top context timeout
-				go j.processMount.CleanCache(context.TODO(), "", uuid, uniqueId, cacheDirs)
+				go func() {
+					_ = j.processMount.CleanCache(context.TODO(), "", uuid, uniqueId, cacheDirs)
+				}()
 			}()
 		}
 		return err
@@ -767,7 +768,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 			conf := secrets["name"] + ".conf"
 			confPath := filepath.Join(setting.ClientConfPath, conf)
 			if _, err := os.Stat(confPath); os.IsNotExist(err) {
-				err = ioutil.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
+				err = os.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
 				if err != nil {
 					return "", fmt.Errorf("create config file %q failed: %v", confPath, err)
 				}
@@ -819,18 +820,6 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return "", errors.Wrap(err, re)
 	}
 	return string(res), nil
-}
-
-func (j *juicefs) version(ctx context.Context, jfsSetting *config.JfsSetting) (*clientVersion, error) {
-	cmd := j.Exec.CommandContext(ctx, config.CeCliPath, "version")
-	if !jfsSetting.IsCe {
-		cmd = j.Exec.CommandContext(ctx, config.CliPath, "version")
-	}
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, errors.Wrap(err, string(res))
-	}
-	return parseRawVersion(string(res))
 }
 
 func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error {

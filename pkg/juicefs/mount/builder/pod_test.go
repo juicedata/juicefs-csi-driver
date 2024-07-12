@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -31,27 +30,15 @@ import (
 )
 
 var (
-	defaultCmd       = "/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
-	defaultMountPath = "/jfs/default-imagenet"
-	podLimit         = map[corev1.ResourceName]resource.Quantity{
-		corev1.ResourceCPU:    resource.MustParse("1"),
-		corev1.ResourceMemory: resource.MustParse("2G"),
-	}
-	podRequest = map[corev1.ResourceName]resource.Quantity{
-		corev1.ResourceCPU:    resource.MustParse("3"),
-		corev1.ResourceMemory: resource.MustParse("4G"),
-	}
-	testResources = corev1.ResourceRequirements{
-		Limits:   podLimit,
-		Requests: podRequest,
-	}
-	isPrivileged         = true
-	rootUser       int64 = 0
-	mp                   = corev1.MountPropagationBidirectional
-	dir                  = corev1.HostPathDirectoryOrCreate
-	file                 = corev1.HostPathFileOrCreate
-	gracePeriod          = int64(10)
-	podDefaultTest       = corev1.Pod{
+	defaultCmd             = "/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
+	defaultMountPath       = "/jfs/default-imagenet"
+	isPrivileged           = true
+	rootUser         int64 = 0
+	mp                     = corev1.MountPropagationBidirectional
+	dir                    = corev1.HostPathDirectoryOrCreate
+	file                   = corev1.HostPathFileOrCreate
+	gracePeriod            = int64(10)
+	podDefaultTest         = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
@@ -138,28 +125,10 @@ var (
 func deepcopyPodFromDefault(pod *corev1.Pod) {
 	defaultValue, _ := json.Marshal(podDefaultTest)
 	defaultValueMap := make(map[string]interface{})
-	json.Unmarshal(defaultValue, &defaultValueMap)
+	_ = json.Unmarshal(defaultValue, &defaultValueMap)
 	resMap := runtime.DeepCopyJSON(defaultValueMap)
 	resValue, _ := json.Marshal(resMap)
-	json.Unmarshal(resValue, pod)
-}
-
-func putDefaultCacheDir(pod *corev1.Pod) {
-	volume := corev1.Volume{
-		Name: "jfs-default-cache",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/var/jfsCache",
-				Type: &dir,
-			},
-		},
-	}
-	volumeMount := corev1.VolumeMount{
-		Name:      "jfs-default-cache",
-		MountPath: "/var/jfsCache",
-	}
-	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
-	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMount)
+	_ = json.Unmarshal(resValue, pod)
 }
 
 func Test_getCacheDirVolumes(t *testing.T) {

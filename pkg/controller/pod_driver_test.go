@@ -407,9 +407,7 @@ func copyPod(oldPod *corev1.Pod) *corev1.Pod {
 	newPod.Spec = oldPod.Spec
 	newPod.Spec.Containers = make([]corev1.Container, 0)
 	if oldPod.Spec.Containers != nil && len(oldPod.Spec.Containers) != 0 {
-		for _, v := range oldPod.Spec.Containers {
-			newPod.Spec.Containers = append(newPod.Spec.Containers, v)
-		}
+		newPod.Spec.Containers = append(newPod.Spec.Containers, oldPod.Spec.Containers...)
 	}
 	newPod.Status = oldPod.Status
 	return &newPod
@@ -958,7 +956,9 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			})
 			defer patch1.Reset()
 			_, err := d.Client.CreatePod(context.TODO(), errorPod1)
-			defer d.Client.DeletePod(context.TODO(), errorPod1)
+			defer func() {
+				_ = d.Client.DeletePod(context.TODO(), errorPod1)
+			}()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -989,7 +989,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			errPod := copyPod(resourceErrPod)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			d.Client.CreatePod(ctx, errPod)
+			_, _ = d.Client.CreatePod(ctx, errPod)
 			err := d.podErrorHandler(ctx, errPod)
 			So(err, ShouldBeNil)
 		})

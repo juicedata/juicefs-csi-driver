@@ -186,7 +186,7 @@ type MountPodPatch struct {
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
 	var copy MountPodPatch
 	data, _ := json.Marshal(mpp)
-	json.Unmarshal(data, &copy)
+	_ = json.Unmarshal(data, &copy)
 	return copy
 }
 
@@ -279,7 +279,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
 	strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
 	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
-	json.Unmarshal([]byte(strData), patch)
+	_ = json.Unmarshal([]byte(strData), patch)
 	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
 	return *patch
 }
@@ -349,9 +349,9 @@ func StartConfigReloader(configPath string) error {
 				}
 				// k8s configmaps uses symlinks, we need this workaround to detect the real file change
 				if event.Op == fsnotify.Remove {
-					watcher.Remove(event.Name)
+					_ = watcher.Remove(event.Name)
 					// add a new watcher pointing to the new symlink/file
-					watcher.Add(configPath)
+					_ = watcher.Add(configPath)
 				}
 
 				klog.Infof("config file %s updated, reload config", configPath)
@@ -374,7 +374,10 @@ func StartConfigReloader(configPath string) error {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			LoadConfig(configPath)
+			err = LoadConfig(configPath)
+			if err != nil {
+				klog.Error(err)
+			}
 		}
 	}()
 

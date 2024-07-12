@@ -719,7 +719,7 @@ func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser)
 					return
 				}
 				if string(temp) == "ping" {
-					websocket.Message.Send(l.conn, "pong")
+					_ = websocket.Message.Send(l.conn, "pong")
 				}
 			}
 		}
@@ -728,8 +728,7 @@ func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser)
 }
 
 func (l *LogPipe) Write(p []byte) (int, error) {
-	websocket.Message.Send(l.conn, string(p))
-	return len(p), nil
+	return len(p), websocket.Message.Send(l.conn, string(p))
 }
 
 func (l *LogPipe) Read(p []byte) (int, error) {
