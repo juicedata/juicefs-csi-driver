@@ -55,6 +55,10 @@ const LogModal: React.FC<{
       if (!editor) return
       const model = editor.getModel()
       if (!model) return
+      const visibleLine = editor.getVisibleRanges()[0]
+      if (visibleLine.endLineNumber + 5 < model.getLineCount()) {
+        return
+      }
       editor.revealLine(model.getLineCount())
     }, [data, editor])
 
