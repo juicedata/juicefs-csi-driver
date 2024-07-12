@@ -66,7 +66,6 @@ func (fs *Fds) ParseFuseFds(basePath string) error {
 		return err
 	}
 	for _, entry := range entries {
-		klog.V(6).Infof("for subpath %s", entry.Name())
 		if !entry.IsDir() {
 			continue
 		}
