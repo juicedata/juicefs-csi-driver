@@ -101,6 +101,7 @@ const ConfigModal: React.FC<{
                       'config.yaml': config,
                     },
                   })
+                  setUpdated(false)
                 }}
               >
                 <FormattedMessage id="save" />
