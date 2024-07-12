@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -34,10 +33,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-)
-
-var (
-	MountPointDevMinorTable sync.Map
 )
 
 func IsPodReady(pod *corev1.Pod) bool {
@@ -234,9 +229,11 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
+		var dev uint64
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
+				dev = uint64(st.Dev)
+				util.DevMinorTableStore(mntPath, dev)
 				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", mntPath, podName)
 				return nil
 			}

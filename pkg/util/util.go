@@ -427,13 +427,6 @@ func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry
 	return registerer, registry
 }
 
-// DevMinor returns the minor component of a Linux device number.
-func DevMinor(dev uint64) uint32 {
-	minor := dev & 0xff
-	minor |= (dev >> 12) & 0xffffff00
-	return uint32(minor)
-}
-
 // ParseToBytes parses a string with a unit suffix (e.g. "1M", "2G") to bytes.
 // default unit is M
 func ParseToBytes(value string) (uint64, error) {
