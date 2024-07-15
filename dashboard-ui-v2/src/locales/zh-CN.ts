@@ -85,4 +85,5 @@ export default {
   save: '保存',
   config: '配置',
   reset: '重置',
+  action: '操作',
 }

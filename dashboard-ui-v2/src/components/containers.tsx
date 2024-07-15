@@ -15,13 +15,14 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Space, Table, Tag } from 'antd'
+import { Button, Space, Table, Tag, Tooltip } from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
 
 import LogModal from './log-modal'
 import XTermModal from './xterm-modal'
+import { AccessLogIcon, LogIcon, TerminalIcon } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod } from '@/utils'
@@ -69,10 +70,41 @@ const Containers: React.FC<{
             render: (startAt) => new Date(startAt).toLocaleString(),
           },
           {
-            title: <FormattedMessage id="log" />,
+            title: <FormattedMessage id="action" />,
             key: 'action',
             render: (record, c) => (
               <Space>
+                <LogModal
+                  namespace={namespace!}
+                  name={name!}
+                  container={record.name}
+                  hasPrevious={c.restartCount > 0}
+                >
+                  {({ onClick }) => (
+                    <Tooltip title="Log">
+                      <Button
+                        className="action-button"
+                        onClick={onClick}
+                        icon={<LogIcon />}
+                      />
+                    </Tooltip>
+                  )}
+                </LogModal>
+                <XTermModal
+                  namespace={namespace!}
+                  name={name!}
+                  container={record.name}
+                >
+                  {({ onClick }) => (
+                    <Tooltip title="Exec in container">
+                      <Button
+                        className="action-button"
+                        icon={<TerminalIcon />}
+                        onClick={onClick}
+                      />
+                    </Tooltip>
+                  )}
+                </XTermModal>
                 {isMountPod(pod) ? (
                   <LogModal
                     namespace={namespace!}
@@ -82,35 +114,16 @@ const Containers: React.FC<{
                     type="accesslog"
                   >
                     {({ onClick }) => (
-                      <Button type="primary" onClick={onClick}>
-                        Access Log
-                      </Button>
+                      <Tooltip title="Access Log">
+                        <Button
+                          className="action-button"
+                          onClick={onClick}
+                          icon={<AccessLogIcon />}
+                        />
+                      </Tooltip>
                     )}
                   </LogModal>
                 ) : null}
-                <LogModal
-                  namespace={namespace!}
-                  name={name!}
-                  container={record.name}
-                  hasPrevious={c.restartCount > 0}
-                >
-                  {({ onClick }) => (
-                    <Button type="primary" onClick={onClick}>
-                      Log
-                    </Button>
-                  )}
-                </LogModal>
-                <XTermModal
-                  namespace={namespace!}
-                  name={name!}
-                  container={record.name}
-                >
-                  {({ onClick }) => (
-                    <Button type="primary" onClick={onClick}>
-                      Exec
-                    </Button>
-                  )}
-                </XTermModal>
               </Space>
             ),
           },

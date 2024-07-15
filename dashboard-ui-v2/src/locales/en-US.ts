@@ -86,4 +86,5 @@ export default {
   reason: 'Reason',
   from: 'From',
   message: 'Message',
+  action: 'Action',
 }
