@@ -8,9 +8,9 @@ on:
       - 'Makefile'
       - 'docker/Makefile'
       - 'docker/dashboard.Dockerfile'
-      - 'dashboard-ui-v2/*'
-      - 'cmd/dashboard/*'
-      - 'pkg/dashboard/*'
+      - 'dashboard-ui-v2/**'
+      - 'cmd/dashboard/**'
+      - 'pkg/dashboard/**'
   pull_request:
     branches:
       - master
@@ -18,9 +18,9 @@ on:
       - 'Makefile'
       - 'docker/Makefile'
       - 'docker/dashboard.Dockerfile'
-      - 'dashboard-ui-v2/*'
-      - 'cmd/dashboard/*'
-      - 'pkg/dashboard/*'
+      - 'dashboard-ui-v2/**'
+      - 'cmd/dashboard/**'
+      - 'pkg/dashboard/**'
 
 jobs:
   build:
