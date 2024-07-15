@@ -8,7 +8,7 @@ Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, 
 
 ## CSI dashboard {#csi-dashboard}
 
-CSI dashboard is installed along with JuiceFS CSI Driver, it provides a web interface to view the status of JuiceFS CSI Driver components. Also, you can see all PVs, PVCs, and Pods that are using JuiceFS PVs. With csi dashboard, you can easily debug and troubleshoot. Strongly recommended to use dashboard.
+CSI dashboard is installed along with JuiceFS CSI Driver, it provides a web interface to view the status of JuiceFS CSI Driver components. Also, you can see all PVs, PVCs, and Pods that are using JuiceFS PVs. With CSI dashboard, you can easily debug and troubleshoot. Strongly recommended to use dashboard.
 
 Access the dashboard and you can see the following interface:
 
