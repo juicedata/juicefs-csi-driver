@@ -511,7 +511,7 @@ func ParseClientVersion(image string) ClientVersion {
 		// latest
 		return ClientVersion{IsCe: true, Major: math.MaxInt32}
 	}
-	image, tag := imageSplits[0], imageSplits[1]
+	_, tag := imageSplits[0], imageSplits[1]
 	version := ClientVersion{Dev: true}
 	var re *regexp.Regexp
 

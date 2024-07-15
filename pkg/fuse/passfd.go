@@ -47,7 +47,6 @@ func InitGlobalFds(basePath string) {
 	if err := GlobalFds.ParseFuseFds(basePath); err != nil {
 		return
 	}
-	return
 }
 
 func InitTestFds() {
@@ -55,7 +54,6 @@ func InitTestFds() {
 		globalMu: sync.Mutex{},
 		fds:      make(map[string]*fd),
 	}
-	return
 }
 
 func (fs *Fds) ParseFuseFds(basePath string) error {
@@ -92,7 +90,7 @@ func (fs *Fds) GetFdAddress(volumeId string) string {
 	address := path.Join("/tmp", volumeId, "fuse_fd_csi_comm.sock")
 	addressInPod := path.Join("/tmp", "fuse_fd_csi_comm.sock")
 	// mkdir parent
-	_ = os.MkdirAll(path.Join("/tmp", volumeId), 777)
+	_ = os.MkdirAll(path.Join("/tmp", volumeId), 0777)
 	fs.globalMu.Lock()
 	fs.fds[volumeId] = &fd{
 		fuseMu:             sync.Mutex{},
@@ -147,7 +145,6 @@ func (fs *Fds) parseFuse(volumeId, fusePath string) {
 	fs.globalMu.Unlock()
 
 	fs.serveFuseFD(volumeId)
-	return
 }
 
 type fd struct {

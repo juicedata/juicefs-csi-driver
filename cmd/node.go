@@ -28,8 +28,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
