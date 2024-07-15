@@ -74,6 +74,8 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pvcs", api.listPVCsHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
+	group.GET("/config", api.getCSIConfig())
+	group.PUT("/config", api.putCSIConfig())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/events", api.getPodEvents())

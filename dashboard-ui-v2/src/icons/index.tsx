@@ -17,6 +17,7 @@
 import Icon from '@ant-design/icons'
 import type { GetProps } from 'antd'
 
+import CM from '@/assets/cm-256.png'
 import DS from '@/assets/ds-256.png'
 import LOGO from '@/assets/logo.svg'
 import POD from '@/assets/pod-256.png'
@@ -56,8 +57,14 @@ const SCIcon = (props: Partial<CustomIconComponentProps>) => (
     {...props}
   />
 )
+const CMIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon
+    component={() => <img width={props.width ?? 18} src={CM} />}
+    {...props}
+  />
+)
 const LOGOIcon = (props: Partial<CustomIconComponentProps>) => (
   <Icon component={() => <img width={props.width} src={LOGO} />} {...props} />
 )
 
-export { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon, LOGOIcon }
+export { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon, LOGOIcon, CMIcon }

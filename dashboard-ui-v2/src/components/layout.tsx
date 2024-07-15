@@ -22,12 +22,14 @@ import {
   ConfigProvider,
   Menu,
   MenuProps,
+  Space,
 } from 'antd'
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
 import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
+import ConfigModal from './config-modal'
 import { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
@@ -86,44 +88,50 @@ export default function Layout(props: { children: ReactNode }) {
   }, [])
 
   return (
-    <AntdLayout>
-      <Header
-        style={{
-          position: 'fixed',
-          top: 0,
-          zIndex: 1,
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          fontSize: '14px',
-          padding: '0 40px',
-        }}
-      >
-        <h2>JuiceFS CSI</h2>
-        <div style={{ marginLeft: 'auto', justifyContent: 'space-between' }}>
-          <QuestionCircleOutlined
-            width={20}
-            onClick={() => {
-              // open a new tab to the JuiceFS CSI documentation
-              window.open(
-                'https://juicefs.com/docs/csi/introduction/',
-                '_blank',
-              )
-            }}
-          />
-          <Button
-            style={{ marginLeft: '10px' }}
-            // shape="round"
-            size="small"
-            onClick={() => {
-              setLocale(locale === 'cn' ? 'en' : 'cn')
-            }}
-          >
-            {(locale == 'cn' ? 'en' : 'cn').toUpperCase()}
-          </Button>
-        </div>
-      </Header>
-      <IntlProvider messages={locale == 'cn' ? cn : en} locale={locale ?? 'cn'}>
+    <IntlProvider messages={locale == 'cn' ? cn : en} locale={locale ?? 'cn'}>
+      <AntdLayout>
+        <Header
+          style={{
+            position: 'fixed',
+            top: 0,
+            zIndex: 1,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '14px',
+            padding: '0 40px',
+          }}
+        >
+          <h2>JuiceFS CSI</h2>
+          <Space style={{ marginLeft: 'auto' }}>
+            <QuestionCircleOutlined
+              width={20}
+              onClick={() => {
+                // open a new tab to the JuiceFS CSI documentation
+                window.open(
+                  'https://juicefs.com/docs/csi/introduction/',
+                  '_blank',
+                )
+              }}
+            />
+
+            <ConfigModal>
+              {({ onClick }) => (
+                <Button size="small" onClick={onClick}>
+                  <FormattedMessage id="config" />
+                </Button>
+              )}
+            </ConfigModal>
+            <Button
+              size="small"
+              onClick={() => {
+                setLocale(locale === 'cn' ? 'en' : 'cn')
+              }}
+            >
+              {(locale == 'cn' ? 'en' : 'cn').toUpperCase()}
+            </Button>
+          </Space>
+        </Header>
         <ConfigProvider locale={locale == 'cn' ? zhCN : enUS}>
           <AntdLayout hasSider>
             <Sider
@@ -161,7 +169,7 @@ export default function Layout(props: { children: ReactNode }) {
             </ConfigProvider>
           </AntdLayout>
         </ConfigProvider>
-      </IntlProvider>
-    </AntdLayout>
+      </AntdLayout>
+    </IntlProvider>
   )
 }
