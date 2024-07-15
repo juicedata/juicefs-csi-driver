@@ -30,9 +30,9 @@ func DevMinorTableDelete(k any) {
 	MountPointDevMinorTable.Delete(k)
 }
 
-func DevMinorTableLoad(k any) (uint64, bool) {
+func DevMinorTableLoad(k any) (uint32, bool) {
 	v, ok := MountPointDevMinorTable.Load(k)
-	return v.(uint64), ok
+	return v.(uint32), ok
 }
 
 // DevMinor returns the minor component of a Linux device number.
