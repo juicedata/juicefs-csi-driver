@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -509,9 +510,11 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		if e != nil {
 			return e
 		}
+		var dev uint64
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				resource.MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
+				dev = uint64(st.Dev)
+				util.DevMinorTableStore(mntPath, dev)
 			}
 		}
 		return e
@@ -611,7 +614,7 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	klog.V(5).Infof("umount target %d times", count)
 	for i := 0; i < count; i++ {
 		// ignore error
-		p.Unmount(target)
+		_ = p.Unmount(target)
 	}
 }
 
@@ -644,10 +647,6 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 		}
 
 		util.UmountPath(subCtx, target)
-		select {
-		case <-subCtx.Done():
-			return fmt.Errorf("umountTargetWithRemain timeout")
-		}
 	}
 }
 
@@ -741,7 +740,11 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		return
 	}
 	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
-	defer resource.MountPointDevMinorTable.Delete(mountPoint)
+	defer func() {
+		if runtime.GOOS == "linux" {
+			util.DevMinorTableDelete(mountPoint)
+		}
+	}()
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
@@ -757,12 +760,14 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		select {
 		case <-ctx.Done():
 			klog.V(5).Infof("pod %s/%s may be stuck in terminating state, create a job to abort fuse connection", pod.Namespace, pod.Name)
-			if devMinor, ok := resource.MountPointDevMinorTable.Load(mountPoint); ok {
-				if err := p.doAbortFuse(pod, devMinor.(uint32)); err != nil {
-					klog.Errorf("abort fuse connection error: %v", err)
+			if runtime.GOOS == "linux" {
+				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
+					if err := p.doAbortFuse(pod, uint32(devMinor)); err != nil {
+						klog.Errorf("abort fuse connection error: %v", err)
+					}
+				} else {
+					klog.Errorf("can't find devMinor of mountPoint %s", mountPoint)
 				}
-			} else {
-				klog.Errorf("can't find devMinor of mountPoint %s", mountPoint)
 			}
 			return
 		default:

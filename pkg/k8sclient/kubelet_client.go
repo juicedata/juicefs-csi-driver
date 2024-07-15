@@ -19,7 +19,7 @@ package k8sclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -115,7 +115,7 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 	kubeletClientKey := os.Getenv("KUBELET_CLIENT_KEY")
 	if kubeletClientCert == "" && kubeletClientKey == "" {
 		// get CSI sa token
-		tokenByte, err := ioutil.ReadFile(serviceAccountTokenFile)
+		tokenByte, err := os.ReadFile(serviceAccountTokenFile)
 		if err != nil {
 			return nil, fmt.Errorf("in cluster mode, find token failed: %v", err)
 		}
@@ -161,7 +161,7 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

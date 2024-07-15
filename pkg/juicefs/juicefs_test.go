@@ -321,9 +321,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
@@ -419,9 +417,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {

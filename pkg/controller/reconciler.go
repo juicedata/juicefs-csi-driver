@@ -144,7 +144,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			})
 		}
 		backOff.GC()
-		g.Wait()
+		_ = g.Wait()
 	finish:
 		cancel()
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)

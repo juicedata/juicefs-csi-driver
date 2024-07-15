@@ -29,12 +29,13 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -133,7 +134,9 @@ func controllerRun() {
 	go func() {
 		port := 6060
 		for {
-			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
+			if err := http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil); err != nil {
+				klog.Errorf("failed to start pprof server: %v", err)
+			}
 			port++
 		}
 	}()
@@ -153,7 +156,9 @@ func controllerRun() {
 			Addr:    fmt.Sprintf(":%d", config.WebPort),
 			Handler: mux,
 		}
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil {
+			klog.Errorf("failed to start metrics server: %v", err)
+		}
 	}()
 
 	// enable mount manager in csi controller

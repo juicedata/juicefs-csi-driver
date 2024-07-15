@@ -93,7 +93,6 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 
 func (r *ContainerBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
 	// do not overwrite volumeMounts
-	return
 }
 
 func (r *ContainerBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath string) {

@@ -31,11 +31,12 @@ import (
 	"k8s.io/klog"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type provisionerService struct {
@@ -247,7 +248,9 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		}
 		if shouldRemoveFinalizer {
 			klog.V(6).Infof("Provisioner: Remove Finalizer on %s/%s", secretNamespace, secretName)
-			resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
+			if err = resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

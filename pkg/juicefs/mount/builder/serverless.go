@@ -115,7 +115,6 @@ func (r *ServerlessBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath st
 
 func (r *ServerlessBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
 	// do not overwrite volume mount
-	return
 }
 
 // genServerlessVolumes generates volumes and volumeMounts for serverless sidecar

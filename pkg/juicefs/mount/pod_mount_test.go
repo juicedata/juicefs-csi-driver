@@ -368,7 +368,7 @@ func TestJUmountWithMock(t *testing.T) {
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -394,7 +394,7 @@ func TestJUmountWithMock(t *testing.T) {
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -421,7 +421,7 @@ func TestJUmountWithMock(t *testing.T) {
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -486,7 +486,7 @@ func TestUmountTarget(t *testing.T) {
 			}
 			t.Logf("PodMount %T %v", p, p)
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -522,7 +522,7 @@ func TestUmountTarget(t *testing.T) {
 				},
 			}
 			podName := GenPodNameByUniqueId("aaa", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,

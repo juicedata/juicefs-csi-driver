@@ -88,7 +88,7 @@ func TestMountInfo(t *testing.T) {
 			defer patch1.Reset()
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget(target)
 
 			So(mi, ShouldNotBeNil)
@@ -117,7 +117,7 @@ func TestMountInfo(t *testing.T) {
 		})
 		Convey("test invalid base target", func() {
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget("/invalid-target-path")
 			So(mi, ShouldBeNil)
 		})
@@ -129,7 +129,7 @@ func TestMountInfo(t *testing.T) {
 			defer patch1.Reset()
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget(target)
 
 			So(mi, ShouldNotBeNil)
@@ -150,7 +150,7 @@ func TestMountInfo(t *testing.T) {
 			defer patch1.Reset()
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget("/poddir/uid-1/volumes/kubernetes.io~csi/pvn-not-exist/mount")
 
 			So(mi, ShouldNotBeNil)
@@ -166,7 +166,7 @@ func TestMountInfo(t *testing.T) {
 			defer patch1.Reset()
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget(target)
 
 			So(mi, ShouldNotBeNil)
@@ -182,7 +182,7 @@ func TestMountInfo(t *testing.T) {
 			defer patch1.Reset()
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget(target)
 
 			So(mi, ShouldNotBeNil)
@@ -198,7 +198,7 @@ func TestMountInfo(t *testing.T) {
 			mmit.addBaseTarget("/sub-x", podUID, pv)
 
 			mit := newMountInfoTable()
-			mit.parse()
+			_ = mit.parse()
 			mi := mit.resolveTarget(target)
 
 			So(mi, ShouldNotBeNil)

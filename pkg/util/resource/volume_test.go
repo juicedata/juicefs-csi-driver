@@ -100,10 +100,10 @@ func TestGetVolumes(t *testing.T) {
 	pvs := []corev1.PersistentVolume{pv1, pv2, pv3, pv4}
 	k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 	for _, pvc := range pvcs {
-		k8sClient.Interface.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
+		_, _ = k8sClient.Interface.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
 	}
 	for _, pv := range pvs {
-		k8sClient.Interface.CoreV1().PersistentVolumes().Create(context.TODO(), &pv, metav1.CreateOptions{})
+		_, _ = k8sClient.Interface.CoreV1().PersistentVolumes().Create(context.TODO(), &pv, metav1.CreateOptions{})
 	}
 	tests := []struct {
 		name     string

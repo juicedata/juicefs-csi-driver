@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 )
 
 func TestDriver_GetPluginInfo(t *testing.T) {
@@ -81,24 +80,18 @@ func TestDriver_GetPluginInfo(t *testing.T) {
 }
 
 func TestGetPluginCapabilities(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
 	type args struct {
 		ctx context.Context
 		req *csi.GetPluginCapabilitiesRequest
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    *csi.GetPluginCapabilitiesResponse
 		wantErr bool
 	}{
 		{
-			name:   "test",
-			fields: fields{},
+			name: "test",
 			args: args{
 				req: &csi.GetPluginCapabilitiesRequest{},
 			},
