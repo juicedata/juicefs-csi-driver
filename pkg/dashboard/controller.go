@@ -68,7 +68,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		klog.Errorf("get pod %s failed: %v", req.NamespacedName, err)
 		return reconcile.Result{}, nil
 	}
-	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodUnready(ctx, pod) {
+	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodPending(pod) {
 		// skip
 		return reconcile.Result{}, nil
 	}
@@ -277,6 +277,7 @@ func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (r
 			c.pairs[req.NamespacedName] = pvName
 		} else {
 			delete(c.pairs, req.NamespacedName)
+			c.pvcIndexes.removeIndex(req.NamespacedName)
 		}
 	}
 	return reconcile.Result{}, nil

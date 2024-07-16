@@ -82,7 +82,7 @@ const PVCBasic: React.FC<{
           },
           {
             title: <FormattedMessage id="capacity" />,
-            dataIndex: ['spec', 'capacity', 'storage'],
+            dataIndex: ['spec', 'resources', 'requests', 'storage'],
           },
           {
             title: <FormattedMessage id="accessMode" />,
@@ -91,10 +91,6 @@ const PVCBasic: React.FC<{
               record.spec?.accessModes
                 ?.map((mode) => accessModeMap[mode] || 'Unknown')
                 .join(','),
-          },
-          {
-            title: <FormattedMessage id="reclaimPolicy" />,
-            dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
           },
           {
             title: 'StorageClass',
@@ -121,7 +117,11 @@ const PVCBasic: React.FC<{
           },
           {
             title: <FormattedMessage id="createAt" />,
-            dataIndex: 'time',
+            dataIndex: ['metadata', 'creationTimestamp'],
+            render: (_, row) =>
+              new Date(
+                row.metadata?.creationTimestamp as string,
+              ).toLocaleString(),
           },
         ]}
       />

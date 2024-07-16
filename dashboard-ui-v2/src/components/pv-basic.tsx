@@ -85,7 +85,7 @@ const PVBasic: React.FC<{
                   <Link
                     to={`/pvcs/${record.spec?.claimRef?.namespace}/${record.spec?.claimRef?.name}`}
                   >
-                    {record.spec?.claimRef?.namespace}
+                    {record.spec?.claimRef?.namespace}/{record.spec.claimRef?.name}
                   </Link>
                 )
               },
@@ -122,12 +122,10 @@ const PVBasic: React.FC<{
             },
             {
               title: 'volumeHandle',
-              key: 'volumeHandle',
-              dataIndex: 'volumeHandle',
+              dataIndex: ['spec', 'csi', 'volumeHandle'],
             },
             {
               title: <FormattedMessage id="status" />,
-              key: 'status',
               dataIndex: 'status',
               valueType: 'select',
               render: (_, pv) => {
@@ -138,8 +136,11 @@ const PVBasic: React.FC<{
             },
             {
               title: <FormattedMessage id="createAt" />,
-              key: 'time',
-              dataIndex: 'time',
+              dataIndex: ['metadata', 'creationTimestamp'],
+              render: (_, row) =>
+                new Date(
+                  row.metadata?.creationTimestamp as string,
+                ).toLocaleString(),
             },
           ]}
         />

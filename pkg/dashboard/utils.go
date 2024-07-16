@@ -17,7 +17,6 @@
 package dashboard
 
 import (
-	"context"
 	"sort"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -46,16 +45,14 @@ func isAppPod(pod *corev1.Pod) bool {
 	return false
 }
 
-func (api *API) isAppPodUnready(ctx context.Context, pod *corev1.Pod) bool {
+func (api *API) isAppPodPending(pod *corev1.Pod) bool {
+	usingPVC := false
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
-			pvcName := types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}
-			if err := api.cachedReader.Get(ctx, pvcName, &corev1.PersistentVolumeClaim{}); err == nil {
-				return true
-			}
+			usingPVC = true
 		}
 	}
-	return false
+	return usingPVC && pod.Status.Phase == corev1.PodPending
 }
 
 func isSysPod(pod *corev1.Pod) bool {
