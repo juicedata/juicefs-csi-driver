@@ -24,7 +24,7 @@ import { ObjectMeta } from 'kubernetes-types/meta/v1'
 import { StorageClass } from 'kubernetes-types/storage/v1'
 import { omit } from 'lodash'
 
-import { Pod, PVC } from '@/types/k8s'
+import { Pod } from '@/types/k8s'
 
 export interface Source {
   metadata?: ObjectMeta
