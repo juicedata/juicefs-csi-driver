@@ -68,7 +68,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		klog.Errorf("get pod %s failed: %v", req.NamespacedName, err)
 		return reconcile.Result{}, nil
 	}
-	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodPending(pod) {
+	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodShouldList(ctx, pod) {
 		// skip
 		return reconcile.Result{}, nil
 	}

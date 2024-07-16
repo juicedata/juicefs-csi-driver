@@ -85,7 +85,7 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			if err := api.cachedReader.Get(c, name, &pod); err == nil &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
 				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) &&
-				(isAppPod(&pod) || api.isAppPodPending(&pod)) {
+				(isAppPod(&pod) || api.isAppPodShouldList(c, &pod)) {
 				pods = append(pods, &PodExtra{Pod: &pod})
 			}
 		}
@@ -354,7 +354,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
 			return
-		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodPending(&pod) {
+		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodShouldList(c, &pod) {
 			c.String(404, "not found")
 			return
 		}
