@@ -94,4 +94,8 @@ export default {
   from: 'From',
   message: 'Message',
   action: 'Action',
+  docs: 'Documents',
+  save: 'Save',
+  config: 'Configs',
+  reset: 'Reset',
 }
