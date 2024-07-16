@@ -85,7 +85,9 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			if err := api.cachedReader.Get(c, name, &pod); err == nil &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
 				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
-				pods = append(pods, &PodExtra{Pod: &pod})
+				if isAppPod(&pod) {
+					pods = append(pods, &PodExtra{Pod: &pod})
+				}
 			}
 		}
 		if pvFilter != "" || mountpodFilter != "" || csiNodeFilter != "" {
