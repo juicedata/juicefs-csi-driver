@@ -52,7 +52,17 @@ data:
       #     matchLabels:
       #       custom-grace-period: "true"
       #   terminationGracePeriodSeconds: 60
-    
+
+      #  select pvc by storageClassName
+      # - pvcSelector:
+      #      matchStorageClassName: juicefs-sc
+      #   terminationGracePeriodSeconds: 60
+
+      #  select pvc by pvc name
+      # - pvcSelector:
+      #      matchName: pvc-name
+      #   terminationGracePeriodSeconds: 60
+
       # - pvcSelector:
       #     matchLabels:
       #       custom-liveness: "true"
