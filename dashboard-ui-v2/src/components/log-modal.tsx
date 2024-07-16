@@ -36,6 +36,7 @@ const LogModal: React.FC<{
     const [editor, setEditor] = useState<editor.IStandaloneCodeEditor | null>(
       null,
     )
+    const [autoReveal, setAutoReveal] = useState<boolean>(true)
     const [state, actions] = useDownloadPodLogs(namespace, name, container)
 
     useWebsocket(
@@ -45,6 +46,16 @@ const LogModal: React.FC<{
           previous: previous ? 'true' : 'false',
         },
         onMessage: (msg) => {
+          if (editor) {
+            const model = editor.getModel()
+            if (!model) return
+            const visibleLine = editor.getVisibleRanges()[0]
+            if (visibleLine.endLineNumber < model.getLineCount()) {
+              setAutoReveal(false)
+            } else {
+              setAutoReveal(true)
+            }
+          }
           setData((prev) => prev + msg.data)
         },
       },
@@ -55,12 +66,10 @@ const LogModal: React.FC<{
       if (!editor) return
       const model = editor.getModel()
       if (!model) return
-      const visibleLine = editor.getVisibleRanges()[0]
-      if (visibleLine.endLineNumber + 5 < model.getLineCount()) {
-        return
+      if (autoReveal) {
+        editor.revealLine(model.getLineCount())
       }
-      editor.revealLine(model.getLineCount())
-    }, [data, editor])
+    }, [data, editor, autoReveal])
 
     const showModal = () => {
       setIsModalOpen(true)

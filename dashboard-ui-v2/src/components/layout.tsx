@@ -15,7 +15,11 @@
  */
 
 import { ReactNode, useEffect, useState } from 'react'
-import { QuestionCircleOutlined } from '@ant-design/icons'
+import {
+  GithubOutlined,
+  QuestionCircleOutlined,
+  SettingOutlined,
+} from '@ant-design/icons'
 import {
   Layout as AntdLayout,
   Button,
@@ -23,6 +27,7 @@ import {
   Menu,
   MenuProps,
   Space,
+  Tooltip,
 } from 'antd'
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
@@ -30,7 +35,7 @@ import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
 import ConfigModal from './config-modal'
-import { DSIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
+import { DSIcon, LocaleIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
@@ -99,37 +104,54 @@ export default function Layout(props: { children: ReactNode }) {
             display: 'flex',
             alignItems: 'center',
             fontSize: '14px',
-            padding: '0 40px',
+            padding: '0 20px',
           }}
         >
           <h2>JuiceFS CSI</h2>
-          <Space style={{ marginLeft: 'auto' }}>
-            <QuestionCircleOutlined
-              width={20}
+          <Space size={'middle'} style={{ marginLeft: 'auto' }}>
+            <Tooltip title="Docs">
+              <Button
+                icon={<QuestionCircleOutlined />}
+                className="header-button"
+                onClick={() => {
+                  // open a new tab to the JuiceFS CSI documentation
+                  window.open(
+                    'https://juicefs.com/docs/csi/introduction/',
+                    '_blank',
+                  )
+                }}
+              />
+            </Tooltip>
+            <ConfigModal>
+              {({ onClick }) => (
+                <Tooltip title={<FormattedMessage id="config" />}>
+                  <Button
+                    icon={<SettingOutlined />}
+                    className="header-button"
+                    onClick={onClick}
+                  />
+                </Tooltip>
+              )}
+            </ConfigModal>
+            <Tooltip title="English / 中文">
+              <Button
+                icon={<LocaleIcon />}
+                className="header-button"
+                onClick={() => {
+                  setLocale(locale === 'cn' ? 'en' : 'cn')
+                }}
+              />
+            </Tooltip>
+            <Button
+              icon={<GithubOutlined />}
+              className="header-button"
               onClick={() => {
-                // open a new tab to the JuiceFS CSI documentation
                 window.open(
-                  'https://juicefs.com/docs/csi/introduction/',
+                  'https://github.com/juicedata/juicefs-csi-driver',
                   '_blank',
                 )
               }}
             />
-
-            <ConfigModal>
-              {({ onClick }) => (
-                <Button size="small" onClick={onClick}>
-                  <FormattedMessage id="config" />
-                </Button>
-              )}
-            </ConfigModal>
-            <Button
-              size="small"
-              onClick={() => {
-                setLocale(locale === 'cn' ? 'en' : 'cn')
-              }}
-            >
-              {(locale == 'cn' ? 'en' : 'cn').toUpperCase()}
-            </Button>
           </Space>
         </Header>
         <ConfigProvider locale={locale == 'cn' ? zhCN : enUS}>

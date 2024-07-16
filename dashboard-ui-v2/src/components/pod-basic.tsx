@@ -16,12 +16,13 @@
 
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button } from 'antd'
+import { Button, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
+import { YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import { getPodStatusBadge, omitPod, podStatus } from '@/utils'
 
@@ -41,7 +42,27 @@ const PodBasic: React.FC<{
   }
 
   return (
-    <ProCard title={<FormattedMessage id="basic" />}>
+    <ProCard
+      title={<FormattedMessage id="basic" />}
+      extra={
+        <>
+          <Tooltip title="Show Yaml">
+            <Button
+              className="action-button"
+              onClick={showModal}
+              icon={<YamlIcon />}
+            >
+              Yaml
+            </Button>
+            <YamlModal
+              isOpen={isModalOpen}
+              onClose={handleCancel}
+              content={YAML.stringify(omitPod(pod))}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       <ProDescriptions
         column={2}
         dataSource={pod}
@@ -74,22 +95,6 @@ const PodBasic: React.FC<{
               new Date(
                 row.metadata?.creationTimestamp as string,
               ).toLocaleString(),
-          },
-          {
-            title: 'Yaml',
-            key: 'yaml',
-            render: () => (
-              <>
-                <Button type="primary" onClick={showModal}>
-                  Yaml
-                </Button>
-                <YamlModal
-                  isOpen={isModalOpen}
-                  onClose={handleCancel}
-                  content={YAML.stringify(omitPod(pod))}
-                />
-              </>
-            ),
           },
         ]}
       />
