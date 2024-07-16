@@ -762,7 +762,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			klog.V(5).Infof("pod %s/%s may be stuck in terminating state, create a job to abort fuse connection", pod.Namespace, pod.Name)
 			if runtime.GOOS == "linux" {
 				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
-					if err := p.doAbortFuse(pod, uint32(devMinor)); err != nil {
+					if err := p.doAbortFuse(pod, devMinor); err != nil {
 						klog.Errorf("abort fuse connection error: %v", err)
 					}
 				} else {
