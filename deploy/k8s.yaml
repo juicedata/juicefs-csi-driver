@@ -731,6 +731,8 @@ spec:
           name: jfs-root-dir
         - mountPath: /etc/config
           name: juicefs-config
+        - mountPath: /tmp
+          name: jfs-fuse-fd
       - args:
         - --csi-address=$(ADDRESS)
         - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -795,6 +797,10 @@ spec:
           defaultMode: 420
           name: juicefs-csi-driver-config
         name: juicefs-config
+      - hostPath:
+          path: /tmp/juicefs-csi
+          type: DirectoryOrCreate
+        name: jfs-fuse-fd
 ---
 apiVersion: storage.k8s.io/v1
 kind: CSIDriver
