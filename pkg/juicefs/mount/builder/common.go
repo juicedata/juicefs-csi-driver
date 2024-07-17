@@ -85,6 +85,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.ServiceAccountName = r.jfsSetting.Attr.ServiceAccountName
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
+	pod.Spec.Hostname = r.jfsSetting.VolumeId
 	gracePeriod := int64(10)
 	if r.jfsSetting.Attr.TerminationGracePeriodSeconds != nil {
 		gracePeriod = *r.jfsSetting.Attr.TerminationGracePeriodSeconds
