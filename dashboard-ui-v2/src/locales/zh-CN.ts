@@ -60,6 +60,10 @@ export default {
   unScheduledMsg: '未调度成功，请点击 Pod 详情查看调度失败的具体原因。',
   nodeErrMsg: '所在节点异常，请检查节点状态。',
   containerErrMsg: '有容器启动异常，请点击 Pod 详情查看容器状态及日志。',
+  mountPodTerminatingMsg: 'Mount Pod 还在 Terminating 状态且存在 finalizer，请检查 CSI Node 日志',
+  mountPodStickTerminatingMsg: 'Mount Pod 卡在 Terminating 状态，请检查节点上是否存在未断开的 FUSE 请求',
+  mountContainUidMsg: 'Mount Pod 还记录其 uid，请检查 CSI Node 日志',
+  podFinalizerMsg: 'Pod 还存在 finalizer 未处理完，请查看 finalizer 状态',
   csiNodeNullMsg:
     '所在节点 CSI Node 未启动，请检查：1. 若是 sidecar 模式，请查看其所在 namespace 是否打上需要的 label 或查看 CSI Controller 日志以确认为何 sidecar 未注入；2. 若是 Mount Pod 模式，请检查 CSI Node DaemonSet 是否未调度到该节点上。',
   csiNodeErrMsg:
@@ -75,6 +79,9 @@ export default {
     '未找到符合 PVC 条件的 PV，请点击「PV」查看其是否被创建。',
   pvcOfPVNotFoundErrMsg:
     '未找到符合 PV 条件的 PVC，请点击「PVC」查看其是否被创建。',
+  waitingPVCDeleteMsg: '对应的 PVC 未被删除，请点击「PVC」查看详情。',
+  waitingVolumeRecycleMsg: '等待管理员回收 volume',
+  volumeRecycleFailedMsg: 'volume 回收失败',
   volumeAttributes: '卷属性',
   parameters: '参数',
   type: '类型',

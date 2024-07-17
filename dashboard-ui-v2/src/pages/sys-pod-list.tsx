@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 import { useSysAppPods } from '@/hooks/use-api'
 import { Pod } from '@/types/k8s'
 import {
-  failedReasonOfAppPod,
+  failedReasonOfMountPod,
   getNodeStatusBadge,
   getPodStatusBadge,
   podStatus,
@@ -36,7 +36,7 @@ const columns: ProColumns<Pod>[] = [
     title: <FormattedMessage id="name" />,
     dataIndex: ['metadata', 'name'],
     render: (_, pod) => {
-      const podFailReason = failedReasonOfAppPod(pod) || ''
+      const podFailReason = failedReasonOfMountPod(pod) || ''
       if (podFailReason === '') {
         return (
           <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>

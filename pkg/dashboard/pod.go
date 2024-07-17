@@ -84,7 +84,8 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			var pod corev1.Pod
 			if err := api.cachedReader.Get(c, name, &pod); err == nil &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
-				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
+				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) &&
+				(isAppPod(&pod) || api.isAppPodShouldList(c, &pod)) {
 				pods = append(pods, &PodExtra{Pod: &pod})
 			}
 		}
@@ -240,9 +241,15 @@ func (api *API) listSysPod() gin.HandlerFunc {
 				klog.Errorf("get node %s error %v", pods[i].Spec.NodeName, err)
 				continue
 			}
+			var csiNode *corev1.Pod
+			csiNode, err = api.getCSINode(c, pods[i].Spec.NodeName)
+			if err != nil {
+				klog.Errorf("get csi node %s error %v", pods[i].Spec.NodeName, err)
+			}
 			result.Pods = append(result.Pods, &PodExtra{
-				Pod:  pods[i],
-				Node: &node,
+				Pod:     pods[i],
+				Node:    &node,
+				CsiNode: csiNode,
 			})
 		}
 		c.IndentedJSON(200, result)
@@ -347,7 +354,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
 			return
-		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodUnready(c, &pod) {
+		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodShouldList(c, &pod) {
 			c.String(404, "not found")
 			return
 		}
