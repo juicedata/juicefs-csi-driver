@@ -291,6 +291,12 @@ rules:
       - delete
       - update
       - create
+  - apiGroups:
+    - ""
+    resources:
+    - pods/exec
+    verbs:
+    - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -356,7 +362,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.24.2
+          image: juicedata/juicefs-csi-driver:v0.24.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -500,7 +506,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.24.2
+          image: juicedata/juicefs-csi-driver:v0.24.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -759,7 +765,7 @@ spec:
       serviceAccountName: juicefs-csi-dashboard-sa
       containers:
         - name: dashboard
-          image: juicedata/csi-dashboard:v0.24.2
+          image: juicedata/csi-dashboard:v0.24.3
           args:
             - --static-dir=/dist
           env:
