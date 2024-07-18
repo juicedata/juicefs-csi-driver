@@ -150,9 +150,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: options.PVName,
-			Labels: map[string]string{
-				config.PVSubpathKey: subPath,
-			},
 		},
 		Spec: corev1.PersistentVolumeSpec{
 			Capacity: corev1.ResourceList{
