@@ -136,9 +136,6 @@ const (
 	DefaultMountPodMemLimit   = "5Gi"
 	DefaultMountPodCpuRequest = "1000m"
 	DefaultMountPodMemRequest = "1Gi"
-
-	// pv labels
-	PVSubpathKey = "juicefs/sub-path"
 )
 
 var PodLocks [1024]sync.Mutex

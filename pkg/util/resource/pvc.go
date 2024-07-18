@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -107,24 +106,8 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		return false, nil
 	}
 
-	// list by labels
-	labelsSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			config.PVSubpathKey: nowSubPath,
-		},
-	}
-	pvs, err := client.ListPersistentVolumes(ctx, &labelsSelector, nil)
-	if err != nil {
-		return false, err
-	}
-	if len(pvs) > 1 {
-		klog.V(5).Infof("Found more than one PV with the same subPath %s, skip delete volume %s data", nowSubPath, volume.Name)
-		return false, nil
-	}
-
-	// FIXME: we still need to list all PVs to check because the labels were not set in the old version.
 	// get all pvs
-	pvs, err = client.ListPersistentVolumes(ctx, nil, nil)
+	pvs, err := client.ListPersistentVolumes(ctx, nil, nil)
 	if err != nil {
 		return false, err
 	}
