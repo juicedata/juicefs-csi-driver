@@ -202,7 +202,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.ParseClientVersion(po.Spec.Containers[0].Image).SupportFusePass() {
-				fuse.GlobalFds.StopFd(po.Labels[jfsConfig.PodUniqueIdLabelKey])
+				fuse.GlobalFds.StopFd(po.Labels[jfsConfig.PodJuiceHashLabelKey])
 			}
 
 			// delete related secret
@@ -284,11 +284,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 }
 
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
-	hashVal, err := GenHashOfSetting(*jfsSetting)
-	if err != nil {
-		klog.Errorf("Generate hash of jfsSetting error: %v", err)
-		return "", err
-	}
+	hashVal := GenHashOfSetting(*jfsSetting)
 
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
@@ -313,11 +309,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
-	hashVal, err := GenHashOfSetting(*jfsSetting)
-	if err != nil {
-		klog.Errorf("Generate hash of jfsSetting error: %v", err)
-		return err
-	}
+	hashVal := GenHashOfSetting(*jfsSetting)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 
 	lock := jfsConfig.GetPodLock(podName)
@@ -326,6 +318,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 
 	jfsSetting.SecretName = podName + "-secret"
 	r := builder.NewPodBuilder(jfsSetting, 0)
+	r.HashVal = hashVal
 	secret := r.NewSecret()
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
@@ -369,7 +362,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.ParseClientVersion(jfsSetting.Attr.Image).SupportFusePass() {
-					if err := fuse.GlobalFds.ServeFuseFd(jfsSetting.VolumeId); err != nil {
+					if err := fuse.GlobalFds.ServeFuseFd(newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
 						klog.Error(err)
 					}
 				}
@@ -653,18 +646,15 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 	return fmt.Sprintf("juicefs-%s-%s-%s", jfsConfig.NodeName, uniqueId, util.RandStringRunes(6))
 }
 
-func GenHashOfSetting(setting jfsConfig.JfsSetting) (string, error) {
+func GenHashOfSetting(setting jfsConfig.JfsSetting) string {
 	// target path should not affect hash val
 	setting.TargetPath = ""
 	setting.VolumeId = ""
 	setting.SubPath = ""
-	settingStr, err := json.Marshal(setting)
-	if err != nil {
-		return "", err
-	}
+	settingStr, _ := json.Marshal(setting)
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
 	klog.V(6).Infof("jfsSetting hash: %s", val)
-	return val, nil
+	return val
 }

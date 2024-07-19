@@ -45,10 +45,12 @@ var _ SidecarInterface = &CCIBuilder{}
 
 func NewCCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, pvc corev1.PersistentVolumeClaim) SidecarInterface {
 	return &CCIBuilder{
-		ServerlessBuilder: ServerlessBuilder{PodBuilder{BaseBuilder{
-			jfsSetting: setting,
-			capacity:   capacity,
-		}}},
+		ServerlessBuilder: ServerlessBuilder{PodBuilder: PodBuilder{
+			BaseBuilder: BaseBuilder{
+				jfsSetting: setting,
+				capacity:   capacity,
+			},
+		}},
 		pvc: pvc,
 		app: app,
 	}

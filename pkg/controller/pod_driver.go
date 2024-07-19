@@ -198,7 +198,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			}
 			// close socket
 			if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
-				fuse.GlobalFds.StopFd(pod.Labels[config.PodUniqueIdLabelKey])
+				fuse.GlobalFds.StopFd(pod.Labels[config.PodJuiceHashLabelKey])
 			}
 			// delete related secret
 			secretName := pod.Name + "-secret"

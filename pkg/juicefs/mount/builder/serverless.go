@@ -36,8 +36,8 @@ type ServerlessBuilder struct {
 var _ SidecarInterface = &ServerlessBuilder{}
 
 func NewServerlessBuilder(setting *config.JfsSetting, capacity int64) SidecarInterface {
-	return &ServerlessBuilder{
-		PodBuilder{BaseBuilder{
+	return &ServerlessBuilder{PodBuilder{
+		BaseBuilder: BaseBuilder{
 			jfsSetting: setting,
 			capacity:   capacity,
 		}},
