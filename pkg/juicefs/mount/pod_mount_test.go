@@ -647,7 +647,7 @@ func TestWaitUntilMount(t *testing.T) {
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			if tt.pod != nil {
-				hashVal, _ := GenHashOfSetting(*tt.args.jfsSetting)
+				hashVal := GenHashOfSetting(*tt.args.jfsSetting)
 				tt.pod.Labels = map[string]string{
 					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
 					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
@@ -853,11 +853,7 @@ func TestGenHashOfSetting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenHashOfSetting(tt.args.setting)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenHashOfSetting() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := GenHashOfSetting(tt.args.setting)
 			if got != tt.want {
 				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}
