@@ -334,7 +334,7 @@ spec:
         emptyDir: {}
 ```
 
-### StatefulSet (customize different configurations for each node) {#statefulSet-customize-different-configurations-for-each-node}
+### StatefulSet (customize different configurations for each node) {#statefulset-customize-different-configurations-for-each-node}
 
 This is just an example, you can customize it if you have more customized needs. In the example, relevant configurations and scripts are placed in ConfigMap for easy management and adjustment.
 

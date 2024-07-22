@@ -331,7 +331,7 @@ spec:
         emptyDir: {}
 ```
 
-### StatefulSet 方式（为各节点定制不同配置） {#statefulSet-customize-different-configurations-for-each-node}
+### StatefulSet 方式（为各节点定制不同配置） {#statefulset-customize-different-configurations-for-each-node}
 
 此处仅是一个范例，如有更多自定义的需求可以自行定制。范例中将相关的配置和脚本均放置于 ConfigMap 中方便管理和调整。
 
