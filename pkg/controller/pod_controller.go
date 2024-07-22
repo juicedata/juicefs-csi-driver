@@ -130,11 +130,17 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
 			pod := event.Object.(*corev1.Pod)
+			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
 			klog.V(6).Infof("watch pod %s created", pod.GetName())
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
+			if podNew.Spec.NodeName != config.NodeName && podNew.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
 			klog.V(6).Infof("watch pod %s updated", podNew.GetName())
 			if !ok {
 				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
@@ -155,6 +161,9 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pod := deleteEvent.Object.(*corev1.Pod)
+			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
 			klog.V(6).Infof("watch pod %s deleted", pod.GetName())
 			return true
 		},
