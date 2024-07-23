@@ -9,7 +9,7 @@ sidebar_position: 1
 
 * 对于动态 PV 场景，建议[配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)；
 * 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)；
-* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/cache_management#writeback)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache/#client-write-cache)；
+* 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/guide/cache#client-write-cache)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache#client-write-cache)；
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优；
 * 考虑为 mount pod 设置非抢占式 PriorityClass，避免资源不足时，mount pod 将业务容器驱逐。详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
 

@@ -9,7 +9,7 @@ Best practices and recommended settings when going production.
 
 * [Configure more readable names for PV directory](../guide/configurations.md#using-path-pattern);
 * Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery);
-* The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/cache_management/#writeback) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache/#client-write-cache);
+* The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
 * When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md);
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
 
