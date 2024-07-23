@@ -798,7 +798,7 @@ spec:
           name: juicefs-csi-driver-config
         name: juicefs-config
       - hostPath:
-          path: /tmp/juicefs-csi
+          path: /var/run/juicefs-csi
           type: DirectoryOrCreate
         name: jfs-fuse-fd
 ---

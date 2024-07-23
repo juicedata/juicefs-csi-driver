@@ -40,7 +40,7 @@ const (
 	UpdateDBCfgFile     = "/etc/updatedb.conf"
 	JfsFuseFdPathName   = "jfs-fuse-fd"
 	JfsFuseFsPathInPod  = "/tmp"
-	JfsFuseFsPathInHost = "/tmp/juicefs-csi"
+	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
 	JfsCommEnv          = "JFS_SUPER_COMM"
 )
 
