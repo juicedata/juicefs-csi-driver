@@ -32,6 +32,9 @@ func DevMinorTableDelete(k any) {
 
 func DevMinorTableLoad(k any) (uint32, bool) {
 	v, ok := MountPointDevMinorTable.Load(k)
+	if !ok {
+		return 0, false
+	}
 	return v.(uint32), ok
 }
 
