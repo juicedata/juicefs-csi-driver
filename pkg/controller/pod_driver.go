@@ -763,10 +763,10 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			if runtime.GOOS == "linux" {
 				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
 					if err := p.doAbortFuse(pod, devMinor); err != nil {
-						klog.Errorf("abort fuse connection error: %v", err)
+						klog.Errorf("mountpod: %s, abort fuse connection error: %v", pod.Name, err)
 					}
 				} else {
-					klog.Errorf("can't find devMinor of mountPoint %s", mountPoint)
+					klog.Errorf("mountpod: %s, can't find devMinor of mountPoint %s", pod.Name, mountPoint)
 				}
 			}
 			return
@@ -783,7 +783,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	job := builder.NewFuseAbortJob(mountpod, devMinor)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
-		klog.Errorf("create fuse abort job error: %v", err)
+		klog.Errorf("mountpod: %s, create fuse abort job error: %v", mountpod.Name, err)
 		return err
 	}
 
@@ -792,7 +792,7 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	defer cancel()
 	for {
 		if waitCtx.Err() == context.Canceled || waitCtx.Err() == context.DeadlineExceeded {
-			klog.Errorf("fuse abort job %s/%s timeout", job.Namespace, job.Name)
+			klog.Errorf("mountpod: %s, fuse abort job %s/%s timeout", mountpod.Name, job.Namespace, job.Name)
 			break
 		}
 		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
@@ -800,12 +800,12 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			break
 		}
 		if err != nil {
-			klog.Errorf("get fuse abort job %s/%s error: %v", err, job.Namespace, job.Name)
+			klog.Errorf("mountpod: %s, get fuse abort job %s/%s error: %v", mountpod.Name, err, job.Namespace, job.Name)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 		if resource.IsJobCompleted(job) {
-			klog.V(5).Infof("fuse abort job %s/%s completed", job.Namespace, job.Name)
+			klog.V(5).Infof("mountpod: %s, fuse abort job %s/%s completed", mountpod.Name, job.Namespace, job.Name)
 			break
 		}
 		time.Sleep(10 * time.Second)
