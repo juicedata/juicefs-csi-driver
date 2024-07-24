@@ -112,11 +112,12 @@ func (fs *Fds) StopFd(podHashVal string) {
 		fs.globalMu.Unlock()
 		return
 	}
-	klog.Infof("stop fuse fd server: %s", f.serverAddress)
+	klog.V(6).Infof("stop fuse fd server: %s", f.serverAddress)
 	close(f.done)
 	delete(fs.fds, podHashVal)
 
-	os.Remove(f.serverAddress)
+	serverParentPath := path.Join("/tmp", podHashVal)
+	_ = os.RemoveAll(serverParentPath)
 	fs.globalMu.Unlock()
 }
 
@@ -168,6 +169,9 @@ func (fs *Fds) ServeFuseFd(podHashVal string) error {
 
 func (fs *Fds) serveFuseFD(podHashVal string) {
 	f := fs.fds[podHashVal]
+	if f == nil {
+		return
+	}
 
 	klog.Infof("serve fuse fd: %v, path: %s", f.fuseFd, f.serverAddress)
 	_ = os.Remove(f.serverAddress)
@@ -179,39 +183,44 @@ func (fs *Fds) serveFuseFD(podHashVal string) {
 	go func() {
 		defer os.Remove(f.serverAddress)
 		defer sock.Close()
+		<-f.done
+		_ = syscall.Close(f.fuseFd)
+	}()
+	go func() {
 		for {
-			select {
-			case <-f.done:
-				klog.V(6).Infof("stop serve fuse fd, path: %s", f.serverAddress)
-				return
-			default:
-				conn, err := sock.Accept()
-				if err != nil {
-					klog.Warningf("accept : %s", err)
-					continue
+			conn, err := sock.Accept()
+			if err != nil {
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					return
 				}
-				go fs.handleFDRequest(podHashVal, conn.(*net.UnixConn))
+				klog.Warningf("accept : %s", err)
+				continue
 			}
+			go fs.handleFDRequest(podHashVal, conn.(*net.UnixConn))
 		}
 	}()
 }
 
 func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
-	f := fs.fds[podHashVal]
 	defer conn.Close()
+	f := fs.fds[podHashVal]
+	if f == nil {
+		return
+	}
 	var fds = []int{0}
+	f.fuseMu.Lock()
 	if f.fuseFd > 0 {
 		fds = append(fds, f.fuseFd)
+		klog.V(6).Infof("send FUSE fd: %d", f.fuseFd)
 	}
-	klog.V(6).Infof("send FUSE fd: %v", fds)
-	f.fuseMu.Lock()
 	err := putFd(conn, f.fuseSetting, fds...)
 	if err != nil {
 		f.fuseMu.Unlock()
-		klog.Errorf("send fuse fds: %s", err)
+		klog.Warningf("send fuse fds: %s", err)
 		return
 	}
 	if f.fuseFd > 0 {
+		_ = syscall.Close(f.fuseFd)
 		f.fuseFd = -1
 	}
 	f.fuseMu.Unlock()
@@ -219,15 +228,20 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	var msg []byte
 	msg, fds, err = getFd(conn, 1)
 	if err != nil {
-		klog.Errorf("recv fuse fds: %s", err)
+		klog.Warningf("recv fuse fds: %s", err)
 		return
 	}
 
 	f.fuseMu.Lock()
-	klog.V(6).Infof("recv FUSE fd: %v", fds)
-	if f.fuseFd <= 0 && len(fds) >= 1 {
+	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
+		klog.V(6).Infof("recv FUSE fd: %v", fds)
+	} else {
+		for _, fd := range fds {
+			_ = syscall.Close(fd)
+		}
+		klog.V(6).Infof("msg: %s fds: %+v", string(msg), fds)
 	}
 	f.fuseMu.Unlock()
 
@@ -238,25 +252,26 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 
 func getFuseFd(path string) (int, []byte) {
 	if !util.Exists(path) {
-		return 0, nil
+		return -1, nil
 	}
 	conn, err := net.Dial("unix", path)
 	if err != nil {
-		klog.V(6).Infof("dial %s: %s", path, err)
-		return 0, nil
+		klog.Warningf("dial %s: %s", path, err)
+		return -1, nil
 	}
 	defer conn.Close()
 	msg, fds, err := getFd(conn.(*net.UnixConn), 2)
 	if err != nil {
-		klog.V(6).Infof("recv fds: %s", err)
-		return 0, nil
+		klog.Warningf("recv fds: %s", err)
+		return -1, nil
 	}
 	klog.V(6).Infof("get fd: %v, msg: %v", fds, string(msg))
+	_ = syscall.Close(fds[0])
 	if len(fds) > 1 {
 		err = putFd(conn.(*net.UnixConn), msg, fds[1])
-		klog.Infof("send FUSE: %d", fds[1])
+		klog.V(6).Infof("send FUSE: %d", fds[1])
 		if err != nil {
-			klog.V(6).Infof("send FUSE: %s", err)
+			klog.Warningf("send FUSE: %s", err)
 		}
 		return fds[1], msg
 	}

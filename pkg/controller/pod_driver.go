@@ -400,14 +400,15 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
 				}
 
-				if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
-					return nil
-				}
-
 				if err := resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
 					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
 					return err
 				}
+
+				if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+					return nil
+				}
+
 				return p.recover(ctx, newPod, sourcePath)
 			}
 			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
