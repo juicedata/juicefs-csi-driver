@@ -109,7 +109,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	}}
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
 	// if image support passFd from csi, do not set umount preStop
-	if r.jfsSetting.Attr.Lifecycle == nil && !util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+	if r.jfsSetting.Attr.Lifecycle == nil && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(

@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -201,7 +202,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			}
 
 			// close socket
-			if util.ParseClientVersion(po.Spec.Containers[0].Image).SupportFusePass() {
+			if util.SupportFusePass(po.Spec.Containers[0].Image) {
 				fuse.GlobalFds.StopFd(po.Labels[jfsConfig.PodJuiceHashLabelKey])
 			}
 
@@ -311,6 +312,13 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
 	hashVal := GenHashOfSetting(*jfsSetting)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
+	// mkdir mountpath
+	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+		return os.MkdirAll(jfsSetting.MountPath, 0777)
+	})
+	if err != nil {
+		return
+	}
 
 	lock := jfsConfig.GetPodLock(podName)
 	lock.Lock()
@@ -361,7 +369,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					}
 				}
 
-				if util.ParseClientVersion(jfsSetting.Attr.Image).SupportFusePass() {
+				if util.SupportFusePass(jfsSetting.Attr.Image) {
 					if err := fuse.GlobalFds.ServeFuseFd(newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
 						klog.Error(err)
 					}

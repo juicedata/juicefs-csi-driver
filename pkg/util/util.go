@@ -502,7 +502,7 @@ func (v ClientVersion) LessThan(o ClientVersion) bool {
 	return false
 }
 
-func ParseClientVersion(image string) ClientVersion {
+func parseClientVersion(image string) ClientVersion {
 	if image == "" {
 		return ClientVersion{}
 	}
@@ -536,7 +536,8 @@ func ParseClientVersion(image string) ClientVersion {
 	return version
 }
 
-func (v ClientVersion) SupportFusePass() bool {
+func SupportFusePass(image string) bool {
+	v := parseClientVersion(image)
 	ceFuseVersion := ClientVersion{
 		IsCe:  true,
 		Dev:   false,

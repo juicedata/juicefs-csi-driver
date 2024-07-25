@@ -62,7 +62,7 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	}}
 
 	// inject fuse fd
-	if podName != "" && util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name:  JfsCommEnv,
 			Value: fuse.GlobalFds.GetFdAddress(r.HashVal),

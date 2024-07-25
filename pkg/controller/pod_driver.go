@@ -197,7 +197,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 				return err
 			}
 			// close socket
-			if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+			if util.SupportFusePass(pod.Spec.Containers[0].Image) {
 				fuse.GlobalFds.StopFd(pod.Labels[config.PodJuiceHashLabelKey])
 			}
 			// delete related secret
@@ -366,7 +366,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				break
 			}
 			if apierrors.IsNotFound(err) {
-				if !util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+				if !util.SupportFusePass(pod.Spec.Containers[0].Image) {
 					// umount mount point before recreate mount pod
 					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 						exist, _ := mount.PathExists(sourcePath)
@@ -405,7 +405,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					return err
 				}
 
-				if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
+				if util.SupportFusePass(pod.Spec.Containers[0].Image) {
 					return nil
 				}
 
@@ -507,10 +507,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	if util.ParseClientVersion(pod.Spec.Containers[0].Image).SupportFusePass() {
-		return nil
-	}
-
 	if pod.Annotations == nil {
 		return nil
 	}
@@ -538,6 +534,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 
 	if e != nil {
 		klog.Errorf("[podReadyHandler] stat mntPath: %s, podName: %s, err: %v, don't do recovery", mntPath, pod.Name, e)
+		return nil
+	}
+
+	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		return nil
 	}
 

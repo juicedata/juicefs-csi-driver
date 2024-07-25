@@ -746,7 +746,7 @@ func TestParseClientVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseClientVersion(tt.args.image); !reflect.DeepEqual(got, tt.want) {
+			if got := parseClientVersion(tt.args.image); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseClientVersion() = %v, want %v", got, tt.want)
 			}
 		})
@@ -754,40 +754,20 @@ func TestParseClientVersion(t *testing.T) {
 }
 
 func TestClientVersion_SupportFusePass(t *testing.T) {
-	type fields struct {
-		IsCe  bool
-		Dev   bool
-		Major int
-		Minor int
-		Patch int
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name  string
+		image string
+		want  bool
 	}{
 		{
-			name: "dev",
-			fields: fields{
-				IsCe:  false,
-				Dev:   true,
-				Major: 0,
-				Minor: 0,
-				Patch: 0,
-			},
-			want: true,
+			name:  "dev",
+			image: "juicedata/mount:ee-nightly",
+			want:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := ClientVersion{
-				IsCe:  tt.fields.IsCe,
-				Dev:   tt.fields.Dev,
-				Major: tt.fields.Major,
-				Minor: tt.fields.Minor,
-				Patch: tt.fields.Patch,
-			}
-			if got := v.SupportFusePass(); got != tt.want {
+			if got := SupportFusePass(tt.image); got != tt.want {
 				t.Errorf("SupportFusePass() = %v, want %v", got, tt.want)
 			}
 		})
