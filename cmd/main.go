@@ -24,10 +24,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 )
 
 var (
@@ -108,13 +110,15 @@ func run() {
 			klog.Fatalf("fail to load config: %v", err)
 		}
 	}
+
+	ctx := ctrl.SetupSignalHandler()
 	podName := os.Getenv("POD_NAME")
 	if strings.Contains(podName, "csi-controller") {
 		klog.Info("Run CSI controller")
-		controllerRun()
+		controllerRun(ctx)
 	}
 	if strings.Contains(podName, "csi-node") {
 		klog.Info("Run CSI node")
-		nodeRun()
+		nodeRun(ctx)
 	}
 }

@@ -88,4 +88,4 @@ RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 
 RUN /usr/bin/juicefs version && /usr/local/bin/juicefs --version
 
-ENTRYPOINT ["/tini", "--", "juicefs-csi-driver"]
+ENTRYPOINT ["/tini", "-g", "--", "juicefs-csi-driver"]
