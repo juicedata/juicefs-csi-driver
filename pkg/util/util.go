@@ -271,6 +271,9 @@ func ParseMntPath(cmd string) (string, string, error) {
 	cmds := strings.Split(cmd, "\n")
 	mountCmd := cmds[len(cmds)-1]
 	args := strings.Fields(mountCmd)
+	if args[0] == "exec" {
+		args = args[1:]
+	}
 	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
 		return "", "", fmt.Errorf("err cmd:%s", cmd)
 	}
