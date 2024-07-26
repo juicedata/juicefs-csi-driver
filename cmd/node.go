@@ -26,7 +26,6 @@ import (
 
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -126,7 +125,7 @@ func parseNodeConfig() {
 	config.CSIPod = *pod
 }
 
-func nodeRun() {
+func nodeRun(ctx context.Context) {
 	parseNodeConfig()
 	if nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
@@ -179,7 +178,6 @@ func nodeRun() {
 
 		if needStartPodManager {
 			go func() {
-				ctx := ctrl.SetupSignalHandler()
 				mgr, err := app.NewPodManager()
 				if err != nil {
 					klog.Fatalln(err)
@@ -197,6 +195,12 @@ func nodeRun() {
 	if err != nil {
 		klog.Fatalln(err)
 	}
+
+	go func() {
+		<-ctx.Done()
+		drv.Stop()
+	}()
+
 	if err := drv.Run(); err != nil {
 		klog.Fatalln(err)
 	}

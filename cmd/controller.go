@@ -23,13 +23,11 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -124,7 +122,7 @@ func parseControllerConfig() {
 	}
 }
 
-func controllerRun() {
+func controllerRun(ctx context.Context) {
 	parseControllerConfig()
 	if nodeID == "" {
 		klog.Fatalln("nodeID must be provided")
@@ -164,7 +162,6 @@ func controllerRun() {
 	// enable mount manager in csi controller
 	if config.MountManager {
 		go func() {
-			ctx := ctrl.SetupSignalHandler()
 			mgr, err := app.NewMountManager(leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
 				klog.Error(err)
@@ -177,7 +174,6 @@ func controllerRun() {
 	// enable webhook in csi controller
 	if config.Webhook {
 		go func() {
-			ctx := ctrl.SetupSignalHandler()
 			mgr, err := app.NewWebhookManager(certDir, webhookPort, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
 				klog.Fatalln(err)
@@ -193,6 +189,10 @@ func controllerRun() {
 	if err != nil {
 		klog.Fatalln(err)
 	}
+	go func() {
+		<-ctx.Done()
+		drv.Stop()
+	}()
 	if err := drv.Run(); err != nil {
 		klog.Fatalln(err)
 	}
