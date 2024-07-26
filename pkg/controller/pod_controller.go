@@ -24,7 +24,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -127,31 +127,22 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod := event.Object.(*corev1.Pod)
+	return c.Watch(source.Kind[*corev1.Pod](mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
 			klog.V(6).Infof("watch pod %s created", pod.GetName())
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew := updateEvent.ObjectNew
 			if podNew.Spec.NodeName != config.NodeName && podNew.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
 			klog.V(6).Infof("watch pod %s updated", podNew.GetName())
-			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
-				return false
-			}
+			podOld := updateEvent.ObjectOld
 
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				klog.V(6).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
@@ -159,13 +150,13 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pod := deleteEvent.Object.(*corev1.Pod)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+			pod := deleteEvent.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
 			klog.V(6).Infof("watch pod %s deleted", pod.GetName())
 			return true
 		},
-	})
+	}))
 }

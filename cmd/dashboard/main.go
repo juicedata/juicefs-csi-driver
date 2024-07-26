@@ -40,9 +40,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 )
@@ -194,15 +195,16 @@ func getLocalConfig() (*rest.Config, error) {
 
 func newManager(conf *rest.Config) (ctrl.Manager, error) {
 	return ctrl.NewManager(conf, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    9442,
-		MetricsBindAddress:      "0.0.0.0:8082",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8082",
+		},
 		LeaderElection:          leaderElection,
 		LeaderElectionID:        "dashboard.juicefs.com",
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Cache: cache.Options{
 			Scheme: scheme,
-		}),
+		},
 	})
 }

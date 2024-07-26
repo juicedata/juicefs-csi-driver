@@ -23,7 +23,7 @@ import (
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -38,7 +38,7 @@ import (
 type SidecarHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 	// is in serverless environment
 	serverless bool
 }
@@ -102,7 +102,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 }
 
 // InjectDecoder injects the decoder.
-func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
+func (s *SidecarHandler) InjectDecoder(d admission.Decoder) error {
 	s.decoder = d
 	return nil
 }
@@ -110,7 +110,7 @@ func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
 type SecretHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
@@ -120,7 +120,7 @@ func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
 }
 
 // InjectDecoder injects the decoder.
-func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
+func (s *SecretHandler) InjectDecoder(d admission.Decoder) error {
 	s.decoder = d
 	return nil
 }
@@ -145,7 +145,7 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 type PVHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 func NewPVHandler(client *k8sclient.K8sClient) *PVHandler {
@@ -155,7 +155,7 @@ func NewPVHandler(client *k8sclient.K8sClient) *PVHandler {
 }
 
 // InjectDecoder injects the decoder.
-func (s *PVHandler) InjectDecoder(d *admission.Decoder) error {
+func (s *PVHandler) InjectDecoder(d admission.Decoder) error {
 	s.decoder = d
 	return nil
 }

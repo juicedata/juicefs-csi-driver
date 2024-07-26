@@ -23,9 +23,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
@@ -49,22 +52,26 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 	}
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    webhookPort,
-		CertDir:                 certDir,
-		MetricsBindAddress:      "0.0.0.0:8084",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port:    webhookPort,
+			CertDir: certDir,
+		}),
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8084",
+		},
 		LeaderElection:          leaderElection,
 		LeaderElectionID:        "webhook.juicefs.com",
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Cache: cache.Options{
 			Scheme: scheme,
-			SelectorsByObject: cache.SelectorsByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{config.InjectSidecarDone: config.True}),
+					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
 				},
 			},
-		}),
+		},
 	})
 
 	if err != nil {

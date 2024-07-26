@@ -25,7 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -135,37 +135,26 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			secret := event.Object.(*corev1.Secret)
+	return c.Watch(source.Kind[*corev1.Secret](mgr.GetCache(), &corev1.Secret{}, &handler.TypedEnqueueRequestForObject[*corev1.Secret]{}, predicate.TypedFuncs[*corev1.Secret]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Secret]) bool {
+			secret := event.Object
 			klog.V(6).Infof("watch secret %s created", secret.GetName())
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			secretNew, ok := updateEvent.ObjectNew.(*corev1.Secret)
-			if !ok {
-				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
-				return false
-			}
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Secret]) bool {
+			secretNew := updateEvent.ObjectNew
 			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
-
-			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
-			if !ok {
-				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
-				return false
-			}
-
+			secretOld := updateEvent.ObjectOld
 			if secretNew.GetResourceVersion() == secretOld.GetResourceVersion() {
 				klog.V(6).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
-
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			secret := deleteEvent.Object.(*corev1.Secret)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
+			secret := deleteEvent.Object
 			klog.V(6).Infof("watch secret %s deleted", secret.GetName())
 			return false
 		},
-	})
+	}))
 }

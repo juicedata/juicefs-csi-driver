@@ -23,7 +23,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -102,9 +102,9 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod := event.Object.(*corev1.Pod)
+	return c.Watch(source.Kind[*corev1.Pod](mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
 			klog.V(6).Infof("watch pod %s created", pod.GetName())
 			// check mount pod deleted
 			if pod.DeletionTimestamp == nil {
@@ -116,20 +116,10 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew := updateEvent.ObjectNew
 			klog.V(6).Infof("watch pod %s updated", podNew.GetName())
-			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
-				return false
-			}
-
+			podOld := updateEvent.ObjectOld
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				klog.V(6).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
@@ -144,8 +134,8 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pod := deleteEvent.Object.(*corev1.Pod)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+			pod := deleteEvent.Object
 			klog.V(6).Infof("watch pod %s deleted", pod.GetName())
 			// check mount pod deleted
 			if pod.DeletionTimestamp == nil {
@@ -158,5 +148,5 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-	})
+	}))
 }

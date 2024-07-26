@@ -22,7 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -114,35 +114,19 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod, ok := event.Object.(*corev1.Pod)
-			if !ok {
-				klog.V(6).Infof("[pod.onCreate] can not turn into pod, Skip. object: %v", event.Object)
-				return false
-			}
-
-			if !ShouldInQueue(pod) {
+	return c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
+			if !ShouldInQueue(event.Object) {
 				klog.V(6).Infof("[pod.onCreate] skip due to shouldRequeue false. pod: [%s] in [%s]", pod.Name, pod.Namespace)
 				return false
 			}
-
 			klog.V(6).Infof("[pod.onCreate] pod [%s] in [%s] requeue", pod.Name, pod.Namespace)
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
-			if !ok {
-				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew := updateEvent.ObjectNew
+			podOld := updateEvent.ObjectOld
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				klog.V(6).Infof("[pod.onUpdate] Skip due to resourceVersion not changed, pod: [%s] in [%s]", podNew.Name, podNew.Namespace)
 				return false
@@ -157,11 +141,11 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 			klog.V(6).Infof("[pod.onUpdate] pod [%s] in [%s] requeue", podNew.Name, podNew.Namespace)
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
 			// ignore delete event
 			return false
 		},
-	})
+	}))
 }
 
 func ShouldInQueue(pod *corev1.Pod) bool {

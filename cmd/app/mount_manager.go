@@ -23,11 +23,14 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -59,16 +62,17 @@ func NewMountManager(
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    9443,
-		MetricsBindAddress:      "0.0.0.0:8083",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8083",
+		},
 		LeaderElection:          leaderElection,
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaderElectionID:        "mount.juicefs.com",
 		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Cache: cache.Options{
 			Scheme: scheme,
-			SelectorsByObject: cache.SelectorsByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
 				},
@@ -76,7 +80,7 @@ func NewMountManager(
 					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.JobTypeValue}),
 				},
 			},
-		}),
+		},
 	})
 	if err != nil {
 		klog.Errorf("New mount controller error: %v", err)

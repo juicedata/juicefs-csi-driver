@@ -24,7 +24,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -113,15 +113,15 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	return ctr.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
+	return ctr.Watch(source.Kind[*corev1.Pod](mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pod := deleteEvent.Object.(*corev1.Pod)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+			pod := deleteEvent.Object
 			var indexes *timeOrderedIndexes[corev1.Pod]
 			if isAppPod(pod) {
 				indexes = c.appIndexes
@@ -143,10 +143,7 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 			}
 			return true
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
-	})
+	}))
 }
 
 func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -215,22 +212,19 @@ func (c *PVController) SetupWithManager(mgr manager.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolume{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pv := event.Object.(*corev1.PersistentVolume)
+	return ctr.Watch(source.Kind[*corev1.PersistentVolume](mgr.GetCache(), &corev1.PersistentVolume{}, &handler.TypedEnqueueRequestForObject[*corev1.PersistentVolume]{}, predicate.TypedFuncs[*corev1.PersistentVolume]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.PersistentVolume]) bool {
+			pv := event.Object
 			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.PersistentVolume]) bool {
 			return false
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pv := deleteEvent.Object.(*corev1.PersistentVolume)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.PersistentVolume]) bool {
+			pv := deleteEvent.Object
 			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
-	})
+	}))
 }
 
 func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -289,15 +283,15 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pvc := event.Object.(*corev1.PersistentVolumeClaim)
+	return ctr.Watch(source.Kind[*corev1.PersistentVolumeClaim](mgr.GetCache(), &corev1.PersistentVolumeClaim{}, &handler.TypedEnqueueRequestForObject[*corev1.PersistentVolumeClaim]{}, predicate.TypedFuncs[*corev1.PersistentVolumeClaim]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.PersistentVolumeClaim]) bool {
+			pvc := event.Object
 			// bound pvc should be added by pv controller
 			return pvc.Status.Phase == corev1.ClaimPending || pvc.Status.Phase == corev1.ClaimBound
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			oldPvc := updateEvent.ObjectOld.(*corev1.PersistentVolumeClaim)
-			newPvc := updateEvent.ObjectNew.(*corev1.PersistentVolumeClaim)
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.PersistentVolumeClaim]) bool {
+			oldPvc := updateEvent.ObjectOld
+			newPvc := updateEvent.ObjectNew
 			if oldPvc.Status.Phase == corev1.ClaimBound && newPvc.Status.Phase != corev1.ClaimBound {
 				// pvc unbound
 				c.pairLock.Lock()
@@ -311,8 +305,8 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 			}
 			return false
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pvc := deleteEvent.Object.(*corev1.PersistentVolumeClaim)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.PersistentVolumeClaim]) bool {
+			pvc := deleteEvent.Object
 			name := types.NamespacedName{
 				Namespace: pvc.GetNamespace(),
 				Name:      pvc.GetName(),
@@ -324,8 +318,5 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 			c.pairLock.Unlock()
 			return false
 		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
-	})
+	}))
 }
