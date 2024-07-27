@@ -139,7 +139,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
 		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
+		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
 				// Pick up a random (useable) port for hostNetwork MountPods.
@@ -152,7 +152,7 @@ func (r *BaseBuilder) genMountCommand() string {
 		cmd = strings.Join(mountArgs, " ")
 	} else {
 		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
+		mountArgs := []string{"exec", config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {
 			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")

@@ -164,6 +164,13 @@ func TestParseMntPath(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "get sourcePath from pod cmd with exec success",
+			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\nexec /bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
 			name:    "without init cmd",
 			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 			want:    "/jfs/pvc-xxx",

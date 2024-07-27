@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	defaultCmd             = "/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
+	defaultCmd             = "exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
 	defaultMountPath       = "/jfs/default-imagenet"
 	isPrivileged           = true
 	rootUser         int64 = 0
@@ -222,7 +222,7 @@ func TestNewMountPod(t *testing.T) {
 
 	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true, nil, nil)
 	r := PodBuilder{BaseBuilder{s, 0}}
-	cmdWithCacheDir := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
+	cmdWithCacheDir := `exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1,cache-size=10240,metrics=0.0.0.0:9567`
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
 	podCacheTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podCacheTest)
@@ -231,7 +231,7 @@ func TestNewMountPod(t *testing.T) {
 	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
 
 	podMetricTest := corev1.Pod{}
-	cmdWithMetrics := `/bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9999`
+	cmdWithMetrics := `exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9999`
 	deepcopyPodFromDefault(&podMetricTest)
 	podMetricTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithMetrics}
 	podMetricTest.Spec.Containers[0].Ports = []corev1.ContainerPort{
@@ -382,7 +382,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				mountPath: "/jfs/test-volume",
 				options:   []string{"debug"},
 			},
-			want: "/bin/mount.juicefs ${metaurl} /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
+			want: "exec /bin/mount.juicefs ${metaurl} /jfs/test-volume -o debug,metrics=0.0.0.0:9567",
 		},
 		{
 			name:   "test-ee",
@@ -392,7 +392,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				mountPath: "/jfs/test-volume",
 				options:   []string{"debug"},
 			},
-			want: "/sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,debug",
+			want: "exec /sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,debug",
 		},
 	}
 	for _, tt := range tests {
