@@ -38,6 +38,7 @@ var (
 )
 
 type controllerService struct {
+	csi.UnimplementedControllerServer
 	juicefs  juicefs.Interface
 	vols     map[string]int64
 	volLocks *resource.VolumeLocks

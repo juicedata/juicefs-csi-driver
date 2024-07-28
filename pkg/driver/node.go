@@ -31,10 +31,11 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 const defaultCheckTimeout = 2 * time.Second
 
 type nodeService struct {
+	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
 	juicefs   juicefs.Interface
 	nodeID    string
