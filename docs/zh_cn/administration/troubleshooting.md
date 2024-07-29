@@ -6,7 +6,9 @@ sidebar_position: 6
 
 阅读本章以了解如何对 JuiceFS CSI 驱动进行问题排查。不论面临何种错误，排查过程都需要你熟悉 CSI 驱动的各个组件及其作用，因此继续阅读前，请确保你已了解 [JuiceFS CSI 驱动架构](../introduction.md#architecture)。
 
-## CSI 控制台 {#csi-dashboard}
+## 排查工具 {#tools}
+
+### CSI 控制台 {#csi-dashboard}
 
 安装 CSI 驱动时，默认会一同安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
 
@@ -16,11 +18,11 @@ sidebar_position: 6
 
 如图所示，所有的相关资源都在网页中直接呈现，本章后续介绍的所有采集排查信息的操作，都可以在这个网页中简单点选就能实现，大大简化了 CSI 驱动的问题排查。
 
-## kubectl 插件 {#kubectl-plugin}
+### kubectl 插件 {#kubectl-plugin}
 
 JuiceFS 提供了一个 kubectl 插件，可以方便地在 Kubernetes 集群中进行问题排查。
 
-### 安装 {#kubectl-jfs-plugin-install}
+#### 安装 {#kubectl-jfs-plugin-install}
 
 一键安装脚本适用于 Linux 和 macOS 系统，会根据你的硬件架构自动下载安装最新版插件。
 
@@ -29,7 +31,7 @@ JuiceFS 提供了一个 kubectl 插件，可以方便地在 Kubernetes 集群中
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
-### 使用 {#kubectl-jfs-plugin-usage}
+#### 使用 {#kubectl-jfs-plugin-usage}
 
 ```shell
 # 快速列出所有使用 JuiceFS PV 的应用 pod
@@ -86,26 +88,30 @@ Mount Pods:
   juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj  kube-system  Error
 Failed Reason:
   Mount pod [juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj] is not ready, please check its log.
-  
+
 # 诊断 JuiceFS PVC
 $ kubectl jfs debug pvc <pvcName>
 $ kubectl jfs debug pv <pvName>
 ```
 
-另外，还提供了快速获取 Mount Pod accesslog 以及快速 warmup 的功能：
+另外，还提供了快速获取 Mount Pod 访问日志以及快速预热缓存的功能：
 
 ```shell
-# 获取 Mount Pod accesslog: kubectl jfs accesslog <pod-name> -m <mount-namespace> 
+# 获取 Mount Pod 访问日志：kubectl jfs accesslog <pod-name> -m <mount-namespace>
 $ kubectl jfs accesslog juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
 2024.07.05 14:09:57.392403 [uid:0,gid:0,pid:201] open (9223372032559808513): OK [fh:25] <0.000054>
 #
 
-# 快速 warmup: kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace> 
+# 预热缓存：kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace>
 $ kubectl jfs warmup juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
 2024/07/05 14:10:52.628976 juicefs[207] <INFO>: Successfully warmed up 2 files (1090721713 bytes) [warmup.go:226]
 ```
 
-## 诊断脚本 {#csi-doctor}
+### 诊断脚本 {#csi-doctor}
+
+:::note
+请优先使用 [kubectl 插件](#kubectl-plugin)，如果不能满足需求再尝试使用诊断脚本。
+:::
 
 推荐使用诊断脚本 [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) 来收集日志及相关信息，本章所介绍的排查手段中，大部分采集信息的命令，都在脚本中进行了集成，使用起来更为便捷。
 

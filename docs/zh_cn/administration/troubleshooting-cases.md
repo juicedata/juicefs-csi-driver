@@ -6,7 +6,7 @@ sidebar_position: 7
 
 这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先掌握[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
 
-## CSI 驱动安装异常
+## CSI 驱动安装异常 {#csi-driver-installation-issue}
 
 如果 JuiceFS CSI 驱动压根没安装，或者配置错误导致安装失败，那么试图使用 JuiceFS CSI 驱动时，便会有下方报错：
 
@@ -30,7 +30,7 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod 异常
+## CSI Node pod 异常 {#csi-node-pod-failure}
 
 如果 CSI Node pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 pod 事件中会看到如下错误日志：
 
@@ -159,7 +159,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
       ...
   ```
 
-## 文件系统创建错误（社区版）
+## 文件系统创建错误（社区版） {#file-system-creation-failure-community-edition}
 
 如果你选择在 mount pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
 

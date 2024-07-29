@@ -6,15 +6,13 @@ sidebar_position: 7
 
 Debugging process for some frequently encountered problems, you can search for your issue using error keywords. Also, we recommend you to have a firm grasp on [Basic principles for troubleshooting](./troubleshooting.md#basic-principles).
 
-## CSI Driver installation issue
+## CSI Driver installation issue {#csi-driver-installation-issue}
 
 If JuiceFS CSI Driver isn't installed, or not properly configured, then following error will occur:
 
 ```
 kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
-
-Thoroughly follow the steps in [Installation](../getting_started.md), pay special attention to kubelet root directory settings.
 
 Above error message shows that the CSI Driver named `csi.juicefs.com` isn't found. Please check if you used `mount pod` mode or `sidecar` mode.
 
@@ -32,7 +30,7 @@ If you used `sidecar` mode, check if the namespace which application pod running
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod failure
+## CSI Node pod failure {#csi-node-pod-failure}
 
 If CSI Node pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application pod events:
 
@@ -161,7 +159,7 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
       ...
   ```
 
-## File system creation failure (Community Edition)
+## File system creation failure (Community Edition) {#file-system-creation-failure-community-edition}
 
 When you choose to dynamically create file system inside mount pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
 
