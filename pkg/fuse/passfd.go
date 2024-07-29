@@ -123,7 +123,7 @@ func (fs *Fds) StopFd(podHashVal string) {
 
 func (fs *Fds) parseFuse(podHashVal, fusePath string) {
 	fuseFd, fuseSetting := getFuseFd(fusePath)
-	if fuseFd == 0 {
+	if fuseFd < 0 {
 		return
 	}
 
@@ -173,7 +173,7 @@ func (fs *Fds) serveFuseFD(podHashVal string) {
 		return
 	}
 
-	klog.Infof("serve fuse fd: %v, path: %s", f.fuseFd, f.serverAddress)
+	klog.V(6).Infof("serve fuse fd: %v, path: %s", f.fuseFd, f.serverAddress)
 	_ = os.Remove(f.serverAddress)
 	sock, err := net.Listen("unix", f.serverAddress)
 	if err != nil {
@@ -256,7 +256,7 @@ func getFuseFd(path string) (int, []byte) {
 	}
 	conn, err := net.Dial("unix", path)
 	if err != nil {
-		klog.Warningf("dial %s: %s", path, err)
+		klog.V(6).Infof("dial %s: %s", path, err)
 		return -1, nil
 	}
 	defer conn.Close()
