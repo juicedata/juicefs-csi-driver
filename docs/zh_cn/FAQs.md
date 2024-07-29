@@ -51,13 +51,13 @@ rm -rf /var/lib/containerd
 kubectl describe node <nodeName>
 ```
 
-节点资源不足时，便无法启动。此时需要根据实际情况[调整 Mount Pod 资源声明](../zh_cn/guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+节点资源不足时，便无法启动。此时需要根据实际情况[调整 Mount Pod 资源声明](./guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
 - 集群 IP 资源是否充足
 
 mount pod 默认以 `HostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 mount pod 启动不成功。
 
-联系对应的云厂商扩容，或者使用 `HostNetwork: true` 形式启动 mount pod，参阅：[定制 Mount Pod 和 Sidecar 容器](../zh_cn/guide/configurations.md#customize-mount-pod)
+联系对应的云厂商扩容，或者使用 `HostNetwork: true` 形式启动 mount pod，参阅：[定制 Mount Pod 和 Sidecar 容器](./guide/configurations.md#customize-mount-pod)
 
 ## MountPod 没有创建
 
@@ -74,7 +74,7 @@ mount pod 默认以 `HostNetwork: false` 的形式启动，可能会占用大量
   查看对应的 CSI Node 日志中 过滤出对应 PV 的相关日志
 
   如果没有找到类似于 `NodepublishVolume: volume_id is <pv name>` 日志，并且 K8s 版本低于 `v1.26.0`, `1.25.1`, `1.24.5`, `1.23.11` 可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)
-  
+
   此时可以尝试
   - 重启 kubelet
   - 联系对应的云厂商或者运维。

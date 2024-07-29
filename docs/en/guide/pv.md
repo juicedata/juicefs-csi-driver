@@ -337,7 +337,7 @@ After pod is up and running, you'll see `out.txt` being created by the container
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
-Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](./configurations.md#static-mount-options).
+Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs,** if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](./configurations.md#static-mount-options).
 
 ### Create via Helm {#helm-sc}
 
