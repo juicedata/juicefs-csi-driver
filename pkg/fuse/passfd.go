@@ -123,7 +123,7 @@ func (fs *Fds) StopFd(podHashVal string) {
 
 func (fs *Fds) parseFuse(podHashVal, fusePath string) {
 	fuseFd, fuseSetting := getFuseFd(fusePath)
-	if fuseFd < 0 {
+	if fuseFd <= 0 {
 		return
 	}
 
