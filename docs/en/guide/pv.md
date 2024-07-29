@@ -24,7 +24,7 @@ Although in the examples below, secrets are usually named `juicefs-secret`, they
 
 Create Kubernetes Secret:
 
-```yaml {7-16}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -65,7 +65,7 @@ Before continue, you should have already [created a file system](https://juicefs
 
 Create Kubernetes Secret:
 
-```yaml {7-14}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -102,7 +102,7 @@ For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicef
 
 The JuiceFS Web Console is in charge of client authentication and distributing configuration files. In an on-premises deployment, the console address won't be [https://juicefs.com/console](https://juicefs.com/console), so it's required to specify the address for JuiceFS Web Console through `envs` field in volume credentials.
 
-```yaml {12-13}
+```yaml {15-16}
 apiVersion: v1
 metadata:
   name: juicefs-secret

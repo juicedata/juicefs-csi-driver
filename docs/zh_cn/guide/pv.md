@@ -24,7 +24,7 @@ sidebar_position: 1
 
 创建 Kubernetes Secret：
 
-```yaml {7-16}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -65,7 +65,7 @@ stringData:
 
 创建 Kubernetes Secret：
 
-```yaml {7-14}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -89,7 +89,7 @@ stringData:
 字段说明：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件
@@ -102,7 +102,7 @@ stringData:
 
 JuiceFS Web 控制台负责着客户端的挂载认证、配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 [https://juicefs.com/console](https://juicefs.com/console)，因此需要在文件系统认证信息中通过 `envs` 字段额外指定控制台地址。
 
-```yaml {12-13}
+```yaml {15-16}
 apiVersion: v1
 metadata:
   name: juicefs-secret
@@ -126,7 +126,7 @@ stringData:
 字段说明：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用

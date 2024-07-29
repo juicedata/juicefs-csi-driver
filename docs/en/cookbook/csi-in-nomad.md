@@ -253,7 +253,7 @@ secrets {
 ```
 
 - `name`: JuiceFS file system name
-- `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/metadata#token-management) for more details.
+- `token`: JuiceFS managed token. Read [this document](https://juicefs.com/docs/cloud/acl#access-token) for more details.
 - `access-key`: Object storage access key
 - `secret-key`: Object storage secret key
 
