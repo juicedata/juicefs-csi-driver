@@ -129,7 +129,7 @@ cd juicefs
 git checkout ...
 
 # The corresponding Dockerfile resides in the CSI Driver repository
-curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/ce.juicefs.Dockerfile
+curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/dev.juicefs.Dockerfile
 
 # Build the Docker image, and then push to your private registry
 docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f ce.juicefs.Dockerfile .
