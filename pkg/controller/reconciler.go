@@ -19,11 +19,11 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/flowcontrol"
 	"strconv"
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -72,7 +72,8 @@ func StartReconciler() error {
 
 type PodStatus struct {
 	podStatus
-	syncAt time.Time
+	syncAt     time.Time
+	nextSyncAt time.Time
 }
 
 func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
@@ -104,14 +105,15 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			}
 			crtPodStatus := getPodStatus(pod)
 			if lastStatus, ok := lastPodStatus[pod.Name]; ok {
-				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.syncAt.Add(10*time.Minute)) {
+				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
 					// skipped
 					continue
 				}
 			}
 			lastPodStatus[pod.Name] = PodStatus{
-				podStatus: crtPodStatus,
-				syncAt:    time.Now(),
+				podStatus:  crtPodStatus,
+				syncAt:     time.Now(),
+				nextSyncAt: time.Now().Add(10 * time.Minute),
 			}
 
 			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
@@ -131,13 +133,26 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					return nil
 				default:
 					if !backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
-						err = podDriver.Run(ctx, pod)
+						result, err := podDriver.Run(ctx, pod)
 						if err != nil {
 							klog.Errorf("Driver check pod %s error, will retry: %v", pod.Name, err)
 							backOff.Next(backOffID, time.Now())
+							lastPodStatus[pod.Name] = PodStatus{
+								nextSyncAt: time.Now(),
+							}
 							return err
 						}
 						backOff.Reset(backOffID)
+						if result.RequeueImmediately {
+							lastPodStatus[pod.Name] = PodStatus{
+								nextSyncAt: time.Now(),
+							}
+						}
+						if result.RequeueAfter > 0 {
+							lastPodStatus[pod.Name] = PodStatus{
+								nextSyncAt: time.Now().Add(result.RequeueAfter),
+							}
+						}
 					}
 				}
 				return nil
