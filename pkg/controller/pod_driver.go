@@ -400,16 +400,26 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
 				}
 
-				if err := resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
+				supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+				podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
+
+				err = resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout)
+				if err != nil {
 					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
+					if supFusePass {
+						// mount pod hang probably, close fd and delete it
+						klog.Infof("close fd and delete pod %s", newPod.Name)
+						fuse.GlobalFds.CloseFd(podHashVal)
+						return p.Client.DeletePod(ctx, newPod)
+					}
 					return err
 				}
 
-				if util.SupportFusePass(pod.Spec.Containers[0].Image) {
-					return nil
+				if shouldRecover(ctx, newPod) {
+					return p.recover(ctx, newPod, sourcePath)
 				}
 
-				return p.recover(ctx, newPod, sourcePath)
+				return nil
 			}
 			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
 			return nil
@@ -431,6 +441,26 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
 	klog.V(5).Infof(err.Error())
 	return err
+}
+
+func shouldRecover(ctx context.Context, pod *corev1.Pod) bool {
+	if !util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		return true
+	}
+	// if target stat fail, it's not recover after pod restart, recover it
+	for k, v := range pod.Annotations {
+		if k == util.GetReferenceKey(v) {
+			target := v
+			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				_, e := os.Stat(target)
+				return e
+			})
+			if err != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // podPendingHandler handles mount pod that is pending
@@ -537,11 +567,11 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error 
 		return nil
 	}
 
-	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		return nil
+	if shouldRecover(ctx, pod) {
+		return p.recover(ctx, pod, mntPath)
 	}
 
-	return p.recover(ctx, pod, mntPath)
+	return nil
 }
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {

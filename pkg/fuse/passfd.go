@@ -17,6 +17,7 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -24,8 +25,10 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"k8s.io/klog"
+	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -119,6 +122,22 @@ func (fs *Fds) StopFd(podHashVal string) {
 	serverParentPath := path.Join("/tmp", podHashVal)
 	_ = os.RemoveAll(serverParentPath)
 	fs.globalMu.Unlock()
+}
+
+func (fs *Fds) CloseFd(podHashVal string) {
+	fs.globalMu.Lock()
+	f := fs.fds[podHashVal]
+	if f == nil {
+		fs.globalMu.Unlock()
+		return
+	}
+	klog.V(6).Infof("close fuse fd: %s", podHashVal)
+	_ = syscall.Close(f.fuseFd)
+	f.fuseFd = -1
+	fs.fds[podHashVal] = f
+	fs.globalMu.Unlock()
+
+	closeFuseFd(f.serverAddress)
 }
 
 func (fs *Fds) parseFuse(podHashVal, fusePath string) {
@@ -250,8 +269,49 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	fs.globalMu.Unlock()
 }
 
+func closeFuseFd(path string) {
+	var exists bool
+	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
+		exists, err = k8sMount.PathExists(path)
+		return
+	}); err != nil {
+		return
+	}
+
+	if !exists {
+		return
+	}
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		klog.V(6).Infof("dial %s: %s", path, err)
+		return
+	}
+	defer conn.Close()
+	msg, fds, err := getFd(conn.(*net.UnixConn), 2)
+	if err != nil {
+		klog.Warningf("recv fds: %s", err)
+		return
+	}
+	klog.V(6).Infof("get fd: %v, msg: %v", fds, string(msg))
+	_ = syscall.Close(fds[0])
+	if len(fds) > 1 {
+		_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
+		klog.V(6).Infof("recv FUSE fd via %s: %d", path, fds[1])
+		return
+	}
+}
+
 func getFuseFd(path string) (int, []byte) {
-	if !util.Exists(path) {
+	var exists bool
+	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
+		exists, err = k8sMount.PathExists(path)
+		return
+	}); err != nil {
+		return -1, nil
+	}
+
+	if !exists {
 		return -1, nil
 	}
 	conn, err := net.Dial("unix", path)
