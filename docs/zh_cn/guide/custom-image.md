@@ -132,7 +132,7 @@ git checkout ...
 curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/dev.juicefs.Dockerfile
 
 # 构建镜像，并上传至私有镜像仓库
-docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f ce.juicefs.Dockerfile .
+docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f dev.juicefs.Dockerfile .
 docker push registry.example.com/juicefs-csi-mount:ce-latest
 ```
 
