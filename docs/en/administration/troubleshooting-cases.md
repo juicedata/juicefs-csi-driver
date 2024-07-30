@@ -63,6 +63,12 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
 
   Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
+  Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` state.
+
+  The Mount Pod started by default with `HostNetwork: false`, which may consume a large amount of cluster IP resources. If the cluster IP resources are insufficient, it may result in the failure of the mount pod to start.
+
+  Contact the cloud provider for capacity expansion, or start with `HostNetwork: true`. Refer to: [Customize mount pod and sidecar container](../guide/configurations.md#customize-mount-pod).
+
 * **After mount pod is restarted or recreated, application pods cannot access JuiceFS**
 
   If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
@@ -101,6 +107,30 @@ JuiceFS Client runs inside the mount pod and there's a variety of possible cause
   ```
 
   Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
+
+* **Mount Pod Not Created**
+
+Use `kubectl describe <App Pod Name>` to check the current Pod Event.
+
+Confirm that pod entered the mounting process, and it's not a scheduling failure or some other non-mount error.
+
+- `driver name csi.juicefs.com not found` or `csi.sock no such file`
+
+Check whether the `csi-node` is running normally on the current pod node.
+
+- `Unable to attach or mount volumes: xxx`
+
+View the CSI Node logs and filter out the relevant logs for the corresponding PV.
+
+If you cannot find logs similar to `NodepublishVolume: volume_id is <pv name>`, and the K8s version is below `v1.26.0`, `1.25.1`, `1.24.5`, `1.23.11`, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
+
+At this point, you can try:
+
+- Restarting kubelet
+
+- Contacting the cloud provider or infra.
+
+In summary, JuiceFS CSI needs to receive a request in order to start the mounting process.
 
 ## PVC error {#pvc-error}
 
