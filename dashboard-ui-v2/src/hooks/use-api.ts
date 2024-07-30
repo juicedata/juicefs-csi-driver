@@ -120,3 +120,20 @@ export function useDownloadPodLogs(
       })
   })
 }
+
+export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
+  return useAsync(async () => {
+    await fetch(
+      `${getHost()}/api/v1/pod/${namespace}/${name}/downloadDebugFile`,
+    )
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.download = `${namespace}-${name}-debug.zip`
+        a.href = url
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  })
+}

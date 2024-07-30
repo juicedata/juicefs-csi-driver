@@ -129,3 +129,31 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 
 	return nil
 }
+
+func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Writer, namespace, name, container string, cmd []string) error {
+	req := client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(name).
+		Namespace(namespace).SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command:   cmd,
+		Container: container,
+		Stdout:    true,
+		Stderr:    true,
+	}, scheme.ParameterCodec)
+
+	executor, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	if err != nil {
+		klog.Error("Failed to create SPDY executor: ", err)
+		return err
+	}
+	if err := executor.Stream(remotecommand.StreamOptions{
+		Stdout: writer,
+		Stderr: writer,
+	}); err != nil {
+		klog.Error("Failed to stream: ", err)
+		return err
+	}
+
+	return nil
+}

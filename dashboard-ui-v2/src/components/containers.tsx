@@ -20,9 +20,10 @@ import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
 
+import { DebugModal } from '.'
 import LogModal from './log-modal'
 import XTermModal from './xterm-modal'
-import { AccessLogIcon, LogIcon, TerminalIcon } from '@/icons'
+import { AccessLogIcon, DebugIcon, LogIcon, TerminalIcon } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod } from '@/utils'
@@ -81,7 +82,7 @@ const Containers: React.FC<{
                   hasPrevious={c.restartCount > 0}
                 >
                   {({ onClick }) => (
-                    <Tooltip title="Log">
+                    <Tooltip title="Log" zIndex={0}>
                       <Button
                         className="action-button"
                         onClick={onClick}
@@ -96,7 +97,7 @@ const Containers: React.FC<{
                   container={record.name}
                 >
                   {({ onClick }) => (
-                    <Tooltip title="Exec in container">
+                    <Tooltip title="Exec in container" zIndex={0}>
                       <Button
                         className="action-button"
                         icon={<TerminalIcon />}
@@ -114,7 +115,7 @@ const Containers: React.FC<{
                     type="accesslog"
                   >
                     {({ onClick }) => (
-                      <Tooltip title="Access Log">
+                      <Tooltip title="Access Log" zIndex={0}>
                         <Button
                           className="action-button"
                           onClick={onClick}
@@ -123,6 +124,23 @@ const Containers: React.FC<{
                       </Tooltip>
                     )}
                   </LogModal>
+                ) : null}
+                {isMountPod(pod) ? (
+                  <DebugModal
+                    namespace={namespace!}
+                    name={name!}
+                    container={record.name}
+                  >
+                    {({ onClick }) => (
+                      <Tooltip title="Debug" zIndex={0}>
+                        <Button
+                          className="action-button"
+                          onClick={onClick}
+                          icon={<DebugIcon />}
+                        />
+                      </Tooltip>
+                    )}
+                  </DebugModal>
                 ) : null}
               </Space>
             ),

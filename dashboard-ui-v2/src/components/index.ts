@@ -16,6 +16,7 @@
 
 import ConfigModal from '@/components/config-modal'
 import Containers from '@/components/containers'
+import DebugModal from '@/components/debug-modal'
 import EventTable from '@/components/event-table'
 import Layout from '@/components/layout'
 import PodBasic from '@/components/pod-basic'
@@ -38,4 +39,5 @@ export {
   ResourceDetail,
   ResourceList,
   YamlModal,
+  DebugModal,
 }

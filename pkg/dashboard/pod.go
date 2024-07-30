@@ -808,3 +808,50 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 		}).ServeHTTP(c.Writer, c.Request)
 	}
 }
+
+func (api *API) debugPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		statsSec := c.Query("statsSec")
+		traceSec := c.Query("traceSec")
+		profileSec := c.Query("profileSec")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			terminal := resource.NewTerminalSession(ws, resource.EndOfText)
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				klog.Error("Failed to get mount pod: ", err)
+				return
+			}
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				klog.Error("Failed to get mount path: ", err)
+				return
+			}
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{"juicefs", "debug", "--no-color", "--profile-sec", profileSec, "--trace-sec", traceSec, "--stats-sec", statsSec, mntPath}); err != nil {
+				klog.Error("Failed to start process: ", err)
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) downloadDebugFile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := config.MountContainerName
+		c.Header("Content-Disposition", "attachment; filename="+namespace+"_"+name+"_"+"debug.zip")
+		err := resource.DownloadPodFile(
+			api.client, api.kubeconfig, c.Writer, namespace, name, container,
+			[]string{"sh", "-c", "cat $(ls -t /debug/*.zip | head -n 1) && exit 0"})
+		if err != nil {
+			klog.Error("Failed to create SPDY executor: ", err)
+			return
+		}
+	}
+}

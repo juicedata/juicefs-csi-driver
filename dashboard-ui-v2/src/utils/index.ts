@@ -403,7 +403,10 @@ export const podStatus = (pod: RawPod) => {
   if (pod.status?.initContainerStatuses) {
     for (let i = 0; i < (pod.status?.initContainerStatuses?.length || 0); i++) {
       const container = pod.status?.initContainerStatuses[i]
-      if (container?.state?.terminated && container.state.terminated.exitCode === 0) {
+      if (
+        container?.state?.terminated &&
+        container.state.terminated.exitCode === 0
+      ) {
         continue
       }
       if (container.state?.terminated) {
@@ -420,7 +423,11 @@ export const podStatus = (pod: RawPod) => {
         initializing = true
         continue
       }
-      if (container.state?.waiting && (container.state.waiting.reason?.length || 0) > 0 && container.state.waiting.reason !== 'PodInitializing') {
+      if (
+        container.state?.waiting &&
+        (container.state.waiting.reason?.length || 0) > 0 &&
+        container.state.waiting.reason !== 'PodInitializing'
+      ) {
         reason = 'Init:' + container.state.waiting.reason
         initializing = true
         continue
@@ -438,9 +445,15 @@ export const podStatus = (pod: RawPod) => {
 
         if (container.state?.waiting && container.state.waiting.reason !== '') {
           reason = container.state.waiting.reason
-        } else if (container.state?.terminated && container.state.terminated.reason !== '') {
+        } else if (
+          container.state?.terminated &&
+          container.state.terminated.reason !== ''
+        ) {
           reason = container.state.terminated.reason
-        } else if (container.state?.terminated && container.state.terminated.reason === '') {
+        } else if (
+          container.state?.terminated &&
+          container.state.terminated.reason === ''
+        ) {
           if (container.state.terminated.signal !== 0) {
             reason = 'Signal:' + container.state.terminated.signal
           } else {
