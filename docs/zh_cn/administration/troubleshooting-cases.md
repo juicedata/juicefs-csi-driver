@@ -63,6 +63,12 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 
   Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
+  集群 IP 不足也可能导致 Mount Pod 一直处于 `Pending` 状态。
+  
+  Mount Pod 默认以 `HostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 mount pod 启动不成功。
+
+  联系对应的云厂商扩容，或者使用 `HostNetwork: true` 形式启动，参阅：[定制 Mount Pod 和 Sidecar 容器](../guide/configurations.md#customize-mount-pod)
+
 * **Mount Pod 重启或者重新创建后，应用容器无法访问 JuiceFS**
 
   如果 Mount Pod 发生异常重启，或者经历了手动删除，那么应用 Pod 内访问挂载点（比如 `df`）会产生如下报错，提示挂载点已经不存在：
@@ -101,6 +107,28 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
   ```
 
   仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
+
+* **Mount Pod 没有创建**
+
+  使用 `kubectl describe <App Pod Name>` 查看当前业务 Pod Event。
+
+  确认已经进入挂载流程，而不是调度失败或者其他非 mount 错误。
+
+  - `driver name csi.juicefs.com not found` 或者 `csi.sock no such file`
+
+    检查对应节点上的 `csi-node` 是否运行正常
+
+  - `Unable to attach or mount volumes: xxx`
+
+    查看对应的 CSI Node 日志中 过滤出对应 PV 的相关日志
+
+    如果没有找到类似于 `NodepublishVolume: volume_id is <pv name>` 日志，并且 K8s 版本低于 `v1.26.0`, `1.25.1`, `1.24.5`, `1.23.11` 可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)
+
+    此时可以尝试
+    - 重启 kubelet
+    - 联系对应的云厂商或者运维。
+
+    总之 JuiceFS CSI 需要收到请求才能开始挂载流程。
 
 ## PVC 异常 {#pvc-error}
 
