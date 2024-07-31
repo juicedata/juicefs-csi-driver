@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -72,12 +73,14 @@ func StartReconciler() error {
 
 type PodStatus struct {
 	podStatus
-	syncAt time.Time
+	syncAt     time.Time
+	nextSyncAt time.Time
 }
 
 func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 	backOff := flowcontrol.NewBackOff(retryPeriod, maxRetryPeriod)
 	lastPodStatus := make(map[string]PodStatus)
+	statusMu := sync.Mutex{}
 	for {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
 		g, ctx := errgroup.WithContext(timeoutCtx)
@@ -103,15 +106,14 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 				continue
 			}
 			crtPodStatus := getPodStatus(pod)
-			if lastStatus, ok := lastPodStatus[pod.Name]; ok {
-				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.syncAt.Add(10*time.Minute)) {
+			statusMu.Lock()
+			lastStatus, ok := lastPodStatus[pod.Name]
+			statusMu.Unlock()
+			if ok {
+				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
 					// skipped
 					continue
 				}
-			}
-			lastPodStatus[pod.Name] = PodStatus{
-				podStatus: crtPodStatus,
-				syncAt:    time.Now(),
 			}
 
 			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
@@ -131,13 +133,28 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					return nil
 				default:
 					if !backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
-						err = podDriver.Run(ctx, pod)
+						defer func() {
+							statusMu.Lock()
+							lastStatus.podStatus = crtPodStatus
+							lastPodStatus[pod.Name] = lastStatus
+							statusMu.Unlock()
+						}()
+						result, err := podDriver.Run(ctx, pod)
+						lastStatus.syncAt = time.Now()
 						if err != nil {
 							klog.Errorf("Driver check pod %s error, will retry: %v", pod.Name, err)
 							backOff.Next(backOffID, time.Now())
+							lastStatus.nextSyncAt = time.Now()
 							return err
 						}
 						backOff.Reset(backOffID)
+						if result.RequeueImmediately {
+							lastStatus.nextSyncAt = time.Now()
+						} else if result.RequeueAfter > 0 {
+							lastStatus.nextSyncAt = time.Now().Add(result.RequeueAfter)
+						} else {
+							lastStatus.nextSyncAt = time.Now().Add(10 * time.Minute)
+						}
 					}
 				}
 				return nil

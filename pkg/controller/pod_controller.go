@@ -93,7 +93,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	podDriver.SetMountInfo(*mit)
 	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podLists})
 
-	err = podDriver.Run(ctx, mountPod)
+	result, err := podDriver.Run(ctx, mountPod)
 	if err != nil {
 		klog.Errorf("Driver check pod %s error: %v", mountPod.Name, err)
 		return reconcile.Result{}, err
@@ -115,9 +115,13 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			RequeueAfter: requeueAfter,
 		}, nil
 	}
+	requeueAfter := result.RequeueAfter
+	if !result.RequeueImmediately {
+		requeueAfter = 10 * time.Minute
+	}
 	return reconcile.Result{
 		Requeue:      true,
-		RequeueAfter: 10 * time.Minute,
+		RequeueAfter: requeueAfter,
 	}, nil
 }
 
