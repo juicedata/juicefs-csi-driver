@@ -22,7 +22,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -403,27 +402,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
 				}
-
-				supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
-				podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
-
-				err = resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout)
-				if err != nil {
-					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
-					if supFusePass {
-						// mount pod hang probably, close fd and delete it
-						klog.Infof("close fd and delete pod %s", newPod.Name)
-						fuse.GlobalFds.CloseFd(podHashVal)
-						return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, newPod)
-					}
-					return Result{}, err
-				}
-
-				if shouldRecover(ctx, newPod) {
-					return Result{}, p.recover(ctx, newPod, sourcePath)
-				}
-
-				return Result{RequeueImmediately: true}, nil
+				return Result{RequeueImmediately: true}, err
 			}
 			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
 			return Result{}, nil
@@ -445,26 +424,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
 	klog.V(5).Infof(err.Error())
 	return Result{}, err
-}
-
-func shouldRecover(ctx context.Context, pod *corev1.Pod) bool {
-	if !util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		return true
-	}
-	// if target stat fail, it's not recover after pod restart, recover it
-	for k, v := range pod.Annotations {
-		if k == util.GetReferenceKey(v) {
-			target := v
-			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				_, e := os.Stat(target)
-				return e
-			})
-			if err != nil {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // podPendingHandler handles mount pod that is pending
@@ -551,30 +510,32 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, err
 	}
 
-	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		finfo, e := os.Stat(mntPath)
-		if e != nil {
-			return e
-		}
-		var dev uint64
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				dev = uint64(st.Dev)
-				util.DevMinorTableStore(mntPath, dev)
-			}
-		}
-		return e
-	})
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
 
-	if e != nil {
-		klog.Errorf("[podReadyHandler] stat mntPath: %s, podName: %s, err: %v, don't do recovery", mntPath, pod.Name, e)
-		return Result{}, nil
+	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+	podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
+
+	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
+	if err != nil {
+		if supFusePass {
+			klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s error: %v", pod.Name, err)
+			// mount pod hang probably, close fd and delete it
+			klog.Infof("close fd and delete pod %s", pod.Name)
+			fuse.GlobalFds.CloseFd(podHashVal)
+			// umount it
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				util.UmountPath(ctx, mntPath)
+				return nil
+			})
+			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
+		}
+		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, err)
+		return Result{}, err
 	}
 
-	if shouldRecover(ctx, pod) {
-		return Result{}, p.recover(ctx, pod, mntPath)
-	}
-	return Result{}, nil
+	return Result{}, p.recover(ctx, pod, mntPath)
 }
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {

@@ -490,6 +490,9 @@ func (v ClientVersion) LessThan(o ClientVersion) bool {
 		// dev version is always greater
 		return true
 	}
+	if v.Dev {
+		return false
+	}
 	if o.Major > v.Major {
 		return true
 	}
@@ -553,7 +556,7 @@ func SupportFusePass(image string) bool {
 		Patch: 0,
 	}
 	if v.IsCe {
-		return ceFuseVersion.LessThan(v)
+		return !v.LessThan(ceFuseVersion)
 	}
-	return eeFuseVersion.LessThan(v)
+	return !v.LessThan(eeFuseVersion)
 }

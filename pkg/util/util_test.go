@@ -764,6 +764,16 @@ func TestClientVersion_SupportFusePass(t *testing.T) {
 			image: "juicedata/mount:ee-nightly",
 			want:  true,
 		},
+		{
+			name:  "ce-1.2.1",
+			image: "juicedata/mount:ce-v1.2.1",
+			want:  true,
+		},
+		{
+			name:  "ee-5.1.0",
+			image: "juicedata/mount:ee-v5.1.0-xxx",
+			want:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

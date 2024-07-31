@@ -39,6 +39,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -438,6 +439,7 @@ func genMountInfos() []mount.MountInfo {
 }
 
 func TestPodDriver_podReadyHandler(t *testing.T) {
+	fuse.InitTestFds()
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -599,12 +601,14 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			outputs := []OutputCell{
-				{Values: Params{nil, volErr}},
+				{Values: Params{nil, volErr}, Times: 121},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
+			patch2 := ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string) {})
+			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("pod sourcePath subpath err ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{

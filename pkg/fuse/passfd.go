@@ -136,8 +136,6 @@ func (fs *Fds) CloseFd(podHashVal string) {
 	f.fuseFd = -1
 	fs.fds[podHashVal] = f
 	fs.globalMu.Unlock()
-
-	closeFuseFd(f.serverAddress)
 }
 
 func (fs *Fds) parseFuse(podHashVal, fusePath string) {
@@ -267,39 +265,6 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	fs.globalMu.Lock()
 	fs.fds[podHashVal] = f
 	fs.globalMu.Unlock()
-}
-
-func closeFuseFd(path string) {
-	var exists bool
-	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
-		exists, err = k8sMount.PathExists(path)
-		return
-	}); err != nil {
-		return
-	}
-
-	if !exists {
-		return
-	}
-
-	conn, err := net.Dial("unix", path)
-	if err != nil {
-		klog.V(6).Infof("dial %s: %s", path, err)
-		return
-	}
-	defer conn.Close()
-	msg, fds, err := getFd(conn.(*net.UnixConn), 2)
-	if err != nil {
-		klog.Warningf("recv fds: %s", err)
-		return
-	}
-	klog.V(6).Infof("get fd: %v, msg: %v", fds, string(msg))
-	_ = syscall.Close(fds[0])
-	if len(fds) > 1 {
-		_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
-		klog.V(6).Infof("recv FUSE fd via %s: %d", path, fds[1])
-		return
-	}
 }
 
 func getFuseFd(path string) (int, []byte) {
