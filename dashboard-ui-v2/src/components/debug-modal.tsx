@@ -95,7 +95,6 @@ const DebugModal: React.FC<{
 
   useEffect(() => {
     setCountStart(max([profileSec, traceSec, statsSec]) || 30)
-    resetCountdown()
   }, [profileSec, traceSec, statsSec, resetCountdown])
 
   return (
@@ -132,6 +131,7 @@ const DebugModal: React.FC<{
                     onClick={() => {
                       setCanDownload(false)
                       setCollecting(true)
+                      resetCountdown()
                       startCountdown()
                     }}
                     disabled={collecting}
