@@ -17,8 +17,10 @@
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"time"
 
 	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
@@ -40,14 +42,18 @@ type terminalSession struct {
 	conn              *websocket.Conn
 	sizeCh            chan *remotecommand.TerminalSize
 	endOfTransmission string
+	lastHeartbeatAt   time.Time
 }
 
-func NewTerminalSession(conn *websocket.Conn, endOfTransmission string) *terminalSession {
-	return &terminalSession{
+func NewTerminalSession(ctx context.Context, conn *websocket.Conn, endOfTransmission string) *terminalSession {
+	t := &terminalSession{
 		conn:              conn,
 		sizeCh:            make(chan *remotecommand.TerminalSize),
 		endOfTransmission: endOfTransmission,
+		lastHeartbeatAt:   time.Now(),
 	}
+	go t.checkHeartbeat(ctx)
+	return t
 }
 
 func (t *terminalSession) Write(p []byte) (int, error) {
@@ -81,6 +87,8 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 		}:
 		default:
 		}
+	case "ping":
+		t.lastHeartbeatAt = time.Now()
 	default:
 		return copy(p, t.endOfTransmission), nil
 	}
@@ -89,6 +97,22 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 
 func (t *terminalSession) Next() *remotecommand.TerminalSize {
 	return <-t.sizeCh
+}
+
+func (t *terminalSession) checkHeartbeat(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			if time.Since(t.lastHeartbeatAt) > 1*time.Minute {
+				klog.Error("Terminal session heartbeat timeout")
+				t.conn.Close()
+				break
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}
 }
 
 type Handler interface {

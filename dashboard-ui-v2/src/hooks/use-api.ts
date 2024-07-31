@@ -95,7 +95,13 @@ export function useWebsocket(
 
   return useWebSocket(
     `${protocol}://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
-    opts,
+    {
+      ...opts,
+      heartbeat: {
+        message: '{"type":"ping","data":"ping"}',
+        interval: 3000,
+      },
+    },
     shouldConnect,
   )
 }

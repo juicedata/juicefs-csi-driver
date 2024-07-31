@@ -770,7 +770,9 @@ func (api *API) execPod() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := resource.NewTerminalSession(ws, resource.EndOfTransmission)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfTransmission)
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "bash || sh"}); err != nil {
@@ -788,7 +790,9 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := resource.NewTerminalSession(ws, resource.EndOfText)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
 				klog.Error("Failed to get mount pod: ", err)
@@ -819,7 +823,9 @@ func (api *API) debugPod() gin.HandlerFunc {
 		profileSec := c.Query("profileSec")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := resource.NewTerminalSession(ws, resource.EndOfText)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
 				klog.Error("Failed to get mount pod: ", err)
