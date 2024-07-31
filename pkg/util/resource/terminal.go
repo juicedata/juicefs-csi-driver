@@ -103,15 +103,15 @@ func (t *terminalSession) checkHeartbeat(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			break
+			return
 		default:
 			if time.Since(t.lastHeartbeatAt) > 1*time.Minute {
 				klog.Error("Terminal session heartbeat timeout")
 				t.conn.Close()
-				break
+				return
 			}
-			time.Sleep(10 * time.Second)
 		}
+		time.Sleep(10 * time.Second)
 	}
 }
 
