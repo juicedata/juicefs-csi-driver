@@ -391,16 +391,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  config.yaml: |-
-    mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
+  config.yaml: 'mountPodPatch:'
 kind: ConfigMap
 metadata:
   labels:

@@ -327,14 +327,6 @@ metadata:
 data:
   config.yaml: |-
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 ---
 kind: StatefulSet
 apiVersion: apps/v1
