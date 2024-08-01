@@ -26,7 +26,7 @@ import XTermModal from './xterm-modal'
 import { AccessLogIcon, DebugIcon, LogIcon, TerminalIcon } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
-import { isMountPod } from '@/utils'
+import { isMountPod, supportDebug } from '@/utils'
 
 const Containers: React.FC<{
   pod: Pod
@@ -125,7 +125,7 @@ const Containers: React.FC<{
                     )}
                   </LogModal>
                 ) : null}
-                {isMountPod(pod) ? (
+                {isMountPod(pod) && supportDebug(c.image) ? (
                   <DebugModal
                     namespace={namespace!}
                     name={name!}

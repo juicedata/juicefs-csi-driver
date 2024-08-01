@@ -542,3 +542,47 @@ export function isMountPod(pod: Pod): boolean {
     false
   )
 }
+
+// image is the image name with tag, e.g. 'juicedata/mount:ce-v1.1.0'
+export function supportDebug(image: string): boolean {
+  const version = image.split(':')[1]
+  if (!version) {
+    return false
+  }
+  if (version.includes('ce')) {
+    return compareImageVersion(version.replace('ce-v', ''), '1.2.0') >= 0
+  }
+  return compareImageVersion(version.replace('ee-v', ''), '5.0.23') >= 0
+}
+
+// compareImageVersion compares two image versions and returns:
+// image < target --> -1
+// image == target --> 0
+// image > target --> 1
+export function compareImageVersion(current: string, target: string): number {
+  if (
+    current == 'latest' ||
+    current.includes('dev') ||
+    current.includes('nightly')
+  ) {
+    return 1
+  }
+
+  const imageVersionParts = current.split('.')
+  const targetVersionParts = target.split('.')
+
+  for (let i = 0; i < imageVersionParts.length; i++) {
+    if (i >= targetVersionParts.length) {
+      return 1
+    }
+    const imagePart = parseInt(imageVersionParts[i])
+    const targetPart = parseInt(targetVersionParts[i])
+    if (imagePart < targetPart) {
+      return -1
+    } else if (imagePart > targetPart) {
+      return 1
+    }
+  }
+
+  return imageVersionParts.length < targetVersionParts.length ? -1 : 0
+}

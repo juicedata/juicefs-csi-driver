@@ -22,8 +22,7 @@ import { useCountdown } from 'usehooks-ts'
 
 import { useDownloadPodDebugFiles, useWebsocket } from '@/hooks/use-api'
 
-const helpMessage = `
-Collect and display system static and runtime information
+const helpMessage = `Collect and display system static and runtime information
 
 - stats-sec value    stats sampling duration (default: 5)
 - trace-sec value    trace sampling duration (default: 5)
