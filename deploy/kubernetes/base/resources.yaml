@@ -326,6 +326,7 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
 ---
 kind: StatefulSet

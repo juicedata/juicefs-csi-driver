@@ -384,7 +384,9 @@ subjects:
 ---
 apiVersion: v1
 data:
-  config.yaml: 'mountPodPatch:'
+  config.yaml: |-
+    enableNodeSelector: false
+    mountPodPatch:
 kind: ConfigMap
 metadata:
   labels:
@@ -1114,7 +1116,9 @@ subjects:
 ---
 apiVersion: v1
 data:
-  config.yaml: 'mountPodPatch:'
+  config.yaml: |-
+    enableNodeSelector: false
+    mountPodPatch:
 kind: ConfigMap
 metadata:
   labels:
