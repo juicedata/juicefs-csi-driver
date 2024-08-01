@@ -54,7 +54,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 <details>
 <summary>**Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态**</summary>
 
-此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
+此时需要 [查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
 
 另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
 
@@ -62,7 +62,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 Preempted in order to admit critical pod
 ```
 
-Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况 [调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
 集群 IP 不足也可能导致 Mount Pod 一直处于 `Pending` 状态。Mount Pod 默认以 `hostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 Mount Pod 启动不成功。请联系云服务提供商对 Kubernetes 集群的 IP 数量进行扩容，或者使用 `hostNetwork: true` 形式启动，参阅：[定制 Mount Pod 和 Sidecar 容器](../guide/configurations.md#customize-mount-pod)。
 
@@ -79,7 +79,7 @@ Transport endpoint is not connected
 df: /jfs: Socket not connected
 ```
 
-你需要启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
+你需要启用 [「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
 
 </details>
 
@@ -95,7 +95,7 @@ $ kubectl describe pod juicefs-app
   Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
 ```
 
-错误日志里的 `transport endpoint is not connected`，其含义就是创建容器所需的 JuiceFS 挂载点不存在，因此应用容器无法创建。这时需要检查 Mount Pod 的启动命令（以下命令来自[「检查 Mount Pod」](./troubleshooting.md#check-mount-pod)文档）：
+错误日志里的 `transport endpoint is not connected`，其含义就是创建容器所需的 JuiceFS 挂载点不存在，因此应用容器无法创建。这时需要检查 Mount Pod 的启动命令（以下命令来自 [「检查 Mount Pod」](./troubleshooting.md#check-mount-pod) 文档）：
 
 ```shell
 APP_NS=default  # 应用所在的 Kubernetes 命名空间
@@ -109,7 +109,7 @@ MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 ```
 
-仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
+仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读 [「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
 
 </details>
 
@@ -142,7 +142,7 @@ kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 <details>
 <summary>**静态配置中，PV 错误填写了 `storageClassName`，导致初始化异常，PVC 卡在 `Pending` 状态**</summary>
 
-StorageClass 的存在是为了给[「动态配置」](../guide/pv.md#dynamic-provisioning)创建 PV 时提供初始化参数。对于[「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
+StorageClass 的存在是为了给 [「动态配置」](../guide/pv.md#dynamic-provisioning) 创建 PV 时提供初始化参数。对于 [「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
 
 ```shell {7}
 $ kubectl describe pvc juicefs-pv
