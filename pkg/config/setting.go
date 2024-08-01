@@ -42,8 +42,9 @@ const (
 )
 
 type JfsSetting struct {
-	IsCe   bool
-	UsePod bool
+	HashVal string `json:"-"`
+	IsCe    bool
+	UsePod  bool
 
 	UUID               string
 	Name               string               `json:"name"`

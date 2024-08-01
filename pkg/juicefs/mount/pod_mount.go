@@ -55,6 +55,17 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 }
 
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
+	hashVal, err := GenHashOfSetting(*jfsSetting)
+	if err != nil {
+		klog.Errorf("Generate hash of jfsSetting error: %v", err)
+		return err
+	}
+	jfsSetting.HashVal = hashVal
+
+	lock := jfsConfig.GetPodLock(hashVal)
+	lock.Lock()
+	defer lock.Unlock()
+
 	podName, err := p.genMountPodName(ctx, jfsSetting)
 	if err != nil {
 		return err
@@ -307,17 +318,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
-	hashVal, err := GenHashOfSetting(*jfsSetting)
-	if err != nil {
-		klog.Errorf("Generate hash of jfsSetting error: %v", err)
-		return err
-	}
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
-
-	lock := jfsConfig.GetPodLock(podName)
-	lock.Lock()
-	defer lock.Unlock()
-
 	jfsSetting.SecretName = podName + "-secret"
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
@@ -338,7 +339,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
 				newPod := r.NewMountPod(podName)
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = hashVal
+				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = jfsSetting.HashVal
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
 					nodeSelector := map[string]string{
 						"kubernetes.io/hostname": newPod.Spec.NodeName,
