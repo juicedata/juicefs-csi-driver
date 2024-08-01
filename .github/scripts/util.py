@@ -174,11 +174,8 @@ def get_only_mount_pod_name(volume_id):
     )
     running_pods = []
     for pod in pods.items:
-        LOG.info("running pod [{}]".format(len(running_pods)))
-        LOG.info("pod [{}] delete [{}]".format(pod.metadata.name, pod.metadata.deletion_timestamp))
-        if pod.metadata.deletion_timestamp == "":
+        if pod.metadata.deletion_timestamp is None:
             running_pods.append(pod)
-    LOG.info("running pod [{}]".format(len(running_pods)))
     if len(running_pods) == 0:
         raise Exception("Can't get mount pod of volume id {}".format(volume_id))
     if len(running_pods) > 1:
