@@ -6,7 +6,7 @@ sidebar_position: 7
 
 这里收录常见问题的具体排查步骤，你可以直接在本文搜索报错关键字以检索问题。同时，我们也推荐你先掌握[「基础问题排查思路」](./troubleshooting.md#basic-principles)。
 
-## CSI 驱动安装异常
+## CSI 驱动安装异常 {#csi-driver-installation-issue}
 
 如果 JuiceFS CSI 驱动压根没安装，或者配置错误导致安装失败，那么试图使用 JuiceFS CSI 驱动时，便会有下方报错：
 
@@ -30,7 +30,7 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod 异常
+## CSI Node pod 异常 {#csi-node-pod-failure}
 
 如果 CSI Node pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 pod 事件中会看到如下错误日志：
 
@@ -51,115 +51,156 @@ reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking 
 
 Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在这里罗列常见错误，指导排查。
 
-* **Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态**
+<details>
+<summary>**Mount Pod 一直卡在 `Pending` 状态，导致应用容器也一并卡死在 `ContainerCreating` 状态**</summary>
 
-  此时需要[查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
+此时需要 [查看 Mount Pod 事件](./troubleshooting.md#check-mount-pod)，确定症结所在。不过对于 `Pending` 状态，大概率是资源吃紧，导致容器无法创建。
 
-  另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
+另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
 
-  ```
-  Preempted in order to admit critical pod
-  ```
+```
+Preempted in order to admit critical pod
+```
 
-  Mount Pod 默认的资源声明是 1 CPU，1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况[调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
+Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况 [调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
-* **Mount Pod 重启或者重新创建后，应用容器无法访问 JuiceFS**
+集群 IP 不足也可能导致 Mount Pod 一直处于 `Pending` 状态。Mount Pod 默认以 `hostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 Mount Pod 启动不成功。请联系云服务提供商对 Kubernetes 集群的 IP 数量进行扩容，或者使用 `hostNetwork: true` 形式启动，参阅：[定制 Mount Pod 和 Sidecar 容器](../guide/configurations.md#customize-mount-pod)。
 
-  如果 Mount Pod 发生异常重启，或者经历了手动删除，那么应用 Pod 内访问挂载点（比如 `df`）会产生如下报错，提示挂载点已经不存在：
+</details>
 
-  ```
-  Transport endpoint is not connected
+<details>
+<summary>**Mount Pod 重启或者重新创建后，应用容器无法访问 JuiceFS**</summary>
 
-  df: /jfs: Socket not connected
-  ```
+如果 Mount Pod 发生异常重启，或者经历了手动删除，那么应用 Pod 内访问挂载点（比如 `df`）会产生如下报错，提示挂载点已经不存在：
 
-  你需要启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
+```
+Transport endpoint is not connected
 
-* **Mount Pod 正常退出（exit code 为 0），应用容器卡在 `ContainerCreateError` 状态**
+df: /jfs: Socket not connected
+```
 
-  Mount Pod 是一个常驻进程，如果它退出了（变为 `Completed` 状态），即便退出状态码为 0，也明显属于异常状态。此时应用容器由于挂载点不复存在，会伴随着以下错误事件：
+你需要启用 [「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，这样一来，只要 Mount Pod 能自行重建，恢复挂载点，应用容器就能继续访问 JuiceFS。
 
-  ```shell {4}
-  $ kubectl describe pod juicefs-app
-  ...
-    Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
-    Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
-  ```
+</details>
 
-  错误日志里的 `transport endpoint is not connected`，其含义就是创建容器所需的 JuiceFS 挂载点不存在，因此应用容器无法创建。这时需要检查 Mount Pod 的启动命令（以下命令来自[「检查 Mount Pod」](./troubleshooting.md#check-mount-pod)文档）：
+<details>
+<summary>**Mount Pod 正常退出（exit code 为 0），应用容器卡在 `ContainerCreateError` 状态**</summary>
 
-  ```shell
-  APP_NS=default  # 应用所在的 Kubernetes 命名空间
-  APP_POD_NAME=example-app-xxx-xxx
+Mount Pod 是一个常驻进程，如果它退出了（变为 `Completed` 状态），即便退出状态码为 0，也明显属于异常状态。此时应用容器由于挂载点不复存在，会伴随着以下错误事件：
 
-  # 获取 Mount Pod 的名称
-  MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+```shell {4}
+$ kubectl describe pod juicefs-app
+...
+  Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
+  Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
+```
 
-  # 获取 Mount Pod 启动命令
-  # 形如：["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
-  kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
-  ```
+错误日志里的 `transport endpoint is not connected`，其含义就是创建容器所需的 JuiceFS 挂载点不存在，因此应用容器无法创建。这时需要检查 Mount Pod 的启动命令（以下命令来自 [「检查 Mount Pod」](./troubleshooting.md#check-mount-pod) 文档）：
 
-  仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读[「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
+```shell
+APP_NS=default  # 应用所在的 Kubernetes 命名空间
+APP_POD_NAME=example-app-xxx-xxx
+
+# 获取 Mount Pod 的名称
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+
+# 获取 Mount Pod 启动命令
+# 形如：["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
+kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
+```
+
+仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读 [「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
+
+</details>
+
+<details>
+<summary>**Mount Pod 没有创建**</summary>
+
+使用 `kubectl describe <app-pod-name>` 查看当前应用 pod 的事件，确认已经进入挂载流程，而不是调度失败或者其它与挂载 JuiceFS 无关的错误。
+
+如果应用 pod 的事件为：
+
+- `driver name csi.juicefs.com not found` 或者 `csi.sock no such file`
+
+  检查对应节点上的 CSI Node pod 是否运行正常，详见[文档](#csi-node-pod-failure)。
+
+- `Unable to attach or mount volumes: xxx`
+
+  查看对应节点上 CSI Node pod 的日志，过滤出对应 PV 的相关日志。如果没有找到类似于 `NodePublishVolume: volume_id is <pv-name>` 的日志，并且 Kubernetes 版本低于 1.26.0、1.25.1、1.24.5、1.23.11，可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)。
+
+  此时可以尝试：
+
+  - 重启 kubelet
+  - 升级 Kubernetes
+
+  总之 JuiceFS CSI 驱动需要收到请求才能开始挂载流程。
+
+</details>
 
 ## PVC 异常 {#pvc-error}
 
-* **静态配置中，PV 错误填写了 `storageClassName`，导致初始化异常，PVC 卡在 `Pending` 状态**
+<details>
+<summary>**静态配置中，PV 错误填写了 `storageClassName`，导致初始化异常，PVC 卡在 `Pending` 状态**</summary>
 
-  StorageClass 的存在是为了给[「动态配置」](../guide/pv.md#dynamic-provisioning)创建 PV 时提供初始化参数。对于[「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
+StorageClass 的存在是为了给 [「动态配置」](../guide/pv.md#dynamic-provisioning) 创建 PV 时提供初始化参数。对于 [「静态配置」](../guide/pv.md#static-provisioning)，`storageClassName` 必须填写为空字符串，否则将遭遇类似下方报错：
 
-  ```shell {7}
-  $ kubectl describe pvc juicefs-pv
+```shell {7}
+$ kubectl describe pvc juicefs-pv
+...
+Events:
+  Type     Reason                Age               From                                                                           Message
+  ----     ------                ----              ----                                                                           -------
+  Normal   Provisioning          9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  External provisioner is provisioning volume for claim "default/juicefs-pvc"
+  Warning  ProvisioningFailed    9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  failed to provision volume with StorageClass "juicefs": claim Selector is not supported
+  Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
+```
+
+</details>
+
+<details>
+<summary>**`volumeHandle` 冲突，导致 PVC 创建失败**</summary>
+
+一个 pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
+
+```shell {6}
+$ kubectl describe pvc jfs-static
+...
+Events:
+  Type     Reason         Age               From                         Message
+  ----     ------         ----              ----                         -------
+  Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
+```
+
+另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
+
+```shell
+Events:
+Type     Reason       Age    From               Message
+----     ------       ----   ----               -------
+Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
+```
+
+请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。可以通过以下命令检查 `volumeHandle`：
+
+```yaml {12}
+$ kubectl get pv -o yaml juicefs-pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
   ...
-  Events:
-    Type     Reason                Age               From                                                                           Message
-    ----     ------                ----              ----                                                                           -------
-    Normal   Provisioning          9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  External provisioner is provisioning volume for claim "default/juicefs-pvc"
-    Warning  ProvisioningFailed    9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  failed to provision volume with StorageClass "juicefs": claim Selector is not supported
-    Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
-  ```
-
-* **`volumeHandle` 冲突，导致 PVC 创建失败**
-
-  一个 pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
-
-  ```shell {6}
-  $ kubectl describe pvc jfs-static
+spec:
   ...
-  Events:
-    Type     Reason         Age               From                         Message
-    ----     ------         ----              ----                         -------
-    Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
-  ```
-
-  另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
-
-  ```shell
-  Events:
-  Type     Reason       Age    From               Message
-  ----     ------       ----   ----               -------
-  Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
-  ```
-
-  请检查每个 PVC 对应的 PV，每个 PV 的 `volumeHandle` 必须保证唯一。可以通过以下命令检查 `volumeHandle`：
-
-  ```yaml {12}
-  $ kubectl get pv -o yaml juicefs-pv
-  apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: juicefs-pv
+  csi:
+    driver: csi.juicefs.com
+    fsType: juicefs
+    volumeHandle: juicefs-volume-abc
     ...
-  spec:
-    ...
-    csi:
-      driver: csi.juicefs.com
-      fsType: juicefs
-      volumeHandle: juicefs-volume-abc
-      ...
-  ```
+```
 
-## 文件系统创建错误（社区版）
+</details>
+
+## 文件系统创建错误（社区版） {#file-system-creation-failure-community-edition}
 
 如果你选择在 mount pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
 

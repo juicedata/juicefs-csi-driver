@@ -6,7 +6,9 @@ sidebar_position: 6
 
 Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md#architecture), i.e. have a basic understanding of the roles of each CSI Driver component.
 
-## CSI dashboard {#csi-dashboard}
+## Troubleshooting tools {#tools}
+
+### CSI dashboard {#csi-dashboard}
 
 CSI dashboard is installed along with JuiceFS CSI Driver, it provides a web interface to view the status of JuiceFS CSI Driver components. Also, you can see all PVs, PVCs, and Pods that are using JuiceFS PVs. With CSI dashboard, you can easily debug and troubleshoot. Strongly recommended to use dashboard.
 
@@ -16,11 +18,11 @@ Access the dashboard and you can see the following interface:
 
 As shown in the figure, all the related resources are displayed in the dashboard, you can click on the resource to view detailed information.
 
-## kubectl plugin {#kubectl-plugin}
+### kubectl plugin {#kubectl-plugin}
 
 JuiceFS provides a kubectl plugin to help you easily debug and troubleshoot in Kubernetes.
 
-### Installation {#kubectl-jfs-plugin-installation}
+#### Installation {#kubectl-jfs-plugin-installation}
 
 The one-click installation script is available for Linux and macOS systems. It automatically downloads and installs the latest version of the plugin based on your hardware architecture. Here is how to use it:
 
@@ -29,7 +31,7 @@ The one-click installation script is available for Linux and macOS systems. It a
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
-### Usage {#kubectl-jfs-plugin-usage}
+#### Usage {#kubectl-jfs-plugin-usage}
 
 ```shell
 # show all application pods using JuiceFS PV quickly
@@ -86,26 +88,30 @@ Mount Pods:
   juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj  kube-system  Error
 Failed Reason:
   Mount pod [juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj] is not ready, please check its log.
-  
+
 # troubleshooting JuiceFS PVC
 $ kubectl jfs debug pvc <pvcName>
 $ kubectl jfs debug pv <pvName>
 ```
 
-Furthermore, there are quick ways to obtain accesslog of Mount Pod and warmup volumes:
+Furthermore, there are quick ways to obtain access log of Mount Pod and warmup cache:
 
 ```shell
-# get Mount Pod accesslog: kubectl jfs accesslog <pod-name> -m <mount-namespace> 
+# Get Mount Pod access log: kubectl jfs accesslog <pod-name> -m <mount-namespace>
 $ kubectl jfs accesslog juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
 2024.07.05 14:09:57.392403 [uid:0,gid:0,pid:201] open (9223372032559808513): OK [fh:25] <0.000054>
 #
 
-# warmup quickly: kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace> 
+# Warmup cache: kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace>
 $ kubectl jfs warmup juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
 2024/07/05 14:10:52.628976 juicefs[207] <INFO>: Successfully warmed up 2 files (1090721713 bytes) [warmup.go:226]
 ```
 
-## Diagnostic script {#csi-doctor}
+### Diagnostic script {#csi-doctor}
+
+:::note
+Please use [kubectl plugin](#kubectl-plugin) first. If it cannot meet your needs, try using the diagnostic script again.
+:::
 
 It is recommended to use the diagnostic script [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) to collect logs and related information, without this script, you'll have to manually execute a series of commands (introduced in other sections in this chapter) to obtain information.
 
