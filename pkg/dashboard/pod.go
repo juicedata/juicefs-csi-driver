@@ -29,12 +29,10 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -505,9 +503,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	for _, pv := range pvs {
 		var pods corev1.PodList
 		err := api.cachedReader.List(ctx, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			continue
@@ -619,12 +615,9 @@ func (api *API) getMountPodsOfPV() gin.HandlerFunc {
 		}
 		pv := obj.(*corev1.PersistentVolume)
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -660,12 +653,9 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			return
 		}
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
