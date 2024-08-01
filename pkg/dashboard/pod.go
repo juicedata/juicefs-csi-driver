@@ -838,7 +838,14 @@ func (api *API) debugPod() gin.HandlerFunc {
 			}
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
-				[]string{"juicefs", "debug", "--no-color", "--profile-sec", profileSec, "--trace-sec", traceSec, "--stats-sec", statsSec, mntPath}); err != nil {
+				[]string{
+					"juicefs", "debug",
+					"--no-color",
+					"--profile-sec", profileSec,
+					"--trace-sec", traceSec,
+					"--stats-sec", statsSec,
+					"--out-dir", "/debug",
+					mntPath}); err != nil {
 				klog.Error("Failed to start process: ", err)
 				return
 			}
