@@ -31,6 +31,13 @@ JuiceFS 提供了一个 kubectl 插件，可以方便地在 Kubernetes 集群中
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
+如果环境中已经安装了 [krew](https://github.com/kubernetes-sigs/krew)，也可以使用 `krew` 来安装：
+
+```shell
+kubectl krew update
+kubectl krew install jfs
+```
+
 #### 使用 {#kubectl-jfs-plugin-usage}
 
 ```shell
