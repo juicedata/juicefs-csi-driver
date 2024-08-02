@@ -31,6 +31,13 @@ The one-click installation script is available for Linux and macOS systems. It a
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
+If [krew](https://github.com/kubernetes-sigs/krew) has been installed in cluster, you can also install juicefs plugin via `krew`:
+
+```shell
+kubectl krew update
+kubectl krew install jfs
+```
+
 #### Usage {#kubectl-jfs-plugin-usage}
 
 ```shell
