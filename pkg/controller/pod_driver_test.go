@@ -63,6 +63,9 @@ var readyPod = &corev1.Pod{
 		Name: "juicefs-test-node-ready",
 		Annotations: map[string]string{
 			util.GetReferenceKey(target): target},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Spec: corev1.PodSpec{
@@ -95,6 +98,9 @@ var errCmdPod = &corev1.Pod{
 		Name: "juicefs-test-err-mount-cmd-pod",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Spec: corev1.PodSpec{
@@ -111,6 +117,9 @@ var deletedPod = &corev1.Pod{
 		Name: "juicefs-test-node-deleted",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		Finalizers:        []string{jfsConfig.Finalizer},
 	},
@@ -138,6 +147,9 @@ var errorPod1 = &corev1.Pod{
 		Name: "juicefs-test-node-error1",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Spec: corev1.PodSpec{
@@ -178,6 +190,9 @@ var resourceErrPod = &corev1.Pod{
 		Name: "juicefs-test-node-resourceErr",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Spec: corev1.PodSpec{
@@ -218,6 +233,9 @@ var errorPod2 = &corev1.Pod{
 		Name: "juicefs-test-node-error2",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Status: corev1.PodStatus{
@@ -247,6 +265,9 @@ var errorPod3 = &corev1.Pod{
 		Name: "juicefs-test-node-error4",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Status: corev1.PodStatus{
@@ -267,6 +288,9 @@ var pendingPod = &corev1.Pod{
 		Name: "juicefs-test-node-error3",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Status: corev1.PodStatus{
@@ -287,6 +311,9 @@ var runningPod = &corev1.Pod{
 		Name: "juicefs-test-pod-running",
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
+		Labels: map[string]string{
+			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
 	Status: corev1.PodStatus{

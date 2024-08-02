@@ -134,7 +134,11 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 // 2. delete ref that target pod is not found
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	// check refs in mount pod, the corresponding pod exists or not
-	lock := config.GetPodLock(pod.Name)
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -215,7 +219,11 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	if pod == nil {
 		return Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -345,7 +353,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 
-	lock := config.GetPodLock(pod.Name)
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -430,7 +442,11 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 	if pod == nil {
 		return Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
