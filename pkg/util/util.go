@@ -357,9 +357,22 @@ func DoWithContext(ctx context.Context, f func() error) error {
 }
 
 func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	defer cancel()
-	return DoWithContext(ctx, f)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	doneCh := make(chan error)
+	go func() {
+		doneCh <- f()
+	}()
+
+	select {
+	case <-parent.Done():
+		return parent.Err()
+	case <-timer.C:
+		return fmt.Errorf("timeout")
+	case err := <-doneCh:
+		return err
+	}
 }
 
 func CheckDynamicPV(name string) (bool, error) {
