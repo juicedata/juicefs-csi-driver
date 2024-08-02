@@ -289,20 +289,14 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 }
 
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
-	hashVal, err := GenHashOfSetting(*jfsSetting)
-	if err != nil {
-		klog.Errorf("Generate hash of jfsSetting error: %v", err)
-		return "", err
-	}
-
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
 		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
-		jfsConfig.PodJuiceHashLabelKey: hashVal,
+		jfsConfig.PodJuiceHashLabelKey: jfsSetting.HashVal,
 	}}
 	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
-		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, hashVal, err)
+		klog.Errorf("List pods of uniqueId %s and hash %s error: %v", jfsSetting.UniqueId, jfsSetting.HashVal, err)
 		return "", err
 	}
 	for _, pod := range pods {
