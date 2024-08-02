@@ -95,7 +95,13 @@ export function useWebsocket(
 
   return useWebSocket(
     `${protocol}://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
-    opts,
+    {
+      ...opts,
+      heartbeat: {
+        message: '{"type":"ping","data":"ping"}',
+        interval: 3000,
+      },
+    },
     shouldConnect,
   )
 }
@@ -115,6 +121,23 @@ export function useDownloadPodLogs(
         const a = document.createElement('a')
         a.href = url
         a.download = `${namespace}-${name}-${container}.log`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  })
+}
+
+export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
+  return useAsync(async () => {
+    await fetch(
+      `${getHost()}/api/v1/pod/${namespace}/${name}/downloadDebugFile`,
+    )
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.download = `${namespace}-${name}-debug.zip`
+        a.href = url
         a.click()
         window.URL.revokeObjectURL(url)
       })

@@ -60,8 +60,10 @@ export default {
   unScheduledMsg: '未调度成功，请点击 Pod 详情查看调度失败的具体原因。',
   nodeErrMsg: '所在节点异常，请检查节点状态。',
   containerErrMsg: '有容器启动异常，请点击 Pod 详情查看容器状态及日志。',
-  mountPodTerminatingMsg: 'Mount Pod 还在 Terminating 状态且存在 finalizer，请检查 CSI Node 日志',
-  mountPodStickTerminatingMsg: 'Mount Pod 卡在 Terminating 状态，请检查节点上是否存在未断开的 FUSE 请求',
+  mountPodTerminatingMsg:
+    'Mount Pod 还在 Terminating 状态且存在 finalizer，请检查 CSI Node 日志',
+  mountPodStickTerminatingMsg:
+    'Mount Pod 卡在 Terminating 状态，请检查节点上是否存在未断开的 FUSE 请求',
   mountContainUidMsg: 'Mount Pod 还记录其 uid，请检查 CSI Node 日志',
   podFinalizerMsg: 'Pod 还存在 finalizer 未处理完，请查看 finalizer 状态',
   csiNodeNullMsg:
@@ -93,4 +95,5 @@ export default {
   config: '配置',
   reset: '重置',
   action: '操作',
+  image: '镜像',
 }

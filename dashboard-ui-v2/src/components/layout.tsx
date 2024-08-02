@@ -89,11 +89,11 @@ export default function Layout(props: { children: ReactNode }) {
 
   useEffect(() => {
     const locale = window.localStorage.getItem('locale')
-    setLocale(locale ?? 'cn')
+    setLocale(locale ?? 'zh')
   }, [])
 
   return (
-    <IntlProvider messages={locale == 'cn' ? cn : en} locale={locale ?? 'cn'}>
+    <IntlProvider messages={locale == 'zh' ? cn : en} locale={locale ?? 'zh'}>
       <AntdLayout>
         <Header
           style={{
@@ -138,7 +138,7 @@ export default function Layout(props: { children: ReactNode }) {
                 icon={<LocaleIcon />}
                 className="header-button"
                 onClick={() => {
-                  setLocale(locale === 'cn' ? 'en' : 'cn')
+                  setLocale(locale === 'zh' ? 'en' : 'zh')
                 }}
               />
             </Tooltip>
@@ -154,7 +154,7 @@ export default function Layout(props: { children: ReactNode }) {
             />
           </Space>
         </Header>
-        <ConfigProvider locale={locale == 'cn' ? zhCN : enUS}>
+        <ConfigProvider locale={locale == 'zh' ? zhCN : enUS}>
           <AntdLayout hasSider>
             <Sider
               style={{
