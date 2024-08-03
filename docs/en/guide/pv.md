@@ -322,6 +322,8 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: data
+      # Propagation must be added for automatic mount point recovery (if mount pod ever fails)
+      mountPropagation: HostToContainer
     resources:
       requests:
         cpu: 10m
@@ -390,6 +392,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
+reclaimPolicy: Retain
 ```
 
 ## Dynamic provisioning {#dynamic-provisioning}
@@ -431,6 +434,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
+      mountPropagation: HostToContainer
   volumes:
   - name: juicefs-pv
     persistentVolumeClaim:
@@ -472,6 +476,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
+      mountPropagation: HostToContainer
   volumes:
   - name: juicefs-pv
     ephemeral:

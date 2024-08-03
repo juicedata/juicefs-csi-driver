@@ -7,7 +7,7 @@ data:
   config.yaml: |-
     # Set to true to schedule mount pod to node with via nodeSelector, rather than nodeName
     enableNodeSelector: false
-    
+
     # The mountPodPatch section defines the mount pod spec
     # Each item will be recursively merged into PVC settings according to its pvcSelector
     # If pvcSelector isn't set, the patch will be applied to all PVCs
@@ -21,19 +21,19 @@ data:
               - -c
               - +e
               - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-    
+
       # Example configurations:
       # - pvcSelector:
       #     matchLabels:
       #       disable-host-network: "true"
       #   hostNetwork: false
-    
+
       # - pvcSelector:
       #     matchLabels:
       #       apply-labels: "true"
       #   labels:
       #     custom-labels: "asasasa"
-    
+
       # - pvcSelector:
       #     matchLabels:
       #       custom-resources: "true"
@@ -55,12 +55,12 @@ data:
 
       #  select pvc by storageClassName
       # - pvcSelector:
-      #      matchStorageClassName: juicefs-sc
+      #     matchStorageClassName: juicefs-sc
       #   terminationGracePeriodSeconds: 60
 
       #  select pvc by pvc name
       # - pvcSelector:
-      #      matchName: pvc-name
+      #     matchName: pvc-name
       #   terminationGracePeriodSeconds: 60
 
       # - pvcSelector:
