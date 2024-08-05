@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -369,7 +370,7 @@ func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error
 	case <-parent.Done():
 		return parent.Err()
 	case <-timer.C:
-		return fmt.Errorf("timeout")
+		return errors.New("function timeout")
 	case err := <-doneCh:
 		return err
 	}
