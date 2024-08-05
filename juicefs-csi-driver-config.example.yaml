@@ -75,3 +75,15 @@ data:
       #     initialDelaySeconds: 10
       #     periodSeconds: 5
       #     successThreshold: 1
+
+      # mount some volumes to the mount pod
+      # - pvcSelector:
+      #     matchLabels:
+      #       need-block-device: "true"
+      #   volumeDevices:
+      #     - name: block-devices
+      #       devicePath: /dev/sda1
+      #   volumes:
+      #     - name: block-devices
+      #       persistentVolumeClaim:
+      #         claimName: block-pv

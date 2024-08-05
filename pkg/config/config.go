@@ -138,6 +138,24 @@ const (
 	DefaultMountPodMemRequest = "1Gi"
 )
 
+var interVolumesPrefix = []string{
+	"rsa-key",
+	"init-config",
+	"config-",
+	"jfs-dir",
+	"update-db",
+	"cachedir-",
+}
+
+func IsInterVolume(name string) bool {
+	for _, prefix := range interVolumesPrefix {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 var PodLocks [1024]sync.Mutex
 
 func GetPodLock(podHashVal string) *sync.Mutex {
@@ -184,6 +202,10 @@ type MountPodPatch struct {
 	Lifecycle                     *corev1.Lifecycle            `json:"lifecycle,omitempty"`
 	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty"`
+	Volumes                       []corev1.Volume              `json:"volumes,omitempty"`
+	VolumeDevices                 []corev1.VolumeDevice        `json:"volumeDevices,omitempty"`
+	VolumeMounts                  []corev1.VolumeMount         `json:"volumeMounts,omitempty"`
+	Env                           []corev1.EnvVar              `json:"env,omitempty"`
 }
 
 func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
@@ -249,6 +271,58 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.TerminationGracePeriodSeconds != nil {
 		mpp.TerminationGracePeriodSeconds = mp.TerminationGracePeriodSeconds
+	}
+	vok := make(map[string]bool)
+	if mp.Volumes != nil {
+		if mpp.Volumes == nil {
+			mpp.Volumes = []corev1.Volume{}
+		}
+		for _, v := range mp.Volumes {
+			if IsInterVolume(v.Name) {
+				klog.Warningf("applyConfig: volume %s uses an internal volume name, ignore", v.Name)
+				continue
+			}
+			found := false
+			for _, vv := range mpp.Volumes {
+				if vv.Name == v.Name {
+					found = true
+					break
+				}
+			}
+			if found {
+				klog.Warningf("applyConfig: volume %s already exists, ignore", v.Name)
+				continue
+			}
+			vok[v.Name] = true
+			mpp.Volumes = append(mpp.Volumes, v)
+		}
+	}
+	if mp.VolumeMounts != nil {
+		if mpp.VolumeMounts == nil {
+			mpp.VolumeMounts = []corev1.VolumeMount{}
+		}
+		for _, vm := range mp.VolumeMounts {
+			if !vok[vm.Name] {
+				klog.Warningf("applyConfig: volumeMount %s not exists in volumes, ignore", vm.Name)
+				continue
+			}
+			mpp.VolumeMounts = append(mpp.VolumeMounts, vm)
+		}
+	}
+	if mp.VolumeDevices != nil {
+		if mpp.VolumeDevices == nil {
+			mpp.VolumeDevices = []corev1.VolumeDevice{}
+		}
+		for _, vm := range mp.VolumeDevices {
+			if !vok[vm.Name] {
+				klog.Warningf("applyConfig: volumeDevices %s not exists in volumes, ignore", vm.Name)
+				continue
+			}
+			mpp.VolumeDevices = append(mpp.VolumeDevices, vm)
+		}
+	}
+	if mp.Env != nil {
+		mpp.Env = mp.Env
 	}
 }
 

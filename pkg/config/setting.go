@@ -98,13 +98,17 @@ type PodAttr struct {
 
 	Resources corev1.ResourceRequirements
 
-	Labels                        map[string]string `json:"labels,omitempty"`
-	Annotations                   map[string]string `json:"annotations,omitempty"`
-	LivenessProbe                 *corev1.Probe     `json:"livenessProbe,omitempty"`
-	ReadinessProbe                *corev1.Probe     `json:"readinessProbe,omitempty"`
-	StartupProbe                  *corev1.Probe     `json:"startupProbe,omitempty"`
-	Lifecycle                     *corev1.Lifecycle `json:"lifecycle,omitempty"`
-	TerminationGracePeriodSeconds *int64            `json:"terminationGracePeriodSeconds,omitempty"`
+	Labels                        map[string]string     `json:"labels,omitempty"`
+	Annotations                   map[string]string     `json:"annotations,omitempty"`
+	LivenessProbe                 *corev1.Probe         `json:"livenessProbe,omitempty"`
+	ReadinessProbe                *corev1.Probe         `json:"readinessProbe,omitempty"`
+	StartupProbe                  *corev1.Probe         `json:"startupProbe,omitempty"`
+	Lifecycle                     *corev1.Lifecycle     `json:"lifecycle,omitempty"`
+	TerminationGracePeriodSeconds *int64                `json:"terminationGracePeriodSeconds,omitempty"`
+	Volumes                       []corev1.Volume       `json:"volumes,omitempty"`
+	VolumeDevices                 []corev1.VolumeDevice `json:"volumeDevices,omitempty"`
+	VolumeMounts                  []corev1.VolumeMount  `json:"volumeMounts,omitempty"`
+	Env                           []corev1.EnvVar       `json:"env,omitempty"`
 
 	// inherit from csi
 	Image            string
@@ -684,6 +688,10 @@ func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
 	attr.ReadinessProbe = patch.ReadinessProbe
 	attr.StartupProbe = patch.StartupProbe
 	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
+	attr.VolumeDevices = patch.VolumeDevices
+	attr.VolumeMounts = patch.VolumeMounts
+	attr.Volumes = patch.Volumes
+	attr.Env = patch.Env
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE
