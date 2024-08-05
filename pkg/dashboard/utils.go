@@ -18,6 +18,8 @@ package dashboard
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sort"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -96,4 +98,20 @@ func (r *ReverseSort) Less(i, j int) bool {
 
 func Reverse(data sort.Interface) sort.Interface {
 	return &ReverseSort{data}
+}
+
+func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
+	values := []string{pv.Spec.CSI.VolumeHandle}
+	if pv.Spec.StorageClassName != "" {
+		values = append(values, pv.Spec.StorageClassName)
+	}
+	sl := metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{{
+			Key:      config.PodUniqueIdLabelKey,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   values,
+		}},
+	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
+	return labelMap
 }

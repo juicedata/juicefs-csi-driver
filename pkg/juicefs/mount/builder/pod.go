@@ -32,7 +32,6 @@ import (
 
 type PodBuilder struct {
 	BaseBuilder
-	HashVal string
 }
 
 func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
@@ -65,7 +64,7 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name:  JfsCommEnv,
-			Value: fuse.GlobalFds.GetFdAddress(r.HashVal),
+			Value: fuse.GlobalFds.GetFdAddress(r.jfsSetting.HashVal),
 		})
 	}
 
@@ -242,7 +241,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			Name: JfsFuseFdPathName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path.Join(JfsFuseFsPathInHost, r.HashVal),
+					Path: path.Join(JfsFuseFsPathInHost, r.jfsSetting.HashVal),
 					Type: &dir,
 				},
 			},

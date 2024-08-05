@@ -29,7 +29,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -505,9 +504,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	for _, pv := range pvs {
 		var pods corev1.PodList
 		err := api.cachedReader.List(ctx, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			continue
@@ -619,12 +616,9 @@ func (api *API) getMountPodsOfPV() gin.HandlerFunc {
 		}
 		pv := obj.(*corev1.PersistentVolume)
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -660,12 +654,9 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			return
 		}
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -780,7 +771,9 @@ func (api *API) execPod() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := resource.NewTerminalSession(ws, resource.EndOfTransmission)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfTransmission)
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "bash || sh"}); err != nil {
@@ -798,7 +791,9 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := resource.NewTerminalSession(ws, resource.EndOfText)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
 				klog.Error("Failed to get mount pod: ", err)
@@ -816,5 +811,61 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) debugPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		statsSec := c.Query("statsSec")
+		traceSec := c.Query("traceSec")
+		profileSec := c.Query("profileSec")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				klog.Error("Failed to get mount pod: ", err)
+				return
+			}
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				klog.Error("Failed to get mount path: ", err)
+				return
+			}
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{
+					"juicefs", "debug",
+					"--no-color",
+					"--profile-sec", profileSec,
+					"--trace-sec", traceSec,
+					"--stats-sec", statsSec,
+					"--out-dir", "/debug",
+					mntPath}); err != nil {
+				klog.Error("Failed to start process: ", err)
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) downloadDebugFile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := config.MountContainerName
+		c.Header("Content-Disposition", "attachment; filename="+namespace+"_"+name+"_"+"debug.zip")
+		err := resource.DownloadPodFile(
+			api.client, api.kubeconfig, c.Writer, namespace, name, container,
+			[]string{"sh", "-c", "cat $(ls -t /debug/*.zip | head -n 1) && exit 0"})
+		if err != nil {
+			klog.Error("Failed to create SPDY executor: ", err)
+			return
+		}
 	}
 }

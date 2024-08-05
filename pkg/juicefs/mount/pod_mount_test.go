@@ -652,6 +652,7 @@ func TestWaitUntilMount(t *testing.T) {
 			}
 			if tt.pod != nil {
 				hashVal := GenHashOfSetting(*tt.args.jfsSetting)
+				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
 					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
 					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,

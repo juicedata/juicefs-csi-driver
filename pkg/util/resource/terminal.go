@@ -17,8 +17,10 @@
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"time"
 
 	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
@@ -40,14 +42,18 @@ type terminalSession struct {
 	conn              *websocket.Conn
 	sizeCh            chan *remotecommand.TerminalSize
 	endOfTransmission string
+	lastHeartbeatAt   time.Time
 }
 
-func NewTerminalSession(conn *websocket.Conn, endOfTransmission string) *terminalSession {
-	return &terminalSession{
+func NewTerminalSession(ctx context.Context, conn *websocket.Conn, endOfTransmission string) *terminalSession {
+	t := &terminalSession{
 		conn:              conn,
 		sizeCh:            make(chan *remotecommand.TerminalSize),
 		endOfTransmission: endOfTransmission,
+		lastHeartbeatAt:   time.Now(),
 	}
+	go t.checkHeartbeat(ctx)
+	return t
 }
 
 func (t *terminalSession) Write(p []byte) (int, error) {
@@ -81,6 +87,8 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 		}:
 		default:
 		}
+	case "ping":
+		t.lastHeartbeatAt = time.Now()
 	default:
 		return copy(p, t.endOfTransmission), nil
 	}
@@ -89,6 +97,22 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 
 func (t *terminalSession) Next() *remotecommand.TerminalSize {
 	return <-t.sizeCh
+}
+
+func (t *terminalSession) checkHeartbeat(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if time.Since(t.lastHeartbeatAt) > 1*time.Minute {
+				klog.Error("Terminal session heartbeat timeout")
+				t.conn.Close()
+				return
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
 }
 
 type Handler interface {
@@ -122,6 +146,34 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 		Stderr:            h,
 		TerminalSizeQueue: h,
 		Tty:               true,
+	}); err != nil {
+		klog.Error("Failed to stream: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Writer, namespace, name, container string, cmd []string) error {
+	req := client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(name).
+		Namespace(namespace).SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command:   cmd,
+		Container: container,
+		Stdout:    true,
+		Stderr:    true,
+	}, scheme.ParameterCodec)
+
+	executor, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	if err != nil {
+		klog.Error("Failed to create SPDY executor: ", err)
+		return err
+	}
+	if err := executor.Stream(remotecommand.StreamOptions{
+		Stdout: writer,
+		Stderr: writer,
 	}); err != nil {
 		klog.Error("Failed to stream: ", err)
 		return err

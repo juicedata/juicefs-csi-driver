@@ -140,9 +140,9 @@ const (
 
 var PodLocks [1024]sync.Mutex
 
-func GetPodLock(podName string) *sync.Mutex {
+func GetPodLock(podHashVal string) *sync.Mutex {
 	h := fnv.New32a()
-	h.Write([]byte(podName))
+	h.Write([]byte(podHashVal))
 	index := int(h.Sum32())
 	return &PodLocks[index%1024]
 }

@@ -85,7 +85,8 @@ const PVBasic: React.FC<{
                   <Link
                     to={`/pvcs/${record.spec?.claimRef?.namespace}/${record.spec?.claimRef?.name}`}
                   >
-                    {record.spec?.claimRef?.namespace}/{record.spec.claimRef?.name}
+                    {record.spec?.claimRef?.namespace}/
+                    {record.spec.claimRef?.name}
                   </Link>
                 )
               },

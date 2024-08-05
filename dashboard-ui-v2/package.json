@@ -24,8 +24,9 @@
     "react-dom": "^18.2.0",
     "react-intl": "^6.6.8",
     "react-router-dom": "^6.23.1",
-    "react-use-websocket": "3.0.0",
+    "react-use-websocket": "4.8.1",
     "swr": "^2.2.5",
+    "usehooks-ts": "^3.1.0",
     "xterm": "^5.3.0",
     "xterm-react": "^1.0.0",
     "yaml": "^2.4.5"
