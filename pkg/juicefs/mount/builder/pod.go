@@ -52,10 +52,10 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 		cmd = strings.Join([]string{initCmd, mountCmd}, "\n")
 	}
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
-	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 		Name:  "JFS_FOREGROUND",
 		Value: "1",
-	}}
+	})
 
 	// generate volumes and volumeMounts only used in mount pod
 	volumes, volumeMounts := r.genPodVolumes()
@@ -71,6 +71,17 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	mountVolumes, mountVolumeMounts := r.genHostPathVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
+
+	// add users custom volumes, volumeMounts, volumeDevices
+	if r.jfsSetting.Attr.Volumes != nil {
+		pod.Spec.Volumes = append(pod.Spec.Volumes, r.jfsSetting.Attr.Volumes...)
+	}
+	if r.jfsSetting.Attr.VolumeMounts != nil {
+		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, r.jfsSetting.Attr.VolumeMounts...)
+	}
+	if r.jfsSetting.Attr.VolumeDevices != nil {
+		pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices, r.jfsSetting.Attr.VolumeDevices...)
+	}
 
 	return pod
 }

@@ -103,6 +103,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			},
 		},
 	}}
+	pod.Spec.Containers[0].Env = r.jfsSetting.Attr.Env
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
 	if r.jfsSetting.Attr.Lifecycle == nil {
 		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
