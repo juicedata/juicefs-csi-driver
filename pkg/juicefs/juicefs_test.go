@@ -1038,7 +1038,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			id, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting {
+				Source: "test",
+				Envs: map[string]string{},
+			}
+			id, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldBeNil)
 			So(id, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
 		})
@@ -1058,7 +1062,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			_, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting {
+				Source: "test",
+				Envs: map[string]string{},
+			}
+			_, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldNotBeNil)
 		})
 	})
