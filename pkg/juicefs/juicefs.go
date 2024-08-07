@@ -63,7 +63,7 @@ type Interface interface {
 	JfsDeleteVol(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) error
 	JfsUnmount(ctx context.Context, volumeID, mountPath string) error
 	JfsCleanupMountPoint(ctx context.Context, mountPath string) error
-	GetJfsVolUUID(ctx context.Context, name string) (string, error)
+	GetJfsVolUUID(ctx context.Context, jfsSetting *config.JfsSetting) (string, error)
 	SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error
 	Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error)
 	GetSubPath(ctx context.Context, volumeID string) (string, error)
@@ -429,7 +429,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 	if jfsSetting.CleanCache {
 		uuid := jfsSetting.Name
 		if jfsSetting.IsCe {
-			if uuid, err = j.GetJfsVolUUID(ctx, jfsSetting.Source); err != nil {
+			if uuid, err = j.GetJfsVolUUID(ctx, jfsSetting); err != nil {
 				return nil, err
 			}
 		}
@@ -470,14 +470,20 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, err
 }
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
-func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
+func (j *juicefs) GetJfsVolUUID(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
-	stdout, err := j.Exec.CommandContext(cmdCtx, config.CeCliPath, "status", name).CombinedOutput()
+	statusCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, "status", jfsSetting.Source)
+	envs := syscall.Environ()
+	for key, val := range jfsSetting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+	}
+	statusCmd.SetEnv(envs)
+	stdout, err := statusCmd.CombinedOutput()
 	if err != nil {
 		re := string(stdout)
 		if strings.Contains(re, "database is not formatted") {
-			klog.V(6).Infof("juicefs %s not formatted.", name)
+			klog.V(6).Infof("juicefs %s not formatted.", jfsSetting.Source)
 			return "", nil
 		}
 		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
@@ -492,7 +498,7 @@ func (j *juicefs) GetJfsVolUUID(ctx context.Context, name string) (string, error
 	idStr := matchExp.FindString(string(stdout))
 	idStrs := strings.Split(idStr, "\"")
 	if len(idStrs) < 4 {
-		return "", fmt.Errorf("get uuid of %s error", name)
+		return "", fmt.Errorf("get uuid of %s error", jfsSetting.Source)
 	}
 
 	return idStrs[3], nil
