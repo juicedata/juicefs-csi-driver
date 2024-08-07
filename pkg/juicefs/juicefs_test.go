@@ -332,7 +332,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -396,7 +396,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -428,7 +428,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
