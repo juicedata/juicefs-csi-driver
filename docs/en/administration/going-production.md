@@ -421,3 +421,7 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
+
+    What needs to be noted here is:
+    * If write cache not upload completely, and mount pod exits abnormally(application pod umount), such as deleting mount pod to upgrade it, `preStop` here will stick `terminationGracePeriodSeconds` time and affect upgrade process;
+    * Neither of the above two solutions necessarily guarantees that the write cache can be uploaded completely.
