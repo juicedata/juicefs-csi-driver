@@ -35,9 +35,13 @@ import (
 )
 
 const (
-	JfsDirName      = "jfs-dir"
-	UpdateDBDirName = "updatedb"
-	UpdateDBCfgFile = "/etc/updatedb.conf"
+	JfsDirName          = "jfs-dir"
+	UpdateDBDirName     = "updatedb"
+	UpdateDBCfgFile     = "/etc/updatedb.conf"
+	JfsFuseFdPathName   = "jfs-fuse-fd"
+	JfsFuseFsPathInPod  = "/tmp"
+	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
+	JfsCommEnv          = "JFS_SUPER_COMM"
 )
 
 type BaseBuilder struct {
@@ -105,12 +109,15 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	}}
 	pod.Spec.Containers[0].Env = r.jfsSetting.Attr.Env
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
+	// if image support passFd from csi, do not set umount preStop
 	if r.jfsSetting.Attr.Lifecycle == nil {
-		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
-				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
-					"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
-			},
+		if !util.SupportFusePass(pod.Spec.Containers[0].Image) || config.Webhook {
+			pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+				PreStop: &corev1.Handler{
+					Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
+						"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+				},
+			}
 		}
 	} else {
 		pod.Spec.Containers[0].Lifecycle = r.jfsSetting.Attr.Lifecycle

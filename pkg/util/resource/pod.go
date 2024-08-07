@@ -212,7 +212,7 @@ func GetAllRefKeys(pod corev1.Pod) map[string]string {
 }
 
 func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	// Wait until the mount point is ready
 	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", mntPath, podName)

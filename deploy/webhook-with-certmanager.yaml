@@ -302,15 +302,8 @@ subjects:
 apiVersion: v1
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 kind: ConfigMap
 metadata:
   labels:
