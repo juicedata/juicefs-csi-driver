@@ -542,7 +542,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 	if e != nil {
 		klog.Errorf("[podReadyHandler] stat mntPath: %s, podName: %s, err: %v, don't do recovery", mntPath, pod.Name, e)
-		return Result{}, nil
+		// may be the mount point is not ready, wait for next time
+		return Result{
+			RequeueAfter: 5 * time.Second,
+		}, nil
 	}
 
 	return Result{}, p.recover(ctx, pod, mntPath)
