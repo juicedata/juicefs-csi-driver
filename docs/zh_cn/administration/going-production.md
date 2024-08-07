@@ -421,7 +421,7 @@ authorization:
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
-    
+
     需要注意的是：
-    * 配置了 `preStop` 后，若写缓存一直未上传成功，在 mount pod 非正常退出（应用 pod 卸载），比如 mount pod 需要删除以升级时，会等待 `terminationGracePeriodSeconds` 时间，导致影响到升级；
+    * 配置了 `preStop` 后，若写缓存一直未上传成功，在 mount pod 非正常退出（正常退出为应用 pod 卸载），比如 mount pod 需要删除以升级时，会等待 `terminationGracePeriodSeconds` 时间，导致影响到升级；
     * 上述两种方案都不能一定保证写缓存上传成功。
