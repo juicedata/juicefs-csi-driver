@@ -3,10 +3,7 @@ title: Cache
 sidebar_position: 3
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
+JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/guide/cache), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
 
 ## Cache settings {#cache-settings}
 
@@ -22,7 +19,7 @@ After cache directory is set, it'll be accessible in the mount pod via `hostPath
 
 Cache related settings is configured in [mount options](./configurations.md#mount-options), you can also refer to the straightforward examples below. After PV is created and mounted, you can also [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
 
-* Static provisioning
+* Static provisioning:
 
   ```yaml {15-16}
   apiVersion: v1
@@ -50,7 +47,7 @@ Cache related settings is configured in [mount options](./configurations.md#moun
         namespace: default
   ```
 
-* Dynamic provisioning
+* Dynamic provisioning:
 
   ```yaml {12-13}
   apiVersion: storage.k8s.io/v1

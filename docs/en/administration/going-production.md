@@ -369,3 +369,55 @@ If however, a configuration file isn't used, then kubelet is configured purely v
     - name: KUBE_BURST
       value: 5
   ```
+
+## Client write cache (not recommended) {#client-write-cache}
+
+Even without Kubernetes, the client write cache (`--writeback`) is a feature that needs to be used with caution. Its function is to store the file data written by the client on the local disk and then asynchronously upload it to the object storage. This brings about a lot of user experience and data security issues, which are highlighted in the JuiceFS documentation:
+
+* [Community Edition Documentation](https://juicefs.com/docs/community/guide/cache/#client-write-cache)
+* [Enterprise Edition Documentation](https://juicefs.com/docs/cloud/guide/cache/#client-write-cache)
+
+Normal use on the host is already a risky feature, so we do not recommend enable `--writeback` in the CSI Driver to avoid data loss due to the short life cycle of the container before the data is uploaded, resulting in data loss.
+
+Under the premise of fully understanding the risks of `--writeback`, if your scenario must use this feature, then please read the following points carefully to ensure that the cluster is configured correctly and avoid as much as possible the additional risks caused by using write cache in the CSI Driver:
+
+* Configure cache persistence to ensure that the cache directory will not be lost when the container is destroyed. For specific configuration methods, read [Cache settings](../guide/cache.md#cache-settings);
+* Choose one of the following methods (you can also adopt both) to ensure that the JuiceFS client has enough time to complete the data upload when the application container exits:
+  * Enable [Delayed mount pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the mount pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
+  * Since v0.24, the CSI Driver supports customizing all aspects of the mount pod, so you can modify `terminationGracePeriodSeconds`, and then use [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) to wait for the data upload to complete before the mount pod exits. The demonstration is as follows:
+
+    ```yaml title="values-mycluster.yaml"
+    globalConfig:
+      mountPodPatch:
+        - terminationGracePeriodSeconds: 3600
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - sh
+                - -c
+                - |
+                  set +e
+
+                  # Get the directory where write cache data is saved
+                  staging_dir="$(cat ${MOUNT_POINT}/.config | grep 'CacheDir' | cut -d '"' -f 4)/rawstaging/"
+
+                  # Wait for all files in the write cache directory to be uploaded before exiting
+                  if [ -d "$staging_dir" ]; then
+                    while :
+                    do
+                      staging_files=$(find $staging_dir -type f | head -n 1)
+                      if [ -z "$staging_files" ]; then
+                        echo "all staging files uploaded"
+                        break
+                      else
+                        echo "waiting for staging files: $staging_files ..."
+                        sleep 3
+                      fi
+                    done
+                  fi
+
+                  umount -l ${MOUNT_POINT}
+                  rmdir ${MOUNT_POINT}
+                  exit 0
+    ```

@@ -374,45 +374,50 @@ authorization:
 
 就算脱离 Kubernetes，客户端写缓存（`--writeback`）也是需要谨慎使用的功能，他的作用是将客户端写入的文件数据存在本地盘，然后异步上传至对象存储。这带来不少使用体验和数据安全性的问题，在 JuiceFS 文档里都有着重介绍：
 
-* [社区版文档](https://juicefs.com/docs/zh/community/guide/cache#client-write-cache)
+* [社区版文档](https://juicefs.com/docs/zh/community/guide/cache/#client-write-cache)
 * [企业版文档](https://juicefs.com/docs/zh/cloud/guide/cache/#client-write-cache)
 
 正常在宿主机上使用，便已经是具有风险的功能，因此我们不推荐在 CSI 驱动中开启 `--writeback`，避免因为容器生命周期短，造成数据还来不及上传，容器就销毁了，导致数据丢失。
 
 在充分理解 `--writeback` 风险的前提下，如果你的场景必须使用该功能，那么请一定仔细阅读下列要点，保证集群正确配置，尽可能避免在 CSI 驱动中使用写缓存带来的额外风险：
 
-* 配置好缓存持久化，确保缓存目录不会随着容器销毁而丢失。具体配置方法阅读[缓存设置](../guide/cache.md)；
+* 配置好缓存持久化，确保缓存目录不会随着容器销毁而丢失。具体配置方法阅读[缓存设置](../guide/cache.md#cache-settings)；
 * 选择下列方法之一（也可以都采纳），实现在应用容器退出的情况下，也保证 JuiceFS 客户端有足够的时间将数据上传完成：
-  * 启用[延迟删除](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，mount pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
-  * 自 v0.24 起，CSI 驱动支持定制 mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 `preStop` 实现等待数据上传完成后，mount pod 才退出，示范如下：
+  * 启用[延迟删除 Mount Pod](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，mount pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
+  * 自 v0.24 起，CSI 驱动支持定制 mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，mount pod 才退出，示范如下：
 
-   ```yaml title="values-mycluster.yaml"
-   globalConfig:
-   mountPodPatch:
-     - terminationGracePeriodSeconds: 3600
-       lifecycle:
-         preStop:
-           exec:
-             command:
-             - sh
-             - -c
-             - |
-               set +e
-               # 改为实际缓存路径
-               staging_dir=/var/jfsCache/chaos-ee-test/rawstaging/
-               while :
-               do
-                 staging_files=$(find $staging_dir -type f | head -n 1)
-                 if [ -z "$staging_files" ]
-                 then
-                   echo "all staging files uploaded"
-                   umount ${MOUNT_POINT} -l
-                   rmdir ${MOUNT_POINT}
-                   exit 0
-                 else
-                   echo "waiting for staging files: $staging_files ..."
-                   sleep 3
-                 fi
-               done
-               exit 0
-   ```
+    ```yaml title="values-mycluster.yaml"
+    globalConfig:
+      mountPodPatch:
+        - terminationGracePeriodSeconds: 3600
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - sh
+                - -c
+                - |
+                  set +e
+
+                  # 获取保存写缓存数据的目录
+                  staging_dir="$(cat ${MOUNT_POINT}/.config | grep 'CacheDir' | cut -d '"' -f 4)/rawstaging/"
+
+                  # 等待写缓存目录中的文件全部上传完毕再退出
+                  if [ -d "$staging_dir" ]; then
+                    while :
+                    do
+                      staging_files=$(find $staging_dir -type f | head -n 1)
+                      if [ -z "$staging_files" ]; then
+                        echo "all staging files uploaded"
+                        break
+                      else
+                        echo "waiting for staging files: $staging_files ..."
+                        sleep 3
+                      fi
+                    done
+                  fi
+
+                  umount -l ${MOUNT_POINT}
+                  rmdir ${MOUNT_POINT}
+                  exit 0
+    ```
