@@ -107,6 +107,28 @@ globalConfig:
         # 退出时清理 cache
         juicefs-clean-cache: "true"
 
+      # 为 mount pod 注入 env
+    - pvcSelector:
+        matchLabels:
+          ...
+      env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+
+      # 挂载 volumes 到 mount pod
+    - pvcSelector:
+        matchLabels:
+          ...
+      volumeDevices:
+        - name: block-devices
+          devicePath: /dev/sda1
+      volumes:
+        - name: block-devices
+          persistentVolumeClaim:
+            claimName: block-pv
+        
       # 选择特定的 StorageClass
     - pvcSelector:
         matchStorageClassName: juicefs-sc
