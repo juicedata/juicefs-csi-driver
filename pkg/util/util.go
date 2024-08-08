@@ -31,11 +31,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
+    "bufio"
 
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/utils/io"
+    "k8s.io/apimachinery/pkg/api/errors"
+    "k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -298,6 +301,51 @@ func GetTime(str string) (time.Time, error) {
 	return time.Parse("2006-01-02 15:04:05", str)
 }
 
+func ShouldWait4WriteBack(pod *corev1.Pod) (e error) {
+    sourcePath, _, err := GetMountPathOfPod(*pod)
+    if err != nil {
+        klog.Error(err)
+        return err // retry
+    }
+
+    statPath := sourcePath
+    if (strings.HasSuffix(statPath, "/")) {
+        statPath = statPath + ".stats"
+    } else {
+        statPath = statPath + "/.stats"
+    }
+
+    file, err := os.Open(statPath)
+    if err != nil {
+        klog.Errorf("--- fail to open stat file: %s", statPath)
+        return nil  // go thru
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        line := scanner.Text()
+        if strings.HasPrefix(line, "juicefs_staging_blocks") {
+            fields := strings.Fields(line)
+            if len(fields) <= 1 {
+                klog.Errorf("--- error format: %s", line)
+                return nil  // go thru
+            }
+            klog.Infof("----- juicefs_staging_blocks: %s", fields[1])
+            if fields[1] == "0" {
+                return nil  // go thru
+            }
+            return errors.NewConflict(
+                schema.GroupResource{Group: "", Resource: ""}, "",
+                fmt.Errorf("--- pod %v has staging %s", pod.Name, fields[1]))
+        }
+    }
+
+    if err := scanner.Err(); err != nil {
+        klog.Errorf("--- %s scanner err: %v", statPath, err)
+    }
+    return nil  // go thru
+}
 func QuoteForShell(cmd string) string {
 	if strings.Contains(cmd, "(") {
 		cmd = strings.ReplaceAll(cmd, "(", "\\(")

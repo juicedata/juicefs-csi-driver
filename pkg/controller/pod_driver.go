@@ -179,6 +179,12 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
+        e1 := util.ShouldWait4WriteBack(pod)
+		if e1 != nil {
+            klog.Error(e1)
+			return e1
+		}
+
 		var shouldDelay bool
 		shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
 		if err != nil {

@@ -37,6 +37,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	k8sMount "k8s.io/utils/mount"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -184,7 +185,14 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 }
 
 func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+    var UmountBackoff = wait.Backoff{
+        Steps:    4,
+        Duration: 5 * time.Second,
+        Factor:   4.0,
+        Jitter:   0.1,
+        Cap:      10 * time.Minute,
+    }
+	err := retry.RetryOnConflict(UmountBackoff, func() error {
 		po, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -197,6 +205,11 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 		if GetRef(po) != 0 {
 			klog.V(5).Infof("JUmount: pod %s still has juicefs- refs.", podName)
 			return nil
+		}
+
+        err = util.ShouldWait4WriteBack(po)
+		if err != nil {
+			return err // a couple of retries
 		}
 
 		var shouldDelay bool
