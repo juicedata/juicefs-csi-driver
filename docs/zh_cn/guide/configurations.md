@@ -129,6 +129,15 @@ globalConfig:
           persistentVolumeClaim:
             claimName: block-pv
         
+      # 选择特定的 StorageClass
+    - pvcSelector:
+        matchStorageClassName: juicefs-sc
+      terminationGracePeriodSeconds: 60
+
+      # 选择特定的 PVC
+    - pvcSelector:
+        matchName: pvc-name
+      terminationGracePeriodSeconds: 60
 ```
 
 ### 通过继承 CSI Node 配置进行定制（不推荐） {#inherit-from-csi-node}
