@@ -386,10 +386,15 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
   * Enable [Delayed mount pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the mount pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the mount pod, so you can modify `terminationGracePeriodSeconds`, and then use [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) to wait for the data upload to complete before the mount pod exits. The demonstration is as follows:
 
+    :::warning
+    * After `preStop` is configured, if the write cache has not been uploaded successfully, when the mount pod exits abnormally (such as upgrading the mount pod), it will wait for the time set by the `terminationGracePeriodSeconds` parameter, thus affecting the upgrade process;
+    * Neither of the above two solutions can **fully guarantee** that all write cache data will be uploaded successfully.
+    :::
+
     ```yaml title="values-mycluster.yaml"
     globalConfig:
       mountPodPatch:
-        - terminationGracePeriodSeconds: 3600
+        - terminationGracePeriodSeconds: 3600  # Please adjust the waiting time when the container exits appropriately
           lifecycle:
             preStop:
               exec:
@@ -421,7 +426,3 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
-
-    What needs to be noted here is:
-    * If write cache not upload completely, and mount pod exits abnormally(normal situation is application pod umount), such as deleting mount pod to upgrade it, `preStop` here will stick `terminationGracePeriodSeconds` time and affect upgrade process;
-    * Neither of the above two solutions necessarily guarantees that the write cache can be uploaded completely.

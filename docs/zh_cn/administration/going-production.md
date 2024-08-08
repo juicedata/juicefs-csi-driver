@@ -386,10 +386,15 @@ authorization:
   * 启用[延迟删除 Mount Pod](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，mount pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
   * 自 v0.24 起，CSI 驱动支持[定制](../guide/configurations.md#customize-mount-pod) mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，mount pod 才退出，示范如下：
 
+    :::warning
+    * 配置了 `preStop` 后，若写缓存一直未上传成功，在 mount pod 非正常退出时（比如升级 mount pod），会等待 `terminationGracePeriodSeconds` 参数设定的时间，进而影响升级流程；
+    * 上述两种方案都不能**完全保证**所有写缓存数据都上传成功。
+    :::
+
     ```yaml title="values-mycluster.yaml"
     globalConfig:
       mountPodPatch:
-        - terminationGracePeriodSeconds: 3600
+        - terminationGracePeriodSeconds: 3600  # 请适当调整容器退出时的等待时间
           lifecycle:
             preStop:
               exec:
@@ -421,7 +426,3 @@ authorization:
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
-
-    需要注意的是：
-    * 配置了 `preStop` 后，若写缓存一直未上传成功，在 mount pod 非正常退出（正常退出为应用 pod 卸载），比如 mount pod 需要删除以升级时，会等待 `terminationGracePeriodSeconds` 时间，导致影响到升级；
-    * 上述两种方案都不能一定保证写缓存上传成功。
