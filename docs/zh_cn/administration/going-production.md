@@ -387,14 +387,14 @@ authorization:
   * 自 v0.24 起，CSI 驱动支持[定制](../guide/configurations.md#customize-mount-pod) mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，mount pod 才退出，示范如下：
 
     :::warning
-    * 配置了 `preStop` 后，若写缓存一直未上传成功，在 mount pod 非正常退出时（比如升级 mount pod），会等待 `terminationGracePeriodSeconds` 参数设定的时间，进而影响升级流程；
+    * 配置了 `preStop` 后，若写缓存一直未上传成功，mount pod 会一直等待 `terminationGracePeriodSeconds` 参数所设定的时间，长时间无法退出。这会影响某些操作的正常执行（如升级 mount pod），请充分测试并理解对应的风险；
     * 上述两种方案都不能**完全保证**所有写缓存数据都上传成功。
     :::
 
     ```yaml title="values-mycluster.yaml"
     globalConfig:
       mountPodPatch:
-        - terminationGracePeriodSeconds: 3600  # 请适当调整容器退出时的等待时间
+        - terminationGracePeriodSeconds: 600  # 请适当调整容器退出时的等待时间
           lifecycle:
             preStop:
               exec:

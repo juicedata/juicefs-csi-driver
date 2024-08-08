@@ -106,6 +106,38 @@ globalConfig:
         juicefs-delete-delay: 5m
         # 退出时清理 cache
         juicefs-clean-cache: "true"
+
+      # 为 mount pod 注入 env
+    - pvcSelector:
+        matchLabels:
+          ...
+      env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+
+      # 挂载 volumes 到 mount pod
+    - pvcSelector:
+        matchLabels:
+          ...
+      volumeDevices:
+        - name: block-devices
+          devicePath: /dev/sda1
+      volumes:
+        - name: block-devices
+          persistentVolumeClaim:
+            claimName: block-pv
+        
+      # 选择特定的 StorageClass
+    - pvcSelector:
+        matchStorageClassName: juicefs-sc
+      terminationGracePeriodSeconds: 60
+
+      # 选择特定的 PVC
+    - pvcSelector:
+        matchName: pvc-name
+      terminationGracePeriodSeconds: 60
 ```
 
 ### 通过继承 CSI Node 配置进行定制（不推荐） {#inherit-from-csi-node}

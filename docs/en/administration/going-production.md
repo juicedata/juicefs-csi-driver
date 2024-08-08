@@ -387,14 +387,14 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the mount pod, so you can modify `terminationGracePeriodSeconds`, and then use [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) to wait for the data upload to complete before the mount pod exits. The demonstration is as follows:
 
     :::warning
-    * After `preStop` is configured, if the write cache has not been uploaded successfully, when the mount pod exits abnormally (such as upgrading the mount pod), it will wait for the time set by the `terminationGracePeriodSeconds` parameter, thus affecting the upgrade process;
+    * After `preStop` is configured, if the write cache is not uploaded successfully, the mount pod will wait for the time set by the `terminationGracePeriodSeconds` parameter and cannot exit for a long time. This will affect the normal execution of certain operations (such as upgrading mount pod). Please fully test and understand the corresponding risks;
     * Neither of the above two solutions can **fully guarantee** that all write cache data will be uploaded successfully.
     :::
 
     ```yaml title="values-mycluster.yaml"
     globalConfig:
       mountPodPatch:
-        - terminationGracePeriodSeconds: 3600  # Please adjust the waiting time when the container exits appropriately
+        - terminationGracePeriodSeconds: 600  # Please adjust the waiting time when the container exits appropriately
           lifecycle:
             preStop:
               exec:
