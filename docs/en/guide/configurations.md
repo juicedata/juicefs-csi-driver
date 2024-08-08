@@ -108,6 +108,28 @@ globalConfig:
         juicefs-delete-delay: 5m
         # clean cache when mount pod exits
         juicefs-clean-cache: "true"
+
+      # define an environment variable for mount pod 
+    - pvcSelector:
+        matchLabels:
+          ...
+      env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+
+      # mount some volumes to mount pod
+    - pvcSelector:
+        matchLabels:
+          ...
+      volumeDevices:
+        - name: block-devices
+          devicePath: /dev/sda1
+      volumes:
+        - name: block-devices
+          persistentVolumeClaim:
+            claimName: block-pv
       
 ```
 
