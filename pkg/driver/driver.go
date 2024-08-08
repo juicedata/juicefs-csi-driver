@@ -34,6 +34,7 @@ import (
 
 // Driver struct
 type Driver struct {
+	csi.UnimplementedIdentityServer
 	controllerService
 	nodeService
 	provisionerService
