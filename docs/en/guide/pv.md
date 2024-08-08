@@ -341,6 +341,26 @@ After pod is up and running, you'll see `out.txt` being created by the container
 
 Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs,** if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](./configurations.md#static-mount-options).
 
+### Create via kubectl {#kubectl-sc}
+
+Different from our usual recommendations, we advise you against managing StorageClass via Helm, because StorageClass is associated with volume credentials in `values.yaml`, and people usually don't want plain text credentials in `values.yaml`.
+
+To create a StorageClass with kubectl, you must first prepare the [volume credentials](#volume-credentials) referenced in the StorageClass definition, create them in advance, and then fill in its information into the StorageClass definition shown below.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+reclaimPolicy: Retain
+```
+
 ### Create via Helm {#helm-sc}
 
 :::tip
@@ -375,24 +395,6 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-```
-
-### Create via kubectl
-
-[Volume credentials](#volume-credentials) is referenced in the StorageClass definition, so you'll have to create them in advance, and then fill in its information into the StorageClass definition shown below.
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-reclaimPolicy: Retain
 ```
 
 ## Dynamic provisioning {#dynamic-provisioning}

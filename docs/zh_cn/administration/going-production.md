@@ -386,10 +386,14 @@ authorization:
   * 启用[延迟删除](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，mount pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
   * 自 v0.24 起，CSI 驱动支持定制 mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 `preStop` 实现等待数据上传完成后，mount pod 才退出，示范如下：
 
+  :::warning
+  仔细阅读并合理调整下方代码块的各项设置和检测脚本，不当的设置可能导致 mount pod 长时间无法退出，请充分测试并理解对应的风险。
+  :::
+
    ```yaml title="values-mycluster.yaml"
    globalConfig:
    mountPodPatch:
-     - terminationGracePeriodSeconds: 3600
+     - terminationGracePeriodSeconds: 600
        lifecycle:
          preStop:
            exec:
