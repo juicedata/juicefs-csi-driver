@@ -41,6 +41,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	jfsResource "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
@@ -688,7 +689,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 	Convey("Test pod delete handler", t, func() {
 		Convey("umount fail", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+			patch1 := ApplyFunc(jfsResource.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
 				return "/test", "test", nil
 			})
 			defer patch1.Reset()
@@ -732,7 +733,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 		})
 		Convey("new pod create", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+			patch1 := ApplyFunc(jfsResource.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
 				return "/test", "test", nil
 			})
 			defer patch1.Reset()

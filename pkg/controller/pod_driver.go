@@ -316,7 +316,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	}
 
 	// get mount point
-	sourcePath, _, err := util.GetMountPathOfPod(*pod)
+	sourcePath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
 		klog.Error(err)
 		return Result{}, err
@@ -519,7 +519,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	// get mount point
-	mntPath, _, err := util.GetMountPathOfPod(*pod)
+	mntPath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
 		klog.Error(err)
 		return Result{}, err
@@ -762,7 +762,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
-	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
+	mountPoint, _, _ := resource.GetMountPathOfPod(*pod)
 	defer func() {
 		if runtime.GOOS == "linux" {
 			util.DevMinorTableDelete(mountPoint)

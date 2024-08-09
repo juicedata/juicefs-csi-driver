@@ -616,6 +616,203 @@ func TestParseSecret(t *testing.T) {
 	}
 }
 
+func Test_genCacheDirs(t *testing.T) {
+	type args struct {
+		JfsSetting JfsSetting
+		volCtx     map[string]string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    JfsSetting
+		wantErr bool
+	}{
+		{
+			name: "test-default",
+			args: args{
+				JfsSetting: JfsSetting{},
+			},
+			want: JfsSetting{
+				CacheDirs: []string{
+					"/var/jfsCache",
+				},
+				// default cache-dir is /var/jfsCache
+				// Options: []string{"cache-dir=/var/jfsCache"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-cache-pvcs",
+			args: args{
+				JfsSetting: JfsSetting{},
+				volCtx:     map[string]string{"juicefs/mount-cache-pvc": "abc,def"},
+			},
+			want: JfsSetting{
+				CachePVCs: []CachePVC{{PVCName: "abc", Path: "/var/jfsCache-0"}, {PVCName: "def", Path: "/var/jfsCache-1"}},
+				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-empty-dirs",
+			args: args{
+				JfsSetting: JfsSetting{},
+				volCtx:     map[string]string{"juicefs/mount-cache-emptydir": "Memory:1Gi"},
+			},
+			want: JfsSetting{
+				CacheEmptyDir: &CacheEmptyDir{
+					Path:      "/var/jfsCache-emptyDir",
+					SizeLimit: resource.MustParse("1Gi"),
+					Medium:    "Memory",
+				},
+				Options: []string{"cache-dir=/var/jfsCache-emptyDir"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-options",
+			args: args{
+				JfsSetting: JfsSetting{
+					Options: []string{"cache-dir=/tmp/abc"},
+				},
+			},
+			want: JfsSetting{
+				CacheDirs: []string{
+					"/tmp/abc",
+				},
+				Options: []string{"cache-dir=/tmp/abc"},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := genCacheDirs(&tt.args.JfsSetting, tt.args.volCtx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("genCacheDirs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(tt.args.JfsSetting, tt.want) {
+				t.Errorf("genCacheDirs() got = %v, want %v", tt.args.JfsSetting, tt.want)
+			}
+		})
+	}
+}
+
+func Test_genAndValidOptions(t *testing.T) {
+	type args struct {
+		JfsSetting *JfsSetting
+		options    []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "test-normal",
+			args: args{
+				JfsSetting: &JfsSetting{},
+				options:    []string{"cache-dir=xxx"},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-space1",
+			args: args{
+				JfsSetting: &JfsSetting{},
+				options:    []string{" cache-dir=xxx "},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-space2",
+			args: args{
+				JfsSetting: &JfsSetting{},
+				options:    []string{" cache-dir = xxx "},
+			},
+			want:    []string{"cache-dir=xxx"},
+			wantErr: false,
+		},
+		{
+			name: "test-error",
+			args: args{
+				JfsSetting: &JfsSetting{},
+				options:    []string{"cache-dir=xxx cache-size=1024"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "test-buffersize",
+			args: args{
+				JfsSetting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("1Mi"),
+							},
+						},
+					},
+				},
+				options: []string{"buffer-size=1024"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "test-buffersize-with-unit",
+			args: args{
+				JfsSetting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("1Mi"),
+							},
+						},
+					},
+				},
+				options: []string{"buffer-size=1024M"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "test-buffersize-with-unit",
+			args: args{
+				options: []string{"buffer-size=10M"},
+				JfsSetting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("10Mi"),
+							},
+						},
+					},
+				},
+			},
+			want:    []string{"buffer-size=10M"},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := genAndValidOptions(tt.args.JfsSetting, tt.args.options)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(tt.args.JfsSetting.Options, tt.want) {
+				t.Errorf("validOptions() got = %v, want %v", tt.args.JfsSetting.Options, tt.want)
+			}
+		})
+	}
+}
+
 func Test_parseYamlOrJson(t *testing.T) {
 	jsonDst := make(map[string]string)
 	yamlDst := make(map[string]string)

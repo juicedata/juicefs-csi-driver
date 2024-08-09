@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -799,7 +798,7 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 				klog.Error("Failed to get mount pod: ", err)
 				return
 			}
-			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
 				return
@@ -832,7 +831,7 @@ func (api *API) debugPod() gin.HandlerFunc {
 				klog.Error("Failed to get mount pod: ", err)
 				return
 			}
-			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
 				return
