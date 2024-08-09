@@ -33,6 +33,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
@@ -248,6 +249,9 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
+	if err := genAndValidOptions(&jfsSetting, options); err != nil {
+		return nil, fmt.Errorf("genAndValidOptions error: %v", err)
+	}
 	if err := genCacheDirs(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("genCacheDirs error: %v", err)
 	}
@@ -353,6 +357,39 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 		options = append(options, fmt.Sprintf("cache-dir=%s", strings.Join(cacheDirsInContainer, ":")))
 		jfsSetting.Options = options
 	}
+	return nil
+}
+
+func genAndValidOptions(JfsSetting *JfsSetting, options []string) error {
+	mountOptions := []string{}
+	for _, option := range options {
+		mountOption := strings.TrimSpace(option)
+		ops := strings.Split(mountOption, "=")
+		if len(ops) > 2 {
+			return fmt.Errorf("invalid mount option: %s", mountOption)
+		}
+		if len(ops) == 2 {
+			mountOption = fmt.Sprintf("%s=%s", strings.TrimSpace(ops[0]), strings.TrimSpace(ops[1]))
+		}
+		if mountOption == "writeback" {
+			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", JfsSetting.VolumeId)
+		}
+		if len(ops) == 2 && ops[0] == "buffer-size" {
+			memLimit := JfsSetting.Attr.Resources.Limits[corev1.ResourceMemory]
+			memLimitByte := memLimit.Value()
+
+			// buffer-size is in MiB, turn to byte
+			bufferSize, err := util.ParseToBytes(ops[1])
+			if err != nil {
+				return fmt.Errorf("invalid mount option: %s", mountOption)
+			}
+			if bufferSize > uint64(memLimitByte) {
+				return fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
+			}
+		}
+		mountOptions = append(mountOptions, mountOption)
+	}
+	JfsSetting.Options = mountOptions
 	return nil
 }
 

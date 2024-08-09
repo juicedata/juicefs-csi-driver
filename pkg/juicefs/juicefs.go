@@ -34,7 +34,6 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -348,13 +347,9 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 
 // Settings get all jfs settings and generate format/auth command
 func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	mountOptions, err := j.validOptions(volumeID, options, volCtx)
-	if err != nil {
-		return nil, err
-	}
-
 	var pv *corev1.PersistentVolume
 	var pvc *corev1.PersistentVolumeClaim
+	var err error
 	if j.K8sClient != nil {
 		pv, err = j.K8sClient.GetPersistentVolume(ctx, volumeID)
 		if err == nil {
@@ -377,7 +372,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx
 		}
 	}
 
-	jfsSetting, err := config.ParseSetting(secrets, volCtx, mountOptions, !config.ByProcess, pv, pvc)
+	jfsSetting, err := config.ParseSetting(secrets, volCtx, options, !config.ByProcess, pv, pvc)
 	if err != nil {
 		klog.V(5).Infof("Parse config for %s error: %v", secrets["name"], err)
 		return nil, err
@@ -533,45 +528,6 @@ func (j *juicefs) validTarget(target string) error {
 		return fmt.Errorf("target kubelet rootdir %s is not equal csi mounted kubelet root-dir %s", dirs[0], kubeletDir)
 	}
 	return nil
-}
-
-func (j *juicefs) validOptions(volumeId string, options []string, volCtx map[string]string) ([]string, error) {
-	mountOptions := []string{}
-	for _, option := range options {
-		mountOption := strings.TrimSpace(option)
-		ops := strings.Split(mountOption, "=")
-		if len(ops) > 2 {
-			return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
-		}
-		if len(ops) == 2 {
-			mountOption = fmt.Sprintf("%s=%s", strings.TrimSpace(ops[0]), strings.TrimSpace(ops[1]))
-		}
-		if mountOption == "writeback" {
-			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", volumeId)
-		}
-		if len(ops) == 2 && ops[0] == "buffer-size" {
-			rs := volCtx[config.MountPodMemLimitKey]
-			if rs == "" {
-				rs = config.DefaultMountPodMemLimit
-			}
-			memLimit, err := resource.ParseQuantity(rs)
-			if err != nil {
-				return []string{}, fmt.Errorf("invalid memory limit: %s", volCtx[config.MountPodMemLimitKey])
-			}
-			memLimitByte := memLimit.Value()
-
-			// buffer-size is in MiB, turn to byte
-			bufferSize, err := util.ParseToBytes(ops[1])
-			if err != nil {
-				return []string{}, fmt.Errorf("invalid mount option: %s", mountOption)
-			}
-			if bufferSize > uint64(memLimitByte) {
-				return []string{}, fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
-			}
-		}
-		mountOptions = append(mountOptions, mountOption)
-	}
-	return mountOptions, nil
 }
 
 func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
