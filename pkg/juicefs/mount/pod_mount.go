@@ -61,28 +61,36 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
 	hashVal := GenHashOfSetting(*jfsSetting)
 	jfsSetting.HashVal = hashVal
+	var podName string
+	var err error
 
-	lock := jfsConfig.GetPodLock(hashVal)
-	lock.Lock()
-	defer lock.Unlock()
+	if err = func() error {
+		lock := jfsConfig.GetPodLock(hashVal)
+		lock.Lock()
+		defer lock.Unlock()
 
-	podName, err := p.genMountPodName(ctx, jfsSetting)
-	if err != nil {
-		return err
-	}
-
-	// set mount pod name in app pod
-	if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
-		err = p.setMountLabel(ctx, jfsSetting.UniqueId, podName, appInfo.Name, appInfo.Namespace)
+		podName, err = p.genMountPodName(ctx, jfsSetting)
 		if err != nil {
 			return err
 		}
-	}
 
-	err = p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
-	if err != nil {
+		// set mount pod name in app pod
+		if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
+			err = p.setMountLabel(ctx, jfsSetting.UniqueId, podName, appInfo.Name, appInfo.Namespace)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
+		if err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
 		return err
 	}
+
 	err = p.waitUtilMountReady(ctx, jfsSetting, podName)
 	if err != nil {
 		return err
