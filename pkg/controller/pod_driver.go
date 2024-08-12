@@ -22,7 +22,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -546,25 +545,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		}
 		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, err)
 		return Result{}, err
-	}
-
-	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		finfo, e := os.Stat(mntPath)
-		if e != nil {
-			return e
-		}
-		var dev uint64
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				dev = uint64(st.Dev)
-				util.DevMinorTableStore(mntPath, dev)
-			}
-		}
-		return e
-	})
-	if e != nil {
-		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, e)
-		return Result{}, e
 	}
 
 	return Result{}, p.recover(ctx, pod, mntPath)
