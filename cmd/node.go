@@ -102,6 +102,9 @@ func parseNodeConfig() {
 			config.DefaultEEMountImage = mountPodImage
 		}
 	}
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		config.StorageClassShareMount = true
+	}
 
 	if config.PodName == "" || config.Namespace == "" {
 		klog.Fatalln("Pod name & namespace can't be null.")

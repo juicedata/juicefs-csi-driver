@@ -36,15 +36,16 @@ import (
 )
 
 var (
-	WebPort           = MustGetWebPort() // web port used by metrics
-	ByProcess         = false            // csi driver runs juicefs in process or not
-	FormatInPod       = false            // put format/auth in pod (only in k8s)
-	Provisioner       = false            // provisioner in controller
-	CacheClientConf   = false            // cache client config files and use directly in mount containers
-	MountManager      = false            // manage mount pod in controller (only in k8s)
-	Webhook           = false            // inject juicefs client as sidecar in pod (only in k8s)
-	ValidatingWebhook = false            // start validating webhook, applicable to ee only
-	Immutable         = false            // csi driver is running in an immutable environment
+	WebPort                = MustGetWebPort() // web port used by metrics
+	ByProcess              = false            // csi driver runs juicefs in process or not
+	FormatInPod            = false            // put format/auth in pod (only in k8s)
+	Provisioner            = false            // provisioner in controller
+	CacheClientConf        = false            // cache client config files and use directly in mount containers
+	MountManager           = false            // manage mount pod in controller (only in k8s)
+	Webhook                = false            // inject juicefs client as sidecar in pod (only in k8s)
+	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
+	Immutable              = false            // csi driver is running in an immutable environment
+	StorageClassShareMount = false            // share mount pod for the same storage class
 
 	DriverName               = "csi.juicefs.com"
 	NodeName                 = ""
@@ -136,6 +137,12 @@ const (
 	DefaultMountPodMemLimit   = "5Gi"
 	DefaultMountPodCpuRequest = "1000m"
 	DefaultMountPodMemRequest = "1Gi"
+
+	// secret labels
+	JuicefsSecretLabelKey = "juicefs/secret"
+
+	PodInfoName      = "csi.storage.k8s.io/pod.name"
+	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 )
 
 var interVolumesPrefix = []string{

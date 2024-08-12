@@ -39,12 +39,12 @@ import (
 	"k8s.io/klog"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
-	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
@@ -347,17 +347,9 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 
 // Settings get all jfs settings and generate format/auth command
 func (j *juicefs) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	var pv *corev1.PersistentVolume
-	var pvc *corev1.PersistentVolumeClaim
-	var err error
-	if j.K8sClient != nil {
-		pv, err = j.K8sClient.GetPersistentVolume(ctx, volumeID)
-		if err == nil {
-			pvc, err = j.K8sClient.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
-			if err != nil {
-				klog.Warningf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
-			}
-		}
+	pv, pvc, err := resource.GetPVWithVolumeHandleOrAppInfo(ctx, j.K8sClient, volumeID, volCtx)
+	if err != nil {
+		klog.Warningf("Get PV with volumeID %s error: %v", volumeID, err)
 	}
 	// overwrite volCtx with pvc annotations
 	if pvc != nil {
@@ -450,7 +442,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 //
 //	UniqueId set as volumeId
 func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, error) {
-	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" && !config.ByProcess {
+	if config.StorageClassShareMount && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -640,12 +632,12 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 
 	for {
 		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
-			_, err = k8sMount.PathExists(target)
+			_, err = mount.PathExists(target)
 			return
 		})
 		if err == nil {
 			return os.MkdirAll(target, os.FileMode(0755))
-		} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); corruptedMnt {
+		} else if corruptedMnt = mount.IsCorruptedMnt(err); corruptedMnt {
 			// if target is a corrupted mount, umount it
 			util.UmountPath(ctx, target)
 			continue
