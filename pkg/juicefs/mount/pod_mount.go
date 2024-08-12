@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -43,6 +44,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 type PodMount struct {
@@ -87,7 +89,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	}
 	if jfsSetting.UUID == "" {
 		// need set uuid as label in mount pod for clean cache
-		uuid, err := p.GetJfsVolUUID(ctx, jfsSetting.Source)
+		uuid, err := p.GetJfsVolUUID(ctx, jfsSetting)
 		if err != nil {
 			return err
 		}
@@ -515,10 +517,16 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 }
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
-func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
+func (p *PodMount) GetJfsVolUUID(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
-	stdout, err := p.Exec.CommandContext(cmdCtx, jfsConfig.CeCliPath, "status", name).CombinedOutput()
+	statusCmd := p.Exec.CommandContext(cmdCtx, jfsConfig.CeCliPath, "status", jfsSetting.Source)
+	envs := syscall.Environ()
+	for key, val := range jfsSetting.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+	}
+	statusCmd.SetEnv(envs)
+	stdout, err := statusCmd.CombinedOutput()
 	if err != nil {
 		re := string(stdout)
 		klog.Infof("juicefs status error: %v, output: '%s'", err, re)
@@ -533,7 +541,7 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, name string) (string, erro
 	idStr := matchExp.FindString(string(stdout))
 	idStrs := strings.Split(idStr, "\"")
 	if len(idStrs) < 4 {
-		return "", fmt.Errorf("get uuid of %s error", name)
+		return "", fmt.Errorf("get uuid of %s error", jfsSetting.Source)
 	}
 
 	return idStrs[3], nil

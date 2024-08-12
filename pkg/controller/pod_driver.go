@@ -22,6 +22,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -203,10 +204,6 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
 				return err
 			}
-			// close socket
-			if util.SupportFusePass(pod.Spec.Containers[0].Image) {
-				fuse.GlobalFds.StopFd(pod.Labels[config.PodJuiceHashLabelKey])
-			}
 			// delete related secret
 			secretName := pod.Name + "-secret"
 			klog.V(6).Infof("delete related secret of pod: %s", secretName)
@@ -320,7 +317,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	}
 
 	// get mount point
-	sourcePath, _, err := util.GetMountPathOfPod(*pod)
+	sourcePath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
 		klog.Error(err)
 		return Result{}, err
@@ -520,7 +517,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	// get mount point
-	mntPath, _, err := util.GetMountPathOfPod(*pod)
+	mntPath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
 		klog.Error(err)
 		return Result{}, err
@@ -549,6 +546,25 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		}
 		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, err)
 		return Result{}, err
+	}
+
+	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		finfo, e := os.Stat(mntPath)
+		if e != nil {
+			return e
+		}
+		var dev uint64
+		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+			if st.Ino == 1 {
+				dev = uint64(st.Dev)
+				util.DevMinorTableStore(mntPath, dev)
+			}
+		}
+		return e
+	})
+	if e != nil {
+		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, e)
+		return Result{}, e
 	}
 
 	return Result{}, p.recover(ctx, pod, mntPath)
@@ -765,7 +781,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
-	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
+	mountPoint, _, _ := resource.GetMountPathOfPod(*pod)
 	defer func() {
 		if runtime.GOOS == "linux" {
 			util.DevMinorTableDelete(mountPoint)

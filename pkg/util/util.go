@@ -35,11 +35,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/utils/io"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 const (
@@ -251,39 +248,6 @@ func GetReferenceKey(target string) string {
 	h := sha256.New()
 	h.Write([]byte(target))
 	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
-}
-
-func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
-	if len(pod.Spec.Containers) == 0 {
-		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
-	}
-	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
-		return "", "", fmt.Errorf("get error pod command:%v", cmd)
-	}
-	sourcePath, volumeId, err := ParseMntPath(cmd[2])
-	if err != nil {
-		return "", "", err
-	}
-	return sourcePath, volumeId, nil
-}
-
-// ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
-func ParseMntPath(cmd string) (string, string, error) {
-	cmds := strings.Split(cmd, "\n")
-	mountCmd := cmds[len(cmds)-1]
-	args := strings.Fields(mountCmd)
-	if args[0] == "exec" {
-		args = args[1:]
-	}
-	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
-		return "", "", fmt.Errorf("err cmd:%s", cmd)
-	}
-	argSlice := strings.Split(args[2], "/")
-	if len(argSlice) < 3 {
-		return "", "", fmt.Errorf("err mntPath:%s", args[2])
-	}
-	return args[2], argSlice[2], nil
 }
 
 // GetTimeAfterDelay get time which after delay

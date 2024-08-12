@@ -70,6 +70,23 @@ MountPodPatch:
       periodSeconds: 5
       successThreshold: 1
   - terminationGracePeriodSeconds: 60
+  - env:
+    - name: TEST_ENV
+      value: "1"
+  - volumeMounts:
+    - name: test-volume
+      mountPath: /test
+    volumes:
+    - name: test-volume
+      hostPath:
+        path: /tmp
+  - volumeDevices:
+    - name: block-devices
+      devicePath: /dev/sda
+    volumes:
+    - name: block-devices
+      persistentVolumeClaim:
+        claimName: block-pvc
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -83,7 +100,7 @@ MountPodPatch:
 	}
 	defer GlobalConfig.Reset()
 	// Check the loaded config
-	assert.Equal(t, len(GlobalConfig.MountPodPatch), 6)
+	assert.Equal(t, len(GlobalConfig.MountPodPatch), 9)
 	assert.Equal(t, GlobalConfig.MountPodPatch[0], MountPodPatch{
 		CEMountImage: "juicedata/mount:ce-test",
 		EEMountImage: "juicedata/mount:ee-test",
@@ -138,6 +155,50 @@ MountPodPatch:
 	})
 	assert.Equal(t, GlobalConfig.MountPodPatch[5], MountPodPatch{
 		TerminationGracePeriodSeconds: toPtr(int64(60)),
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[6], MountPodPatch{
+		Env: []corev1.EnvVar{
+			{
+				Name:  "TEST_ENV",
+				Value: "1",
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[7], MountPodPatch{
+		Volumes: []corev1.Volume{
+			{
+				Name: "test-volume",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/tmp",
+					},
+				},
+			},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "test-volume",
+				MountPath: "/test",
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[8], MountPodPatch{
+		Volumes: []corev1.Volume{
+			{
+				Name: "block-devices",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "block-pvc",
+					},
+				},
+			},
+		},
+		VolumeDevices: []corev1.VolumeDevice{
+			{
+				Name:       "block-devices",
+				DevicePath: "/dev/sda",
+			},
+		},
 	})
 }
 
@@ -301,6 +362,55 @@ func TestGenMountPodPatch(t *testing.T) {
 					},
 				},
 				HostNetwork: toPtr(false),
+			},
+		},
+		{
+			name: "ignore some volumes",
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						Volumes: []corev1.Volume{
+							{
+								Name: "volume-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/tmp",
+									},
+								},
+							},
+							{
+								Name: "volume-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/tmp",
+									},
+								},
+							},
+							{
+								Name: "cachedir-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/cache",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels:      map[string]string{},
+				Annotations: map[string]string{},
+				Volumes: []corev1.Volume{
+					{
+						Name: "volume-1",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/tmp",
+							},
+						},
+					},
+				},
 			},
 		},
 	}

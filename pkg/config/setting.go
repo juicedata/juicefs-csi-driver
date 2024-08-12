@@ -33,6 +33,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
@@ -98,13 +99,17 @@ type PodAttr struct {
 
 	Resources corev1.ResourceRequirements
 
-	Labels                        map[string]string `json:"labels,omitempty"`
-	Annotations                   map[string]string `json:"annotations,omitempty"`
-	LivenessProbe                 *corev1.Probe     `json:"livenessProbe,omitempty"`
-	ReadinessProbe                *corev1.Probe     `json:"readinessProbe,omitempty"`
-	StartupProbe                  *corev1.Probe     `json:"startupProbe,omitempty"`
-	Lifecycle                     *corev1.Lifecycle `json:"lifecycle,omitempty"`
-	TerminationGracePeriodSeconds *int64            `json:"terminationGracePeriodSeconds,omitempty"`
+	Labels                        map[string]string     `json:"labels,omitempty"`
+	Annotations                   map[string]string     `json:"annotations,omitempty"`
+	LivenessProbe                 *corev1.Probe         `json:"livenessProbe,omitempty"`
+	ReadinessProbe                *corev1.Probe         `json:"readinessProbe,omitempty"`
+	StartupProbe                  *corev1.Probe         `json:"startupProbe,omitempty"`
+	Lifecycle                     *corev1.Lifecycle     `json:"lifecycle,omitempty"`
+	TerminationGracePeriodSeconds *int64                `json:"terminationGracePeriodSeconds,omitempty"`
+	Volumes                       []corev1.Volume       `json:"volumes,omitempty"`
+	VolumeDevices                 []corev1.VolumeDevice `json:"volumeDevices,omitempty"`
+	VolumeMounts                  []corev1.VolumeMount  `json:"volumeMounts,omitempty"`
+	Env                           []corev1.EnvVar       `json:"env,omitempty"`
 
 	// inherit from csi
 	Image            string
@@ -172,106 +177,6 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	jfsSetting.CachePVCs = []CachePVC{}
 	jfsSetting.PV = pv
 	jfsSetting.PVC = pvc
-
-	// parse pvc of cache
-	dirs := []string{}
-	if volCtx != nil && volCtx[cachePVC] != "" {
-		cachePVCs := strings.Split(strings.TrimSpace(volCtx[cachePVC]), ",")
-		for i, pvc := range cachePVCs {
-			if pvc == "" {
-				continue
-			}
-			volPath := fmt.Sprintf("/var/jfsCache-%d", i)
-			jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, CachePVC{
-				PVCName: pvc,
-				Path:    volPath,
-			})
-			dirs = append(dirs, volPath)
-		}
-	}
-	// parse emptydir of cache
-	if volCtx != nil {
-		if _, ok := volCtx[cacheEmptyDir]; ok {
-			volPath := "/var/jfsCache-emptyDir"
-			dirs = append(dirs, volPath)
-			cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[cacheEmptyDir]), ":")
-			var (
-				medium    string
-				sizeLimit string
-			)
-			if len(cacheEmptyDirs) == 1 {
-				medium = strings.TrimSpace(cacheEmptyDirs[0])
-			}
-			if len(cacheEmptyDirs) == 2 {
-				medium = strings.TrimSpace(cacheEmptyDirs[0])
-				sizeLimit = strings.TrimSpace(cacheEmptyDirs[1])
-			}
-			jfsSetting.CacheEmptyDir = &CacheEmptyDir{
-				Medium: medium,
-				Path:   volPath,
-			}
-			klog.Infof("sizeLimit of emptyDir is %s", sizeLimit)
-			if sizeLimit != "" {
-				if jfsSetting.CacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
-	// parse inline volume of cache
-	if volCtx != nil {
-		if _, ok := volCtx[cacheInlineVolume]; ok {
-			inlineVolumes := []*corev1.CSIVolumeSource{}
-			err = json.Unmarshal([]byte(volCtx[cacheInlineVolume]), &inlineVolumes)
-			if err != nil {
-				return nil, fmt.Errorf("parse cache inline volume error: %v", err)
-			}
-			jfsSetting.CacheInlineVolumes = make([]*CacheInlineVolume, 0)
-			klog.V(6).Infof("get cache inline volume: %v", inlineVolumes)
-
-			for i, inlineVolume := range inlineVolumes {
-				volPath := fmt.Sprintf("/var/jfsCache-inlineVolume-%d", i)
-				dirs = append(dirs, volPath)
-				jfsSetting.CacheInlineVolumes = append(jfsSetting.CacheInlineVolumes, &CacheInlineVolume{
-					CSI:  inlineVolume,
-					Path: volPath,
-				})
-			}
-		}
-	}
-
-	// parse cacheDir in option
-	var cacheDirs []string
-	for i, o := range options {
-		if strings.HasPrefix(o, "cache-dir") {
-			optValPair := strings.Split(o, "=")
-			if len(optValPair) != 2 {
-				continue
-			}
-			cacheDirs = strings.Split(strings.TrimSpace(optValPair[1]), ":")
-			dirs = append(dirs, cacheDirs...)
-			options = append(options[:i], options[i+1:]...)
-			break
-		}
-	}
-
-	cacheDir := strings.Join(dirs, ":")
-	if cacheDir != "" {
-		// replace cacheDir in option
-		options = append(options, fmt.Sprintf("cache-dir=%s", cacheDir))
-		jfsSetting.Options = options
-	}
-
-	if len(dirs) == 0 {
-		// set default cache dir
-		cacheDirs = []string{"/var/jfsCache"}
-	}
-	for _, d := range cacheDirs {
-		if d != "memory" {
-			// filter out "memory"
-			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, d)
-		}
-	}
 
 	jfsSetting.UsePod = usePod
 	jfsSetting.Source = jfsSetting.Name
@@ -344,7 +249,148 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
+	if err := genAndValidOptions(&jfsSetting, options); err != nil {
+		return nil, fmt.Errorf("genAndValidOptions error: %v", err)
+	}
+	if err := genCacheDirs(&jfsSetting, volCtx); err != nil {
+		return nil, fmt.Errorf("genCacheDirs error: %v", err)
+	}
 	return &jfsSetting, nil
+}
+
+func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
+	cacheDirsInContainer := []string{}
+	var err error
+	// parse pvc of cache
+	if volCtx != nil && volCtx[cachePVC] != "" {
+		cachePVCs := strings.Split(strings.TrimSpace(volCtx[cachePVC]), ",")
+		for i, pvc := range cachePVCs {
+			if pvc == "" {
+				continue
+			}
+			volPath := fmt.Sprintf("/var/jfsCache-%d", i)
+			jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, CachePVC{
+				PVCName: pvc,
+				Path:    volPath,
+			})
+			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+		}
+	}
+	// parse emptydir of cache
+	if volCtx != nil {
+		if _, ok := volCtx[cacheEmptyDir]; ok {
+			volPath := "/var/jfsCache-emptyDir"
+			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+			cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[cacheEmptyDir]), ":")
+			var (
+				medium    string
+				sizeLimit string
+			)
+			if len(cacheEmptyDirs) == 1 {
+				medium = strings.TrimSpace(cacheEmptyDirs[0])
+			}
+			if len(cacheEmptyDirs) == 2 {
+				medium = strings.TrimSpace(cacheEmptyDirs[0])
+				sizeLimit = strings.TrimSpace(cacheEmptyDirs[1])
+			}
+			jfsSetting.CacheEmptyDir = &CacheEmptyDir{
+				Medium: medium,
+				Path:   volPath,
+			}
+			klog.Infof("sizeLimit of emptyDir is %s", sizeLimit)
+			if sizeLimit != "" {
+				if jfsSetting.CacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	// parse inline volume of cache
+	if volCtx != nil {
+		if _, ok := volCtx[cacheInlineVolume]; ok {
+			inlineVolumes := []*corev1.CSIVolumeSource{}
+			err = json.Unmarshal([]byte(volCtx[cacheInlineVolume]), &inlineVolumes)
+			if err != nil {
+				return fmt.Errorf("parse cache inline volume error: %v", err)
+			}
+			jfsSetting.CacheInlineVolumes = make([]*CacheInlineVolume, 0)
+			klog.V(6).Infof("get cache inline volume: %v", inlineVolumes)
+
+			for i, inlineVolume := range inlineVolumes {
+				volPath := fmt.Sprintf("/var/jfsCache-inlineVolume-%d", i)
+				cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+				jfsSetting.CacheInlineVolumes = append(jfsSetting.CacheInlineVolumes, &CacheInlineVolume{
+					CSI:  inlineVolume,
+					Path: volPath,
+				})
+			}
+		}
+	}
+	// parse cache dirs in option
+	var cacheDirsInOptions []string
+	options := jfsSetting.Options
+	for i, o := range options {
+		if strings.HasPrefix(o, "cache-dir") {
+			optValPair := strings.Split(o, "=")
+			if len(optValPair) != 2 {
+				continue
+			}
+			cacheDirsInOptions = strings.Split(strings.TrimSpace(optValPair[1]), ":")
+			cacheDirsInContainer = append(cacheDirsInContainer, cacheDirsInOptions...)
+			options = append(options[:i], options[i+1:]...)
+			break
+		}
+	}
+	if len(cacheDirsInContainer) == 0 {
+		// set default cache dir
+		cacheDirsInOptions = []string{"/var/jfsCache"}
+	}
+	for _, d := range cacheDirsInOptions {
+		if d != "memory" {
+			// filter out "memory"
+			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, d)
+		}
+	}
+
+	// replace cacheDir in option
+	if len(cacheDirsInContainer) > 0 {
+		options = append(options, fmt.Sprintf("cache-dir=%s", strings.Join(cacheDirsInContainer, ":")))
+		jfsSetting.Options = options
+	}
+	return nil
+}
+
+func genAndValidOptions(JfsSetting *JfsSetting, options []string) error {
+	mountOptions := []string{}
+	for _, option := range options {
+		mountOption := strings.TrimSpace(option)
+		ops := strings.Split(mountOption, "=")
+		if len(ops) > 2 {
+			return fmt.Errorf("invalid mount option: %s", mountOption)
+		}
+		if len(ops) == 2 {
+			mountOption = fmt.Sprintf("%s=%s", strings.TrimSpace(ops[0]), strings.TrimSpace(ops[1]))
+		}
+		if mountOption == "writeback" {
+			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", JfsSetting.VolumeId)
+		}
+		if len(ops) == 2 && ops[0] == "buffer-size" {
+			memLimit := JfsSetting.Attr.Resources.Limits[corev1.ResourceMemory]
+			memLimitByte := memLimit.Value()
+
+			// buffer-size is in MiB, turn to byte
+			bufferSize, err := util.ParseToBytes(ops[1])
+			if err != nil {
+				return fmt.Errorf("invalid mount option: %s", mountOption)
+			}
+			if bufferSize > uint64(memLimitByte) {
+				return fmt.Errorf("buffer-size %s MiB is greater than pod memory limit %s", ops[1], memLimit.String())
+			}
+		}
+		mountOptions = append(mountOptions, mountOption)
+	}
+	JfsSetting.Options = mountOptions
+	return nil
 }
 
 func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
@@ -684,6 +730,10 @@ func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
 	attr.ReadinessProbe = patch.ReadinessProbe
 	attr.StartupProbe = patch.StartupProbe
 	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
+	attr.VolumeDevices = patch.VolumeDevices
+	attr.VolumeMounts = patch.VolumeMounts
+	attr.Volumes = patch.Volumes
+	attr.Env = patch.Env
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE

@@ -48,7 +48,7 @@ func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets
 	return new(config.JfsSetting), nil
 }
 
-func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, name string) (string, error) {
+func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
 	return "", nil
 }
 

@@ -332,7 +332,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -396,7 +396,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -428,7 +428,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -1038,7 +1038,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			id, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting{
+				Source: "test",
+				Envs:   map[string]string{},
+			}
+			id, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldBeNil)
 			So(id, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
 		})
@@ -1058,7 +1062,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			_, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting{
+				Source: "test",
+				Envs:   map[string]string{},
+			}
+			_, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -1200,106 +1208,6 @@ func Test_juicefs_validTarget(t *testing.T) {
 			j := &juicefs{}
 			if got := j.validTarget(tt.args.target); (got != nil) != tt.wantErr {
 				t.Errorf("validTarget() = %v, wantErr %v", got, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_juicefs_validOptions(t *testing.T) {
-	type args struct {
-		volumeId string
-		options  []string
-		volCtx   map[string]string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		wantErr bool
-	}{
-		{
-			name: "test-normal",
-			args: args{
-				volumeId: "test",
-				options:  []string{"cache-dir=xxx"},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-space1",
-			args: args{
-				volumeId: "test",
-				options:  []string{" cache-dir=xxx "},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-space2",
-			args: args{
-				volumeId: "test",
-				options:  []string{" cache-dir = xxx "},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-error",
-			args: args{
-				volumeId: "test",
-				options:  []string{"cache-dir=xxx cache-size=1024"},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=1024"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "1Mi",
-				},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize-with-unit",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=1024M"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "1Mi",
-				},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize-with-unit",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=10M"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "20Mi",
-				},
-			},
-			want:    []string{"buffer-size=10M"},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			j := &juicefs{}
-			got, err := j.validOptions(tt.args.volumeId, tt.args.options, tt.args.volCtx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("validOptions() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
