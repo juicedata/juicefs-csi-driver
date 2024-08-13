@@ -274,7 +274,11 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
+			if err != nil {
+				klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				klog.Errorf("[podErrorHandler] create pod:%s err:%v", pod.Name, err)
 			}
@@ -406,6 +410,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				if err := p.applyConfigPatch(ctx, newPod); err != nil {
 					klog.Errorf("apply config patch error, will ignore, err: %v", err)
 				}
+				err = mkrMp(ctx, *newPod)
+				if err != nil {
+					klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
@@ -494,7 +502,11 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
+			if err != nil {
+				klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				klog.Errorf("[podPendingHandler] create pod:%s err:%v", pod.Name, err)
 			}
@@ -831,6 +843,25 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			break
 		}
 		time.Sleep(10 * time.Second)
+	}
+	return nil
+}
+
+func mkrMp(ctx context.Context, pod corev1.Pod) error {
+	// mkdir mountpath
+	// get mount point
+	var mntPath string
+	var err error
+	mntPath, _, err = resource.GetMountPathOfPod(pod)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+		return os.MkdirAll(mntPath, 0777)
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }
