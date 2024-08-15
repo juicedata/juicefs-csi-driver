@@ -334,6 +334,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
 
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
 		if k == util.GetReferenceKey(v) {
@@ -354,13 +359,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
+		// stop fuse fd and clean up socket
+		go fuse.GlobalFds.StopFd(context.TODO(), hashVal)
 		return Result{}, nil
 	}
 
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
 	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
@@ -565,7 +568,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			mi := p.mit.resolveTarget(target)
+			mi := p.mit.resolveTarget(ctx, target)
 			if mi == nil {
 				klog.Errorf("[podReadyHandler] pod %s target %s resolve fail", pod.Name, target)
 				continue
@@ -623,7 +626,10 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
-			_, err := os.Stat(sourcePath)
+			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				_, err = os.Stat(sourcePath)
+				return err
+			})
 			if err != nil {
 				klog.Errorf("pod %s target %s, stat volPath: %s err: %v, don't do recovery", podName, ti.target, sourcePath, err)
 				break
@@ -663,7 +669,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 			return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
 		}
 
-		mi := mit.resolveTarget(basemi.baseTarget.target)
+		mi := mit.resolveTarget(ctx, basemi.baseTarget.target)
 		if mi == nil {
 			return fmt.Errorf("pod target %s resolve fail", target)
 		}
@@ -848,6 +854,22 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 }
 
 func mkrMp(ctx context.Context, pod corev1.Pod) error {
+	var shouldMkrMp bool
+	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		cn := pod.Spec.Containers[0]
+		if cn.Lifecycle != nil && cn.Lifecycle.PreStop != nil && cn.Lifecycle.PreStop.Exec != nil {
+			for _, cmd := range cn.Lifecycle.PreStop.Exec.Command {
+				if strings.Contains(cmd, "rmdir") {
+					shouldMkrMp = true
+				}
+			}
+		}
+	} else {
+		shouldMkrMp = true
+	}
+	if !shouldMkrMp {
+		return nil
+	}
 	// mkdir mountpath
 	// get mount point
 	var mntPath string

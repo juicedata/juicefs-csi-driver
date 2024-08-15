@@ -123,7 +123,11 @@ func parseNodeConfig() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
-	fuse.InitGlobalFds("/tmp")
+	err = fuse.InitGlobalFds(context.TODO(), "/tmp")
+	if err != nil {
+		klog.Errorf("Init global fds error: %v", err)
+		os.Exit(0)
+	}
 }
 
 func nodeRun(ctx context.Context) {

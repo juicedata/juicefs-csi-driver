@@ -376,7 +376,7 @@ func TestNewMountPod(t *testing.T) {
 			r := PodBuilder{
 				BaseBuilder: BaseBuilder{jfsSetting, 0},
 			}
-			got := r.NewMountPod(podName)
+			got, _ := r.NewMountPod(podName)
 			gotStr, _ := json.Marshal(got)
 			wantStr, _ := json.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {

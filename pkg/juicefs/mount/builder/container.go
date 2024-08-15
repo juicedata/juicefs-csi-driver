@@ -48,7 +48,7 @@ func NewContainerBuilder(setting *config.JfsSetting, capacity int64) SidecarInte
 // exactly the same spec as Mount Pod
 // except fuse passfd path
 func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
-	pod := r.NewMountPod("")
+	pod, _ := r.NewMountPod("")
 	// no annotation and label for sidecar
 	pod.Annotations = map[string]string{}
 	pod.Labels = map[string]string{}

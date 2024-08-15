@@ -220,7 +220,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				fuse.GlobalFds.StopFd(po.Labels[jfsConfig.PodJuiceHashLabelKey])
+				fuse.GlobalFds.StopFd(ctx, po.Labels[jfsConfig.PodJuiceHashLabelKey])
 			}
 
 			// delete related secret
@@ -352,7 +352,11 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 			if k8serrors.IsNotFound(err) {
 				// pod not exist, create
 				klog.V(5).Infof("createOrAddRef: Need to create pod %s.", podName)
-				newPod := r.NewMountPod(podName)
+				newPod, err := r.NewMountPod(podName)
+				if err != nil {
+					klog.Errorf("Make new mount pod %s error: %v", podName, err)
+					return err
+				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = jfsSetting.HashVal
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
@@ -379,7 +383,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := fuse.GlobalFds.ServeFuseFd(newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
+					if err := fuse.GlobalFds.ServeFuseFd(ctx, newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
 						klog.Error(err)
 					}
 				}

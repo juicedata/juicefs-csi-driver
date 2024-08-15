@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -44,7 +45,7 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 }
 
 // NewMountPod generates a pod with juicefs client
-func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
+func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	pod := r.genCommonJuicePod(r.genCommonContainer)
 
 	pod.Name = podName
@@ -62,9 +63,13 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 
 	// inject fuse fd
 	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		fdAddress, err := fuse.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
+		if err != nil {
+			return nil, err
+		}
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name:  JfsCommEnv,
-			Value: fuse.GlobalFds.GetFdAddress(r.jfsSetting.HashVal),
+			Value: fdAddress,
 		})
 	}
 
@@ -94,7 +99,7 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 		pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices, r.jfsSetting.Attr.VolumeDevices...)
 	}
 
-	return pod
+	return pod, nil
 }
 
 // genCommonContainer: generate common privileged container

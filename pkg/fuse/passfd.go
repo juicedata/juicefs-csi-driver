@@ -41,15 +41,13 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitGlobalFds(basePath string) {
+func InitGlobalFds(ctx context.Context, basePath string) error {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
 		basePath: basePath,
 		fds:      make(map[string]*fd),
 	}
-	if err := GlobalFds.ParseFuseFds(basePath); err != nil {
-		return
-	}
+	return GlobalFds.ParseFuseFds(ctx, basePath)
 }
 
 func InitTestFds() {
@@ -59,9 +57,14 @@ func InitTestFds() {
 	}
 }
 
-func (fs *Fds) ParseFuseFds(basePath string) error {
+func (fs *Fds) ParseFuseFds(ctx context.Context, basePath string) error {
 	klog.V(6).Infof("parse fuse fd in basePath %s", basePath)
-	entries, err := os.ReadDir(basePath)
+	var entries []os.DirEntry
+	var err error
+	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		entries, err = os.ReadDir(basePath)
+		return err
+	})
 	if err != nil {
 		klog.Errorf("read dir %s: %s", basePath, err)
 		return err
@@ -70,7 +73,11 @@ func (fs *Fds) ParseFuseFds(basePath string) error {
 		if !entry.IsDir() {
 			continue
 		}
-		subEntries, err := os.ReadDir(path.Join(basePath, entry.Name()))
+		var subEntries []os.DirEntry
+		err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+			subEntries, err = os.ReadDir(path.Join(basePath, entry.Name()))
+			return err
+		})
 		if err != nil {
 			klog.Errorf("read dir %s: %s", basePath, err)
 			return err
@@ -78,22 +85,27 @@ func (fs *Fds) ParseFuseFds(basePath string) error {
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
 				klog.V(6).Infof("parse fuse fd in %s", subEntry.Name())
-				fs.parseFuse(entry.Name(), path.Join(basePath, entry.Name(), subEntry.Name()))
+				fs.parseFuse(ctx, entry.Name(), path.Join(basePath, entry.Name(), subEntry.Name()))
 			}
 		}
 	}
 	return nil
 }
 
-func (fs *Fds) GetFdAddress(podHashVal string) string {
+func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, error) {
 	if f, ok := fs.fds[podHashVal]; ok {
-		return f.serverAddressInPod
+		return f.serverAddressInPod, nil
 	}
 
 	address := path.Join("/tmp", podHashVal, "fuse_fd_csi_comm.sock")
 	addressInPod := path.Join("/tmp", "fuse_fd_csi_comm.sock")
 	// mkdir parent
-	_ = os.MkdirAll(path.Join("/tmp", podHashVal), 0777)
+	err := util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		return os.MkdirAll(path.Join("/tmp", podHashVal), 0777)
+	})
+	if err != nil {
+		return "", err
+	}
 	fs.globalMu.Lock()
 	fs.fds[podHashVal] = &fd{
 		fuseMu:             sync.Mutex{},
@@ -105,13 +117,18 @@ func (fs *Fds) GetFdAddress(podHashVal string) string {
 	}
 	fs.globalMu.Unlock()
 
-	return addressInPod
+	return addressInPod, nil
 }
 
-func (fs *Fds) StopFd(podHashVal string) {
+func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
 	fs.globalMu.Lock()
 	f := fs.fds[podHashVal]
 	if f == nil {
+		serverParentPath := path.Join("/tmp", podHashVal)
+		_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+			_ = os.RemoveAll(serverParentPath)
+			return nil
+		})
 		fs.globalMu.Unlock()
 		return
 	}
@@ -120,7 +137,10 @@ func (fs *Fds) StopFd(podHashVal string) {
 	delete(fs.fds, podHashVal)
 
 	serverParentPath := path.Join("/tmp", podHashVal)
-	_ = os.RemoveAll(serverParentPath)
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		_ = os.RemoveAll(serverParentPath)
+		return nil
+	})
 	fs.globalMu.Unlock()
 }
 
@@ -138,7 +158,7 @@ func (fs *Fds) CloseFd(podHashVal string) {
 	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) parseFuse(podHashVal, fusePath string) {
+func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fuseFd, fuseSetting := getFuseFd(fusePath)
 	if fuseFd <= 0 {
 		return
@@ -162,7 +182,7 @@ func (fs *Fds) parseFuse(podHashVal, fusePath string) {
 	fs.fds[podHashVal] = f
 	fs.globalMu.Unlock()
 
-	fs.serveFuseFD(podHashVal)
+	fs.serveFuseFD(ctx, podHashVal)
 }
 
 type fd struct {
@@ -176,29 +196,37 @@ type fd struct {
 	serverAddressInPod string // server path in pod
 }
 
-func (fs *Fds) ServeFuseFd(podHashVal string) error {
+func (fs *Fds) ServeFuseFd(ctx context.Context, podHashVal string) error {
 	if _, ok := fs.fds[podHashVal]; ok {
-		fs.serveFuseFD(podHashVal)
+		fs.serveFuseFD(ctx, podHashVal)
 		return nil
 	}
 	return fmt.Errorf("fuse fd of podHashVal %s not found in global fuse fds", podHashVal)
 }
 
-func (fs *Fds) serveFuseFD(podHashVal string) {
+func (fs *Fds) serveFuseFD(ctx context.Context, podHashVal string) {
 	f := fs.fds[podHashVal]
 	if f == nil {
 		return
 	}
 
 	klog.V(6).Infof("serve fuse fd: %v, path: %s", f.fuseFd, f.serverAddress)
-	_ = os.Remove(f.serverAddress)
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		_ = os.Remove(f.serverAddress)
+		return nil
+	})
 	sock, err := net.Listen("unix", f.serverAddress)
 	if err != nil {
 		klog.Error(err)
 		return
 	}
 	go func() {
-		defer os.Remove(f.serverAddress)
+		defer func() {
+			_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+				_ = os.Remove(f.serverAddress)
+				return nil
+			})
+		}()
 		defer sock.Close()
 		<-f.done
 		_ = syscall.Close(f.fuseFd)
