@@ -327,6 +327,9 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 				if err != nil {
 					return nil, nil, err
 				}
+				if pvc.Spec.VolumeName == "" {
+					continue
+				}
 				appPV, err := client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
 				if err != nil {
 					return nil, nil, err
@@ -336,10 +339,8 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 				}
 			}
 		}
-	} else {
-		if err != nil {
-			return nil, nil, err
-		}
+	} else if err != nil {
+		return nil, nil, err
 	}
 
 	if pv == nil {

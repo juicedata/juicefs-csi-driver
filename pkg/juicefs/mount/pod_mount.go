@@ -316,11 +316,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
-	secretHandle := jfsSetting.VolumeId
-	if jfsConfig.StorageClassShareMount {
-		secretHandle = jfsSetting.UniqueId
-	}
-	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", secretHandle)
+	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
 	builder.SetPVAsOwner(&secret, jfsSetting.PV)
