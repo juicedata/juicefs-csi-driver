@@ -326,15 +326,8 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 ---
 kind: StatefulSet
 apiVersion: apps/v1
@@ -555,6 +548,8 @@ spec:
               name: jfs-root-dir
             - mountPath: /etc/config
               name: juicefs-config
+            - mountPath: /tmp
+              name: jfs-fuse-fd
           ports:
             - name: healthz
               containerPort: 9909
@@ -625,6 +620,10 @@ spec:
             defaultMode: 420
             name: juicefs-csi-driver-config
           name: juicefs-config
+        - hostPath:
+            path: /var/run/juicefs-csi
+            type: DirectoryOrCreate
+          name: jfs-fuse-fd
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration

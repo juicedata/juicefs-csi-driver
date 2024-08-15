@@ -19,7 +19,9 @@ package util
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -320,9 +322,22 @@ func DoWithContext(ctx context.Context, f func() error) error {
 }
 
 func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	defer cancel()
-	return DoWithContext(ctx, f)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	doneCh := make(chan error)
+	go func() {
+		doneCh <- f()
+	}()
+
+	select {
+	case <-parent.Done():
+		return parent.Err()
+	case <-timer.C:
+		return errors.New("function timeout")
+	case err := <-doneCh:
+		return err
+	}
 }
 
 func CheckDynamicPV(name string) (bool, error) {
@@ -430,4 +445,96 @@ func ParseToBytes(value string) (uint64, error) {
 	val *= float64(uint64(1) << shift)
 
 	return uint64(val), nil
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err) //skip mutate
+}
+
+type ClientVersion struct {
+	IsCe  bool
+	Dev   bool
+	Major int
+	Minor int
+	Patch int
+}
+
+const ceImageRegex = `ce-v(\d+)\.(\d+)\.(\d+)`
+const eeImageRegex = `ee-(\d+)\.(\d+)\.(\d+)`
+
+func (v ClientVersion) LessThan(o ClientVersion) bool {
+	if o.Dev {
+		// dev version is always greater
+		return true
+	}
+	if v.Dev {
+		return false
+	}
+	if o.Major > v.Major {
+		return true
+	}
+	if o.Minor > v.Minor {
+		return true
+	}
+	if o.Patch > v.Patch {
+		return true
+	}
+	return false
+}
+
+func parseClientVersion(image string) ClientVersion {
+	if image == "" {
+		return ClientVersion{}
+	}
+	imageSplits := strings.SplitN(image, ":", 2)
+	if len(imageSplits) < 2 {
+		// latest
+		return ClientVersion{IsCe: true, Major: math.MaxInt32}
+	}
+	_, tag := imageSplits[0], imageSplits[1]
+	version := ClientVersion{Dev: true}
+	var re *regexp.Regexp
+
+	if strings.HasPrefix(tag, "ce-") {
+		version.IsCe = true
+		re = regexp.MustCompile(ceImageRegex)
+	} else if strings.HasPrefix(tag, "ee-") {
+		version.IsCe = false
+		re = regexp.MustCompile(eeImageRegex)
+	}
+
+	if re != nil {
+		matches := re.FindStringSubmatch(tag)
+		if len(matches) == 4 {
+			version.Major, _ = strconv.Atoi(matches[1])
+			version.Minor, _ = strconv.Atoi(matches[2])
+			version.Patch, _ = strconv.Atoi(matches[3])
+			version.Dev = false
+		}
+	}
+
+	return version
+}
+
+func SupportFusePass(image string) bool {
+	v := parseClientVersion(image)
+	ceFuseVersion := ClientVersion{
+		IsCe:  true,
+		Dev:   false,
+		Major: 1,
+		Minor: 2,
+		Patch: 1,
+	}
+	eeFuseVersion := ClientVersion{
+		IsCe:  false,
+		Dev:   false,
+		Major: 5,
+		Minor: 1,
+		Patch: 0,
+	}
+	if v.IsCe {
+		return !v.LessThan(ceFuseVersion)
+	}
+	return !v.LessThan(eeFuseVersion)
 }

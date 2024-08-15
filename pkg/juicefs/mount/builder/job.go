@@ -38,8 +38,8 @@ type JobBuilder struct {
 }
 
 func NewJobBuilder(setting *config.JfsSetting, capacity int64) *JobBuilder {
-	return &JobBuilder{
-		PodBuilder{BaseBuilder{
+	return &JobBuilder{PodBuilder{
+		BaseBuilder: BaseBuilder{
 			jfsSetting: setting,
 			capacity:   capacity,
 		}},

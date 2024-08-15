@@ -39,6 +39,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	jfsResource "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
@@ -72,7 +73,7 @@ var readyPod = &corev1.Pod{
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
 			Name:    "test",
-			Image:   "juicedata/juicefs-csi-driver",
+			Image:   "juicedata/mount:ce-v1.2.1",
 			Command: []string{"sh", "-c", "exec /bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 		}},
 	},
@@ -107,7 +108,7 @@ var errCmdPod = &corev1.Pod{
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
 			Name:    "test",
-			Image:   "juicedata/juicefs-csi-driver",
+			Image:   "juicedata/mount:ce-v1.2.1",
 			Command: []string{"sh", "-c"},
 		}},
 	},
@@ -123,6 +124,9 @@ var deletedPod = &corev1.Pod{
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		Finalizers:        []string{jfsConfig.Finalizer},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -157,7 +161,7 @@ var errorPod1 = &corev1.Pod{
 		Containers: []corev1.Container{
 			{
 				Name:      "pvc-node01-xxx",
-				Image:     "juicedata/juicefs-csi-driver:v0.10.6",
+				Image:     "juicedata/mount:ce-v1.2.1",
 				Command:   []string{"sh", "-c", "exec /bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 				Resources: testResources,
 			},
@@ -200,7 +204,7 @@ var resourceErrPod = &corev1.Pod{
 		Containers: []corev1.Container{
 			{
 				Name:      "pvc-node01-xxx",
-				Image:     "juicedata/juicefs-csi-driver:v0.10.6",
+				Image:     "juicedata/mount:ce-v1.2.1",
 				Command:   []string{"sh", "-c", "exec /bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 				Resources: testResources,
 			},
@@ -239,6 +243,9 @@ var errorPod2 = &corev1.Pod{
 		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodFailed,
 		Conditions: []corev1.PodCondition{
@@ -271,6 +278,9 @@ var errorPod3 = &corev1.Pod{
 		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodUnknown,
 		Conditions: []corev1.PodCondition{
@@ -294,6 +304,9 @@ var pendingPod = &corev1.Pod{
 		},
 		Finalizers: []string{jfsConfig.Finalizer},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodPending,
 		Conditions: []corev1.PodCondition{
@@ -316,6 +329,9 @@ var runningPod = &corev1.Pod{
 			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
 		Finalizers: []string{jfsConfig.Finalizer},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodPending,
@@ -451,6 +467,7 @@ func genMountInfos() []mount.MountInfo {
 }
 
 func TestPodDriver_podReadyHandler(t *testing.T) {
+	fuse.InitTestFds()
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -567,6 +584,11 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					Annotations: nil,
 					Finalizers:  []string{jfsConfig.Finalizer},
 				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Image: "juicedata/mount:ce-v1.2.1",
+					}},
+				},
 			})
 			So(err, ShouldBeNil)
 		})
@@ -593,7 +615,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:    "test",
-						Image:   "juicedata/juicefs-csi-driver",
+						Image:   "juicedata/mount:ce-v1.2.1",
 						Command: []string{"sh", "-c", "exec /bin/mount.juicefs redis://127.0.0.1/6379/jfs/pvc-xxx"},
 					}},
 				},
@@ -607,12 +629,14 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			})
 			outputs := []OutputCell{
-				{Values: Params{nil, volErr}},
+				{Values: Params{nil, volErr}, Times: 121},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
+			patch2 := ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string) {})
+			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("pod sourcePath subpath err ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -675,7 +699,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					Containers: []corev1.Container{{
 						Name:    "test",
 						Image:   "juicedata/juicefs-csi-driver",
-						Command: []string{"sh", "-c", "exec /bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+						Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
 					}},
 				},
 			}

@@ -24,15 +24,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -123,6 +123,11 @@ func parseNodeConfig() {
 		os.Exit(0)
 	}
 	config.CSIPod = *pod
+	err = fuse.InitGlobalFds(context.TODO(), "/tmp")
+	if err != nil {
+		klog.Errorf("Init global fds error: %v", err)
+		os.Exit(0)
+	}
 }
 
 func nodeRun(ctx context.Context) {

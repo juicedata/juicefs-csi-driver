@@ -36,8 +36,8 @@ type ContainerBuilder struct {
 var _ SidecarInterface = &ContainerBuilder{}
 
 func NewContainerBuilder(setting *config.JfsSetting, capacity int64) SidecarInterface {
-	return &ContainerBuilder{
-		PodBuilder{BaseBuilder{
+	return &ContainerBuilder{PodBuilder{
+		BaseBuilder: BaseBuilder{
 			jfsSetting: setting,
 			capacity:   capacity,
 		}},
@@ -46,8 +46,9 @@ func NewContainerBuilder(setting *config.JfsSetting, capacity int64) SidecarInte
 
 // NewMountSidecar generates a pod with a juicefs sidecar
 // exactly the same spec as Mount Pod
+// except fuse passfd path
 func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
-	pod := r.NewMountPod("")
+	pod, _ := r.NewMountPod("")
 	// no annotation and label for sidecar
 	pod.Annotations = map[string]string{}
 	pod.Labels = map[string]string{}
@@ -55,6 +56,20 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	volumes, volumeMounts := r.genSidecarVolumes()
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, volumeMounts...)
+
+	// delete fuse passfd path
+	for i, vm := range pod.Spec.Containers[0].VolumeMounts {
+		if vm.Name == JfsFuseFdPathName {
+			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts[:i], pod.Spec.Containers[0].VolumeMounts[i+1:]...)
+			break
+		}
+	}
+	for i, v := range pod.Spec.Volumes {
+		if v.Name == JfsFuseFdPathName {
+			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
+			break
+		}
+	}
 
 	// check mount & create subpath & set quota
 	capacity := strconv.FormatInt(r.capacity, 10)
@@ -65,6 +80,9 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 	}
 	quotaPath := r.getQuotaPath()
 	name := r.jfsSetting.Name
+	if pod.Spec.Containers[0].Lifecycle == nil {
+		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
+	}
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",

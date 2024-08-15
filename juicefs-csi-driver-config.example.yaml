@@ -13,15 +13,15 @@ data:
     # If pvcSelector isn't set, the patch will be applied to all PVCs
     # Variable templates are supported, e.g.  ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-
+      # - lifecycle:
+      #      preStop:
+      #       exec:
+      #         command:
+      #         - sh
+      #         - -c
+      #         - +e
+      #         - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
+    
       # Example configurations:
       # - pvcSelector:
       #     matchLabels:
