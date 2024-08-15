@@ -34,6 +34,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
       - name: Set up Go 1.20.x
         uses: actions/setup-go@v2
@@ -58,6 +60,10 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           files: ./coverage.txt
+      - name: Setup upterm session
+        if: ${{ failure() }}
+        timeout-minutes: 60
+        uses: lhotari/action-upterm@v1
 
   build-matrix:
     runs-on: ubuntu-latest
