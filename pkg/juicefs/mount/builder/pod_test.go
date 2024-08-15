@@ -91,7 +91,7 @@ var (
 					Value: "1",
 				}, {
 					Name:  JfsCommEnv,
-					Value: "/tmp/fuse_fd_csi_comm.sock",
+					Value: "tmp/fuse_fd_csi_comm.sock",
 				}},
 				EnvFrom: []corev1.EnvFromSource{{
 					SecretRef: &corev1.SecretEnvSource{
