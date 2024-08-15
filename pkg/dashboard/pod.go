@@ -853,6 +853,39 @@ func (api *API) debugPod() gin.HandlerFunc {
 	}
 }
 
+func (api *API) warmupPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				klog.Error("Failed to get mount pod: ", err)
+				return
+			}
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				klog.Error("Failed to get mount path: ", err)
+				return
+			}
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{
+					"juicefs", "warmup",
+					"--no-color",
+					mntPath}); err != nil {
+				klog.Error("Failed to start process: ", err)
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
 func (api *API) downloadDebugFile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")

@@ -22,8 +22,15 @@ import { useParams } from 'react-router-dom'
 
 import { DebugModal } from '.'
 import LogModal from './log-modal'
+import WarmupModal from './warmup-modal'
 import XTermModal from './xterm-modal'
-import { AccessLogIcon, DebugIcon, LogIcon, TerminalIcon } from '@/icons'
+import {
+  AccessLogIcon,
+  DebugIcon,
+  LogIcon,
+  TerminalIcon,
+  WarmupIcon,
+} from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod, supportDebug } from '@/utils'
@@ -107,40 +114,58 @@ const Containers: React.FC<{
                   )}
                 </XTermModal>
                 {isMountPod(pod) ? (
-                  <LogModal
-                    namespace={namespace!}
-                    name={name!}
-                    container={record.name}
-                    hasPrevious={false}
-                    type="accesslog"
-                  >
-                    {({ onClick }) => (
-                      <Tooltip title="Access Log" zIndex={0}>
-                        <Button
-                          className="action-button"
-                          onClick={onClick}
-                          icon={<AccessLogIcon />}
-                        />
-                      </Tooltip>
-                    )}
-                  </LogModal>
-                ) : null}
-                {isMountPod(pod) && supportDebug(c.image) ? (
-                  <DebugModal
-                    namespace={namespace!}
-                    name={name!}
-                    container={record.name}
-                  >
-                    {({ onClick }) => (
-                      <Tooltip title="Debug" zIndex={0}>
-                        <Button
-                          className="action-button"
-                          onClick={onClick}
-                          icon={<DebugIcon />}
-                        />
-                      </Tooltip>
-                    )}
-                  </DebugModal>
+                  <>
+                    <LogModal
+                      namespace={namespace!}
+                      name={name!}
+                      container={record.name}
+                      hasPrevious={false}
+                      type="accesslog"
+                    >
+                      {({ onClick }) => (
+                        <Tooltip title="Access Log" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            onClick={onClick}
+                            icon={<AccessLogIcon />}
+                          />
+                        </Tooltip>
+                      )}
+                    </LogModal>
+                    {supportDebug(c.image) ? (
+                      <DebugModal
+                        namespace={namespace!}
+                        name={name!}
+                        container={record.name}
+                      >
+                        {({ onClick }) => (
+                          <Tooltip title="Debug" zIndex={0}>
+                            <Button
+                              className="action-button"
+                              onClick={onClick}
+                              icon={<DebugIcon />}
+                            />
+                          </Tooltip>
+                        )}
+                      </DebugModal>
+                    ) : null}
+
+                    <WarmupModal
+                      namespace={namespace!}
+                      name={name!}
+                      container={record.name}
+                    >
+                      {({ onClick }) => (
+                        <Tooltip title="Warmup" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            onClick={onClick}
+                            icon={<WarmupIcon />}
+                          />
+                        </Tooltip>
+                      )}
+                    </WarmupModal>
+                  </>
                 ) : null}
               </Space>
             ),

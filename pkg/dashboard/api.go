@@ -103,5 +103,6 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	// only for mountpod
 	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())
 	websocketAPI.GET("/pod/:namespace/:name/:container/debug", api.debugPod())
+	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
 }
