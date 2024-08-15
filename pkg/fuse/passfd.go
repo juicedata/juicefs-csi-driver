@@ -126,7 +126,10 @@ func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
 	if f == nil {
 		serverParentPath := path.Join("/tmp", podHashVal)
 		_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-			_ = os.RemoveAll(serverParentPath)
+			_, err := os.Stat(serverParentPath)
+			if err == nil {
+				_ = os.RemoveAll(serverParentPath)
+			}
 			return nil
 		})
 		fs.globalMu.Unlock()
