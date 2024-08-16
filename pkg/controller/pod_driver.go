@@ -22,7 +22,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -275,7 +275,11 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
+			if err != nil {
+				klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				klog.Errorf("[podErrorHandler] create pod:%s err:%v", pod.Name, err)
 			}
@@ -331,6 +335,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
 
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
 		if k == util.GetReferenceKey(v) {
@@ -351,13 +360,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
+		// stop fuse fd and clean up socket
+		go fuse.GlobalFds.StopFd(context.TODO(), hashVal)
 		return Result{}, nil
 	}
 
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
 	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
@@ -378,17 +385,19 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				break
 			}
 			if apierrors.IsNotFound(err) {
-				// umount mount point before recreate mount pod
-				err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-					exist, _ := mount.PathExists(sourcePath)
-					if !exist {
-						return fmt.Errorf("%s not exist", sourcePath)
+				if !util.SupportFusePass(pod.Spec.Containers[0].Image) {
+					// umount mount point before recreate mount pod
+					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+						exist, _ := mount.PathExists(sourcePath)
+						if !exist {
+							return fmt.Errorf("%s not exist", sourcePath)
+						}
+						return nil
+					})
+					if err == nil {
+						klog.Infof("start to umount: %s", sourcePath)
+						util.UmountPath(ctx, sourcePath)
 					}
-					return nil
-				})
-				if err == nil {
-					klog.Infof("start to umount: %s", sourcePath)
-					util.UmountPath(ctx, sourcePath)
 				}
 				// create pod
 				var newPod = &corev1.Pod{
@@ -405,16 +414,15 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				if err := p.applyConfigPatch(ctx, newPod); err != nil {
 					klog.Errorf("apply config patch error, will ignore, err: %v", err)
 				}
+				err = mkrMp(ctx, *newPod)
+				if err != nil {
+					klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
 					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
 				}
-
-				if err := resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
-					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
-					return Result{}, err
-				}
-				return Result{}, p.recover(ctx, newPod, sourcePath)
+				return Result{RequeueImmediately: true}, err
 			}
 			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
 			return Result{}, nil
@@ -498,7 +506,11 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
+			if err != nil {
+				klog.Errorf("[podDeletedHandler] mkdir mount point of pod %s err:%v", pod.Name, err)
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				klog.Errorf("[podPendingHandler] create pod:%s err:%v", pod.Name, err)
 			}
@@ -526,27 +538,29 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, err
 	}
 
-	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		finfo, e := os.Stat(mntPath)
-		if e != nil {
-			return e
-		}
-		var dev uint64
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				dev = uint64(st.Dev)
-				util.DevMinorTableStore(mntPath, dev)
-			}
-		}
-		return e
-	})
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
 
-	if e != nil {
-		klog.Errorf("[podReadyHandler] stat mntPath: %s, podName: %s, err: %v, don't do recovery", mntPath, pod.Name, e)
-		// may be the mount point is not ready, wait for next time
-		return Result{
-			RequeueAfter: 5 * time.Second,
-		}, nil
+	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+	podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
+
+	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
+	if err != nil {
+		if supFusePass {
+			klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s error: %v", pod.Name, err)
+			// mount pod hang probably, close fd and delete it
+			klog.Infof("close fd and delete pod %s", pod.Name)
+			fuse.GlobalFds.CloseFd(podHashVal)
+			// umount it
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				util.UmountPath(ctx, mntPath)
+				return nil
+			})
+			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
+		}
+		klog.Errorf("[podReadyHandler] waitUtilMountReady pod %s err: %v, don't do recovery", pod.Name, err)
+		return Result{}, err
 	}
 
 	return Result{}, p.recover(ctx, pod, mntPath)
@@ -555,7 +569,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			mi := p.mit.resolveTarget(target)
+			mi := p.mit.resolveTarget(ctx, target)
 			if mi == nil {
 				klog.Errorf("[podReadyHandler] pod %s target %s resolve fail", pod.Name, target)
 				continue
@@ -613,7 +627,10 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
-			_, err := os.Stat(sourcePath)
+			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				_, err = os.Stat(sourcePath)
+				return err
+			})
 			if err != nil {
 				klog.Errorf("pod %s target %s, stat volPath: %s err: %v, don't do recovery", podName, ti.target, sourcePath, err)
 				break
@@ -653,7 +670,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 			return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
 		}
 
-		mi := mit.resolveTarget(basemi.baseTarget.target)
+		mi := mit.resolveTarget(ctx, basemi.baseTarget.target)
 		if mi == nil {
 			return fmt.Errorf("pod target %s resolve fail", target)
 		}
@@ -833,6 +850,41 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			break
 		}
 		time.Sleep(10 * time.Second)
+	}
+	return nil
+}
+
+func mkrMp(ctx context.Context, pod corev1.Pod) error {
+	var shouldMkrMp bool
+	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		cn := pod.Spec.Containers[0]
+		if cn.Lifecycle != nil && cn.Lifecycle.PreStop != nil && cn.Lifecycle.PreStop.Exec != nil {
+			for _, cmd := range cn.Lifecycle.PreStop.Exec.Command {
+				if strings.Contains(cmd, "rmdir") {
+					shouldMkrMp = true
+				}
+			}
+		}
+	} else {
+		shouldMkrMp = true
+	}
+	if !shouldMkrMp {
+		return nil
+	}
+	// mkdir mountpath
+	// get mount point
+	var mntPath string
+	var err error
+	mntPath, _, err = resource.GetMountPathOfPod(pod)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+		return os.MkdirAll(mntPath, 0777)
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

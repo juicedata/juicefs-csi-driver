@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	ctx "context"
 	"os"
 	"strconv"
 	"strings"
@@ -89,7 +90,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget(target)
+			mi := mit.resolveTarget(ctx.TODO(), target)
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget, ShouldNotBeNil)
@@ -118,7 +119,7 @@ func TestMountInfo(t *testing.T) {
 		Convey("test invalid base target", func() {
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget("/invalid-target-path")
+			mi := mit.resolveTarget(ctx.TODO(), "/invalid-target-path")
 			So(mi, ShouldBeNil)
 		})
 		Convey("test stat err", func() {
@@ -130,7 +131,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget(target)
+			mi := mit.resolveTarget(ctx.TODO(), target)
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget.status, ShouldEqual, targetStatusUnexpect)
@@ -151,7 +152,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget("/poddir/uid-1/volumes/kubernetes.io~csi/pvn-not-exist/mount")
+			mi := mit.resolveTarget(ctx.TODO(), "/poddir/uid-1/volumes/kubernetes.io~csi/pvn-not-exist/mount")
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget.count, ShouldEqual, 0)
@@ -167,7 +168,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget(target)
+			mi := mit.resolveTarget(ctx.TODO(), target)
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget.count, ShouldEqual, 1)
@@ -183,7 +184,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget(target)
+			mi := mit.resolveTarget(ctx.TODO(), target)
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget.status, ShouldEqual, targetStatusNotExist)
@@ -199,7 +200,7 @@ func TestMountInfo(t *testing.T) {
 
 			mit := newMountInfoTable()
 			_ = mit.parse()
-			mi := mit.resolveTarget(target)
+			mi := mit.resolveTarget(ctx.TODO(), target)
 
 			So(mi, ShouldNotBeNil)
 			So(mi.baseTarget.inconsistent, ShouldEqual, true)

@@ -168,8 +168,8 @@ var PodLocks [1024]sync.Mutex
 func GetPodLock(podHashVal string) *sync.Mutex {
 	h := fnv.New32a()
 	h.Write([]byte(podHashVal))
-	index := int(h.Sum32())
-	return &PodLocks[index%1024]
+	index := h.Sum32() % 1024
+	return &PodLocks[index]
 }
 
 func MustGetWebPort() int {
