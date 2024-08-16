@@ -50,6 +50,8 @@ func NewPodController(client *k8sclient.K8sClient) *PodController {
 
 func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(6).Infof("Receive pod %s %s", request.Name, request.Namespace)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
+	defer cancel()
 	mountPod, err := m.GetPod(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		klog.Errorf("get pod %s error: %v", request.Name, err)

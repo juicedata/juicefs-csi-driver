@@ -384,21 +384,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				break
 			}
 			if apierrors.IsNotFound(err) {
-				if !util.SupportFusePass(pod.Spec.Containers[0].Image) {
-					// umount mount point before recreate mount pod
-					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-						exist, _ := mount.PathExists(sourcePath)
-						if !exist {
-							return fmt.Errorf("%s not exist", sourcePath)
-						}
-						return nil
-					})
-					if err == nil {
-						klog.Infof("start to umount: %s", sourcePath)
-						util.UmountPath(ctx, sourcePath)
-					}
-				}
 				// create pod
+				oldSupportFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
 				var newPod = &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        pod.Name,
@@ -412,6 +399,27 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
 				if err := p.applyConfigPatch(ctx, newPod); err != nil {
 					klog.Errorf("apply config patch error, will ignore, err: %v", err)
+				}
+				if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
+					if oldSupportFusePass {
+						// old image support fuse pass and new image do not support, stop fd in csi
+						fuse.GlobalFds.StopFd(ctx, hashVal)
+					}
+					// umount mount point before recreate mount pod
+					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+						exist, _ := mount.PathExists(sourcePath)
+						if !exist {
+							return fmt.Errorf("%s not exist", sourcePath)
+						}
+						return nil
+					})
+					if err == nil {
+						klog.Infof("start to umount: %s", sourcePath)
+						_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+							util.UmountPath(ctx, sourcePath)
+							return nil
+						})
+					}
 				}
 				err = mkrMp(ctx, *newPod)
 				if err != nil {
@@ -574,9 +582,13 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 				continue
 			}
 
-			p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi)
+			if err := p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi); err != nil {
+				return err
+			}
 			for _, ti := range mi.subPathTarget {
-				p.recoverTarget(ctx, pod.Name, mntPath, ti, mi)
+				if err := p.recoverTarget(ctx, pod.Name, mntPath, ti, mi); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -584,7 +596,7 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 }
 
 // recoverTarget recovers target path
-func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) {
+func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) error {
 	switch ti.status {
 	case targetStatusNotExist:
 		klog.Errorf("pod %s target %s not exists, item count:%d", podName, ti.target, ti.count)
@@ -622,7 +634,7 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		err := p.umountTargetUntilRemain(ctx, mi, ti.target, defaultTargetMountCounts)
 		if err != nil {
 			klog.Error(err)
-			break
+			return err
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
@@ -638,12 +650,17 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		klog.V(5).Infof("pod %s target %s recover volPath:%s", podName, ti.target, sourcePath)
 		mountOption := []string{"bind"}
 		if err := p.Mount(sourcePath, ti.target, "none", mountOption); err != nil {
-			klog.Errorf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+			ms := fmt.Sprintf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+			klog.Errorf(ms)
+			return fmt.Errorf(ms)
 		}
 
 	case targetStatusUnexpect:
-		klog.Errorf("pod %s target %s reslove err:%v", podName, ti.target, ti.err)
+		ms := fmt.Sprintf("pod %s target %s reslove err:%v", podName, ti.target, ti.err)
+		klog.Errorf(ms)
+		return fmt.Errorf(ms)
 	}
+	return nil
 }
 
 // umountTarget umount target path
@@ -870,6 +887,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	if !shouldMkrMp {
 		return nil
 	}
+	klog.V(6).Infof("Prepare mountpoint for pod %s", pod.Name)
 	// mkdir mountpath
 	// get mount point
 	var mntPath string
