@@ -99,6 +99,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 
 	if err := checkAndCleanOrphanSecret(ctx, m.K8sClient, secrets); err != nil {
 		klog.Warningf("check and clean orphan secret %s error: %v", request.Name, err)
+		return reconcile.Result{}, err
 	}
 
 	if _, found := secrets.Data["token"]; !found {

@@ -2940,7 +2940,7 @@ def test_secret_has_owner_reference():
             break
         time.sleep(1)
 
-    deployment = Deployment(name="app-secret-owner-reference", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[static_pv.name, dynamic_pvc_1.name])
+    deployment = Deployment(name="app-secret-owner-reference", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[static_pvc.name, dynamic_pvc_1.name])
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
 
@@ -2954,13 +2954,13 @@ def test_secret_has_owner_reference():
     dynamic_pv = dynamic_pvc_1.get_volume()
     static_pv = static_pvc.get_volume()
     
-    dynamic_secret = Secret(name="juicefs-"+dynamic_pv.spec.csi.volume_handle+"-secret")
+    dynamic_secret = Secret(secret_name="juicefs-"+dynamic_pv.spec.csi.volume_handle+"-secret")
     LOG.info("Check secret {} has owner reference..".format(dynamic_secret.name))
     owner_references = dynamic_secret.get_owner_reference()
     if len(owner_references) != 1 and owner_references[0].uid != dynamic_pv.metadata.uid:
         raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.name, dynamic_pv.name))
 
-    static_secret = Secret(name="juicefs-"+static_pv.spec.csi.volume_handle+"-secret")
+    static_secret = Secret(secret_name="juicefs-"+static_pv.spec.csi.volume_handle+"-secret")
     LOG.info("Check secret {} has owner reference..".format(static_secret.name))
     owner_references = static_secret.get_owner_reference()
     if len(owner_references) != 1 and owner_references[0].uid != static_pv.metadata.uid:
@@ -3010,7 +3010,7 @@ def test_secret_has_owner_reference_shared_mount():
 
     # check secret has owner reference
     LOG.info("Check secret has owner reference..")
-    dynamic_secret = Secret(name="juicefs-"+STORAGECLASS_NAME+"-secret")
+    dynamic_secret = Secret(secret_name="juicefs-"+STORAGECLASS_NAME+"-secret")
     LOG.info("Check secret {} has owner reference..".format(dynamic_secret.name))
     owner_references = dynamic_secret.get_owner_reference()
 
