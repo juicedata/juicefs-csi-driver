@@ -335,7 +335,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 		return
 	}
 
-	jfsSetting.SecretName = podName + "-secret"
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
 	builder.SetPVAsOwner(&secret, jfsSetting.PV)
