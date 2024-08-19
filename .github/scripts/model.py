@@ -71,6 +71,10 @@ class Secret:
 
         if not injected:
             raise Exception(f"init config not found in {self.namespace}/{self.secret_name}")
+    
+    def get_owner_reference(self):
+        secret = client.CoreV1Api().read_namespaced_secret(name=self.secret_name, namespace=self.namespace)
+        return secret.metadata.owner_references
 
     def delete(self):
         client.CoreV1Api().delete_namespaced_secret(name=self.secret_name, namespace=self.namespace)
@@ -180,6 +184,12 @@ class PVC:
         pv_name = p.spec.volume_name
         pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
         return pv.spec.csi.volume_handle
+
+    def get_volume(self):
+        p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)
+        pv_name = p.spec.volume_name
+        pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
+        return pv
 
     def check_is_bound(self):
         p = client.CoreV1Api().read_namespaced_persistent_volume_claim(name=self.name, namespace=self.namespace)

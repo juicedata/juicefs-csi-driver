@@ -22,6 +22,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 const (
@@ -101,6 +103,9 @@ func (r *BaseBuilder) NewSecret() corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Name:      r.jfsSetting.SecretName,
+			Labels: map[string]string{
+				config.JuicefsSecretLabelKey: "true",
+			},
 		},
 		StringData: data,
 	}
@@ -123,6 +128,20 @@ func SetPVCAsOwner(secret *corev1.Secret, owner *corev1.PersistentVolumeClaim) {
 	secret.SetOwnerReferences([]metav1.OwnerReference{{
 		APIVersion: "v1",
 		Kind:       "PersistentVolumeClaim",
+		Name:       owner.Name,
+		UID:        owner.UID,
+		Controller: &controller,
+	}})
+}
+
+func SetPVAsOwner(secret *corev1.Secret, owner *corev1.PersistentVolume) {
+	if owner == nil {
+		return
+	}
+	controller := false
+	secret.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: "v1",
+		Kind:       "PersistentVolume",
 		Name:       owner.Name,
 		UID:        owner.UID,
 		Controller: &controller,

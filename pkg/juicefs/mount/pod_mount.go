@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -222,10 +223,10 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// delete related secret
 			secretName := po.Name + "-secret"
-			klog.V(5).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
-			if err := p.K8sClient.DeleteSecret(ctx, secretName, po.Namespace); err != nil {
+			klog.V(6).Infof("JUmount: delete related secret of pod %s: %s", podName, secretName)
+			if err := p.K8sClient.DeleteSecret(ctx, secretName, po.Namespace); !k8serrors.IsNotFound(err) && err != nil {
 				// do not return err if delete secret failed
-				klog.V(5).Infof("JUmount: Delete secret %s error: %v", secretName, err)
+				klog.V(6).Infof("JUmount: Delete secret %s error: %v", secretName, err)
 			}
 		}
 		return nil
@@ -323,9 +324,18 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
 	klog.V(6).Infof("createOrAddRef: mount pod name %s", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
-	jfsSetting.SecretName = podName + "-secret"
+	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
+	// mkdir mountpath
+	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+		return os.MkdirAll(jfsSetting.MountPath, 0777)
+	})
+	if err != nil {
+		return
+	}
+
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
+	builder.SetPVAsOwner(&secret, jfsSetting.PV)
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
 	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
@@ -586,6 +596,20 @@ func (p *PodMount) createOrUpdateSecret(ctx context.Context, secret *corev1.Secr
 		}
 
 		oldSecret.StringData = secret.StringData
+		// merge owner reference
+		if len(secret.OwnerReferences) != 0 {
+			newOwner := secret.OwnerReferences[0]
+			exist := false
+			for _, ref := range oldSecret.OwnerReferences {
+				if ref.UID == newOwner.UID {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				oldSecret.OwnerReferences = append(oldSecret.OwnerReferences, newOwner)
+			}
+		}
 		return p.K8sClient.UpdateSecret(ctx, oldSecret)
 	})
 	if err != nil {

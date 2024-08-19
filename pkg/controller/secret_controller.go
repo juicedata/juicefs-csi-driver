@@ -47,16 +47,42 @@ func NewSecretController(client *k8sclient.K8sClient) *SecretController {
 	return &SecretController{client}
 }
 
-func isMountPodSecret(secrets *corev1.Secret) bool {
+func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient, secrets *corev1.Secret) error {
 	if secrets.Namespace != config.Namespace {
-		return false
+		return nil
+	}
+	// new version of juicefs-csi-driver has a label to identify the secret
+	// no need to manual clean up
+	if _, ok := secrets.Labels[config.JuicefsSecretLabelKey]; ok {
+		return nil
 	}
 	if !strings.HasPrefix(secrets.Name, "juicefs-") || !strings.HasSuffix(secrets.Name, "-secret") {
-		return false
+		return nil
 	}
-	// FIXME: we need a better way to identify the secret
-	_, found := secrets.Data["check_mount.sh"]
-	return found
+	if secrets.Data["token"] == nil && secrets.Data["metaurl"] == nil {
+		return nil
+	}
+	// the secret is created less than an hour, clean later
+	if !time.Now().After(secrets.CreationTimestamp.Add(time.Hour)) {
+		return nil
+	}
+	// check if the secret is mount pod's secret
+	if secrets.Data["check_mount.sh"] == nil {
+		return nil
+	}
+
+	// check if the pod still exists
+	podName := strings.TrimSuffix(secrets.Name, "-secret")
+	if _, err := client.GetPod(ctx, podName, secrets.Namespace); k8serrors.IsNotFound(err) {
+		klog.V(5).Infof("orphan secret %s found, delete it", secrets.Name)
+		if err := client.DeleteSecret(ctx, secrets.Name, secrets.Namespace); err != nil {
+			klog.Errorf("delete secret %s error: %v", secrets.Name, err)
+			return err
+		}
+		return nil
+	}
+
+	return nil
 }
 
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -70,21 +96,15 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		klog.V(6).Infof("secret %s has been deleted.", request.Name)
 		return reconcile.Result{}, nil
 	}
+
+	if err := checkAndCleanOrphanSecret(ctx, m.K8sClient, secrets); err != nil {
+		klog.Warningf("check and clean orphan secret %s error: %v", request.Name, err)
+		return reconcile.Result{}, err
+	}
+
 	if _, found := secrets.Data["token"]; !found {
 		klog.V(6).Infof("token not found in secret %s", request.Name)
 		return reconcile.Result{}, nil
-	}
-	// check orphan secret
-	if isMountPodSecret(secrets) && time.Now().After(secrets.CreationTimestamp.Add(time.Hour)) {
-		podName := strings.TrimSuffix(request.Name, "-secret")
-		if _, err := m.GetPod(ctx, podName, request.Namespace); k8serrors.IsNotFound(err) {
-			klog.V(5).Infof("orphan secret %s found, delete it", request.Name)
-			if err := m.DeleteSecret(ctx, request.Name, request.Namespace); err != nil {
-				klog.Errorf("delete secret %s error: %v", request.Name, err)
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
 	}
 	if _, found := secrets.Data["name"]; !found {
 		klog.V(6).Infof("name not found in secret %s", request.Name)

@@ -2918,3 +2918,121 @@ def test_recreate_mountpod_reload_config():
          "updatedAt=" + str(int(time.time()))])
 
     LOG.info("Test pass.")
+
+def test_secret_has_owner_reference():
+    LOG.info("[test case] test secret has owner reference begin...")
+
+    dynamic_pvc_1 = PVC(name="pv-secret-owner-reference-dynamic-1", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.create()
+
+    static_pv = PV(name="pv-secret-owner-reference-static", access_mode="ReadWriteMany", volume_handle="pv-secret-owner-reference-static-different", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(static_pv.name))
+    static_pv.create()
+    static_pvc = PVC(name="pvc-secret-owner-reference-static", access_mode="ReadWriteMany", storage_name="", pv=static_pv.name)
+    LOG.info("Deploy pvc {}".format(static_pvc.name))
+    static_pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if dynamic_pvc_1.check_is_bound() and static_pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-secret-owner-reference", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[static_pvc.name, dynamic_pvc_1.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check secret has owner reference
+    dynamic_pv = dynamic_pvc_1.get_volume()
+    static_pv = static_pvc.get_volume()
+    
+    dynamic_secret = Secret(secret_name="juicefs-"+dynamic_pv.spec.csi.volume_handle+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
+    owner_references = dynamic_secret.get_owner_reference()
+    if len(owner_references) != 1 and owner_references[0].uid != dynamic_pv.metadata.uid:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv.metadata.name))
+
+    static_secret = Secret(secret_name="juicefs-"+static_pv.spec.csi.volume_handle+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(static_secret.secret_name))
+    owner_references = static_secret.get_owner_reference()
+    if len(owner_references) != 1 and owner_references[0].uid != static_pv.metadata.uid:
+        raise Exception("Secret {} has no owner reference for pv {}".format(static_secret.secret_name, static_pv.metadata.name))
+    
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.delete()
+
+    LOG.info("Remove static pvc {}".format(static_pvc.name))
+    static_pvc.delete()
+
+    LOG.info("Test pass.")
+    return
+
+def test_secret_has_owner_reference_shared_mount():
+    LOG.info("[test case] test secret has owner reference share mount begin...")
+
+    dynamic_pvc_1 = PVC(name="pv-secret-owner-reference-dynamic-1", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.create()
+
+    dynamic_pvc_2 = PVC(name="pv-secret-owner-reference-dynamic-2", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_2.name))
+    dynamic_pvc_2.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if dynamic_pvc_1.check_is_bound() and dynamic_pvc_2.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-secret-owner-reference-shared-mount", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[dynamic_pvc_1.name, dynamic_pvc_2.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check secret has owner reference
+    LOG.info("Check secret has owner reference..")
+    dynamic_secret = Secret(secret_name="juicefs-"+STORAGECLASS_NAME+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
+    owner_references = dynamic_secret.get_owner_reference()
+
+    if len(owner_references) != 2:
+        raise Exception("Secret {} has {} owner reference, expect 2.".format(dynamic_secret.secret_name, len(owner_references)))
+    owners = [owner.uid for owner in owner_references]
+    # check has each pv uid
+    dynamic_pv_1 = dynamic_pvc_1.get_volume()
+    if dynamic_pv_1.metadata.uid not in owners:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_1.metadata.name))
+    dynamic_pv_2 = dynamic_pvc_2.get_volume()
+    if dynamic_pv_2.metadata.uid not in owners:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_2.metadata.name))
+    
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.delete()
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_2.name))
+    dynamic_pvc_2.delete()
+
+    LOG.info("Test pass.")
+    return
