@@ -563,7 +563,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			})
 			defer patch3.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("get nil pod", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -676,7 +676,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			})
 			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("pod target format invalid ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
