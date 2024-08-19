@@ -26,6 +26,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 
@@ -306,4 +307,49 @@ func parseMntPath(cmd string) (string, string, error) {
 		return "", "", fmt.Errorf("err mntPath:%s", args[2])
 	}
 	return args[2], argSlice[2], nil
+}
+
+func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, volumeHandle string, volCtx map[string]string) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim, error) {
+	if client == nil {
+		return nil, nil, fmt.Errorf("k8s client is nil")
+	}
+	pv, err := client.GetPersistentVolume(ctx, volumeHandle)
+	if k8serrors.IsNotFound(err) {
+		// failed to get pv by volumeHandle, try to get pv by appName and appNamespace
+		appName, appNamespace := volCtx[config.PodInfoName], volCtx[config.PodInfoNamespace]
+		appPod, err := client.GetPod(ctx, appName, appNamespace)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, ref := range appPod.Spec.Volumes {
+			if ref.PersistentVolumeClaim != nil {
+				pvc, err := client.GetPersistentVolumeClaim(ctx, ref.PersistentVolumeClaim.ClaimName, appNamespace)
+				if err != nil {
+					return nil, nil, err
+				}
+				if pvc.Spec.VolumeName == "" {
+					continue
+				}
+				appPV, err := client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
+				if err != nil {
+					return nil, nil, err
+				}
+				if appPV.Spec.CSI != nil && appPV.Spec.CSI.Driver == config.DriverName && appPV.Spec.CSI.VolumeHandle == volumeHandle {
+					return appPV, pvc, nil
+				}
+			}
+		}
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	if pv == nil {
+		return nil, nil, fmt.Errorf("pv not found by volumeHandle %s", volumeHandle)
+	}
+
+	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pv, pvc, nil
 }

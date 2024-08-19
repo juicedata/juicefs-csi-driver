@@ -37,11 +37,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
-const (
-	podInfoName      = "csi.storage.k8s.io/pod.name"
-	podInfoNamespace = "csi.storage.k8s.io/pod.namespace"
-)
-
 type JfsSetting struct {
 	HashVal string `json:"-"`
 	IsCe    bool
@@ -554,15 +549,15 @@ func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {
 			return nil, err
 		}
 		if _, err := kc.GetNodeRunningPods(); err != nil {
-			if volCtx == nil || volCtx[podInfoName] == "" {
+			if volCtx == nil || volCtx[PodInfoName] == "" {
 				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
 			}
 		}
 	}
 	if volCtx != nil {
 		return &AppInfo{
-			Name:      volCtx[podInfoName],
-			Namespace: volCtx[podInfoNamespace],
+			Name:      volCtx[PodInfoName],
+			Namespace: volCtx[PodInfoNamespace],
 		}, nil
 	}
 	return nil, nil
