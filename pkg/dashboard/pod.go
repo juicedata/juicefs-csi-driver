@@ -858,6 +858,12 @@ func (api *API) warmupPod() gin.HandlerFunc {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
 		container := c.Param("container")
+		threads := c.Query("threads")
+		ioRetries := c.Query("ioRetries")
+		maxFailure := c.Query("maxFailure")
+		background := c.Query("background")
+		check := c.Query("check")
+
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
 			ctx, cancel := context.WithCancel(c.Request.Context())
@@ -877,6 +883,11 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{
 					"juicefs", "warmup",
+					"--threads=" + threads,
+					"--io-retries=" + ioRetries,
+					"--max-failure=" + maxFailure,
+					"--background=" + background,
+					"--check=" + check,
 					"--no-color",
 					mntPath}); err != nil {
 				klog.Error("Failed to start process: ", err)
