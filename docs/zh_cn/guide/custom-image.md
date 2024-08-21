@@ -33,9 +33,27 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 :::tip 提示
 覆盖 mount 镜像后，注意：
 
-* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者重新创建 PVC，才会采用新的镜像
+* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者删除 Mount Pod 重建，才会采用新的镜像
 * [升级 CSI 驱动](../administration/upgrade-csi-driver.md)时，默认会连带升级到 mount 镜像的最新稳定版。但如果你覆盖了 mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 mount 镜像升级
 :::
+
+### configmap 修改 {#overwrite-in-configmap}
+
+如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          custom-image: "true"
+      eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
+      ceMountImage: "juicedata/mount:ce-v1.2.0"
+```
+
+更改之后只需滚动升级业务容器或者杀掉 Mount Pod 即可应用最新镜像。
+
+详参：[定制 Mount Pod 和 Sidecar 容器](./configurations.md#customize-mount-pod)
 
 ### 全局修改 {#overwrite-in-csi-node}
 
@@ -65,6 +83,10 @@ kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plu
 
 ### 动态配置 {#overwrite-in-sc}
 
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+:::
+
 CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
 ```yaml {11}
@@ -84,6 +106,10 @@ parameters:
 配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
 
 ### 静态配置
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+:::
 
 对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 PV 定义中配置 Mount Pod 镜像：
 

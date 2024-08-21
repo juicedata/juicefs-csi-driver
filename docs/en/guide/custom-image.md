@@ -33,9 +33,25 @@ From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image 
 :::tip
 With mount pod image overwritten, note that:
 
-* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or re-create PVC
+* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or delete mount pod.
 * By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 :::
+
+### configmap modify {#overwrite-in-configmap}
+
+From JuiceFS CSI Driver 0.24.0 and above, you can easily change the image version in the global configuration
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          custom-image: "true"
+      eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
+      ceMountImage: "juicedata/mount:ce-v1.2.0"
+```
+
+See: [Customize Mount Pod and Sidecar containers](./configurations.md#customize-mount-pod)
 
 ### Configure mount pod image globally {#overwrite-in-csi-node}
 
@@ -65,6 +81,10 @@ Also, don't forget to put these changes into `k8s.yaml`, to avoid losing these c
 
 ### Dynamic provisioning {#overwrite-in-sc}
 
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+:::
+
 CSI Driver allows [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), if you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
 
 ```yaml {11}
@@ -84,6 +104,10 @@ parameters:
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
 
 ### Static provisioning
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+:::
 
 For [Static provisioning](./pv.md#static-provisioning), you'll have to configure mount pod image inside the PV definition.
 
