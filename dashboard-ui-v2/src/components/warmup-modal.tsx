@@ -16,7 +16,7 @@
 
 import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import { Button, Checkbox, InputNumber, Modal, Space } from 'antd'
+import { Button, Checkbox, Input, InputNumber, Modal, Space } from 'antd'
 
 import { useWebsocket } from '@/hooks/use-api'
 
@@ -53,6 +53,7 @@ const WarmupModal: React.FC<{
   const [maxFailure, setMaxFailure] = useState(-1)
   const [background, setBackground] = useState(false)
   const [check, setCheck] = useState(false)
+  const [subPath, setSubPath] = useState('')
 
   useWebsocket(
     `/api/v1/ws/pod/${namespace}/${name}/${container}/warmup`,
@@ -63,6 +64,10 @@ const WarmupModal: React.FC<{
         maxFailure,
         background: background ? 'true' : 'false',
         check: check ? 'true' : 'false',
+        subPath,
+      },
+      onClose: () => {
+        setStart(false)
       },
       onMessage: (msg) => {
         // ignore and remove ANSI escape sequences
@@ -116,6 +121,11 @@ const WarmupModal: React.FC<{
                   addonBefore="Max failure"
                   value={maxFailure}
                   onChange={(v) => v && setMaxFailure(v)}
+                />
+                <Input
+                  addonBefore="subpath"
+                  value={subPath}
+                  onChange={(v) => v && setSubPath(v.target.value)}
                 />
                 <Checkbox
                   checked={background}

@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 	"io"
+	"path"
 	"strconv"
 	"strings"
 
@@ -863,6 +864,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 		maxFailure := c.Query("maxFailure")
 		background := c.Query("background")
 		check := c.Query("check")
+		customSubPath := c.Query("subPath")
 
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
@@ -874,6 +876,17 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				klog.Error("Failed to get mount pod: ", err)
 				return
 			}
+			rootPath := ""
+			volumeId := mountpod.Labels[config.PodUniqueIdLabelKey]
+			var pv corev1.PersistentVolume
+			if err := api.cachedReader.Get(ctx, api.sysNamespaced(volumeId), &pv); err == nil {
+				if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeAttributes != nil {
+					if subPath, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok {
+						rootPath = subPath
+					}
+				}
+			}
+
 			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
@@ -889,7 +902,8 @@ func (api *API) warmupPod() gin.HandlerFunc {
 					"--background=" + background,
 					"--check=" + check,
 					"--no-color",
-					mntPath}); err != nil {
+					path.Join(mntPath, rootPath, customSubPath),
+				}); err != nil {
 				klog.Error("Failed to start process: ", err)
 				return
 			}
