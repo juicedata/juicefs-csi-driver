@@ -413,6 +413,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 	}
 	klog.V(6).Infof("Get uniqueId of volume [%s]: %s", volumeID, uniqueId)
 	jfsSetting.UniqueId = uniqueId
+	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
 	if jfsSetting.CleanCache {
 		uuid := jfsSetting.Name
 		if jfsSetting.IsCe {
