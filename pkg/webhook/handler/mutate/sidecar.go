@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"path/filepath"
 	"strings"
 
@@ -34,6 +33,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type SidecarMutate struct {
@@ -283,7 +283,7 @@ func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1
 			// unexpected err
 			return err
 		}
-
+		oldSecret.Data = nil
 		oldSecret.StringData = secret.StringData
 		return s.Client.UpdateSecret(ctx, oldSecret)
 	})
