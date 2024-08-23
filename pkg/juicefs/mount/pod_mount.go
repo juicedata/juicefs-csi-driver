@@ -594,7 +594,7 @@ func (p *PodMount) createOrUpdateSecret(ctx context.Context, secret *corev1.Secr
 			// unexpected err
 			return err
 		}
-
+		oldSecret.Data = nil
 		oldSecret.StringData = secret.StringData
 		// merge owner reference
 		if len(secret.OwnerReferences) != 0 {
