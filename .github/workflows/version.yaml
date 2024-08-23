@@ -72,6 +72,7 @@ jobs:
         EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
         CSIVERSION: ${{ env.CSI_LATEST_VERSION }}
         DASHBOARD_TAG: ${{ env.CSI_LATEST_VERSION }}
+        JUICEFS_CSI_REPO_REF: ${{ github.ref }}
       run: |
         export DOCKER_CLI_EXPERIMENTAL=enabled
         docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
