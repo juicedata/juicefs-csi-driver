@@ -35,6 +35,7 @@ COPY --from=project cmd ./cmd
 COPY --from=project pkg ./pkg
 COPY --from=project go.mod .
 COPY --from=project go.sum .
+COPY --from=project .git .
 COPY --from=project Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools
