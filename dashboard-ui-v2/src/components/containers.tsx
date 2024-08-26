@@ -153,7 +153,7 @@ const Containers: React.FC<{
                     <WarmupModal
                       namespace={namespace!}
                       name={name!}
-                      container={record.name}
+                      container={c}
                     >
                       {({ onClick }) => (
                         <Tooltip title="Warmup" zIndex={0}>

@@ -17,16 +17,31 @@
 import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button, Checkbox, Input, InputNumber, Modal, Space } from 'antd'
+import { ContainerStatus } from 'kubernetes-types/core/v1'
 
 import { useWebsocket } from '@/hooks/use-api'
+import { isEEImage } from '@/utils'
 
-const helpMessage = `Build cache for target directories/files
+const EEhelpMessage = `Build cache for target directories/files
 
   - Threads         value  number of concurrent workers (default: 50)
   - IO retries      number of retries after failure (default: 1)
   - Max Failure     max number of allowed failed blocks (-1 for unlimited) (default: -1)
   - Background      run in background (default: false)
   - Check           check whether the data blocks are cached or not (default: false)
+  - Subpath        subpath to warmup (default: "")
+
+Click Start
+
+---
+`
+
+const CEhelpMessage = `Build cache for target directories/files
+
+  - Threads         value  number of concurrent workers (default: 50)
+  - Background      run in background (default: false)
+  - Check           check whether the data blocks are cached or not (default: false)
+  - Subpath        subpath to warmup (default: "")
 
 Click Start
 
@@ -41,11 +56,11 @@ function removeAnsiSequences(text: string) {
 const WarmupModal: React.FC<{
   namespace: string
   name: string
-  container: string
+  container: ContainerStatus
   children: ({ onClick }: { onClick: () => void }) => ReactNode
 }> = memo(({ namespace, name, container, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [data, setData] = useState<string>(helpMessage)
+  const [data, setData] = useState<string>('')
   const [start, setStart] = useState(false)
 
   const [threads, setThreads] = useState(50)
@@ -56,7 +71,7 @@ const WarmupModal: React.FC<{
   const [subPath, setSubPath] = useState('')
 
   useWebsocket(
-    `/api/v1/ws/pod/${namespace}/${name}/${container}/warmup`,
+    `/api/v1/ws/pod/${namespace}/${name}/${container.name}/warmup`,
     {
       queryParams: {
         threads,
@@ -93,9 +108,9 @@ const WarmupModal: React.FC<{
 
   useEffect(() => {
     if (!isModalOpen) {
-      setData(helpMessage)
+      setData(isEEImage(container.image) ? EEhelpMessage : CEhelpMessage)
     }
-  }, [isModalOpen])
+  }, [container.image, isModalOpen])
 
   return (
     <>
@@ -112,16 +127,21 @@ const WarmupModal: React.FC<{
                   value={threads}
                   onChange={(v) => v && setThreads(v)}
                 />
-                <InputNumber
-                  addonBefore="IO retries"
-                  value={ioRetries}
-                  onChange={(v) => v && setIoRetries(v)}
-                />
-                <InputNumber
-                  addonBefore="Max failure"
-                  value={maxFailure}
-                  onChange={(v) => v && setMaxFailure(v)}
-                />
+                {isEEImage(container.image) ? (
+                  <>
+                    <InputNumber
+                      addonBefore="IO retries"
+                      value={ioRetries}
+                      onChange={(v) => v && setIoRetries(v)}
+                    />
+                    <InputNumber
+                      addonBefore="Max failure"
+                      value={maxFailure}
+                      onChange={(v) => v && setMaxFailure(v)}
+                    />
+                  </>
+                ) : null}
+
                 <Input
                   addonBefore="subpath"
                   value={subPath}

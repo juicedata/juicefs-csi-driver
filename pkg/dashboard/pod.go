@@ -892,18 +892,21 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				klog.Error("Failed to get mount path: ", err)
 				return
 			}
+			cmds := []string{
+				"juicefs", "warmup",
+				"--threads=" + threads,
+				"--background=" + background,
+				"--check=" + check,
+				"--no-color",
+			}
+			if !config.IsCEMountPod(mountpod) {
+				cmds = append(cmds, "--io-retries="+ioRetries)
+				cmds = append(cmds, "--max-failure="+maxFailure)
+			}
+			cmds = append(cmds, path.Join(mntPath, rootPath, customSubPath))
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
-				[]string{
-					"juicefs", "warmup",
-					"--threads=" + threads,
-					"--io-retries=" + ioRetries,
-					"--max-failure=" + maxFailure,
-					"--background=" + background,
-					"--check=" + check,
-					"--no-color",
-					path.Join(mntPath, rootPath, customSubPath),
-				}); err != nil {
+				cmds); err != nil {
 				klog.Error("Failed to start process: ", err)
 				return
 			}
