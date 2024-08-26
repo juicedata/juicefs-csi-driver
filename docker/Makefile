@@ -31,8 +31,6 @@ CE_VERSION=${CEVERSION}
 CE_JUICEFS_VERSION=${CEJUICEFS_VERSION}
 EE_VERSION=${EEVERSION}
 CSI_VERSION=${CSIVERSION}
-JUICEFS_CSI_REPO_URL?=https://github.com/juicedata/juicefs-csi-driver
-JUICEFS_CSI_REPO_REF?=master
 
 ################# CSI image #######################
 
@@ -44,8 +42,7 @@ image-nightly:
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ce-nightly \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ee-nightly \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
-		--build-arg JUICEFS_CSI_REPO_URL=$(JUICEFS_CSI_REPO_URL) \
-		--build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_REPO_REF) \
+		--build-context project=.. \
         -t $(IMAGE):nightly -f csi.Dockerfile .
 
 # push nightly image
@@ -60,8 +57,7 @@ image-version:
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
-		--build-arg JUICEFS_CSI_REPO_URL=$(JUICEFS_CSI_REPO_URL) \
-		--build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_REPO_REF) \
+		--build-context project=.. \
 		--platform linux/amd64,linux/arm64 -f csi.Dockerfile . --push
 
 .PHONY: push-version
@@ -81,8 +77,7 @@ image-release-check:
 		--build-arg JFSCHAN=$(JFS_CHAN) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
-		--build-arg JUICEFS_CSI_REPO_URL=$(JUICEFS_CSI_REPO_URL) \
-		--build-arg JUICEFS_CSI_REPO_REF=$(JUICEFS_CSI_REPO_REF) \
+		--build-context project=.. \
 		-t $(IMAGE):$(DEV_TAG) -f csi.Dockerfile .
 	docker build --build-context project=.. --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
