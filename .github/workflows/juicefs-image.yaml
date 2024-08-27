@@ -7,6 +7,10 @@ on:
         description: 'ce juicefs version for image build'
         required: false
         type: string
+      ee_pkg_url:
+        description: 'ee juicefs pkg url for image build'
+        required: false
+        type: string
   schedule:
     - cron: "0 0 * * *"
 
@@ -164,9 +168,15 @@ jobs:
         run: docker login --username chnliyong --password ${PASSWORD}
       - name: check latest tag
         continue-on-error: true
+        env:
+          ee_pkg_url: ${{ inputs.ee_pkg_url }}
         run: |
           set +e
-          curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz
+          url=${{ env.ee_pkg_url }}
+          if [ -z "$ee_pkg_url" ]; then
+            url="https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz"
+          fi
+          curl -sSL $url | tar -xz
           version=$(grep -oP 'mount_version=\K.*' version.ini)
           hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
           JUICEFS_EE_LATEST_VERSION=$version-$hash
@@ -189,6 +199,7 @@ jobs:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          JFSPKGURL: ${{ inputs.ee_pkg_url }}
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           export DOCKER_CLI_EXPERIMENTAL=enabled
