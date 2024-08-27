@@ -19,10 +19,10 @@ ARG JFSCHAN
 WORKDIR /app
 
 ARG TARGETARCH
+ARG JFS_PKG_URL=https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
-ENV JFS_PKG_URL=https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
 
 RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then apt update && apt install -y software-properties-common wget gnupg gnupg2 && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
