@@ -24,6 +24,7 @@ IMAGE_VERSION_ANNOTATED=$(IMAGE):$(VERSION)-juicefs$(shell docker run --entrypoi
 JUICEFS_CE_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
 JUICEFS_EE_LATEST_VERSION=$(shell curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
 JFS_CHAN=${JFSCHAN}
+JFS_PKG_URL=${JFSPKGURL}
 JUICEFS_REPO_URL?=https://github.com/juicedata/juicefs
 JUICEFS_REPO_REF?=$(JUICEFS_CE_LATEST_VERSION)
 MOUNT_TAG=${MOUNTTAG}
@@ -135,6 +136,7 @@ ee-image:
 ee-image-buildx:
 	docker buildx build -f ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
+	    --build-arg JFS_PKG_URL=$(JFS_PKG_URL) \
 		--platform linux/amd64,linux/arm64 . --push
 
 .PHONY: ee-image-4.0-buildx
