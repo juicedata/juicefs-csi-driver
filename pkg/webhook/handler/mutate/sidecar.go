@@ -26,7 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -34,6 +34,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
+)
+
+var (
+	sidecarLog = klog.NewKlogr().WithName("sidecar")
 )
 
 type SidecarMutate struct {
@@ -71,7 +75,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	// get secret, volumeContext and mountOptions from PV
 	secrets, volCtx, options, err := s.GetSettings(*pair.PV)
 	if err != nil {
-		klog.Errorf("get settings from pv %s of pod %s namespace %s err: %v", pair.PV.Name, pod.Name, pod.Namespace, err)
+		sidecarLog.Error(err, "get settings from pv of pod err", "pv name", pair.PV.Name, "podName", pod.Name, "podNamespace", pod.Namespace)
 		return
 	}
 
@@ -124,7 +128,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	// gen mount pod
 	mountPod := r.NewMountSidecar()
 	podStr, _ := json.Marshal(mountPod)
-	klog.V(6).Infof("mount pod: %v\n", string(podStr))
+	sidecarLog.V(1).Info("generate mount pod", "mount pod", string(podStr))
 
 	// deduplicate container name and volume name in pod when multiple volumes are mounted
 	s.Deduplicate(pod, mountPod, index)
@@ -187,7 +191,7 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 		secrets[k] = string(v)
 	}
 	volCtx = pv.Spec.CSI.VolumeAttributes
-	klog.V(5).Infof("volume context of pv %s: %v", pv.Name, volCtx)
+	sidecarLog.Info("volume context of pv", "pv", pv.Name, "volCtx", volCtx)
 
 	options = []string{}
 	if len(pv.Spec.AccessModes) == 1 && pv.Spec.AccessModes[0] == corev1.ReadOnlyMany {
@@ -202,7 +206,7 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 		mountOptions = strings.Split(opts, ",")
 	}
 	options = append(options, mountOptions...)
-	klog.V(5).Infof("volume options of pv %s: %v", pv.Name, options)
+	sidecarLog.Info("volume options of pv", "pv", pv.Name, "options", options)
 
 	return
 }
@@ -271,7 +275,7 @@ func (s *SidecarMutate) injectAnnotation(pod *corev1.Pod, annotations map[string
 }
 
 func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1.Secret) error {
-	klog.V(5).Infof("createOrUpdateSecret: %s, %s", secret.Name, secret.Namespace)
+	sidecarLog.Info("create or update secret", "name", secret.Name, "namespace", secret.Namespace)
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		oldSecret, err := s.Client.GetSecret(ctx, secret.Name, secret.Namespace)
 		if err != nil {
@@ -288,7 +292,7 @@ func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1
 		return s.Client.UpdateSecret(ctx, oldSecret)
 	})
 	if err != nil {
-		klog.Errorf("createOrUpdateSecret: secret %s: %v", secret.Name, err)
+		sidecarLog.Error(err, "create or update secret error", "name", secret.Name)
 		return err
 	}
 	return nil

@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -38,6 +38,7 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
+	log    = klog.NewKlogr().WithName("manager")
 )
 
 func init() {
@@ -79,14 +80,14 @@ func NewMountManager(
 		}),
 	})
 	if err != nil {
-		klog.Errorf("New mount controller error: %v", err)
+		log.Error(err, "New mount controller error")
 		return nil, err
 	}
 
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Could not create k8s client %v", err)
+		log.Error(err, "Could not create k8s client")
 		return nil, err
 	}
 
@@ -99,22 +100,22 @@ func NewMountManager(
 func (m *MountManager) Start(ctx context.Context) {
 	// init Reconciler（Controller）
 	if err := (mountctrl.NewMountController(m.client)).SetupWithManager(m.mgr); err != nil {
-		klog.Errorf("Register mount controller error: %v", err)
+		log.Error(err, "Register mount controller error")
 		return
 	}
 	if err := (mountctrl.NewJobController(m.client)).SetupWithManager(m.mgr); err != nil {
-		klog.Errorf("Register job controller error: %v", err)
+		log.Error(err, "Register job controller error")
 		return
 	}
 	if config.CacheClientConf {
 		if err := (mountctrl.NewSecretController(m.client)).SetupWithManager(m.mgr); err != nil {
-			klog.Errorf("Register secret controller error: %v", err)
+			log.Error(err, "Register secret controller error")
 			return
 		}
 	}
-	klog.Info("Mount manager started.")
+	log.Info("Mount manager started.")
 	if err := m.mgr.Start(ctx); err != nil {
-		klog.Errorf("Mount manager start error: %v", err)
+		log.Error(err, "Mount manager start error")
 		os.Exit(1)
 	}
 }

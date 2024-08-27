@@ -28,7 +28,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/klog"
 )
 
 const (
@@ -106,7 +105,7 @@ func (t *terminalSession) checkHeartbeat(ctx context.Context) {
 			return
 		default:
 			if time.Since(t.lastHeartbeatAt) > 1*time.Minute {
-				klog.Error("Terminal session heartbeat timeout")
+				resourceLog.Info("Terminal session heartbeat timeout")
 				t.conn.Close()
 				return
 			}
@@ -137,7 +136,7 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 
 	executor, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	if err != nil {
-		klog.Error("Failed to create SPDY executor: ", err)
+		resourceLog.Error(err, "Failed to create SPDY executor")
 		return err
 	}
 	if err := executor.Stream(remotecommand.StreamOptions{
@@ -147,7 +146,7 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 		TerminalSizeQueue: h,
 		Tty:               true,
 	}); err != nil {
-		klog.Error("Failed to stream: ", err)
+		resourceLog.Error(err, "Failed to stream")
 		return err
 	}
 
@@ -168,14 +167,14 @@ func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Wr
 
 	executor, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	if err != nil {
-		klog.Error("Failed to create SPDY executor: ", err)
+		resourceLog.Error(err, "Failed to create SPDY executor")
 		return err
 	}
 	if err := executor.Stream(remotecommand.StreamOptions{
 		Stdout: writer,
 		Stderr: writer,
 	}); err != nil {
-		klog.Error("Failed to stream: ", err)
+		resourceLog.Error(err, "Failed to stream")
 		return err
 	}
 

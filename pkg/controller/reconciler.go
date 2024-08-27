@@ -25,7 +25,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
@@ -36,6 +36,10 @@ import (
 const (
 	retryPeriod    = 5 * time.Second
 	maxRetryPeriod = 300 * time.Second
+)
+
+var (
+	reconcilerLog = klog.NewKlogr().WithName("reconciler-controller")
 )
 
 type PodReconciler struct {
@@ -63,7 +67,7 @@ func StartReconciler() error {
 	// gen podDriver
 	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Could not create k8s client %v", err)
+		reconcilerLog.Error(err, "Could not create k8s client")
 		return err
 	}
 
@@ -88,11 +92,11 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		mit := newMountInfoTable()
 		podList, err := kc.GetNodeRunningPods()
 		if err != nil {
-			klog.Errorf("doReconcile GetNodeRunningPods: %v", err)
+			reconcilerLog.Error(err, "doReconcile GetNodeRunningPods error")
 			goto finish
 		}
 		if err := mit.parse(); err != nil {
-			klog.Errorf("doReconcile ParseMountInfo: %v", err)
+			reconcilerLog.Error(err, "doReconcile ParseMountInfo error")
 			goto finish
 		}
 
@@ -129,7 +133,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 
 				select {
 				case <-ctx.Done():
-					klog.Infof("goroutine of pod %s cancel", pod.Name)
+					reconcilerLog.Info("goroutine of pod cancel", "name", pod.Name)
 					return nil
 				default:
 					if !backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
@@ -142,7 +146,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 						result, err := podDriver.Run(ctx, pod)
 						lastStatus.syncAt = time.Now()
 						if err != nil {
-							klog.Errorf("Driver check pod %s error, will retry: %v", pod.Name, err)
+							reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
 							backOff.Next(backOffID, time.Now())
 							lastStatus.nextSyncAt = time.Now()
 							return err

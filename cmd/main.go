@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -53,6 +53,8 @@ var (
 	leaderElection              bool
 	leaderElectionNamespace     string
 	leaderElectionLeaseDuration time.Duration
+
+	log = klog.NewKlogr().WithName("main")
 )
 
 func main() {
@@ -63,7 +65,8 @@ func main() {
 			if version {
 				info, err := driver.GetVersionJSON()
 				if err != nil {
-					klog.Fatalln(err)
+					log.Error(err, "fail to get version info")
+					os.Exit(1)
 				}
 				fmt.Println(info)
 				os.Exit(0)
@@ -107,18 +110,19 @@ func main() {
 func run() {
 	if configPath != "" {
 		if err := config.StartConfigReloader(configPath); err != nil {
-			klog.Fatalf("fail to load config: %v", err)
+			log.Error(err, "fail to load config")
+			os.Exit(1)
 		}
 	}
 
 	ctx := ctrl.SetupSignalHandler()
 	podName := os.Getenv("POD_NAME")
 	if strings.Contains(podName, "csi-controller") {
-		klog.Info("Run CSI controller")
+		log.Info("Run CSI controller")
 		controllerRun(ctx)
 	}
 	if strings.Contains(podName, "csi-node") {
-		klog.Info("Run CSI node")
+		log.Info("Run CSI node")
 		nodeRun(ctx)
 	}
 }

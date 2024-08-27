@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/io"
 )
 
@@ -43,6 +43,10 @@ const (
 	maxListTries                         = 3
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	procMountInfoPath                    = "/proc/self/mountinfo"
+)
+
+var (
+	utilLog = klog.NewKlogr().WithName("util")
 )
 
 func init() {
@@ -345,12 +349,13 @@ func CheckDynamicPV(name string) (bool, error) {
 }
 
 func UmountPath(ctx context.Context, sourcePath string) {
+	log := GenLog(ctx, utilLog, "Umount")
 	out, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
 	if err != nil &&
 		!strings.Contains(string(out), "not mounted") &&
 		!strings.Contains(string(out), "mountpoint not found") &&
 		!strings.Contains(string(out), "no mount point specified") {
-		klog.Errorf("Could not lazy unmount %q: %v, output: %s", sourcePath, err, string(out))
+		log.Error(err, "Could not lazy unmount", "path", sourcePath, "out", string(out))
 	}
 }
 
@@ -399,7 +404,7 @@ func GetDiskUsage(path string) (uint64, uint64, uint64, uint64) {
 		freeFiles := stat.Ffree
 		return totalSize, freeSize, totalFiles, freeFiles
 	} else {
-		klog.Errorf("GetDiskUsage: syscall.Statfs failed: %v", err)
+		utilLog.Error(err, "GetDiskUsage: syscall.Statfs failed")
 		return 1, 1, 1, 1
 	}
 }

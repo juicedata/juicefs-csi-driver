@@ -23,9 +23,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
+
+var (
+	resourceLog = klog.NewKlogr().WithName("util")
 )
 
 // GetNamespace get juicefs pv & pvc from pod when pod namespace is empty

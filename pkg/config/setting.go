@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -195,7 +194,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if secrets["configs"] != "" {
 		configStr := secrets["configs"]
 		configs := make(map[string]string)
-		klog.V(6).Infof("Get configs in secret: %v", configStr)
+		log.V(1).Info("Get configs in secret", "config", configStr)
 		if err := parseYamlOrJson(configStr, &configs); err != nil {
 			return nil, err
 		}
@@ -205,7 +204,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if secrets["envs"] != "" {
 		envStr := secrets["envs"]
 		env := make(map[string]string)
-		klog.V(6).Infof("Get envs in secret: %v", envStr)
+		log.V(1).Info("Get envs in secret", "env", envStr)
 		if err := parseYamlOrJson(envStr, &env); err != nil {
 			return nil, err
 		}
@@ -292,7 +291,7 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 				Medium: medium,
 				Path:   volPath,
 			}
-			klog.Infof("sizeLimit of emptyDir is %s", sizeLimit)
+			log.Info("sizeLimit of emptyDir", "size", sizeLimit)
 			if sizeLimit != "" {
 				if jfsSetting.CacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
 					return err
@@ -309,7 +308,7 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 				return fmt.Errorf("parse cache inline volume error: %v", err)
 			}
 			jfsSetting.CacheInlineVolumes = make([]*CacheInlineVolume, 0)
-			klog.V(6).Infof("get cache inline volume: %v", inlineVolumes)
+			log.V(1).Info("get cache inline volume", "inline volume", inlineVolumes)
 
 			for i, inlineVolume := range inlineVolumes {
 				volPath := fmt.Sprintf("/var/jfsCache-inlineVolume-%d", i)
@@ -367,7 +366,7 @@ func genAndValidOptions(JfsSetting *JfsSetting, options []string) error {
 			mountOption = fmt.Sprintf("%s=%s", strings.TrimSpace(ops[0]), strings.TrimSpace(ops[1]))
 		}
 		if mountOption == "writeback" {
-			klog.Warningf("writeback is not suitable in CSI, please do not use it. volumeId: %s", JfsSetting.VolumeId)
+			log.Info("writeback is not suitable in CSI, please do not use it.", "volumeId", JfsSetting.VolumeId)
 		}
 		if len(ops) == 2 && ops[0] == "buffer-size" {
 			memLimit := JfsSetting.Attr.Resources.Limits[corev1.ResourceMemory]
@@ -438,7 +437,7 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 		memoryRequest := volCtx[MountPodMemRequestKey]
 		attr.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 		if err != nil {
-			klog.Errorf("Parse resource error: %v", err)
+			log.Error(err, "Parse resource error")
 			return err
 		}
 		if v, ok := volCtx[mountPodLabelKey]; ok && v != "" {
@@ -504,12 +503,12 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 	pvName := mountPod.Annotations[UniqueId]
 	pv, err := client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
-		klog.Errorf("Get pv %s error: %v", pvName, err)
+		log.Error(err, "Get pv error", "pv", pvName)
 		return nil, err
 	}
 	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 	if err != nil {
-		klog.Errorf("Get pvc %s/%s error: %v", pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, err)
+		log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		return nil, err
 	}
 	cpuLimit := pvc.Annotations[MountPodCpuLimitKey]

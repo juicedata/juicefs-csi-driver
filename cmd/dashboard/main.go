@@ -20,7 +20,6 @@ import (
 	"context"
 	goflag "flag"
 	"fmt"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -40,7 +39,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -58,6 +57,7 @@ const (
 
 var (
 	scheme = runtime.NewScheme()
+	log    = klog.NewKlogr().WithName("main")
 
 	port      uint16
 	devMode   bool
@@ -114,11 +114,13 @@ func run() {
 		config = ctrl.GetConfigOrDie()
 	}
 	if err != nil {
-		log.Fatalf("can't get k8s config: %v", err)
+		log.Error(err, "can't get k8s config")
+		os.Exit(1)
 	}
 	mgr, err := newManager(config)
 	if err != nil {
-		log.Fatalf("can't create manager: %v", err)
+		log.Error(err, "can't create manager")
+		os.Exit(1)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -159,28 +161,33 @@ func run() {
 	}
 
 	go func() {
-		log.Printf("listen on %s\n", addr)
+		log.Info("listen and serve", "addr", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			log.Error(err, "listen error")
+			os.Exit(1)
 		}
 	}()
 	go func() {
 		// pprof server
-		log.Println(http.ListenAndServe("localhost:8089", nil))
+		err = http.ListenAndServe("localhost:8089", nil)
+		if err != nil {
+			log.Error(err, "pprof server error")
+		}
 	}()
 	quit := make(chan os.Signal, 1)
 	go func() {
 		if err := podApi.StartManager(ctx, mgr); err != nil {
-			klog.Errorf("manager start error: %v", err)
+			log.Error(err, "manager start error")
 		}
 		quit <- syscall.SIGTERM
 	}()
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutdown Server ...")
+	log.Info("Shutdown Server ...")
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+		log.Error(err, "Server Shutdown")
+		os.Exit(1)
 	}
 }
 

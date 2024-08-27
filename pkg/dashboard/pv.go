@@ -27,10 +27,12 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
+
+var pvLog = klog.NewKlogr().WithName("pv")
 
 func (api *API) listPodPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -338,7 +340,7 @@ func (api *API) getPV(ctx context.Context, name string) (*corev1.PersistentVolum
 	var pv corev1.PersistentVolume
 	if err := api.cachedReader.Get(ctx, api.sysNamespaced(name), &pv); err != nil {
 		if k8serrors.IsNotFound(err) {
-			klog.Errorf("get pv %s error: %v", name, err)
+			pvLog.Error(err, "get pv error", "name", name)
 			return nil, nil
 		}
 		return nil, err
@@ -350,7 +352,7 @@ func (api *API) getPVC(namespace, name string) (*corev1.PersistentVolumeClaim, e
 	var pvc corev1.PersistentVolumeClaim
 	if err := api.cachedReader.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, &pvc); err != nil {
 		if k8serrors.IsNotFound(err) {
-			klog.Errorf("get pvc %s/%s error: %v", namespace, name, err)
+			pvLog.Error(err, "get pvc error", "namespace", namespace, "name", name)
 			return nil, nil
 		}
 		return nil, err
