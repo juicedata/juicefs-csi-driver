@@ -45,6 +45,7 @@ var (
 const defaultCheckTimeout = 2 * time.Second
 
 type nodeService struct {
+	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
 	juicefs   juicefs.Interface
 	nodeID    string
