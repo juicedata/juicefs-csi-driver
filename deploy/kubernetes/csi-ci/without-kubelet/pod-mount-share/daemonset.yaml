@@ -12,7 +12,7 @@ spec:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
-            - --v=6
+            - --v=1
             - --enable-manager=true
             - --config=/etc/config/config.yaml
           env:

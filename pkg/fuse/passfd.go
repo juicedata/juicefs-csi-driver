@@ -104,7 +104,12 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 	addressInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
 	// mkdir parent
 	err := util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		return os.MkdirAll(path.Join(fs.basePath, podHashVal), 0777)
+		parentPath := path.Join(fs.basePath, podHashVal)
+		exist, _ := k8sMount.PathExists(parentPath)
+		if !exist {
+			return os.MkdirAll(parentPath, 0777)
+		}
+		return nil
 	})
 	if err != nil {
 		return "", err

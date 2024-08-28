@@ -339,7 +339,11 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
 	// mkdir mountpath
 	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		return os.MkdirAll(jfsSetting.MountPath, 0777)
+		exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
+		if !exist {
+			return os.MkdirAll(jfsSetting.MountPath, 0777)
+		}
+		return nil
 	})
 	if err != nil {
 		return

@@ -274,6 +274,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 }
 
 func TestJUmount(t *testing.T) {
+	defer func() { _ = os.RemoveAll("tmp") }()
 	fakeClientSet := fake.NewSimpleClientset()
 	fuse.InitTestFds()
 
@@ -740,6 +741,10 @@ func TestJMount(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, nil
 			})
 			defer patch5.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
 			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient}, mount.SafeFormatAndMount{

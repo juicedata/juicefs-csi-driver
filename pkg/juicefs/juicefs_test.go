@@ -642,6 +642,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -673,6 +677,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, errors.New("test")
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -714,6 +722,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -750,6 +762,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -786,6 +802,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -822,6 +842,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return false, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -857,6 +881,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return false, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()

@@ -13,6 +13,6 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
-            - --v=6
+            - --v=1
             - --by-process=true
             - --config=/etc/config/config.yaml

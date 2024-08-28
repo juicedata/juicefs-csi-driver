@@ -486,6 +486,10 @@ func TestNodeUnpublishVolume(t *testing.T) {
 	metrics := newNodeMetrics(registerer)
 	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 			targetPath := "/test/path"
 			volumeId := "vol-test"
 
@@ -516,6 +520,10 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			targetPath := "/test/path"
 			volumeId := "vol-test"
 
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 

@@ -93,6 +93,7 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 }
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error) {
+	ctx = util.WithLog(ctx, podDriverLog)
 	podStatus := getPodStatus(current)
 	podDriverLog.V(1).Info("start handle pod", "namespace", current.Namespace, "name", current.Name, "status", podStatus)
 	// check refs in mount pod annotation first, delete ref that target pod is not found
@@ -910,7 +911,11 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 		return err
 	}
 	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		return os.MkdirAll(mntPath, 0777)
+		exist, _ := mount.PathExists(mntPath)
+		if !exist {
+			return os.MkdirAll(mntPath, 0777)
+		}
+		return nil
 	})
 	if err != nil {
 		return err
