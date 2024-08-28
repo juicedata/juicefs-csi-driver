@@ -543,6 +543,22 @@ export function isMountPod(pod: Pod): boolean {
   )
 }
 
+export function isCEImage(image: string): boolean {
+  const tag = image.split(':')[1]
+  if (!tag) {
+    return false
+  }
+  return tag.startsWith('ce')
+}
+
+export function isEEImage(image: string): boolean {
+  const tag = image.split(':')[1]
+  if (!tag) {
+    return false
+  }
+  return tag.startsWith('ee')
+}
+
 // image is the image name with tag, e.g. 'juicedata/mount:ce-v1.1.0'
 export function supportDebug(image: string): boolean {
   const version = image.split(':')[1]
