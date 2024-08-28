@@ -19,12 +19,11 @@ package dashboard
 import (
 	"context"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -32,7 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
+
+var mgrLog = klog.NewKlogr().WithName("manager")
 
 func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	podCtr := PodController{api}
@@ -65,7 +68,7 @@ type PVCController struct {
 func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	pod := &corev1.Pod{}
 	if err := c.cachedReader.Get(ctx, req.NamespacedName, pod); err != nil {
-		klog.Errorf("get pod %s failed: %v", req.NamespacedName, err)
+		mgrLog.Error(err, "get pod failed", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodShouldList(ctx, pod) {
@@ -79,7 +82,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 			delete(c.csiNodeIndex, pod.Spec.NodeName)
 			c.csiNodeLock.Unlock()
 		}
-		klog.V(6).Infof("pod %s deleted", req.NamespacedName)
+		mgrLog.V(1).Info("pod deleted", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	indexes := c.appIndexes
@@ -103,7 +106,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 			return &pod, err
 		},
 	)
-	klog.V(6).Infof("pod %s created", req.NamespacedName)
+	mgrLog.V(1).Info("pod created", "namespacedName", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
 
@@ -138,7 +141,7 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 					delete(c.csiNodeIndex, pod.Spec.NodeName)
 					c.csiNodeLock.Unlock()
 				}
-				klog.V(6).Infof("pod %s%s deleted", pod.GetNamespace(), pod.GetName())
+				mgrLog.V(1).Info("pod deleted", "namespace", pod.GetNamespace(), "name", pod.GetName())
 				return false
 			}
 			return true
@@ -156,11 +159,11 @@ func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (re
 			c.pvIndexes.removeIndex(req.NamespacedName)
 			return reconcile.Result{}, nil
 		}
-		klog.Errorf("get pv %s failed: %v", req.NamespacedName, err)
+		mgrLog.Error(err, "get pv failed", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, err
 	}
 	if pv.DeletionTimestamp != nil {
-		klog.V(6).Infof("watch pv %s deleted", req.NamespacedName)
+		mgrLog.V(1).Info("watch pv deleted", "namespacedName", req.NamespacedName)
 		c.pvIndexes.removeIndex(req.NamespacedName)
 		if pv.Spec.ClaimRef != nil {
 			pvcName := types.NamespacedName{
@@ -193,7 +196,7 @@ func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (re
 		c.pairLock.Unlock()
 		var pvc corev1.PersistentVolumeClaim
 		if err := c.cachedReader.Get(ctx, pvcName, &pvc); err != nil {
-			klog.Errorf("get pvc %s failed: %v", pvcName, err)
+			mgrLog.Error(err, "get pvc failed", "name", pvcName)
 			return reconcile.Result{}, nil
 		}
 		c.pvcIndexes.addIndex(
@@ -206,7 +209,7 @@ func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (re
 			},
 		)
 	}
-	klog.V(6).Infof("pv %s created", req.NamespacedName)
+	mgrLog.V(1).Info("pv created", "namespacedName", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
 
@@ -236,7 +239,7 @@ func (c *PVController) SetupWithManager(mgr manager.Manager) error {
 func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
 	if err := c.cachedReader.Get(ctx, req.NamespacedName, pvc); err != nil {
-		klog.Errorf("get pvc %s failed: %v", req.NamespacedName, err)
+		mgrLog.Error(err, "get pvc failed", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	if pvc.DeletionTimestamp != nil {
@@ -268,7 +271,7 @@ func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		}
 		var pv corev1.PersistentVolume
 		if err := c.cachedReader.Get(ctx, pvName, &pv); err != nil {
-			klog.Errorf("get pv %s failed: %v", pvName, err)
+			mgrLog.Error(err, "get pv failed", "name", pvName)
 			return reconcile.Result{}, err
 		}
 		c.pairLock.Lock()
@@ -317,7 +320,7 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 				Namespace: pvc.GetNamespace(),
 				Name:      pvc.GetName(),
 			}
-			klog.V(6).Infof("watch pvc %s deleted", name)
+			mgrLog.V(1).Info("watch pvc deleted", "name", name)
 			c.pvcIndexes.removeIndex(name)
 			c.pairLock.Lock()
 			delete(c.pairs, name)

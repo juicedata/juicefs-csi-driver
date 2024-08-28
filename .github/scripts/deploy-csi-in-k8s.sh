@@ -122,7 +122,7 @@ function deploy_webhook() {
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook >> ${GITHUB_WORKSPACE}/deploy/webhook.yaml
   sudo ${GITHUB_WORKSPACE}/hack/update_install_script.sh
   sudo ${GITHUB_WORKSPACE}/scripts/juicefs-csi-webhook-install.sh print | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do
@@ -161,7 +161,7 @@ function deploy_webhook_provisioner() {
   sudo kustomize build ${GITHUB_WORKSPACE}/deploy/kubernetes/csi-ci/webhook-provisioner > ${GITHUB_WORKSPACE}/deploy/webhook.yaml
   sudo ${GITHUB_WORKSPACE}/hack/update_install_script.sh
   sudo ${GITHUB_WORKSPACE}/scripts/juicefs-csi-webhook-install.sh print | sed -e "s@juicedata/juicefs-csi-driver.*\$@juicedata/juicefs-csi-driver:${dev_tag}@g" \
-    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e 's@--v=5@--v=6@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
+    -e 's@/var/lib/kubelet@/var/snap/microk8s/common/var/lib/kubelet@g' -e "s@juicedata/csi-dashboard.*\$@juicedata/csi-dashboard:${dev_tag}@g" | sudo microk8s.kubectl apply -f -
   # Wait until the deploy finish
   timeout=0
   while true; do

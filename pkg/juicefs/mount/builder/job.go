@@ -24,7 +24,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -54,7 +53,7 @@ func (r *JobBuilder) NewJobForCreateVolume() *batchv1.Job {
 	cmd := strings.Join([]string{initCmd, jobCmd}, "\n")
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 
-	klog.Infof("create volume job cmd: %s", jobCmd)
+	builderLog.Info("create volume job", "command", jobCmd)
 	return job
 }
 
@@ -65,7 +64,7 @@ func (r *JobBuilder) NewJobForDeleteVolume() *batchv1.Job {
 	initCmd := r.genInitCommand()
 	cmd := strings.Join([]string{initCmd, jobCmd}, "\n")
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
-	klog.Infof("delete volume job cmd: %s", jobCmd)
+	builderLog.Info("delete volume job", "command", jobCmd)
 	return job
 }
 

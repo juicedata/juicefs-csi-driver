@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -37,7 +36,7 @@ type PVPair struct {
 
 // GetVolumes get juicefs pv & pvc from pod
 func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (used bool, pvPairGot []PVPair, err error) {
-	klog.V(6).Infof("Volumes of pod %s: %v", pod.Name, pod.Spec.Volumes)
+	resourceLog.V(1).Info("Volumes of pod", "podName", pod.Name, "volumes", pod.Spec.Volumes)
 	var namespace string
 	pvPairGot = []PVPair{}
 	namespace, err = GetNamespace(ctx, client, pod)
@@ -46,7 +45,7 @@ func GetVolumes(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Po
 	}
 	pod.Namespace = namespace
 	pvPairGot, err = getVol(ctx, client, pod, namespace)
-	klog.V(6).Infof("pvPairGot: %v", pvPairGot)
+	resourceLog.V(1).Info("get pv pair", "pv pair", pvPairGot)
 	used = len(pvPairGot) != 0
 	return
 }

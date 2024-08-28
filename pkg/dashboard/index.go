@@ -25,8 +25,10 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
+
+var indexLog = klog.NewKlogr().WithName("index")
 
 type k8sResource interface {
 	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass
@@ -79,7 +81,7 @@ func (i *timeOrderedIndexes[T]) addIndex(resource *T, metaGetter func(*T) metav1
 	for e := i.list.Back(); e != nil; e = e.Prev() {
 		currentResource, err := resourceGetter(e.Value.(types.NamespacedName))
 		if err != nil || currentResource == nil {
-			klog.V(1).Infof("failed to get resource %s: %v", e.Value.(types.NamespacedName), err)
+			indexLog.V(1).Info("failed to get resource", "namespacedName", e.Value.(types.NamespacedName), "error", err)
 			i.list.Remove(e)
 			continue
 		}

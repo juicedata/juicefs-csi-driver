@@ -25,7 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -37,6 +37,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+)
+
+var (
+	secretCtrlLog = klog.NewKlogr().WithName("secret-controller")
 )
 
 type SecretController struct {
@@ -74,9 +78,9 @@ func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient,
 	// check if the pod still exists
 	podName := strings.TrimSuffix(secrets.Name, "-secret")
 	if _, err := client.GetPod(ctx, podName, secrets.Namespace); k8serrors.IsNotFound(err) {
-		klog.V(5).Infof("orphan secret %s found, delete it", secrets.Name)
+		secretCtrlLog.Info("orphan secret found, delete it", "name", secrets.Name)
 		if err := client.DeleteSecret(ctx, secrets.Name, secrets.Namespace); err != nil {
-			klog.Errorf("delete secret %s error: %v", secrets.Name, err)
+			secretCtrlLog.Error(err, "delete secret error", "name", secrets.Name)
 			return err
 		}
 		return nil
@@ -86,28 +90,28 @@ func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient,
 }
 
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive secret %s %s", request.Name, request.Namespace)
+	secretCtrlLog.V(1).Info("Receive secret", "name", request.Name, "namespace", request.Namespace)
 	secrets, err := m.GetSecret(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.Errorf("get secret %s error: %v", request.Name, err)
+		secretCtrlLog.Error(err, "get secret error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 	if secrets == nil {
-		klog.V(6).Infof("secret %s has been deleted.", request.Name)
+		secretCtrlLog.V(1).Info("secret has been deleted.", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
 
 	if err := checkAndCleanOrphanSecret(ctx, m.K8sClient, secrets); err != nil {
-		klog.Warningf("check and clean orphan secret %s error: %v", request.Name, err)
+		secretCtrlLog.Error(err, "check and clean orphan secret error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 
 	if _, found := secrets.Data["token"]; !found {
-		klog.V(6).Infof("token not found in secret %s", request.Name)
+		secretCtrlLog.V(1).Info("token not found in secret", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
 	if _, found := secrets.Data["name"]; !found {
-		klog.V(6).Infof("name not found in secret %s", request.Name)
+		secretCtrlLog.V(1).Info("name not found in secret", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
 	jfs := juicefs.NewJfsProvider(nil, nil)
@@ -127,14 +131,14 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	jfsSetting.ClientConfPath = tempConfDir
 	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
 	if err != nil {
-		klog.Errorf("auth failed: %s, %v", output, err)
+		secretCtrlLog.Error(err, "auth failed", "output", output)
 		return reconcile.Result{}, err
 	}
 	conf := jfsSetting.Name + ".conf"
 	confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
 	b, err := os.ReadFile(confPath)
 	if err != nil {
-		klog.Errorf("read initconfig %s failed: %v", conf, err)
+		secretCtrlLog.Error(err, "read initconfig failed", "conf", conf)
 		return reconcile.Result{}, err
 	}
 	confs := string(b)
@@ -142,7 +146,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	secrets.StringData = secretsMap
 	err = m.UpdateSecret(ctx, secrets)
 	if err != nil {
-		klog.Errorf("inject initconfig into %s failed: %v", request.Name, err)
+		secretCtrlLog.Error(err, "inject initconfig failed", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 	// requeue after to make sure the initconfig is always up-to-date
@@ -158,25 +162,25 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
 			secret := event.Object.(*corev1.Secret)
-			klog.V(6).Infof("watch secret %s created", secret.GetName())
+			secretCtrlLog.V(1).Info("watch secret created", "name", secret.GetName())
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			secretNew, ok := updateEvent.ObjectNew.(*corev1.Secret)
 			if !ok {
-				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
+				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip object", "object", updateEvent.ObjectNew)
 				return false
 			}
-			klog.V(6).Infof("watch secret %s updated", secretNew.GetName())
+			secretCtrlLog.V(1).Info("watch secret updated", "name", secretNew.GetName())
 
 			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
 			if !ok {
-				klog.V(6).Infof("secret.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
+				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip object", "object", updateEvent.ObjectOld)
 				return false
 			}
 
 			if secretNew.GetResourceVersion() == secretOld.GetResourceVersion() {
-				klog.V(6).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
+				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
 
@@ -184,7 +188,7 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			secret := deleteEvent.Object.(*corev1.Secret)
-			klog.V(6).Infof("watch secret %s deleted", secret.GetName())
+			secretCtrlLog.V(1).Info("watch secret deleted", "name", secret.GetName())
 			return false
 		},
 	})

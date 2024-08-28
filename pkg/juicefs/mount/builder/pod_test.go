@@ -19,6 +19,7 @@ package builder
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"testing"
@@ -208,6 +209,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 }
 
 func TestNewMountPod(t *testing.T) {
+	defer func() { _ = os.RemoveAll("tmp") }()
 	fuse.InitTestFds()
 	config.NodeName = "node"
 	config.Namespace = ""

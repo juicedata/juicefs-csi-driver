@@ -14,7 +14,7 @@ spec:
             - --nodeid=$(NODE_NAME)
             - --leader-election
             - --cache-client-conf
-            - --v=6
+            - --v=1
             - --config=/etc/config/config.yaml
           env:
             - name: CSI_ENDPOINT

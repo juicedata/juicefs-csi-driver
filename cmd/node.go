@@ -26,7 +26,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -53,7 +52,7 @@ func parseNodeConfig() {
 		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
 			config.Immutable = immutable
 		} else {
-			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
+			log.Error(err, "cannot parse JUICEFS_IMMUTABLE")
 		}
 	}
 	config.NodeName = os.Getenv("NODE_NAME")
@@ -107,8 +106,8 @@ func parseNodeConfig() {
 	}
 
 	if config.PodName == "" || config.Namespace == "" {
-		klog.Fatalln("Pod name & namespace can't be null.")
-		os.Exit(0)
+		log.Info("Pod name & namespace can't be null.")
+		os.Exit(1)
 	}
 	config.ReconcilerInterval = reconcilerInterval
 	if config.ReconcilerInterval < 5 {
@@ -117,26 +116,27 @@ func parseNodeConfig() {
 
 	k8sclient, err := k8s.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		os.Exit(0)
+		log.Error(err, "Can't get k8s client")
+		os.Exit(1)
 	}
 	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
 	if err != nil {
-		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
-		os.Exit(0)
+		log.Error(err, "Can't get pod", "pod", config.PodName)
+		os.Exit(1)
 	}
 	config.CSIPod = *pod
 	err = fuse.InitGlobalFds(context.TODO(), "/tmp")
 	if err != nil {
-		klog.Errorf("Init global fds error: %v", err)
-		os.Exit(0)
+		log.Error(err, "Init global fds error")
+		os.Exit(1)
 	}
 }
 
 func nodeRun(ctx context.Context) {
 	parseNodeConfig()
 	if nodeID == "" {
-		klog.Fatalln("nodeID must be provided")
+		log.Info("nodeID must be provided")
+		os.Exit(1)
 	}
 
 	// http server for pprof
@@ -144,7 +144,7 @@ func nodeRun(ctx context.Context) {
 		port := 6060
 		for {
 			if err := http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil); err != nil {
-				klog.Errorf("failed to start pprof server: %v", err)
+				log.Error(err, "failed to start pprof server")
 			}
 			port++
 		}
@@ -166,7 +166,7 @@ func nodeRun(ctx context.Context) {
 			Handler: mux,
 		}
 		if err := server.ListenAndServe(); err != nil {
-			klog.Errorf("failed to start metrics server: %v", err)
+			log.Error(err, "failed to start metrics server")
 		}
 	}()
 
@@ -177,7 +177,7 @@ func nodeRun(ctx context.Context) {
 			if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
 				return controller.StartReconciler()
 			}); err != nil {
-				klog.V(5).Infof("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer. err: %+v", err)
+				log.Error(err, "Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
 				needStartPodManager = true
 			}
 		} else {
@@ -188,20 +188,23 @@ func nodeRun(ctx context.Context) {
 			go func() {
 				mgr, err := app.NewPodManager()
 				if err != nil {
-					klog.Fatalln(err)
+					log.Error(err, "fail to create pod manager")
+					os.Exit(1)
 				}
 
 				if err := mgr.Start(ctx); err != nil {
-					klog.Fatalln(err)
+					log.Error(err, "fail to start pod manager")
+					os.Exit(1)
 				}
 			}()
 		}
-		klog.V(5).Infof("Pod Reconciler Started")
+		log.Info("Pod Reconciler Started")
 	}
 
 	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to create driver")
+		os.Exit(1)
 	}
 
 	go func() {
@@ -210,6 +213,7 @@ func nodeRun(ctx context.Context) {
 	}()
 
 	if err := drv.Run(); err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to run driver")
+		os.Exit(1)
 	}
 }

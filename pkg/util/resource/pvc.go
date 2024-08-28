@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -117,7 +116,7 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		}
 		subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 		if subPath == nowSubPath {
-			klog.V(6).Infof("PV %s uses the same subPath %s", pv.Name, subPath)
+			resourceLog.V(1).Info("PV uses the same subPath", "pvName", pv.Name, "subPath", subPath)
 			return false, nil
 		}
 	}
@@ -139,7 +138,7 @@ func (meta *ObjectMeta) ResolveSecret(str string, pvName string) string {
 				return av
 			}
 		}
-		klog.Errorf("Cannot resolve %s. replace it with an empty string", k)
+		resourceLog.Info("Cannot resolve. replace it with an empty string", "key", k)
 		return ""
 	})
 	return resolved
@@ -150,7 +149,7 @@ func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume 
 	secretNamespace := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
 	secretName := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
 	if sc == "" || secretNamespace == "" || secretName == "" {
-		klog.V(5).Infof("Cannot check for the secret, storageclass: %s, secretNamespace: %s, secretName: %s", sc, secretNamespace, secretName)
+		resourceLog.Info("Cannot check for the secret", "storageClass", sc, "secretNamespace", secretNamespace, "secretName", secretName)
 		return false, nil
 	}
 	// get all pvs
@@ -166,7 +165,7 @@ func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume 
 		pvSecretName := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
 		// Cannot remove the secret if it is used by another pv
 		if secretNamespace == pvSecretNamespace && secretName == pvSecretName {
-			klog.V(5).Infof("PV %s uses the same secret %s/%s", pv.Name, pvSecretNamespace, pvSecretName)
+			resourceLog.Info("PV uses the same secret", "pvName", pv.Name, "pv secret namespace", pvSecretNamespace, "pv secret name", pvSecretName)
 			return false, nil
 		}
 	}
@@ -182,11 +181,11 @@ func patchSecretFinalizer(ctx context.Context, client *k8s.K8sClient, secret *v1
 	}}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		resourceLog.Error(err, "Parse json error")
 		return err
 	}
 	if err := client.PatchSecret(ctx, secret, payloadBytes, types.JSONPatchType); err != nil {
-		klog.Errorf("Patch secret err:%v", err)
+		resourceLog.Error(err, "Patch secret err")
 		return err
 	}
 	return nil

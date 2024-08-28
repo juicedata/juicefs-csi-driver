@@ -509,7 +509,6 @@ spec:
         - --logtostderr
         - --nodeid=$(NODE_NAME)
         - --leader-election
-        - --v=5
         - --config=/etc/config/config.yaml
         env:
         - name: CSI_ENDPOINT
@@ -657,7 +656,6 @@ spec:
         - --endpoint=$(CSI_ENDPOINT)
         - --logtostderr
         - --nodeid=$(NODE_NAME)
-        - --v=5
         - --enable-manager=true
         - --config=/etc/config/config.yaml
         env:

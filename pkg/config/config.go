@@ -30,12 +30,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 var (
+	log                    = klog.NewKlogr().WithName("config")
 	WebPort                = MustGetWebPort() // web port used by metrics
 	ByProcess              = false            // csi driver runs juicefs in process or not
 	FormatInPod            = false            // put format/auth in pod (only in k8s)
@@ -179,7 +180,7 @@ func MustGetWebPort() int {
 		if err == nil {
 			return port
 		}
-		klog.Errorf("Fail to parse JUICEFS_CSI_WEB_PORT %s: %v", value, err)
+		log.Error(err, "Fail to parse JUICEFS_CSI_WEB_PORT", "port", value)
 	}
 	return 8080
 }
@@ -286,7 +287,7 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		}
 		for _, v := range mp.Volumes {
 			if IsInterVolume(v.Name) {
-				klog.Warningf("applyConfig: volume %s uses an internal volume name, ignore", v.Name)
+				log.Info("applyConfig: volume uses an internal volume name, ignore", "volume", v.Name)
 				continue
 			}
 			found := false
@@ -297,7 +298,7 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 				}
 			}
 			if found {
-				klog.Warningf("applyConfig: volume %s already exists, ignore", v.Name)
+				log.Info("applyConfig: volume already exists, ignore", "volume", v.Name)
 				continue
 			}
 			vok[v.Name] = true
@@ -310,7 +311,7 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		}
 		for _, vm := range mp.VolumeMounts {
 			if !vok[vm.Name] {
-				klog.Warningf("applyConfig: volumeMount %s not exists in volumes, ignore", vm.Name)
+				log.Info("applyConfig: volumeMount not exists in volumes, ignore", "volume", vm.Name)
 				continue
 			}
 			mpp.VolumeMounts = append(mpp.VolumeMounts, vm)
@@ -322,7 +323,7 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		}
 		for _, vm := range mp.VolumeDevices {
 			if !vok[vm.Name] {
-				klog.Warningf("applyConfig: volumeDevices %s not exists in volumes, ignore", vm.Name)
+				log.Info("applyConfig: volumeDevices not exists in volumes, ignore", "volume", vm.Name)
 				continue
 			}
 			mpp.VolumeDevices = append(mpp.VolumeDevices, vm)
@@ -373,7 +374,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
 	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
 	_ = json.Unmarshal([]byte(strData), patch)
-	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
+	log.V(1).Info("volume using patch", "volumeId", setting.VolumeId, "patch", patch)
 	return *patch
 }
 
@@ -410,7 +411,7 @@ func LoadConfig(configPath string) error {
 	}
 
 	GlobalConfig = cfg
-	klog.V(6).Infof("config loaded: %+v", GlobalConfig)
+	log.V(1).Info("config loaded", "global config", *GlobalConfig)
 	return err
 }
 
@@ -434,7 +435,7 @@ func StartConfigReloader(configPath string) error {
 			select {
 			case event, ok := <-watcher.Events:
 				if !ok {
-					klog.Errorf("fsnotify watcher closed")
+					log.Info("fsnotify watcher closed")
 					continue
 				}
 				if event.Op != fsnotify.Write && event.Op != fsnotify.Remove {
@@ -447,17 +448,17 @@ func StartConfigReloader(configPath string) error {
 					_ = watcher.Add(configPath)
 				}
 
-				klog.Infof("config file %s updated, reload config", configPath)
+				log.Info("config file updated, reload config", "config file", configPath)
 				err := LoadConfig(configPath)
 				if err != nil {
-					klog.Errorf("fail to reload config: %v", err)
+					log.Error(err, "fail to reload config")
 					continue
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					continue
 				}
-				klog.Errorf("fsnotify error: %v", err)
+				log.Error(err, "fsnotify error")
 			}
 		}
 	}(fsnotifyWatcher)
@@ -469,7 +470,7 @@ func StartConfigReloader(configPath string) error {
 		for range ticker.C {
 			err = LoadConfig(configPath)
 			if err != nil {
-				klog.Error(err)
+				log.Error(err, "fail to load config")
 			}
 		}
 	}()

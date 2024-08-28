@@ -20,14 +20,17 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
+var identityLog = klog.NewKlogr().WithName("identity")
+
 // GetPluginInfo returns plugin info
 func (d *Driver) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
-	klog.V(6).Infof("GetPluginInfo: called with args %+v", *req)
+	log := identityLog.WithName("GetPluginInfo")
+	log.V(1).Info("called with args", "args", req)
 	resp := &csi.GetPluginInfoResponse{
 		Name:          config.DriverName,
 		VendorVersion: driverVersion,
@@ -38,7 +41,8 @@ func (d *Driver) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoReques
 
 // GetPluginCapabilities returns plugin capabilities
 func (d *Driver) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	klog.V(6).Infof("GetPluginCapabilities: called with args %+v", *req)
+	log := identityLog.WithName("GetPluginCapabilities")
+	log.V(1).Info("called with args", "args", req)
 	resp := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{

@@ -467,6 +467,7 @@ func genMountInfos() []mount.MountInfo {
 }
 
 func TestPodDriver_podReadyHandler(t *testing.T) {
+	defer func() { _ = os.RemoveAll("tmp") }()
 	fuse.InitTestFds()
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {

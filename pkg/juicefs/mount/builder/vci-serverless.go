@@ -23,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/klog"
 	utilpointer "k8s.io/utils/pointer"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -88,7 +87,7 @@ func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
 		if err := json.Unmarshal([]byte(v), &vciPropagations); err == nil {
 			propagations = append(propagations, vciPropagations...)
 		} else {
-			klog.Errorf("failed to unmarshal VCIPropagation annotation: %v", err)
+			builderLog.Error(err, "failed to unmarshal VCIPropagation annotation")
 		}
 	}
 	VCIPropagationBytes, _ := json.Marshal(propagations)

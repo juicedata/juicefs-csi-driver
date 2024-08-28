@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
@@ -227,6 +228,7 @@ func TestAddRefOfMount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
@@ -260,6 +262,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 			})
 			defer patch1.Reset()
 			p := &PodMount{
+				log:       klog.NewKlogr(),
 				K8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -271,6 +274,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 }
 
 func TestJUmount(t *testing.T) {
+	defer func() { _ = os.RemoveAll("tmp") }()
 	fakeClientSet := fake.NewSimpleClientset()
 	fuse.InitTestFds()
 
@@ -339,6 +343,7 @@ func TestJUmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClientSet,
@@ -388,6 +393,7 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -417,6 +423,7 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -447,6 +454,7 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -514,6 +522,7 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -551,6 +560,7 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -647,11 +657,12 @@ func TestWaitUntilMount(t *testing.T) {
 			})
 			defer patch.Reset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			if tt.pod != nil {
-				hashVal := GenHashOfSetting(*tt.args.jfsSetting)
+				hashVal := GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
 				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
 					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
@@ -700,6 +711,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
@@ -729,6 +741,10 @@ func TestJMount(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, nil
 			})
 			defer patch5.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
 			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient}, mount.SafeFormatAndMount{
@@ -760,6 +776,7 @@ func TestNewPodMount(t *testing.T) {
 				client:  nil,
 			},
 			want: &PodMount{
+				log: klog.NewKlogr().WithName("pod-mount"),
 				SafeFormatAndMount: mount.SafeFormatAndMount{
 					Interface: mount.New(""),
 					Exec:      k8sexec.New(),
@@ -858,7 +875,7 @@ func TestGenHashOfSetting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GenHashOfSetting(tt.args.setting)
+			got := GenHashOfSetting(klog.NewKlogr(), tt.args.setting)
 			if got != tt.want {
 				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}

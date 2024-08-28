@@ -27,11 +27,13 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
+
+var fdLog = klog.NewKlogr().WithName("passfd")
 
 type Fds struct {
 	globalMu sync.Mutex
@@ -59,7 +61,7 @@ func InitTestFds() {
 }
 
 func (fs *Fds) ParseFuseFds(ctx context.Context) error {
-	klog.V(6).Infof("parse fuse fd in basePath %s", fs.basePath)
+	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
 	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
@@ -67,7 +69,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		return err
 	})
 	if err != nil {
-		klog.Errorf("read dir %s: %s", fs.basePath, err)
+		fdLog.Error(err, "read dir error", "basePath", fs.basePath)
 		return err
 	}
 	for _, entry := range entries {
@@ -80,12 +82,12 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 			return err
 		})
 		if err != nil {
-			klog.Errorf("read dir %s: %s", fs.basePath, err)
+			fdLog.Error(err, "read dir error", "basePath", fs.basePath)
 			return err
 		}
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
-				klog.V(6).Infof("parse fuse fd in %s", subEntry.Name())
+				fdLog.V(1).Info("parse fuse fd", "path", subEntry.Name())
 				fs.parseFuse(ctx, entry.Name(), path.Join(fs.basePath, entry.Name(), subEntry.Name()))
 			}
 		}
@@ -102,7 +104,12 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 	addressInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
 	// mkdir parent
 	err := util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		return os.MkdirAll(path.Join(fs.basePath, podHashVal), 0777)
+		parentPath := path.Join(fs.basePath, podHashVal)
+		exist, _ := k8sMount.PathExists(parentPath)
+		if !exist {
+			return os.MkdirAll(parentPath, 0777)
+		}
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -136,7 +143,7 @@ func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
 		fs.globalMu.Unlock()
 		return
 	}
-	klog.V(6).Infof("stop fuse fd server: %s", f.serverAddress)
+	fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress)
 	close(f.done)
 	delete(fs.fds, podHashVal)
 
@@ -155,7 +162,7 @@ func (fs *Fds) CloseFd(podHashVal string) {
 		fs.globalMu.Unlock()
 		return
 	}
-	klog.V(6).Infof("close fuse fd: %s", podHashVal)
+	fdLog.V(1).Info("close fuse fd", "hashVal", podHashVal)
 	_ = syscall.Close(f.fuseFd)
 	f.fuseFd = -1
 	fs.fds[podHashVal] = f
@@ -170,7 +177,7 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 
 	serverPath := path.Join(fs.basePath, podHashVal, "fuse_fd_csi_comm.sock")
 	serverPathInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
-	klog.V(6).Infof("fuse fd path of pod %s: %s", podHashVal, fusePath)
+	fdLog.V(1).Info("fuse fd path of pod", "hashVal", podHashVal, "fusePath", fusePath)
 
 	f := &fd{
 		fuseMu:             sync.Mutex{},
@@ -214,14 +221,14 @@ func (fs *Fds) serveFuseFD(ctx context.Context, podHashVal string) {
 		return
 	}
 
-	klog.V(6).Infof("serve fuse fd: %v, path: %s", f.fuseFd, f.serverAddress)
+	fdLog.V(1).Info("serve FUSE fd", "fd", f.fuseFd, "server address", f.serverAddress)
 	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
 		_ = os.Remove(f.serverAddress)
 		return nil
 	})
 	sock, err := net.Listen("unix", f.serverAddress)
 	if err != nil {
-		klog.Error(err)
+		fdLog.Error(err, "listen unix socket error")
 		return
 	}
 	go func() {
@@ -242,7 +249,7 @@ func (fs *Fds) serveFuseFD(ctx context.Context, podHashVal string) {
 				if strings.Contains(err.Error(), "use of closed network connection") {
 					return
 				}
-				klog.Warningf("accept : %s", err)
+				fdLog.Error(err, "accept error")
 				continue
 			}
 			go fs.handleFDRequest(podHashVal, conn.(*net.UnixConn))
@@ -260,12 +267,12 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	f.fuseMu.Lock()
 	if f.fuseFd > 0 {
 		fds = append(fds, f.fuseFd)
-		klog.V(6).Infof("send FUSE fd: %d", f.fuseFd)
+		fdLog.V(1).Info("send FUSE fd", "fd", f.fuseFd)
 	}
 	err := putFd(conn, f.fuseSetting, fds...)
 	if err != nil {
 		f.fuseMu.Unlock()
-		klog.Warningf("send fuse fds: %s", err)
+		fdLog.Error(err, "send fuse fds error")
 		return
 	}
 	if f.fuseFd > 0 {
@@ -277,7 +284,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	var msg []byte
 	msg, fds, err = getFd(conn, 1)
 	if err != nil {
-		klog.Warningf("recv fuse fds: %s", err)
+		fdLog.Error(err, "recv fuse fds")
 		return
 	}
 
@@ -285,12 +292,12 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
-		klog.V(6).Infof("recv FUSE fd: %v", fds)
+		fdLog.V(1).Info("recv FUSE fd", "fd", fds)
 	} else {
 		for _, fd := range fds {
 			_ = syscall.Close(fd)
 		}
-		klog.V(6).Infof("msg: %s fds: %+v", string(msg), fds)
+		fdLog.V(1).Info("recv msg and fds", "msg", string(msg), "fd", fds)
 	}
 	f.fuseMu.Unlock()
 
@@ -313,22 +320,22 @@ func getFuseFd(path string) (int, []byte) {
 	}
 	conn, err := net.Dial("unix", path)
 	if err != nil {
-		klog.V(6).Infof("dial %s: %s", path, err)
+		fdLog.V(1).Info("dial error", "path", path, "error", err)
 		return -1, nil
 	}
 	defer conn.Close()
 	msg, fds, err := getFd(conn.(*net.UnixConn), 2)
 	if err != nil {
-		klog.Warningf("recv fds: %s", err)
+		fdLog.Error(err, "recv fds error")
 		return -1, nil
 	}
-	klog.V(6).Infof("get fd: %v, msg: %v", fds, string(msg))
+	fdLog.V(1).Info("get fd and msg", "fd", fds)
 	_ = syscall.Close(fds[0])
 	if len(fds) > 1 {
 		err = putFd(conn.(*net.UnixConn), msg, fds[1])
-		klog.V(6).Infof("send FUSE: %d", fds[1])
+		fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
 		if err != nil {
-			klog.Warningf("send FUSE: %s", err)
+			fdLog.Error(err, "send FUSE error")
 		}
 		return fds[1], msg
 	}

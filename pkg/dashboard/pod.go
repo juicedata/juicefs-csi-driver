@@ -31,12 +31,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
+
+var podLog = klog.NewKlogr().WithName("pod")
 
 type PodExtra struct {
 	*corev1.Pod `json:",inline"`
@@ -110,26 +112,26 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			if pod.Pvs == nil {
 				pod.Pvs, err = api.listPVsOfPod(c, pod.Pod)
 				if err != nil {
-					klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get pvs error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.MountPods == nil {
 				pod.MountPods, err = api.listMountPodOf(c, pod.Pod)
 				if err != nil {
-					klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get mount pods error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.CsiNode == nil {
 				pod.CsiNode, err = api.getCSINode(c, pod.Spec.NodeName)
 				if err != nil {
-					klog.Errorf("get csi node %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get csi node error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.Spec.NodeName != "" {
 				var node corev1.Node
 				err := api.cachedReader.Get(c, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
 				if err != nil {
-					klog.Errorf("get node %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get node error", "node", pod.Spec.NodeName)
 				} else {
 					pod.Node = &node
 				}
@@ -150,7 +152,7 @@ func (api *API) filterPVsOfPod(ctx context.Context, pod *PodExtra, filter string
 	var err error
 	pod.Pvs, err = api.listPVsOfPod(ctx, pod.Pod)
 	if err != nil {
-		klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+		podLog.Error(err, "get pvs error", "node", pod.Spec.NodeName)
 	}
 	for _, pv := range pod.Pvs {
 		if strings.Contains(pv.Name, filter) {
@@ -167,7 +169,7 @@ func (api *API) filterMountPodsOfPod(ctx context.Context, pod *PodExtra, filter 
 	var err error
 	pod.MountPods, err = api.listMountPodOf(ctx, pod.Pod)
 	if err != nil {
-		klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+		podLog.Error(err, "get mount pods error", "node", pod.Spec.NodeName)
 	}
 	for _, mountPod := range pod.MountPods {
 		if strings.Contains(mountPod.Name, filter) {
@@ -235,13 +237,13 @@ func (api *API) listSysPod() gin.HandlerFunc {
 			var node corev1.Node
 			err := api.cachedReader.Get(c, types.NamespacedName{Name: pods[i].Spec.NodeName}, &node)
 			if err != nil {
-				klog.Errorf("get node %s error %v", pods[i].Spec.NodeName, err)
+				podLog.Error(err, "get node error", "node", pods[i].Spec.NodeName)
 				continue
 			}
 			var csiNode *corev1.Pod
 			csiNode, err = api.getCSINode(c, pods[i].Spec.NodeName)
 			if err != nil {
-				klog.Errorf("get csi node %s error %v", pods[i].Spec.NodeName, err)
+				podLog.Error(err, "get csi node error", "node", pods[i].Spec.NodeName)
 			}
 			result.Pods = append(result.Pods, &PodExtra{
 				Pod:     pods[i],
@@ -575,7 +577,7 @@ func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
 			for _, v := range pod.Annotations {
 				uid := getUidFunc(v)
 				if uid == "" {
-					klog.V(6).Infof("annotation %s skipped", v)
+					podLog.V(1).Info("annotation skipped", "annotations", v)
 					continue
 				}
 				if p, ok := podMap[uid]; ok {
@@ -777,7 +779,7 @@ func (api *API) execPod() gin.HandlerFunc {
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "bash || sh"}); err != nil {
-				klog.Error("Failed to exec in pod: ", err)
+				podLog.Error(err, "Failed to exec in pod")
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
@@ -796,18 +798,18 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
-				klog.Error("Failed to get mount pod: ", err)
+				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
 			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
-				klog.Error("Failed to get mount path: ", err)
+				podLog.Error(err, "Failed to get mount path")
 				return
 			}
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "cat " + mntPath + "/.accesslog"}); err != nil {
-				klog.Error("Failed to exec in pod: ", err)
+				podLog.Error(err, "Failed to exec in pod")
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
@@ -829,12 +831,12 @@ func (api *API) debugPod() gin.HandlerFunc {
 			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
-				klog.Error("Failed to get mount pod: ", err)
+				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
 			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
-				klog.Error("Failed to get mount path: ", err)
+				podLog.Error(err, "Failed to get mount path")
 				return
 			}
 			if err := resource.ExecInPod(
@@ -847,7 +849,7 @@ func (api *API) debugPod() gin.HandlerFunc {
 					"--stats-sec", statsSec,
 					"--out-dir", "/debug",
 					mntPath}); err != nil {
-				klog.Error("Failed to start process: ", err)
+				podLog.Error(err, "Failed to start process")
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
@@ -924,7 +926,7 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 			api.client, api.kubeconfig, c.Writer, namespace, name, container,
 			[]string{"sh", "-c", "cat $(ls -t /debug/*.zip | head -n 1) && exit 0"})
 		if err != nil {
-			klog.Error("Failed to create SPDY executor: ", err)
+			podLog.Error(err, "Failed to create SPDY executor")
 			return
 		}
 	}

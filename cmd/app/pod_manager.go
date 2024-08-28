@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -62,14 +61,14 @@ func NewPodManager() (*PodManager, error) {
 		}),
 	})
 	if err != nil {
-		klog.Errorf("New pod controller error: %v", err)
+		log.Error(err, "New pod controller error")
 		return nil, err
 	}
 
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Could not create k8s client %v", err)
+		log.Info("Could not create k8s client")
 		return nil, err
 	}
 
@@ -82,12 +81,12 @@ func NewPodManager() (*PodManager, error) {
 func (m *PodManager) Start(ctx context.Context) error {
 	// init Reconciler（Controller）
 	if err := (mountctrl.NewPodController(m.client)).SetupWithManager(m.mgr); err != nil {
-		klog.Errorf("Register pod controller error: %v", err)
+		log.Error(err, "Register pod controller error")
 		return err
 	}
-	klog.Info("Pod manager started.")
+	log.Info("Pod manager started.")
 	if err := m.mgr.Start(ctx); err != nil {
-		klog.Errorf("Pod manager start error: %v", err)
+		log.Error(err, "Pod manager start error")
 		return err
 	}
 	return nil

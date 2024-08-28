@@ -1,5 +1,5 @@
 /*
- Copyright 2023 Juicedata Inc
+ Copyright 2024 Juicedata Inc
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,20 +14,28 @@
  limitations under the License.
 */
 
-package builder
+package util
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"context"
+
 	"k8s.io/klog/v2"
 )
 
-var (
-	builderLog = klog.NewKlogr().WithName("builder")
-)
+const LogKey = "jfs-logger"
 
-type SidecarInterface interface {
-	NewMountSidecar() *corev1.Pod
-	NewSecret() corev1.Secret
-	OverwriteVolumes(volume *corev1.Volume, mountPath string)
-	OverwriteVolumeMounts(mount *corev1.VolumeMount)
+type LoggerType string
+
+func WithLog(parentCtx context.Context, log klog.Logger) context.Context {
+	return context.WithValue(parentCtx, LoggerType(LogKey), log)
+}
+
+func GenLog(ctx context.Context, log klog.Logger, name string) klog.Logger {
+	if ctx.Value(LoggerType(LogKey)) != nil {
+		log = ctx.Value(LoggerType(LogKey)).(klog.Logger)
+	}
+	if name != "" {
+		log = log.WithName(name)
+	}
+	return log
 }

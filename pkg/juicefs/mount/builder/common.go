@@ -26,7 +26,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -81,7 +80,7 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
 	// gen again to update the mount pod spec
 	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil); err != nil {
-		klog.Warningf("genCommonJuicePod gen pod attr failed, mount pod may not be the expected config  %+v", err)
+		builderLog.Error(err, "genCommonJuicePod gen pod attr failed, mount pod may not be the expected config")
 	}
 	pod := r.genPodTemplate(cnGen)
 	// labels & annotations
@@ -146,7 +145,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		builderLog.Info("ceMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
@@ -159,7 +158,7 @@ func (r *BaseBuilder) genMountCommand() string {
 		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
+		builderLog.Info("eeMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {

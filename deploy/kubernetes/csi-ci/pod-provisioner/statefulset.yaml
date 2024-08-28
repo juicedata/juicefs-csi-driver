@@ -13,7 +13,7 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
-            - --v=6
+            - --v=1
             - --provisioner=true
             - --config=/etc/config/config.yaml
         - name: csi-provisioner

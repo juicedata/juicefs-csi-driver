@@ -13,5 +13,5 @@ spec:
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
-            - --v=6
+            - --v=1
             - --config=/etc/config/config.yaml

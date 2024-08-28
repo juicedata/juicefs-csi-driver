@@ -30,13 +30,15 @@ import (
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
 	defaultKubeletTimeout   = 10
 	serviceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
+
+var kubeletLog = klog.NewKlogr().WithName("kubelet-client")
 
 type KubeletClient struct {
 	host   string
@@ -170,7 +172,7 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	}
 	podLists := &corev1.PodList{}
 	if err = json.Unmarshal(body, &podLists); err != nil {
-		klog.V(5).Infof("GetNodeRunningPods err: %s", body)
+		kubeletLog.Error(err, "GetNodeRunningPods err", "body", body)
 		return nil, err
 	}
 	return podLists, err
