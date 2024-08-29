@@ -41,7 +41,6 @@ import (
 
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}
-	nodeLog  = klog.NewKlogr().WithName("node")
 )
 
 const defaultCheckTimeout = 2 * time.Second
@@ -103,9 +102,9 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	volCtx := req.GetVolumeContext()
-	log := nodeLog
+	log := klog.NewKlogr().WithName("NodePublishVolume")
 	if volCtx != nil && volCtx[config.PodInfoName] != "" {
-		log = log.WithName("NodePublishVolume").WithValues("appName", volCtx[config.PodInfoName])
+		log = log.WithValues("appName", volCtx[config.PodInfoName])
 	}
 	volumeID := req.GetVolumeId()
 	log = log.WithValues("volumeId", volumeID)
@@ -205,7 +204,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 // NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
 func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log := nodeLog.WithName("NodeUnpublishVolume")
+	log := klog.NewKlogr().WithName("NodeUnpublishVolume")
 	log.V(1).Info("called with args", "args", req)
 
 	target := req.GetTargetPath()
@@ -227,7 +226,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 // NodeGetCapabilities response node capabilities to CO
 func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	log := nodeLog.WithName("NodeGetCapabilities")
+	log := klog.NewKlogr().WithName("NodeGetCapabilities")
 	log.V(1).Info("called with args", "args", req)
 	var caps []*csi.NodeServiceCapability
 	for _, cap := range nodeCaps {
@@ -245,7 +244,7 @@ func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // NodeGetInfo is called by CO for the node at which it wants to place the workload. The result of this call will be used by CO in ControllerPublishVolume.
 func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	log := nodeLog.WithName("NodeGetInfo")
+	log := klog.NewKlogr().WithName("NodeGetInfo")
 	log.V(1).Info("called with args", "args", req)
 
 	return &csi.NodeGetInfoResponse{
@@ -259,7 +258,7 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 }
 
 func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	log := nodeLog.WithName("NodeGetVolumeStats")
+	log := klog.NewKlogr().WithName("NodeGetVolumeStats")
 	log.V(1).Info("called with args", "args", req)
 
 	volumeID := req.GetVolumeId()
