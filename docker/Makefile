@@ -80,7 +80,7 @@ image-release-check:
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
 		--build-context project=.. \
 		-t $(IMAGE):$(DEV_TAG) -f csi.Dockerfile .
-	docker build --build-context project=.. --build-context ui=../dashboard-ui/ -f dashboard.Dockerfile \
+	docker build --build-context project=.. --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push image for release check
