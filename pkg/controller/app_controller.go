@@ -87,7 +87,7 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 	if fuseContainer.Name == "" {
 		return
 	}
-	log := appCtrlLog.WithValues("pod", pod.Name, "namespace", pod.Namespace)
+	log := klog.NewKlogr().WithValues("pod", pod.Name, "namespace", pod.Namespace)
 
 	// get prestop
 	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
@@ -174,7 +174,7 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 		return false
 	}
 
-	log := appCtrlLog.WithValues("pod", pod.Name, "namespace", pod.Namespace)
+	log := klog.NewKlogr().WithValues("pod", pod.Name, "namespace", pod.Namespace)
 
 	// ignore if it's not fluid label pod
 	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {

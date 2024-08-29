@@ -93,17 +93,21 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 }
 
 func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error) {
-	ctx = util.WithLog(ctx, podDriverLog)
-	podStatus := getPodStatus(current)
-	podDriverLog.V(1).Info("start handle pod", "namespace", current.Namespace, "name", current.Name, "status", podStatus)
+	if current == nil {
+		return Result{}, nil
+	}
+	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
+	ctx = util.WithLog(ctx, log)
+	ps := getPodStatus(current)
+	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
 	if err != nil {
 		return Result{}, err
 	}
 
-	if podStatus != podError && podStatus != podDeleted {
-		return p.handlers[podStatus](ctx, current)
+	if ps != podError && ps != podDeleted {
+		return p.handlers[ps](ctx, current)
 	}
 
 	// resourceVersion of kubelet may be different from apiserver
@@ -138,6 +142,7 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 // 1. check refs in mount pod annotation
 // 2. delete ref that target pod is not found
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
+	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
 	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
 	if hashVal == "" {
@@ -156,7 +161,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			_, exists := p.mit.deletedPods[targetUid]
 			if !exists {
 				// target pod is deleted
-				podDriverLog.Info("get app pod deleted in annotations of mount pod, remove its ref.", "appId", targetUid)
+				log.Info("get app pod deleted in annotations of mount pod, remove its ref.", "appId", targetUid)
 				delAnnotations = append(delAnnotations, k)
 				continue
 			}
@@ -203,17 +208,17 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 				}, pod.Name, fmt.Errorf("can not delete pod"))
 			}
 			// if there are no refs or after delay time, delete it
-			podDriverLog.Info("There are no refs in pod annotation, delete it", "podName", pod.Name)
+			log.Info("There are no refs in pod annotation, delete it")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
-				podDriverLog.Error(err, "Delete pod", "podName", pod.Name)
+				log.Error(err, "Delete pod")
 				return err
 			}
 			// for old version
 			// delete related secret
 			secretName := pod.Name + "-secret"
-			podDriverLog.V(1).Info("delete related secret of pod", "secretName", secretName)
+			log.V(1).Info("delete related secret of pod", "secretName", secretName)
 			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); !apierrors.IsNotFound(err) && err != nil {
-				podDriverLog.V(1).Info("Delete secret error", "secretName", secretName)
+				log.V(1).Info("Delete secret error", "secretName", secretName)
 			}
 		}
 	}
@@ -225,7 +230,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	if pod == nil {
 		return Result{}, nil
 	}
-	log := podDriverLog.WithName("podErrorHandler").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
 	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
@@ -303,7 +308,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		podDriverLog.Info("get nil pod")
 		return Result{}, nil
 	}
-	log := podDriverLog.WithName("podDeletedHandler").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podDeletedHandler")
 	log.Info("Pod is to be deleted.")
 
 	// pod with no finalizer
@@ -323,7 +328,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 
 	// pod with resource error
 	if resource.IsPodResourceError(pod) {
-		log.V(1).Info("The pod is PodResourceError, podDeletedHandler skip delete the pod")
+		log.V(1).Info("The pod is PodResourceError, skip delete the pod")
 		return Result{}, nil
 	}
 
@@ -466,7 +471,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 	if pod == nil {
 		return Result{}, nil
 	}
-	log := podDriverLog.WithName("podPendingHandler").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
 	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
@@ -542,7 +547,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	if pod == nil {
 		return Result{}, nil
 	}
-	log := podDriverLog.WithName("podReadyHandler").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podReadyHandler")
 
 	if pod.Annotations == nil {
 		return Result{}, nil
@@ -583,7 +588,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 }
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
-	log := podDriverLog.WithName("recover").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "recover")
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			mi := p.mit.resolveTarget(ctx, target)
@@ -607,7 +612,7 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 
 // recoverTarget recovers target path
 func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) error {
-	log := podDriverLog.WithName("recover").WithValues("podName", podName)
+	log := util.GenLog(ctx, podDriverLog, "recover")
 	switch ti.status {
 	case targetStatusNotExist:
 		log.Info("pod target not exists", "target", ti.target, "item count", ti.count)
@@ -719,7 +724,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 
 // CleanUpCache clean up cache
 func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
-	log := podDriverLog.WithName("CleanUpCache").WithValues("podName", pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "CleanUpCache")
 	if pod.Annotations[config.CleanCache] != "true" {
 		return
 	}
@@ -807,7 +812,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
-	log := podDriverLog.WithName("abortFuse").WithValues("podName", pod.Name)
+	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
 	mountPoint, _, _ := resource.GetMountPathOfPod(*pod)
 	defer func() {
 		if runtime.GOOS == "linux" {
@@ -850,7 +855,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 }
 
 func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
-	log := podDriverLog.WithName("abortFuse").WithValues("podName", mountpod.Name)
+	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", mountpod.Name)
 	job := builder.NewFuseAbortJob(mountpod, devMinor)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
 		log.Error(err, "create fuse abort job error")
@@ -884,6 +889,7 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 }
 
 func mkrMp(ctx context.Context, pod corev1.Pod) error {
+	log := util.GenLog(ctx, podDriverLog, "mkrMp")
 	var shouldMkrMp bool
 	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		cn := pod.Spec.Containers[0]
@@ -900,14 +906,14 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	if !shouldMkrMp {
 		return nil
 	}
-	podDriverLog.V(1).Info("Prepare mountpoint for pod", "podName", pod.Name)
+	log.V(1).Info("Prepare mountpoint for pod")
 	// mkdir mountpath
 	// get mount point
 	var mntPath string
 	var err error
 	mntPath, _, err = resource.GetMountPathOfPod(pod)
 	if err != nil {
-		podDriverLog.Error(err, "get mount point error")
+		log.Error(err, "get mount point error")
 		return err
 	}
 	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {

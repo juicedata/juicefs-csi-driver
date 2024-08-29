@@ -35,7 +35,6 @@ var (
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	}
-	ctrlLog = klog.NewKlogr().WithName("controller")
 )
 
 type controllerService struct {
@@ -56,7 +55,7 @@ func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, er
 
 // CreateVolume create directory in an existing JuiceFS filesystem
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log := ctrlLog.WithName("CreateVolume")
+	log := klog.NewKlogr().WithName("CreateVolume")
 	// DEBUG only, secrets exposed in args
 	// klog.Infof("CreateVolume: called with args: %#v", req)
 
@@ -125,7 +124,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // DeleteVolume moves directory for the volume to trash (TODO)
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log := ctrlLog.WithName("DeleteVolume")
+	log := klog.NewKlogr().WithName("DeleteVolume")
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
@@ -166,7 +165,7 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 // ControllerGetCapabilities gets capabilities
 func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	log := ctrlLog.WithName("ControllerGetCapabilities")
+	log := klog.NewKlogr().WithName("ControllerGetCapabilities")
 	log.V(1).Info("called with args", "args", req)
 	var caps []*csi.ControllerServiceCapability
 	for _, cap := range controllerCaps {
@@ -184,21 +183,21 @@ func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *
 
 // GetCapacity unimplemented
 func (d *controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	log := ctrlLog.WithName("GetCapacity")
+	log := klog.NewKlogr().WithName("GetCapacity")
 	log.V(1).Info("called with args", "args", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ListVolumes unimplemented
 func (d *controllerService) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	log := ctrlLog.WithName("ListVolumes")
+	log := klog.NewKlogr().WithName("ListVolumes")
 	log.V(1).Info("called with args", "args", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ValidateVolumeCapabilities validates volume capabilities
 func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	log := ctrlLog.WithName("ValidateVolumeCapabilities")
+	log := klog.NewKlogr().WithName("ValidateVolumeCapabilities")
 	log.V(1).Info("called with args", "args", req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -268,7 +267,7 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 
 // ControllerExpandVolume adjusts quota according to capacity settings
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	log := ctrlLog.WithName("ControllerExpandVolume")
+	log := klog.NewKlogr().WithName("ControllerExpandVolume")
 	log.V(1).Info("request", "request", req)
 
 	volumeID := req.GetVolumeId()

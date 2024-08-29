@@ -48,7 +48,7 @@ func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
 }
 
 func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
-	log := p.log.WithName("JCreateVolume")
+	log := util.GenLog(ctx, p.log, "JCreateVolume")
 	// 1. mount juicefs
 	options := util.StripReadonlyOption(jfsSetting.Options)
 	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, options, jfsSetting.Envs)
@@ -100,7 +100,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 }
 
 func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
-	log := p.log.WithName("JDeleteVolume")
+	log := util.GenLog(ctx, p.log, "JDeleteVolume")
 	// 1. mount juicefs
 	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
 	if err != nil {
@@ -147,16 +147,17 @@ func (p *ProcessMount) JMount(ctx context.Context, _ *jfsConfig.AppInfo, jfsSett
 }
 
 func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage string, options []string, extraEnvs map[string]string) error {
+	log := util.GenLog(ctx, p.log, "jmount")
 	if !strings.Contains(source, "://") {
-		p.log.Info("eeMount", "source", source, "mountPath", mountPath)
+		log.Info("eeMount", "source", source, "mountPath", mountPath)
 		err := p.Mount(source, mountPath, jfsConfig.FsType, options)
 		if err != nil {
 			return fmt.Errorf("could not mount %q at %q: %v", source, mountPath, err)
 		}
-		p.log.Info("eeMount mount success.")
+		log.Info("eeMount mount success.")
 		return nil
 	}
-	p.log.Info("ceMount", "source", util.StripPasswd(source), "mountPath", mountPath)
+	log.Info("ceMount", "source", util.StripPasswd(source), "mountPath", mountPath)
 	mountArgs := []string{source, mountPath}
 
 	if len(options) > 0 {
@@ -171,7 +172,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	}); err != nil {
 		return fmt.Errorf("could not check existence of dir %q: %v", mountPath, err)
 	} else if !exist {
-		p.log.Info("volume not existed, create it", "mountPath", mountPath)
+		log.Info("volume not existed, create it", "mountPath", mountPath)
 		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			return os.MkdirAll(mountPath, os.FileMode(0755))
 		}); err != nil {
@@ -188,10 +189,10 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	} else if !notMounted {
 		err = p.Unmount(mountPath)
 		if err != nil {
-			p.log.Info("Unmount before mount failed", "error", err)
+			log.Info("Unmount before mount failed", "error", err)
 			return err
 		}
-		p.log.Info("Unmount", "mountPath", mountPath)
+		log.Info("Unmount", "mountPath", mountPath)
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
@@ -216,7 +217,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 			if err == context.DeadlineExceeded || err == context.Canceled {
 				break
 			}
-			p.log.Info("Stat mount path failed", "mountPath", mountPath, "error", err)
+			log.Info("Stat mount path failed", "mountPath", mountPath, "error", err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
@@ -224,9 +225,9 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 			if st.Ino == 1 {
 				return nil
 			}
-			p.log.Info("Mount point is not ready", "mountPath", mountPath)
+			log.Info("Mount point is not ready", "mountPath", mountPath)
 		} else {
-			p.log.Info("Cannot reach here")
+			log.Info("Cannot reach here")
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -234,7 +235,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 }
 
 func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
-	log := p.log.WithName("GetMountRef")
+	log := util.GenLog(ctx, p.log, "GetMountRef")
 	var refs []string
 
 	var corruptedMnt bool
@@ -280,7 +281,7 @@ func (p *ProcessMount) UmountTarget(ctx context.Context, target, podName string)
 
 // JUmount umount targetPath
 func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) error {
-	log := p.log.WithName("JUmount")
+	log := util.GenLog(ctx, p.log, "JUmount")
 	var refs []string
 
 	var corruptedMnt bool
@@ -337,6 +338,7 @@ func (p *ProcessMount) AddRefOfMount(ctx context.Context, target string, podName
 }
 
 func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ string, cacheDirs []string) error {
+	log := util.GenLog(ctx, p.log, "CleanCache")
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
@@ -345,12 +347,12 @@ func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ st
 			existed, err = k8sMount.PathExists(rawPath)
 			return
 		}); err != nil {
-			p.log.Error(err, "Could not check raw path exists", "rawPath", rawPath)
+			log.Error(err, "Could not check raw path exists", "rawPath", rawPath)
 			return err
 		} else if existed {
 			err = os.RemoveAll(rawPath)
 			if err != nil {
-				p.log.Error(err, "Could not cleanup cache raw path", "rawPath", rawPath, "error", err)
+				log.Error(err, "Could not cleanup cache raw path", "rawPath", rawPath, "error", err)
 				return err
 			}
 		}
@@ -359,7 +361,8 @@ func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ st
 }
 
 func (p *ProcessMount) RmrDir(ctx context.Context, directory string, isCeMount bool) ([]byte, error) {
-	p.log.Info("removing directory recursively", "directory", directory)
+	log := util.GenLog(ctx, p.log, "RmrDir")
+	log.Info("removing directory recursively", "directory", directory)
 	if isCeMount {
 		return p.Exec.CommandContext(ctx, jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
 	}

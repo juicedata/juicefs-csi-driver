@@ -29,6 +29,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
@@ -74,7 +75,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
 						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
@@ -122,7 +123,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
 						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
@@ -170,7 +171,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
 						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
@@ -224,7 +225,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
@@ -268,7 +269,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, errors.New("test"))
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
@@ -312,7 +313,7 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
-						ctx := util.WithLog(context.TODO(), nodeLog.WithValues("volumeId", volumeId))
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
 						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(errors.New("test"))
