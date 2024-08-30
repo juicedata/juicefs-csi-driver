@@ -177,9 +177,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)
 		}
-		if capacity/1024/1024/1024 <= 0 {
-			return nil, status.Errorf(codes.InvalidArgument, "capacity %d is too small, at least 1GiB for quota", capacity)
-		}
 		settings := jfs.GetSetting()
 		if settings.PV != nil {
 			capacity = settings.PV.Spec.Capacity.Storage().Value()
