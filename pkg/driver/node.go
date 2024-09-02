@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -192,10 +193,14 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		}
 
-		err = d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
-		if err != nil {
-			log.Error(err, "set quota error")
-		}
+		go func() {
+			err := retry.OnError(retry.DefaultRetry, func(err error) bool { return true }, func() error {
+				return d.juicefs.SetQuota(context.Background(), secrets, settings, path.Join(subdir, quotaPath), capacity)
+			})
+			if err != nil {
+				log.Error(err, "set quota failed")
+			}
+		}()
 	}
 
 	log.Info("juicefs volume mounted", "volumeId", volumeID, "target", target)

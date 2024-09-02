@@ -736,7 +736,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		cmdArgs = []string{config.CliPath, "quota", "set", secrets["name"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 	}
 	log.Info("quota cmd", "command", strings.Join(cmdArgs, " "))
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 2*defaultCheckTimeout)
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 5*defaultCheckTimeout)
 	defer cmdCancel()
 	envs := syscall.Environ()
 	for key, val := range jfsSetting.Envs {
