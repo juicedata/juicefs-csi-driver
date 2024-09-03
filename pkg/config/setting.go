@@ -459,9 +459,10 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 			}
 		}
 	}
-
+	setting.Attr = attr
 	// apply config patch
-	applyAttrPatch(attr, setting)
+	applyConfigPatch(setting)
+
 	return nil
 }
 
@@ -527,12 +528,14 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		Name:      mountPod.Annotations[JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[UniqueId],
 		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],
+		Options:   pv.Spec.MountOptions,
 	}
 	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 		setting.SubPath = v
 	}
+	setting.Attr = attr
 	// apply config patch
-	applyAttrPatch(attr, setting)
+	applyConfigPatch(setting)
 	return attr, nil
 }
 
@@ -698,7 +701,8 @@ func getDefaultResource() corev1.ResourceRequirements {
 	}
 }
 
-func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
+func applyConfigPatch(setting *JfsSetting) {
+	attr := setting.Attr
 	// overwrite by mountpod patch
 	patch := GlobalConfig.GenMountPodPatch(*setting)
 	if patch.Image != "" {
@@ -728,6 +732,19 @@ func applyAttrPatch(attr *PodAttr, setting *JfsSetting) {
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes
 	attr.Env = patch.Env
+
+	// merge or overwrite setting options
+	if setting.Options == nil {
+		setting.Options = make([]string, 0)
+	}
+	for _, option := range patch.MountOptions {
+		for i, o := range setting.Options {
+			if strings.Split(o, "=")[0] == option {
+				setting.Options = append(setting.Options[:i], setting.Options[i+1:]...)
+			}
+		}
+		setting.Options = append(setting.Options, option)
+	}
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE

@@ -87,3 +87,11 @@ data:
       #     - name: block-devices
       #       persistentVolumeClaim:
       #         claimName: block-pv
+
+      # add some mountOptions to the mount pod
+      # - pvcSelector:
+      #     matchLabels:
+      #       need-mount-options: "true"
+      #   mountOptions:
+      #     - writeback
+      #     - xxx

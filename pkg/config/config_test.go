@@ -413,6 +413,21 @@ func TestGenMountPodPatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test mount options",
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						MountOptions: []string{"rw", "nolock"},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels:       map[string]string{},
+				Annotations:  map[string]string{},
+				MountOptions: []string{"rw", "nolock"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
