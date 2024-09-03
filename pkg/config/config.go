@@ -213,6 +213,7 @@ type MountPodPatch struct {
 	VolumeDevices                 []corev1.VolumeDevice        `json:"volumeDevices,omitempty"`
 	VolumeMounts                  []corev1.VolumeMount         `json:"volumeMounts,omitempty"`
 	Env                           []corev1.EnvVar              `json:"env,omitempty"`
+	MountOptions                  []string                     `json:"mountOptions,omitempty"`
 }
 
 func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
@@ -330,6 +331,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.Env != nil {
 		mpp.Env = mp.Env
+	}
+	if mp.MountOptions != nil {
+		mpp.MountOptions = mp.MountOptions
 	}
 }
 

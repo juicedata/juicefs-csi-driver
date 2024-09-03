@@ -160,6 +160,7 @@ def wait_dir_not_empty(check_path):
         output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if output.stderr.decode("utf-8") != "":
             LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            time.sleep(5)
             continue
         if output.stdout.decode("utf-8") != "":
             return True
