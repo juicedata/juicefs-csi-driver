@@ -733,17 +733,17 @@ func applyConfigPatch(setting *JfsSetting) {
 	attr.Volumes = patch.Volumes
 	attr.Env = patch.Env
 
-	// merge options
-	if len(setting.Options) > 0 && len(patch.MountOptions) > 0 {
-		// merge or overwrite setting options
-		for _, option := range patch.MountOptions {
-			for i, o := range setting.Options {
-				if strings.Split(o, "=")[0] == option {
-					setting.Options = append(setting.Options[:i], setting.Options[i+1:]...)
-				}
+	// merge or overwrite setting options
+	if setting.Options == nil {
+		setting.Options = make([]string, 0)
+	}
+	for _, option := range patch.MountOptions {
+		for i, o := range setting.Options {
+			if strings.Split(o, "=")[0] == option {
+				setting.Options = append(setting.Options[:i], setting.Options[i+1:]...)
 			}
-			setting.Options = append(setting.Options, option)
 		}
+		setting.Options = append(setting.Options, option)
 	}
 }
 
