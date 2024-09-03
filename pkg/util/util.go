@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -238,6 +239,15 @@ func ContainsString(slice []string, s string) bool {
 func ContainsPrefix(slice []string, s string) bool {
 	for _, item := range slice {
 		if strings.HasPrefix(item, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainSubString(slice []string, s string) bool {
+	for _, item := range slice {
+		if strings.Contains(item, s) {
 			return true
 		}
 	}
@@ -540,4 +550,22 @@ func SupportFusePass(image string) bool {
 		return !v.LessThan(ceFuseVersion)
 	}
 	return !v.LessThan(eeFuseVersion)
+}
+
+type JuiceConf struct {
+	Meta struct {
+		Sid uint64
+	}
+	Pid  int
+	PPid int
+}
+
+func ParseConfig(conf []byte) (*JuiceConf, error) {
+	var juiceConf JuiceConf
+	err := json.Unmarshal(conf, &juiceConf)
+	if err != nil {
+		klog.Errorf("ParseConfig: %v", err)
+		return nil, err
+	}
+	return &juiceConf, nil
 }

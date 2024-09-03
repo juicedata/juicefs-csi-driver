@@ -47,6 +47,7 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 // NewMountPod generates a pod with juicefs client
 func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	pod := r.genCommonJuicePod(r.genCommonContainer)
+	pod.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 	pod.Name = podName
 	mountCmd := r.genMountCommand()
@@ -254,7 +255,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			},
 		},
 		{
-			Name: JfsFuseFdPathName,
+			Name: config.JfsFuseFdPathName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: path.Join(JfsFuseFsPathInHost, r.jfsSetting.HashVal),
@@ -270,7 +271,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			MountPropagation: &mp,
 		},
 		{
-			Name:      JfsFuseFdPathName,
+			Name:      config.JfsFuseFdPathName,
 			MountPath: JfsFuseFsPathInPod,
 		},
 	}

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -60,6 +61,26 @@ func IsPodError(pod *corev1.Pod) bool {
 		return true
 	}
 	return containError(pod.Status.ContainerStatuses)
+}
+
+func IsPodComplete(pod *corev1.Pod) bool {
+	var reason string
+	for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
+		container := pod.Status.ContainerStatuses[i]
+
+		if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			reason = container.State.Waiting.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			reason = container.State.Terminated.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			if container.State.Terminated.Signal != 0 {
+				reason = fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
+			} else {
+				reason = fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
+			}
+		}
+	}
+	return reason == "Completed"
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
@@ -239,7 +260,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 				log.Info("Mount point is ready", "podName", podName)
 				return nil
 			}
-			log.V(1).Info("Mount point is not ready, wait for it", "podName", podName)
+			log.V(1).Info("Mount point is not ready, wait for it", "mountPath", mntPath, "podName", podName)
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -353,4 +374,12 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 		return nil, nil, err
 	}
 	return pv, pvc, nil
+}
+
+func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
 }

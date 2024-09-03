@@ -59,13 +59,13 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 
 	// delete fuse passfd path
 	for i, vm := range pod.Spec.Containers[0].VolumeMounts {
-		if vm.Name == JfsFuseFdPathName {
+		if vm.Name == config.JfsFuseFdPathName {
 			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts[:i], pod.Spec.Containers[0].VolumeMounts[i+1:]...)
 			break
 		}
 	}
 	for i, v := range pod.Spec.Volumes {
-		if v.Name == JfsFuseFdPathName {
+		if v.Name == config.JfsFuseFdPathName {
 			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
 			break
 		}

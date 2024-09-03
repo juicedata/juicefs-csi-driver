@@ -102,6 +102,8 @@ func main() {
 	klog.InitFlags(goFlag)
 	cmd.PersistentFlags().AddGoFlagSet(goFlag)
 
+	cmd.AddCommand(upgradeCmd)
+
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}

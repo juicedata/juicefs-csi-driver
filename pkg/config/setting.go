@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -527,7 +526,6 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		PVC:       pvc,
 		Name:      mountPod.Annotations[JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[UniqueId],
-		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],
 		Options:   pv.Spec.MountOptions,
 	}
 	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {

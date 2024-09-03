@@ -75,6 +75,8 @@ var (
 	JfsMountPath          = "/sbin/mount.juicefs"
 	DefaultClientConfPath = "/root/.juicefs"
 	ROConfPath            = "/etc/juicefs"
+	ShutdownSockPath      = "/tmp/juicefs-csi-shutdown.sock"
+	JfsFuseFdPathName     = "jfs-fuse-fd"
 
 	DefaultCEMountImage = "juicedata/mount:ce-nightly" // mount pod ce image, override by ENV
 	DefaultEEMountImage = "juicedata/mount:ee-nightly" // mount pod ee image, override by ENV

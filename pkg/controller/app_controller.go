@@ -90,17 +90,17 @@ func (a *AppController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	// umount fuse sidecars
-	err = a.umountFuseSidecars(pod)
+	err = a.umountFuseSidecars(ctx, pod)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
-func (a *AppController) umountFuseSidecars(pod *corev1.Pod) (err error) {
+func (a *AppController) umountFuseSidecars(ctx context.Context, pod *corev1.Pod) (err error) {
 	for _, cn := range pod.Spec.Containers {
 		if strings.Contains(cn.Name, config.MountContainerName) {
-			if e := a.umountFuseSidecar(pod, cn); e != nil {
+			if e := a.umountFuseSidecar(ctx, pod, cn); e != nil {
 				return e
 			}
 		}
@@ -108,7 +108,7 @@ func (a *AppController) umountFuseSidecars(pod *corev1.Pod) (err error) {
 	return
 }
 
-func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.Container) (err error) {
+func (a *AppController) umountFuseSidecar(ctx context.Context, pod *corev1.Pod, fuseContainer corev1.Container) (err error) {
 	if fuseContainer.Name == "" {
 		return
 	}
@@ -122,7 +122,7 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 	cmd := fuseContainer.Lifecycle.PreStop.Exec.Command
 
 	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
-	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
+	stdout, stderr, err := a.K8sClient.ExecuteInContainer(ctx, pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		if strings.Contains(stderr, "not mounted") ||
 			strings.Contains(stderr, "mountpoint not found") ||

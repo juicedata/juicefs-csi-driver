@@ -130,6 +130,11 @@ func parseNodeConfig() {
 		log.Error(err, "Init global fds error")
 		os.Exit(1)
 	}
+	err = fuse.ServeGfShutdown(config.ShutdownSockPath)
+	if err != nil {
+		log.Error(err, "Serve graceful shutdown error")
+		os.Exit(1)
+	}
 }
 
 func nodeRun(ctx context.Context) {

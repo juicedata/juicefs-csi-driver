@@ -170,7 +170,7 @@ func (fs *Fds) CloseFd(podHashVal string) {
 }
 
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
-	fuseFd, fuseSetting := getFuseFd(fusePath)
+	fuseFd, fuseSetting := getFuseFd(fusePath, false)
 	if fuseFd <= 0 {
 		return
 	}
@@ -202,6 +202,7 @@ type fd struct {
 
 	fuseFd      int
 	fuseSetting []byte
+	sid         uint64
 
 	serverAddress      string // server for pod
 	serverAddressInPod string // server path in pod
@@ -306,7 +307,31 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	fs.globalMu.Unlock()
 }
 
-func getFuseFd(path string) (int, []byte) {
+func (fs *Fds) updateSid(podHashVal string, sid uint64) {
+	f := fs.fds[podHashVal]
+	if f == nil {
+		return
+	}
+
+	fs.globalMu.Lock()
+	f.sid = sid
+	fs.fds[podHashVal] = f
+	fs.globalMu.Unlock()
+}
+
+func (fs *Fds) GetSid(podHashVal string) uint64 {
+	f := fs.fds[podHashVal]
+	if f == nil {
+		return 0
+	}
+
+	fs.globalMu.Lock()
+	sid := f.sid
+	fs.globalMu.Unlock()
+	return sid
+}
+
+func getFuseFd(path string, close bool) (int, []byte) {
 	var exists bool
 	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
 		exists, err = k8sMount.PathExists(path)
@@ -332,12 +357,18 @@ func getFuseFd(path string) (int, []byte) {
 	fdLog.V(1).Info("get fd and msg", "fd", fds)
 	_ = syscall.Close(fds[0])
 	if len(fds) > 1 {
-		err = putFd(conn.(*net.UnixConn), msg, fds[1])
-		fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
-		if err != nil {
-			fdLog.Error(err, "send FUSE error")
+		if close {
+			fdLog.V(1).Info("send FUSE fd and close", "fd", fds[1])
+			_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
+			return fds[1], msg
+		} else {
+			fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
+			err = putFd(conn.(*net.UnixConn), msg, fds[1])
+			if err != nil {
+				fdLog.Error(err, "send FUSE error")
+			}
+			return fds[1], msg
 		}
-		return fds[1], msg
 	}
 	return 0, nil
 }

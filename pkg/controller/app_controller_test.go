@@ -17,6 +17,7 @@
 package controller
 
 import (
+	ctx "context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -372,7 +373,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 					a := &AppController{
 						K8sClient: client,
 					}
-					if err := a.umountFuseSidecars(tt.args.pod); (err != nil) != tt.wantErr {
+					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
 						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
 					}
 				})
@@ -464,7 +465,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 					a := &AppController{
 						K8sClient: client,
 					}
-					if err := a.umountFuseSidecars(tt.args.pod); (err != nil) != tt.wantErr {
+					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
 						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
 					}
 				})

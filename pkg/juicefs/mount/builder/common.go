@@ -37,7 +37,6 @@ const (
 	JfsDirName          = "jfs-dir"
 	UpdateDBDirName     = "updatedb"
 	UpdateDBCfgFile     = "/etc/updatedb.conf"
-	JfsFuseFdPathName   = "jfs-fuse-fd"
 	JfsFuseFsPathInPod  = "/tmp"
 	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
 	JfsCommEnv          = "JFS_SUPER_COMM"
