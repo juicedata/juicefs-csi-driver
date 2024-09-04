@@ -49,10 +49,6 @@ var (
 	utilLog = klog.NewKlogr().WithName("util")
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 type mountInfo struct {
 	// Unique ID for the mount (maybe reused after umount).
 	id int
@@ -305,8 +301,9 @@ var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandStringRunes(n int) string {
 	b := make([]rune, n)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		b[i] = letterRunes[r.Intn(len(letterRunes))]
 	}
 	return string(b)
 }

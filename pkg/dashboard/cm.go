@@ -59,6 +59,29 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
+		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/name": "juicefs-csi-driver",
+				"app":                    "juicefs-csi-node",
+			},
+		})
+		if err != nil {
+			c.String(500, "parse label selector error %v", err)
+			return
+		}
+		csiNodeList, err := api.client.CoreV1().Pods(api.sysNamespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
+		if err != nil {
+			c.String(500, "list csi node error %v", err)
+			return
+		}
+		for _, pod := range csiNodeList.Items {
+			pod.Annotations["juicefs/update-time"] = metav1.Now().Format("2006-01-02T15:04:05Z")
+			_, err = api.client.CoreV1().Pods(api.sysNamespace).Update(c, &pod, metav1.UpdateOptions{})
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+		}
 		c.JSON(200, cm)
 	}
 }

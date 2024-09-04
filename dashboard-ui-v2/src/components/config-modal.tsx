@@ -18,7 +18,7 @@ import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button, Modal, Space } from 'antd'
 import { FormattedMessage } from 'react-intl'
-import YAML from 'yaml'
+import YAML, { YAMLParseError } from 'yaml'
 
 import { useConfig, useUpdateConfig } from '@/hooks/cm-api'
 
@@ -44,12 +44,11 @@ const ConfigModal: React.FC<{
   const [config, setConfig] = useState('')
   useEffect(() => {
     if (data?.data) {
-      setConfig(
-        YAML.stringify(data?.data?.['config.yaml'])
-          .split('\n')
-          .slice(1)
-          .join('\n'),
-      )
+      try {
+        setConfig(YAML.stringify(YAML.parse(data?.data?.['config.yaml'])))
+      } catch (e) {
+        setConfig((e as YAMLParseError).message)
+      }
     }
   }, [data])
 
