@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -33,6 +34,8 @@ import (
 	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
+
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var (
@@ -412,6 +415,37 @@ func LoadConfig(configPath string) error {
 	}
 
 	err = cfg.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	GlobalConfig = cfg
+	log.V(1).Info("config loaded", "global config", *GlobalConfig)
+	return err
+}
+
+func LoadFromConfigMap(ctx context.Context, client *k8s.K8sClient) error {
+	cmName := os.Getenv("JUICEFS_CONFIG_NAME")
+	if cmName == "" {
+		cmName = "juicefs-csi-driver-config"
+	}
+	sysNamespace := os.Getenv("SYS_NAMESPACE")
+	if sysNamespace == "" {
+		sysNamespace = "kube-system"
+	}
+	cm, err := client.GetConfigMap(ctx, cmName, sysNamespace)
+	if err != nil {
+		return err
+	}
+
+	cfg := newCfg()
+
+	// compatible with old version
+	if os.Getenv("ENABLE_NODE_SELECTOR") == "1" {
+		cfg.EnableNodeSelector = true
+	}
+
+	err = cfg.Unmarshal([]byte(cm.Data["config.yaml"]))
 	if err != nil {
 		return err
 	}

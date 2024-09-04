@@ -78,6 +78,8 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.PUT("/config", api.putCSIConfig())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
+	podGroup.GET("/latestimage", api.getPodLatestImage())
+	podGroup.PUT("/upgrade", api.smoothUpgrade())
 	podGroup.GET("/events", api.getPodEvents())
 	podGroup.GET("/logs/:container", api.getPodLogs())
 	podGroup.GET("/pvs", api.listPodPVsHandler())

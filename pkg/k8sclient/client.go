@@ -88,6 +88,14 @@ func NewClient() (*K8sClient, error) {
 	if config == nil {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
+	return newClient(config)
+}
+
+func NewClientWithConfig(config *rest.Config) (*K8sClient, error) {
+	return newClient(config)
+}
+
+func newClient(config *rest.Config) (*K8sClient, error) {
 	config.Timeout = timeout
 
 	if os.Getenv("KUBE_QPS") != "" {
@@ -500,4 +508,15 @@ func execute(method string, url *url.URL, config *restclient.Config, stdin io.Re
 		Stderr: stderr,
 		Tty:    tty,
 	})
+}
+
+func (k *K8sClient) GetConfigMap(ctx context.Context, cmName, namespace string) (*corev1.ConfigMap, error) {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Get configmap", "name", cmName)
+	cm, err := k.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
+	if err != nil {
+		log.V(1).Info("Can't get configMap", "name", cmName, "namespace", namespace, "error", err)
+		return nil, err
+	}
+	return cm, nil
 }

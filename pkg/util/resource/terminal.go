@@ -17,6 +17,7 @@
 package resource
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -175,6 +176,37 @@ func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Wr
 		Stderr: writer,
 	}); err != nil {
 		resourceLog.Error(err, "Failed to stream")
+		return err
+	}
+
+	return nil
+}
+
+func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name, namespace string) error {
+	req := client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(csiName).
+		Namespace(namespace).SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command:   []string{"juicefs-csi-driver", "upgrade", name},
+		Container: "juicefs-plugin",
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+
+	var sout, serr bytes.Buffer
+	executor, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
+	if err != nil {
+		resourceLog.Error(err, "Failed to create SPDY executor")
+		return err
+	}
+	if err := executor.Stream(remotecommand.StreamOptions{
+		Stdout: &sout,
+		Stderr: &serr,
+	}); err != nil {
+		resourceLog.Error(err, "Failed to stream", "stdout", sout, "stderr", serr)
 		return err
 	}
 

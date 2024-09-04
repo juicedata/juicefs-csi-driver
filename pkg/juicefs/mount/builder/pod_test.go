@@ -66,7 +66,7 @@ var (
 						},
 					},
 				}, {
-					Name: JfsFuseFdPathName,
+					Name: config.JfsFuseFdPathName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: path.Join(JfsFuseFsPathInHost, "test"),
@@ -107,7 +107,7 @@ var (
 						MountPath:        config.PodMountBase,
 						MountPropagation: &mp,
 					}, {
-						Name:      JfsFuseFdPathName,
+						Name:      config.JfsFuseFdPathName,
 						MountPath: "/tmp",
 					}, {
 

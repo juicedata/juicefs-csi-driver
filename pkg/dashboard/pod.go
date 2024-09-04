@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -369,6 +370,33 @@ func (api *API) getPodHandler() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, pod)
+	}
+}
+
+func (api *API) getPodLatestImage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		po, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		rawPod := po.(*corev1.Pod)
+		// gen k8s client
+		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
+		if err != nil {
+			c.String(500, "Could not create k8s client: %v", err)
+			return
+		}
+		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
+			c.String(500, "Load config from configmap error: %v", err)
+			return
+		}
+		attr, err := config.GenPodAttrWithMountPod(c, k8sClient, rawPod)
+		if err != nil {
+			c.String(500, "generate pod attribute error: %v", err)
+			return
+		}
+		c.IndentedJSON(200, attr.Image)
 	}
 }
 
@@ -929,5 +957,28 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 			podLog.Error(err, "Failed to create SPDY executor")
 			return
 		}
+	}
+}
+
+func (api *API) smoothUpgrade() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		po, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		rawPod := po.(*corev1.Pod)
+		csiNode, err := api.getCSINode(c, rawPod.Spec.NodeName)
+		if err != nil {
+			podLog.Error(err, "get csi node error", "node", rawPod.Spec.NodeName)
+			c.String(500, "get csi node error %v", err)
+			return
+		}
+
+		if err := resource.SmoothUpgrade(api.client, api.kubeconfig, csiNode.Name, rawPod.Name, csiNode.Namespace); err != nil {
+			c.String(500, "Failed to smooth upgrade: %v", err)
+			return
+		}
+		return
 	}
 }
