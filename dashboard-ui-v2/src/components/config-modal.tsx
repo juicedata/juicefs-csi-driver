@@ -77,12 +77,13 @@ const ConfigModal: React.FC<{
                 onClick={() => {
                   mutate()
                   if (data?.data) {
-                    setConfig(
-                      YAML.stringify(data?.data?.['config.yaml'])
-                        .split('\n')
-                        .slice(1)
-                        .join('\n'),
-                    )
+                    try {
+                      setConfig(
+                        YAML.stringify(YAML.parse(data?.data?.['config.yaml'])),
+                      )
+                    } catch (e) {
+                      setConfig((e as YAMLParseError).message)
+                    }
                     setUpdated(false)
                   }
                 }}
