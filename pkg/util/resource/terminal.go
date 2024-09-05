@@ -182,13 +182,17 @@ func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Wr
 	return nil
 }
 
-func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name, namespace string) error {
+func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name, namespace string, restart bool) error {
+	cmds := []string{"juicefs-csi-driver", "upgrade", name}
+	if restart {
+		cmds = append(cmds, "--restart")
+	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(csiName).
 		Namespace(namespace).SubResource("exec")
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command:   []string{"juicefs-csi-driver", "upgrade", name},
+		Command:   cmds,
 		Container: "juicefs-plugin",
 		Stdin:     false,
 		Stdout:    true,

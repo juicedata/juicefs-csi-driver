@@ -968,6 +968,12 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			return
 		}
 		rawPod := po.(*corev1.Pod)
+		restart := map[string]bool{}
+		if err := c.ShouldBindJSON(&restart); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
 		csiNode, err := api.getCSINode(c, rawPod.Spec.NodeName)
 		if err != nil {
 			podLog.Error(err, "get csi node error", "node", rawPod.Spec.NodeName)
@@ -975,7 +981,7 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			return
 		}
 
-		if err := resource.SmoothUpgrade(api.client, api.kubeconfig, csiNode.Name, rawPod.Name, csiNode.Namespace); err != nil {
+		if err := resource.SmoothUpgrade(api.client, api.kubeconfig, csiNode.Name, rawPod.Name, csiNode.Namespace, restart["restart"]); err != nil {
 			c.String(500, "Failed to smooth upgrade: %v", err)
 			return
 		}

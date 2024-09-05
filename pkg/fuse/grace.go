@@ -107,6 +107,7 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 	if err != nil {
 		return err
 	}
+	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
 
 	// get pid and sid from <mountpoint>/.config
 	fdLog.V(1).Info("get pid and sid from config", "path", mntPath, "pod", mountPod.Name)
@@ -141,8 +142,10 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 		// set fuse fd to -1 in mount pod
 
 		// update sid
-		GlobalFds.updateSid(hashVal, jfsConf.Meta.Sid)
-		fdLog.V(1).Info("update sid", "mountPod", mountPod.Name, "sid", GlobalFds.fds[hashVal].sid)
+		if ce {
+			GlobalFds.updateSid(hashVal, jfsConf.Meta.Sid)
+			fdLog.V(1).Info("update sid", "mountPod", mountPod.Name, "sid", jfsConf.Meta.Sid)
+		}
 
 		// close fuse fd in mount pod
 		commPath, err := resource.GetCommPath("/tmp", *mountPod)
@@ -170,10 +173,12 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 		}
 	}
 
-	fdLog.Info("delete canary pod", "pod", cPod.Name)
-	if err := client.DeletePod(ctx, cPod); err != nil {
-		fdLog.Error(err, "delete canary pod error", "pod", cPod.Name)
-	}
+	defer func() {
+		fdLog.Info("delete canary pod", "pod", cPod.Name)
+		if err := client.DeletePod(ctx, cPod); err != nil {
+			fdLog.Error(err, "delete canary pod error", "pod", cPod.Name)
+		}
+	}()
 
 	// send SIGHUP to mount pod
 	for i := 0; i < 600; i++ {
@@ -191,7 +196,6 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 		return nil
 	}
 	fdLog.Info("mount point of mount pod is busy, stop upgrade", "podName", mountPod.Name)
-	// todo
 	return nil
 }
 
@@ -268,6 +272,13 @@ func canaryPod(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod)
 		return nil, err
 	}
 	name := fmt.Sprintf("%s-canary", mountPod.Name)
+	if po, err := client.GetPod(ctx, name, config.Namespace); err == nil {
+		fdLog.Info("canary pod already exists, delete it first", "name", name)
+		if err := client.DeletePod(ctx, po); err != nil {
+			fdLog.Error(err, "delete canary pod error", "name", name)
+			return nil, err
+		}
+	}
 	fdLog.Info("create canary pod", "image", attr.Image, "name", name)
 	var (
 		mounts  []corev1.VolumeMount

@@ -62,12 +62,15 @@ export function useMountPodImage(namespace?: string, name?: string) {
 }
 
 export function useMountUpgrade() {
-  return useAsync(async (namespace?: string, name?: string) => {
+  return useAsync(async (namespace?: string, name?: string, restart?: boolean) => {
     await fetch(`${getHost()}/api/v1/pod/${namespace}/${name}/upgrade`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          'restart': restart,
+        }),
       },
     )
   })

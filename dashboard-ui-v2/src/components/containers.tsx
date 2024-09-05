@@ -35,7 +35,7 @@ import {
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod, supportDebug } from '@/utils'
-import { useMountPodImage, useMountUpgrade } from '@/hooks/use-api.ts'
+import { useMountUpgrade } from '@/hooks/use-api.ts'
 
 const Containers: React.FC<{
   pod: Pod
@@ -50,11 +50,11 @@ const Containers: React.FC<{
     actions.execute(
       namespace,
       name,
+      false,
     )
-    message.success("Successfully trigger smoothly upgrade")
+    message.success('Successfully trigger binary smoothly upgrade')
   }
 
-  const { data } = useMountPodImage(namespace, name)
   return (
     <ProCard title={<FormattedMessage id="containerList" />}>
       <Table
@@ -180,12 +180,12 @@ const Containers: React.FC<{
 
                     <Popconfirm
                       title="Smoothly Upgrade"
-                      description={`Are you sure to upgrade to ${data}?`}
+                      description={`Are you sure to upgrade the juicefs binary in container?`}
                       onConfirm={confirm}
                       okText="Yes"
                       cancelText="No"
                     >
-                      <Tooltip title="Smoothly Upgrade" zIndex={0}>
+                      <Tooltip title="Binary Upgrade" zIndex={0}>
                         <Button
                           className="action-button"
                           icon={<UpgradeIcon />}

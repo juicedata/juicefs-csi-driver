@@ -16,15 +16,16 @@
 
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, Tooltip } from 'antd'
+import { Button, message, Popconfirm, type PopconfirmProps, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
-import { YamlIcon } from '@/icons'
+import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import { getPodStatusBadge, omitPod, podStatus } from '@/utils'
+import { useMountUpgrade, useMountPodImage } from '@/hooks/use-api.ts'
 
 const PodBasic: React.FC<{
   pod: Pod
@@ -32,6 +33,8 @@ const PodBasic: React.FC<{
   const { pod } = props
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [, actions] = useMountUpgrade()
+  const { data } = useMountPodImage(pod.metadata?.namespace, pod.metadata?.name)
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -41,11 +44,34 @@ const PodBasic: React.FC<{
     setIsModalOpen(false)
   }
 
+  const confirm: PopconfirmProps['onConfirm'] = () => {
+    actions.execute(
+      pod.metadata?.namespace,
+      pod.metadata?.name,
+      true,
+    )
+    message.success('Successfully trigger pod smoothly upgrade')
+  }
+
   return (
     <ProCard
       title={<FormattedMessage id="basic" />}
       extra={
         <>
+          <Popconfirm
+            title="Smoothly Upgrade"
+            description={`Are you sure to upgrade to ${data}?`}
+            onConfirm={confirm}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Tooltip title="Smoothly Upgrade" zIndex={0}>
+              <Button
+                className="action-button"
+                icon={<UpgradeIcon />}
+              />
+            </Tooltip>
+          </Popconfirm>
           <Tooltip title="Show Yaml">
             <Button
               className="action-button"
