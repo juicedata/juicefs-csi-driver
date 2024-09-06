@@ -127,7 +127,7 @@ var (
 				},
 			}},
 			TerminationGracePeriodSeconds: &gracePeriod,
-			RestartPolicy:                 corev1.RestartPolicyAlways,
+			RestartPolicy:                 corev1.RestartPolicyOnFailure,
 			NodeName:                      "node",
 			Hostname:                      "test",
 			PriorityClassName:             config.JFSMountPriorityName,

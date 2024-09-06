@@ -147,7 +147,10 @@ var testG = &corev1.Pod{
 		},
 	},
 	Spec: corev1.PodSpec{
-		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+		Containers: []corev1.Container{{
+			Image:   "juicedata/mount:ce-v1.2.1",
+			Command: []string{"sh", "-c", "exec mount.juicefs juicefs-test-node-j /jfs/juicefs-test-node-j"},
+		}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -169,7 +172,10 @@ var testH = &corev1.Pod{
 		},
 	},
 	Spec: corev1.PodSpec{
-		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+		Containers: []corev1.Container{{
+			Image:   "juicedata/mount:ce-v1.2.1",
+			Command: []string{"sh", "-c", "exec mount.juicefs juicefs-test-node-h /jfs/juicefs-test-node-h"},
+		}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
