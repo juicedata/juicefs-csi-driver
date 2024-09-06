@@ -985,6 +985,5 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			c.String(500, "Failed to smooth upgrade: %v", err)
 			return
 		}
-		return
 	}
 }

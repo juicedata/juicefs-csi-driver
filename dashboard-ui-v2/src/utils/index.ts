@@ -559,6 +559,28 @@ export function isEEImage(image: string): boolean {
   return tag.startsWith('ee')
 }
 
+export function supportPodSmoothUpgrade(image: string): boolean {
+  const version = image.split(':')[1]
+  if (!version) {
+    return false
+  }
+  if (version.includes('ce')) {
+    return compareImageVersion(version.replace('ce-v', ''), '1.2.1') >= 0
+  }
+  return compareImageVersion(version.replace('ee-', ''), '5.1.0') >= 0
+}
+
+export function supportBinarySmoothUpgrade(image: string): boolean {
+  const version = image.split(':')[1]
+  if (!version) {
+    return false
+  }
+  if (version.includes('ce')) {
+    return compareImageVersion(version.replace('ce-v', ''), '1.2.0') >= 0
+  }
+  return compareImageVersion(version.replace('ee-', ''), '5.0.0') >= 0
+}
+
 // image is the image name with tag, e.g. 'juicedata/mount:ce-v1.1.0'
 export function supportDebug(image: string): boolean {
   const version = image.split(':')[1]
@@ -568,7 +590,7 @@ export function supportDebug(image: string): boolean {
   if (version.includes('ce')) {
     return compareImageVersion(version.replace('ce-v', ''), '1.2.0') >= 0
   }
-  return compareImageVersion(version.replace('ee-v', ''), '5.0.23') >= 0
+  return compareImageVersion(version.replace('ee-', ''), '5.0.23') >= 0
 }
 
 // compareImageVersion compares two image versions and returns:
@@ -600,5 +622,5 @@ export function compareImageVersion(current: string, target: string): number {
     }
   }
 
-  return imageVersionParts.length < targetVersionParts.length ? -1 : 0
+  return imageVersionParts.length < targetVersionParts.length ? 1 : 0
 }

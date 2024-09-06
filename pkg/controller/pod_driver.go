@@ -445,51 +445,36 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	log.Info("pod targetPath not empty, need to create pod")
 
 	// check pod delete
-	for {
-		po, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-		if err == nil || apierrors.IsNotFound(err) {
-			needCreate, err := p.needCreateMountPod(ctx, pod.Labels[config.PodUniqueIdLabelKey], hashVal)
-			if err != nil {
-				return Result{}, err
-			}
-			if needCreate {
-				// create pod
-				newPodName := podmount.GenPodNameByUniqueId(pod.Labels[config.PodUniqueIdLabelKey], true)
-				log.Info("need to create a new one", "newPodName", newPodName)
-				newPod, err := p.newMountPod(ctx, pod, newPodName)
-				if err == nil {
-					_, err = p.Client.CreatePod(ctx, newPod)
-					if err != nil {
-						log.Error(err, "Create pod")
-					}
-				}
-				return Result{RequeueImmediately: true}, err
-			}
-		}
+	_, err = p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+	if err == nil || apierrors.IsNotFound(err) {
+		needCreate, err := p.needCreateMountPod(ctx, pod.Labels[config.PodUniqueIdLabelKey], hashVal)
 		if err != nil {
-			if apierrors.IsTimeout(err) {
-				break
+			return Result{}, err
+		}
+		if needCreate {
+			// create pod
+			newPodName := podmount.GenPodNameByUniqueId(pod.Labels[config.PodUniqueIdLabelKey], true)
+			log.Info("need to create a new one", "newPodName", newPodName)
+			newPod, err := p.newMountPod(ctx, pod, newPodName)
+			if err == nil {
+				_, err = p.Client.CreatePod(ctx, newPod)
+				if err != nil {
+					log.Error(err, "Create pod")
+				}
 			}
-			log.Error(err, "Get pod error")
-			return Result{}, nil
+			return Result{RequeueImmediately: true}, err
 		}
-
-		// pod is created elsewhere
-		if po.Annotations == nil {
-			po.Annotations = make(map[string]string)
+	}
+	if err != nil {
+		if apierrors.IsTimeout(err) {
+			err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
+			log.Error(err, "delete pod error")
+			return Result{}, err
 		}
-		for k, v := range existTargets {
-			// add exist target in annotation
-			po.Annotations[k] = v
-		}
-		if err := resource.ReplacePodAnnotation(ctx, p.Client, pod, po.Annotations); err != nil {
-			log.Error(err, "Update pod error")
-		}
+		log.Error(err, "Get pod error")
 		return Result{}, err
 	}
-	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
-	log.Error(err, "delete pod error")
-	return Result{}, err
+	return Result{}, nil
 }
 
 // podPendingHandler handles mount pod that is pending

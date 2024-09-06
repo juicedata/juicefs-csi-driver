@@ -24,7 +24,7 @@ import YAML from 'yaml'
 import YamlModal from './yaml-modal'
 import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
-import { getPodStatusBadge, omitPod, podStatus } from '@/utils'
+import { getPodStatusBadge, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
 import { useMountUpgrade, useMountPodImage } from '@/hooks/use-api.ts'
 
 const PodBasic: React.FC<{
@@ -35,6 +35,7 @@ const PodBasic: React.FC<{
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [, actions] = useMountUpgrade()
   const { data } = useMountPodImage(pod.metadata?.namespace, pod.metadata?.name)
+  const [image] = useState(pod.spec?.containers[0].image)
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -58,20 +59,22 @@ const PodBasic: React.FC<{
       title={<FormattedMessage id="basic" />}
       extra={
         <>
-          <Popconfirm
-            title="Smoothly Upgrade"
-            description={`Are you sure to upgrade to ${data}?`}
-            onConfirm={confirm}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Tooltip title="Smoothly Upgrade" zIndex={0}>
-              <Button
-                className="action-button"
-                icon={<UpgradeIcon />}
-              />
-            </Tooltip>
-          </Popconfirm>
+          {supportPodSmoothUpgrade(image || '') && supportPodSmoothUpgrade(data || '') ? (
+            <Popconfirm
+              title="Smoothly Upgrade"
+              description={`Are you sure to upgrade to ${data}?`}
+              onConfirm={confirm}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Tooltip title="Smoothly Upgrade" zIndex={0}>
+                <Button
+                  className="action-button"
+                  icon={<UpgradeIcon />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          ) : null}
           <Tooltip title="Show Yaml">
             <Button
               className="action-button"

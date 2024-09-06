@@ -34,7 +34,7 @@ import {
 } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
-import { isMountPod, supportDebug } from '@/utils'
+import { isMountPod, supportBinarySmoothUpgrade, supportDebug } from '@/utils'
 import { useMountUpgrade } from '@/hooks/use-api.ts'
 
 const Containers: React.FC<{
@@ -178,20 +178,22 @@ const Containers: React.FC<{
                       )}
                     </WarmupModal>
 
-                    <Popconfirm
-                      title="Smoothly Upgrade"
-                      description={`Are you sure to upgrade the juicefs binary in container?`}
-                      onConfirm={confirm}
-                      okText="Yes"
-                      cancelText="No"
-                    >
-                      <Tooltip title="Binary Upgrade" zIndex={0}>
-                        <Button
-                          className="action-button"
-                          icon={<UpgradeIcon />}
-                        />
-                      </Tooltip>
-                    </Popconfirm>
+                    {supportBinarySmoothUpgrade(c.image) ? (
+                      <Popconfirm
+                        title="Smoothly Upgrade"
+                        description={`Are you sure to upgrade the juicefs binary in container?`}
+                        onConfirm={confirm}
+                        okText="Yes"
+                        cancelText="No"
+                      >
+                        <Tooltip title="Binary Upgrade" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            icon={<UpgradeIcon />}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    ) : null}
                   </>
                 ) : null}
               </Space>
