@@ -698,7 +698,8 @@ def test_dynamic_delete_pod():
             time.sleep(5)
         except Exception as e:
             LOG.info(e)
-            raise e
+            time.sleep(5)
+            continue
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
@@ -777,7 +778,8 @@ def test_static_delete_pod():
             time.sleep(5)
         except Exception as e:
             LOG.info(e)
-            raise e
+            time.sleep(5)
+            continue
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
@@ -2600,10 +2602,20 @@ def test_mountpod_recreated():
 
     # wait for mountpod recreated
     LOG.info("Wait for mountpod recreated..")
+    is_ready = False
     for i in range(0, 60):
-        if mount_pod.watch_for_success():
-            break
-        time.sleep(5)
+        try:
+            new_mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
+            if is_ready:
+                break
+            time.sleep(5)
+        except Exception as e:
+            LOG.info(e)
+            time.sleep(5)
+            continue
+    if not is_ready:
+        raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     # check mount point
     LOG.info("Check mount point..")
