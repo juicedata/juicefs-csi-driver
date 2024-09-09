@@ -691,7 +691,8 @@ def test_dynamic_delete_pod():
     is_ready = False
     for i in range(0, 60):
         try:
-            is_ready = mount_pod.is_ready()
+            new_mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
             if is_ready:
                 break
             time.sleep(5)
@@ -769,7 +770,8 @@ def test_static_delete_pod():
     is_ready = False
     for i in range(0, 60):
         try:
-            is_ready = mount_pod.is_ready()
+            new_mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
             if is_ready:
                 break
             time.sleep(5)
