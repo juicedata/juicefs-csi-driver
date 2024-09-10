@@ -439,6 +439,17 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	if err == nil {
 		return nil
 	}
+	if util.SupportFusePass(jfsSetting.Attr.Image) {
+		logger.Error(err, "pod is not ready within 60s")
+		// mount pod hang probably, close fd and delete it
+		logger.Info("close fd and delete pod")
+		fuse.GlobalFds.CloseFd(jfsSetting.HashVal)
+		// umount it
+		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+			util.UmountPath(ctx, jfsSetting.MountPath)
+			return nil
+		})
+	}
 	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(ctx, podName)
 	if err != nil {

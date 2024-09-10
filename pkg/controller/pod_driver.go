@@ -1010,5 +1010,5 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if err != nil {
 		log.Error(err, "mkdir mount point of pod")
 	}
-	return newPod, err
+	return newPod, nil
 }

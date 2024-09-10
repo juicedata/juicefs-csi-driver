@@ -138,6 +138,13 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 		return err
 	}
 
+	defer func() {
+		fdLog.Info("delete canary pod", "pod", cPod.Name)
+		if err := client.DeletePod(ctx, cPod); err != nil {
+			fdLog.Error(err, "delete canary pod error", "pod", cPod.Name)
+		}
+	}()
+
 	if restart {
 		// set fuse fd to -1 in mount pod
 
@@ -172,13 +179,6 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 			return err
 		}
 	}
-
-	defer func() {
-		fdLog.Info("delete canary pod", "pod", cPod.Name)
-		if err := client.DeletePod(ctx, cPod); err != nil {
-			fdLog.Error(err, "delete canary pod error", "pod", cPod.Name)
-		}
-	}()
 
 	// send SIGHUP to mount pod
 	for i := 0; i < 600; i++ {

@@ -65,7 +65,7 @@ func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
 		if pod.DeletionTimestamp != nil {
 			deleted = true
 		}
-		miLog.V(1).Info("set pod deleted status", "name", pod.Name, "deleted status", deleted)
+		miLog.V(2).Info("set pod deleted status", "name", pod.Name, "deleted status", deleted)
 		mit.deletedPods[string(pod.UID)] = deleted
 	}
 }
