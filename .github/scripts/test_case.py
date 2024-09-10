@@ -2884,11 +2884,19 @@ def test_recreate_mountpod_reload_config():
 
     # wait for mountpod recreated
     LOG.info("Wait for mountpod recreated..")
-    time.sleep(20)
-    for i in range(0, 60):
-        if mount_pod.watch_for_success():
-            break
-        time.sleep(5)
+
+    result = pod.watch_for_success()
+    if not result:
+        if MOUNT_MODE == "webhook":
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
     LOG.info("Check mount point..")
