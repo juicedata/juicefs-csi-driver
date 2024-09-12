@@ -103,6 +103,15 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 	if mountPod.Spec.NodeName != config.NodeName {
 		return fmt.Errorf("pod %s is not on node %s", mountPod.Name, config.NodeName)
 	}
+	hashVal := mountPod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return fmt.Errorf("pod %s/%s has no hash label", mountPod.Namespace, mountPod.Name)
+	}
+	fdLog.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
+	lock := config.GetPodLock(hashVal)
+	lock.Lock()
+	defer lock.Unlock()
+
 	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {
 		return err
@@ -120,12 +129,6 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 	if err != nil {
 		return err
 	}
-
-	hashVal := mountPod.Labels[config.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return fmt.Errorf("pod %s/%s has no hash label", mountPod.Namespace, mountPod.Name)
-	}
-	fdLog.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
 
 	cPod, err := canaryPod(ctx, client, mountPod)
 	if err != nil {
