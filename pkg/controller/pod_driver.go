@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -258,7 +258,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, err
 	}
 	// get sid
-	sid := fuse.GlobalFds.GetSid(hashVal)
+	sid := passfd.GlobalFds.GetSid(hashVal)
 	if sid != 0 {
 		env := []corev1.EnvVar{}
 		oldEnv := newPod.Spec.Containers[0].Env
@@ -433,7 +433,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
 		// stop fuse fd and clean up socket
-		go fuse.GlobalFds.StopFd(context.TODO(), hashVal)
+		go passfd.GlobalFds.StopFd(context.TODO(), hashVal)
 		return Result{}, nil
 	}
 
@@ -583,7 +583,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			log.Error(err, "pod is not ready within 60s")
 			// mount pod hang probably, close fd and delete it
 			log.Info("close fd and delete pod")
-			fuse.GlobalFds.CloseFd(podHashVal)
+			passfd.GlobalFds.CloseFd(podHashVal)
 			// umount it
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 				util.UmountPath(ctx, mntPath)
@@ -988,7 +988,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi
-			fuse.GlobalFds.StopFd(ctx, hashVal)
+			passfd.GlobalFds.StopFd(ctx, hashVal)
 		}
 		// umount mount point before recreate mount pod
 		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {

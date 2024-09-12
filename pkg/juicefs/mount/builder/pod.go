@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
@@ -64,7 +64,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 
 	// inject fuse fd
 	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		fdAddress, err := fuse.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
+		fdAddress, err := passfd.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
 		if err != nil {
 			return nil, err
 		}

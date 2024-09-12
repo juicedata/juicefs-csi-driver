@@ -1,5 +1,5 @@
 /*
- Copyright 2024 Juicedata Inc
+ Copyright 2023 Juicedata Inc
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package fuse
+package passfd
 
 import (
 	"context"
@@ -170,7 +170,7 @@ func (fs *Fds) CloseFd(podHashVal string) {
 }
 
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
-	fuseFd, fuseSetting := getFuseFd(fusePath, false)
+	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
 	if fuseFd <= 0 {
 		return
 	}
@@ -307,7 +307,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) updateSid(podHashVal string, sid uint64) {
+func (fs *Fds) UpdateSid(podHashVal string, sid uint64) {
 	f := fs.fds[podHashVal]
 	if f == nil {
 		return
@@ -331,7 +331,7 @@ func (fs *Fds) GetSid(podHashVal string) uint64 {
 	return sid
 }
 
-func getFuseFd(path string, close bool) (int, []byte) {
+func GetFuseFd(path string, close bool) (int, []byte) {
 	var exists bool
 	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
 		exists, err = k8sMount.PathExists(path)

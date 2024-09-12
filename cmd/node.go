@@ -31,7 +31,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/grace"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -125,12 +126,12 @@ func parseNodeConfig() {
 		os.Exit(1)
 	}
 	config.CSIPod = *pod
-	err = fuse.InitGlobalFds(context.TODO(), "/tmp")
+	err = passfd.InitGlobalFds(context.TODO(), "/tmp")
 	if err != nil {
 		log.Error(err, "Init global fds error")
 		os.Exit(1)
 	}
-	err = fuse.ServeGfShutdown(config.ShutdownSockPath)
+	err = grace.ServeGfShutdown(config.ShutdownSockPath)
 	if err != nil {
 		log.Error(err, "Serve graceful shutdown error")
 		os.Exit(1)

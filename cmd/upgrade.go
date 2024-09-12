@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/grace"
 )
 
 var (
@@ -38,7 +38,7 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		name := args[0]
-		if err := fuse.TriggerShutdown(config.ShutdownSockPath, name, restart); err != nil {
+		if err := grace.TriggerShutdown(config.ShutdownSockPath, name, restart); err != nil {
 			log.Error(err, "failed to upgrade mount pod")
 			os.Exit(1)
 		}

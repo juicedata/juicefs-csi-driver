@@ -38,7 +38,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -282,7 +282,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 func TestJUmount(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
 	fakeClientSet := fake.NewSimpleClientset()
-	fuse.InitTestFds()
+	passfd.InitTestFds()
 
 	type args struct {
 		podName string

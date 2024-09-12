@@ -39,7 +39,7 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -227,7 +227,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				fuse.GlobalFds.StopFd(ctx, po.Labels[jfsConfig.PodJuiceHashLabelKey])
+				passfd.GlobalFds.StopFd(ctx, po.Labels[jfsConfig.PodJuiceHashLabelKey])
 			}
 
 			// delete related secret
@@ -399,7 +399,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := fuse.GlobalFds.ServeFuseFd(ctx, newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
 				}
@@ -443,7 +443,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 		logger.Error(err, "pod is not ready within 60s")
 		// mount pod hang probably, close fd
 		logger.Info("close fuse fd")
-		fuse.GlobalFds.CloseFd(jfsSetting.HashVal)
+		passfd.GlobalFds.CloseFd(jfsSetting.HashVal)
 		// umount it
 		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
 			util.UmountPath(ctx, jfsSetting.MountPath)

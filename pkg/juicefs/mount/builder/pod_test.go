@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 )
 
 var (
@@ -210,7 +210,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 func TestNewMountPod(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
-	fuse.InitTestFds()
+	passfd.InitTestFds()
 	config.NodeName = "node"
 	config.Namespace = ""
 	podLabelTest := corev1.Pod{}
