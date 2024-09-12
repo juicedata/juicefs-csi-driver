@@ -394,7 +394,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	}
 
 	// get mount point
-	sourcePath, _, err := resource.GetMountPathOfPod(*pod)
+	sourcePath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
 		log.Error(err, "get mount point error")
 		return Result{}, err
@@ -564,7 +564,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	// get mount point
-	mntPath, _, err := resource.GetMountPathOfPod(*pod)
+	mntPath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
 		log.Error(err, "get mount point error")
 		return Result{}, err
@@ -824,7 +824,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		return
 	}
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
-	mountPoint, _, _ := resource.GetMountPathOfPod(*pod)
+	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
 	defer func() {
 		if runtime.GOOS == "linux" {
 			util.DevMinorTableDelete(mountPoint)
@@ -922,7 +922,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	// get mount point
 	var mntPath string
 	var err error
-	mntPath, _, err = resource.GetMountPathOfPod(pod)
+	mntPath, _, err = util.GetMountPathOfPod(pod)
 	if err != nil {
 		log.Error(err, "get mount point error")
 		return err
@@ -966,7 +966,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	log := util.GenLog(ctx, podDriverLog, "newMountPod")
 	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
 	// get mount point
-	sourcePath, _, err := resource.GetMountPathOfPod(*pod)
+	sourcePath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
 		log.Error(err, "get mount point error")
 		return nil, err

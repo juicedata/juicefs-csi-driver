@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/io"
 )
@@ -364,6 +365,39 @@ func UmountPath(ctx context.Context, sourcePath string) {
 		!strings.Contains(string(out), "no mount point specified") {
 		log.Error(err, "Could not lazy unmount", "path", sourcePath, "out", string(out))
 	}
+}
+
+func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := parseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
+}
+
+// parseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
+func parseMntPath(cmd string) (string, string, error) {
+	cmds := strings.Split(cmd, "\n")
+	mountCmd := cmds[len(cmds)-1]
+	args := strings.Fields(mountCmd)
+	if args[0] == "exec" {
+		args = args[1:]
+	}
+	if len(args) < 3 || !strings.HasPrefix(args[2], "/jfs") {
+		return "", "", fmt.Errorf("err cmd:%s", cmd)
+	}
+	argSlice := strings.Split(args[2], "/")
+	if len(argSlice) < 3 {
+		return "", "", fmt.Errorf("err mntPath:%s", args[2])
+	}
+	return args[2], argSlice[2], nil
 }
 
 // CheckExpectValue Check if the key has the expected value

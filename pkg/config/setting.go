@@ -520,13 +520,19 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		return nil, fmt.Errorf("parse pvc resources error: %v", err)
 	}
 	attr.Resources = resources
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return nil, err
+	}
+
 	setting := &JfsSetting{
-		IsCe:     IsCEMountPod(mountPod),
-		PV:       pv,
-		PVC:      pvc,
-		Name:     mountPod.Annotations[JuiceFSUUID],
-		VolumeId: mountPod.Annotations[UniqueId],
-		Options:  pv.Spec.MountOptions,
+		IsCe:      IsCEMountPod(mountPod),
+		PV:        pv,
+		PVC:       pvc,
+		Name:      mountPod.Annotations[JuiceFSUUID],
+		VolumeId:  mountPod.Annotations[UniqueId],
+		Options:   pv.Spec.MountOptions,
+		MountPath: mntPath,
 	}
 	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 		setting.SubPath = v

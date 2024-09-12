@@ -103,7 +103,7 @@ func gracefulShutdown(ctx context.Context, client *k8s.K8sClient, name string, r
 	if mountPod.Spec.NodeName != config.NodeName {
 		return fmt.Errorf("pod %s is not on node %s", mountPod.Name, config.NodeName)
 	}
-	mntPath, _, err := resource.GetMountPathOfPod(*mountPod)
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {
 		return err
 	}

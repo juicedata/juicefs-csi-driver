@@ -424,7 +424,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 			return err
 		}
 		// update mount path
-		jfsSetting.MountPath, _, err = resource.GetMountPathOfPod(*oldPod)
+		jfsSetting.MountPath, _, err = util.GetMountPathOfPod(*oldPod)
 		if err != nil {
 			log.Error(err, "Get mount path of pod error", "podName", podName)
 			return err

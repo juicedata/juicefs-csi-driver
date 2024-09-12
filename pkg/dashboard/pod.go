@@ -829,7 +829,7 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				podLog.Error(err, "Failed to get mount path")
 				return
@@ -862,7 +862,7 @@ func (api *API) debugPod() gin.HandlerFunc {
 				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				podLog.Error(err, "Failed to get mount path")
 				return
@@ -917,7 +917,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				}
 			}
 
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
 				return
