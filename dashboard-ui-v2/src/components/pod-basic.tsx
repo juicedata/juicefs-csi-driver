@@ -16,7 +16,7 @@
 
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, message, Popconfirm, type PopconfirmProps, Tooltip } from 'antd'
+import { Button, message, Popconfirm, type PopconfirmProps, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
@@ -58,7 +58,7 @@ const PodBasic: React.FC<{
     <ProCard
       title={<FormattedMessage id="basic" />}
       extra={
-        <>
+        <Space>
           {supportPodSmoothUpgrade(image || '') && supportPodSmoothUpgrade(data || '') ? (
             <Popconfirm
               title="Smoothly Upgrade"
@@ -89,7 +89,7 @@ const PodBasic: React.FC<{
               content={YAML.stringify(omitPod(pod))}
             />
           </Tooltip>
-        </>
+        </Space>
       }
     >
       <ProDescriptions

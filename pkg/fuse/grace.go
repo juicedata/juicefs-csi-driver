@@ -239,7 +239,7 @@ func uploadBinary(ctx context.Context, client *k8s.K8sClient, pod *corev1.Pod) e
 			pod.Name,
 			pod.Namespace,
 			config.MountContainerName,
-			[]string{"sh", "-c", "rm -rf /usr/local/bin/juicefs && cp /tmp/juicefs /usr/local/bin/juicefs"},
+			[]string{"sh", "-c", "rm -rf /usr/local/bin/juicefs && mv /tmp/juicefs /usr/local/bin/juicefs"},
 		)
 		if err != nil {
 			fdLog.Error(err, "upload binary error", "pod", pod.Name, "stdout", stdout, "stderr", stderr)
@@ -253,7 +253,7 @@ func uploadBinary(ctx context.Context, client *k8s.K8sClient, pod *corev1.Pod) e
 		pod.Name,
 		pod.Namespace,
 		config.MountContainerName,
-		[]string{"sh", "-c", "rm -rf /usr/bin/juicefs && cp /tmp/juicefs /usr/bin/juicefs  && rm -rf /usr/local/juicefs/mount/jfsmount && cp /tmp/jfsmount /usr/local/juicefs/mount/jfsmount"},
+		[]string{"sh", "-c", "rm -rf /usr/bin/juicefs && mv /tmp/juicefs /usr/bin/juicefs  && rm -rf /usr/local/juicefs/mount/jfsmount && mv /tmp/jfsmount /usr/local/juicefs/mount/jfsmount"},
 	)
 	if err != nil {
 		fdLog.Error(err, "upload binary error", "pod", pod.Name, "stdout", stdout, "stderr", stderr)
