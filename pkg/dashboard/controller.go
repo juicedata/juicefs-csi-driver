@@ -221,14 +221,14 @@ func (c *PVController) SetupWithManager(mgr manager.Manager) error {
 	return ctr.Watch(&source.Kind{Type: &corev1.PersistentVolume{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
 			pv := event.Object.(*corev1.PersistentVolume)
-			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName
+			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == common.DriverName
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pv := deleteEvent.Object.(*corev1.PersistentVolume)
-			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName
+			return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == common.DriverName
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
 			return false
@@ -276,7 +276,7 @@ func (c *PVCController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		}
 		c.pairLock.Lock()
 		defer c.pairLock.Unlock()
-		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == common.DriverName {
 			c.pairs[req.NamespacedName] = pvName
 		} else {
 			delete(c.pairs, req.NamespacedName)

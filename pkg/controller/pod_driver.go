@@ -32,6 +32,7 @@ import (
 	"k8s.io/utils/mount"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
@@ -144,7 +145,7 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
@@ -169,8 +170,8 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 		}
 	}
 
-	if existTargets != 0 && pod.Annotations[config.DeleteDelayAtKey] != "" {
-		delAnnotations = append(delAnnotations, config.DeleteDelayAtKey)
+	if existTargets != 0 && pod.Annotations[common.DeleteDelayAtKey] != "" {
+		delAnnotations = append(delAnnotations, common.DeleteDelayAtKey)
 	}
 	if len(delAnnotations) != 0 {
 		// check mount pod reference key, if it is not the latest, return conflict
@@ -231,7 +232,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
@@ -244,7 +245,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		log.Info("Pod failed because of resource.")
 		if resource.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
-			_ = resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
+			_ = resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer)
 			log.Info("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
 				log.Error(err, "delete pod err")
@@ -284,7 +285,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 				},
 				Spec: pod.Spec,
 			}
-			controllerutil.AddFinalizer(newPod, config.Finalizer)
+			controllerutil.AddFinalizer(newPod, common.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
 			err := mkrMp(ctx, *newPod)
 			if err != nil {
@@ -312,14 +313,14 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	log.Info("Pod is to be deleted.")
 
 	// pod with no finalizer
-	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+	if !util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
 		log.V(1).Info("Pod has no finalizer, skip deleting")
 		// do nothing
 		return Result{}, nil
 	}
 
 	// remove finalizer of pod
-	if err := resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer); err != nil {
+	if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
 		log.Error(err, "remove pod finalizer error")
 		return Result{}, err
 	}
@@ -347,7 +348,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
 
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
@@ -408,7 +409,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 					},
 					Spec: pod.Spec,
 				}
-				controllerutil.AddFinalizer(newPod, config.Finalizer)
+				controllerutil.AddFinalizer(newPod, common.Finalizer)
 				log.Info("Need to create pod")
 				if err := p.applyConfigPatch(ctx, newPod); err != nil {
 					log.Error(err, "apply config patch error, will ignore")
@@ -472,7 +473,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
@@ -485,7 +486,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 		log.Info("Pod failed because of resource.")
 		if resource.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
-			_ = resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
+			_ = resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer)
 			log.Info("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
 				log.Error(err, "delete pod error")
@@ -525,7 +526,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 				},
 				Spec: pod.Spec,
 			}
-			controllerutil.AddFinalizer(newPod, config.Finalizer)
+			controllerutil.AddFinalizer(newPod, common.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
 			err := mkrMp(ctx, *newPod)
 			if err != nil {
@@ -564,7 +565,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	defer lock.Unlock()
 
 	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
-	podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	podHashVal := pod.Labels[common.PodJuiceHashLabelKey]
 
 	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
 	if err != nil {
@@ -725,11 +726,11 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 // CleanUpCache clean up cache
 func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	log := util.GenLog(ctx, podDriverLog, "CleanUpCache")
-	if pod.Annotations[config.CleanCache] != "true" {
+	if pod.Annotations[common.CleanCache] != "true" {
 		return
 	}
-	uuid := pod.Annotations[config.JuiceFSUUID]
-	uniqueId := pod.Annotations[config.UniqueId]
+	uuid := pod.Annotations[common.JuiceFSUUID]
+	uniqueId := pod.Annotations[common.UniqueId]
 	if uuid == "" && uniqueId == "" {
 		// no necessary info, return
 		log.Info("Can't get uuid and uniqueId from pod annotation. skip cache clean.")

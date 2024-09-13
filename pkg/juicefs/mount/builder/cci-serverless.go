@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	utilpointer "k8s.io/utils/pointer"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
@@ -165,7 +166,7 @@ func (r *CCIBuilder) genCCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 func (r *CCIBuilder) genNonPrivilegedContainer() corev1.Container {
 	rootUser := int64(0)
 	return corev1.Container{
-		Name:  config.MountContainerName,
+		Name:  common.MountContainerName,
 		Image: r.BaseBuilder.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
@@ -178,7 +179,7 @@ func (r *CCIBuilder) genNonPrivilegedContainer() corev1.Container {
 		},
 		Env: []corev1.EnvVar{
 			{
-				Name:  config.JfsInsideContainer,
+				Name:  common.JfsInsideContainer,
 				Value: "1",
 			},
 		},

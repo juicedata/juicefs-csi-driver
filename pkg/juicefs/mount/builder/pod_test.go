@@ -44,16 +44,16 @@ var (
 	podDefaultTest         = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
-			Namespace: config.Namespace,
+			Namespace: common.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey:          config.PodTypeValue,
-				config.PodUniqueIdLabelKey: "",
+				common.PodTypeKey:          common.PodTypeValue,
+				common.PodUniqueIdLabelKey: "",
 			},
 			Annotations: map[string]string{
-				config.JuiceFSUUID: "",
-				config.UniqueId:    "",
+				common.JuiceFSUUID: "",
+				common.UniqueId:    "",
 			},
-			Finalizers: []string{config.Finalizer},
+			Finalizers: []string{common.Finalizer},
 		},
 		Spec: corev1.PodSpec{
 			Volumes: []corev1.Volume{
@@ -61,7 +61,7 @@ var (
 					Name: JfsDirName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: config.MountPointPath,
+							Path: common.MountPointPath,
 							Type: &dir,
 						},
 					},
@@ -85,7 +85,7 @@ var (
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   config.DefaultCEMountImage,
+				Image:   common.DefaultCEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
@@ -104,7 +104,7 @@ var (
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:             JfsDirName,
-						MountPath:        config.PodMountBase,
+						MountPath:        common.PodMountBase,
 						MountPropagation: &mp,
 					}, {
 						Name:      JfsFuseFdPathName,
@@ -130,7 +130,7 @@ var (
 			RestartPolicy:                 corev1.RestartPolicyAlways,
 			NodeName:                      "node",
 			Hostname:                      "test",
-			PriorityClassName:             config.JFSMountPriorityName,
+			PriorityClassName:             common.JFSMountPriorityName,
 		},
 	}
 )
@@ -157,17 +157,17 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	dir := corev1.HostPathDirectory
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      JfsDirName,
-		MountPath: config.PodMountBase,
+		MountPath: common.PodMountBase,
 	}}
 
 	volumes := []corev1.Volume{{
 		Name: JfsDirName,
 		VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
-			Path: config.MountPointPath,
+			Path: common.MountPointPath,
 			Type: &dir,
 		}}}}
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true, nil, nil)
+	s, _ := common.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true, nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
@@ -177,7 +177,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true, nil, nil)
+	s, _ = common.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true, nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -187,7 +187,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true, nil, nil)
+	s, _ = common.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true, nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -197,7 +197,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true, nil, nil)
+	s, _ = common.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true, nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -211,8 +211,8 @@ func Test_getCacheDirVolumes(t *testing.T) {
 func TestNewMountPod(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
 	fuse.InitTestFds()
-	config.NodeName = "node"
-	config.Namespace = ""
+	common.NodeName = "node"
+	common.Namespace = ""
 	podLabelTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podLabelTest)
 	podLabelTest.Labels["a"] = "b"
@@ -240,7 +240,7 @@ func TestNewMountPod(t *testing.T) {
 		MountPath: "/test",
 	}}, podConfigTest.Spec.Containers[0].VolumeMounts...)
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true, nil, nil)
+	s, _ := common.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true, nil, nil)
 	s.HashVal = "test"
 	r := PodBuilder{
 		BaseBuilder: BaseBuilder{s, 0},
@@ -352,8 +352,8 @@ func TestNewMountPod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
-			jfsSetting := &config.JfsSetting{
+			podName := fmt.Sprintf("juicefs-%s-%s", common.NodeName, tt.args.name)
+			jfsSetting := &common.JfsSetting{
 				IsCe:       true,
 				Name:       tt.args.name,
 				HashVal:    "test",
@@ -365,14 +365,14 @@ func TestNewMountPod(t *testing.T) {
 				Options:    tt.args.options,
 				CacheDirs:  tt.args.cacheDirs,
 				SecretName: podName,
-				Attr: &config.PodAttr{
+				Attr: &common.PodAttr{
 					Labels:             tt.args.labels,
 					Annotations:        tt.args.annotations,
 					ServiceAccountName: tt.args.serviceAccount,
-					Namespace:          config.Namespace,
-					MountPointPath:     config.MountPointPath,
-					JFSConfigPath:      config.JFSConfigPath,
-					Image:              config.DefaultCEMountImage,
+					Namespace:          common.Namespace,
+					MountPointPath:     common.MountPointPath,
+					JFSConfigPath:      common.JFSConfigPath,
+					Image:              common.DefaultCEMountImage,
 				},
 			}
 			r := PodBuilder{
@@ -423,14 +423,14 @@ func TestPodMount_getCommand(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				Name:      tt.name,
 				HashVal:   "test",
 				Source:    tt.source,
 				IsCe:      tt.isCe,
 				MountPath: tt.args.mountPath,
 				Options:   tt.args.options,
-				Attr:      &config.PodAttr{},
+				Attr:      &common.PodAttr{},
 			}
 			r := PodBuilder{
 				BaseBuilder: BaseBuilder{jfsSetting, 0},
@@ -473,7 +473,7 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				Name:    tt.name,
 				Options: tt.args.options,
 				HashVal: "test",
@@ -490,7 +490,7 @@ func TestPodMount_getMetricsPort(t *testing.T) {
 
 func TestBuilder_genHostPathVolumes(t *testing.T) {
 	type fields struct {
-		jfsSetting *config.JfsSetting
+		jfsSetting *common.JfsSetting
 	}
 	tests := []struct {
 		name             string
@@ -501,7 +501,7 @@ func TestBuilder_genHostPathVolumes(t *testing.T) {
 		{
 			name: "test",
 			fields: fields{
-				jfsSetting: &config.JfsSetting{
+				jfsSetting: &common.JfsSetting{
 					HostPath: []string{"/tmp"},
 				},
 			},

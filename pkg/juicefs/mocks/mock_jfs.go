@@ -79,10 +79,10 @@ func (mr *MockJfsMockRecorder) GetBasePath() *gomock.Call {
 }
 
 // GetSetting mocks base method.
-func (m *MockJfs) GetSetting() *config.JfsSetting {
+func (m *MockJfs) GetSetting() *common.JfsSetting {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSetting")
-	ret0, _ := ret[0].(*config.JfsSetting)
+	ret0, _ := ret[0].(*common.JfsSetting)
 	return ret0
 }
 

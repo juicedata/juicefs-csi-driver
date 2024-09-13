@@ -110,7 +110,7 @@ func (mr *MockMntInterfaceMockRecorder) IsLikelyNotMountPoint(arg0 interface{}) 
 }
 
 // JCreateVolume mocks base method.
-func (m *MockMntInterface) JCreateVolume(arg0 context.Context, arg1 *config.JfsSetting) error {
+func (m *MockMntInterface) JCreateVolume(arg0 context.Context, arg1 *common.JfsSetting) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "JCreateVolume", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -124,7 +124,7 @@ func (mr *MockMntInterfaceMockRecorder) JCreateVolume(arg0, arg1 interface{}) *g
 }
 
 // JDeleteVolume mocks base method.
-func (m *MockMntInterface) JDeleteVolume(arg0 context.Context, arg1 *config.JfsSetting) error {
+func (m *MockMntInterface) JDeleteVolume(arg0 context.Context, arg1 *common.JfsSetting) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "JDeleteVolume", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -138,7 +138,7 @@ func (mr *MockMntInterfaceMockRecorder) JDeleteVolume(arg0, arg1 interface{}) *g
 }
 
 // JMount mocks base method.
-func (m *MockMntInterface) JMount(arg0 context.Context, arg1 *config.AppInfo, arg2 *config.JfsSetting) error {
+func (m *MockMntInterface) JMount(arg0 context.Context, arg1 *common.AppInfo, arg2 *common.JfsSetting) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "JMount", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)

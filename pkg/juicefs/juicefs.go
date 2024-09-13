@@ -40,6 +40,7 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -517,8 +518,8 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	}
 	// get pod by label
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		config.PodTypeKey:          config.PodTypeValue,
-		config.PodUniqueIdLabelKey: uniqueId,
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: uniqueId,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
@@ -537,7 +538,7 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	}
 	if mountPod != nil {
 		podName = mountPod.Name
-		hashVal = mountPod.Labels[config.PodJuiceHashLabelKey]
+		hashVal = mountPod.Labels[common.PodJuiceHashLabelKey]
 		if hashVal == "" {
 			return fmt.Errorf("pod %s/%s has no hash label", mountPod.Namespace, mountPod.Name)
 		}

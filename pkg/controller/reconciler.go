@@ -29,6 +29,7 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -106,7 +107,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 				continue
 			}
 			// check label
-			if value, ok := pod.Labels[config.PodTypeKey]; !ok || value != config.PodTypeValue {
+			if value, ok := pod.Labels[common.PodTypeKey]; !ok || value != common.PodTypeValue {
 				continue
 			}
 			crtPodStatus := getPodStatus(pod)

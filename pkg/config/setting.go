@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
@@ -217,10 +218,10 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 			jfsSetting.SubPath = volCtx["subPath"]
 		}
 
-		if volCtx[cleanCache] == "true" {
+		if volCtx[common.CleanCacheKey] == "true" {
 			jfsSetting.CleanCache = true
 		}
-		delay := volCtx[deleteDelay]
+		delay := volCtx[common.DeleteDelay]
 		if delay != "" {
 			if _, err := time.ParseDuration(delay); err != nil {
 				return nil, fmt.Errorf("can't parse delay time %s", delay)
@@ -229,8 +230,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 		}
 
 		var hostPaths []string
-		if volCtx[mountPodHostPath] != "" {
-			for _, v := range strings.Split(volCtx[mountPodHostPath], ",") {
+		if volCtx[common.MountPodHostPath] != "" {
+			for _, v := range strings.Split(volCtx[common.MountPodHostPath], ",") {
 				p := strings.TrimSpace(v)
 				if p != "" {
 					hostPaths = append(hostPaths, strings.TrimSpace(v))
@@ -256,8 +257,8 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
-	if volCtx != nil && volCtx[cachePVC] != "" {
-		cachePVCs := strings.Split(strings.TrimSpace(volCtx[cachePVC]), ",")
+	if volCtx != nil && volCtx[common.CachePVC] != "" {
+		cachePVCs := strings.Split(strings.TrimSpace(volCtx[common.CachePVC]), ",")
 		for i, pvc := range cachePVCs {
 			if pvc == "" {
 				continue
@@ -272,10 +273,10 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	}
 	// parse emptydir of cache
 	if volCtx != nil {
-		if _, ok := volCtx[cacheEmptyDir]; ok {
+		if _, ok := volCtx[common.CacheEmptyDir]; ok {
 			volPath := "/var/jfsCache-emptyDir"
 			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
-			cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[cacheEmptyDir]), ":")
+			cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[common.CacheEmptyDir]), ":")
 			var (
 				medium    string
 				sizeLimit string
@@ -301,9 +302,9 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	}
 	// parse inline volume of cache
 	if volCtx != nil {
-		if _, ok := volCtx[cacheInlineVolume]; ok {
+		if _, ok := volCtx[common.CacheInlineVolume]; ok {
 			inlineVolumes := []*corev1.CSIVolumeSource{}
-			err = json.Unmarshal([]byte(volCtx[cacheInlineVolume]), &inlineVolumes)
+			err = json.Unmarshal([]byte(volCtx[common.CacheInlineVolume]), &inlineVolumes)
 			if err != nil {
 				return fmt.Errorf("parse cache inline volume error: %v", err)
 			}
@@ -425,22 +426,22 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	}
 
 	if volCtx != nil {
-		if v, ok := volCtx[mountPodImageKey]; ok && v != "" {
+		if v, ok := volCtx[common.MountPodImageKey]; ok && v != "" {
 			attr.Image = v
 		}
-		if v, ok := volCtx[mountPodServiceAccount]; ok && v != "" {
+		if v, ok := volCtx[common.MountPodServiceAccount]; ok && v != "" {
 			attr.ServiceAccountName = v
 		}
-		cpuLimit := volCtx[MountPodCpuLimitKey]
-		memoryLimit := volCtx[MountPodMemLimitKey]
-		cpuRequest := volCtx[MountPodCpuRequestKey]
-		memoryRequest := volCtx[MountPodMemRequestKey]
+		cpuLimit := volCtx[common.MountPodCpuLimitKey]
+		memoryLimit := volCtx[common.MountPodMemLimitKey]
+		cpuRequest := volCtx[common.MountPodCpuRequestKey]
+		memoryRequest := volCtx[common.MountPodMemRequestKey]
 		attr.Resources, err = ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 		if err != nil {
 			log.Error(err, "Parse resource error")
 			return err
 		}
-		if v, ok := volCtx[mountPodLabelKey]; ok && v != "" {
+		if v, ok := volCtx[common.MountPodLabelKey]; ok && v != "" {
 			ctxLabel := make(map[string]string)
 			if err := parseYamlOrJson(v, &ctxLabel); err != nil {
 				return err
@@ -449,7 +450,7 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 				attr.Labels[k] = v
 			}
 		}
-		if v, ok := volCtx[mountPodAnnotationKey]; ok && v != "" {
+		if v, ok := volCtx[common.MountPodAnnotationKey]; ok && v != "" {
 			ctxAnno := make(map[string]string)
 			if err := parseYamlOrJson(v, &ctxAnno); err != nil {
 				return err
@@ -501,7 +502,7 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 	for k, v := range mountPod.Annotations {
 		attr.Annotations[k] = v
 	}
-	pvName := mountPod.Annotations[UniqueId]
+	pvName := mountPod.Annotations[common.UniqueId]
 	pv, err := client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
 		log.Error(err, "Get pv error", "pv", pvName)
@@ -512,10 +513,10 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		return nil, err
 	}
-	cpuLimit := pvc.Annotations[MountPodCpuLimitKey]
-	memoryLimit := pvc.Annotations[MountPodMemLimitKey]
-	cpuRequest := pvc.Annotations[MountPodCpuRequestKey]
-	memoryRequest := pvc.Annotations[MountPodMemRequestKey]
+	cpuLimit := pvc.Annotations[common.MountPodCpuLimitKey]
+	memoryLimit := pvc.Annotations[common.MountPodMemLimitKey]
+	cpuRequest := pvc.Annotations[common.MountPodCpuRequestKey]
+	memoryRequest := pvc.Annotations[common.MountPodMemRequestKey]
 	resources, err := ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
 	if err != nil {
 		return nil, fmt.Errorf("parse pvc resources error: %v", err)
@@ -525,8 +526,8 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		IsCe:      IsCEMountPod(mountPod),
 		PV:        pv,
 		PVC:       pvc,
-		Name:      mountPod.Annotations[JuiceFSUUID],
-		VolumeId:  mountPod.Annotations[UniqueId],
+		Name:      mountPod.Annotations[common.JuiceFSUUID],
+		VolumeId:  mountPod.Annotations[common.UniqueId],
 		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],
 		Options:   pv.Spec.MountOptions,
 	}
@@ -551,15 +552,15 @@ func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {
 			return nil, err
 		}
 		if _, err := kc.GetNodeRunningPods(); err != nil {
-			if volCtx == nil || volCtx[PodInfoName] == "" {
+			if volCtx == nil || volCtx[common.PodInfoName] == "" {
 				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
 			}
 		}
 	}
 	if volCtx != nil {
 		return &AppInfo{
-			Name:      volCtx[PodInfoName],
-			Namespace: volCtx[PodInfoNamespace],
+			Name:      volCtx[common.PodInfoName],
+			Namespace: volCtx[common.PodInfoNamespace],
 		}, nil
 	}
 	return nil, nil
@@ -641,10 +642,10 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 	podLimit := map[corev1.ResourceName]resource.Quantity{}
 	podRequest := map[corev1.ResourceName]resource.Quantity{}
 	// set default value
-	podLimit[corev1.ResourceCPU] = resource.MustParse(DefaultMountPodCpuLimit)
-	podLimit[corev1.ResourceMemory] = resource.MustParse(DefaultMountPodMemLimit)
-	podRequest[corev1.ResourceCPU] = resource.MustParse(DefaultMountPodCpuRequest)
-	podRequest[corev1.ResourceMemory] = resource.MustParse(DefaultMountPodMemRequest)
+	podLimit[corev1.ResourceCPU] = resource.MustParse(common.DefaultMountPodCpuLimit)
+	podLimit[corev1.ResourceMemory] = resource.MustParse(common.DefaultMountPodMemLimit)
+	podRequest[corev1.ResourceCPU] = resource.MustParse(common.DefaultMountPodCpuRequest)
+	podRequest[corev1.ResourceMemory] = resource.MustParse(common.DefaultMountPodMemRequest)
 	var err error
 	if cpuLimit != "" {
 		if podLimit[corev1.ResourceCPU], err = resource.ParseQuantity(cpuLimit); err != nil {
@@ -691,12 +692,12 @@ func ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest string) 
 func getDefaultResource() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
+			corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemLimit),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
+			corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemRequest),
 		},
 	}
 }

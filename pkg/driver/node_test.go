@@ -49,7 +49,7 @@ func TestNodePublishVolume(t *testing.T) {
 			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	testCases := []struct {
 		name     string
@@ -483,7 +483,7 @@ func TestNodePublishVolume(t *testing.T) {
 }
 
 func TestNodeUnpublishVolume(t *testing.T) {
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
@@ -604,7 +604,7 @@ func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -653,7 +653,7 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -687,7 +687,7 @@ func Test_newNodeService(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			registerer, _ := util.NewPrometheus(config.NodeName)
+			registerer, _ := util.NewPrometheus(common.NodeName)
 			_, err := newNodeService("test", nil, registerer)
 			So(err, ShouldBeNil)
 		})
@@ -719,7 +719,7 @@ func Test_nodeService_NodeExpandVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -766,7 +766,7 @@ func Test_nodeService_NodeGetVolumeStats(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -813,7 +813,7 @@ func Test_nodeService_NodeStageVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -860,7 +860,7 @@ func Test_nodeService_NodeUnstageVolume(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	registerer, _ := util.NewPrometheus(config.NodeName)
+	registerer, _ := util.NewPrometheus(common.NodeName)
 	metrics := newNodeMetrics(registerer)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

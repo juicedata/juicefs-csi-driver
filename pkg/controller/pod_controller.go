@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -79,7 +80,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 
 	labelSelector := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      config.UniqueId,
+			Key:      common.UniqueId,
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
@@ -104,9 +105,9 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		podCtrlLog.Error(err, "Driver check pod error", "podName", mountPod.Name)
 		return reconcile.Result{}, err
 	}
-	if mountPod.Annotations[config.DeleteDelayAtKey] != "" {
+	if mountPod.Annotations[common.DeleteDelayAtKey] != "" {
 		// if mount pod set delay deleted, requeue after delay time
-		delayAtStr := mountPod.Annotations[config.DeleteDelayAtKey]
+		delayAtStr := mountPod.Annotations[common.DeleteDelayAtKey]
 		delayAt, err := util.GetTime(delayAtStr)
 		if err != nil {
 			return reconcile.Result{}, err

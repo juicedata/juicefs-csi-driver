@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -57,7 +58,7 @@ func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient,
 	}
 	// new version of juicefs-csi-driver has a label to identify the secret
 	// no need to manual clean up
-	if _, ok := secrets.Labels[config.JuicefsSecretLabelKey]; ok {
+	if _, ok := secrets.Labels[common.JuicefsSecretLabelKey]; ok {
 		return nil
 	}
 	if !strings.HasPrefix(secrets.Name, "juicefs-") || !strings.HasSuffix(secrets.Name, "-secret") {

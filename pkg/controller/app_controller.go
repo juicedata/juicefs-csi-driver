@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -74,7 +74,7 @@ func (a *AppController) Reconcile(ctx context.Context, request reconcile.Request
 
 func (a *AppController) umountFuseSidecars(pod *corev1.Pod) (err error) {
 	for _, cn := range pod.Spec.Containers {
-		if strings.Contains(cn.Name, config.MountContainerName) {
+		if strings.Contains(cn.Name, common.MountContainerName) {
 			if e := a.umountFuseSidecar(pod, cn); e != nil {
 				return e
 			}
@@ -91,12 +91,12 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 
 	// get prestop
 	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
-		log.Info("no prestop in container of pod", "cnName", config.MountContainerName)
+		log.Info("no prestop in container of pod", "cnName", common.MountContainerName)
 		return nil
 	}
 	cmd := fuseContainer.Lifecycle.PreStop.Exec.Command
 
-	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", common.MountContainerName)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		if strings.Contains(stderr, "not mounted") ||
@@ -177,7 +177,7 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
 
 	// ignore if it's not fluid label pod
-	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {
+	if util.CheckExpectValue(pod.Labels, common.InjectSidecarDisable, common.True) {
 		log.V(1).Info("Sidecar inject disabled in pod in labels, skip.", "labels", pod.Labels)
 		return false
 	}
@@ -191,7 +191,7 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 	// ignore if no fuse container
 	exist := false
 	for _, cn := range pod.Spec.Containers {
-		if strings.Contains(cn.Name, config.MountContainerName) {
+		if strings.Contains(cn.Name, common.MountContainerName) {
 			exist = true
 			break
 		}
@@ -209,7 +209,7 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 
 	// reconcile if all app containers exit 0 and fuse container not exit
 	for _, containerStatus := range pod.Status.ContainerStatuses {
-		if !strings.Contains(containerStatus.Name, config.MountContainerName) {
+		if !strings.Contains(containerStatus.Name, common.MountContainerName) {
 			log.V(1).Info("container status", "container", containerStatus.Name, "status", containerStatus)
 			if containerStatus.State.Terminated == nil {
 				log.V(1).Info("container not exited", "container", containerStatus.Name)
@@ -217,7 +217,7 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 				return false
 			}
 		}
-		if strings.Contains(containerStatus.Name, config.MountContainerName) {
+		if strings.Contains(containerStatus.Name, common.MountContainerName) {
 			if containerStatus.State.Running == nil {
 				log.V(1).Info("juicefs fuse client in pod not running")
 				return false

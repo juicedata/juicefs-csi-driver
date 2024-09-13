@@ -879,7 +879,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				return
 			}
 			rootPath := ""
-			volumeId := mountpod.Labels[config.PodUniqueIdLabelKey]
+			volumeId := mountpod.Labels[common.PodUniqueIdLabelKey]
 			var pv corev1.PersistentVolume
 			if err := api.cachedReader.Get(ctx, api.sysNamespaced(volumeId), &pv); err == nil {
 				if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeAttributes != nil {
@@ -901,7 +901,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				"--check=" + check,
 				"--no-color",
 			}
-			if !config.IsCEMountPod(mountpod) {
+			if !common.IsCEMountPod(mountpod) {
 				cmds = append(cmds, "--io-retries="+ioRetries)
 				cmds = append(cmds, "--max-failure="+maxFailure)
 			}
@@ -920,7 +920,7 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
 		name := c.Param("name")
-		container := config.MountContainerName
+		container := common.MountContainerName
 		c.Header("Content-Disposition", "attachment; filename="+namespace+"_"+name+"_"+"debug.zip")
 		err := resource.DownloadPodFile(
 			api.client, api.kubeconfig, c.Writer, namespace, name, container,

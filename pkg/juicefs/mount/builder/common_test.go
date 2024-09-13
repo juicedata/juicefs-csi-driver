@@ -25,7 +25,7 @@ import (
 
 func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
 	type fields struct {
-		jfsSetting *config.JfsSetting
+		jfsSetting *common.JfsSetting
 	}
 	tests := []struct {
 		name       string
@@ -35,7 +35,7 @@ func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
 		{
 			name: "test1",
 			fields: fields{
-				jfsSetting: &config.JfsSetting{
+				jfsSetting: &common.JfsSetting{
 					Options: []string{
 						"subdir=abc",
 					},
@@ -47,7 +47,7 @@ func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
 		{
 			name: "test2",
 			fields: fields{
-				jfsSetting: &config.JfsSetting{
+				jfsSetting: &common.JfsSetting{
 					Options: []string{},
 					SubPath: "def",
 				},
@@ -57,7 +57,7 @@ func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
 		{
 			name: "test3",
 			fields: fields{
-				jfsSetting: &config.JfsSetting{
+				jfsSetting: &common.JfsSetting{
 					Options: []string{},
 					SubPath: "",
 				},
@@ -67,7 +67,7 @@ func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
 		{
 			name: "test4",
 			fields: fields{
-				jfsSetting: &config.JfsSetting{
+				jfsSetting: &common.JfsSetting{
 					Options: []string{
 						"subdir=abc",
 					},

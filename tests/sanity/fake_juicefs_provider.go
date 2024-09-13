@@ -30,7 +30,7 @@ import (
 type fakeJfs struct {
 	basePath string
 	volumes  map[string]string
-	settings *config.JfsSetting
+	settings *common.JfsSetting
 }
 
 type fakeJfsProvider struct {
@@ -44,11 +44,11 @@ func (j *fakeJfsProvider) CreateTarget(ctx context.Context, target string) error
 	return nil
 }
 
-func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
-	return new(config.JfsSetting), nil
+func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*common.JfsSetting, error) {
+	return new(common.JfsSetting), nil
 }
 
-func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
+func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, jfsSetting *common.JfsSetting) (string, error) {
 	return "", nil
 }
 
@@ -71,7 +71,7 @@ func (j *fakeJfsProvider) JfsMount(ctx context.Context, volumeID string, target 
 	fs = fakeJfs{
 		basePath: "/jfs/fake",
 		volumes:  map[string]string{},
-		settings: &config.JfsSetting{},
+		settings: &common.JfsSetting{},
 	}
 
 	j.fs[jfsName] = fs
@@ -82,14 +82,14 @@ func (j *fakeJfsProvider) JfsCleanupMountPoint(ctx context.Context, mountPath st
 	return nil
 }
 
-func (j *fakeJfsProvider) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
+func (j *fakeJfsProvider) AuthFs(ctx context.Context, secrets map[string]string, setting *common.JfsSetting, force bool) (string, error) {
 	return "", nil
 }
 func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	return nil
 }
 
-func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error {
+func (j *fakeJfsProvider) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *common.JfsSetting, quotaPath string, capacity int64) error {
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (fs *fakeJfs) GetBasePath() string {
 	return fs.basePath
 }
 
-func (fs *fakeJfs) GetSetting() *config.JfsSetting {
+func (fs *fakeJfs) GetSetting() *common.JfsSetting {
 	return fs.settings
 }
 

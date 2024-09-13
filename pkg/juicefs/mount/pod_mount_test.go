@@ -47,7 +47,7 @@ var testA = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-a",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "a",
+			common.PodUniqueIdLabelKey: "a",
 		},
 	},
 	Spec: corev1.PodSpec{
@@ -59,7 +59,7 @@ var testB = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-b",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "b",
+			common.PodUniqueIdLabelKey: "b",
 		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
@@ -73,7 +73,7 @@ var testC = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-c",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "c",
+			common.PodUniqueIdLabelKey: "c",
 		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
@@ -87,7 +87,7 @@ var testD = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-d",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "d",
+			common.PodUniqueIdLabelKey: "d",
 		},
 		Annotations: map[string]string{"a": "b",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def"},
@@ -101,7 +101,7 @@ var testE = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-e",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "e",
+			common.PodUniqueIdLabelKey: "e",
 		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
@@ -117,7 +117,7 @@ var testF = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-f",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "f",
+			common.PodUniqueIdLabelKey: "f",
 		},
 	},
 	Spec: corev1.PodSpec{
@@ -139,7 +139,7 @@ var testG = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-g",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "g",
+			common.PodUniqueIdLabelKey: "g",
 		},
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc",
@@ -165,7 +165,7 @@ var testH = &corev1.Pod{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "juicefs-test-node-h",
 		Labels: map[string]string{
-			jfsConfig.PodUniqueIdLabelKey: "h",
+			common.PodUniqueIdLabelKey: "h",
 		},
 	},
 	Spec: corev1.PodSpec{
@@ -665,8 +665,8 @@ func TestWaitUntilMount(t *testing.T) {
 				hashVal := GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
 				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
-					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
-					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
+					jfscommon.PodTypeKey:           jfscommon.PodTypeValue,
+					common.PodUniqueIdLabelKey:     tt.args.jfsSetting.UniqueId,
 					jfsConfig.PodJuiceHashLabelKey: hashVal,
 				}
 				tt.pod.Spec.NodeName = jfsConfig.NodeName

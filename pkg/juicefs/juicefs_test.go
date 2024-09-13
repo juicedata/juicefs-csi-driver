@@ -295,11 +295,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
 			})
 			defer patch2.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, _ context.Context, secrets map[string]string, setting *config.JfsSetting) (string, error) {
+			patch3 := ApplyMethod(reflect.TypeOf(jf), "AuthFs", func(_ *juicefs, _ context.Context, secrets map[string]string, setting *common.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *common.AppInfo, jfsSetting *common.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -328,11 +328,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *common.AppInfo, jfsSetting *common.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *common.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -370,7 +370,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			jf := &juicefs{}
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *common.AppInfo, jfsSetting *common.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
@@ -392,11 +392,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			jf := &juicefs{}
 			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *common.AppInfo, jfsSetting *common.JfsSetting) (string, error) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *common.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -424,11 +424,11 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return []byte(""), nil
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *config.AppInfo, jfsSetting *config.JfsSetting) (string, error) {
+			patch4 := ApplyMethod(reflect.TypeOf(jf), "MountFs", func(_ *juicefs, _ context.Context, appInfo *common.AppInfo, jfsSetting *common.JfsSetting) (string, error) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *common.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -570,7 +570,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
+			setting, err := common.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldBeNil)
@@ -616,7 +616,7 @@ func Test_juicefs_AuthFs(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
+			setting, err := common.ParseSetting(nil, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.AuthFs(context.TODO(), secrets, setting, false)
 			So(err, ShouldNotBeNil)
@@ -631,7 +631,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			volumeId := "test-volume-id"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				Source:   mountPath,
 				UsePod:   false,
 				VolumeId: volumeId,
@@ -652,7 +652,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 
 			mockMount := mocks.NewMockInterface(mockCtl)
 			//mockMount.EXPECT().IsLikelyNotMountPoint(mountPath).Return(false, nil)
-			mockMount.EXPECT().Mount(mountPath, mountPath, config.FsType, options).Return(nil)
+			mockMount.EXPECT().Mount(mountPath, mountPath, common.FsType, options).Return(nil)
 
 			k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
 			jfs := juicefs{
@@ -670,8 +670,8 @@ func Test_juicefs_MountFs(t *testing.T) {
 			So(e, ShouldBeNil)
 		})
 		Convey("not MountPoint err", func() {
-			jfsSetting := &config.JfsSetting{
-				Attr: &config.PodAttr{},
+			jfsSetting := &common.JfsSetting{
+				Attr: &common.PodAttr{},
 			}
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, errors.New("test")
@@ -711,7 +711,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				UsePod:     true,
 				MountPath:  mountPath,
 				VolumeId:   volumeId,
@@ -752,7 +752,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				MountPath:  mountPath,
 				VolumeId:   volumeId,
 				TargetPath: target,
@@ -792,7 +792,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				MountPath:  mountPath,
 				VolumeId:   volumeId,
 				TargetPath: target,
@@ -832,7 +832,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				MountPath:  mountPath,
 				VolumeId:   volumeId,
 				TargetPath: target,
@@ -871,7 +871,7 @@ func Test_juicefs_MountFs(t *testing.T) {
 			target := "/test"
 			options := []string{}
 
-			jfsSetting := &config.JfsSetting{
+			jfsSetting := &common.JfsSetting{
 				MountPath:  mountPath,
 				VolumeId:   volumeId,
 				TargetPath: target,
@@ -963,7 +963,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
+			setting, err := common.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(context.TODO(), secret, true, setting)
 			So(err, ShouldBeNil)
@@ -1007,7 +1007,7 @@ func Test_juicefs_ceFormat(t *testing.T) {
 				},
 				K8sClient: nil,
 			}
-			setting, err := config.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
+			setting, err := common.ParseSetting(secret, map[string]string{}, []string{}, true, nil, nil)
 			So(err, ShouldBeNil)
 			_, err = jfs.ceFormat(context.TODO(), secret, true, setting)
 			So(err, ShouldNotBeNil)
@@ -1066,7 +1066,7 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			setting := &config.JfsSetting{
+			setting := &common.JfsSetting{
 				Source: "test",
 				Envs:   map[string]string{},
 			}
@@ -1090,7 +1090,7 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			setting := &config.JfsSetting{
+			setting := &common.JfsSetting{
 				Source: "test",
 				Envs:   map[string]string{},
 			}
@@ -1101,11 +1101,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 }
 
 func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
-	config.FormatInPod = true
+	common.FormatInPod = true
 	type args struct {
 		secrets  map[string]string
 		noUpdate bool
-		setting  *config.JfsSetting
+		setting  *common.JfsSetting
 	}
 	tests := []struct {
 		name    string
@@ -1121,7 +1121,7 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 					"metaurl": "redis://127.0.0.1:6379/0",
 				},
 				noUpdate: false,
-				setting: &config.JfsSetting{
+				setting: &common.JfsSetting{
 					FormatOptions: "",
 				},
 			},
@@ -1140,7 +1140,7 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 					"bucket":     "http://test.127.0.0.1:9000",
 				},
 				noUpdate: false,
-				setting: &config.JfsSetting{
+				setting: &common.JfsSetting{
 					FormatOptions: "",
 				},
 			},
@@ -1155,7 +1155,7 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 					"metaurl": "redis://127.0.0.1:6379/0",
 				},
 				noUpdate: false,
-				setting: &config.JfsSetting{
+				setting: &common.JfsSetting{
 					FormatOptions: "block-size=100,trash-days=0,shards=0",
 				},
 			},
@@ -1179,8 +1179,8 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 }
 
 func Test_juicefs_validTarget(t *testing.T) {
-	config.ByProcess = false
-	config.CSIPod = corev1.Pod{
+	common.ByProcess = false
+	common.CSIPod = corev1.Pod{
 		Spec: corev1.PodSpec{
 			Volumes: []corev1.Volume{
 				{

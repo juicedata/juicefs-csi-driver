@@ -29,6 +29,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -248,12 +249,12 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 }
 
 func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
-	delayStr, delayExist := pod.Annotations[config.DeleteDelayTimeKey]
+	delayStr, delayExist := pod.Annotations[common.DeleteDelayTimeKey]
 	if !delayExist {
 		// not set delete delay
 		return false, nil
 	}
-	delayAtStr, delayAtExist := pod.Annotations[config.DeleteDelayAtKey]
+	delayAtStr, delayAtExist := pod.Annotations[common.DeleteDelayAtKey]
 	if !delayAtExist {
 		// need to add delayAt annotation
 		d, err := util.GetTimeAfterDelay(delayStr)
@@ -261,7 +262,7 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 			resourceLog.Error(err, "delayDelete: can't parse delay time", "time", d)
 			return false, nil
 		}
-		addAnnotation := map[string]string{config.DeleteDelayAtKey: d}
+		addAnnotation := map[string]string{common.DeleteDelayAtKey: d}
 		resourceLog.Info("delayDelete: add annotation to pod", "annotations", addAnnotation, "podName", pod.Name)
 		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
 			resourceLog.Error(err, "delayDelete: Update pod error", "podName", pod.Name)
@@ -317,7 +318,7 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 	pv, err := client.GetPersistentVolume(ctx, volumeHandle)
 	if k8serrors.IsNotFound(err) {
 		// failed to get pv by volumeHandle, try to get pv by appName and appNamespace
-		appName, appNamespace := volCtx[config.PodInfoName], volCtx[config.PodInfoNamespace]
+		appName, appNamespace := volCtx[common.PodInfoName], volCtx[common.PodInfoNamespace]
 		appPod, err := client.GetPod(ctx, appName, appNamespace)
 		if err != nil {
 			return nil, nil, err
