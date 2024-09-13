@@ -16,7 +16,7 @@
 
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, message, Popconfirm, type PopconfirmProps, Space, Tooltip } from 'antd'
+import { Button, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
@@ -25,7 +25,8 @@ import YamlModal from './yaml-modal'
 import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import { getPodStatusBadge, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
-import { useMountUpgrade, useMountPodImage } from '@/hooks/use-api.ts'
+import { useMountPodImage } from '@/hooks/use-api.ts'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
 
 const PodBasic: React.FC<{
   pod: Pod
@@ -33,7 +34,6 @@ const PodBasic: React.FC<{
   const { pod } = props
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [, actions] = useMountUpgrade()
   const { data } = useMountPodImage(pod.metadata?.namespace, pod.metadata?.name)
   const [image] = useState(pod.spec?.containers[0].image)
 
@@ -45,35 +45,27 @@ const PodBasic: React.FC<{
     setIsModalOpen(false)
   }
 
-  const confirm: PopconfirmProps['onConfirm'] = () => {
-    actions.execute(
-      pod.metadata?.namespace,
-      pod.metadata?.name,
-      true,
-    )
-    message.success('Successfully trigger pod smoothly upgrade')
-  }
-
   return (
     <ProCard
       title={<FormattedMessage id="basic" />}
       extra={
         <Space>
           {supportPodSmoothUpgrade(image || '') && supportPodSmoothUpgrade(data || '') ? (
-            <Popconfirm
-              title="Smoothly Upgrade"
-              description={`Are you sure to upgrade to ${data}?`}
-              onConfirm={confirm}
-              okText="Yes"
-              cancelText="No"
+            <UpgradeModal
+              namespace={pod.metadata?.namespace || ''}
+              name={pod.metadata?.name || ''}
+              recreate={true}
             >
-              <Tooltip title="Smoothly Upgrade" zIndex={0}>
-                <Button
-                  className="action-button"
-                  icon={<UpgradeIcon />}
-                />
-              </Tooltip>
-            </Popconfirm>
+              {({ onClick }) => (
+                <Tooltip title="Upgrade" zIndex={0}>
+                  <Button
+                    className="action-button"
+                    onClick={onClick}
+                    icon={<UpgradeIcon />}
+                  />
+                </Tooltip>
+              )}
+            </UpgradeModal>
           ) : null}
           <Tooltip title="Show Yaml">
             <Button

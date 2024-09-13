@@ -36,6 +36,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -962,28 +963,41 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 
 func (api *API) smoothUpgrade() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		po, ok := c.Get("pod")
-		if !ok {
-			c.String(404, "not found")
-			return
-		}
-		rawPod := po.(*corev1.Pod)
-		restart := map[string]bool{}
-		if err := c.ShouldBindJSON(&restart); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
+		namespace := c.Param("namespace")
+		name := c.Param("name")
 
-		csiNode, err := api.getCSINode(c, rawPod.Spec.NodeName)
+		mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 		if err != nil {
-			podLog.Error(err, "get csi node error", "node", rawPod.Spec.NodeName)
+			klog.Error("Failed to get mount pod: ", err)
+			return
+		}
+		recreate := c.Query("recreate")
+		podLog.Info("upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
+
+		csiNode, err := api.getCSINode(c, mountpod.Spec.NodeName)
+		if err != nil {
+			podLog.Error(err, "get csi node error", "node", mountpod.Spec.NodeName)
 			c.String(500, "get csi node error %v", err)
 			return
 		}
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 
-		if err := resource.SmoothUpgrade(api.client, api.kubeconfig, csiNode.Name, rawPod.Name, csiNode.Namespace, restart["restart"]); err != nil {
-			c.String(500, "Failed to smooth upgrade: %v", err)
-			return
-		}
+			podLog.Info("Start to upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
+			cmds := []string{"juicefs-csi-driver", "upgrade", mountpod.Name}
+			if recreate == "true" {
+				cmds = append(cmds, "--restart")
+			}
+			podLog.Info("cmds", "cmds", cmds)
+
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, csiNode.Namespace, csiNode.Name, "juicefs-plugin", cmds); err != nil {
+				podLog.Error(err, "Failed to start process")
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
 	}
 }

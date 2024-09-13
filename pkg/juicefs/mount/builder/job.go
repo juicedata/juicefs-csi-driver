@@ -262,9 +262,9 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 	if !restart {
 		ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
 		if ce {
-			cmd = []string{"sh", "-c", "rm -rf /usr/local/bin/juicefs && mv /tmp/juicefs /usr/local/bin/juicefs"}
+			cmd = []string{"sh", "-c", "cp /usr/local/bin/juicefs /tmp/juicefs"}
 		} else {
-			cmd = []string{"sh", "-c", "rm -rf /usr/bin/juicefs && mv /tmp/juicefs /usr/bin/juicefs  && rm -rf /usr/local/juicefs/mount/jfsmount && mv /tmp/jfsmount /usr/local/juicefs/mount/jfsmount"}
+			cmd = []string{"sh", "-c", "cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount"}
 		}
 	}
 	ttl := DefaultJobTTLSecond
@@ -293,10 +293,6 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 			},
 			TTLSecondsAfterFinished: &ttl,
 		},
-	}
-	if _, err := client.CreateJob(ctx, &cJob); err != nil {
-		log.Error(err, "create canary pod error", "name", name)
-		return nil, err
 	}
 	return &cJob, nil
 }

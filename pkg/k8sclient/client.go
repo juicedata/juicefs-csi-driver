@@ -19,6 +19,7 @@ package k8sclient
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -519,4 +520,39 @@ func (k *K8sClient) GetConfigMap(ctx context.Context, cmName, namespace string) 
 		return nil, err
 	}
 	return cm, nil
+}
+
+func (k *K8sClient) CreateEvent(ctx context.Context, pod corev1.Pod, evtType, reason, message string) error {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Create event", "name", pod.Name)
+	now := time.Now()
+	_, err := k.CoreV1().Events(pod.Namespace).Create(ctx, &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%v.%x", pod.Name, now.UnixNano()),
+			Namespace: pod.Namespace,
+		},
+		InvolvedObject: corev1.ObjectReference{
+			Kind:       pod.Kind,
+			Namespace:  pod.Namespace,
+			Name:       pod.Name,
+			UID:        pod.UID,
+			APIVersion: pod.APIVersion,
+		},
+		Reason:  reason,
+		Message: message,
+		Source: corev1.EventSource{
+			Component: "juicefs-csi-node",
+			Host:      pod.Spec.NodeName,
+		},
+		FirstTimestamp:      metav1.Time{Time: now},
+		LastTimestamp:       metav1.Time{Time: now},
+		Type:                evtType,
+		ReportingController: "juicefs-csi-node",
+		ReportingInstance:   pod.Spec.NodeName,
+	}, metav1.CreateOptions{})
+	if err != nil {
+		log.V(1).Info("Can't create event", "podName", pod.Name, "error", err)
+		return err
+	}
+	return nil
 }

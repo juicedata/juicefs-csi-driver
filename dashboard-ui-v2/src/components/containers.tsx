@@ -15,8 +15,7 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Space, Table, Tag, Tooltip, Popconfirm, message } from 'antd'
-import type { PopconfirmProps } from 'antd'
+import { Button, Space, Table, Tag, Tooltip,} from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
@@ -35,7 +34,7 @@ import {
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod, supportBinarySmoothUpgrade, supportDebug } from '@/utils'
-import { useMountUpgrade } from '@/hooks/use-api.ts'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
 
 const Containers: React.FC<{
   pod: Pod
@@ -44,16 +43,6 @@ const Containers: React.FC<{
   const { pod, containerStatuses } = props
 
   const { namespace, name } = useParams<DetailParams>()
-  const [, actions] = useMountUpgrade()
-
-  const confirm: PopconfirmProps['onConfirm'] = () => {
-    actions.execute(
-      namespace,
-      name,
-      false,
-    )
-    message.success('Successfully trigger binary smoothly upgrade')
-  }
 
   return (
     <ProCard title={<FormattedMessage id="containerList" />}>
@@ -179,20 +168,21 @@ const Containers: React.FC<{
                     </WarmupModal>
 
                     {supportBinarySmoothUpgrade(c.image) ? (
-                      <Popconfirm
-                        title="Smoothly Upgrade"
-                        description={`Are you sure to upgrade the juicefs binary in container?`}
-                        onConfirm={confirm}
-                        okText="Yes"
-                        cancelText="No"
+                      <UpgradeModal
+                        namespace={namespace!}
+                        name={name!}
+                        recreate={false}
                       >
-                        <Tooltip title="Binary Upgrade" zIndex={0}>
-                          <Button
-                            className="action-button"
-                            icon={<UpgradeIcon />}
-                          />
-                        </Tooltip>
-                      </Popconfirm>
+                        {({ onClick }) => (
+                          <Tooltip title="Binary Upgrade" zIndex={0}>
+                            <Button
+                              className="action-button"
+                              onClick={onClick}
+                              icon={<UpgradeIcon />}
+                            />
+                          </Tooltip>
+                        )}
+                      </UpgradeModal>
                     ) : null}
                   </>
                 ) : null}

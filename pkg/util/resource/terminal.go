@@ -182,7 +182,7 @@ func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Wr
 	return nil
 }
 
-func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name, namespace string, restart bool) error {
+func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, h Handler, csiName, name, namespace string, restart bool) error {
 	cmds := []string{"juicefs-csi-driver", "upgrade", name}
 	if restart {
 		cmds = append(cmds, "--restart")
@@ -194,10 +194,10 @@ func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name,
 	req.VersionedParams(&corev1.PodExecOptions{
 		Command:   cmds,
 		Container: "juicefs-plugin",
-		Stdin:     false,
+		Stdin:     true,
 		Stdout:    true,
 		Stderr:    true,
-		TTY:       false,
+		TTY:       true,
 	}, scheme.ParameterCodec)
 
 	var sout, serr bytes.Buffer
@@ -207,8 +207,11 @@ func SmoothUpgrade(client kubernetes.Interface, cfg *rest.Config, csiName, name,
 		return err
 	}
 	if err := executor.Stream(remotecommand.StreamOptions{
-		Stdout: &sout,
-		Stderr: &serr,
+		Stdin:             h,
+		Stdout:            h,
+		Stderr:            h,
+		TerminalSizeQueue: h,
+		Tty:               true,
 	}); err != nil {
 		resourceLog.Error(err, "Failed to stream", "stdout", sout, "stderr", serr)
 		return err
