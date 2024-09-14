@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota, is_quota_supported, update_config
+    get_voldel_job, check_quota, is_quota_supported, update_config, wait_get_only_mount_pod_name
 
 
 def test_deployment_using_storage_rw():
@@ -2904,7 +2904,7 @@ def test_recreate_mountpod_reload_config():
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
-    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod = Pod(name=wait_get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     if mount_pod.get_metadata().labels.get("apply") != "updated_config":
         raise Exception("mountpod config labels not set")
     if mount_pod.get_metadata().labels.get("volume_id") != volume_id:
