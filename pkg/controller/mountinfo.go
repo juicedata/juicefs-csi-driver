@@ -223,6 +223,9 @@ func (ti *targetItem) check(ctx context.Context, mounted bool) {
 			ti.err = err
 		}
 
+		if err.Error() == "function timeout" {
+			ti.status = targetStatusCorrupt
+		}
 		corrupted := k8sMount.IsCorruptedMnt(err)
 		if corrupted {
 			ti.status = targetStatusCorrupt

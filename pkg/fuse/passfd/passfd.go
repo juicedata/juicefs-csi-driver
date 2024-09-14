@@ -87,8 +87,9 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		}
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
-				fdLog.V(1).Info("parse fuse fd", "path", subEntry.Name())
-				fs.parseFuse(ctx, entry.Name(), path.Join(fs.basePath, entry.Name(), subEntry.Name()))
+				subdir := path.Join(fs.basePath, entry.Name(), subEntry.Name())
+				fdLog.V(1).Info("parse fuse fd", "path", subdir)
+				fs.parseFuse(ctx, entry.Name(), subdir)
 			}
 		}
 	}
@@ -171,7 +172,7 @@ func (fs *Fds) CloseFd(podHashVal string) {
 
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
-	if fuseFd <= 0 {
+	if fuseFd < 0 {
 		return
 	}
 
@@ -356,19 +357,21 @@ func GetFuseFd(path string, close bool) (int, []byte) {
 	}
 	fdLog.V(1).Info("get fd and msg", "fd", fds)
 	_ = syscall.Close(fds[0])
-	if len(fds) > 1 {
-		if close {
-			fdLog.V(1).Info("send FUSE fd and close", "fd", fds[1])
-			_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
-			return fds[1], msg
-		} else {
-			fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
-			err = putFd(conn.(*net.UnixConn), msg, fds[1])
-			if err != nil {
-				fdLog.Error(err, "send FUSE error")
-			}
+	if close {
+		fdLog.V(1).Info("send close fuse fd")
+		_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
+		if len(fds) > 1 {
 			return fds[1], msg
 		}
+		return fds[0], msg
+	}
+	if len(fds) > 1 {
+		fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
+		err = putFd(conn.(*net.UnixConn), msg, fds[1])
+		if err != nil {
+			fdLog.Error(err, "send FUSE error")
+		}
+		return fds[1], msg
 	}
 	return 0, nil
 }

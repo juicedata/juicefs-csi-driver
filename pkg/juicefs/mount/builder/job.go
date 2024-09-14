@@ -258,13 +258,13 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 			mounts = append(mounts, c)
 		}
 	}
-	cmd := []string{"sleep", "1"}
+	cmd := "juicefs version > /tmp/version"
 	if !restart {
 		ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
 		if ce {
-			cmd = []string{"sh", "-c", "cp /usr/local/bin/juicefs /tmp/juicefs"}
+			cmd = fmt.Sprintf("%s && cp /usr/local/bin/juicefs /tmp/juicefs", cmd)
 		} else {
-			cmd = []string{"sh", "-c", "cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount"}
+			cmd = fmt.Sprintf("%s && cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount", cmd)
 		}
 	}
 	ttl := DefaultJobTTLSecond
@@ -283,7 +283,7 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 					Containers: []corev1.Container{{
 						Image:        attr.Image,
 						Name:         "canary",
-						Command:      cmd,
+						Command:      []string{"sh", "-c", cmd},
 						VolumeMounts: mounts,
 					}},
 					NodeName:      mountPod.Spec.NodeName,

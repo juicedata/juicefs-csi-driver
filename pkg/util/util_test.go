@@ -665,7 +665,7 @@ func TestParseClientVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseClientVersion(tt.args.image); !reflect.DeepEqual(got, tt.want) {
+			if got := parseClientVersionFromImage(tt.args.image); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseClientVersion() = %v, want %v", got, tt.want)
 			}
 		})
@@ -861,6 +861,142 @@ func TestParseMntPath(t *testing.T) {
 			}
 			if got1 != tt.want1 {
 				t.Errorf("parseMntPath() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func TestSupportUpgradeRecreate(t *testing.T) {
+	type args struct {
+		ce      bool
+		version string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-5.1",
+			args: args{
+				ce:      false,
+				version: "juicefs version 5.1.0 (2024-09-09 5a1303e2)",
+			},
+			want: true,
+		},
+		{
+			name: "test-5.0",
+			args: args{
+				ce:      false,
+				version: "juicefs version 5.0.0 (2024-09-09 5a1303e2)",
+			},
+			want: false,
+		},
+		{
+			name: "test-4.9",
+			args: args{
+				ce:      false,
+				version: "JuiceFS version 4.9.0 (2023-03-28 bfeaf6a)",
+			},
+			want: false,
+		},
+		{
+			name: "test-1.2.0",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.2.0+2024-06-18.873c47b9",
+			},
+			want: false,
+		},
+		{
+			name: "test-1.1.0",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.1.0+2023-09-04.08c4ae62",
+			},
+			want: false,
+		},
+		{
+			name: "test-dev",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.3.0-dev+2024-08-23.f4e98bd3",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SupportUpgradeRecreate(tt.args.ce, tt.args.version); got != tt.want {
+				t.Errorf("SupportUpgradeRecreate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSupportUpgradeBinary(t *testing.T) {
+	type args struct {
+		ce      bool
+		version string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "test-5.1",
+			args: args{
+				ce:      false,
+				version: "juicefs version 5.1.0 (2024-09-09 5a1303e2)",
+			},
+			want: true,
+		},
+		{
+			name: "test-5.0",
+			args: args{
+				ce:      false,
+				version: "juicefs version 5.0.0 (2024-09-09 5a1303e2)",
+			},
+			want: true,
+		},
+		{
+			name: "test-4.9",
+			args: args{
+				ce:      false,
+				version: "JuiceFS version 4.9.0 (2023-03-28 bfeaf6a)",
+			},
+			want: false,
+		},
+		{
+			name: "test-1.2.0",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.2.0+2024-06-18.873c47b9",
+			},
+			want: true,
+		},
+		{
+			name: "test-1.1.0",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.1.0+2023-09-04.08c4ae62",
+			},
+			want: false,
+		},
+		{
+			name: "test-dev",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.3.0-dev+2024-08-23.f4e98bd3",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SupportUpgradeBinary(tt.args.ce, tt.args.version); got != tt.want {
+				t.Errorf("SupportUpgradeBinary() = %v, want %v", got, tt.want)
 			}
 		})
 	}

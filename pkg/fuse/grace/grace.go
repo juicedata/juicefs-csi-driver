@@ -108,10 +108,19 @@ func handleShutdown(conn net.Conn) {
 		sendMessage(conn, "FAIL pod is not on node")
 		return
 	}
+	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
+	hashVal := mountPod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		log.Info("pod has no hash label")
+		return
+	}
+	log.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
 	pu := &podUpgrade{
 		client:   client,
 		pod:      mountPod,
 		recreate: recreate,
+		ce:       ce,
+		hashVal:  hashVal,
 	}
 	if err := pu.gracefulShutdown(ctx, conn); err != nil {
 		log.Error(err, "graceful shutdown error")
@@ -123,16 +132,12 @@ type podUpgrade struct {
 	client   *k8s.K8sClient
 	pod      *corev1.Pod
 	recreate bool
+	ce       bool
+	hashVal  string
 }
 
 func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
-	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return fmt.Errorf("pod %s/%s has no hash label", p.pod.Namespace, p.pod.Name)
-	}
-	log.V(1).Info("get hash val from pod", "pod", p.pod.Name, "hash", hashVal)
-
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(p.hashVal)
 	err := func() error {
 		lock.Lock()
 		defer lock.Unlock()
@@ -195,7 +200,6 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	if err != nil {
 		return nil, err
 	}
-	ce := util.ContainSubString(p.pod.Spec.Containers[0].Command, "format")
 
 	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
 
@@ -231,17 +235,22 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, err
 	}
 
-	sendMessage(conn, fmt.Sprintf("upgrade mount pod, new image: %s", cJob.Spec.Template.Spec.Containers[0].Image))
+	sendMessage(conn, fmt.Sprintf("new image: %s", cJob.Spec.Template.Spec.Containers[0].Image))
+	sendMessage(conn, "validate new version")
+	v := p.validateVersion(ctx, conn)
+	if !v {
+		return nil, fmt.Errorf("new version is not supported")
+	}
 
 	if p.recreate {
 		// set fuse fd to -1 in mount pod
 
 		// update sid
-		if ce {
+		if p.ce {
 			passfd.GlobalFds.UpdateSid(hashVal, jfsConf.Meta.Sid)
 			log.V(1).Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
+			sendMessage(conn, fmt.Sprintf("sid in mount pod: %d", jfsConf.Meta.Sid))
 		}
-		sendMessage(conn, fmt.Sprintf("sid in mount pod: %d", jfsConf.Meta.Sid))
 
 		// close fuse fd in mount pod
 		commPath, err := resource.GetCommPath("/tmp", *p.pod)
@@ -251,11 +260,11 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		msg = "close fuse fd in mount pod"
 		sendMessage(conn, msg)
 		fuseFd, _ := passfd.GetFuseFd(commPath, true)
-		for i := 0; i < 100 && fuseFd == 0; i++ {
+		for i := 0; i < 100 && fuseFd < 0; i++ {
 			time.Sleep(time.Millisecond * 100)
 			fuseFd, _ = passfd.GetFuseFd(commPath, true)
 		}
-		if fuseFd == 0 {
+		if fuseFd < 0 {
 			return nil, fmt.Errorf("fail to recv FUSE fd from %s", commPath)
 		}
 		log.Info("recv FUSE fd", "fd", fuseFd)
@@ -269,6 +278,39 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		}
 	}
 	return jfsConf, nil
+}
+
+func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
+	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return false
+	}
+	// read from version file
+	var (
+		v   []byte
+		err error
+	)
+	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		v, err = os.ReadFile(fmt.Sprintf("/tmp/%s/version", hashVal))
+		return err
+	})
+	if err != nil {
+		log.Error(err, "read version file error", "hash", hashVal)
+		sendMessage(conn, fmt.Sprintf("FAIL read version file error: %v", err))
+		return false
+	}
+	if p.recreate {
+		supported := util.SupportUpgradeRecreate(p.ce, string(v))
+		if !supported {
+			sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
+		}
+		return supported
+	}
+	supported := util.SupportUpgradeBinary(p.ce, string(v))
+	if !supported {
+		sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
+	}
+	return supported
 }
 
 func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
@@ -310,7 +352,7 @@ func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 				continue
 			}
 			for _, po := range pods {
-				if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) {
+				if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) && po.Name != p.pod.Name {
 					if resource.IsPodReady(&po) {
 						sendMessage(conn, fmt.Sprintf("SUCCESS Upgrade mount pod and recreate one: %s", po.Name))
 						return
