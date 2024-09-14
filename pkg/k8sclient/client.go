@@ -153,7 +153,6 @@ func (k *K8sClient) GetPod(ctx context.Context, podName, namespace string) (*cor
 
 func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector, filedSelector *fields.Set) ([]corev1.Pod, error) {
 	log := util.GenLog(ctx, clientLog, "")
-	log.V(1).Info("List pod", "labelSelector", labelSelector.String(), "fieldSelector", filedSelector)
 	listOptions := metav1.ListOptions{}
 	if k.enableAPIServerListCache {
 		// set ResourceVersion="0" means the list response is returned from apiserver cache instead of etcd
@@ -165,14 +164,16 @@ func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector
 			return nil, err
 		}
 		listOptions.LabelSelector = labelMap.String()
+		log.V(1).Info("List pod", "labelSelector", listOptions.LabelSelector)
 	}
 	if filedSelector != nil {
 		listOptions.FieldSelector = fields.SelectorFromSet(*filedSelector).String()
+		log.V(1).Info("List pod", "fieldSelector", listOptions.FieldSelector)
 	}
 
 	podList, err := k.CoreV1().Pods(namespace).List(ctx, listOptions)
 	if err != nil {
-		log.V(1).Info("Can't list pod", "namespace", namespace, "labelSelector", labelSelector.String(), "error", err)
+		log.V(1).Info("Can't list pod", "namespace", namespace, "error", err)
 		return nil, err
 	}
 	return podList.Items, nil
