@@ -25,6 +25,9 @@ JUICEFS_CE_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juiced
 JUICEFS_EE_LATEST_VERSION=$(shell curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
 JFS_CHAN=${JFSCHAN}
 JFS_PKG_URL=${JFSPKGURL}
+ifeq ($(strip $(JFS_PKG_URL)),)
+  JFS_PKG_URL := https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
+endif
 JUICEFS_REPO_URL?=https://github.com/juicedata/juicefs
 JUICEFS_REPO_REF?=$(JUICEFS_CE_LATEST_VERSION)
 MOUNT_TAG=${MOUNTTAG}
