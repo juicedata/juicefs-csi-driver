@@ -628,5 +628,5 @@ export function compareImageVersion(current: string, target: string): number {
     }
   }
 
-  return imageVersionParts.length < targetVersionParts.length ? 1 : 0
+  return imageVersionParts.length < targetVersionParts.length ? -1 : 0
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"time"
@@ -455,6 +456,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 			// create pod
 			newPodName := podmount.GenPodNameByUniqueId(pod.Labels[config.PodUniqueIdLabelKey], true)
 			log.Info("need to create a new one", "newPodName", newPodName)
+			// delete tmp file
+			log.Info("delete tmp state file because it is not smoothly upgrade")
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
+			})
 			newPod, err := p.newMountPod(ctx, pod, newPodName)
 			if err == nil {
 				_, err = p.Client.CreatePod(ctx, newPod)
