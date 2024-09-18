@@ -388,6 +388,10 @@ func (api *API) getPodLatestImage() gin.HandlerFunc {
 			c.String(500, "Could not create k8s client: %v", err)
 			return
 		}
+		if rawPod.Labels[config.PodTypeKey] != config.PodTypeValue {
+			c.String(400, "pod %s is not a mount pod", rawPod.Name)
+			return
+		}
 		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
 			c.String(500, "Load config from configmap error: %v", err)
 			return

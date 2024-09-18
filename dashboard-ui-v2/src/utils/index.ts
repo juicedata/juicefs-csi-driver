@@ -560,6 +560,9 @@ export function isEEImage(image: string): boolean {
 }
 
 export function supportPodSmoothUpgrade(image: string): boolean {
+  if (image === '') {
+    return false
+  }
   const version = image.split(':')[1]
   if (!version) {
     return false
@@ -571,6 +574,9 @@ export function supportPodSmoothUpgrade(image: string): boolean {
 }
 
 export function supportBinarySmoothUpgrade(image: string): boolean {
+  if (image === '') {
+    return false
+  }
   const version = image.split(':')[1]
   if (!version) {
     return false

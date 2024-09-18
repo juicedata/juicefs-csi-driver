@@ -35,11 +35,14 @@ const UpgradeModal: React.FC<{
   name: string
   recreate: boolean
   children: ({ onClick }: { onClick: () => void }) => ReactNode
-}> = memo(({ namespace, name,recreate, children }) => {
+}> = memo(({ namespace, name, recreate, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { data: newImage } = useMountPodImage(namespace, name)
+  const { data: newImage } = useMountPodImage(true, namespace, name)
   const [data, setData] = useState<string>('')
   const [start, setStart] = useState(false)
+  const redirect = (path: string) => {
+    window.location.href = path
+  }
 
   useWebsocket(
     `/api/v1/ws/pod/${namespace}/${name}/upgrade`,
@@ -50,8 +53,24 @@ const UpgradeModal: React.FC<{
       onClose: () => {
         setStart(false)
       },
-      onMessage: (msg) => {
+      onMessage: async (msg) => {
         setData((prev) => prev + msg.data)
+        if (msg.data.includes('SUCCESS Upgrade mount pod and recreate one: ')) {
+          const regex = /SUCCESS Upgrade mount pod and recreate one: (.+)"/
+          const match = msg.data.match(regex)
+
+          if (match && match[1]) {
+            const newPod = match[1]
+            setData((prev) => prev + `Redirect to the new mount pod: ${newPod}...\n`)
+            for (let i = 3; i > 0; i--) {
+              setData((prev) => prev + `${i}...`)
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+            }
+            redirect(`/pods/${namespace}/${newPod}`)
+          } else {
+            console.log('New mount pod not found in pattern.')
+          }
+        }
       },
     },
     isModalOpen && start,
@@ -59,7 +78,7 @@ const UpgradeModal: React.FC<{
 
   useEffect(() => {
     if (isModalOpen) {
-      if (recreate){
+      if (recreate) {
         setData(`Smoothly upgrade mount pod to ${newImage}\n\n` + upgradeHelpMessage)
       } else {
         setData(`Smoothly upgrade mount pod to ${newImage}\n\n` + binaryHelpMessage)

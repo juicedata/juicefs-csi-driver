@@ -57,8 +57,8 @@ export function useSysAppPods(args: SysPagingListArgs) {
   )
 }
 
-export function useMountPodImage(namespace?: string, name?: string) {
-  return useSWR<string>(`/api/v1/pod/${namespace}/${name}/latestimage`)
+export function useMountPodImage(isMountPod: boolean, namespace?: string, name?: string) {
+  return useSWR<string>(isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '')
 }
 
 export function useAppPod(namespace?: string, name?: string) {

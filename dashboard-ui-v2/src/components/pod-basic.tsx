@@ -24,7 +24,7 @@ import YAML from 'yaml'
 import YamlModal from './yaml-modal'
 import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
-import { getPodStatusBadge, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
+import { getPodStatusBadge, isMountPod, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
 import { useMountPodImage } from '@/hooks/use-api.ts'
 import UpgradeModal from '@/components/upgrade-modal.tsx'
 
@@ -34,7 +34,7 @@ const PodBasic: React.FC<{
   const { pod } = props
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { data } = useMountPodImage(pod.metadata?.namespace, pod.metadata?.name)
+  const { data } = useMountPodImage(isMountPod(pod), pod.metadata?.namespace, pod.metadata?.name)
   const [image] = useState(pod.spec?.containers[0].image)
 
   const showModal = () => {
