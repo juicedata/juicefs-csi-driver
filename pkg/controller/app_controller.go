@@ -155,9 +155,13 @@ func (a AppController) killFuseProcess(pod *corev1.Pod, fuseContainer corev1.Con
 		return nil
 	}
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
-	cmd := []string{"sh", "-c", "ps -x | grep mount.juicefs | grep -v grep | awk '{print $1}' | xargs kill"}
+	cmd := []string{"sh", "-c", "pkill mount.juicefs"}
 	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
-	_, _, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
+	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
+	if err != nil {
+		return err
+	}
+	log.Info("exec cmd result", "stdout", stdout, "stderr", stderr)
 	return err
 }
 
