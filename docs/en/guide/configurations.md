@@ -24,7 +24,7 @@ kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-drive
 
 All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml), and also introduced in detail in our docs.
 
-### Customize mount pod and sidecar container {#customize-mount-pod}
+### Customize mount pod and sidecar container
 
 Since mount pods are created by CSI Node, and sidecar containers injected by [webhook](#webhook), users cannot directly control their definition. To customize, refer to the following methods.
 
@@ -109,7 +109,7 @@ globalConfig:
         # Clean cache when mount pod exits
         juicefs-clean-cache: "true"
 
-      # Define an environment variable for mount pod 
+      # Define an environment variable for mount pod
     - pvcSelector:
         matchLabels:
           ...
