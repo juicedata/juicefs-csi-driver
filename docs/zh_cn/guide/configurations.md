@@ -14,7 +14,7 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 :::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
 
-如果希望立即生效，可以给 CSI Node 临时添加 Annotation 来触发更新：
+如果希望立即生效，可以给 CSI 组件 临时添加 Annotation 来触发更新：
 
 ```shell
 kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
