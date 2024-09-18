@@ -109,7 +109,7 @@ MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 ```
 
-仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读 [「调整挂载参数」](../guide/configurations.md#custom-mount-options)，确保格式正确。
+仔细检查 Mount Pod 启动命令，以上示例中 `-o` 后面所跟的选项即为 JuiceFS 文件系统的挂载参数，如果有多个挂载参数会通过 `,` 连接（如 `-o aaa,bbb`）。如果发现类似 `-o debug foreground` 这样的错误格式（正确格式应该是 `-o debug,foreground`），便会造成 Mount Pod 无法正常启动。此类错误往往是 `mountOptions` 填写错误造成的，请详读 [「调整挂载参数」](../guide/configurations.md#mount-options)，确保格式正确。
 
 </details>
 

@@ -9,7 +9,7 @@ JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.co
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
-设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载参数](./configurations.md#custom-mount-options)进行调整（如缓存大小）。
+设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载参数](./configurations.md#mount-options)进行调整（如缓存大小）。
 
 :::tip 注意
 
@@ -17,7 +17,7 @@ Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 Ju
 * 对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存，但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
 :::
 
-缓存相关配置均通过挂载参数进行调整，因此方法如同[「调整挂载参数」](./configurations.md#custom-mount-options)，也可以直接参考下方示范。如果你需要验证参数生效，可以创建并挂载了 PV 后，[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
+缓存相关配置均通过挂载参数进行调整，因此方法如同[「调整挂载参数」](./configurations.md#mount-options)，也可以直接参考下方示范。如果你需要验证参数生效，可以创建并挂载了 PV 后，[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
 
 * 静态配置：
 
