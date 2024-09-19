@@ -1005,7 +1005,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 			return nil
 		})
 		if err == nil {
-			log.Info("start to umount: %s", "mountPath", sourcePath)
+			log.Info("start to umount", "mountPath", sourcePath)
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 				util.UmountPath(ctx, sourcePath)
 				return nil
