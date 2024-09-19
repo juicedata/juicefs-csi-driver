@@ -90,9 +90,6 @@ var (
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
-				}, {
-					Name:  JfsCommEnv,
-					Value: "tmp/fuse_fd_csi_comm.sock",
 				}},
 				EnvFrom: []corev1.EnvFromSource{{
 					SecretRef: &corev1.SecretEnvSource{
@@ -118,6 +115,11 @@ var (
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &isPrivileged,
 					RunAsUser:  &rootUser,
+				},
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf("umount %s -l; rmdir %s; exit 0", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
+					},
 				},
 				Ports: []corev1.ContainerPort{
 					{

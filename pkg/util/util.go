@@ -592,17 +592,11 @@ func parseClientVersion(ce bool, version string) ClientVersion {
 
 func SupportUpgradeRecreate(ce bool, version string) bool {
 	v := parseClientVersion(ce, version)
-	if v.Dev {
-		return false
-	}
 	return supportFusePass(v)
 }
 
 func SupportUpgradeBinary(ce bool, version string) bool {
 	v := parseClientVersion(ce, version)
-	if v.Dev {
-		return false
-	}
 	return supportUpgradeBinary(v)
 }
 
