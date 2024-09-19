@@ -129,11 +129,12 @@ func handleShutdown(conn net.Conn) {
 }
 
 type podUpgrade struct {
-	client   *k8s.K8sClient
-	pod      *corev1.Pod
-	recreate bool
-	ce       bool
-	hashVal  string
+	client     *k8s.K8sClient
+	pod        *corev1.Pod
+	recreate   bool
+	ce         bool
+	hashVal    string
+	newVersion string
 }
 
 func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
@@ -178,7 +179,7 @@ func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 			log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
 			continue
 		}
-		upgradeEvtMsg := fmt.Sprintf("Upgrade binary in %s", config.MountContainerName)
+		upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, config.MountContainerName)
 		if p.recreate {
 			upgradeEvtMsg = "Upgrade pod with recreating"
 			sendMessage(conn, upgradeEvtMsg)
@@ -299,6 +300,7 @@ func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
 		sendMessage(conn, fmt.Sprintf("FAIL read version file error: %v", err))
 		return false
 	}
+	p.newVersion = string(v)
 	if p.recreate {
 		supported := util.SupportUpgradeRecreate(p.ce, string(v))
 		if !supported {
