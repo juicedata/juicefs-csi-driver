@@ -2699,6 +2699,7 @@ def test_config():
         ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
          "updatedAt=" + str(int(time.time()))])
 
+    time.sleep(2)
     # deploy pvc
     pvc1 = PVC(name="pvc-config-without-labels", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
     LOG.info("Deploy pvc {}".format(pvc1.name))
@@ -2877,6 +2878,8 @@ def test_recreate_mountpod_reload_config():
     subprocess.check_call(
         ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
          "updatedAt=" + str(int(time.time()))])
+    # sleep 2s to wait config update
+    time.sleep(2)
 
     LOG.info("Start to delete mountpod..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
