@@ -17,6 +17,7 @@
 package grace
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net"
@@ -316,13 +317,14 @@ func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
 }
 
 func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
+	sendMessage(conn, "wait for upgrade...")
 	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return
 	}
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	reportDeleted := false
 	for {
@@ -422,25 +424,20 @@ func TriggerShutdown(socketPath string, name string, restart bool) error {
 	}
 	log.Info("trigger gracefully shutdown successfully", "name", name)
 
-	for {
-		buf := make([]byte, 1024)
-		n, err := conn.Read(buf)
-		if err != nil {
-			return err
-		}
-
-		message = string(buf[:n])
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		message = scanner.Text()
 		log.Info(message)
 		if strings.HasPrefix(message, "SUCCESS") || strings.HasPrefix(message, "FAIL") {
 			break
 		}
 	}
 
-	return nil
+	return scanner.Err()
 }
 
 func sendMessage(conn net.Conn, message string) {
-	_, err := conn.Write([]byte(message))
+	_, err := conn.Write([]byte(message + "\n"))
 	if err != nil {
 		log.V(1).Info("error sending message", "message", message, "error", err)
 	}
