@@ -19,10 +19,11 @@ package controller
 import (
 	"context"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,6 +37,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
+var (
+	appCtrlLog = klog.NewKlogr().WithName("app-controller")
+)
+
 type AppController struct {
 	*k8sclient.K8sClient
 }
@@ -45,27 +50,51 @@ func NewAppController(client *k8sclient.K8sClient) *AppController {
 }
 
 func (a *AppController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive pod %s %s", request.Name, request.Namespace)
+	appCtrlLog.V(1).Info("Receive pod", "name", request.Name, "namespace", request.Namespace)
 	pod, err := a.K8sClient.GetPod(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.Errorf("get pod %s error: %v", request.Name, err)
+		appCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 	if pod == nil {
-		klog.V(6).Infof("pod %s not found.", request.Name)
+		appCtrlLog.V(1).Info("pod not found.", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
 
 	if !ShouldInQueue(pod) {
-		klog.V(6).Infof("pod %s namespace %s should not in queue", request.Name, request.Namespace)
+		appCtrlLog.V(1).Info("pod should not in queue", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
+
+	// get a last terminated container finsh time
+	// if the time is more than 5 minutes, kill the fuse process
+	var appContainerExitedTime time.Time
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if !strings.Contains(containerStatus.Name, config.MountContainerName) {
+			if containerStatus.State.Terminated != nil {
+				if containerStatus.State.Terminated.FinishedAt.After(appContainerExitedTime) {
+					appContainerExitedTime = containerStatus.State.Terminated.FinishedAt.Time
+				}
+			}
+		}
+	}
+
+	if !appContainerExitedTime.IsZero() && time.Since(appContainerExitedTime) > 5*time.Minute {
+		appCtrlLog.V(1).Info("app container exited more than 5 minutes, kill the mount process, app pod will enter an error phase")
+		err = a.killFuseProcesss(pod)
+		if err != nil {
+			appCtrlLog.Error(err, "kill fuse process error", "name", request.Name)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	}
+
 	// umount fuse sidecars
 	err = a.umountFuseSidecars(pod)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (a *AppController) umountFuseSidecars(pod *corev1.Pod) (err error) {
@@ -83,15 +112,16 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 	if fuseContainer.Name == "" {
 		return
 	}
+	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
 
 	// get prestop
 	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
-		klog.Infof("[AppController] no prestop in container %s of pod [%s] in [%s]", config.MountContainerName, pod.Name, pod.Namespace)
+		log.Info("no prestop in container of pod", "cnName", config.MountContainerName)
 		return nil
 	}
 	cmd := fuseContainer.Lifecycle.PreStop.Exec.Command
 
-	klog.Infof("[AppController] exec cmd [%s] in container %s of pod [%s] in [%s]", cmd, config.MountContainerName, pod.Name, pod.Namespace)
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		if strings.Contains(stderr, "not mounted") ||
@@ -101,13 +131,40 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 			return nil
 		}
 		if strings.Contains(err.Error(), "exit code 137") {
-			klog.Warningf("[AppController] exec with exit code 137, ignore it. error: %v", err)
+			log.Error(err, "exec with exit code 137, ignore it.")
 			return nil
 		}
-		klog.Errorf("[AppController] error: %v; exec stdout: %s; exec stderr: %s", err, stdout, stderr)
+		log.Error(err, "exec error", "stdout", stdout, "stderr", stderr)
 	}
 	return
 }
+
+func (a *AppController) killFuseProcesss(pod *corev1.Pod) error {
+	for _, cn := range pod.Spec.Containers {
+		if strings.Contains(cn.Name, config.MountContainerName) {
+			if e := a.killFuseProcess(pod, cn); e != nil {
+				return e
+			}
+		}
+	}
+	return nil
+}
+
+func (a AppController) killFuseProcess(pod *corev1.Pod, fuseContainer corev1.Container) error {
+	if fuseContainer.Name == "" {
+		return nil
+	}
+	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
+	cmd := []string{"sh", "-c", "pkill mount.juicefs"}
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
+	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
+	if err != nil {
+		return err
+	}
+	log.Info("exec cmd result", "stdout", stdout, "stderr", stderr)
+	return err
+}
+
 func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New("app", mgr, controller.Options{Reconciler: a})
 	if err != nil {
@@ -118,43 +175,43 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 		CreateFunc: func(event event.CreateEvent) bool {
 			pod, ok := event.Object.(*corev1.Pod)
 			if !ok {
-				klog.V(6).Infof("[pod.onCreate] can not turn into pod, Skip. object: %v", event.Object)
+				appCtrlLog.V(1).Info("[pod.onCreate] can not turn into pod, Skip.", "object", event.Object)
 				return false
 			}
 
 			if !ShouldInQueue(pod) {
-				klog.V(6).Infof("[pod.onCreate] skip due to shouldRequeue false. pod: [%s] in [%s]", pod.Name, pod.Namespace)
+				appCtrlLog.V(1).Info("[pod.onCreate] skip due to shouldRequeue false.", "name", pod.Name, "namespace", pod.Namespace)
 				return false
 			}
 
-			klog.V(6).Infof("[pod.onCreate] pod [%s] in [%s] requeue", pod.Name, pod.Namespace)
+			appCtrlLog.V(1).Info("[pod.onCreate] pod in requeue", "name", pod.Name, "namespace", pod.Namespace)
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
 			if !ok {
-				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectNew)
+				appCtrlLog.V(1).Info("[pod.onUpdate] can not turn into pod, Skip.", "object", updateEvent.ObjectNew)
 				return false
 			}
 
 			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
 			if !ok {
-				klog.V(6).Infof("[pod.onUpdate] can not turn into pod, Skip. object: %v", updateEvent.ObjectOld)
+				appCtrlLog.V(1).Info("[pod.onUpdate] can not turn into pod, Skip.", "object", updateEvent.ObjectOld)
 				return false
 			}
 
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
-				klog.V(6).Infof("[pod.onUpdate] Skip due to resourceVersion not changed, pod: [%s] in [%s]", podNew.Name, podNew.Namespace)
+				appCtrlLog.V(1).Info("[pod.onUpdate] Skip due to resourceVersion not changed", "name", podNew.Name, "namespace", podNew.Namespace)
 				return false
 			}
 
 			// ignore if it's not fluid label pod
 			if !ShouldInQueue(podNew) {
-				klog.V(6).Infof("[pod.onUpdate] skip due to shouldRequeue false. pod: [%s] in [%s]", podNew.Name, podNew.Namespace)
+				appCtrlLog.V(1).Info("[pod.onUpdate] skip due to shouldRequeue false.", "name", podNew.Name, "namespace", podNew.Namespace)
 				return false
 			}
 
-			klog.V(6).Infof("[pod.onUpdate] pod [%s] in [%s] requeue", podNew.Name, podNew.Namespace)
+			appCtrlLog.V(1).Info("[pod.onUpdate] pod requeue", "name", podNew.Name, "namespace", podNew.Namespace)
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
@@ -169,15 +226,17 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 		return false
 	}
 
+	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
+
 	// ignore if it's not fluid label pod
 	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {
-		klog.V(6).Infof("Sidecar inject disabled in pod [%s] in [%s] labels %v, skip.", pod.Name, pod.Namespace, pod.Labels)
+		log.V(1).Info("Sidecar inject disabled in pod in labels, skip.", "labels", pod.Labels)
 		return false
 	}
 
 	// ignore if restartPolicy is Always
 	if pod.Spec.RestartPolicy == corev1.RestartPolicyAlways {
-		klog.V(6).Infof("pod [%s] in [%s] restart policy always, skip.", pod.Name, pod.Namespace)
+		log.V(1).Info("pod restart policy always, skip.")
 		return false
 	}
 
@@ -190,29 +249,29 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 		}
 	}
 	if !exist {
-		klog.V(6).Infof("There are no juicefs sidecar in pod [%s] in [%s].", pod.Name, pod.Namespace)
+		log.V(1).Info("There are no juicefs sidecar in pod")
 		return false
 	}
 
 	// ignore if pod status is not running
 	if pod.Status.Phase != corev1.PodRunning || len(pod.Status.ContainerStatuses) < 2 {
-		klog.V(6).Infof("Pod [%s] in [%s] status is not running or containerStatus less than 2.", pod.Name, pod.Namespace)
+		log.V(1).Info("Pod status is not running or containerStatus less than 2.")
 		return false
 	}
 
 	// reconcile if all app containers exit 0 and fuse container not exit
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if !strings.Contains(containerStatus.Name, config.MountContainerName) {
-			klog.V(6).Infof("container %s in pod [%s] in [%s] status: %v", containerStatus.Name, pod.Name, pod.Namespace, containerStatus)
+			log.V(1).Info("container status", "container", containerStatus.Name, "status", containerStatus)
 			if containerStatus.State.Terminated == nil {
-				klog.V(6).Infof("container %s in pod [%s] in [%s] not exited", containerStatus.Name, pod.Name, pod.Namespace)
+				log.V(1).Info("container not exited", "container", containerStatus.Name)
 				// container not exist
 				return false
 			}
 		}
 		if strings.Contains(containerStatus.Name, config.MountContainerName) {
 			if containerStatus.State.Running == nil {
-				klog.V(6).Infof("juicefs fuse client in pod [%s] in [%s] not running", pod.Name, pod.Namespace)
+				log.V(1).Info("juicefs fuse client in pod not running")
 				return false
 			}
 		}

@@ -20,19 +20,20 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -43,6 +44,10 @@ import (
 const (
 	defaultCheckoutTimeout   = 1 * time.Second
 	defaultTargetMountCounts = 5
+)
+
+var (
+	podDriverLog = klog.NewKlogr().WithName("pod-driver")
 )
 
 type PodDriver struct {
@@ -69,8 +74,12 @@ func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount)
 	return driver
 }
 
-type podHandler func(ctx context.Context, pod *corev1.Pod) error
+type podHandler func(ctx context.Context, pod *corev1.Pod) (Result, error)
 type podStatus string
+type Result struct {
+	RequeueImmediately bool
+	RequeueAfter       time.Duration
+}
 
 const (
 	podReady   podStatus = "podReady"
@@ -83,24 +92,29 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 	p.mit = mit
 }
 
-func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) error {
-	podStatus := getPodStatus(current)
-	klog.V(6).Infof("[PodDriver] start handle pod %s/%s, status: %s", current.Namespace, current.Name, podStatus)
+func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error) {
+	if current == nil {
+		return Result{}, nil
+	}
+	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
+	ctx = util.WithLog(ctx, log)
+	ps := getPodStatus(current)
+	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctx, current)
 	if err != nil {
-		return err
+		return Result{}, err
 	}
 
-	if podStatus != podError && podStatus != podDeleted {
-		return p.handlers[podStatus](ctx, current)
+	if ps != podError && ps != podDeleted {
+		return p.handlers[ps](ctx, current)
 	}
 
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
 	pod, err := p.Client.GetPod(ctx, current.Name, current.Namespace)
 	if err != nil {
-		return err
+		return Result{}, err
 	}
 	// set mount pod status in mit again, maybe deleted
 	p.mit.setPodStatus(pod)
@@ -128,8 +142,13 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 // 1. check refs in mount pod annotation
 // 2. delete ref that target pod is not found
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
+	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	lock := config.GetPodLock(pod.Name)
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -142,7 +161,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			_, exists := p.mit.deletedPods[targetUid]
 			if !exists {
 				// target pod is deleted
-				klog.V(5).Infof("[PodDriver] get app pod %s deleted in annotations of mount pod, remove its ref.", targetUid)
+				log.Info("get app pod deleted in annotations of mount pod, remove its ref.", "appId", targetUid)
 				delAnnotations = append(delAnnotations, k)
 				continue
 			}
@@ -189,16 +208,17 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 				}, pod.Name, fmt.Errorf("can not delete pod"))
 			}
 			// if there are no refs or after delay time, delete it
-			klog.V(5).Infof("There are no refs in pod %s annotation, delete it", pod.Name)
+			log.Info("There are no refs in pod annotation, delete it")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
-				klog.Errorf("Delete pod %s error: %v", pod.Name, err)
+				log.Error(err, "Delete pod")
 				return err
 			}
+			// for old version
 			// delete related secret
 			secretName := pod.Name + "-secret"
-			klog.V(6).Infof("delete related secret of pod: %s", secretName)
-			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); err != nil {
-				klog.V(5).Infof("Delete secret %s error: %v", secretName, err)
+			log.V(1).Info("delete related secret of pod", "secretName", secretName)
+			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); !apierrors.IsNotFound(err) && err != nil {
+				log.V(1).Info("Delete secret error", "secretName", secretName)
 			}
 		}
 	}
@@ -206,31 +226,36 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 }
 
 // podErrorHandler handles mount pod error status
-func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error {
+func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	if pod == nil {
-		return nil
+		return Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
 	// check resource err
 	if resource.IsPodResourceError(pod) {
-		klog.V(5).Infof("[podErrorHandler]waitUtilMount: Pod %s failed because of resource.", pod.Name)
+		log.Info("Pod failed because of resource.")
 		if resource.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
 			_ = resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
-			klog.V(5).Infof("Delete it and deploy again with no resource.")
+			log.Info("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
-				klog.Errorf("delete po:%s err:%v", pod.Name, err)
-				return nil
+				log.Error(err, "delete pod err")
+				return Result{}, nil
 			}
 			isDeleted := false
 			// wait pod delete for 1min
 			for {
 				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 				if err == nil {
-					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
+					log.V(1).Info("pod still exists wait.")
 					time.Sleep(time.Microsecond * 500)
 					continue
 				}
@@ -244,11 +269,11 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 				if ctx.Err() == context.Canceled || ctx.Err() == context.DeadlineExceeded {
 					break
 				}
-				klog.Errorf("[podErrorHandler] get mountPod err:%v, podName: %s", err, pod.Name)
+				log.Error(err, "get mountPod err")
 			}
 			if !isDeleted {
-				klog.Errorf("[podErrorHandler] Old pod %s %s deleting timeout", pod.Name, config.Namespace)
-				return nil
+				log.Info("Old pod deleting timeout")
+				return Result{RequeueImmediately: true}, nil
 			}
 			var newPod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -261,61 +286,71 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) error 
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
 			if err != nil {
-				klog.Errorf("[podErrorHandler] create pod:%s err:%v", pod.Name, err)
+				log.Error(err, "mkdir mount point of pod")
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
+			if err != nil {
+				log.Error(err, "create pod")
 			}
 		} else {
-			klog.V(5).Infof("mountPod PodResourceError, but pod no resource, do nothing.")
+			log.Info("mountPod PodResourceError, but pod no resource, do nothing.")
 		}
 	}
-	klog.Errorf("[podErrorHandler]: Pod %s/%s with error: %s, %s", pod.Namespace, pod.Name, pod.Status.Reason, pod.Status.Message)
-	return nil
+	log.Info("Pod is error", "reason", pod.Status.Reason, "message", pod.Status.Message)
+	return Result{}, nil
 }
 
 // podDeletedHandler handles mount pod that will be deleted
-func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) error {
+func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	if pod == nil {
-		klog.Errorf("get nil pod")
-		return nil
+		podDriverLog.Info("get nil pod")
+		return Result{}, nil
 	}
-	klog.V(5).Infof("Pod %s in namespace %s is to be deleted.", pod.Name, pod.Namespace)
+	log := util.GenLog(ctx, podDriverLog, "podDeletedHandler")
+	log.Info("Pod is to be deleted.")
 
 	// pod with no finalizer
 	if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
-		klog.V(6).Infof("Pod %s in namespace %s has no finalizer, skip deleting", pod.Name, pod.Namespace)
+		log.V(1).Info("Pod has no finalizer, skip deleting")
 		// do nothing
-		return nil
+		return Result{}, nil
 	}
 
 	// remove finalizer of pod
 	if err := resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer); err != nil {
-		klog.Errorf("[podDeletedHandler] remove pod %s finalizer err:%v", pod.Name, err)
-		return err
+		log.Error(err, "remove pod finalizer error")
+		return Result{}, err
 	}
 
 	go p.checkMountPodStuck(pod)
 
 	// pod with resource error
 	if resource.IsPodResourceError(pod) {
-		klog.V(6).Infof("The pod is PodResourceError, podDeletedHandler skip delete the pod:%s", pod.Name)
-		return nil
+		log.V(1).Info("The pod is PodResourceError, skip delete the pod")
+		return Result{}, nil
 	}
 
 	// get mount point
-	sourcePath, _, err := util.GetMountPathOfPod(*pod)
+	sourcePath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
-		klog.Error(err)
-		return nil
+		log.Error(err, "get mount point error")
+		return Result{}, err
 	}
 
 	// check if it needs to create new one
-	klog.V(6).Infof("Annotations:%v", pod.Annotations)
+	log.V(1).Info("Get pod annotations", "annotations", pod.Annotations)
 	if pod.Annotations == nil {
-		return nil
+		return Result{}, nil
 	}
 	annotation := pod.Annotations
 	existTargets := make(map[string]string)
+
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
 
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
@@ -329,29 +364,31 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 		util.UmountPath(ctx, sourcePath)
 		// clean mount point
 		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-			klog.V(5).Infof("Clean mount point : %s", sourcePath)
+			log.Info("Clean mount point", "mountPath", sourcePath)
 			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 		})
 		if err != nil {
-			klog.Errorf("[podDeletedHandler] Clean mount point %s error: %v, podName:%s", sourcePath, err, pod.Name)
+			log.Error(err, "Clean mount point error", "mountPath", sourcePath)
 		}
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
-		return nil
+		// stop fuse fd and clean up socket
+		go fuse.GlobalFds.StopFd(context.TODO(), hashVal)
+		return Result{}, nil
 	}
 
-	lock := config.GetPodLock(pod.Name)
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
 	// create
-	klog.V(5).Infof("pod targetPath not empty, need create pod:%s", pod.Name)
+	log.Info("pod targetPath not empty, need create pod")
 
 	// check pod delete
 	for {
 		po, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err == nil && po.DeletionTimestamp != nil {
-			klog.V(6).Infof("pod %s %s is being deleted, waiting", pod.Name, pod.Namespace)
+			log.V(1).Info("pod is being deleted, waiting")
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
@@ -360,19 +397,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 				break
 			}
 			if apierrors.IsNotFound(err) {
-				// umount mount point before recreate mount pod
-				err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-					exist, _ := mount.PathExists(sourcePath)
-					if !exist {
-						return fmt.Errorf("%s not exist", sourcePath)
-					}
-					return nil
-				})
-				if err == nil {
-					klog.Infof("start to umount: %s", sourcePath)
-					util.UmountPath(ctx, sourcePath)
-				}
 				// create pod
+				oldSupportFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
 				var newPod = &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        pod.Name,
@@ -383,23 +409,43 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 					Spec: pod.Spec,
 				}
 				controllerutil.AddFinalizer(newPod, config.Finalizer)
-				klog.Infof("Need to create pod %s %s", pod.Name, pod.Namespace)
+				log.Info("Need to create pod")
 				if err := p.applyConfigPatch(ctx, newPod); err != nil {
-					klog.Errorf("apply config patch error, will ignore, err: %v", err)
+					log.Error(err, "apply config patch error, will ignore")
+				}
+				if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
+					if oldSupportFusePass {
+						// old image support fuse pass and new image do not support, stop fd in csi
+						fuse.GlobalFds.StopFd(ctx, hashVal)
+					}
+					// umount mount point before recreate mount pod
+					err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+						exist, _ := mount.PathExists(sourcePath)
+						if !exist {
+							return fmt.Errorf("%s not exist", sourcePath)
+						}
+						return nil
+					})
+					if err == nil {
+						log.Info("start to umount: %s", "mountPath", sourcePath)
+						_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+							util.UmountPath(ctx, sourcePath)
+							return nil
+						})
+					}
+				}
+				err = mkrMp(ctx, *newPod)
+				if err != nil {
+					log.Error(err, "mkdir mount point of pod")
 				}
 				_, err = p.Client.CreatePod(ctx, newPod)
 				if err != nil {
-					klog.Errorf("[podDeletedHandler] Create pod:%s err:%v", pod.Name, err)
+					log.Error(err, "Create pod")
 				}
-
-				if err := resource.WaitUtilMountReady(ctx, newPod.Name, sourcePath, defaultCheckoutTimeout); err != nil {
-					klog.Errorf("[podDeletedHandler] waitUtilMountReady pod %s error: %v", newPod.Name, err)
-					return err
-				}
-				return p.recover(ctx, newPod, sourcePath)
+				return Result{RequeueImmediately: true}, err
 			}
-			klog.Errorf("[podDeletedHandler] Get pod: %s err:%v", pod.Name, err)
-			return nil
+			log.Error(err, "Get pod error")
+			return Result{}, nil
 		}
 
 		// pod is created elsewhere
@@ -411,41 +457,46 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) erro
 			po.Annotations[k] = v
 		}
 		if err := resource.ReplacePodAnnotation(ctx, p.Client, pod, po.Annotations); err != nil {
-			klog.Errorf("[podDeletedHandler] Update pod %s %s error: %v", po.Name, po.Namespace, err)
+			log.Error(err, "Update pod error")
 		}
-		return err
+		return Result{}, err
 	}
 	err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
-	klog.V(5).Infof(err.Error())
-	return err
+	log.Error(err, "delete pod error")
+	return Result{}, err
 }
 
 // podPendingHandler handles mount pod that is pending
-func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) error {
+func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	if pod == nil {
-		return nil
+		return Result{}, nil
 	}
-	lock := config.GetPodLock(pod.Name)
+	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
+	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	lock := config.GetPodLock(hashVal)
 	lock.Lock()
 	defer lock.Unlock()
 
 	// check resource err
 	if resource.IsPodResourceError(pod) {
-		klog.V(5).Infof("waitUtilMount: Pod %s failed because of resource.", pod.Name)
+		log.Info("Pod failed because of resource.")
 		if resource.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.
 			_ = resource.RemoveFinalizer(ctx, p.Client, pod, config.Finalizer)
-			klog.V(5).Infof("Delete it and deploy again with no resource.")
+			log.Info("Delete it and deploy again with no resource.")
 			if err := p.Client.DeletePod(ctx, pod); err != nil {
-				klog.Errorf("delete po:%s err:%v", pod.Name, err)
-				return nil
+				log.Error(err, "delete pod error")
+				return Result{}, nil
 			}
 			isDeleted := false
 			// wait pod delete for 1min
 			for {
 				_, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 				if err == nil {
-					klog.V(6).Infof("pod %s %s still exists wait.", pod.Name, pod.Namespace)
+					log.V(1).Info("pod still exists wait.")
 					time.Sleep(time.Microsecond * 500)
 					continue
 				}
@@ -459,11 +510,11 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) erro
 				if ctx.Err() == context.Canceled || ctx.Err() == context.DeadlineExceeded {
 					break
 				}
-				klog.Errorf("[podPendingHandler] get mountPod err:%v, podName: %s", err, pod.Name)
+				log.Error(err, "get mountPod err")
 			}
 			if !isDeleted {
-				klog.Errorf("[podPendingHandler] Old pod %s %s deleting timeout", pod.Name, config.Namespace)
-				return nil
+				log.Info("Old pod deleting timeout")
+				return Result{}, nil
 			}
 			var newPod = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -476,67 +527,83 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) erro
 			}
 			controllerutil.AddFinalizer(newPod, config.Finalizer)
 			resource.DeleteResourceOfPod(newPod)
-			_, err := p.Client.CreatePod(ctx, newPod)
+			err := mkrMp(ctx, *newPod)
 			if err != nil {
-				klog.Errorf("[podPendingHandler] create pod:%s err:%v", pod.Name, err)
+				log.Error(err, "mkdir mount point of pod error")
+			}
+			_, err = p.Client.CreatePod(ctx, newPod)
+			if err != nil {
+				log.Error(err, "create pod error")
 			}
 		} else {
-			klog.V(5).Infof("mountPod PodResourceError, but pod no resource, do nothing.")
+			log.Info("mountPod PodResourceError, but pod no resource, do nothing.")
 		}
 	}
-	return nil
+	return Result{}, nil
 }
 
 // podReadyHandler handles mount pod that is ready
-func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) error {
+func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	if pod == nil {
-		klog.Errorf("[podReadyHandler] get nil pod")
-		return nil
+		return Result{}, nil
 	}
+	log := util.GenLog(ctx, podDriverLog, "podReadyHandler")
 
 	if pod.Annotations == nil {
-		return nil
+		return Result{}, nil
 	}
 	// get mount point
-	mntPath, _, err := util.GetMountPathOfPod(*pod)
+	mntPath, _, err := resource.GetMountPathOfPod(*pod)
 	if err != nil {
-		klog.Error(err)
-		return nil
+		log.Error(err, "get mount point error")
+		return Result{}, err
 	}
 
-	e := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		finfo, e := os.Stat(mntPath)
-		if e != nil {
-			return e
-		}
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				resource.MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
-			}
-		}
-		return e
-	})
+	lock := config.GetPodLock(pod.Name)
+	lock.Lock()
+	defer lock.Unlock()
 
-	if e != nil {
-		klog.Errorf("[podReadyHandler] stat mntPath: %s, podName: %s, err: %v, don't do recovery", mntPath, pod.Name, e)
-		return nil
+	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+	podHashVal := pod.Labels[config.PodJuiceHashLabelKey]
+
+	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
+	if err != nil {
+		if supFusePass {
+			log.Error(err, "pod is not ready within 60s")
+			// mount pod hang probably, close fd and delete it
+			log.Info("close fd and delete pod")
+			fuse.GlobalFds.CloseFd(podHashVal)
+			// umount it
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				util.UmountPath(ctx, mntPath)
+				return nil
+			})
+			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
+		}
+		log.Error(err, "pod is err, don't do recovery")
+		return Result{}, err
 	}
 
-	return p.recover(ctx, pod, mntPath)
+	return Result{}, p.recover(ctx, pod, mntPath)
 }
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
+	log := util.GenLog(ctx, podDriverLog, "recover")
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			mi := p.mit.resolveTarget(target)
+			mi := p.mit.resolveTarget(ctx, target)
 			if mi == nil {
-				klog.Errorf("[podReadyHandler] pod %s target %s resolve fail", pod.Name, target)
+				log.Info("pod target resolve fail", "target", target)
 				continue
 			}
 
-			p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi)
+			if err := p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi); err != nil {
+				return err
+			}
 			for _, ti := range mi.subPathTarget {
-				p.recoverTarget(ctx, pod.Name, mntPath, ti, mi)
+				if err := p.recoverTarget(ctx, pod.Name, mntPath, ti, mi); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -544,63 +611,72 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 }
 
 // recoverTarget recovers target path
-func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) {
+func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath string, ti *targetItem, mi *mountItem) error {
+	log := util.GenLog(ctx, podDriverLog, "recover")
 	switch ti.status {
 	case targetStatusNotExist:
-		klog.Errorf("pod %s target %s not exists, item count:%d", podName, ti.target, ti.count)
+		log.Info("pod target not exists", "target", ti.target, "item count", ti.count)
 		if ti.count > 0 {
 			// target exist in /proc/self/mountinfo file
 			// refer to this case: local target exist, but source which target binded has beed deleted
 			// if target is for pod subpath (volumeMount.subpath), this will cause user pod delete failed, so we help kubelet umount it
 			if mi.podDeleted {
+				log.Info("umount target", "count", ti.count)
 				p.umountTarget(ti.target, ti.count)
 			}
 		}
 
 	case targetStatusMounted:
 		// normal, most likely happen
-		klog.V(6).Infof("pod %s target %s is normal mounted", podName, ti.target)
+		log.V(1).Info("target is normal mounted", "target", ti.target)
 
 	case targetStatusNotMount:
-		klog.V(5).Infof("pod %s target %s is not mounted", podName, ti.target)
+		log.Info("target is not mounted", "target", ti.target)
 
 	case targetStatusCorrupt:
 		if ti.inconsistent {
 			// source paths (found in /proc/self/mountinfo) which target binded is inconsistent
 			// some unexpected things happened
-			klog.Errorf("pod %s target %s, source inconsistent", podName, ti.target)
+			log.Info("pod source inconsistent", "target", ti.target)
 			break
 		}
 		if mi.podDeleted {
-			klog.V(6).Infof("pod %s target %s, user pod has been deleted, don't do recovery", podName, ti.target)
+			log.V(1).Info("user pod has been deleted, don't do recovery", "target", ti.target)
 			break
 		}
 		// if not umountTarget, mountinfo file will increase unlimited
 		// if we umount all the target items, `mountPropagation` will lose efficacy
-		klog.V(5).Infof("umount pod %s target %s before recover and remain mount count %d", podName, ti.target, defaultTargetMountCounts)
+		log.Info("umount pod target before recover", "target", ti.target, "remain mount count", defaultTargetMountCounts)
 		// avoid umount target all, it will cause pod to write files in disk.
 		err := p.umountTargetUntilRemain(ctx, mi, ti.target, defaultTargetMountCounts)
 		if err != nil {
-			klog.Error(err)
-			break
+			log.Error(err, "umount target until remain error")
+			return err
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
-			_, err := os.Stat(sourcePath)
+			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				_, err = os.Stat(sourcePath)
+				return err
+			})
 			if err != nil {
-				klog.Errorf("pod %s target %s, stat volPath: %s err: %v, don't do recovery", podName, ti.target, sourcePath, err)
+				log.Error(err, "stat volPath error, don't do recovery", "target", ti.target, "mountPath", sourcePath)
 				break
 			}
 		}
-		klog.V(5).Infof("pod %s target %s recover volPath:%s", podName, ti.target, sourcePath)
+		log.Info("recover volPath", "target", ti.target, "mountPath", sourcePath)
 		mountOption := []string{"bind"}
 		if err := p.Mount(sourcePath, ti.target, "none", mountOption); err != nil {
-			klog.Errorf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+			ms := fmt.Sprintf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+			log.Error(err, "bind mount error")
+			return fmt.Errorf(ms)
 		}
 
 	case targetStatusUnexpect:
-		klog.Errorf("pod %s target %s reslove err:%v", podName, ti.target, ti.err)
+		log.Error(ti.err, "resolve target error")
+		return fmt.Errorf("pod %s target %s reslove err: %v", podName, ti.target, ti.err)
 	}
+	return nil
 }
 
 // umountTarget umount target path
@@ -608,10 +684,9 @@ func (p *PodDriver) umountTarget(target string, count int) {
 	if count <= 0 {
 		return
 	}
-	klog.V(5).Infof("umount target %d times", count)
 	for i := 0; i < count; i++ {
 		// ignore error
-		p.Unmount(target)
+		_ = p.Unmount(target)
 	}
 }
 
@@ -626,7 +701,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 			return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
 		}
 
-		mi := mit.resolveTarget(basemi.baseTarget.target)
+		mi := mit.resolveTarget(ctx, basemi.baseTarget.target)
 		if mi == nil {
 			return fmt.Errorf("pod target %s resolve fail", target)
 		}
@@ -644,15 +719,12 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 		}
 
 		util.UmountPath(subCtx, target)
-		select {
-		case <-subCtx.Done():
-			return fmt.Errorf("umountTargetWithRemain timeout")
-		}
 	}
 }
 
 // CleanUpCache clean up cache
 func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
+	log := util.GenLog(ctx, podDriverLog, "CleanUpCache")
 	if pod.Annotations[config.CleanCache] != "true" {
 		return
 	}
@@ -660,7 +732,7 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	uniqueId := pod.Annotations[config.UniqueId]
 	if uuid == "" && uniqueId == "" {
 		// no necessary info, return
-		klog.Errorf("[CleanUpCache] Can't get uuid and uniqueId from pod %s annotation. skip cache clean.", pod.Name)
+		log.Info("Can't get uuid and uniqueId from pod annotation. skip cache clean.")
 		return
 	}
 
@@ -677,17 +749,17 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 			if apierrors.IsTimeout(err) {
 				break
 			}
-			klog.V(5).Infof("[CleanUpCache] Get pod %s error %v. Skip clean cache.", pod.Name, err)
+			log.Info("Get pod error. Skip clean cache.", "error", err)
 			return
 		}
 		time.Sleep(time.Microsecond * 500)
 	}
 
 	if !isDeleted {
-		klog.Errorf("[CleanUpCache] Mount pod %s not deleted in 3 min. Skip clean cache.", pod.Name)
+		log.Info("Mount pod not deleted in 3 min. Skip clean cache.")
 		return
 	}
-	klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s in node %s", uniqueId, config.NodeName)
+	log.Info("Cleanup cache of volume", "uniqueId", uniqueId, "node", config.NodeName)
 	podMnt := podmount.NewPodMount(p.Client, p.SafeFormatAndMount)
 	cacheDirs := []string{}
 	for _, dir := range pod.Spec.Volumes {
@@ -697,7 +769,7 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 	}
 	image := pod.Spec.Containers[0].Image
 	if err := podMnt.CleanCache(ctx, image, uuid, uniqueId, cacheDirs); err != nil {
-		klog.V(5).Infof("[CleanUpCache] Cleanup cache of volume %s error %v", uniqueId, err)
+		log.Error(err, "Cleanup cache of volume error", "uniqueId", uniqueId)
 	}
 }
 
@@ -740,8 +812,13 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
 		return
 	}
-	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
-	defer resource.MountPointDevMinorTable.Delete(mountPoint)
+	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
+	mountPoint, _, _ := resource.GetMountPathOfPod(*pod)
+	defer func() {
+		if runtime.GOOS == "linux" {
+			util.DevMinorTableDelete(mountPoint)
+		}
+	}()
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
@@ -756,13 +833,15 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	for {
 		select {
 		case <-ctx.Done():
-			klog.V(5).Infof("pod %s/%s may be stuck in terminating state, create a job to abort fuse connection", pod.Namespace, pod.Name)
-			if devMinor, ok := resource.MountPointDevMinorTable.Load(mountPoint); ok {
-				if err := p.doAbortFuse(pod, devMinor.(uint32)); err != nil {
-					klog.Errorf("abort fuse connection error: %v", err)
+			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
+			if runtime.GOOS == "linux" {
+				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
+					if err := p.doAbortFuse(pod, devMinor); err != nil {
+						log.Error(err, "abort fuse connection error")
+					}
+				} else {
+					log.Info("can't find devMinor of mountPoint", "mount point", mountPoint)
 				}
-			} else {
-				klog.Errorf("can't find devMinor of mountPoint %s", mountPoint)
 			}
 			return
 		default:
@@ -776,9 +855,10 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 }
 
 func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
+	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", mountpod.Name)
 	job := builder.NewFuseAbortJob(mountpod, devMinor)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
-		klog.Errorf("create fuse abort job error: %v", err)
+		log.Error(err, "create fuse abort job error")
 		return err
 	}
 
@@ -787,7 +867,7 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	defer cancel()
 	for {
 		if waitCtx.Err() == context.Canceled || waitCtx.Err() == context.DeadlineExceeded {
-			klog.Errorf("fuse abort job %s/%s timeout", job.Namespace, job.Name)
+			log.Error(waitCtx.Err(), "fuse abort job timeout", "namespace", job.Namespace, "name", job.Name)
 			break
 		}
 		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
@@ -795,15 +875,56 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			break
 		}
 		if err != nil {
-			klog.Errorf("get fuse abort job %s/%s error: %v", err, job.Namespace, job.Name)
+			log.Error(err, "get fuse abort job error", "namespace", job.Namespace, "name", job.Name)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 		if resource.IsJobCompleted(job) {
-			klog.V(5).Infof("fuse abort job %s/%s completed", job.Namespace, job.Name)
+			log.Info("fuse abort job completed", "namespace", job.Namespace, "name", job.Name)
 			break
 		}
 		time.Sleep(10 * time.Second)
+	}
+	return nil
+}
+
+func mkrMp(ctx context.Context, pod corev1.Pod) error {
+	log := util.GenLog(ctx, podDriverLog, "mkrMp")
+	var shouldMkrMp bool
+	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		cn := pod.Spec.Containers[0]
+		if cn.Lifecycle != nil && cn.Lifecycle.PreStop != nil && cn.Lifecycle.PreStop.Exec != nil {
+			for _, cmd := range cn.Lifecycle.PreStop.Exec.Command {
+				if strings.Contains(cmd, "rmdir") {
+					shouldMkrMp = true
+				}
+			}
+		}
+	} else {
+		shouldMkrMp = true
+	}
+	if !shouldMkrMp {
+		return nil
+	}
+	log.V(1).Info("Prepare mountpoint for pod")
+	// mkdir mountpath
+	// get mount point
+	var mntPath string
+	var err error
+	mntPath, _, err = resource.GetMountPathOfPod(pod)
+	if err != nil {
+		log.Error(err, "get mount point error")
+		return err
+	}
+	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+		exist, _ := mount.PathExists(mntPath)
+		if !exist {
+			return os.MkdirAll(mntPath, 0777)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

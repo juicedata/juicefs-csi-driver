@@ -6,7 +6,119 @@ sidebar_position: 6
 
 Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, you should already be familiar with [the JuiceFS CSI Architecture](../introduction.md#architecture), i.e. have a basic understanding of the roles of each CSI Driver component.
 
-## Diagnostic script {#csi-doctor}
+## Troubleshooting tools {#tools}
+
+### CSI dashboard {#csi-dashboard}
+
+CSI dashboard is installed along with JuiceFS CSI Driver, it provides a web interface to view the status of JuiceFS CSI Driver components. Also, you can see all PVs, PVCs, and Pods that are using JuiceFS PVs. With CSI dashboard, you can easily debug and troubleshoot. Strongly recommended to use dashboard.
+
+Access the dashboard and you can see the following interface:
+
+![CSI Dashboard](../images/csi-dashboard.png)
+
+As shown in the figure, all the related resources are displayed in the dashboard, you can click on the resource to view detailed information.
+
+### kubectl plugin {#kubectl-plugin}
+
+JuiceFS provides a kubectl plugin to help you easily debug and troubleshoot in Kubernetes.
+
+#### Installation {#kubectl-jfs-plugin-installation}
+
+The one-click installation script is available for Linux and macOS systems. It automatically downloads and installs the latest version of the plugin based on your hardware architecture. Here is how to use it:
+
+```shell
+# default installation path is /usr/local/bin
+curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
+```
+
+If [krew](https://github.com/kubernetes-sigs/krew) has been installed in cluster, you can also install the plugin via `krew`:
+
+```shell
+kubectl krew update
+kubectl krew install jfs
+```
+
+#### Usage {#kubectl-jfs-plugin-usage}
+
+```shell
+# show all application pods using JuiceFS PV quickly
+$ kubectl jfs po
+NAME                       NAMESPACE  MOUNT PODS                                             STATUS             AGE
+cn-wrong-7b7577678d-7j8dc  default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  CrashLoopBackOff   10d
+image-wrong                default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  ImagePullBackOff   10d
+multi-mount-pod            default    juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy,       Running            11d
+                                      juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+normal-664f8b8846-ntfzk    default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  Running            11d
+pending                    default    <none>                                                 Pending            11d
+res-err                    default    <none>                                                 Pending            11d
+terminating                default    <none>                                                 Terminating        10d
+wrong                      default    juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             ContainerCreating  10d
+
+# show all JuiceFS Mount Pods quickly. By default, Mount Pod is in kube-system, you can specify the namespace where Mount Pod is located with the -m parameter
+$ kubectl jfs mount
+NAME                                                   NAMESPACE    APP PODS                            STATUS   CSI NODE                AGE
+juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy        kube-system  default/multi-mount-pod             Running  juicefs-csi-node-v6pq5  11d
+juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  kube-system  default/cn-wrong-7b7577678d-7j8dc,  Running  juicefs-csi-node-v6pq5  11d
+                                                                    default/image-wrong,
+                                                                    default/multi-mount-pod,
+                                                                    default/normal-664f8b8846-ntfzk
+juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             kube-system  default/wrong                       Running  juicefs-csi-node-v6pq5  10d
+
+# show all JuiceFS PV / PVC quickly
+$ kubectl jfs pv
+$ kubectl jfs pvc
+```
+
+For problematic application pods, PVCs, and PVs, you can use the following commands for preliminary diagnosis, and the JuiceFS plugin will suggest the next steps for troubleshooting:
+
+```shell
+# troubleshooting application pod
+$ kubectl jfs debug pod wrong
+Name:        wrong
+Namespace:   default
+Start Time:  Mon, 24 Jun 2024 15:15:52 +0800
+Status:      ContainerCreating
+Node:
+  Name:    cn-hangzhou.10.0.1.84
+  Status:  Ready
+CSI Node:
+  Name:       juicefs-csi-node-v6pq5
+  Namespace:  kube-system
+  Status:     Ready
+PVCs:
+  Name   Status  PersistentVolume
+  ----   ------  ----------------
+  wrong  Bound   wrong
+Mount Pods:
+  Name                                        Namespace    Status
+  ----                                        ---------    ------
+  juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj  kube-system  Error
+Failed Reason:
+  Mount pod [juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj] is not ready, please check its log.
+
+# troubleshooting JuiceFS PVC
+$ kubectl jfs debug pvc <pvcName>
+$ kubectl jfs debug pv <pvName>
+```
+
+Furthermore, there are quick ways to obtain access log of Mount Pod and warmup cache:
+
+```shell
+# Get Mount Pod access log: kubectl jfs accesslog <pod-name> -m <mount-namespace>
+$ kubectl jfs accesslog juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+2024.07.05 14:09:57.392403 [uid:0,gid:0,pid:201] open (9223372032559808513): OK [fh:25] <0.000054>
+#
+
+# Warmup cache: kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace>
+$ kubectl jfs warmup juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
+2024/07/05 14:10:52.628976 juicefs[207] <INFO>: Successfully warmed up 2 files (1090721713 bytes) [warmup.go:226]
+```
+
+### Diagnostic script {#csi-doctor}
+
+:::note
+Please use [kubectl plugin](#kubectl-plugin) first. If it cannot meet your needs, try using the diagnostic script again.
+:::
 
 It is recommended to use the diagnostic script [`csi-doctor.sh`](https://github.com/juicedata/juicefs-csi-driver/blob/master/scripts/csi-doctor.sh) to collect logs and related information, without this script, you'll have to manually execute a series of commands (introduced in other sections in this chapter) to obtain information.
 

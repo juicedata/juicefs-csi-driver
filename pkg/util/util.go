@@ -17,11 +17,11 @@ limitations under the License.
 package util
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -34,11 +34,9 @@ import (
 	"syscall"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/klog/v2"
+	"k8s.io/utils/io"
 )
 
 const (
@@ -47,9 +45,9 @@ const (
 	procMountInfoPath                    = "/proc/self/mountinfo"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var (
+	utilLog = klog.NewKlogr().WithName("util")
+)
 
 type mountInfo struct {
 	// Unique ID for the mount (maybe reused after umount).
@@ -110,30 +108,8 @@ func pathWithinBase(fullPath, basePath string) bool {
 	return !startsWithBackstep(rel)
 }
 
-// ConsistentRead repeatedly reads a file until it gets the same content twice.
-// This is useful when reading files in /proc that are larger than page size
-// and kernel may modify them between individual read() syscalls.
-func ConsistentRead(filename string, attempts int) ([]byte, error) {
-	oldContent, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	for i := 0; i < attempts; i++ {
-		newContent, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return nil, err
-		}
-		if bytes.Compare(oldContent, newContent) == 0 {
-			return newContent, nil
-		}
-		// Files are different, continue reading
-		oldContent = newContent
-	}
-	return nil, fmt.Errorf("could not get consistent content of %s after %d attempts", filename, attempts)
-}
-
 func parseMountInfo(filename string) ([]mountInfo, error) {
-	content, err := ConsistentRead(filename, maxListTries)
+	content, err := io.ConsistentRead(filename, maxListTries)
 	if err != nil {
 		return []mountInfo{}, err
 	}
@@ -274,36 +250,6 @@ func GetReferenceKey(target string) string {
 	return fmt.Sprintf("juicefs-%x", h.Sum(nil))[:63]
 }
 
-func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
-	if len(pod.Spec.Containers) == 0 {
-		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
-	}
-	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
-		return "", "", fmt.Errorf("get error pod command:%v", cmd)
-	}
-	sourcePath, volumeId, err := ParseMntPath(cmd[2])
-	if err != nil {
-		return "", "", err
-	}
-	return sourcePath, volumeId, nil
-}
-
-// ParseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
-func ParseMntPath(cmd string) (string, string, error) {
-	cmds := strings.Split(cmd, "\n")
-	mountCmd := cmds[len(cmds)-1]
-	args := strings.Fields(mountCmd)
-	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
-		return "", "", fmt.Errorf("err cmd:%s", cmd)
-	}
-	argSlice := strings.Split(args[2], "/")
-	if len(argSlice) < 3 {
-		return "", "", fmt.Errorf("err mntPath:%s", args[2])
-	}
-	return args[2], argSlice[2], nil
-}
-
 // GetTimeAfterDelay get time which after delay
 func GetTimeAfterDelay(delayStr string) (string, error) {
 	delay, err := time.ParseDuration(delayStr)
@@ -355,8 +301,9 @@ var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandStringRunes(n int) string {
 	b := make([]rune, n)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		b[i] = letterRunes[r.Intn(len(letterRunes))]
 	}
 	return string(b)
 }
@@ -376,9 +323,22 @@ func DoWithContext(ctx context.Context, f func() error) error {
 }
 
 func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	defer cancel()
-	return DoWithContext(ctx, f)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	doneCh := make(chan error)
+	go func() {
+		doneCh <- f()
+	}()
+
+	select {
+	case <-parent.Done():
+		return parent.Err()
+	case <-timer.C:
+		return errors.New("function timeout")
+	case err := <-doneCh:
+		return err
+	}
 }
 
 func CheckDynamicPV(name string) (bool, error) {
@@ -386,11 +346,13 @@ func CheckDynamicPV(name string) (bool, error) {
 }
 
 func UmountPath(ctx context.Context, sourcePath string) {
+	log := GenLog(ctx, utilLog, "Umount")
 	out, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
-	if !strings.Contains(string(out), "not mounted") &&
+	if err != nil &&
+		!strings.Contains(string(out), "not mounted") &&
 		!strings.Contains(string(out), "mountpoint not found") &&
 		!strings.Contains(string(out), "no mount point specified") {
-		klog.Errorf("Could not lazy unmount %q: %v, output: %s", sourcePath, err, string(out))
+		log.Error(err, "Could not lazy unmount", "path", sourcePath, "out", string(out))
 	}
 }
 
@@ -439,7 +401,7 @@ func GetDiskUsage(path string) (uint64, uint64, uint64, uint64) {
 		freeFiles := stat.Ffree
 		return totalSize, freeSize, totalFiles, freeFiles
 	} else {
-		klog.Errorf("GetDiskUsage: syscall.Statfs failed: %v", err)
+		utilLog.Error(err, "GetDiskUsage: syscall.Statfs failed")
 		return 1, 1, 1, 1
 	}
 }
@@ -448,13 +410,6 @@ func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry
 	registry := prometheus.NewRegistry() // replace default so only JuiceFS metrics are exposed
 	registerer := prometheus.WrapRegistererWithPrefix("juicefs_", prometheus.WrapRegistererWith(prometheus.Labels{"node_name": nodeName}, registry))
 	return registerer, registry
-}
-
-// DevMinor returns the minor component of a Linux device number.
-func DevMinor(dev uint64) uint32 {
-	minor := dev & 0xff
-	minor |= (dev >> 12) & 0xffffff00
-	return uint32(minor)
 }
 
 // ParseToBytes parses a string with a unit suffix (e.g. "1M", "2G") to bytes.
@@ -493,4 +448,96 @@ func ParseToBytes(value string) (uint64, error) {
 	val *= float64(uint64(1) << shift)
 
 	return uint64(val), nil
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err) //skip mutate
+}
+
+type ClientVersion struct {
+	IsCe  bool
+	Dev   bool
+	Major int
+	Minor int
+	Patch int
+}
+
+const ceImageRegex = `ce-v(\d+)\.(\d+)\.(\d+)`
+const eeImageRegex = `ee-(\d+)\.(\d+)\.(\d+)`
+
+func (v ClientVersion) LessThan(o ClientVersion) bool {
+	if o.Dev {
+		// dev version is always greater
+		return true
+	}
+	if v.Dev {
+		return false
+	}
+	if o.Major > v.Major {
+		return true
+	}
+	if o.Minor > v.Minor {
+		return true
+	}
+	if o.Patch > v.Patch {
+		return true
+	}
+	return false
+}
+
+func parseClientVersion(image string) ClientVersion {
+	if image == "" {
+		return ClientVersion{}
+	}
+	imageSplits := strings.SplitN(image, ":", 2)
+	if len(imageSplits) < 2 {
+		// latest
+		return ClientVersion{IsCe: true, Major: math.MaxInt32}
+	}
+	_, tag := imageSplits[0], imageSplits[1]
+	version := ClientVersion{Dev: true}
+	var re *regexp.Regexp
+
+	if strings.HasPrefix(tag, "ce-") {
+		version.IsCe = true
+		re = regexp.MustCompile(ceImageRegex)
+	} else if strings.HasPrefix(tag, "ee-") {
+		version.IsCe = false
+		re = regexp.MustCompile(eeImageRegex)
+	}
+
+	if re != nil {
+		matches := re.FindStringSubmatch(tag)
+		if len(matches) == 4 {
+			version.Major, _ = strconv.Atoi(matches[1])
+			version.Minor, _ = strconv.Atoi(matches[2])
+			version.Patch, _ = strconv.Atoi(matches[3])
+			version.Dev = false
+		}
+	}
+
+	return version
+}
+
+func SupportFusePass(image string) bool {
+	v := parseClientVersion(image)
+	ceFuseVersion := ClientVersion{
+		IsCe:  true,
+		Dev:   false,
+		Major: 1,
+		Minor: 2,
+		Patch: 1,
+	}
+	eeFuseVersion := ClientVersion{
+		IsCe:  false,
+		Dev:   false,
+		Major: 5,
+		Minor: 1,
+		Patch: 0,
+	}
+	if v.IsCe {
+		return !v.LessThan(ceFuseVersion)
+	}
+	return !v.LessThan(eeFuseVersion)
 }

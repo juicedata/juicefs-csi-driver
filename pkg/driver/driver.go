@@ -22,14 +22,17 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+)
 
-	"github.com/prometheus/client_golang/prometheus"
+var (
+	driverLog = klog.NewKlogr().WithName("driver")
 )
 
 // Driver struct
@@ -47,14 +50,14 @@ func NewDriver(endpoint string, nodeID string,
 	leaderElection bool,
 	leaderElectionNamespace string,
 	leaderElectionLeaseDuration time.Duration, reg prometheus.Registerer) (*Driver, error) {
-	klog.Infof("Driver: %v version %v commit %v date %v", config.DriverName, driverVersion, gitCommit, buildDate)
+	driverLog.Info("get version info", "driver", config.DriverName, "verison", driverVersion, "commit", gitCommit, "date", buildDate)
 
 	var k8sClient *k8sclient.K8sClient
 	if !config.ByProcess {
 		var err error
 		k8sClient, err = k8sclient.NewClient()
 		if err != nil {
-			klog.V(5).Infof("Can't get k8s client: %v", err)
+			driverLog.Error(err, "Can't get k8s client")
 			return nil, err
 		}
 	}
@@ -99,7 +102,7 @@ func (d *Driver) Run() error {
 	logErr := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		resp, err := handler(ctx, req)
 		if err != nil {
-			klog.Errorf("GRPC error: %v", err)
+			driverLog.Error(err, "GRPC error")
 		}
 		return resp, err
 	}
@@ -112,12 +115,12 @@ func (d *Driver) Run() error {
 	csi.RegisterControllerServer(d.srv, d)
 	csi.RegisterNodeServer(d.srv, d)
 
-	klog.Infof("Listening for connection on address: %#v", listener.Addr())
+	driverLog.Info("Listening for connection on address", "address", listener.Addr())
 	return d.srv.Serve(listener)
 }
 
 // Stop stops server
 func (d *Driver) Stop() {
-	klog.Infof("Stopped server")
+	driverLog.Info("Stopped server")
 	d.srv.Stop()
 }

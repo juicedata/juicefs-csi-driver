@@ -17,7 +17,9 @@ limitations under the License.
 package builder
 
 import (
+	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -25,6 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodBuilder struct {
@@ -41,7 +45,7 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 }
 
 // NewMountPod generates a pod with juicefs client
-func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
+func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	pod := r.genCommonJuicePod(r.genCommonContainer)
 
 	pod.Name = podName
@@ -52,10 +56,22 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 		cmd = strings.Join([]string{initCmd, mountCmd}, "\n")
 	}
 	pod.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
-	pod.Spec.Containers[0].Env = []corev1.EnvVar{{
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 		Name:  "JFS_FOREGROUND",
 		Value: "1",
-	}}
+	})
+
+	// inject fuse fd
+	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		fdAddress, err := fuse.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
+		if err != nil {
+			return nil, err
+		}
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  JfsCommEnv,
+			Value: fdAddress,
+		})
+	}
 
 	// generate volumes and volumeMounts only used in mount pod
 	volumes, volumeMounts := r.genPodVolumes()
@@ -72,7 +88,18 @@ func (r *PodBuilder) NewMountPod(podName string) *corev1.Pod {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, mountVolumes...)
 	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, mountVolumeMounts...)
 
-	return pod
+	// add users custom volumes, volumeMounts, volumeDevices
+	if r.jfsSetting.Attr.Volumes != nil {
+		pod.Spec.Volumes = append(pod.Spec.Volumes, r.jfsSetting.Attr.Volumes...)
+	}
+	if r.jfsSetting.Attr.VolumeMounts != nil {
+		pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, r.jfsSetting.Attr.VolumeMounts...)
+	}
+	if r.jfsSetting.Attr.VolumeDevices != nil {
+		pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices, r.jfsSetting.Attr.VolumeDevices...)
+	}
+
+	return pod, nil
 }
 
 // genCommonContainer: generate common privileged container
@@ -211,24 +238,42 @@ func (r *PodBuilder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts
 // genPodVolumes: generate volumes for mount pod
 // 1. jfs dir: mount point used to propagate the mount point in the mount container to host
 // 2. update db dir: mount updatedb.conf from host to mount pod
+// 3. jfs fuse fd path: mount fuse fd pass socket to mount pod
 func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	dir := corev1.HostPathDirectoryOrCreate
 	file := corev1.HostPathFileOrCreate
 	mp := corev1.MountPropagationBidirectional
-	volumes := []corev1.Volume{{
-		Name: JfsDirName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: config.MountPointPath,
-				Type: &dir,
+	volumes := []corev1.Volume{
+		{
+			Name: JfsDirName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: config.MountPointPath,
+					Type: &dir,
+				},
 			},
 		},
-	}}
-	volumeMounts := []corev1.VolumeMount{{
-		Name:             JfsDirName,
-		MountPath:        config.PodMountBase,
-		MountPropagation: &mp,
-	}}
+		{
+			Name: JfsFuseFdPathName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: path.Join(JfsFuseFsPathInHost, r.jfsSetting.HashVal),
+					Type: &dir,
+				},
+			},
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:             JfsDirName,
+			MountPath:        config.PodMountBase,
+			MountPropagation: &mp,
+		},
+		{
+			Name:      JfsFuseFdPathName,
+			MountPath: JfsFuseFsPathInPod,
+		},
+	}
 
 	if !config.Immutable {
 		volumes = append(volumes, corev1.Volume{

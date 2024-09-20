@@ -249,13 +249,17 @@ plugin_id = "juicefs0"
 secrets {
   name="juicefs-volume"
   token="**********"
+  access-key="*****"
+  secret-key="*****"
 }
 ```
 
 其中：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/metadata#令牌管理)
+- `token`：JuiceFS 管理 token。更多信息参考[这篇文档](https://juicefs.com/docs/zh/cloud/acl#access-token)
+- `access-key`：对象存储的 access key。
+- `secret-key`：对象存储的 secret key。
 
 创建 volume：
 

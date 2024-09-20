@@ -36,7 +36,8 @@ const LogModal: React.FC<{
     const [editor, setEditor] = useState<editor.IStandaloneCodeEditor | null>(
       null,
     )
-    const [state, doFetch] = useDownloadPodLogs(namespace, name, container)
+    const [autoReveal, setAutoReveal] = useState<boolean>(true)
+    const [state, actions] = useDownloadPodLogs(namespace, name, container)
 
     useWebsocket(
       `/api/v1/ws/pod/${namespace}/${name}/${container}/${type}`,
@@ -45,6 +46,16 @@ const LogModal: React.FC<{
           previous: previous ? 'true' : 'false',
         },
         onMessage: (msg) => {
+          if (editor) {
+            const model = editor.getModel()
+            if (!model) return
+            const visibleLine = editor.getVisibleRanges()[0]
+            if (visibleLine.endLineNumber < model.getLineCount()) {
+              setAutoReveal(false)
+            } else {
+              setAutoReveal(true)
+            }
+          }
           setData((prev) => prev + msg.data)
         },
       },
@@ -55,8 +66,10 @@ const LogModal: React.FC<{
       if (!editor) return
       const model = editor.getModel()
       if (!model) return
-      editor.revealLine(model.getLineCount())
-    }, [data, editor])
+      if (autoReveal) {
+        editor.revealLine(model.getLineCount())
+      }
+    }, [data, editor, autoReveal])
 
     const showModal = () => {
       setIsModalOpen(true)
@@ -87,9 +100,9 @@ const LogModal: React.FC<{
                 {type === 'logs' ? (
                   <>
                     <Button
-                      loading={state.loading}
+                      loading={state.status === 'loading'}
                       onClick={() => {
-                        doFetch()
+                        actions.execute()
                         console.log('Download full log')
                       }}
                     >

@@ -29,6 +29,7 @@ import (
 	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	k8sMount "k8s.io/utils/mount"
 
@@ -52,6 +53,7 @@ func TestNewProcessMount(t *testing.T) {
 				setting: nil,
 			},
 			want: &ProcessMount{
+				klog.NewKlogr().WithName("process-mount"),
 				k8sMount.SafeFormatAndMount{
 					Interface: k8sMount.New(""),
 					Exec:      k8sexec.New(),
@@ -99,6 +101,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			}
 			mockMounter.EXPECT().Unmount(targetPath).Return(nil)
 			p := &ProcessMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: *mounter,
 			}
 			if err := p.JUmount(context.TODO(), targetPath, podName); err != nil {
@@ -111,6 +114,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			})
 			defer patch1.Reset()
 			p := &ProcessMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -143,6 +147,7 @@ func TestProcessMount_JUmount(t *testing.T) {
 			}
 			mockMounter.EXPECT().Unmount(targetPath).Return(errors.New("test"))
 			p := &ProcessMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: *mounter,
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -176,6 +181,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				}
 				mockMounter.EXPECT().Mount(eeSource, targetPath, jfsConfig.FsType, nil).Return(nil)
 				p := &ProcessMount{
+					log:                klog.NewKlogr(),
 					SafeFormatAndMount: *mounter,
 				}
 				if err := p.JMount(context.TODO(), nil, &jfsConfig.JfsSetting{
@@ -204,6 +210,7 @@ func TestProcessMount_JMount(t *testing.T) {
 				}
 				mockMounter.EXPECT().Mount(eeSource, targetPath, jfsConfig.FsType, nil).Return(errors.New("test"))
 				p := &ProcessMount{
+					log:                klog.NewKlogr(),
 					SafeFormatAndMount: *mounter,
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -259,6 +266,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(false, nil)
 						mockMounter.EXPECT().Unmount(targetPath).Return(nil)
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: *mounter,
 						}
 						if err := p.JMount(context.TODO(), nil, &jfsConfig.JfsSetting{
@@ -300,6 +308,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: *mounter,
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -343,6 +352,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(true, nil)
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: *mounter,
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -362,6 +372,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						})
 						defer patch1.Reset()
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -384,6 +395,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						})
 						defer patch2.Reset()
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: k8sMount.SafeFormatAndMount{},
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -411,6 +423,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						}
 						mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(false, errors.New("test"))
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: *mounter,
 						}
 						ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -439,6 +452,7 @@ func TestProcessMount_JMount(t *testing.T) {
 						mockMounter.EXPECT().IsLikelyNotMountPoint(targetPath).Return(false, nil)
 						mockMounter.EXPECT().Unmount(targetPath).Return(errors.New("test"))
 						p := &ProcessMount{
+							log:                klog.NewKlogr(),
 							SafeFormatAndMount: *mounter,
 						}
 

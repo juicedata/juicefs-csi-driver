@@ -19,7 +19,7 @@ package k8sclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -30,13 +30,15 @@ import (
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
 	defaultKubeletTimeout   = 10
 	serviceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
+
+var kubeletLog = klog.NewKlogr().WithName("kubelet-client")
 
 type KubeletClient struct {
 	host   string
@@ -115,7 +117,7 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 	kubeletClientKey := os.Getenv("KUBELET_CLIENT_KEY")
 	if kubeletClientCert == "" && kubeletClientKey == "" {
 		// get CSI sa token
-		tokenByte, err := ioutil.ReadFile(serviceAccountTokenFile)
+		tokenByte, err := os.ReadFile(serviceAccountTokenFile)
 		if err != nil {
 			return nil, fmt.Errorf("in cluster mode, find token failed: %v", err)
 		}
@@ -161,7 +163,7 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +172,7 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	}
 	podLists := &corev1.PodList{}
 	if err = json.Unmarshal(body, &podLists); err != nil {
-		klog.V(5).Infof("GetNodeRunningPods err: %s", body)
+		kubeletLog.Error(err, "GetNodeRunningPods err", "body", body)
 		return nil, err
 	}
 	return podLists, err

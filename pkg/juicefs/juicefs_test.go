@@ -321,9 +321,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
@@ -334,7 +332,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -398,7 +396,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", errors.New("test")
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -419,9 +417,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 			}
 
 			jf := &juicefs{}
-			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {
-				return
-			})
+			patch2 := ApplyMethod(reflect.TypeOf(jf), "Upgrade", func(_ *juicefs) {})
 			defer patch2.Reset()
 			var tmpCmd = &exec.Cmd{}
 			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
@@ -432,7 +428,7 @@ func Test_juicefs_JfsMount(t *testing.T) {
 				return "", nil
 			})
 			defer patch4.Reset()
-			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, name string) (string, error) {
+			patch5 := ApplyMethod(reflect.TypeOf(jf), "GetJfsVolUUID", func(_ *juicefs, _ context.Context, jfsSetting *config.JfsSetting) (string, error) {
 				return "test", nil
 			})
 			defer patch5.Reset()
@@ -646,6 +642,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -677,6 +677,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, errors.New("test")
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -718,6 +722,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -754,6 +762,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -790,6 +802,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return true, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -826,6 +842,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return false, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -861,6 +881,10 @@ func Test_juicefs_MountFs(t *testing.T) {
 				return false, nil
 			})
 			defer patch1.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
@@ -1042,7 +1066,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			id, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting{
+				Source: "test",
+				Envs:   map[string]string{},
+			}
+			id, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldBeNil)
 			So(id, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
 		})
@@ -1062,7 +1090,11 @@ func Test_juicefs_getVolumeUUID(t *testing.T) {
 				K8sClient:          nil,
 				processMount:       podmount.NewProcessMount(*mounter),
 			}
-			_, err := jfs.GetJfsVolUUID(context.TODO(), "test")
+			setting := &config.JfsSetting{
+				Source: "test",
+				Envs:   map[string]string{},
+			}
+			_, err := jfs.GetJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -1204,279 +1236,6 @@ func Test_juicefs_validTarget(t *testing.T) {
 			j := &juicefs{}
 			if got := j.validTarget(tt.args.target); (got != nil) != tt.wantErr {
 				t.Errorf("validTarget() = %v, wantErr %v", got, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_juicefs_validOptions(t *testing.T) {
-	type args struct {
-		volumeId string
-		options  []string
-		volCtx   map[string]string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		wantErr bool
-	}{
-		{
-			name: "test-normal",
-			args: args{
-				volumeId: "test",
-				options:  []string{"cache-dir=xxx"},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-space1",
-			args: args{
-				volumeId: "test",
-				options:  []string{" cache-dir=xxx "},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-space2",
-			args: args{
-				volumeId: "test",
-				options:  []string{" cache-dir = xxx "},
-			},
-			want:    []string{"cache-dir=xxx"},
-			wantErr: false,
-		},
-		{
-			name: "test-error",
-			args: args{
-				volumeId: "test",
-				options:  []string{"cache-dir=xxx cache-size=1024"},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=1024"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "1Mi",
-				},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize-with-unit",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=1024M"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "1Mi",
-				},
-			},
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name: "test-buffersize-with-unit",
-			args: args{
-				volumeId: "test",
-				options:  []string{"buffer-size=10M"},
-				volCtx: map[string]string{
-					config.MountPodMemLimitKey: "20Mi",
-				},
-			},
-			want:    []string{"buffer-size=10M"},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			j := &juicefs{}
-			got, err := j.validOptions(tt.args.volumeId, tt.args.options, tt.args.volCtx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("validOptions() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_parseRawVersion(t *testing.T) {
-	type parseRawVersionCase struct {
-		name string
-		raw  string
-		want clientVersion
-		fail bool
-	}
-
-	cases := []parseRawVersionCase{
-		{
-			name: "test-normal",
-			raw:  "juicefs version 0.11.0",
-			want: clientVersion{
-				Major: 0,
-				Minor: 11,
-				Patch: 0,
-			},
-		},
-		{
-			name: "test-normal2",
-			raw:  "juicefs version 0.11.0-rc1",
-			want: clientVersion{
-				Major: 0,
-				Minor: 11,
-				Patch: 0,
-			},
-		},
-		{
-			name: "test-normal3",
-			raw:  "juicefs version 1.1.0-dev+2023-04-12.2488ce21",
-			want: clientVersion{
-				Major: 1,
-				Minor: 1,
-				Patch: 0,
-			},
-		},
-		{
-			name: "test-normal4",
-			raw:  "JuiceFS version 4.10.0 (2023-04-10 9e92fe6f)",
-			want: clientVersion{
-				Major: 4,
-				Minor: 10,
-				Patch: 0,
-			},
-		},
-		{
-			name: "test-normal5",
-			raw:  "juicefs version 1.0.4+2023-04-06.f1c475d9",
-			want: clientVersion{
-				Major: 1,
-				Minor: 0,
-				Patch: 4,
-			},
-		},
-		{
-			name: "test-error",
-			raw:  "juicefs version 0.11",
-			want: clientVersion{},
-			fail: true,
-		},
-		{
-			name: "test-error2",
-			raw:  "juicefs version",
-			want: clientVersion{},
-			fail: true,
-		},
-		{
-			name: "test-error3",
-			raw:  "juicefs 0.11",
-			want: clientVersion{},
-			fail: true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got, err := parseRawVersion(c.raw)
-			if err != nil && !c.fail {
-				t.Errorf("parseRawVersion() error = %v, wantErr %v", err, c.fail)
-				return
-			}
-			if err == nil && c.fail {
-				t.Errorf("parseRawVersion(\"%s\") wantErr %v", c.raw, c.fail)
-				return
-			}
-			if err != nil && c.fail {
-				return
-			}
-			if !got.Approximate(&c.want) {
-				t.Errorf("parseRawVersion() got = %v, want %v", got, c.want)
-			}
-		})
-	}
-}
-
-func Test_clientVersion_LessThan(t *testing.T) {
-	type fields struct {
-		Major int
-		Minor int
-		Patch int
-	}
-	type args struct {
-		other clientVersion
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{
-			name: "test-normal",
-			fields: fields{
-				Major: 0,
-				Minor: 11,
-				Patch: 0,
-			},
-			args: args{
-				other: clientVersion{
-					Major: 0,
-					Minor: 11,
-					Patch: 1,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "test-normal2",
-			fields: fields{
-				Major: 0,
-				Minor: 11,
-				Patch: 0,
-			},
-			args: args{
-				other: clientVersion{
-					Major: 0,
-					Minor: 10,
-					Patch: 1,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "test-normal3",
-			fields: fields{
-				Major: 0,
-				Minor: 11,
-				Patch: 0,
-			},
-			args: args{
-				other: clientVersion{
-					Major: 0,
-					Minor: 11,
-					Patch: 0,
-				},
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &clientVersion{
-				Major: tt.fields.Major,
-				Minor: tt.fields.Minor,
-				Patch: tt.fields.Patch,
-			}
-			if got := c.LessThan(&tt.args.other); got != tt.want {
-				t.Errorf("clientVersion.LessThan() = %v, want %v", got, tt.want)
 			}
 		})
 	}

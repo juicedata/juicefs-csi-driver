@@ -96,7 +96,7 @@ spec:
 
 下方介绍两种部署方式，分别是 StatefulSet 和 DaemonSet。功能上并无区别，但是在升级或修改配置的时候，StatefulSet 默认会按照从低到高位依次重启，这种方式对缓存组消费端的服务冲击更小。而 DaemonSet 方式则会根据其 `updateStrategy` 设置来执行更新，如果规模巨大，需要仔细设置更新策略，避免冲击服务。
 
-除此之外，两种部署方式没有显著不同，根据喜好选择即可。
+除此之外，两种部署方式没有显著不同，根据喜好选择即可。如果需要更加灵活和精准的中心化配置调节，比如覆盖某个节点的权重设置等，可以引入额外的 ConfigMap 和启动脚本来实现。
 
 ### DaemonSet 方式
 
@@ -326,6 +326,238 @@ spec:
       - name: cache-dir
         hostPath:
           path: /data/jfsCache
+          type: DirectoryOrCreate
+      - name: jfs-root-dir
+        emptyDir: {}
+```
+
+### StatefulSet 方式（为各节点定制不同配置） {#statefulset-customize-different-configurations-for-each-node}
+
+此处仅是一个范例，如有更多自定义的需求可以自行定制。范例中将相关的配置和脚本均放置于 ConfigMap 中方便管理和调整。
+
+```yaml title="jfs-cache-group-cm.yaml"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # 名称和命名空间可自定义
+  name: juicefs-cache-group-cm
+  namespace: default
+data:
+  cache-group-config.json: |
+    {
+      "opts": {
+        "cache-group": "jfscache",
+        "cache-dir": "/jfsCache/disk*",
+        "free-space-ratio": 0.01,
+        "group-weight-unit": 10240
+      },
+      "nodes": {
+        "default": {
+          "size": "auto",
+          "weight": "auto"
+        },
+        "node1": {
+          "size": "1024000"
+        },
+        "node2": {
+          "weight": "200"
+        }
+      }
+    }
+  run.py: |
+    #!/usr/bin/env python3
+
+    import json
+    import os
+    import subprocess
+
+    # - auth
+
+    # -- load env
+    secret_dir = '/etc/jfs/secret'
+    with open(os.path.join(secret_dir, 'envs'), 'r') as fd:
+        envs = json.load(fd)
+        for k in envs:
+            os.environ[k] = envs[k]
+
+    # -- load basic opt
+    auth_opts = {}
+    for opt in ['name', 'access-key', 'secret-key', 'token']:
+        with open(os.path.join(secret_dir, opt), 'r') as fd:
+            auth_opts[opt] = fd.read()
+    fsname = auth_opts['name']
+    token = auth_opts['token']
+    access_key = auth_opts['access-key']
+    secret_key = auth_opts['secret-key']
+
+    # -- run auth
+    subprocess.run(f'/usr/bin/juicefs auth --token={token} --access-key={access_key} --secret-key={secret_key} {fsname}', shell=True, check=True)
+
+    # - cache-group mount
+
+    # -- load cache group config
+    with open('/etc/jfs/cache-group-config.json', 'r') as fd:
+        cache_group_opts = json.load(fd)
+    nodes = cache_group_opts['nodes']
+    default = nodes['default']
+
+    # -- load hostname
+    node_name = os.environ['NODE_NAME']
+
+    # -- load size
+    large_size = 1_000_000_000 # 1PB
+    override_size = None
+    if node_name in nodes and 'size' in nodes[node_name]:
+        override_size = nodes[node_name]['size']
+    if default['size'] == 'auto':
+        cache_size = large_size
+    else:
+        cache_size = int(default['size'])
+    if override_size:
+        if override_size == 'auto':
+            cache_size = large_size
+        else:
+            cache_size = int(override_size)
+
+    # -- load weight
+    override_weight = None
+    if node_name in nodes and 'weight' in nodes[node_name]:
+        override_weight = nodes[node_name]['weight']
+    cache_weight = "auto"
+    if default['weight'] != 'auto':
+        cache_weight = int(default['weight'])
+    if override_weight and override_weight != 'auto':
+        cache_weight = int(override_weight)
+
+    # -- preprocess cache-dir
+    cache_dir = cache_group_opts['opts']['cache-dir']
+    if cache_dir:
+        cache_dir_list = []
+        import glob
+        entities = glob.glob(cache_dir)
+        for entity in entities:
+            if os.path.ismount(entity):
+                cache_dir_list.append(entity)
+
+    # -- run mount
+    cmd = f'/usr/bin/juicefs mount {fsname} /mnt/jfs --foreground'
+    opts = cache_group_opts['opts']
+    for opt in opts:
+        if opt == 'cache-dir':
+            # skip cache-dir, we have preprocessed it
+            continue
+        if cache_weight != 'auto' and opt == 'group-weight-unit':
+            # group weight unit has higher priority, we need skip it
+            # it's bug. fixed by new version
+            continue
+        cmd += f' --{opt}={opts[opt]}'
+    cmd += f' --cache-size={cache_size}'
+    if cache_weight != 'auto':
+        cmd += f' --group-weight={cache_weight}'
+    if cache_dir_list:
+        cmd += f" --cache-dir={':'.join(cache_dir_list)}"
+    else:
+        # only use mounted dirs
+        raise Exception("no mounted dir found")
+
+    print(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+```
+
+```yaml title="jfs-cache-group-sts.yaml"
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # 名称、命名空间可自定义
+  name: juicefs-cache-group
+  namespace: default
+spec:
+  # 缓存组客户端数量
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: juicefs-cache-group
+      juicefs-role: cache
+  serviceName: juicefs-cache-group
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: juicefs-cache-group
+        juicefs-role: cache
+    spec:
+      # 一个 Kubernetes 节点上只运行一个缓存组客户端
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: juicefs-role
+                operator: In
+                values:
+                - cache
+            topologyKey: kubernetes.io/hostname
+      # 使用 hostNetwork，让 Pod 以固定 IP 运行，避免容器重建更换 IP，导致缓存数据失效
+      hostNetwork: true
+      containers:
+      - name: juicefs-cache
+        command:
+        - python3
+        - -u
+        - /usr/local/bin/run.py
+        env:
+        # 传入 Node Name 用于匹配配置中自定义的缓存大小和权重
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        # 使用 Mount Pod 的容器镜像
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
+        image: juicedata/mount:ee-5.0.2-69f82b3
+        lifecycle:
+          # 容器退出时卸载文件系统
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - umount /mnt/jfs
+        # 按照实际情况调整资源请求和约束
+        # 参考文档：https://juicefs.com/docs/zh/csi/guide/resource-optimization#mount-pod-resources
+        resources:
+          requests:
+            memory: 500Mi
+        # 挂载文件系统必须启用的权限
+        securityContext:
+          privileged: true
+        volumeMounts:
+        # 自定义启动脚本
+        - mountPath: /usr/local/bin/run.py
+          subPath: run.py
+          name: juicefs-cache-group-cm
+          readOnly: true
+        # 自定义配置
+        - mountPath: /etc/jfs/cache-group-config.json
+          subPath: cache-group-config.json
+          name: juicefs-cache-group-cm
+          readOnly: true
+        # 挂载所需的 secret 信息，挂载后由启动脚本直接读取
+        - mountPath: /etc/jfs/secret
+          name: juicefs-secret
+          readOnly: true
+        - mountPath: /jfsCache
+          name: cache-dir
+        - mountPath: /root/.juicefs
+          name: jfs-root-dir
+      volumes:
+      # 以 /jfsCache 下多个 disk* 缓存目录举例
+      - name: cache-dir
+        hostPath:
+          path: /jfsCache
           type: DirectoryOrCreate
       - name: jfs-root-dir
         emptyDir: {}

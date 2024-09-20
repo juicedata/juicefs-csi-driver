@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import ConfigModal from '@/components/config-modal'
 import Containers from '@/components/containers'
+import DebugModal from '@/components/debug-modal'
 import EventTable from '@/components/event-table'
 import Layout from '@/components/layout'
 import PodBasic from '@/components/pod-basic'
@@ -26,14 +28,16 @@ import ResourceList from '@/components/resource-list'
 import YamlModal from '@/components/yaml-modal'
 
 export {
-  Layout,
-  ResourceDetail,
-  ResourceList,
-  PodBasic,
+  ConfigModal,
   Containers,
-  YamlModal,
   EventTable,
+  Layout,
+  PodBasic,
   PodsTable,
   PVBasic,
   PVCBasic,
+  ResourceDetail,
+  ResourceList,
+  YamlModal,
+  DebugModal,
 }

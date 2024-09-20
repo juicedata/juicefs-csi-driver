@@ -15,16 +15,25 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Space, Table, Tag } from 'antd'
+import { Button, Space, Table, Tag, Tooltip } from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
 
+import { DebugModal } from '.'
 import LogModal from './log-modal'
+import WarmupModal from './warmup-modal'
 import XTermModal from './xterm-modal'
+import {
+  AccessLogIcon,
+  DebugIcon,
+  LogIcon,
+  TerminalIcon,
+  WarmupIcon,
+} from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
-import { isMountPod } from '@/utils'
+import { isMountPod, supportDebug } from '@/utils'
 
 const Containers: React.FC<{
   pod: Pod
@@ -69,25 +78,10 @@ const Containers: React.FC<{
             render: (startAt) => new Date(startAt).toLocaleString(),
           },
           {
-            title: <FormattedMessage id="log" />,
+            title: <FormattedMessage id="action" />,
             key: 'action',
             render: (record, c) => (
               <Space>
-                {isMountPod(pod) ? (
-                  <LogModal
-                    namespace={namespace!}
-                    name={name!}
-                    container={record.name}
-                    hasPrevious={false}
-                    type="accesslog"
-                  >
-                    {({ onClick }) => (
-                      <Button type="primary" onClick={onClick}>
-                        Access Log
-                      </Button>
-                    )}
-                  </LogModal>
-                ) : null}
                 <LogModal
                   namespace={namespace!}
                   name={name!}
@@ -95,9 +89,13 @@ const Containers: React.FC<{
                   hasPrevious={c.restartCount > 0}
                 >
                   {({ onClick }) => (
-                    <Button type="primary" onClick={onClick}>
-                      Log
-                    </Button>
+                    <Tooltip title="Log" zIndex={0}>
+                      <Button
+                        className="action-button"
+                        onClick={onClick}
+                        icon={<LogIcon />}
+                      />
+                    </Tooltip>
                   )}
                 </LogModal>
                 <XTermModal
@@ -106,11 +104,69 @@ const Containers: React.FC<{
                   container={record.name}
                 >
                   {({ onClick }) => (
-                    <Button type="primary" onClick={onClick}>
-                      Exec
-                    </Button>
+                    <Tooltip title="Exec in container" zIndex={0}>
+                      <Button
+                        className="action-button"
+                        icon={<TerminalIcon />}
+                        onClick={onClick}
+                      />
+                    </Tooltip>
                   )}
                 </XTermModal>
+                {isMountPod(pod) ? (
+                  <>
+                    <LogModal
+                      namespace={namespace!}
+                      name={name!}
+                      container={record.name}
+                      hasPrevious={false}
+                      type="accesslog"
+                    >
+                      {({ onClick }) => (
+                        <Tooltip title="Access Log" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            onClick={onClick}
+                            icon={<AccessLogIcon />}
+                          />
+                        </Tooltip>
+                      )}
+                    </LogModal>
+                    {supportDebug(c.image) ? (
+                      <DebugModal
+                        namespace={namespace!}
+                        name={name!}
+                        container={record.name}
+                      >
+                        {({ onClick }) => (
+                          <Tooltip title="Debug" zIndex={0}>
+                            <Button
+                              className="action-button"
+                              onClick={onClick}
+                              icon={<DebugIcon />}
+                            />
+                          </Tooltip>
+                        )}
+                      </DebugModal>
+                    ) : null}
+
+                    <WarmupModal
+                      namespace={namespace!}
+                      name={name!}
+                      container={c}
+                    >
+                      {({ onClick }) => (
+                        <Tooltip title="Warmup" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            onClick={onClick}
+                            icon={<WarmupIcon />}
+                          />
+                        </Tooltip>
+                      )}
+                    </WarmupModal>
+                  </>
+                ) : null}
               </Space>
             ),
           },

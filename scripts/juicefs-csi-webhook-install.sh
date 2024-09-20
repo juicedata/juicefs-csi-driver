@@ -102,7 +102,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
@@ -111,6 +110,15 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -179,6 +187,12 @@ rules:
   - list
   - delete
   - update
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
   - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -379,15 +393,8 @@ subjects:
 apiVersion: v1
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 kind: ConfigMap
 metadata:
   labels:
@@ -490,7 +497,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: juicedata/csi-dashboard:v0.24.2
+        image: juicedata/csi-dashboard:v0.24.5
         name: dashboard
         ports:
         - containerPort: 8088
@@ -562,7 +569,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.24.2
+        image: juicedata/juicefs-csi-driver:v0.24.5
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -847,7 +854,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
@@ -856,6 +862,15 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -924,6 +939,12 @@ rules:
   - list
   - delete
   - update
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
   - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1112,15 +1133,8 @@ subjects:
 apiVersion: v1
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 kind: ConfigMap
 metadata:
   labels:
@@ -1207,7 +1221,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: juicedata/csi-dashboard:v0.24.2
+        image: juicedata/csi-dashboard:v0.24.5
         name: dashboard
         ports:
         - containerPort: 8088
@@ -1279,7 +1293,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.24.2
+        image: juicedata/juicefs-csi-driver:v0.24.5
         livenessProbe:
           failureThreshold: 5
           httpGet:

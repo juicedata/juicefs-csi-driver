@@ -16,7 +16,14 @@
 
 package builder
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
+)
+
+var (
+	builderLog = klog.NewKlogr().WithName("builder")
+)
 
 type SidecarInterface interface {
 	NewMountSidecar() *corev1.Pod

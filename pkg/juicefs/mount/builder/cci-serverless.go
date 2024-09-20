@@ -45,10 +45,12 @@ var _ SidecarInterface = &CCIBuilder{}
 
 func NewCCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, pvc corev1.PersistentVolumeClaim) SidecarInterface {
 	return &CCIBuilder{
-		ServerlessBuilder: ServerlessBuilder{PodBuilder{BaseBuilder{
-			jfsSetting: setting,
-			capacity:   capacity,
-		}}},
+		ServerlessBuilder: ServerlessBuilder{PodBuilder: PodBuilder{
+			BaseBuilder: BaseBuilder{
+				jfsSetting: setting,
+				capacity:   capacity,
+			},
+		}},
 		pvc: pvc,
 		app: app,
 	}
@@ -72,6 +74,9 @@ func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
 	}
 	quotaPath := r.getQuotaPath()
 	name := r.jfsSetting.Name
+	if pod.Spec.Containers[0].Lifecycle == nil {
+		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
+	}
 	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",

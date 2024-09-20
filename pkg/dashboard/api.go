@@ -74,6 +74,8 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pvcs", api.listPVCsHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
+	group.GET("/config", api.getCSIConfig())
+	group.PUT("/config", api.putCSIConfig())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/events", api.getPodEvents())
@@ -83,6 +85,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/mountpods", api.listMountPodsOfAppPod())
 	podGroup.GET("/apppods", api.listAppPodsOfMountPod())
 	podGroup.GET("/node", api.getPodNode())
+	podGroup.GET("/downloadDebugFile", api.downloadDebugFile())
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
@@ -99,5 +102,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
 	// only for mountpod
 	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())
+	websocketAPI.GET("/pod/:namespace/:name/:container/debug", api.debugPod())
+	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
 }

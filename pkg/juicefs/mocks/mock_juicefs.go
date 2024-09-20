@@ -67,7 +67,7 @@ func (mr *MockInterfaceMockRecorder) CreateTarget(arg0, arg1 interface{}) *gomoc
 }
 
 // GetJfsVolUUID mocks base method.
-func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 string) (string, error) {
+func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 *config.JfsSetting) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0, arg1)
 	ret0, _ := ret[0].(string)

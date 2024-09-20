@@ -32,11 +32,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -47,6 +49,9 @@ var testA = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "a",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 }
 
@@ -59,6 +64,9 @@ var testB = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testC = &corev1.Pod{
@@ -70,6 +78,9 @@ var testC = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testD = &corev1.Pod{
@@ -80,6 +91,9 @@ var testD = &corev1.Pod{
 		},
 		Annotations: map[string]string{"a": "b",
 			util.GetReferenceKey("/mnt/def"): "/mnt/def"},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 }
 
@@ -94,6 +108,9 @@ var testE = &corev1.Pod{
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 }
 
 var testF = &corev1.Pod{
@@ -102,6 +119,9 @@ var testF = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "f",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -126,6 +146,9 @@ var testG = &corev1.Pod{
 			util.GetReferenceKey("/mnt/def"): "/mnt/def",
 		},
 	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
 		Conditions: []corev1.PodCondition{{
@@ -144,6 +167,9 @@ var testH = &corev1.Pod{
 		Labels: map[string]string{
 			jfsConfig.PodUniqueIdLabelKey: "h",
 		},
+	},
+	Spec: corev1.PodSpec{
+		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -202,6 +228,7 @@ func TestAddRefOfMount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
@@ -235,6 +262,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 			})
 			defer patch1.Reset()
 			p := &PodMount{
+				log:       klog.NewKlogr(),
 				K8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -246,7 +274,9 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 }
 
 func TestJUmount(t *testing.T) {
+	defer func() { _ = os.RemoveAll("tmp") }()
 	fakeClientSet := fake.NewSimpleClientset()
+	fuse.InitTestFds()
 
 	type args struct {
 		podName string
@@ -313,6 +343,7 @@ func TestJUmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClientSet,
@@ -362,19 +393,23 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						podName: "/test",
 					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 				},
 			})
 			err := p.JUmount(context.TODO(), "/test", podName)
@@ -388,19 +423,23 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
 					Annotations: map[string]string{
 						util.GetReferenceKey("ttt"): "/test",
 					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 				},
 			})
 			err := p.JUmount(context.TODO(), "/test", podName)
@@ -415,16 +454,20 @@ func TestJUmountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
 			}
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
 				},
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -479,6 +522,7 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
@@ -486,7 +530,7 @@ func TestUmountTarget(t *testing.T) {
 			}
 			t.Logf("PodMount %T %v", p, p)
 			podName := GenPodNameByUniqueId("ttt", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -516,13 +560,14 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
 			}
 			podName := GenPodNameByUniqueId("aaa", true)
-			p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
+			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: jfsConfig.Namespace,
@@ -607,12 +652,18 @@ func TestWaitUntilMount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			if tt.pod != nil {
-				hashVal, _ := GenHashOfSetting(*tt.args.jfsSetting)
+				hashVal := GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
+				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
 					jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
 					jfsConfig.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
@@ -660,6 +711,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
+				log:                klog.NewKlogr(),
 				SafeFormatAndMount: mount.SafeFormatAndMount{},
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClient},
 			}
@@ -689,6 +741,10 @@ func TestJMount(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, nil
 			})
 			defer patch5.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
 			p := NewPodMount(&k8sclient.K8sClient{Interface: fakeClient}, mount.SafeFormatAndMount{
@@ -720,6 +776,7 @@ func TestNewPodMount(t *testing.T) {
 				client:  nil,
 			},
 			want: &PodMount{
+				log: klog.NewKlogr().WithName("pod-mount"),
 				SafeFormatAndMount: mount.SafeFormatAndMount{
 					Interface: mount.New(""),
 					Exec:      k8sexec.New(),
@@ -818,11 +875,7 @@ func TestGenHashOfSetting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenHashOfSetting(tt.args.setting)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenHashOfSetting() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := GenHashOfSetting(klog.NewKlogr(), tt.args.setting)
 			if got != tt.want {
 				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}

@@ -12,17 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.19-buster as builder
+FROM golang:1.20-buster as binaryimage
 
 ARG GOPROXY
+ARG TARGETARCH=amd64
+
+RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && \
+    wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+    wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
+    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
+    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
+    echo deb https://download.ceph.com/debian-15.2.17/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 COPY . .
-RUN apt-get update && apt-get install -y musl-tools upx-ucl librados-dev libcephfs-dev librbd-dev && \
-    make juicefs.ceph && mv juicefs.ceph juicefs
+RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs && upx juicefs; else make juicefs; fi" && \
+    mv juicefs /usr/local/bin/juicefs
 
-FROM juicedata/mount:nightly
+FROM juicedata/mount:ce-nightly
 
-COPY --from=builder /workspace/juicefs /usr/local/bin/
-RUN /usr/local/bin/juicefs --version
+COPY --from=binaryimage /usr/local/bin/juicefs /usr/local/bin/juicefs
+
+RUN rm -rf /bin/mount.juicefs && ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version

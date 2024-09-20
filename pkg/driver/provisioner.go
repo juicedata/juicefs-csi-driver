@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -28,14 +29,19 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
-	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	provisionerLog = klog.NewKlogr().WithName("provisioner")
 )
 
 type provisionerService struct {
@@ -80,11 +86,13 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 
 func (j *provisionerService) Run(ctx context.Context) {
 	if j.K8sClient == nil {
-		klog.Fatalf("K8sClient is nil")
+		provisionerLog.Info("K8sClient is nil")
+		os.Exit(1)
 	}
 	serverVersion, err := j.K8sClient.Discovery().ServerVersion()
 	if err != nil {
-		klog.Fatalf("Error getting server version: %v", err)
+		provisionerLog.Error(err, "Error getting server version")
+		os.Exit(1)
 	}
 	pc := provisioncontroller.NewProvisionController(j.K8sClient,
 		config.DriverName,
@@ -98,7 +106,7 @@ func (j *provisionerService) Run(ctx context.Context) {
 }
 
 func (j *provisionerService) Provision(ctx context.Context, options provisioncontroller.ProvisionOptions) (*corev1.PersistentVolume, provisioncontroller.ProvisioningState, error) {
-	klog.V(6).Infof("Provisioner Provision: options %v", options)
+	provisionerLog.V(1).Info("provision options", "options", options)
 	if options.PVC.Spec.Selector != nil {
 		return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("claim Selector is not supported")
 	}
@@ -114,7 +122,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			scParams[k] = pvMeta.StringParser(options.StorageClass.Parameters[k])
 		}
 	}
-	klog.V(6).Infof("Provisioner Resolved StorageClass.Parameters: %v", scParams)
+	provisionerLog.V(1).Info("Resolved StorageClass.Parameters", "params", scParams)
 
 	subPath := pvName
 	if scParams["pathPattern"] != "" {
@@ -127,7 +135,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 				j.metrics.provisionErrors.Inc()
 				return nil, provisioncontroller.ProvisioningFinished, status.Errorf(codes.InvalidArgument, "Dynamic mounting uses the sub-path named pv name as data isolation, so read-only mode cannot be used.")
 			} else {
-				klog.Warningf("Volume is set readonly, please make sure the subpath %s exists.", subPath)
+				provisionerLog.Info("Volume is set readonly, please make sure the subpath exists.", "subPath", subPath)
 			}
 		}
 	}
@@ -137,7 +145,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		parsedStr := pvMeta.StringParser(mo)
 		mountOptions = append(mountOptions, strings.Split(strings.TrimSpace(parsedStr), ",")...)
 	}
-	klog.V(6).Infof("Provisioner Resolved MountOptions: %v", mountOptions)
+	provisionerLog.V(1).Info("Resolved MountOptions", "options", mountOptions)
 
 	// set volume context
 	volCtx := make(map[string]string)
@@ -184,45 +192,45 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
 		secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
 		if err != nil {
-			klog.Errorf("[PVCReconciler]: Get Secret error: %v", err)
+			provisionerLog.Error(err, "Get Secret error")
 			j.metrics.provisionErrors.Inc()
 			return nil, provisioncontroller.ProvisioningFinished, errors.New("unable to provision new pv: " + err.Error())
 		}
 
-		klog.V(6).Infof("Provisioner: Add Finalizer on %s/%s", secret.Namespace, secret.Name)
+		provisionerLog.V(1).Info("Add Finalizer", "namespace", secret.Namespace, "name", secret.Name)
 		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
 		if err != nil {
-			klog.Warningf("Fails to add a finalizer to the secret, error: %v", err)
+			provisionerLog.Error(err, "Fails to add a finalizer to the secret")
 		}
 	}
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 
 func (j *provisionerService) Delete(ctx context.Context, volume *corev1.PersistentVolume) error {
-	klog.V(6).Infof("Provisioner Delete: Volume %v", volume)
+	provisionerLog.V(1).Info("Delete volume", "volume", *volume)
 	// If it exists and has a `delete` value, delete the directory.
 	// If it exists and has a `retain` value, safe the directory.
 	policy := volume.Spec.PersistentVolumeReclaimPolicy
 	if policy != corev1.PersistentVolumeReclaimDelete {
-		klog.V(6).Infof("Provisioner: Volume %s retain, return.", volume.Name)
+		provisionerLog.V(1).Info("Volume retain, return.", "volume", volume.Name)
 		return nil
 	}
 	// check all pvs of the same storageClass, if multiple pv using the same subPath, do not delete the subPath
 	shouldDeleted, err := resource.CheckForSubPath(ctx, j.K8sClient, volume, volume.Spec.CSI.VolumeAttributes["pathPattern"])
 	if err != nil {
-		klog.Errorf("Provisioner: CheckForSubPath error: %v", err)
+		provisionerLog.Error(err, "check for subPath error")
 		return err
 	}
 	if !shouldDeleted {
-		klog.Infof("Provisioner: there are other pvs using the same subPath retained, volume %s should not be deleted, return.", volume.Name)
+		provisionerLog.Info("there are other pvs using the same subPath retained, volume should not be deleted, return.", "volume", volume.Name)
 		return nil
 	}
-	klog.V(6).Infof("Provisioner: there are no other pvs using the same subPath, volume %s can be deleted.", volume.Name)
+	provisionerLog.V(1).Info("there are no other pvs using the same subPath, volume can be deleted.", "volume", volume.Name)
 	subPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
 	secretName, secretNamespace := volume.Spec.CSI.NodePublishSecretRef.Name, volume.Spec.CSI.NodePublishSecretRef.Namespace
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
-		klog.Errorf("Provisioner: Get Secret error: %v", err)
+		provisionerLog.Error(err, "Get Secret error")
 		return err
 	}
 	secretData := make(map[string]string)
@@ -230,21 +238,23 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		secretData[k] = string(v)
 	}
 
-	klog.V(5).Infof("Provisioner Delete: Deleting volume subpath %q", subPath)
+	provisionerLog.Info("Deleting volume subpath", "subPath", subPath)
 	if err := j.juicefs.JfsDeleteVol(ctx, volume.Name, subPath, secretData, volume.Spec.CSI.VolumeAttributes, volume.Spec.MountOptions); err != nil {
-		klog.Errorf("provisioner: delete vol error %v", err)
+		provisionerLog.Error(err, "delete vol error")
 		return errors.New("unable to provision delete volume: " + err.Error())
 	}
 
 	if volume.Spec.CSI.VolumeAttributes["secretFinalizer"] == "true" {
 		shouldRemoveFinalizer, err := resource.CheckForSecretFinalizer(ctx, j.K8sClient, volume)
 		if err != nil {
-			klog.Errorf("Provisioner: CheckForSecretFinalizer error: %v", err)
+			provisionerLog.Error(err, "CheckForSecretFinalizer error")
 			return err
 		}
 		if shouldRemoveFinalizer {
-			klog.V(6).Infof("Provisioner: Remove Finalizer on %s/%s", secretNamespace, secretName)
-			resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
+			provisionerLog.V(1).Info("Remove Finalizer", "namespace", secretNamespace, "name", secretName)
+			if err = resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

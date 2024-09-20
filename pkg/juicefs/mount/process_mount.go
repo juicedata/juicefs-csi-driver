@@ -27,7 +27,7 @@ import (
 	"time"
 
 	_ "github.com/golang/mock/mockgen/model"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -37,16 +37,18 @@ import (
 const defaultCheckTimeout = 2 * time.Second
 
 type ProcessMount struct {
+	log klog.Logger
 	k8sMount.SafeFormatAndMount
 }
 
 var _ MntInterface = &ProcessMount{}
 
 func NewProcessMount(mounter k8sMount.SafeFormatAndMount) MntInterface {
-	return &ProcessMount{mounter}
+	return &ProcessMount{klog.NewKlogr().WithName("process-mount"), mounter}
 }
 
 func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+	log := util.GenLog(ctx, p.log, "JCreateVolume")
 	// 1. mount juicefs
 	options := util.StripReadonlyOption(jfsSetting.Options)
 	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, options, jfsSetting.Envs)
@@ -57,7 +59,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 	// 2. create subPath volume
 	volPath := filepath.Join(jfsSetting.MountPath, jfsSetting.SubPath)
 
-	klog.V(6).Infof("JCreateVolume: checking %q exists in %v", volPath, jfsSetting.MountPath)
+	log.V(1).Info("checking exists", "volPath", volPath, "mountPath", jfsSetting.MountPath)
 	var exists bool
 	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 		exists, err = k8sMount.PathExists(volPath)
@@ -66,7 +68,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	}
 	if !exists {
-		klog.V(5).Infof("JCreateVolume: volume not existed, create %s", jfsSetting.MountPath)
+		log.Info("volume not existed, create it", "mountPath", jfsSetting.MountPath)
 		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
@@ -98,6 +100,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 }
 
 func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+	log := util.GenLog(ctx, p.log, "JDeleteVolume")
 	// 1. mount juicefs
 	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
 	if err != nil {
@@ -116,7 +119,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 		return fmt.Errorf("could not check volume path %q exists: %v", volPath, err)
 	} else if existed {
 		stdoutStderr, err := p.RmrDir(ctx, volPath, jfsSetting.IsCe)
-		klog.V(5).Infof("DeleteVol: rmr output is '%s'", stdoutStderr)
+		log.Info("rmr output", "output", stdoutStderr)
 		if err != nil {
 			return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
 		}
@@ -144,16 +147,17 @@ func (p *ProcessMount) JMount(ctx context.Context, _ *jfsConfig.AppInfo, jfsSett
 }
 
 func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage string, options []string, extraEnvs map[string]string) error {
+	log := util.GenLog(ctx, p.log, "jmount")
 	if !strings.Contains(source, "://") {
-		klog.V(5).Infof("eeMount: mount %v at %v", source, mountPath)
+		log.Info("eeMount", "source", source, "mountPath", mountPath)
 		err := p.Mount(source, mountPath, jfsConfig.FsType, options)
 		if err != nil {
 			return fmt.Errorf("could not mount %q at %q: %v", source, mountPath, err)
 		}
-		klog.V(5).Infof("eeMount mount success.")
+		log.Info("eeMount mount success.")
 		return nil
 	}
-	klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(source), mountPath)
+	log.Info("ceMount", "source", util.StripPasswd(source), "mountPath", mountPath)
 	mountArgs := []string{source, mountPath}
 
 	if len(options) > 0 {
@@ -168,7 +172,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	}); err != nil {
 		return fmt.Errorf("could not check existence of dir %q: %v", mountPath, err)
 	} else if !exist {
-		klog.V(5).Infof("jmount: volume not existed, create %s", mountPath)
+		log.Info("volume not existed, create it", "mountPath", mountPath)
 		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
 			return os.MkdirAll(mountPath, os.FileMode(0755))
 		}); err != nil {
@@ -185,10 +189,10 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	} else if !notMounted {
 		err = p.Unmount(mountPath)
 		if err != nil {
-			klog.V(5).Infof("Unmount before mount failed: %v", err)
+			log.Info("Unmount before mount failed", "error", err)
 			return err
 		}
-		klog.V(5).Infof("Unmount %v", mountPath)
+		log.Info("Unmount", "mountPath", mountPath)
 	}
 
 	envs := append(syscall.Environ(), "JFS_FOREGROUND=1")
@@ -213,7 +217,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 			if err == context.DeadlineExceeded || err == context.Canceled {
 				break
 			}
-			klog.V(5).Infof("Stat mount path %v failed: %v", mountPath, err)
+			log.Info("Stat mount path failed", "mountPath", mountPath, "error", err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
@@ -221,9 +225,9 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 			if st.Ino == 1 {
 				return nil
 			}
-			klog.V(5).Infof("Mount point %v is not ready", mountPath)
+			log.Info("Mount point is not ready", "mountPath", mountPath)
 		} else {
-			klog.V(5).Info("Cannot reach here")
+			log.Info("Cannot reach here")
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -231,6 +235,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 }
 
 func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
+	log := util.GenLog(ctx, p.log, "GetMountRef")
 	var refs []string
 
 	var corruptedMnt bool
@@ -242,7 +247,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 	})
 	if err == nil {
 		if !exists {
-			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
+			log.Info("target not exists", "target", target)
 			return 0, nil
 		}
 		var notMnt bool
@@ -254,7 +259,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 			return 0, fmt.Errorf("check target path is mountpoint failed: %q", err)
 		}
 		if notMnt { // target exists but not a mountpoint
-			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
+			log.Info("target not mounted", "target", target)
 			return 0, nil
 		}
 	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
@@ -276,6 +281,7 @@ func (p *ProcessMount) UmountTarget(ctx context.Context, target, podName string)
 
 // JUmount umount targetPath
 func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) error {
+	log := util.GenLog(ctx, p.log, "JUmount")
 	var refs []string
 
 	var corruptedMnt bool
@@ -287,7 +293,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 	})
 	if err == nil {
 		if !exists {
-			klog.V(5).Infof("ProcessUmount: %s target not exists", target)
+			log.Info("target not exists", "target", target)
 			return nil
 		}
 		var notMnt bool
@@ -299,7 +305,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 			return fmt.Errorf("check target path is mountpoint failed: %q", err)
 		}
 		if notMnt { // target exists but not a mountpoint
-			klog.V(5).Infof("ProcessUmount: %s target not mounted", target)
+			log.Info("target not mounted", "target", target)
 			return nil
 		}
 	} else if corruptedMnt = k8sMount.IsCorruptedMnt(err); !corruptedMnt {
@@ -311,7 +317,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 		return fmt.Errorf("fail to get mount device refs: %q", err)
 	}
 
-	klog.V(5).Infof("ProcessUmount: unmounting target %s", target)
+	log.Info("unmounting target", "target", target)
 	if err := p.Unmount(target); err != nil {
 		return fmt.Errorf("could not unmount %q: %v", target, err)
 	}
@@ -319,9 +325,9 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 	// we can only unmount this when only one is left
 	// since the PVC might be used by more than one container
 	if err == nil && len(refs) == 1 {
-		klog.V(5).Infof("ProcessUmount: unmounting ref %s for target %s", refs[0], target)
+		log.Info("unmounting ref for target", "ref", refs[0], "target", target)
 		if err = p.Unmount(refs[0]); err != nil {
-			klog.V(5).Infof("ProcessUmount: error unmounting mount ref %s, %v", refs[0], err)
+			log.Info("error unmounting mount ref", "ref", refs[0], "error", err)
 		}
 	}
 	return err
@@ -332,6 +338,7 @@ func (p *ProcessMount) AddRefOfMount(ctx context.Context, target string, podName
 }
 
 func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ string, cacheDirs []string) error {
+	log := util.GenLog(ctx, p.log, "CleanCache")
 	for _, cacheDir := range cacheDirs {
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
@@ -340,12 +347,12 @@ func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ st
 			existed, err = k8sMount.PathExists(rawPath)
 			return
 		}); err != nil {
-			klog.Errorf("Could not check raw path %q exists: %v", rawPath, err)
+			log.Error(err, "Could not check raw path exists", "rawPath", rawPath)
 			return err
 		} else if existed {
 			err = os.RemoveAll(rawPath)
 			if err != nil {
-				klog.Errorf("Could not cleanup cache raw path %q: %v", rawPath, err)
+				log.Error(err, "Could not cleanup cache raw path", "rawPath", rawPath, "error", err)
 				return err
 			}
 		}
@@ -354,7 +361,8 @@ func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ st
 }
 
 func (p *ProcessMount) RmrDir(ctx context.Context, directory string, isCeMount bool) ([]byte, error) {
-	klog.V(5).Infof("RmrDir: removing directory recursively: %q", directory)
+	log := util.GenLog(ctx, p.log, "RmrDir")
+	log.Info("removing directory recursively", "directory", directory)
 	if isCeMount {
 		return p.Exec.CommandContext(ctx, jfsConfig.CeCliPath, "rmr", directory).CombinedOutput()
 	}

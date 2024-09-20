@@ -24,7 +24,7 @@ sidebar_position: 1
 
 创建 Kubernetes Secret：
 
-```yaml {7-16}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -65,7 +65,7 @@ stringData:
 
 创建 Kubernetes Secret：
 
-```yaml {7-14}
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -89,7 +89,7 @@ stringData:
 字段说明：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件
@@ -102,7 +102,7 @@ stringData:
 
 JuiceFS Web 控制台负责着客户端的挂载认证、配置文件下发等工作。而在私有部署环境中，控制台的地址不再是 [https://juicefs.com/console](https://juicefs.com/console)，因此需要在文件系统认证信息中通过 `envs` 字段额外指定控制台地址。
 
-```yaml {12-13}
+```yaml {15-16}
 apiVersion: v1
 metadata:
   name: juicefs-secret
@@ -126,7 +126,7 @@ stringData:
 字段说明：
 
 - `name`：JuiceFS 文件系统名称
-- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl/#%E8%AE%BF%E9%97%AE%E4%BB%A4%E7%89%8C)。
+- `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
 - `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
@@ -322,6 +322,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: data
+      mountPropagation: HostToContainer
     resources:
       requests:
         cpu: 10m
@@ -337,7 +338,30 @@ Pod 创建完成后，你就能在 JuiceFS 挂载点看到上方容器写入的 
 
 [StorageClass](https://kubernetes.io/zh-cn/docs/concepts/storage/storage-classes)（存储类）里指定了创建 PV 所需的各类配置，你可以将其理解为动态配置下的「Profile」：不同的 StorageClass 就是不同的 Profile，可以在其中指定不同的文件系统认证信息、挂载配置，让动态配置下可以同时使用不同的文件系统，或者指定不同的挂载。因此如果你打算以[「动态配置」](#dynamic-provisioning)或[「通用临时卷」](#general-ephemeral-storage)的方式使用 JuiceFS CSI 驱动，那么你需要提前创建 StorageClass。
 
-注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV。**如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](./configurations.md#static-mount-options)
+注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，使用的时候必须注意：
+
+* **在 StorageClass 中修改挂载配置，不影响已经创建的 PV。** 对于已有的 PV，需要直接[在 PV 级别调整挂载配置](./configurations.md#static-mount-options)，或者干脆删除 PVC 重建；
+* 自 v0.24.3 开始，可以在 [ConfigMap](./configurations.md#configmap) 中使用 `matchStorageClassName` 来方便地选择已有 PVC，更推荐用这种方式来修改 StorageClass 相关配置。
+
+### 通过 kubectl 创建 {#kubectl-sc}
+
+大部分情况下，我们推荐用 Helm 安装和管理 CSI 驱动，但 StorageClass 除外，这是由于他和文件系统认证信息存在引用关系，而 `values.yaml` 往往不便用明文保存认证信息。因此对于 StorageClass 和 Secret，我们优先推荐用 kubectl 手动创建和管理。
+
+在创建 StorageClass 之前，需要提前创建好[「文件系统认证信息」](#volume-credentials)，然后将相关信息按照下方示范填入对应字段。
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+reclaimPolicy: Retain
+```
 
 ### 通过 Helm 创建 {#helm-sc}
 
@@ -373,23 +397,6 @@ storageClasses:
       limits:
         cpu: "5"
         memory: "5Gi"
-```
-
-### 通过 kubectl 创建 {#kubectl-sc}
-
-用 kubectl 创建 StorageClass，需要提前创建好[「文件系统认证信息」](#volume-credentials)，创建完毕后，将相关信息按照下方示范填入对应字段。
-
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
 ```
 
 ## 动态配置 {#dynamic-provisioning}
@@ -431,6 +438,8 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
+      # 必须配置好传播，以防 mount pod 异常以后，挂载点无法自动恢复
+      mountPropagation: HostToContainer
   volumes:
   - name: juicefs-pv
     persistentVolumeClaim:
@@ -472,6 +481,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
+      mountPropagation: HostToContainer
   volumes:
   - name: juicefs-pv
     ephemeral:

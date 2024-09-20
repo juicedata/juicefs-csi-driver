@@ -16,7 +16,14 @@
 import { SortOrder } from 'antd/es/table/interface'
 
 export type Params = {
-  resources: 'pods' | 'mountpods' | 'syspods' | 'pvs' | 'pvcs' | 'storageclass'
+  resources:
+    | 'pods'
+    | 'mountpods'
+    | 'syspods'
+    | 'pvs'
+    | 'pvcs'
+    | 'storageclass'
+    | 'config'
 }
 
 export type DetailParams = {

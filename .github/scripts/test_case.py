@@ -704,11 +704,15 @@ def test_dynamic_delete_pod():
     LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, volume_id)
-    try:
-        subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        LOG.info(e)
-        raise e
+    for _ in range(60):
+        try:
+            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
+            break
+        except subprocess.CalledProcessError as e:
+            LOG.info(e)
+            time.sleep(5)
+    else:
+        raise Exception("Application pod {} didn't recover within 5 min.".format("app-dynamic-available"))
 
     # delete test resources
     LOG.info("Remove pod {}".format(pod.name))
@@ -778,11 +782,15 @@ def test_static_delete_pod():
     LOG.info("Check mount point is ok..")
     source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
         app_pod_id, pv.name)
-    try:
-        subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        LOG.info(e)
-        raise e
+    for _ in range(0, 60):
+        try:
+            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
+            break
+        except subprocess.CalledProcessError as e:
+            LOG.info(e)
+            time.sleep(5)
+    else:
+        raise Exception("Application pod {} didn't recover within 5 min.".format("app-static-available"))
 
     # delete test resources
     LOG.info("Remove pod {}".format(pod.name))
@@ -853,6 +861,7 @@ def test_cache_client_conf():
     secret = Secret(secret_name=SECRET_NAME)
     secret.watch_for_initconfig_injection()
 
+
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
     by_process = MOUNT_MODE == "process"
@@ -865,7 +874,8 @@ def test_static_cache_clean_upon_umount():
 
     # deploy pv
     pv = PV(name="pv-static-cache-umount", access_mode="ReadWriteMany", volume_handle="pv-static-cache-umount",
-            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}",f"free-space-ratio=0.01"])
+            secret_name=SECRET_NAME, parameters={"juicefs/clean-cache": "true"},
+            options=[f"cache-dir={cache_dir}", f"free-space-ratio=0.01"])
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
@@ -944,7 +954,8 @@ def test_dynamic_cache_clean_upon_umount():
     sc_name = RESOURCE_PREFIX + "-sc-cache"
     # deploy sc
     sc = StorageClass(name=sc_name, secret_name=SECRET_NAME,
-                      parameters={"juicefs/clean-cache": "true"}, options=[f"cache-dir={cache_dir}",f"free-space-ratio=0.01"])
+                      parameters={"juicefs/clean-cache": "true"},
+                      options=[f"cache-dir={cache_dir}", f"free-space-ratio=0.01"])
     LOG.info("Deploy storageClass {}".format(sc.name))
     sc.create()
 
@@ -2580,7 +2591,7 @@ def test_mountpod_recreated():
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    
+
     LOG.info("Start to delete mountpod..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
@@ -2611,15 +2622,18 @@ def test_mountpod_recreated():
     pvc.delete()
     return
 
+
 def test_validate_pv():
     LOG.info("[test case] Test validate pv begin..")
     # deploy one pv
-    pv = PV(name="pv-with-duplicate-handle", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle", secret_name=SECRET_NAME)
+    pv = PV(name="pv-with-duplicate-handle", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle",
+            secret_name=SECRET_NAME)
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
 
     # deploy pv with duplicate handle
-    pv1 = PV(name="pv-with-duplicate-handle-1", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle", secret_name=SECRET_NAME)
+    pv1 = PV(name="pv-with-duplicate-handle-1", access_mode="ReadWriteMany", volume_handle="pv-with-duplicate-handle",
+             secret_name=SECRET_NAME)
     LOG.info("Deploy pv {}".format(pv1.name))
     try:
         pv1.create()
@@ -2667,14 +2681,17 @@ def test_config():
     }
     update_config(test_cfg)
     # patch all csi-node pods anno to make cfg update faster
-    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
 
     # deploy pvc
     pvc1 = PVC(name="pvc-config-without-labels", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
     LOG.info("Deploy pvc {}".format(pvc1.name))
     pvc1.create()
 
-    pvc2 = PVC(name="pvc-config-enable-liveness", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="", labels={"enable_liveness": "true"})
+    pvc2 = PVC(name="pvc-config-enable-liveness", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="",
+               labels={"enable_liveness": "true"})
     LOG.info("Deploy pvc {}".format(pvc2.name))
     pvc2.create()
 
@@ -2694,7 +2711,6 @@ def test_config():
     if not result:
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
-
     volume_id_1 = pvc1.get_volume_id()
     volume_id_2 = pvc2.get_volume_id()
     LOG.info("Check mountpod config..")
@@ -2712,14 +2728,14 @@ def test_config():
 
     if volume_id_2 not in spce_2.containers[0].liveness_probe._exec.command[1]:
         raise Exception("mountpod config livenessProbe not set")
-    
+
     LOG.info("Check mount point..")
     LOG.info("Get volume_id {}".format(volume_id_1))
     check_path = volume_id_1 + "/out.txt"
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id_1))
-    
+
     LOG.info("Get volume_id {}".format(volume_id_2))
     check_path = volume_id_2 + "/out.txt"
     result = check_mount_point(check_path)
@@ -2740,8 +2756,9 @@ def test_config():
     update_config({})
 
     # patch all csi-node pods anno to make cfg update faster
-    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
-
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
 
     LOG.info("Test pass.")
 
@@ -2777,9 +2794,12 @@ def test_recreate_mountpod_reload_config():
     }
     update_config(init_config)
     # patch all csi-node pods anno to make cfg update faster
-    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
 
-    pvc = PVC(name="pvc-mountpod-recreated-reload-config", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    pvc = PVC(name="pvc-mountpod-recreated-reload-config", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
     LOG.info("Deploy pvc {}".format(pvc.name))
     pvc.create()
 
@@ -2807,7 +2827,7 @@ def test_recreate_mountpod_reload_config():
     result = check_mount_point(check_path)
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
-    
+
     # update cfg
     new_cfg = {
         "mountPodPatch": [
@@ -2838,9 +2858,11 @@ def test_recreate_mountpod_reload_config():
         ]
     }
     update_config(new_cfg)
-    
+
     # patch all csi-node pods anno to make cfg update faster
-    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
 
     LOG.info("Start to delete mountpod..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
@@ -2867,7 +2889,7 @@ def test_recreate_mountpod_reload_config():
         raise Exception("mountpod config volume id not set")
     if mount_pod.get_metadata().labels.get("volume_name") == "":
         raise Exception("mountpod config volume name not set")
-    
+
     if mount_pod.get_spec().host_network == True:
         raise Exception("mountpod config hostNetwork not set to false")
 
@@ -2879,7 +2901,7 @@ def test_recreate_mountpod_reload_config():
 
     if mount_pod.get_spec().containers[0].resources.requests["cpu"] != "200m":
         raise Exception("mountpod config resources not set")
-    
+
     # delete test resources
     LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
@@ -2891,6 +2913,126 @@ def test_recreate_mountpod_reload_config():
     update_config({})
 
     # patch all csi-node pods anno to make cfg update faster
-    subprocess.check_call(["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node", "updatedAt=" + str(int(time.time()))])
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
 
     LOG.info("Test pass.")
+
+def test_secret_has_owner_reference():
+    LOG.info("[test case] test secret has owner reference begin...")
+
+    dynamic_pvc_1 = PVC(name="pv-secret-owner-reference-dynamic-1", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.create()
+
+    static_pv = PV(name="pv-secret-owner-reference-static", access_mode="ReadWriteMany", volume_handle="pv-secret-owner-reference-static-different", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(static_pv.name))
+    static_pv.create()
+    static_pvc = PVC(name="pvc-secret-owner-reference-static", access_mode="ReadWriteMany", storage_name="", pv=static_pv.name)
+    LOG.info("Deploy pvc {}".format(static_pvc.name))
+    static_pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if dynamic_pvc_1.check_is_bound() and static_pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-secret-owner-reference", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[static_pvc.name, dynamic_pvc_1.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check secret has owner reference
+    dynamic_pv = dynamic_pvc_1.get_volume()
+    static_pv = static_pvc.get_volume()
+    
+    dynamic_secret = Secret(secret_name="juicefs-"+dynamic_pv.spec.csi.volume_handle+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
+    owner_references = dynamic_secret.get_owner_reference()
+    if len(owner_references) != 1 and owner_references[0].uid != dynamic_pv.metadata.uid:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv.metadata.name))
+
+    static_secret = Secret(secret_name="juicefs-"+static_pv.spec.csi.volume_handle+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(static_secret.secret_name))
+    owner_references = static_secret.get_owner_reference()
+    if len(owner_references) != 1 and owner_references[0].uid != static_pv.metadata.uid:
+        raise Exception("Secret {} has no owner reference for pv {}".format(static_secret.secret_name, static_pv.metadata.name))
+    
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.delete()
+
+    LOG.info("Remove static pvc {}".format(static_pvc.name))
+    static_pvc.delete()
+
+    LOG.info("Test pass.")
+    return
+
+def test_secret_has_owner_reference_shared_mount():
+    LOG.info("[test case] test secret has owner reference share mount begin...")
+
+    dynamic_pvc_1 = PVC(name="pv-secret-owner-reference-dynamic-1", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.create()
+
+    dynamic_pvc_2 = PVC(name="pv-secret-owner-reference-dynamic-2", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(dynamic_pvc_2.name))
+    dynamic_pvc_2.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if dynamic_pvc_1.check_is_bound() and dynamic_pvc_2.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-secret-owner-reference-shared-mount", replicas=1, pvc=dynamic_pvc_1.name, pvcs=[dynamic_pvc_1.name, dynamic_pvc_2.name])
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check secret has owner reference
+    LOG.info("Check secret has owner reference..")
+    dynamic_secret = Secret(secret_name="juicefs-"+STORAGECLASS_NAME+"-secret")
+    LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
+    owner_references = dynamic_secret.get_owner_reference()
+
+    if len(owner_references) != 2:
+        raise Exception("Secret {} has {} owner reference, expect 2.".format(dynamic_secret.secret_name, len(owner_references)))
+    owners = [owner.uid for owner in owner_references]
+    # check has each pv uid
+    dynamic_pv_1 = dynamic_pvc_1.get_volume()
+    if dynamic_pv_1.metadata.uid not in owners:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_1.metadata.name))
+    dynamic_pv_2 = dynamic_pvc_2.get_volume()
+    if dynamic_pv_2.metadata.uid not in owners:
+        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_2.metadata.name))
+    
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
+    dynamic_pvc_1.delete()
+    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_2.name))
+    dynamic_pvc_2.delete()
+
+    LOG.info("Test pass.")
+    return

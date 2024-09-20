@@ -18,8 +18,8 @@ package dashboard
 
 import (
 	"context"
-	"encoding/json"
 	"io"
+	"path"
 	"strconv"
 	"strings"
 
@@ -30,16 +30,15 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
+
+var podLog = klog.NewKlogr().WithName("pod")
 
 type PodExtra struct {
 	*corev1.Pod `json:",inline"`
@@ -84,7 +83,8 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			var pod corev1.Pod
 			if err := api.cachedReader.Get(c, name, &pod); err == nil &&
 				(nameFilter == "" || strings.Contains(pod.Name, nameFilter)) &&
-				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) {
+				(namespaceFilter == "" || strings.Contains(pod.Namespace, namespaceFilter)) &&
+				(isAppPod(&pod) || api.isAppPodShouldList(c, &pod)) {
 				pods = append(pods, &PodExtra{Pod: &pod})
 			}
 		}
@@ -112,26 +112,26 @@ func (api *API) listAppPod() gin.HandlerFunc {
 			if pod.Pvs == nil {
 				pod.Pvs, err = api.listPVsOfPod(c, pod.Pod)
 				if err != nil {
-					klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get pvs error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.MountPods == nil {
 				pod.MountPods, err = api.listMountPodOf(c, pod.Pod)
 				if err != nil {
-					klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get mount pods error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.CsiNode == nil {
 				pod.CsiNode, err = api.getCSINode(c, pod.Spec.NodeName)
 				if err != nil {
-					klog.Errorf("get csi node %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get csi node error", "node", pod.Spec.NodeName)
 				}
 			}
 			if pod.Spec.NodeName != "" {
 				var node corev1.Node
 				err := api.cachedReader.Get(c, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
 				if err != nil {
-					klog.Errorf("get node %s error %v", pod.Spec.NodeName, err)
+					podLog.Error(err, "get node error", "node", pod.Spec.NodeName)
 				} else {
 					pod.Node = &node
 				}
@@ -152,7 +152,7 @@ func (api *API) filterPVsOfPod(ctx context.Context, pod *PodExtra, filter string
 	var err error
 	pod.Pvs, err = api.listPVsOfPod(ctx, pod.Pod)
 	if err != nil {
-		klog.Errorf("get pvs of %s error %v", pod.Spec.NodeName, err)
+		podLog.Error(err, "get pvs error", "node", pod.Spec.NodeName)
 	}
 	for _, pv := range pod.Pvs {
 		if strings.Contains(pv.Name, filter) {
@@ -169,7 +169,7 @@ func (api *API) filterMountPodsOfPod(ctx context.Context, pod *PodExtra, filter 
 	var err error
 	pod.MountPods, err = api.listMountPodOf(ctx, pod.Pod)
 	if err != nil {
-		klog.Errorf("get mount pods of %s error %v", pod.Spec.NodeName, err)
+		podLog.Error(err, "get mount pods error", "node", pod.Spec.NodeName)
 	}
 	for _, mountPod := range pod.MountPods {
 		if strings.Contains(mountPod.Name, filter) {
@@ -237,12 +237,18 @@ func (api *API) listSysPod() gin.HandlerFunc {
 			var node corev1.Node
 			err := api.cachedReader.Get(c, types.NamespacedName{Name: pods[i].Spec.NodeName}, &node)
 			if err != nil {
-				klog.Errorf("get node %s error %v", pods[i].Spec.NodeName, err)
+				podLog.Error(err, "get node error", "node", pods[i].Spec.NodeName)
 				continue
 			}
+			var csiNode *corev1.Pod
+			csiNode, err = api.getCSINode(c, pods[i].Spec.NodeName)
+			if err != nil {
+				podLog.Error(err, "get csi node error", "node", pods[i].Spec.NodeName)
+			}
 			result.Pods = append(result.Pods, &PodExtra{
-				Pod:  pods[i],
-				Node: &node,
+				Pod:     pods[i],
+				Node:    &node,
+				CsiNode: csiNode,
 			})
 		}
 		c.IndentedJSON(200, result)
@@ -347,7 +353,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
 			return
-		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodUnready(c, &pod) {
+		} else if !isAppPod(&pod) && !isSysPod(&pod) && !api.isAppPodShouldList(c, &pod) {
 			c.String(404, "not found")
 			return
 		}
@@ -500,9 +506,7 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	for _, pv := range pvs {
 		var pods corev1.PodList
 		err := api.cachedReader.List(ctx, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			continue
@@ -573,7 +577,7 @@ func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
 			for _, v := range pod.Annotations {
 				uid := getUidFunc(v)
 				if uid == "" {
-					klog.V(6).Infof("annotation %s skipped", v)
+					podLog.V(1).Info("annotation skipped", "annotations", v)
 					continue
 				}
 				if p, ok := podMap[uid]; ok {
@@ -614,12 +618,9 @@ func (api *API) getMountPodsOfPV() gin.HandlerFunc {
 		}
 		pv := obj.(*corev1.PersistentVolume)
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(*pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -655,12 +656,9 @@ func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
 			return
 		}
 
-		// todo: if unique id is sc name (mount pod shared by sc)
 		var pods corev1.PodList
 		err := api.cachedReader.List(c, &pods, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				config.PodUniqueIdLabelKey: pv.Spec.CSI.VolumeHandle,
-			}),
+			LabelSelector: LabelSelectorOfMount(pv),
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -719,7 +717,7 @@ func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser)
 					return
 				}
 				if string(temp) == "ping" {
-					websocket.Message.Send(l.conn, "pong")
+					_ = websocket.Message.Send(l.conn, "pong")
 				}
 			}
 		}
@@ -728,8 +726,7 @@ func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser)
 }
 
 func (l *LogPipe) Write(p []byte) (int, error) {
-	websocket.Message.Send(l.conn, string(p))
-	return len(p), nil
+	return len(p), websocket.Message.Send(l.conn, string(p))
 }
 
 func (l *LogPipe) Read(p []byte) (int, error) {
@@ -769,50 +766,6 @@ func (api *API) watchPodLogs() gin.HandlerFunc {
 	}
 }
 
-type terminalSession struct {
-	conn   *websocket.Conn
-	sizeCh chan *remotecommand.TerminalSize
-}
-
-func (t *terminalSession) Write(p []byte) (int, error) {
-	err := websocket.Message.Send(t.conn, string(p))
-	return len(p), err
-}
-
-func (t *terminalSession) Read(p []byte) (int, error) {
-	var msgStr []byte
-	var msg struct {
-		Rows uint16 `json:"rows"`
-		Cols uint16 `json:"cols"`
-		Data string `json:"data"`
-		Type string `json:"type"`
-	}
-	err := websocket.Message.Receive(t.conn, &msgStr)
-	if err != nil {
-		return 0, err
-	}
-	if err := json.Unmarshal(msgStr, &msg); err != nil {
-		return copy(p, msgStr), nil
-	}
-	switch msg.Type {
-	case "stdin":
-		return copy(p, []byte(msg.Data)), nil
-	case "resize":
-		select {
-		case t.sizeCh <- &remotecommand.TerminalSize{
-			Width:  msg.Cols,
-			Height: msg.Rows,
-		}:
-		default:
-		}
-	}
-	return 0, nil
-}
-
-func (t *terminalSession) Next() *remotecommand.TerminalSize {
-	return <-t.sizeCh
-}
-
 func (api *API) execPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
@@ -820,36 +773,13 @@ func (api *API) execPod() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := &terminalSession{
-				conn:   ws,
-				sizeCh: make(chan *remotecommand.TerminalSize),
-			}
-			req := api.client.CoreV1().RESTClient().Post().
-				Resource("pods").
-				Name(name).
-				Namespace(namespace).SubResource("exec")
-			req.VersionedParams(&corev1.PodExecOptions{
-				Command:   []string{"sh", "-c", "bash || sh"},
-				Container: container,
-				Stdin:     true,
-				Stdout:    true,
-				Stderr:    true,
-				TTY:       true,
-			}, scheme.ParameterCodec)
-
-			executor, err := remotecommand.NewSPDYExecutor(api.kubeconfig, "POST", req.URL())
-			if err != nil {
-				klog.Error("Failed to create SPDY executor: ", err)
-				return
-			}
-			if err := executor.Stream(remotecommand.StreamOptions{
-				Stdin:             terminal,
-				Stdout:            terminal,
-				Stderr:            terminal,
-				Tty:               true,
-				TerminalSizeQueue: terminal,
-			}); err != nil {
-				klog.Error("Failed to stream: ", err)
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfTransmission)
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{"sh", "-c", "bash || sh"}); err != nil {
+				podLog.Error(err, "Failed to exec in pod")
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
@@ -863,45 +793,141 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 		container := c.Param("container")
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
-			terminal := &terminalSession{
-				conn:   ws,
-				sizeCh: make(chan *remotecommand.TerminalSize),
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				podLog.Error(err, "Failed to get mount pod")
+				return
 			}
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				podLog.Error(err, "Failed to get mount path")
+				return
+			}
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{"sh", "-c", "cat " + mntPath + "/.accesslog"}); err != nil {
+				podLog.Error(err, "Failed to exec in pod")
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) debugPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		statsSec := c.Query("statsSec")
+		traceSec := c.Query("traceSec")
+		profileSec := c.Query("profileSec")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				podLog.Error(err, "Failed to get mount pod")
+				return
+			}
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			if err != nil || mntPath == "" {
+				podLog.Error(err, "Failed to get mount path")
+				return
+			}
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{
+					"juicefs", "debug",
+					"--no-color",
+					"--profile-sec", profileSec,
+					"--trace-sec", traceSec,
+					"--stats-sec", statsSec,
+					"--out-dir", "/debug",
+					mntPath}); err != nil {
+				podLog.Error(err, "Failed to start process")
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) warmupPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		threads := c.Query("threads")
+		ioRetries := c.Query("ioRetries")
+		maxFailure := c.Query("maxFailure")
+		background := c.Query("background")
+		check := c.Query("check")
+		customSubPath := c.Query("subPath")
+
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
 			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 			if err != nil {
 				klog.Error("Failed to get mount pod: ", err)
 				return
 			}
-			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+			rootPath := ""
+			volumeId := mountpod.Labels[config.PodUniqueIdLabelKey]
+			var pv corev1.PersistentVolume
+			if err := api.cachedReader.Get(ctx, api.sysNamespaced(volumeId), &pv); err == nil {
+				if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeAttributes != nil {
+					if subPath, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok {
+						rootPath = subPath
+					}
+				}
+			}
+
+			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
 				return
 			}
-			req := api.client.CoreV1().RESTClient().Post().
-				Resource("pods").
-				Name(name).
-				Namespace(namespace).SubResource("exec")
-			req.VersionedParams(&corev1.PodExecOptions{
-				Command:   []string{"sh", "-c", "cat " + mntPath + "/.accesslog"},
-				Container: container,
-				Stdin:     true,
-				Stdout:    true,
-				Stderr:    true,
-			}, scheme.ParameterCodec)
-
-			executor, err := remotecommand.NewSPDYExecutor(api.kubeconfig, "POST", req.URL())
-			if err != nil {
-				klog.Error("Failed to create SPDY executor: ", err)
-				return
+			cmds := []string{
+				"juicefs", "warmup",
+				"--threads=" + threads,
+				"--background=" + background,
+				"--check=" + check,
+				"--no-color",
 			}
-			if err := executor.Stream(remotecommand.StreamOptions{
-				Stdin:  terminal,
-				Stdout: terminal,
-				Stderr: terminal,
-			}); err != nil {
-				klog.Error("Failed to stream: ", err)
+			if !config.IsCEMountPod(mountpod) {
+				cmds = append(cmds, "--io-retries="+ioRetries)
+				cmds = append(cmds, "--max-failure="+maxFailure)
+			}
+			cmds = append(cmds, path.Join(mntPath, rootPath, customSubPath))
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				cmds); err != nil {
+				klog.Error("Failed to start process: ", err)
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) downloadDebugFile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := config.MountContainerName
+		c.Header("Content-Disposition", "attachment; filename="+namespace+"_"+name+"_"+"debug.zip")
+		err := resource.DownloadPodFile(
+			api.client, api.kubeconfig, c.Writer, namespace, name, container,
+			[]string{"sh", "-c", "cat $(ls -t /debug/*.zip | head -n 1) && exit 0"})
+		if err != nil {
+			podLog.Error(err, "Failed to create SPDY executor")
+			return
+		}
 	}
 }

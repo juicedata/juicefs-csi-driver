@@ -213,7 +213,6 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - pods
       - persistentvolumes
       - persistentvolumeclaims
       - persistentvolumeclaims/status
@@ -222,6 +221,15 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - update
   - apiGroups:
       - storage.k8s.io
     resources:
@@ -291,6 +299,12 @@ rules:
       - delete
       - update
       - create
+  - apiGroups:
+    - ""
+    resources:
+    - pods/exec
+    verbs:
+    - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -320,15 +334,8 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
+    enableNodeSelector: false
     mountPodPatch:
-      - lifecycle:
-          preStop:
-            exec:
-              command:
-              - sh
-              - -c
-              - +e
-              - umount ${MOUNT_POINT} -l; rmdir ${MOUNT_POINT}; exit 0
 ---
 kind: StatefulSet
 apiVersion: apps/v1
@@ -356,13 +363,12 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.24.2
+          image: juicedata/juicefs-csi-driver:v0.24.5
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
             - --leader-election
-            - --v=5
             - --config=/etc/config/config.yaml
           env:
             - name: CSI_ENDPOINT
@@ -500,12 +506,11 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.24.2
+          image: juicedata/juicefs-csi-driver:v0.24.5
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
             - --nodeid=$(NODE_NAME)
-            - --v=5
             - --enable-manager=true
             - --config=/etc/config/config.yaml
           env:
@@ -549,6 +554,8 @@ spec:
               name: jfs-root-dir
             - mountPath: /etc/config
               name: juicefs-config
+            - mountPath: /tmp
+              name: jfs-fuse-fd
           ports:
             - name: healthz
               containerPort: 9909
@@ -619,6 +626,10 @@ spec:
             defaultMode: 420
             name: juicefs-csi-driver-config
           name: juicefs-config
+        - hostPath:
+            path: /var/run/juicefs-csi
+            type: DirectoryOrCreate
+          name: jfs-fuse-fd
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -759,7 +770,7 @@ spec:
       serviceAccountName: juicefs-csi-dashboard-sa
       containers:
         - name: dashboard
-          image: juicedata/csi-dashboard:v0.24.2
+          image: juicedata/csi-dashboard:v0.24.5
           args:
             - --static-dir=/dist
           env:

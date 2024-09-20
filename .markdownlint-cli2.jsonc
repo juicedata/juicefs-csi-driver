@@ -23,10 +23,12 @@
         "TabItem",
         "Tabs",
         "br",
+        "details",
         "div",
         "iframe",
         "kbd",
         "span",
+        "summary",
         "sup"
       ]
     },

@@ -47,6 +47,8 @@ MountPodPatch:
   - pvcSelector:
       matchLabels:
           app: juicefs-mount
+      matchName: "test"
+      matchStorageClassName: "juicefs-sc"
     labels:
       app: juicefs-mount
     annotations:
@@ -68,6 +70,23 @@ MountPodPatch:
       periodSeconds: 5
       successThreshold: 1
   - terminationGracePeriodSeconds: 60
+  - env:
+    - name: TEST_ENV
+      value: "1"
+  - volumeMounts:
+    - name: test-volume
+      mountPath: /test
+    volumes:
+    - name: test-volume
+      hostPath:
+        path: /tmp
+  - volumeDevices:
+    - name: block-devices
+      devicePath: /dev/sda
+    volumes:
+    - name: block-devices
+      persistentVolumeClaim:
+        claimName: block-pvc
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -81,7 +100,7 @@ MountPodPatch:
 	}
 	defer GlobalConfig.Reset()
 	// Check the loaded config
-	assert.Equal(t, len(GlobalConfig.MountPodPatch), 6)
+	assert.Equal(t, len(GlobalConfig.MountPodPatch), 9)
 	assert.Equal(t, GlobalConfig.MountPodPatch[0], MountPodPatch{
 		CEMountImage: "juicedata/mount:ce-test",
 		EEMountImage: "juicedata/mount:ee-test",
@@ -95,8 +114,12 @@ MountPodPatch:
 		},
 	})
 	assert.Equal(t, GlobalConfig.MountPodPatch[2], MountPodPatch{
-		PVCSelector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{"app": "juicefs-mount"},
+		PVCSelector: &PVCSelector{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "juicefs-mount"},
+			},
+			MatchStorageClassName: "juicefs-sc",
+			MatchName:             "test",
 		},
 		Labels: map[string]string{
 			"app": "juicefs-mount",
@@ -133,6 +156,50 @@ MountPodPatch:
 	assert.Equal(t, GlobalConfig.MountPodPatch[5], MountPodPatch{
 		TerminationGracePeriodSeconds: toPtr(int64(60)),
 	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[6], MountPodPatch{
+		Env: []corev1.EnvVar{
+			{
+				Name:  "TEST_ENV",
+				Value: "1",
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[7], MountPodPatch{
+		Volumes: []corev1.Volume{
+			{
+				Name: "test-volume",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/tmp",
+					},
+				},
+			},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "test-volume",
+				MountPath: "/test",
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[8], MountPodPatch{
+		Volumes: []corev1.Volume{
+			{
+				Name: "block-devices",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "block-pvc",
+					},
+				},
+			},
+		},
+		VolumeDevices: []corev1.VolumeDevice{
+			{
+				Name:       "block-devices",
+				DevicePath: "/dev/sda",
+			},
+		},
+	})
 }
 
 func TestGenMountPodPatch(t *testing.T) {
@@ -162,8 +229,10 @@ func TestGenMountPodPatch(t *testing.T) {
 			baseConfig: &Config{
 				MountPodPatch: []MountPodPatch{
 					{
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
 						},
 						Labels:      map[string]string{"app": "juicefs-labels"},
 						Annotations: map[string]string{"app": "juicefs-annos"},
@@ -184,8 +253,10 @@ func TestGenMountPodPatch(t *testing.T) {
 			baseConfig: &Config{
 				MountPodPatch: []MountPodPatch{
 					{
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
 						},
 						Labels:      map[string]string{"app": "juicefs-labels"},
 						Annotations: map[string]string{"app": "juicefs-annos"},
@@ -212,22 +283,28 @@ func TestGenMountPodPatch(t *testing.T) {
 					},
 					{
 						// apply config with matched selector
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
 						},
 						HostNetwork: toPtr(false),
 					},
 					{
 						// overwrite annos with matched selector
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
 						},
 						Annotations: map[string]string{"app": "overwrite-base-config"},
 					},
 					{
 						// overwrite labels with un matched selector
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount-x"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount-x"},
+							},
 						},
 						Labels: map[string]string{"app": "overwrite-base-config"},
 					},
@@ -262,8 +339,10 @@ func TestGenMountPodPatch(t *testing.T) {
 						},
 					},
 					{
-						PVCSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": "juicefs-mount"},
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
 						},
 						HostNetwork: toPtr(false),
 					},
@@ -283,6 +362,70 @@ func TestGenMountPodPatch(t *testing.T) {
 					},
 				},
 				HostNetwork: toPtr(false),
+			},
+		},
+		{
+			name: "ignore some volumes",
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						Volumes: []corev1.Volume{
+							{
+								Name: "volume-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/tmp",
+									},
+								},
+							},
+							{
+								Name: "volume-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/tmp",
+									},
+								},
+							},
+							{
+								Name: "cachedir-1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/cache",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels:      map[string]string{},
+				Annotations: map[string]string{},
+				Volumes: []corev1.Volume{
+					{
+						Name: "volume-1",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/tmp",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "test mount options",
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						MountOptions: []string{"rw", "nolock"},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels:       map[string]string{},
+				Annotations:  map[string]string{},
+				MountOptions: []string{"rw", "nolock"},
 			},
 		},
 	}
@@ -338,4 +481,109 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 	// Call the GenMountPodPatch function again
 	actualPatch = baseConfig.GenMountPodPatch(setting)
 	assert.Equal(t, expectedPatch2, actualPatch)
+}
+
+func TestMountPodPatch_isMatch(t *testing.T) {
+	testCases := []struct {
+		name     string
+		patch    MountPodPatch
+		pvc      *corev1.PersistentVolumeClaim
+		expected bool
+	}{
+		{
+			name:     "No PVC Selector",
+			patch:    MountPodPatch{},
+			expected: true,
+		},
+		{
+			name: "Match PVC Labels",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "juicefs-mount"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Mismatch PVC Labels",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "wrong-label"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Match PVC Name",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchName: "pvc-name",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pvc-name",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Mismatch PVC Name",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchName: "wrong-pvc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pvc-name",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Match Storage Class Name",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "juicefs-sc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: toPtr("juicefs-sc"),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Mismatch Storage Class Name",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "wrong-sc",
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.patch.isMatch(tc.pvc)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
 }

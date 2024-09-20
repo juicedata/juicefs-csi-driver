@@ -104,11 +104,42 @@ globalConfig:
         matchLabels:
           ...
       annotations:
-        # delayed mount pod deletion
+        # Delayed mount pod deletion
         juicefs-delete-delay: 5m
-        # clean cache when mount pod exits
+        # Clean cache when mount pod exits
         juicefs-clean-cache: "true"
-      
+
+      # Define an environment variable for mount pod 
+    - pvcSelector:
+        matchLabels:
+          ...
+      env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+
+      # Mount some volumes to mount pod
+    - pvcSelector:
+        matchLabels:
+          ...
+      volumeDevices:
+        - name: block-devices
+          devicePath: /dev/sda1
+      volumes:
+        - name: block-devices
+          persistentVolumeClaim:
+            claimName: block-pv
+
+      # Select by StorageClass
+    - pvcSelector:
+        matchStorageClassName: juicefs-sc
+      terminationGracePeriodSeconds: 60
+
+      # Select by PVC
+    - pvcSelector:
+        matchName: pvc-name
+      terminationGracePeriodSeconds: 60
 ```
 
 ### Inherit from CSI Node (deprecated) {#inherit-from-csi-node}

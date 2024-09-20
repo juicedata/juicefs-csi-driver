@@ -30,21 +30,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 var (
-	WebPort           = MustGetWebPort() // web port used by metrics
-	ByProcess         = false            // csi driver runs juicefs in process or not
-	FormatInPod       = false            // put format/auth in pod (only in k8s)
-	Provisioner       = false            // provisioner in controller
-	CacheClientConf   = false            // cache client config files and use directly in mount containers
-	MountManager      = false            // manage mount pod in controller (only in k8s)
-	Webhook           = false            // inject juicefs client as sidecar in pod (only in k8s)
-	ValidatingWebhook = false            // start validating webhook, applicable to ee only
-	Immutable         = false            // csi driver is running in an immutable environment
+	log                    = klog.NewKlogr().WithName("config")
+	WebPort                = MustGetWebPort() // web port used by metrics
+	ByProcess              = false            // csi driver runs juicefs in process or not
+	FormatInPod            = false            // put format/auth in pod (only in k8s)
+	Provisioner            = false            // provisioner in controller
+	CacheClientConf        = false            // cache client config files and use directly in mount containers
+	MountManager           = false            // manage mount pod in controller (only in k8s)
+	Webhook                = false            // inject juicefs client as sidecar in pod (only in k8s)
+	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
+	Immutable              = false            // csi driver is running in an immutable environment
+	StorageClassShareMount = false            // share mount pod for the same storage class
 
 	DriverName               = "csi.juicefs.com"
 	NodeName                 = ""
@@ -136,15 +138,39 @@ const (
 	DefaultMountPodMemLimit   = "5Gi"
 	DefaultMountPodCpuRequest = "1000m"
 	DefaultMountPodMemRequest = "1Gi"
+
+	// secret labels
+	JuicefsSecretLabelKey = "juicefs/secret"
+
+	PodInfoName      = "csi.storage.k8s.io/pod.name"
+	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 )
+
+var interVolumesPrefix = []string{
+	"rsa-key",
+	"init-config",
+	"config-",
+	"jfs-dir",
+	"update-db",
+	"cachedir-",
+}
+
+func IsInterVolume(name string) bool {
+	for _, prefix := range interVolumesPrefix {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 var PodLocks [1024]sync.Mutex
 
-func GetPodLock(podName string) *sync.Mutex {
+func GetPodLock(podHashVal string) *sync.Mutex {
 	h := fnv.New32a()
-	h.Write([]byte(podName))
-	index := int(h.Sum32())
-	return &PodLocks[index%1024]
+	h.Write([]byte(podHashVal))
+	index := h.Sum32() % 1024
+	return &PodLocks[index]
 }
 
 func MustGetWebPort() int {
@@ -154,15 +180,21 @@ func MustGetWebPort() int {
 		if err == nil {
 			return port
 		}
-		klog.Errorf("Fail to parse JUICEFS_CSI_WEB_PORT %s: %v", value, err)
+		log.Error(err, "Fail to parse JUICEFS_CSI_WEB_PORT", "port", value)
 	}
 	return 8080
+}
+
+type PVCSelector struct {
+	metav1.LabelSelector
+	MatchStorageClassName string `json:"matchStorageClassName,omitempty"`
+	MatchName             string `json:"matchName,omitempty"`
 }
 
 type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
-	PVCSelector *metav1.LabelSelector `json:"pvcSelector,omitempty"`
+	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
 
 	CEMountImage string `json:"ceMountImage,omitempty"`
 	EEMountImage string `json:"eeMountImage,omitempty"`
@@ -178,12 +210,37 @@ type MountPodPatch struct {
 	Lifecycle                     *corev1.Lifecycle            `json:"lifecycle,omitempty"`
 	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
 	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty"`
+	Volumes                       []corev1.Volume              `json:"volumes,omitempty"`
+	VolumeDevices                 []corev1.VolumeDevice        `json:"volumeDevices,omitempty"`
+	VolumeMounts                  []corev1.VolumeMount         `json:"volumeMounts,omitempty"`
+	Env                           []corev1.EnvVar              `json:"env,omitempty"`
+	MountOptions                  []string                     `json:"mountOptions,omitempty"`
+}
+
+func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
+	if mpp.PVCSelector == nil {
+		return true
+	}
+	if pvc == nil {
+		return false
+	}
+	if mpp.PVCSelector.MatchName != "" && mpp.PVCSelector.MatchName != pvc.Name {
+		return false
+	}
+	if mpp.PVCSelector.MatchStorageClassName != "" && pvc.Spec.StorageClassName != nil && mpp.PVCSelector.MatchStorageClassName != *pvc.Spec.StorageClassName {
+		return false
+	}
+	selector, err := metav1.LabelSelectorAsSelector(&mpp.PVCSelector.LabelSelector)
+	if err != nil {
+		return false
+	}
+	return selector.Matches(labels.Set(pvc.Labels))
 }
 
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
 	var copy MountPodPatch
 	data, _ := json.Marshal(mpp)
-	json.Unmarshal(data, &copy)
+	_ = json.Unmarshal(data, &copy)
 	return copy
 }
 
@@ -224,6 +281,61 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	if mp.TerminationGracePeriodSeconds != nil {
 		mpp.TerminationGracePeriodSeconds = mp.TerminationGracePeriodSeconds
 	}
+	vok := make(map[string]bool)
+	if mp.Volumes != nil {
+		if mpp.Volumes == nil {
+			mpp.Volumes = []corev1.Volume{}
+		}
+		for _, v := range mp.Volumes {
+			if IsInterVolume(v.Name) {
+				log.Info("applyConfig: volume uses an internal volume name, ignore", "volume", v.Name)
+				continue
+			}
+			found := false
+			for _, vv := range mpp.Volumes {
+				if vv.Name == v.Name {
+					found = true
+					break
+				}
+			}
+			if found {
+				log.Info("applyConfig: volume already exists, ignore", "volume", v.Name)
+				continue
+			}
+			vok[v.Name] = true
+			mpp.Volumes = append(mpp.Volumes, v)
+		}
+	}
+	if mp.VolumeMounts != nil {
+		if mpp.VolumeMounts == nil {
+			mpp.VolumeMounts = []corev1.VolumeMount{}
+		}
+		for _, vm := range mp.VolumeMounts {
+			if !vok[vm.Name] {
+				log.Info("applyConfig: volumeMount not exists in volumes, ignore", "volume", vm.Name)
+				continue
+			}
+			mpp.VolumeMounts = append(mpp.VolumeMounts, vm)
+		}
+	}
+	if mp.VolumeDevices != nil {
+		if mpp.VolumeDevices == nil {
+			mpp.VolumeDevices = []corev1.VolumeDevice{}
+		}
+		for _, vm := range mp.VolumeDevices {
+			if !vok[vm.Name] {
+				log.Info("applyConfig: volumeDevices not exists in volumes, ignore", "volume", vm.Name)
+				continue
+			}
+			mpp.VolumeDevices = append(mpp.VolumeDevices, vm)
+		}
+	}
+	if mp.Env != nil {
+		mpp.Env = mp.Env
+	}
+	if mp.MountOptions != nil {
+		mpp.MountOptions = mp.MountOptions
+	}
 }
 
 // TODO: migrate more config for here
@@ -249,19 +361,8 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 
 	// merge each patch
 	for _, mp := range c.MountPodPatch {
-		if mp.PVCSelector == nil {
+		if mp.isMatch(setting.PVC) {
 			patch.merge(mp.deepCopy())
-		} else {
-			if setting.PVC == nil {
-				continue
-			}
-			selector, err := metav1.LabelSelectorAsSelector(mp.PVCSelector)
-			if err != nil {
-				continue
-			}
-			if selector.Matches(labels.Set(setting.PVC.Labels)) {
-				patch.merge(mp.deepCopy())
-			}
 		}
 	}
 	if setting.IsCe {
@@ -276,8 +377,8 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
 	strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
 	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
-	json.Unmarshal([]byte(strData), patch)
-	klog.V(6).Infof("volume %s using patch: %+v", setting.VolumeId, patch)
+	_ = json.Unmarshal([]byte(strData), patch)
+	log.V(1).Info("volume using patch", "volumeId", setting.VolumeId, "patch", patch)
 	return *patch
 }
 
@@ -314,7 +415,7 @@ func LoadConfig(configPath string) error {
 	}
 
 	GlobalConfig = cfg
-	klog.V(6).Infof("config loaded: %+v", GlobalConfig)
+	log.V(1).Info("config loaded", "global config", *GlobalConfig)
 	return err
 }
 
@@ -338,7 +439,7 @@ func StartConfigReloader(configPath string) error {
 			select {
 			case event, ok := <-watcher.Events:
 				if !ok {
-					klog.Errorf("fsnotify watcher closed")
+					log.Info("fsnotify watcher closed")
 					continue
 				}
 				if event.Op != fsnotify.Write && event.Op != fsnotify.Remove {
@@ -346,22 +447,22 @@ func StartConfigReloader(configPath string) error {
 				}
 				// k8s configmaps uses symlinks, we need this workaround to detect the real file change
 				if event.Op == fsnotify.Remove {
-					watcher.Remove(event.Name)
+					_ = watcher.Remove(event.Name)
 					// add a new watcher pointing to the new symlink/file
-					watcher.Add(configPath)
+					_ = watcher.Add(configPath)
 				}
 
-				klog.Infof("config file %s updated, reload config", configPath)
+				log.Info("config file updated, reload config", "config file", configPath)
 				err := LoadConfig(configPath)
 				if err != nil {
-					klog.Errorf("fail to reload config: %v", err)
+					log.Error(err, "fail to reload config")
 					continue
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					continue
 				}
-				klog.Errorf("fsnotify error: %v", err)
+				log.Error(err, "fsnotify error")
 			}
 		}
 	}(fsnotifyWatcher)
@@ -371,7 +472,10 @@ func StartConfigReloader(configPath string) error {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			LoadConfig(configPath)
+			err = LoadConfig(configPath)
+			if err != nil {
+				log.Error(err, "fail to load config")
+			}
 		}
 	}()
 

@@ -29,6 +29,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
@@ -74,12 +75,13 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(context.TODO(), volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(context.TODO(), bindSource, targetPath).Return(nil)
+						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
 							nodeID:    "fake_node_id",
@@ -121,12 +123,13 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(context.TODO(), volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(context.TODO(), bindSource, targetPath).Return(nil)
+						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -168,12 +171,13 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(context.TODO(), volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(context.TODO(), bindSource, targetPath).Return(nil)
+						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -221,10 +225,12 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+
 						mockJfs := mocks.NewMockJfs(mockCtl)
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, errors.New("test"))
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, errors.New("test"))
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -263,11 +269,12 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(context.TODO(), volumeId, subPath).Return(bindSource, errors.New("test"))
+						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, errors.New("test"))
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -306,12 +313,13 @@ func TestNodePublishVolume(t *testing.T) {
 						mockCtl := gomock.NewController(t)
 						defer mockCtl.Finish()
 
+						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
 						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(context.TODO(), volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(context.TODO(), bindSource, targetPath).Return(errors.New("test"))
+						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(errors.New("test"))
 						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(context.TODO(), volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(context.TODO(), targetPath).Return(nil)
+						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
 
 						juicefsDriver := &nodeService{
 							juicefs:   mockJuicefs,
@@ -479,6 +487,10 @@ func TestNodeUnpublishVolume(t *testing.T) {
 	metrics := newNodeMetrics(registerer)
 	Convey("Test NodeUnpublishVolume", t, func() {
 		Convey("test normal", func() {
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 			targetPath := "/test/path"
 			volumeId := "vol-test"
 
@@ -509,6 +521,10 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			targetPath := "/test/path"
 			volumeId := "vol-test"
 
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
 

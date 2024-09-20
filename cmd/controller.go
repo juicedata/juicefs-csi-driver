@@ -23,18 +23,16 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -75,7 +73,8 @@ func parseControllerConfig() {
 		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
 			config.Immutable = immutable
 		} else {
-			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
+			log.Error(err, "cannot parse JUICEFS_IMMUTABLE")
+			os.Exit(1)
 		}
 	}
 
@@ -100,13 +99,15 @@ func parseControllerConfig() {
 			config.DefaultEEMountImage = mountPodImage
 		}
 	}
-
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		config.StorageClassShareMount = true
+	}
 	if !config.Webhook {
 		// When not in sidecar mode, we should inherit attributes from CSI Node pod.
 		k8sclient, err := k8s.NewClient()
 		if err != nil {
-			klog.V(5).Infof("Can't get k8s client: %v", err)
-			os.Exit(0)
+			log.Error(err, "Can't get k8s client")
+			os.Exit(1)
 		}
 		CSINodeDsName := "juicefs-csi-node"
 		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
@@ -114,8 +115,8 @@ func parseControllerConfig() {
 		}
 		ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
 		if err != nil {
-			klog.V(5).Infof("Can't get DaemonSet %s: %v", CSINodeDsName, err)
-			os.Exit(0)
+			log.Error(err, "Can't get DaemonSet", "ds", CSINodeDsName)
+			os.Exit(1)
 		}
 		config.CSIPod = corev1.Pod{
 			Spec: ds.Spec.Template.Spec,
@@ -123,17 +124,21 @@ func parseControllerConfig() {
 	}
 }
 
-func controllerRun() {
+func controllerRun(ctx context.Context) {
 	parseControllerConfig()
 	if nodeID == "" {
-		klog.Fatalln("nodeID must be provided")
+		log.Info("nodeID must be provided")
+		os.Exit(1)
 	}
 
 	// http server for pprof
 	go func() {
 		port := 6060
 		for {
-			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
+			if err := http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil); err != nil {
+				log.Error(err, "failed to start pprof server")
+				os.Exit(1)
+			}
 			port++
 		}
 	}()
@@ -153,16 +158,17 @@ func controllerRun() {
 			Addr:    fmt.Sprintf(":%d", config.WebPort),
 			Handler: mux,
 		}
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil {
+			log.Error(err, "failed to start metrics server")
+		}
 	}()
 
 	// enable mount manager in csi controller
 	if config.MountManager {
 		go func() {
-			ctx := ctrl.SetupSignalHandler()
 			mgr, err := app.NewMountManager(leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
-				klog.Error(err)
+				log.Error(err, "fail to create mount manager")
 				return
 			}
 			mgr.Start(ctx)
@@ -172,23 +178,30 @@ func controllerRun() {
 	// enable webhook in csi controller
 	if config.Webhook {
 		go func() {
-			ctx := ctrl.SetupSignalHandler()
 			mgr, err := app.NewWebhookManager(certDir, webhookPort, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
 			if err != nil {
-				klog.Fatalln(err)
+				log.Error(err, "fail to create webhook manager")
+				os.Exit(1)
 			}
 
 			if err := mgr.Start(ctx); err != nil {
-				klog.Fatalln(err)
+				log.Error(err, "fail to start webhook manager")
+				os.Exit(1)
 			}
 		}()
 	}
 
 	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to create driver")
+		os.Exit(1)
 	}
+	go func() {
+		<-ctx.Done()
+		drv.Stop()
+	}()
 	if err := drv.Run(); err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to run driver")
+		os.Exit(1)
 	}
 }

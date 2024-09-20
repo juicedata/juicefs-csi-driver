@@ -10,7 +10,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -55,8 +55,9 @@ func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, er
 
 // CreateVolume create directory in an existing JuiceFS filesystem
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	log := klog.NewKlogr().WithName("CreateVolume")
 	// DEBUG only, secrets exposed in args
-	// klog.V(5).Infof("CreateVolume: called with args: %#v", req)
+	// klog.Infof("CreateVolume: called with args: %#v", req)
 
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
@@ -74,7 +75,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeId := req.Name
 	subPath := req.Name
 	secrets := req.Secrets
-	klog.V(5).Infof("CreateVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
+	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
 
 	requiredCap := req.CapacityRange.GetRequiredBytes()
 	if capa, ok := d.vols[req.Name]; ok && capa < requiredCap {
@@ -86,7 +87,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volCtx := make(map[string]string)
 	for k, v := range req.Parameters {
 		if strings.HasPrefix(v, "$") {
-			klog.Warningf("CreateVolume: volume %s parameters %s uses template pattern, please enable provisioner in CSI Controller, not works in default mode.", volumeId, k)
+			log.Info("volume parameters uses template pattern, please enable provisioner in CSI Controller, not works in default mode.", "volumeId", volumeId, "parameters", k)
 		}
 		volCtx[k] = v
 	}
@@ -104,11 +105,11 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// check if use pathpattern
 	if req.Parameters["pathPattern"] != "" {
-		klog.Warningf("CreateVolume: volume %s uses pathPattern, please enable provisioner in CSI Controller, not works in default mode.", volumeId)
+		log.Info("volume uses pathPattern, please enable provisioner in CSI Controller, not works in default mode.", "volumeId", volumeId)
 	}
 	// check if use secretFinalizer
 	if req.Parameters["secretFinalizer"] == "true" {
-		klog.Warningf("CreateVolume: volume %s uses secretFinalizer, please enable provisioner in CSI Controller, not works in default mode.", volumeId)
+		log.Info("volume uses secretFinalizer, please enable provisioner in CSI Controller, not works in default mode.", "volumeId", volumeId)
 	}
 
 	volCtx["subPath"] = subPath
@@ -123,6 +124,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // DeleteVolume moves directory for the volume to trash (TODO)
 func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	log := klog.NewKlogr().WithName("DeleteVolume")
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
@@ -134,24 +136,24 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.InvalidArgument, "Check Volume ID error: %v", err)
 	}
 	if !dynamic {
-		klog.V(5).Infof("Volume %s not dynamic PV, ignore.", volumeID)
+		log.Info("Volume is not dynamic PV, ignore.", "volumeId", volumeID)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
 	secrets := req.Secrets
-	klog.V(5).Infof("DeleteVolume: Secrets contains keys %+v", reflect.ValueOf(secrets).MapKeys())
+	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
 	if len(secrets) == 0 {
-		klog.V(5).Infof("DeleteVolume: Secrets is empty, skip.")
+		log.Info("Secrets is empty, skip.")
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
 	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
-		klog.Errorf("DeleteVolume: Volume %q is being used by another operation", volumeID)
+		log.Info("Volume is being used by another operation", "volumeId", volumeID)
 		return nil, status.Errorf(codes.Aborted, "DeleteVolume: Volume %q is being used by another operation", volumeID)
 	}
 	defer d.volLocks.Release(volumeID)
 
-	klog.V(5).Infof("DeleteVolume: Deleting volume %q", volumeID)
+	log.Info("Deleting volume", "volumeId", volumeID)
 	err = d.juicefs.JfsDeleteVol(ctx, volumeID, volumeID, secrets, nil, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not delVol in juicefs: %v", err)
@@ -163,7 +165,8 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 // ControllerGetCapabilities gets capabilities
 func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	klog.V(6).Infof("ControllerGetCapabilities: called with args %#v", req)
+	log := klog.NewKlogr().WithName("ControllerGetCapabilities")
+	log.V(1).Info("called with args", "args", req)
 	var caps []*csi.ControllerServiceCapability
 	for _, cap := range controllerCaps {
 		c := &csi.ControllerServiceCapability{
@@ -180,19 +183,22 @@ func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *
 
 // GetCapacity unimplemented
 func (d *controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	klog.V(6).Infof("GetCapacity: called with args %#v", req)
+	log := klog.NewKlogr().WithName("GetCapacity")
+	log.V(1).Info("called with args", "args", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ListVolumes unimplemented
 func (d *controllerService) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	klog.V(6).Infof("ListVolumes: called with args %#v", req)
+	log := klog.NewKlogr().WithName("ListVolumes")
+	log.V(1).Info("called with args", "args", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ValidateVolumeCapabilities validates volume capabilities
 func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	klog.V(6).Infof("ValidateVolumeCapabilities: called with args %#v", req)
+	log := klog.NewKlogr().WithName("ValidateVolumeCapabilities")
+	log.V(1).Info("called with args", "args", req)
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
@@ -261,7 +267,8 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 
 // ControllerExpandVolume adjusts quota according to capacity settings
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	klog.V(6).Infof("ControllerExpandVolume request: %+v", *req)
+	log := klog.NewKlogr().WithName("ControllerExpandVolume")
+	log.V(1).Info("request", "request", req)
 
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -285,7 +292,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if volCap == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
 	}
-	klog.V(5).Infof("NodePublishVolume: volume_capability is %s", volCap)
+	log.Info("volume capability", "volCap", volCap)
 	options := []string{}
 	if m := volCap.GetMount(); m != nil {
 		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions

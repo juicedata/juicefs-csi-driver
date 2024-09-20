@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -44,7 +43,7 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 	_ = clientgoscheme.AddToScheme(scheme)
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
-		klog.Error(err, "can not get kube config")
+		log.Error(err, "can not get kube config")
 		return nil, err
 	}
 
@@ -68,18 +67,18 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 	})
 
 	if err != nil {
-		klog.Error(err, "initialize controller manager failed")
+		log.Error(err, "initialize controller manager failed")
 		return nil, err
 	}
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Could not create k8s client %v", err)
+		log.Error(err, "Could not create k8s client")
 		return nil, err
 	}
 	if config.CacheClientConf {
 		if err := (mountctrl.NewSecretController(k8sClient)).SetupWithManager(mgr); err != nil {
-			klog.Errorf("Register secret controller error: %v", err)
+			log.Error(err, "Register secret controller error")
 			return nil, err
 		}
 	}
@@ -91,16 +90,16 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 
 func (w *WebhookManager) Start(ctx context.Context) error {
 	if err := w.registerWebhook(); err != nil {
-		klog.Errorf("Register webhook error: %v", err)
+		log.Error(err, "Register webhook error")
 		return err
 	}
 	if err := w.registerAppController(); err != nil {
-		klog.Errorf("Register app controller error: %v", err)
+		log.Error(err, "Register app controller error")
 		return err
 	}
-	klog.Info("Webhook manager started.")
+	log.Info("Webhook manager started.")
 	if err := w.mgr.Start(ctx); err != nil {
-		klog.Errorf("Webhook manager start error: %v", err)
+		log.Error(err, "Webhook manager start error")
 		return err
 	}
 	return nil
@@ -108,13 +107,13 @@ func (w *WebhookManager) Start(ctx context.Context) error {
 
 func (w *WebhookManager) registerWebhook() error {
 	// register admission handlers
-	klog.Info("Register webhook handler")
+	log.Info("Register webhook handler")
 	handler.Register(w.mgr, w.client)
 	return nil
 }
 
 func (w *WebhookManager) registerAppController() error {
 	// init Reconciler（Controller）
-	klog.Info("Register app controller")
+	log.Info("Register app controller")
 	return (mountctrl.NewAppController(w.client)).SetupWithManager(w.mgr)
 }

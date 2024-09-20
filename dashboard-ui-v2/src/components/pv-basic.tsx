@@ -16,12 +16,13 @@
 
 import { useEffect, useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Badge, Button, List } from 'antd'
+import { Badge, Button, List, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
+import { YamlIcon } from '@/icons'
 import { accessModeMap, PV } from '@/types/k8s'
 import { getPVStatusBadge } from '@/utils'
 
@@ -50,7 +51,25 @@ const PVBasic: React.FC<{
 
   return (
     <>
-      <ProCard title={<FormattedMessage id="basic" />}>
+      <ProCard
+        title={<FormattedMessage id="basic" />}
+        extra={
+          <>
+            <Tooltip title="Show Yaml">
+              <Button
+                className="action-button"
+                onClick={showModal}
+                icon={<YamlIcon />}
+              />
+              <YamlModal
+                isOpen={isModalOpen}
+                onClose={handleCancel}
+                content={YAML.stringify(pv)}
+              />
+            </Tooltip>
+          </>
+        }
+      >
         <ProDescriptions
           column={2}
           dataSource={pv}
@@ -66,7 +85,8 @@ const PVBasic: React.FC<{
                   <Link
                     to={`/pvcs/${record.spec?.claimRef?.namespace}/${record.spec?.claimRef?.name}`}
                   >
-                    {record.spec?.claimRef?.namespace}
+                    {record.spec?.claimRef?.namespace}/
+                    {record.spec.claimRef?.name}
                   </Link>
                 )
               },
@@ -103,12 +123,10 @@ const PVBasic: React.FC<{
             },
             {
               title: 'volumeHandle',
-              key: 'volumeHandle',
-              dataIndex: 'volumeHandle',
+              dataIndex: ['spec', 'csi', 'volumeHandle'],
             },
             {
               title: <FormattedMessage id="status" />,
-              key: 'status',
               dataIndex: 'status',
               valueType: 'select',
               render: (_, pv) => {
@@ -119,24 +137,11 @@ const PVBasic: React.FC<{
             },
             {
               title: <FormattedMessage id="createAt" />,
-              key: 'time',
-              dataIndex: 'time',
-            },
-            {
-              title: 'Yaml',
-              key: 'yaml',
-              render: () => (
-                <>
-                  <Button type="primary" onClick={showModal}>
-                    Yaml
-                  </Button>
-                  <YamlModal
-                    isOpen={isModalOpen}
-                    onClose={handleCancel}
-                    content={YAML.stringify(pv)}
-                  />
-                </>
-              ),
+              dataIndex: ['metadata', 'creationTimestamp'],
+              render: (_, row) =>
+                new Date(
+                  row.metadata?.creationTimestamp as string,
+                ).toLocaleString(),
             },
           ]}
         />

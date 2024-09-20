@@ -18,6 +18,7 @@ package util
 
 import (
 	"errors"
+	"math"
 	"net/url"
 	"os"
 	"reflect"
@@ -143,81 +144,6 @@ func TestParseEndpointError(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 	})
-}
-
-func TestParseMntPath(t *testing.T) {
-	type args struct {
-		cmd string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		want1   string
-		wantErr bool
-	}{
-		{
-			name:    "get sourcePath from pod cmd success",
-			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
-			want:    "/jfs/pvc-xxx",
-			want1:   "pvc-xxx",
-			wantErr: false,
-		},
-		{
-			name:    "without init cmd",
-			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
-			want:    "/jfs/pvc-xxx",
-			want1:   "pvc-xxx",
-			wantErr: false,
-		},
-		{
-			name: "with create subpath",
-			args: args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n" +
-				"/bin/mount.juicefs ${metaurl} /mnt/jfs -o buffer-size=300,cache-size=100,enable-xattr\n" +
-				"if [ ! -d /mnt/jfs/pvc-fb2ec20c-474f-4804-9504-966da4af9b73 ]; then mkdir -m 777 /mnt/jfs/pvc-fb2ec20c-474f-4804-9504-966da4af9b73; fi;\n" +
-				"umount /mnt/jfs -l\n" +
-				"/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
-			want:    "/jfs/pvc-xxx",
-			want1:   "pvc-xxx",
-			wantErr: false,
-		},
-		{
-			name:    "err-pod cmd args <3",
-			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379"},
-			want:    "",
-			want1:   "",
-			wantErr: true,
-		},
-		{
-			name:    "err-cmd sourcePath no MountBase prefix",
-			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /err-jfs/pvc-xxx"},
-			want:    "",
-			want1:   "",
-			wantErr: true,
-		},
-		{
-			name:    "err-cmd sourcePath length err",
-			args:    args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n/bin/mount.juicefs redis://127.0.0.1/6379 /jfs"},
-			want:    "",
-			want1:   "",
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := ParseMntPath(tt.args.cmd)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseMntPath() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("ParseMntPath() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("ParseMntPath() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
 }
 
 func TestGetReferenceKey(t *testing.T) {
@@ -664,6 +590,113 @@ func TestParseToBytes(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ParseBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseClientVersion(t *testing.T) {
+	type args struct {
+		image string
+	}
+	tests := []struct {
+		name string
+		args args
+		want ClientVersion
+	}{
+		{
+			name: "ce-v1.1.1",
+			args: args{
+				image: "juicedata/mount:ce-v1.1.1",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: 1,
+				Minor: 1,
+				Patch: 1,
+			},
+		},
+		{
+			name: "ce-nightly",
+			args: args{
+				image: "juicedata/mount:ce-nightly",
+			},
+			want: ClientVersion{
+				IsCe: true,
+				Dev:  true,
+			},
+		},
+		{
+			name: "ce-latest",
+			args: args{
+				image: "juicedata/mount",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: math.MaxInt32,
+			},
+		},
+		{
+			name: "ee-5.0.18-43a7d32",
+			args: args{
+				image: "juicedata/mount:ee-5.0.18-43a7d32",
+			},
+			want: ClientVersion{
+				IsCe:  false,
+				Dev:   false,
+				Major: 5,
+				Minor: 0,
+				Patch: 18,
+			},
+		},
+		{
+			name: "ee-nightly",
+			args: args{
+				image: "juicedata/mount:ee-nightly",
+			},
+			want: ClientVersion{
+				IsCe: false,
+				Dev:  true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseClientVersion(tt.args.image); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseClientVersion() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClientVersion_SupportFusePass(t *testing.T) {
+	tests := []struct {
+		name  string
+		image string
+		want  bool
+	}{
+		{
+			name:  "dev",
+			image: "juicedata/mount:ee-nightly",
+			want:  true,
+		},
+		{
+			name:  "ce-1.2.1",
+			image: "juicedata/mount:ce-v1.2.1",
+			want:  true,
+		},
+		{
+			name:  "ee-5.1.0",
+			image: "juicedata/mount:ee-v5.1.0-xxx",
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SupportFusePass(tt.image); got != tt.want {
+				t.Errorf("SupportFusePass() = %v, want %v", got, tt.want)
 			}
 		})
 	}

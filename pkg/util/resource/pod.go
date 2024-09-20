@@ -22,22 +22,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-)
-
-var (
-	MountPointDevMinorTable sync.Map
 )
 
 func IsPodReady(pod *corev1.Pod) bool {
@@ -117,17 +112,18 @@ func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *core
 	}}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		resourceLog.Error(err, "Parse json error")
 		return err
 	}
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
-		klog.Errorf("Patch pod err:%v", err)
+		resourceLog.Error(err, "Patch pod err")
 		return err
 	}
 	return nil
 }
 
 func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addLabels map[string]string) error {
+	log := util.GenLog(ctx, resourceLog, "AddPodLabel")
 	payloads := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"labels": addLabels,
@@ -136,12 +132,12 @@ func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.P
 
 	payloadBytes, err := json.Marshal(payloads)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		log.Error(err, "Parse json error")
 		return err
 	}
-	klog.V(6).Infof("AddPodLabel: %v in pod %s", addLabels, pod.Name)
+	log.V(1).Info("add labels in pod", "labels", addLabels, "pod", pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
-		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		log.Error(err, "Patch pod error", "podName", pod.Name)
 		return err
 	}
 	return nil
@@ -155,12 +151,12 @@ func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 	}
 	payloadBytes, err := json.Marshal(payloads)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	klog.V(6).Infof("AddPodAnnotation: %v in pod %s", addAnnotations, pod.Name)
+	resourceLog.V(1).Info("add annotation in pod", "annotations", addAnnotations, "podName", pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
-		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
 		return err
 	}
 	return nil
@@ -176,12 +172,12 @@ func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 	}
 	payloadBytes, err := json.Marshal(payloads)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	klog.V(6).Infof("Remove annotations: %v of pod %s", delAnnotations, pod.Name)
+	resourceLog.V(1).Info("remove annotations of pod", "annotations", delAnnotations, "podName", pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
-		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
 		return err
 	}
 	return nil
@@ -195,12 +191,12 @@ func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod 
 	}}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		klog.Errorf("Parse json error: %v", err)
+		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	klog.V(6).Infof("Replace annotations: %v of pod %s", annotation, pod.Name)
+	resourceLog.V(1).Info("Replace annotations of pod", "annotations", annotation, "podName", pod.Name)
 	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
-		klog.Errorf("Patch pod %s error: %v", pod.Name, err)
+		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
 		return err
 	}
 	return nil
@@ -217,10 +213,11 @@ func GetAllRefKeys(pod corev1.Pod) map[string]string {
 }
 
 func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	log := util.GenLog(ctx, resourceLog, "")
+	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	// Wait until the mount point is ready
-	klog.V(5).Infof("waiting for mount point %v ready, mountpod: %s", mntPath, podName)
+	log.Info("waiting for mount point ready", "podName", podName)
 	for {
 		var finfo os.FileInfo
 		if err := util.DoWithTimeout(waitCtx, timeout, func() (err error) {
@@ -230,22 +227,24 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				break
 			}
-			klog.V(6).Infof("Mount path %v is not ready, mountpod: %s, err: %v", mntPath, podName, err)
+			log.V(1).Info("Mount path is not ready, wait for it.", "mountPath", mntPath, "podName", podName, "error", err)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
+		var dev uint64
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				MountPointDevMinorTable.Store(mntPath, util.DevMinor(st.Dev))
-				klog.V(5).Infof("Mount point %v is ready, mountpod: %s", mntPath, podName)
+				dev = uint64(st.Dev)
+				util.DevMinorTableStore(mntPath, dev)
+				log.Info("Mount point is ready", "podName", podName)
 				return nil
 			}
-			klog.V(6).Infof("Mount point %v is not ready, mountpod: %s", mntPath, podName)
+			log.V(1).Info("Mount point is not ready, wait for it", "podName", podName)
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
 
-	return fmt.Errorf("mount point %v is not ready, mountpod: %s", mntPath, podName)
+	return fmt.Errorf("mount point is not ready eventually, mountpod: %s", podName)
 }
 
 func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
@@ -259,21 +258,99 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 		// need to add delayAt annotation
 		d, err := util.GetTimeAfterDelay(delayStr)
 		if err != nil {
-			klog.Errorf("delayDelete: can't parse delay time %s: %v", d, err)
+			resourceLog.Error(err, "delayDelete: can't parse delay time", "time", d)
 			return false, nil
 		}
 		addAnnotation := map[string]string{config.DeleteDelayAtKey: d}
-		klog.Infof("delayDelete: add annotation %v to pod %s", addAnnotation, pod.Name)
+		resourceLog.Info("delayDelete: add annotation to pod", "annotations", addAnnotation, "podName", pod.Name)
 		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
-			klog.Errorf("delayDelete: Update pod %s error: %v", pod.Name, err)
+			resourceLog.Error(err, "delayDelete: Update pod error", "podName", pod.Name)
 			return true, err
 		}
 		return true, nil
 	}
 	delayAt, err := util.GetTime(delayAtStr)
 	if err != nil {
-		klog.Errorf("delayDelete: can't parse delayAt %s: %v", delayAtStr, err)
+		resourceLog.Error(err, "delayDelete: can't parse delayAt", "delayAt", delayAtStr)
 		return false, nil
 	}
 	return time.Now().Before(delayAt), nil
+}
+
+func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := parseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
+}
+
+// parseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
+func parseMntPath(cmd string) (string, string, error) {
+	cmds := strings.Split(cmd, "\n")
+	mountCmd := cmds[len(cmds)-1]
+	args := strings.Fields(mountCmd)
+	if args[0] == "exec" {
+		args = args[1:]
+	}
+	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
+		return "", "", fmt.Errorf("err cmd:%s", cmd)
+	}
+	argSlice := strings.Split(args[2], "/")
+	if len(argSlice) < 3 {
+		return "", "", fmt.Errorf("err mntPath:%s", args[2])
+	}
+	return args[2], argSlice[2], nil
+}
+
+func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, volumeHandle string, volCtx map[string]string) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim, error) {
+	if client == nil {
+		return nil, nil, fmt.Errorf("k8s client is nil")
+	}
+	pv, err := client.GetPersistentVolume(ctx, volumeHandle)
+	if k8serrors.IsNotFound(err) {
+		// failed to get pv by volumeHandle, try to get pv by appName and appNamespace
+		appName, appNamespace := volCtx[config.PodInfoName], volCtx[config.PodInfoNamespace]
+		appPod, err := client.GetPod(ctx, appName, appNamespace)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, ref := range appPod.Spec.Volumes {
+			if ref.PersistentVolumeClaim != nil {
+				pvc, err := client.GetPersistentVolumeClaim(ctx, ref.PersistentVolumeClaim.ClaimName, appNamespace)
+				if err != nil {
+					return nil, nil, err
+				}
+				if pvc.Spec.VolumeName == "" {
+					continue
+				}
+				appPV, err := client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
+				if err != nil {
+					return nil, nil, err
+				}
+				if appPV.Spec.CSI != nil && appPV.Spec.CSI.Driver == config.DriverName && appPV.Spec.CSI.VolumeHandle == volumeHandle {
+					return appPV, pvc, nil
+				}
+			}
+		}
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	if pv == nil {
+		return nil, nil, fmt.Errorf("pv not found by volumeHandle %s", volumeHandle)
+	}
+
+	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pv, pvc, nil
 }

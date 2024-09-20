@@ -160,6 +160,7 @@ def wait_dir_not_empty(check_path):
         output = subprocess.run(["sudo", "ls", check_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if output.stderr.decode("utf-8") != "":
             LOG.info("output stderr {}".format(output.stderr.decode("utf-8")))
+            time.sleep(5)
             continue
         if output.stdout.decode("utf-8") != "":
             return True
@@ -172,11 +173,15 @@ def get_only_mount_pod_name(volume_id):
         namespace=KUBE_SYSTEM,
         label_selector="volume-id={}".format(volume_id)
     )
-    if len(pods.items) == 0:
+    running_pods = []
+    for pod in pods.items:
+        if pod.metadata.deletion_timestamp is None:
+            running_pods.append(pod)
+    if len(running_pods) == 0:
         raise Exception("Can't get mount pod of volume id {}".format(volume_id))
-    if len(pods.items) > 1:
+    if len(running_pods) > 1:
         raise Exception("Get more than one mount pod of volume id {}".format(volume_id))
-    return pods.items[0].metadata.name
+    return running_pods[0].metadata.name
 
 
 def get_mount_pods(volume_id):
@@ -321,11 +326,14 @@ def is_quota_supported():
             return False
     return True
 
+
 def get_config() -> dict:
     config_map = client.CoreV1Api().read_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM)
     return yaml.load(config_map.data["config.yaml"], Loader=yaml.FullLoader)
 
+
 def update_config(data: dict):
     # convert data to yaml
     data = yaml.dump(data)
-    client.CoreV1Api().patch_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM, body={"data": {"config.yaml": data}})
+    client.CoreV1Api().patch_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM,
+                                                   body={"data": {"config.yaml": data}})

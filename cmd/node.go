@@ -24,17 +24,16 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func parseNodeConfig() {
@@ -53,7 +52,7 @@ func parseNodeConfig() {
 		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
 			config.Immutable = immutable
 		} else {
-			klog.Errorf("cannot parse JUICEFS_IMMUTABLE: %v", err)
+			log.Error(err, "cannot parse JUICEFS_IMMUTABLE")
 		}
 	}
 	config.NodeName = os.Getenv("NODE_NAME")
@@ -102,10 +101,13 @@ func parseNodeConfig() {
 			config.DefaultEEMountImage = mountPodImage
 		}
 	}
+	if os.Getenv("STORAGE_CLASS_SHARE_MOUNT") == "true" {
+		config.StorageClassShareMount = true
+	}
 
 	if config.PodName == "" || config.Namespace == "" {
-		klog.Fatalln("Pod name & namespace can't be null.")
-		os.Exit(0)
+		log.Info("Pod name & namespace can't be null.")
+		os.Exit(1)
 	}
 	config.ReconcilerInterval = reconcilerInterval
 	if config.ReconcilerInterval < 5 {
@@ -114,28 +116,36 @@ func parseNodeConfig() {
 
 	k8sclient, err := k8s.NewClient()
 	if err != nil {
-		klog.V(5).Infof("Can't get k8s client: %v", err)
-		os.Exit(0)
+		log.Error(err, "Can't get k8s client")
+		os.Exit(1)
 	}
 	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
 	if err != nil {
-		klog.V(5).Infof("Can't get pod %s: %v", config.PodName, err)
-		os.Exit(0)
+		log.Error(err, "Can't get pod", "pod", config.PodName)
+		os.Exit(1)
 	}
 	config.CSIPod = *pod
+	err = fuse.InitGlobalFds(context.TODO(), "/tmp")
+	if err != nil {
+		log.Error(err, "Init global fds error")
+		os.Exit(1)
+	}
 }
 
-func nodeRun() {
+func nodeRun(ctx context.Context) {
 	parseNodeConfig()
 	if nodeID == "" {
-		klog.Fatalln("nodeID must be provided")
+		log.Info("nodeID must be provided")
+		os.Exit(1)
 	}
 
 	// http server for pprof
 	go func() {
 		port := 6060
 		for {
-			http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
+			if err := http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil); err != nil {
+				log.Error(err, "failed to start pprof server")
+			}
 			port++
 		}
 	}()
@@ -155,7 +165,9 @@ func nodeRun() {
 			Addr:    fmt.Sprintf(":%d", config.WebPort),
 			Handler: mux,
 		}
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil {
+			log.Error(err, "failed to start metrics server")
+		}
 	}()
 
 	// enable pod manager in csi node
@@ -165,7 +177,7 @@ func nodeRun() {
 			if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
 				return controller.StartReconciler()
 			}); err != nil {
-				klog.V(5).Infof("Could not Start Reconciler of polling kubelet and fallback to watch ApiServer. err: %+v", err)
+				log.Error(err, "Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
 				needStartPodManager = true
 			}
 		} else {
@@ -174,25 +186,34 @@ func nodeRun() {
 
 		if needStartPodManager {
 			go func() {
-				ctx := ctrl.SetupSignalHandler()
 				mgr, err := app.NewPodManager()
 				if err != nil {
-					klog.Fatalln(err)
+					log.Error(err, "fail to create pod manager")
+					os.Exit(1)
 				}
 
 				if err := mgr.Start(ctx); err != nil {
-					klog.Fatalln(err)
+					log.Error(err, "fail to start pod manager")
+					os.Exit(1)
 				}
 			}()
 		}
-		klog.V(5).Infof("Pod Reconciler Started")
+		log.Info("Pod Reconciler Started")
 	}
 
 	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to create driver")
+		os.Exit(1)
 	}
+
+	go func() {
+		<-ctx.Done()
+		drv.Stop()
+	}()
+
 	if err := drv.Run(); err != nil {
-		klog.Fatalln(err)
+		log.Error(err, "fail to run driver")
+		os.Exit(1)
 	}
 }

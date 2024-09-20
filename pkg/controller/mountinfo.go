@@ -17,13 +17,18 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
+
+var miLog = klog.NewKlogr().WithName("mountinfo")
 
 type mountInfoTable struct {
 	mis []k8sMount.MountInfo
@@ -60,7 +65,7 @@ func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
 		if pod.DeletionTimestamp != nil {
 			deleted = true
 		}
-		klog.V(6).Infof("set pod %s deleted status %v", pod.Name, deleted)
+		miLog.V(1).Info("set pod deleted status", "name", pod.Name, "deleted status", deleted)
 		mit.deletedPods[string(pod.UID)] = deleted
 	}
 }
@@ -74,7 +79,7 @@ const (
 
 // resolve target path with subPath(volumeMount.subPath) in container
 // return nil if not a valid csi target path
-func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
+func (mit *mountInfoTable) resolveTarget(ctx context.Context, target string) *mountItem {
 	pair := strings.Split(target, containerCsiDirectory)
 	if len(pair) != 2 {
 		return nil
@@ -92,7 +97,7 @@ func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
 	mi := &mountItem{}
 	mi.podDeleted, mi.podExist = mit.deletedPods[podUID]
 
-	iterms := mit.resolveTargetItem(target, false)
+	iterms := mit.resolveTargetItem(ctx, target, false)
 	// must be 1 or 0
 	if len(iterms) == 1 {
 		mi.baseTarget = iterms[0]
@@ -100,19 +105,19 @@ func (mit *mountInfoTable) resolveTarget(target string) *mountItem {
 		mi.baseTarget = &targetItem{
 			target: target,
 		}
-		mi.baseTarget.check(false)
+		mi.baseTarget.check(ctx, false)
 	}
 	subpathTargetPrefix := strings.Join([]string{
 		podDir,
 		containerSubPathDirectory,
 		pvName,
 	}, "/")
-	mi.subPathTarget = mit.resolveTargetItem(subpathTargetPrefix, true)
+	mi.subPathTarget = mit.resolveTargetItem(ctx, subpathTargetPrefix, true)
 
 	return mi
 }
 
-func (mit *mountInfoTable) resolveTargetItem(path string, isPrefix bool) []*targetItem {
+func (mit *mountInfoTable) resolveTargetItem(ctx context.Context, path string, isPrefix bool) []*targetItem {
 	records := make(map[string]*targetItem)
 	for _, mi := range mit.mis {
 		match := false
@@ -148,7 +153,7 @@ func (mit *mountInfoTable) resolveTargetItem(path string, isPrefix bool) []*targ
 	}
 	var res []*targetItem
 	for _, record := range records {
-		record.check(true)
+		record.check(ctx, true)
 		res = append(res, record)
 	}
 	return res
@@ -196,8 +201,11 @@ type targetItem struct {
 	err          error
 }
 
-func (ti *targetItem) check(mounted bool) {
-	_, err := os.Stat(ti.target)
+func (ti *targetItem) check(ctx context.Context, mounted bool) {
+	err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		_, err := os.Stat(ti.target)
+		return err
+	})
 	if err == nil {
 		if mounted {
 			// target exist and is mounted

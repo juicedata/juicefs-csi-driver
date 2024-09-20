@@ -16,10 +16,10 @@ To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image i
 
 ```shell
 # Tag of community mount image begin with ce-
-juicedata/mount:ce-v1.1.2
+juicedata/mount:ce-v1.2.0
 
 # Tag of enterprise mount image begin with ee-
-juicedata/mount:ee-5.0.17-8ba7611
+juicedata/mount:ee-5.0.23-8c7c134
 
 # Prior to 0.19.0, tag contains both CE and EE version string
 # This won't be maintained and updated in the future
@@ -33,9 +33,25 @@ From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image 
 :::tip
 With mount pod image overwritten, note that:
 
-* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or re-create PVC
+* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or delete mount pod.
 * By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 :::
+
+### configmap modify {#overwrite-in-configmap}
+
+From JuiceFS CSI Driver 0.24.0 and above, you can easily change the image version in the global configuration
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          custom-image: "true"
+      eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
+      ceMountImage: "juicedata/mount:ce-v1.2.0"
+```
+
+See: [Customize Mount Pod and Sidecar containers](./configurations.md#customize-mount-pod)
 
 ### Configure mount pod image globally {#overwrite-in-csi-node}
 
@@ -44,7 +60,7 @@ If you use Helm to manage CSI Driver, changing mount image is as simple as the f
 ```yaml
 defaultMountImage:
   # Community Edition
-  ce: "juicedata/mount:ce-v1.1.2"
+  ce: "juicedata/mount:ce-v1.2.0"
   # Enterprise Edition
   ee: "juicedata/mount:ee-5.0.10-10fbc97"
 ```
@@ -53,17 +69,21 @@ But if you use kubectl to directly install a `k8s.yaml`, you'll have to set envi
 
 ```shell
 # Community Edition
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
 
 # Enterprise Edition
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
 ```
 
 Also, don't forget to put these changes into `k8s.yaml`, to avoid losing these changes after the next installation. This is why we always recommend you use [Helm installation](../getting_started.md#helm) for production environments.
 
 ### Dynamic provisioning {#overwrite-in-sc}
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+:::
 
 CSI Driver allows [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), if you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
 
@@ -78,12 +98,16 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.1.2
+  juicefs/mount-image: juicedata/mount:ce-v1.2.0
 ```
 
 And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
 
 ### Static provisioning
+
+:::tip
+Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+:::
 
 For [Static provisioning](./pv.md#static-provisioning), you'll have to configure mount pod image inside the PV definition.
 
@@ -109,7 +133,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:ce-v1.1.2
+      juicefs/mount-image: juicedata/mount:ce-v1.2.0
 ```
 
 ## Build image
@@ -129,10 +153,10 @@ cd juicefs
 git checkout ...
 
 # The corresponding Dockerfile resides in the CSI Driver repository
-curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/ce.juicefs.Dockerfile
+curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/dev.juicefs.Dockerfile
 
 # Build the Docker image, and then push to your private registry
-docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f ce.juicefs.Dockerfile .
+docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f dev.juicefs.Dockerfile .
 docker push registry.example.com/juicefs-csi-mount:ce-latest
 ```
 

@@ -6,15 +6,13 @@ sidebar_position: 7
 
 Debugging process for some frequently encountered problems, you can search for your issue using error keywords. Also, we recommend you to have a firm grasp on [Basic principles for troubleshooting](./troubleshooting.md#basic-principles).
 
-## CSI Driver installation issue
+## CSI Driver installation issue {#csi-driver-installation-issue}
 
 If JuiceFS CSI Driver isn't installed, or not properly configured, then following error will occur:
 
 ```
 kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.juicefs.com not found in the list of registered CSI drivers
 ```
-
-Thoroughly follow the steps in [Installation](../getting_started.md), pay special attention to kubelet root directory settings.
 
 Above error message shows that the CSI Driver named `csi.juicefs.com` isn't found. Please check if you used `mount pod` mode or `sidecar` mode.
 
@@ -32,7 +30,7 @@ If you used `sidecar` mode, check if the namespace which application pod running
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod failure
+## CSI Node pod failure {#csi-node-pod-failure}
 
 If CSI Node pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application pod events:
 
@@ -53,115 +51,156 @@ Read our docs on [enabling kubelet authentication](../administration/going-produ
 
 JuiceFS Client runs inside the mount pod and there's a variety of possible causes for error, this section covers some of the more frequently seen problems.
 
-* **Mount pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**
+<details>
+<summary>**Mount pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**</summary>
 
-  When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
+When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
 
-  In addition, when kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
+In addition, when kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
 
-  ```
-  Preempted in order to admit critical pod
-  ```
+```
+Preempted in order to admit critical pod
+```
 
-  Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
+Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
-* **After mount pod is restarted or recreated, application pods cannot access JuiceFS**
+Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` state. The Mount Pod started by default with `hostNetwork: false`, which may consume a large amount of cluster IP resources. If the cluster IP resources are insufficient, it may result in the failure of the mount pod to start. Please contact the cloud service provider to expand the number of IPs in the Kubernetes cluster, or start with `hostNetwork: true`. Refer to: [Customize mount pod and sidecar container](../guide/configurations.md#customize-mount-pod).
 
-  If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
+</details>
 
-  ```
-  Transport endpoint is not connected
+<details>
+<summary>**After mount pod is restarted or recreated, application pods cannot access JuiceFS**</summary>
 
-  df: /jfs: Socket not connected
-  ```
+If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
 
-  In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
+```
+Transport endpoint is not connected
 
-* **Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**
+df: /jfs: Socket not connected
+```
 
-  Mount pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
+In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
 
-  ```shell {4}
-  $ kubectl describe pod juicefs-app
-  ...
-    Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
-    Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
-  ```
+</details>
 
-  The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. You should inspect the mount pod start-up command to identify the cause for this (the following commands are from the ["Check mount pod"](./troubleshooting.md#check-mount-pod) documentation):
+<details>
+<summary>**Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**</summary>
 
-  ```shell
-  APP_NS=default  # application pod namespace
-  APP_POD_NAME=example-app-xxx-xxx
+Mount pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
 
-  # Obtain mount pod name
-  MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+```shell {4}
+$ kubectl describe pod juicefs-app
+...
+  Normal   Pulled     8m59s                 kubelet            Successfully pulled image "centos" in 2.8771491s
+  Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
+```
 
-  # Obtain mount pod start-up command
-  # Should look like ["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
-  kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
-  ```
+The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. You should inspect the mount pod start-up command to identify the cause for this (the following commands are from the ["Check mount pod"](./troubleshooting.md#check-mount-pod) documentation):
 
-  Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
+```shell
+APP_NS=default  # application pod namespace
+APP_POD_NAME=example-app-xxx-xxx
+
+# Obtain mount pod name
+MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
+
+# Obtain mount pod start-up command
+# Should look like ["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
+kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
+```
+
+Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
+
+</details>
+
+<details>
+<summary>**Mount Pod not created**</summary>
+
+Use `kubectl describe <app-pod-name>` to view the events of the current application pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
+
+If the application pod's event is:
+
+- `driver name csi.juicefs.com not found` or `csi.sock no such file`
+
+  Check whether the CSI Node pod on the corresponding node is running normally. For details, see [documentation](#csi-node-pod-failure).
+
+- `Unable to attach or mount volumes: xxx`
+
+  Check the logs of the CSI Node pod on the corresponding node and filter out the relevant logs of the corresponding PV. If you cannot find logs similar to `NodePublishVolume: volume_id is <pv name>`, and the Kubernetes version is below 1.26.0, 1.25.1, 1.24.5, 1.23.11, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
+
+  At this point, you can try:
+
+  - Restarting kubelet
+  - Upgrade Kubernetes
+
+  In summary, JuiceFS CSI Driver needs to receive a request in order to start the mounting process.
+
+</details>
 
 ## PVC error {#pvc-error}
 
-* **Under static provisioning, PV uses the wrong `storageClassName`, causing provisioning error and PVC is stuck at `Pending` state**
+<details>
+<summary>**Under static provisioning, PV uses the wrong `storageClassName`, causing provisioning error and PVC is stuck at `Pending` state**</summary>
 
-  StorageClass exists to provide provisioning parameters for [Dynamic provisioning](../guide/pv.md#dynamic-provisioning) when creating a PV. For [Static provisioning](../guide/pv.md#static-provisioning), `storageClassName` must be an empty string, or you'll find errors like:
+StorageClass exists to provide provisioning parameters for [Dynamic provisioning](../guide/pv.md#dynamic-provisioning) when creating a PV. For [Static provisioning](../guide/pv.md#static-provisioning), `storageClassName` must be an empty string, or you'll find errors like:
 
-  ```shell {7}
-  $ kubectl describe pvc juicefs-pv
+```shell {7}
+$ kubectl describe pvc juicefs-pv
+...
+Events:
+  Type     Reason                Age               From                                                                           Message
+  ----     ------                ----              ----                                                                           -------
+  Normal   Provisioning          9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  External provisioner is provisioning volume for claim "default/juicefs-pvc"
+  Warning  ProvisioningFailed    9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  failed to provision volume with StorageClass "juicefs": claim Selector is not supported
+  Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
+```
+
+</details>
+
+<details>
+<summary>**PVC creation failures due to `volumeHandle` conflicts**</summary>
+
+This happens when an application pod try to use multiple PVCs, but referenced PV uses a same `volumeHandle`, you'll see errors like:
+
+```shell {6}
+$ kubectl describe pvc jfs-static
+...
+Events:
+  Type     Reason         Age               From                         Message
+  ----     ------         ----              ----                         -------
+  Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
+```
+
+In addition, the application pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
+
+```shell
+Events:
+Type     Reason       Age    From               Message
+----     ------       ----   ----               -------
+Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
+```
+
+Check `volumeHandle` of all relevant PV, ensure `volumeHandle` is unique :
+
+```yaml {12}
+$ kubectl get pv -o yaml juicefs-pv
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
   ...
-  Events:
-    Type     Reason                Age               From                                                                           Message
-    ----     ------                ----              ----                                                                           -------
-    Normal   Provisioning          9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  External provisioner is provisioning volume for claim "default/juicefs-pvc"
-    Warning  ProvisioningFailed    9s (x5 over 22s)  csi.juicefs.com_juicefs-csi-controller-0_872ea36b-0fc7-4b66-bec5-96c7470dc82a  failed to provision volume with StorageClass "juicefs": claim Selector is not supported
-    Normal   ExternalProvisioning  8s (x2 over 23s)  persistentvolume-controller                                                    waiting for a volume to be created, either by external provisioner "csi.juicefs.com" or manually created by system administrator
-  ```
-
-* **PVC creation failures due to `volumeHandle` conflicts**
-
-  This happens when an application pod try to use multiple PVCs, but referenced PV uses a same `volumeHandle`, you'll see errors like:
-
-  ```shell {6}
-  $ kubectl describe pvc jfs-static
+spec:
   ...
-  Events:
-    Type     Reason         Age               From                         Message
-    ----     ------         ----              ----                         -------
-    Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
-  ```
-
-  In addition, the application pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
-
-  ```shell
-  Events:
-  Type     Reason       Age    From               Message
-  ----     ------       ----   ----               -------
-  Warning  FailedMount  12s    kubelet            Unable to attach or mount volumes: unmounted volumes=[data1], unattached volumes=[data2 kube-api-access-5sqd8 data1]: timed out waiting for the condition
-  ```
-
-  Check `volumeHandle` of all relevant PV, ensure `volumeHandle` is unique :
-
-  ```yaml {12}
-  $ kubectl get pv -o yaml juicefs-pv
-  apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: juicefs-pv
+  csi:
+    driver: csi.juicefs.com
+    fsType: juicefs
+    volumeHandle: juicefs-volume-abc
     ...
-  spec:
-    ...
-    csi:
-      driver: csi.juicefs.com
-      fsType: juicefs
-      volumeHandle: juicefs-volume-abc
-      ...
-  ```
+```
 
-## File system creation failure (Community Edition)
+</details>
+
+## File system creation failure (Community Edition) {#file-system-creation-failure-community-edition}
 
 When you choose to dynamically create file system inside mount pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
 

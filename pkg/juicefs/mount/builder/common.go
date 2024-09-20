@@ -26,7 +26,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -35,9 +34,13 @@ import (
 )
 
 const (
-	JfsDirName      = "jfs-dir"
-	UpdateDBDirName = "updatedb"
-	UpdateDBCfgFile = "/etc/updatedb.conf"
+	JfsDirName          = "jfs-dir"
+	UpdateDBDirName     = "updatedb"
+	UpdateDBCfgFile     = "/etc/updatedb.conf"
+	JfsFuseFdPathName   = "jfs-fuse-fd"
+	JfsFuseFsPathInPod  = "/tmp"
+	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
+	JfsCommEnv          = "JFS_SUPER_COMM"
 )
 
 type BaseBuilder struct {
@@ -77,7 +80,7 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
 	// gen again to update the mount pod spec
 	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil); err != nil {
-		klog.Warningf("genCommonJuicePod gen pod attr failed, mount pod may not be the expected config  %+v", err)
+		builderLog.Error(err, "genCommonJuicePod gen pod attr failed, mount pod may not be the expected config")
 	}
 	pod := r.genPodTemplate(cnGen)
 	// labels & annotations
@@ -85,6 +88,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.ServiceAccountName = r.jfsSetting.Attr.ServiceAccountName
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
+	pod.Spec.Hostname = r.jfsSetting.VolumeId
 	gracePeriod := int64(10)
 	if r.jfsSetting.Attr.TerminationGracePeriodSeconds != nil {
 		gracePeriod = *r.jfsSetting.Attr.TerminationGracePeriodSeconds
@@ -102,13 +106,17 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			},
 		},
 	}}
+	pod.Spec.Containers[0].Env = r.jfsSetting.Attr.Env
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
+	// if image support passFd from csi, do not set umount preStop
 	if r.jfsSetting.Attr.Lifecycle == nil {
-		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
-				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
-					"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
-			},
+		if !util.SupportFusePass(pod.Spec.Containers[0].Image) || config.Webhook {
+			pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
+				PreStop: &corev1.Handler{
+					Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
+						"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
+				},
+			}
 		}
 	} else {
 		pod.Spec.Containers[0].Lifecycle = r.jfsSetting.Attr.Lifecycle
@@ -137,8 +145,8 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		klog.V(5).Infof("ceMount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
+		builderLog.Info("ceMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
+		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
 				// Pick up a random (useable) port for hostNetwork MountPods.
@@ -150,8 +158,8 @@ func (r *BaseBuilder) genMountCommand() string {
 		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		klog.V(5).Infof("Mount: mount %v at %v", util.StripPasswd(r.jfsSetting.Source), r.jfsSetting.MountPath)
-		mountArgs := []string{config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
+		builderLog.Info("eeMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
+		mountArgs := []string{"exec", config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {
 			mountOptions = append(mountOptions, "rsa-key=/root/.rsa/rsa-key.pem")
@@ -174,8 +182,7 @@ func (r *BaseBuilder) genInitCommand() string {
 	if r.jfsSetting.InitConfig != "" {
 		confPath := filepath.Join(config.ROConfPath, r.jfsSetting.Name+".conf")
 		args := []string{"cp", confPath, r.jfsSetting.ClientConfPath}
-		confCmd := strings.Join(args, " ")
-		formatCmd = strings.Join([]string{confCmd, formatCmd}, "\n")
+		formatCmd = strings.Join(args, " ")
 	}
 	return formatCmd
 }

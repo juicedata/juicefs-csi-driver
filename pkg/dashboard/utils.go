@@ -18,6 +18,8 @@ package dashboard
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sort"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -46,11 +48,25 @@ func isAppPod(pod *corev1.Pod) bool {
 	return false
 }
 
-func (api *API) isAppPodUnready(ctx context.Context, pod *corev1.Pod) bool {
+func (api *API) isAppPodShouldList(ctx context.Context, pod *corev1.Pod) bool {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
-			pvcName := types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}
-			if err := api.cachedReader.Get(ctx, pvcName, &corev1.PersistentVolumeClaim{}); err == nil {
+			var pvc corev1.PersistentVolumeClaim
+			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}, &pvc); err != nil {
+				return false
+			}
+
+			if pvc.Spec.VolumeName == "" {
+				// pvc not bound
+				// Can't tell whether it is juicefs pvc, so list it as well.
+				return true
+			}
+
+			var pv corev1.PersistentVolume
+			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, &pv); err != nil {
+				return false
+			}
+			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
 				return true
 			}
 		}
@@ -82,4 +98,20 @@ func (r *ReverseSort) Less(i, j int) bool {
 
 func Reverse(data sort.Interface) sort.Interface {
 	return &ReverseSort{data}
+}
+
+func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
+	values := []string{pv.Spec.CSI.VolumeHandle}
+	if pv.Spec.StorageClassName != "" {
+		values = append(values, pv.Spec.StorageClassName)
+	}
+	sl := metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{{
+			Key:      config.PodUniqueIdLabelKey,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   values,
+		}},
+	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
+	return labelMap
 }

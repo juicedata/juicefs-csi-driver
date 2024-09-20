@@ -38,7 +38,7 @@ body {
 }
 
 .ant-page-header {
-  height: 63px;
+  height: 64px;
 }
 
 .ant-modal,
@@ -55,4 +55,16 @@ body {
 .xterm-screen {
   width: 100% !important;
   height: calc(100vh - 110px) !important;
+}
+
+.header-button {
+  width: 24px;
+  height: 24px;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.action-button {
+  border-color: #f4f5f6;
+  box-shadow: none;
 }

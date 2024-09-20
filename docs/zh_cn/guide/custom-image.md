@@ -16,10 +16,10 @@ Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」
 
 ```shell
 # 社区版镜像标签以 ce- 开头
-juicedata/mount:ce-v1.1.2
+juicedata/mount:ce-v1.2.0
 
 # 商业版镜像标签以 ee- 开头
-juicedata/mount:ee-5.0.17-8ba7611
+juicedata/mount:ee-5.0.23-8c7c134
 
 # 在 0.19.0 以前，镜像标签中包含社区版和商业版客户端的版本号
 # 该系列镜像不再继续更新维护
@@ -33,9 +33,27 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 :::tip 提示
 覆盖 mount 镜像后，注意：
 
-* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者重新创建 PVC，才会采用新的镜像
+* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者删除 Mount Pod 重建，才会采用新的镜像
 * [升级 CSI 驱动](../administration/upgrade-csi-driver.md)时，默认会连带升级到 mount 镜像的最新稳定版。但如果你覆盖了 mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 mount 镜像升级
 :::
+
+### configmap 修改 {#overwrite-in-configmap}
+
+如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本
+
+```yaml title="values-mycluster.yaml"
+globalConfig:
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          custom-image: "true"
+      eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
+      ceMountImage: "juicedata/mount:ce-v1.2.0"
+```
+
+更改之后只需滚动升级业务容器或者杀掉 Mount Pod 即可应用最新镜像。
+
+详参：[定制 Mount Pod 和 Sidecar 容器](./configurations.md#customize-mount-pod)
 
 ### 全局修改 {#overwrite-in-csi-node}
 
@@ -44,26 +62,30 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 ```yaml
 defaultMountImage:
   # 社区版
-  ce: "juicedata/mount:ce-v1.1.2"
+  ce: "juicedata/mount:ce-v1.2.0"
   # 企业版
-  ee: "juicedata/mount:ee-5.0.17-8ba7611"
+  ee: "juicedata/mount:ee-5.0.23-8c7c134"
 ```
 
 而如果是 kubectl 直接安装，那么需要在 CSI 驱动的组件中设置环境变量：
 
 ```shell
 # 社区版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.1.2
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
 
 # 企业版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.17-8ba7611
+kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
+kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
 ```
 
 修改完毕以后，别忘了将这些配置同时加入 `k8s.yaml`，避免下次安装时配置丢失。正因为 kubectl 的安装方式管理配置不方便，所以建议在生产集群采用 [Helm 安装方式](../getting_started.md#helm)。
 
 ### 动态配置 {#overwrite-in-sc}
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+:::
 
 CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
@@ -78,12 +100,16 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.1.2
+  juicefs/mount-image: juicedata/mount:ce-v1.2.0
 ```
 
 配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
 
 ### 静态配置
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+:::
 
 对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 PV 定义中配置 Mount Pod 镜像：
 
@@ -109,7 +135,7 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-image: juicedata/mount:ce-v1.1.2
+      juicefs/mount-image: juicedata/mount:ce-v1.2.0
 ```
 
 ## 构建镜像
@@ -129,10 +155,10 @@ cd juicefs
 git checkout ...
 
 # 由于 Dockerfile 在 CSI 驱动的仓库，此处需要自行下载
-curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/ce.juicefs.Dockerfile
+curl -O https://raw.githubusercontent.com/juicedata/juicefs-csi-driver/master/docker/dev.juicefs.Dockerfile
 
 # 构建镜像，并上传至私有镜像仓库
-docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f ce.juicefs.Dockerfile .
+docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f dev.juicefs.Dockerfile .
 docker push registry.example.com/juicefs-csi-mount:ce-latest
 ```
 

@@ -18,13 +18,13 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,6 +40,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
+var (
+	podCtrlLog = klog.NewKlogr().WithName("pod-controller")
+)
+
 type PodController struct {
 	*k8sclient.K8sClient
 }
@@ -49,59 +53,27 @@ func NewPodController(client *k8sclient.K8sClient) *PodController {
 }
 
 func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	klog.V(6).Infof("Receive pod %s %s", request.Name, request.Namespace)
+	podCtrlLog.V(1).Info("Receive pod", "name", request.Name, "namespace", request.Namespace)
+	ctx, cancel := context.WithTimeout(ctx, config.ReconcileTimeout)
+	defer cancel()
 	mountPod, err := m.GetPod(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		klog.Errorf("get pod %s error: %v", request.Name, err)
+		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 	if mountPod == nil {
-		klog.V(6).Infof("pod %s has been deleted.", request.Name)
+		podCtrlLog.V(1).Info("pod has been deleted.", "name", request.Name)
 		return reconcile.Result{}, nil
 	}
 	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
-		klog.V(6).Infof("pod %s/%s is not on node %s, skipped", mountPod.Namespace, mountPod.Name, config.NodeName)
+		podCtrlLog.V(1).Info("pod is not on node, skipped", "namespace", mountPod.Namespace, "name", mountPod.Name, "node", config.NodeName)
 		return reconcile.Result{}, nil
 	}
 
 	// get mount info
 	mit := newMountInfoTable()
 	if err := mit.parse(); err != nil {
-		klog.Errorf("doReconcile ParseMountInfo: %v", err)
-		return reconcile.Result{}, err
-	}
-
-	// get app pod list
-	relatedPVs := []*corev1.PersistentVolume{}
-	pvcNamespaces := []string{}
-	pvs, err := m.K8sClient.ListPersistentVolumes(ctx, nil, nil)
-	if err != nil {
-		klog.Errorf("doReconcile ListPV: %v", err)
-		return reconcile.Result{}, err
-	}
-	uniqueId := mountPod.Annotations[config.UniqueId]
-	for _, p := range pvs {
-		p := p
-		if p.Spec.CSI == nil || p.Spec.CSI.Driver != config.DriverName {
-			continue
-		}
-		if uniqueId != "" && (p.Spec.CSI.VolumeHandle == uniqueId || p.Spec.StorageClassName == uniqueId) {
-			relatedPVs = append(relatedPVs, &p)
-		}
-	}
-	if len(relatedPVs) == 0 {
-		return reconcile.Result{}, fmt.Errorf("can not get pv by uniqueId %s, mount pod: %s", uniqueId, mountPod.Name)
-	}
-	for _, pv := range relatedPVs {
-		if pv != nil {
-			if pv.Spec.ClaimRef != nil {
-				pvcNamespaces = append(pvcNamespaces, pv.Spec.ClaimRef.Namespace)
-			}
-		}
-	}
-
-	if len(pvcNamespaces) == 0 {
-		klog.Errorf("can not get pvc based on mount pod %s/%s: %v", mountPod.Namespace, mountPod.Name, err)
+		podCtrlLog.Error(err, "doReconcile ParseMountInfo error")
 		return reconcile.Result{}, err
 	}
 
@@ -111,14 +83,11 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
-	podLists := []corev1.Pod{}
-	for _, pvcNamespace := range pvcNamespaces {
-		podList, err := m.K8sClient.ListPod(ctx, pvcNamespace, &labelSelector, nil)
-		if err != nil {
-			klog.Errorf("doReconcile ListPod: %v", err)
-			return reconcile.Result{}, err
-		}
-		podLists = append(podLists, podList...)
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	podLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	if err != nil {
+		podCtrlLog.Error(err, "reconcile ListPod error")
+		return reconcile.Result{}, err
 	}
 
 	mounter := mount.SafeFormatAndMount{
@@ -130,9 +99,9 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	podDriver.SetMountInfo(*mit)
 	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podLists})
 
-	err = podDriver.Run(ctx, mountPod)
+	result, err := podDriver.Run(ctx, mountPod)
 	if err != nil {
-		klog.Errorf("Driver check pod %s error: %v", mountPod.Name, err)
+		podCtrlLog.Error(err, "Driver check pod error", "podName", mountPod.Name)
 		return reconcile.Result{}, err
 	}
 	if mountPod.Annotations[config.DeleteDelayAtKey] != "" {
@@ -152,9 +121,13 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			RequeueAfter: requeueAfter,
 		}, nil
 	}
+	requeueAfter := result.RequeueAfter
+	if !result.RequeueImmediately {
+		requeueAfter = 10 * time.Minute
+	}
 	return reconcile.Result{
 		Requeue:      true,
-		RequeueAfter: 10 * time.Minute,
+		RequeueAfter: requeueAfter,
 	}, nil
 }
 
@@ -167,32 +140,41 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
 			pod := event.Object.(*corev1.Pod)
-			klog.V(6).Infof("watch pod %s created", pod.GetName())
+			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
+			podCtrlLog.V(1).Info("watch pod created", "podName", pod.GetName())
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
-			klog.V(6).Infof("watch pod %s updated", podNew.GetName())
+			if podNew.Spec.NodeName != config.NodeName && podNew.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
+			podCtrlLog.V(1).Info("watch pod updated", "podName", podNew.GetName())
 			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectNew)
+				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "objectName", updateEvent.ObjectNew)
 				return false
 			}
 
 			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
 			if !ok {
-				klog.V(6).Infof("pod.onUpdateFunc Skip object: %v", updateEvent.ObjectOld)
+				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "objectName", updateEvent.ObjectOld)
 				return false
 			}
 
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
-				klog.V(6).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
+				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			pod := deleteEvent.Object.(*corev1.Pod)
-			klog.V(6).Infof("watch pod %s deleted", pod.GetName())
+			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
+			podCtrlLog.V(1).Info("watch pod deleted", "podName", pod.GetName())
 			return true
 		},
 	})

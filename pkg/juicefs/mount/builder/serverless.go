@@ -36,8 +36,8 @@ type ServerlessBuilder struct {
 var _ SidecarInterface = &ServerlessBuilder{}
 
 func NewServerlessBuilder(setting *config.JfsSetting, capacity int64) SidecarInterface {
-	return &ServerlessBuilder{
-		PodBuilder{BaseBuilder{
+	return &ServerlessBuilder{PodBuilder{
+		BaseBuilder: BaseBuilder{
 			jfsSetting: setting,
 			capacity:   capacity,
 		}},
@@ -115,7 +115,6 @@ func (r *ServerlessBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath st
 
 func (r *ServerlessBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
 	// do not overwrite volume mount
-	return
 }
 
 // genServerlessVolumes generates volumes and volumeMounts for serverless sidecar

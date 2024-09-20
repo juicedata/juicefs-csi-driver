@@ -63,6 +63,14 @@ export default {
   nodeErrMsg: 'The node is abnormal, please check the node status.',
   containerErrMsg:
     'Some container is abnormal. Please click Pod details to view the container status and logs.',
+  mountPodTerminatingMsg:
+    'Mount Pod is in terminating and has finalizer, please check the CSI Node logs',
+  mountPodStickTerminatingMsg:
+    'Mount Pod is stuck in Terminating, please check whether there is an undisconnected FUSE request on the node',
+  mountContainUidMsg:
+    'Mount Pod still contain its uid，please check logs of CSI Node',
+  podFinalizerMsg:
+    "There are still finalizers in the Pod. Please check the finalizer's status.",
   csiNodeNullMsg:
     'CSI Node in the node did not start, please check: 1. If it is in sidecar mode, please check whether the namespace has set the required label or check the CSI Controller log to confirm why the sidecar is not injected; 2. If it is in Mount Pod mode, please check Whether CSI Node DaemonSet has been scheduled to this node.',
   csiNodeErrMsg:
@@ -80,10 +88,20 @@ export default {
     'No matching PV was found. Please click "PV" to check whether it has been created.',
   pvcOfPVNotFoundErrMsg:
     'No matching PVC was found. Please click "PVC" to check whether it has been created.',
+  waitingPVCDeleteMsg:
+    'Waiting for matching PVC to be deleted. Please click "PVC" for detail.',
+  waitingVolumeRecycleMsg: 'Waiting for volumes to be recycled.',
+  volumeRecycleFailedMsg: 'the volumes were failed to be recycled.',
   volumeAttributes: 'Volume Attributes',
   parameters: 'Parameters',
   type: 'Type',
   reason: 'Reason',
   from: 'From',
   message: 'Message',
+  action: 'Action',
+  docs: 'Documents',
+  save: 'Save',
+  config: 'Configs',
+  reset: 'Reset',
+  image: 'Image',
 }

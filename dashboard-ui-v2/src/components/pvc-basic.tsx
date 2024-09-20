@@ -16,12 +16,13 @@
 
 import { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Badge, Button } from 'antd'
+import { Badge, Button, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
+import { YamlIcon } from '@/icons'
 import { accessModeMap, PVC } from '@/types/k8s'
 import { getPVCStatusBadge } from '@/utils'
 
@@ -38,7 +39,25 @@ const PVCBasic: React.FC<{
   }
 
   return (
-    <ProCard title={<FormattedMessage id="basic" />}>
+    <ProCard
+      title={<FormattedMessage id="basic" />}
+      extra={
+        <>
+          <Tooltip title="Show Yaml">
+            <Button
+              className="action-button"
+              onClick={showModal}
+              icon={<YamlIcon />}
+            />
+            <YamlModal
+              isOpen={isModalOpen}
+              onClose={handleCancel}
+              content={YAML.stringify(pvc)}
+            />
+          </Tooltip>
+        </>
+      }
+    >
       <ProDescriptions
         column={2}
         dataSource={pvc}
@@ -63,7 +82,7 @@ const PVCBasic: React.FC<{
           },
           {
             title: <FormattedMessage id="capacity" />,
-            dataIndex: ['spec', 'capacity', 'storage'],
+            dataIndex: ['spec', 'resources', 'requests', 'storage'],
           },
           {
             title: <FormattedMessage id="accessMode" />,
@@ -72,10 +91,6 @@ const PVCBasic: React.FC<{
               record.spec?.accessModes
                 ?.map((mode) => accessModeMap[mode] || 'Unknown')
                 .join(','),
-          },
-          {
-            title: <FormattedMessage id="reclaimPolicy" />,
-            dataIndex: ['spec', 'persistentVolumeReclaimPolicy'],
           },
           {
             title: 'StorageClass',
@@ -102,23 +117,11 @@ const PVCBasic: React.FC<{
           },
           {
             title: <FormattedMessage id="createAt" />,
-            dataIndex: 'time',
-          },
-          {
-            title: 'Yaml',
-            key: 'yaml',
-            render: () => (
-              <>
-                <Button type="primary" onClick={showModal}>
-                  Yaml
-                </Button>
-                <YamlModal
-                  isOpen={isModalOpen}
-                  onClose={handleCancel}
-                  content={YAML.stringify(pvc)}
-                />
-              </>
-            ),
+            dataIndex: ['metadata', 'creationTimestamp'],
+            render: (_, row) =>
+              new Date(
+                row.metadata?.creationTimestamp as string,
+              ).toLocaleString(),
           },
         ]}
       />

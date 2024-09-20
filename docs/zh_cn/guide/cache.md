@@ -3,10 +3,7 @@ title: 缓存
 sidebar_position: 3
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.com/docs/zh/community/cache_management)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
+JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.com/docs/zh/community/guide/cache)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
 
 ## 缓存设置 {#cache-settings}
 
@@ -50,7 +47,7 @@ Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 Ju
         namespace: default
   ```
 
-* 动态配置
+* 动态配置：
 
   ```yaml {12-13}
   apiVersion: storage.k8s.io/v1
