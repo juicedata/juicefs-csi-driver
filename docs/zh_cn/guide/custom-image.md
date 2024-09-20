@@ -53,7 +53,7 @@ globalConfig:
 
 更改之后只需滚动升级业务容器或者杀掉 Mount Pod 即可应用最新镜像。
 
-详参：[定制 Mount Pod 和 Sidecar 容器](./configurations.md#customize-mount-pod)
+详参：[定制 Mount Pod 和 Sidecar 容器](./configurations.md#configmap)
 
 ### 全局修改 {#overwrite-in-csi-node}
 
