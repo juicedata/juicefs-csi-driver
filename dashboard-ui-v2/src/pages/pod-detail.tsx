@@ -65,6 +65,13 @@ const PodDetail: React.FC<{
         namespace={namespace!}
         name={name!}
       />
+      <PodsTable
+        title="CSI Node Pod"
+        source="pod"
+        type="csi-nodes"
+        namespace={namespace!}
+        name={name!}
+      />
       <EventTable source="pod" name={name!} namespace={namespace!} />
     </PageContainer>
   )

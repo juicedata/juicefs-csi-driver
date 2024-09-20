@@ -26,6 +26,7 @@ export default function ResourcesDetail() {
   const { resources, namespace, name } = useParams<DetailParams>()
 
   switch (resources) {
+    case 'syspods':
     case 'pods':
       return <PodDetail namespace={namespace} name={name} />
     case 'storageclass':

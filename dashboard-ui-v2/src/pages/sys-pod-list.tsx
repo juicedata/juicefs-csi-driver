@@ -39,7 +39,9 @@ const columns: ProColumns<Pod>[] = [
       const podFailReason = failedReasonOfMountPod(pod) || ''
       if (podFailReason === '') {
         return (
-          <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+          <Link
+            to={`/syspods/${pod.metadata?.namespace}/${pod.metadata?.name}`}
+          >
             {pod.metadata?.name}
           </Link>
         )
@@ -47,7 +49,9 @@ const columns: ProColumns<Pod>[] = [
       const failReason = <FormattedMessage id={podFailReason} />
       return (
         <div>
-          <Link to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}>
+          <Link
+            to={`/syspods/${pod.metadata?.namespace}/${pod.metadata?.name}`}
+          >
             {pod.metadata?.name}
           </Link>
           <Tooltip title={failReason}>
