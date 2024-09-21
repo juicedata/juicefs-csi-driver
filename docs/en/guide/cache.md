@@ -225,7 +225,7 @@ spec:
 
 ## Cache cleanup {#mount-pod-clean-cache}
 
-Local cache can be a precious resource, especially when dealing with large scale data, that's why JuiceFS CSI Driver does not delete cache by default when mount pod exits. If this behavior doesn't suit you, make adjustment so that local cache is cleaned when mount pod exits.
+Local cache can be a precious resource, especially when dealing with large scale data. For this reason, JuiceFS CSI Driver does not delete cache by default when the Mount Pod exits. If this behavior does not fit your needs, you can configure it to clear the local cache when the Mount Pod exits.
 
 ### Static provisioning
 
