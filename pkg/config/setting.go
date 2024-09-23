@@ -503,6 +503,18 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		attr.Annotations[k] = v
 	}
 	pvName := mountPod.Annotations[common.UniqueId]
+
+	// in `STORAGE_CLASS_SHARE_MOUNT` mode, the uniqueId is the storageClass name
+	// parse mountpod ref annotation to get the real pv name
+	// maybe has multiple pv, we need to get the first one
+	if StorageClassShareMount {
+		for _, target := range mountPod.Annotations {
+			if v := getPVNameFromTarget(target); v != "" {
+				pvName = v
+				break
+			}
+		}
+	}
 	pv, err := client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
 		log.Error(err, "Get pv error", "pv", pvName)
@@ -757,4 +769,18 @@ func IsCEMountPod(pod *corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func getPVNameFromTarget(target string) string {
+	pair := strings.Split(target, "volumes/kubernetes.io~csi")
+	if len(pair) != 2 {
+		return ""
+	}
+
+	pvName := strings.TrimPrefix(pair[1], "/")
+	index := strings.Index(pvName, "/")
+	if index <= 0 {
+		return ""
+	}
+	return pvName[:index]
 }
