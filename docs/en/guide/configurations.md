@@ -147,7 +147,9 @@ globalConfig:
 
 </details>
 
-All supported configuration items and PVC selectors are listed in the snippet above, but the behavior of each item is introduced in the sections below. Please read carefully before use.
+## Customize Mount Pod and Sidecar {#customize-mount-pod}
+
+Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
 
 ### Custom mount image {#custom-image}
 

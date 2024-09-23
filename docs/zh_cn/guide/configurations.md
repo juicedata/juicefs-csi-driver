@@ -145,7 +145,9 @@ globalConfig:
 
 </details>
 
-上方的示范代码块里罗列了所有支持的定制项目和 PVC 选择器，每一个配置项的修改生效条件和写法在下方文档小节一一罗列，使用前请详细阅读。
+## 定制 Mount Pod 或者 Sidecar 容器 {#customize-mount-pod}
+
+虽然在[「ConfigMap 配置」](#configmap)的示范代码块里已经罗列了所有支持的定制项目和 PVC 选择器，但每一个配置项的修改生效条件和写法不尽相同，因此在本节一一罗列，使用前请详细阅读。
 
 ### 容器镜像 {#custom-image}
 
