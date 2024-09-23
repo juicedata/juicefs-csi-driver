@@ -38,7 +38,7 @@ func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
 }
 
 // AuthFs mocks base method.
-func (m *MockInterface) AuthFs(arg0 context.Context, arg1 map[string]string, arg2 *common.JfsSetting, arg3 bool) (string, error) {
+func (m *MockInterface) AuthFs(arg0 context.Context, arg1 map[string]string, arg2 *config.JfsSetting, arg3 bool) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AuthFs", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(string)
@@ -67,7 +67,7 @@ func (mr *MockInterfaceMockRecorder) CreateTarget(arg0, arg1 interface{}) *gomoc
 }
 
 // GetJfsVolUUID mocks base method.
-func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 *common.JfsSetting) (string, error) {
+func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 *config.JfsSetting) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0, arg1)
 	ret0, _ := ret[0].(string)
@@ -241,7 +241,7 @@ func (mr *MockInterfaceMockRecorder) MountSensitive(arg0, arg1, arg2, arg3, arg4
 }
 
 // SetQuota mocks base method.
-func (m *MockInterface) SetQuota(arg0 context.Context, arg1 map[string]string, arg2 *common.JfsSetting, arg3 string, arg4 int64) error {
+func (m *MockInterface) SetQuota(arg0 context.Context, arg1 map[string]string, arg2 *config.JfsSetting, arg3 string, arg4 int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetQuota", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
@@ -255,10 +255,10 @@ func (mr *MockInterfaceMockRecorder) SetQuota(arg0, arg1, arg2, arg3, arg4 inter
 }
 
 // Settings mocks base method.
-func (m *MockInterface) Settings(arg0 context.Context, arg1 string, arg2, arg3 map[string]string, arg4 []string) (*common.JfsSetting, error) {
+func (m *MockInterface) Settings(arg0 context.Context, arg1 string, arg2, arg3 map[string]string, arg4 []string) (*config.JfsSetting, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Settings", arg0, arg1, arg2, arg3, arg4)
-	ret0, _ := ret[0].(*common.JfsSetting)
+	ret0, _ := ret[0].(*config.JfsSetting)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

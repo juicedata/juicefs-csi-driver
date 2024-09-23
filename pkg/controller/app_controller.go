@@ -70,7 +70,7 @@ func (a *AppController) Reconcile(ctx context.Context, request reconcile.Request
 	// if the time is more than 5 minutes, kill the fuse process
 	var appContainerExitedTime time.Time
 	for _, containerStatus := range pod.Status.ContainerStatuses {
-		if !strings.Contains(containerStatus.Name, config.MountContainerName) {
+		if !strings.Contains(containerStatus.Name, common.MountContainerName) {
 			if containerStatus.State.Terminated != nil {
 				if containerStatus.State.Terminated.FinishedAt.After(appContainerExitedTime) {
 					appContainerExitedTime = containerStatus.State.Terminated.FinishedAt.Time
@@ -141,7 +141,7 @@ func (a *AppController) umountFuseSidecar(pod *corev1.Pod, fuseContainer corev1.
 
 func (a *AppController) killFuseProcesss(pod *corev1.Pod) error {
 	for _, cn := range pod.Spec.Containers {
-		if strings.Contains(cn.Name, config.MountContainerName) {
+		if strings.Contains(cn.Name, common.MountContainerName) {
 			if e := a.killFuseProcess(pod, cn); e != nil {
 				return e
 			}
@@ -156,7 +156,7 @@ func (a AppController) killFuseProcess(pod *corev1.Pod, fuseContainer corev1.Con
 	}
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
 	cmd := []string{"sh", "-c", "pkill mount.juicefs"}
-	log.Info("exec cmd in container of pod", "command", cmd, "cnName", config.MountContainerName)
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", common.MountContainerName)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		return err

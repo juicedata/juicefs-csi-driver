@@ -63,7 +63,7 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch5.Reset()
 
-			registerer, _ := util.NewPrometheus(common.NodeName)
+			registerer, _ := util.NewPrometheus(config.NodeName)
 			driver, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldBeNil)
 			if driver.endpoint != endpoint {
@@ -96,12 +96,12 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			registerer, _ := util.NewPrometheus(common.NodeName)
+			registerer, _ := util.NewPrometheus(config.NodeName)
 			_, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("by process", func() {
-			common.ByProcess = true
+			config.ByProcess = true
 			endpoint := "127.0.0.1"
 			nodeId := "test-node"
 			mockCtl := gomock.NewController(t)
@@ -117,7 +117,7 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch4.Reset()
 
-			registerer, _ := util.NewPrometheus(common.NodeName)
+			registerer, _ := util.NewPrometheus(config.NodeName)
 			_, err := NewDriver(endpoint, nodeId, false, "", time.Second, registerer)
 			So(err, ShouldBeNil)
 		})

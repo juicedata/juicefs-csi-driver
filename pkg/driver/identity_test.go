@@ -53,7 +53,7 @@ func TestDriver_GetPluginInfo(t *testing.T) {
 				req: &csi.GetPluginInfoRequest{},
 			},
 			want: &csi.GetPluginInfoResponse{
-				Name:          common.DriverName,
+				Name:          config.DriverName,
 				VendorVersion: "",
 			},
 			wantErr: false,

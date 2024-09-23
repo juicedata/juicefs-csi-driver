@@ -24,6 +24,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
 var (
@@ -49,12 +51,12 @@ func TestParseSecret(t *testing.T) {
 	}
 	defaultResource := corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
-			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
+			corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuLimit),
+			corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemLimit),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
-			corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
+			corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuRequest),
+			corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemRequest),
 		},
 	}
 
@@ -165,7 +167,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-cpu-limit",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{MountPodCpuLimitKey: "1"},
+				volCtx:  map[string]string{common.MountPodCpuLimitKey: "1"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -182,7 +184,7 @@ func TestParseSecret(t *testing.T) {
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemLimit),
+							corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemLimit),
 						},
 						Requests: defaultResource.Requests,
 					},
@@ -198,7 +200,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-mem-limit",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{MountPodMemLimitKey: "1G"},
+				volCtx:  map[string]string{common.MountPodMemLimitKey: "1G"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -215,7 +217,7 @@ func TestParseSecret(t *testing.T) {
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceMemory: resource.MustParse("1G"),
-							corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuLimit),
+							corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuLimit),
 						},
 						Requests: defaultResource.Requests,
 					},
@@ -231,7 +233,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-mem-request",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{MountPodMemRequestKey: "1G"},
+				volCtx:  map[string]string{common.MountPodMemRequestKey: "1G"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -248,7 +250,7 @@ func TestParseSecret(t *testing.T) {
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceMemory: resource.MustParse("1G"),
-							corev1.ResourceCPU:    resource.MustParse(DefaultMountPodCpuRequest),
+							corev1.ResourceCPU:    resource.MustParse(common.DefaultMountPodCpuRequest),
 						},
 						Limits: defaultResource.Limits,
 					},
@@ -264,7 +266,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-cpu-request",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{MountPodCpuRequestKey: "1"},
+				volCtx:  map[string]string{common.MountPodCpuRequestKey: "1"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -278,7 +280,7 @@ func TestParseSecret(t *testing.T) {
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse(DefaultMountPodMemRequest),
+							corev1.ResourceMemory: resource.MustParse(common.DefaultMountPodMemRequest),
 						},
 						Limits: defaultResource.Limits,
 					},
@@ -294,7 +296,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-labels",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodLabelKey: "a: b"},
+				volCtx:  map[string]string{common.MountPodLabelKey: "a: b"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -319,7 +321,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-labels-error",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodLabelKey: "-"},
+				volCtx:  map[string]string{common.MountPodLabelKey: "-"},
 			},
 			wantErr: true,
 		},
@@ -327,7 +329,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-labels-json",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodLabelKey: "{\"a\": \"b\"}"},
+				volCtx:  map[string]string{common.MountPodLabelKey: "{\"a\": \"b\"}"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -352,7 +354,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-annotation",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodAnnotationKey: "a: b"},
+				volCtx:  map[string]string{common.MountPodAnnotationKey: "a: b"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -377,7 +379,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-annotation-error",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodAnnotationKey: "-"},
+				volCtx:  map[string]string{common.MountPodAnnotationKey: "-"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -386,7 +388,7 @@ func TestParseSecret(t *testing.T) {
 			name: "test-serviceaccount",
 			args: args{
 				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{mountPodServiceAccount: "test"},
+				volCtx:  map[string]string{common.MountPodServiceAccount: "test"},
 				usePod:  true,
 			},
 			want: &JfsSetting{
@@ -545,7 +547,7 @@ func TestParseSecret(t *testing.T) {
 			name: "specify mount image",
 			args: args{
 				secrets: map[string]string{"configs": "a: b", "name": "test"},
-				volCtx:  map[string]string{mountPodImageKey: "abc"},
+				volCtx:  map[string]string{common.MountPodImageKey: "abc"},
 			},
 			want: &JfsSetting{
 				Name:      "test",
@@ -569,7 +571,7 @@ func TestParseSecret(t *testing.T) {
 			name: "specify host path",
 			args: args{
 				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{mountPodHostPath: "/abc"},
+				volCtx:  map[string]string{common.MountPodHostPath: "/abc"},
 			},
 			want: &JfsSetting{
 				Name:      "test",

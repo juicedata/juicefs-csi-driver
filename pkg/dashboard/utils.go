@@ -26,7 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (api *API) sysNamespaced(name string) types.NamespacedName {
@@ -68,7 +69,7 @@ func (api *API) isAppPodShouldList(ctx context.Context, pod *corev1.Pod) bool {
 			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, &pv); err != nil {
 				return false
 			}
-			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == common.DriverName {
+			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == jfsConfig.DriverName {
 				return true
 			}
 		}

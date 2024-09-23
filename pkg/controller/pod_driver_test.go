@@ -37,7 +37,7 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -66,9 +66,9 @@ var readyPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey(target): target},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
@@ -101,9 +101,9 @@ var errCmdPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{
@@ -120,10 +120,10 @@ var deletedPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
-		Finalizers:        []string{jfsConfig.Finalizer},
+		Finalizers:        []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
@@ -153,9 +153,9 @@ var errorPod1 = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{
@@ -196,9 +196,9 @@ var resourceErrPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{
@@ -239,9 +239,9 @@ var errorPod2 = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
@@ -274,9 +274,9 @@ var errorPod3 = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
@@ -300,9 +300,9 @@ var pendingPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
@@ -326,9 +326,9 @@ var runningPod = &corev1.Pod{
 		Annotations: map[string]string{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
-			jfsConfig.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
 		},
-		Finalizers: []string{jfsConfig.Finalizer},
+		Finalizers: []string{common.Finalizer},
 	},
 	Spec: corev1.PodSpec{
 		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
@@ -583,7 +583,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "juicefs-test-err-pod",
 					Annotations: nil,
-					Finalizers:  []string{jfsConfig.Finalizer},
+					Finalizers:  []string{common.Finalizer},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -611,7 +611,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					Name: "juicefs-test-err-mount-cmd-pod",
 					Annotations: map[string]string{
 						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
-					Finalizers: []string{jfsConfig.Finalizer},
+					Finalizers: []string{common.Finalizer},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -694,7 +694,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					Name: "juicefs-test-err-mount-cmd-pod",
 					Annotations: map[string]string{
 						util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
-					Finalizers: []string{jfsConfig.Finalizer},
+					Finalizers: []string{common.Finalizer},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -975,7 +975,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				default:
 					return &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
-							Finalizers: []string{jfsConfig.Finalizer},
+							Finalizers: []string{common.Finalizer},
 						},
 					}, nil
 				}

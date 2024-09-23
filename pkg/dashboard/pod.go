@@ -34,6 +34,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -946,7 +947,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				"--check=" + check,
 				"--no-color",
 			}
-			if !common.IsCEMountPod(mountpod) {
+			if !config.IsCEMountPod(mountpod) {
 				cmds = append(cmds, "--io-retries="+ioRetries)
 				cmds = append(cmds, "--max-failure="+maxFailure)
 			}

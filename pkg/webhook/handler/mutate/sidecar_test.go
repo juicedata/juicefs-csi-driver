@@ -17,10 +17,11 @@
 package mutate
 
 import (
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ import (
 func TestSidecarMutate_injectVolume(t *testing.T) {
 	type fields struct {
 		pair       volconf.PVPair
-		jfsSetting *common.JfsSetting
+		jfsSetting *config.JfsSetting
 	}
 	type args struct {
 		pod       *corev1.Pod
@@ -51,7 +52,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				pair: volconf.PVPair{
 					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-1"}},
 				},
-				jfsSetting: &common.JfsSetting{VolumeId: "volume-id"},
+				jfsSetting: &config.JfsSetting{VolumeId: "volume-id"},
 			},
 			args: args{
 				pod: &corev1.Pod{
@@ -85,7 +86,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 					Name: "app-volume",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: filepath.Join(common.MountPointPath, "data"),
+							Path: filepath.Join(config.MountPointPath, "data"),
 						},
 					},
 				},
@@ -97,7 +98,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				pair: volconf.PVPair{
 					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-1"}},
 				},
-				jfsSetting: &common.JfsSetting{VolumeId: "volume-id"},
+				jfsSetting: &config.JfsSetting{VolumeId: "volume-id"},
 			},
 			args: args{
 				pod: &corev1.Pod{
@@ -118,7 +119,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 				pair: volconf.PVPair{
 					PVC: &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "pvc-3"}},
 				},
-				jfsSetting: &common.JfsSetting{VolumeId: "volume-id", SubPath: "subpath"},
+				jfsSetting: &config.JfsSetting{VolumeId: "volume-id", SubPath: "subpath"},
 			},
 			args: args{
 				pod: &corev1.Pod{
@@ -152,7 +153,7 @@ func TestSidecarMutate_injectVolume(t *testing.T) {
 					Name: "app-volume",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: filepath.Join(common.MountPointPath, "data", "subpath"),
+							Path: filepath.Join(config.MountPointPath, "data", "subpath"),
 						},
 					},
 				},

@@ -86,7 +86,7 @@ func (api *API) listSCsHandler() gin.HandlerFunc {
 			scName := types.NamespacedName{
 				Name: sc.Name,
 			}
-			return (nameFilter == "" || strings.Contains(scName.Name, nameFilter)) && (sc.Provisioner == common.DriverName)
+			return (nameFilter == "" || strings.Contains(scName.Name, nameFilter)) && (sc.Provisioner == config.DriverName)
 		}
 		scList := storagev1.StorageClassList{}
 		err = api.cachedReader.List(c, &scList)
@@ -208,7 +208,7 @@ func (api *API) getPVMiddileware() gin.HandlerFunc {
 			c.AbortWithStatus(500)
 			return
 		}
-		if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.Driver != common.DriverName {
+		if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
 			c.AbortWithStatus(404)
 			return
 		}
@@ -241,7 +241,7 @@ func (api *API) getSCMiddileware() gin.HandlerFunc {
 			c.AbortWithStatus(500)
 			return
 		}
-		if sc == nil || sc.Provisioner != common.DriverName {
+		if sc == nil || sc.Provisioner != config.DriverName {
 			c.AbortWithStatus(404)
 			return
 		}

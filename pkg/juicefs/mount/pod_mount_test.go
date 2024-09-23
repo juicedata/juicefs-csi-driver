@@ -36,6 +36,7 @@ import (
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
@@ -645,8 +646,8 @@ func TestWaitUntilMount(t *testing.T) {
 			wantErr: false,
 			wantAnno: map[string]string{
 				util.GetReferenceKey("/mnt/iii"): "/mnt/iii",
-				jfsConfig.UniqueId:               "",
-				jfsConfig.JuiceFSUUID:            "",
+				common.UniqueId:                  "",
+				common.JuiceFSUUID:               "",
 			},
 		},
 	}
@@ -665,9 +666,9 @@ func TestWaitUntilMount(t *testing.T) {
 				hashVal := GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
 				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
-					jfscommon.PodTypeKey:           jfscommon.PodTypeValue,
-					common.PodUniqueIdLabelKey:     tt.args.jfsSetting.UniqueId,
-					jfsConfig.PodJuiceHashLabelKey: hashVal,
+					common.PodTypeKey:           common.PodTypeValue,
+					common.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
+					common.PodJuiceHashLabelKey: hashVal,
 				}
 				tt.pod.Spec.NodeName = jfsConfig.NodeName
 				_, _ = p.K8sClient.CreatePod(context.TODO(), tt.pod)
