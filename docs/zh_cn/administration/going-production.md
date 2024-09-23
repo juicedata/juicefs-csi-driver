@@ -384,7 +384,7 @@ authorization:
 * 配置好缓存持久化，确保缓存目录不会随着容器销毁而丢失。具体配置方法阅读[缓存设置](../guide/cache.md#cache-settings)；
 * 选择下列方法之一（也可以都采纳），实现在应用容器退出的情况下，也保证 JuiceFS 客户端有足够的时间将数据上传完成：
   * 启用[延迟删除 Mount Pod](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，mount pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
-  * 自 v0.24 起，CSI 驱动支持[定制](../guide/configurations.md#configmap) mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，mount pod 才退出，示范如下：
+  * 自 v0.24 起，CSI 驱动支持[定制](../guide/configurations.md#customize-mount-pod) mount pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，mount pod 才退出，示范如下：
 
     :::warning
     * 配置了 `preStop` 后，若写缓存一直未上传成功，mount pod 会一直等待 `terminationGracePeriodSeconds` 参数所设定的时间，长时间无法退出。这会影响某些操作的正常执行（如升级 mount pod），请充分测试并理解对应的风险；

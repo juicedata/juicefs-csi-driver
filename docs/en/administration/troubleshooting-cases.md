@@ -64,7 +64,7 @@ Preempted in order to admit critical pod
 
 Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
-Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` state. By default, the Mount Pod starts with `hostNetwork: false`, which may consume a large amount of cluster IP resources. If the cluster IP resources are insufficient, this may prevent the Mount Pod from starting successfully. Please contact your cloud service provider to increase the number of IPs for your Kubernetes cluster, or start with `hostNetwork: true`. For details, see [Customize Mount Pod and sidecar container](../guide/configurations.md#configmap).
+Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` state. By default, the Mount Pod starts with `hostNetwork: false`, which may consume a large amount of cluster IP resources. If the cluster IP resources are insufficient, this may prevent the Mount Pod from starting successfully. Please contact your cloud service provider to increase the number of IPs for your Kubernetes cluster, or start with `hostNetwork: true`. For details, see [Customize Mount Pod and sidecar container](../guide/configurations.md#customize-mount-pod).
 
 </details>
 

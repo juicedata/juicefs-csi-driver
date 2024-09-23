@@ -64,7 +64,7 @@ Preempted in order to admit critical pod
 
 Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况 [调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
 
-集群 IP 不足也可能导致 Mount Pod 一直处于 `Pending` 状态。Mount Pod 默认以 `hostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 Mount Pod 启动不成功。请联系云服务提供商对 Kubernetes 集群的 IP 数量进行扩容，或者使用 `hostNetwork: true` 形式启动，参阅：[定制 Mount Pod 和 Sidecar 容器](../guide/configurations.md#configmap)。
+集群 IP 不足也可能导致 Mount Pod 一直处于 `Pending` 状态。Mount Pod 默认以 `hostNetwork: false` 的形式启动，可能会占用大量的集群 IP 资源，如果集群资源 IP 不足可能会导致 Mount Pod 启动不成功。请联系云服务提供商对 Kubernetes 集群的 IP 数量进行扩容，或者使用 `hostNetwork: true` 形式启动，参阅：[定制 Mount Pod 和 Sidecar 容器](../guide/configurations.md#customize-mount-pod)。
 
 </details>
 

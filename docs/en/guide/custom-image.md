@@ -51,7 +51,7 @@ globalConfig:
       ceMountImage: "juicedata/mount:ce-v1.2.0"
 ```
 
-See: [Customize Mount Pod and Sidecar containers](./configurations.md#configmap)
+See: [Customize Mount Pod and Sidecar containers](./configurations.md#customize-mount-pod)
 
 ### Configure mount pod image globally {#overwrite-in-csi-node}
 
