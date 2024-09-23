@@ -109,7 +109,7 @@ func handleShutdown(conn net.Conn) {
 		sendMessage(conn, "FAIL pod is not on node")
 		return
 	}
-	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
+	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "metaurl")
 	hashVal := mountPod.Labels[config.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
