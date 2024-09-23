@@ -28,7 +28,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -146,8 +146,8 @@ func (meta *ObjectMeta) ResolveSecret(str string, pvName string) string {
 
 func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume *v1.PersistentVolume) (shouldRemoveFinalizer bool, err error) {
 	sc := volume.Spec.StorageClassName
-	secretNamespace := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
-	secretName := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
+	secretNamespace := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[common.ProvisionerSecretNamespace]
+	secretName := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes[common.ProvisionerSecretName]
 	if sc == "" || secretNamespace == "" || secretName == "" {
 		resourceLog.Info("Cannot check for the secret", "storageClass", sc, "secretNamespace", secretNamespace, "secretName", secretName)
 		return false, nil
@@ -161,8 +161,8 @@ func CheckForSecretFinalizer(ctx context.Context, client *k8s.K8sClient, volume 
 		if pv.Name == volume.Name || pv.DeletionTimestamp != nil || pv.Spec.StorageClassName != sc {
 			continue
 		}
-		pvSecretNamespace := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretNamespace]
-		pvSecretName := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[config.ProvisionerSecretName]
+		pvSecretNamespace := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[common.ProvisionerSecretNamespace]
+		pvSecretName := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[common.ProvisionerSecretName]
 		// Cannot remove the secret if it is used by another pv
 		if secretNamespace == pvSecretNamespace && secretName == pvSecretName {
 			resourceLog.Info("PV uses the same secret", "pvName", pv.Name, "pv secret namespace", pvSecretNamespace, "pv secret name", pvSecretName)

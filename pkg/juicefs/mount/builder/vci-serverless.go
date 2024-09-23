@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	utilpointer "k8s.io/utils/pointer"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
@@ -197,14 +198,14 @@ func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 func (r *VCIBuilder) genNonPrivilegedContainer() corev1.Container {
 	rootUser := int64(0)
 	return corev1.Container{
-		Name:  config.MountContainerName,
+		Name:  common.MountContainerName,
 		Image: r.BaseBuilder.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser: &rootUser,
 		},
 		Env: []corev1.EnvVar{
 			{
-				Name:  config.JfsInsideContainer,
+				Name:  common.JfsInsideContainer,
 				Value: "1",
 			},
 		},
@@ -213,5 +214,5 @@ func (r *VCIBuilder) genNonPrivilegedContainer() corev1.Container {
 
 func (r *VCIBuilder) genMountContainerName() string {
 	pvcName := r.pvc.Name
-	return fmt.Sprintf("%s-%s", config.MountContainerName, pvcName)
+	return fmt.Sprintf("%s-%s", common.MountContainerName, pvcName)
 }

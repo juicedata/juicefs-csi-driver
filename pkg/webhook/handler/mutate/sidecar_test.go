@@ -17,10 +17,11 @@
 package mutate
 
 import (
-	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	volconf "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

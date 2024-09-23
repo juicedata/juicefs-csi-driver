@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -65,13 +66,13 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod has done label
-	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDone, config.True) {
+	if util.CheckExpectValue(pod.Labels, common.InjectSidecarDone, common.True) {
 		handlerLog.Info("skip mutating the pod because injection is done.", "name", pod.Name, "namespace", pod.Namespace)
 		return admission.Allowed("skip mutating the pod because injection is done")
 	}
 
 	// check if pod has disable label
-	if util.CheckExpectValue(pod.Labels, config.InjectSidecarDisable, config.True) {
+	if util.CheckExpectValue(pod.Labels, common.InjectSidecarDisable, common.True) {
 		handlerLog.Info("skip mutating the pod because injection is disabled.", "name", pod.Name, "namespace", pod.Namespace)
 		return admission.Allowed("skip mutating the pod because injection is disabled")
 	}

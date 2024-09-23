@@ -26,7 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -55,7 +55,7 @@ func NewPodManager() (*PodManager, error) {
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
+					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
 				},
 			},
 		}),

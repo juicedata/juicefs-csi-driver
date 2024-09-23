@@ -34,7 +34,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -104,8 +104,8 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	volCtx := req.GetVolumeContext()
 	log := klog.NewKlogr().WithName("NodePublishVolume")
-	if volCtx != nil && volCtx[config.PodInfoName] != "" {
-		log = log.WithValues("appName", volCtx[config.PodInfoName])
+	if volCtx != nil && volCtx[common.PodInfoName] != "" {
+		log = log.WithValues("appName", volCtx[common.PodInfoName])
 	}
 	volumeID := req.GetVolumeId()
 	log = log.WithValues("volumeId", volumeID)

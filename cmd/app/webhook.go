@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -60,7 +61,7 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{config.InjectSidecarDone: config.True}),
+					Label: labels.SelectorFromSet(labels.Set{common.InjectSidecarDone: common.True}),
 				},
 			},
 		}),

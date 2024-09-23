@@ -18,13 +18,16 @@ package dashboard
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"sort"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (api *API) sysNamespaced(name string) types.NamespacedName {
@@ -37,11 +40,11 @@ func (api *API) sysNamespaced(name string) types.NamespacedName {
 func isAppPod(pod *corev1.Pod) bool {
 	if pod.Labels != nil {
 		// mount pod mode
-		if _, ok := pod.Labels[config.UniqueId]; ok {
+		if _, ok := pod.Labels[common.UniqueId]; ok {
 			return true
 		}
 		// sidecar mode
-		if _, ok := pod.Labels[config.InjectSidecarDone]; ok {
+		if _, ok := pod.Labels[common.InjectSidecarDone]; ok {
 			return true
 		}
 	}
@@ -66,7 +69,7 @@ func (api *API) isAppPodShouldList(ctx context.Context, pod *corev1.Pod) bool {
 			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, &pv); err != nil {
 				return false
 			}
-			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == jfsConfig.DriverName {
 				return true
 			}
 		}
@@ -107,7 +110,7 @@ func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
 	}
 	sl := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      config.PodUniqueIdLabelKey,
+			Key:      common.PodUniqueIdLabelKey,
 			Operator: metav1.LabelSelectorOpIn,
 			Values:   values,
 		}},

@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
 const (
@@ -104,7 +104,7 @@ func (r *BaseBuilder) NewSecret() corev1.Secret {
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Name:      r.jfsSetting.SecretName,
 			Labels: map[string]string{
-				config.JuicefsSecretLabelKey: "true",
+				common.JuicefsSecretLabelKey: "true",
 			},
 		},
 		StringData: data,
