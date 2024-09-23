@@ -373,8 +373,7 @@ func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 }
 
 func (p *podUpgrade) uploadBinary(ctx context.Context) error {
-	ce := util.ContainSubString(p.pod.Spec.Containers[0].Command, "format")
-	if ce {
+	if p.ce {
 		stdout, stderr, err := p.client.ExecuteInContainer(
 			ctx,
 			p.pod.Name,
