@@ -223,13 +223,9 @@ spec:
       restartPolicy: Never
 ```
 
-## Mount Pod 退出时清理缓存 {#mount-pod-clean-cache}
+## 清理缓存 {#mount-pod-clean-cache}
 
-在不少大规模场景下，已建立的缓存是宝贵的，因此 JuiceFS CSI 驱动默认并不会在 Mount Pod 退出时清理缓存。如果这对你的场景不适用，可以对 PV 进行配置，令 Mount Pod 退出时直接清理自己的缓存。
-
-:::note 注意
-此特性需使用 0.14.1 及以上版本的 JuiceFS CSI 驱动
-:::
+在大规模场景下，已建立的缓存是宝贵的，因此 JuiceFS CSI 驱动默认并不会在 Mount Pod 退出时清理缓存。如果这对你的场景不适用，可以对 PV 进行配置，令 Mount Pod 退出时直接清理自己的缓存。
 
 ### 静态配置
 

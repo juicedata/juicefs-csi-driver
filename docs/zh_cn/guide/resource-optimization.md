@@ -27,7 +27,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 ### 在 ConfigMap 中配置资源声明 {#resources-configmap}
 
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
 
 ```yaml title="values-mycluster.yaml" {3-6}
 globalConfig:
@@ -43,7 +43,7 @@ globalConfig:
 ### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
 :::
 
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
@@ -264,7 +264,7 @@ Mount Pod 是支持复用的，由 JuiceFS CSI Node 以引用计数的方式进�
 
 ### 配置方法
 
-建议通过 [ConfigMap](./configurations.md#configmap) 来为 mount pod 配置延迟删除。
+建议通过 [ConfigMap](./configurations.md#configmap) 来为 Mount Pod 配置延迟删除。
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
