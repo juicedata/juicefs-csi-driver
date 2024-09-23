@@ -102,7 +102,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
@@ -111,6 +110,15 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -846,7 +854,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
@@ -855,6 +862,15 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:

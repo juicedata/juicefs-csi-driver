@@ -280,6 +280,13 @@ func (api *API) listMountPod() gin.HandlerFunc {
 
 func (api *API) listCSINodePod() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var targetPod *corev1.Pod
+		if v, ok := c.Get("pod"); ok {
+			targetPod = v.(*corev1.Pod)
+		}
+		if targetPod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" {
+			return
+		}
 		var pods corev1.PodList
 		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -291,8 +298,15 @@ func (api *API) listCSINodePod() gin.HandlerFunc {
 			c.String(500, "parse label selector error %v", err)
 			return
 		}
+		var fieldSelector fields.Selector
+		if targetPod != nil {
+			fieldSelector = fields.SelectorFromSet(fields.Set{
+				"spec.nodeName": targetPod.Spec.NodeName,
+			})
+		}
 		err = api.cachedReader.List(c, &pods, &client.ListOptions{
 			LabelSelector: s,
+			FieldSelector: fieldSelector,
 		})
 		if err != nil {
 			c.String(500, "list pods error %v", err)
@@ -523,6 +537,28 @@ func (api *API) listMountPodOf(ctx context.Context, pod *corev1.Pod) ([]*corev1.
 	return mountPods, nil
 }
 
+func (api *API) listMountPodOfCSINode(ctx context.Context, csiNode *corev1.Pod) ([]corev1.Pod, error) {
+	var mountPods corev1.PodList
+	s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app.kubernetes.io/name": "juicefs-mount",
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = api.cachedReader.List(ctx, &mountPods, &client.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{
+			"spec.nodeName": csiNode.Spec.NodeName,
+		}),
+		LabelSelector: s,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mountPods.Items, nil
+}
+
 func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pod")
@@ -531,6 +567,15 @@ func (api *API) listMountPodsOfAppPod() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
+		if isCsiNode(pod) {
+			mountPods, err := api.listMountPodOfCSINode(c, pod)
+			if err != nil {
+				c.String(500, "list mount pods error %v", err)
+				return
+			}
+			c.IndentedJSON(200, mountPods)
+			return
+		}
 		pods, err := api.listMountPodOf(c, pod)
 		if err != nil {
 			c.String(500, "list mount pods error %v", err)

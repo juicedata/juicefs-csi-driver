@@ -114,7 +114,7 @@ const columns: ProColumns<Pod>[] = [
             color={getPodStatusBadge(podStatus(mountPod) || '')}
             text={
               <Link
-                to={`/pods/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}
+                to={`/syspods/${mountPod?.metadata?.namespace}/${mountPod?.metadata?.name}/`}
               >
                 {mountPod?.metadata?.name}
               </Link>
@@ -130,7 +130,7 @@ const columns: ProColumns<Pod>[] = [
                   color={getPodStatusBadge(podStatus(mountPod) || '')}
                   text={
                     <Link
-                      to={`/pods/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}
+                      to={`/syspods/${mountPod.metadata?.namespace}/${mountPod.metadata?.name}/`}
                     >
                       {mountPod?.metadata?.name}
                     </Link>
@@ -173,7 +173,7 @@ const columns: ProColumns<Pod>[] = [
           color={getPodStatusBadge(podStatus(pod.csiNode) || '')}
           text={
             <Link
-              to={`/pods/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}
+              to={`/syspods/${pod.csiNode.metadata?.namespace}/${pod.csiNode.metadata?.name}/`}
             >
               {pod.csiNode.metadata?.name}
             </Link>
