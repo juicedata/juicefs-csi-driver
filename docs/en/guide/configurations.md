@@ -235,7 +235,7 @@ mountOptions:
 ```
 
 :::tip
-Mount options are different between Community Edition and Cloud Service, see:
+Mount options are different between the Community Edition and Cloud Service. See:
 
 - [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
 - [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
@@ -243,9 +243,9 @@ Mount options are different between Community Edition and Cloud Service, see:
 
 #### Via ConfigMap
 
-Minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
 
-Items inside ConfigMap comes with the highest priority, mount options defined in CM will recursively overwrite those defined in PV. So in order to avoid confusion, please migrate all mount options towards ConfigMap and refrain from using PV-level `mountOptions`.
+Items inside ConfigMap comes with the highest priority, and mount options defined in CM will recursively overwrite those defined in PV. To avoid confusion, please migrate all mount options to ConfigMap and avoid using PV-level `mountOptions`.
 
 By using `pvcSelector`, you can control mount options for multiple PVCs.
 
@@ -262,7 +262,7 @@ By using `pvcSelector`, you can control mount options for multiple PVCs.
 
 #### Via PV definition (deprecated) {#static-mount-options}
 
-After modifying the mount options for existing PVs, you need to perform a rolling upgrade or re-create the application pod, so that CSI Driver starts re-create the mount pod for the changes to take effect.
+After modifying the mount options for existing PVs, a rolling upgrade or re-creation of the application pod is required to apply the changes. This ensures CSI Driver re-creates the Mount Pod for the changes to take effect.
 
 ```yaml {8-9}
 apiVersion: v1
@@ -279,9 +279,9 @@ spec:
 
 #### Via StorageClass definition (deprecated) {#dynamic-mount-options}
 
-Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
+You can customize mount options in `StorageClass` definition. If different applications require different mount options, create multiple `StorageClass`, each with its own mount options.
 
-Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options for dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
+Since StorageClass serves as a template for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**. If you need to adjust mount options for dynamic provisioning, you have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
 
 ```yaml {6-7}
 apiVersion: storage.k8s.io/v1
@@ -297,12 +297,12 @@ parameters:
 
 ### Health check & pod lifecycle {#custom-probe-lifecycle}
 
-Minimum required version is CSI Driver v0.24.0. Upon modification, application pods or mount pods need to be re-created for changes to take effect. If you decide to re-create mount pod, be sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance, to avoid permanent loss of mount point within the application pod.
+The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, ensure that [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) is enabled to prevent the permanent loss of the mount point within the application pod.
 
 Targeted scenarios:
 
-- Use `readinessProbe` to set up mount pod healthchecking, for monitoring and alerting;
-- Customize `preStop` in sidecars to guarantee mount container exit order (mount container exit after application container), refer to [sidecar recommendations](../administration/going-production.md#sidecar) for details.
+- Use `readinessProbe` to set up health checks for the Mount Pod, supporting monitoring and alerting.
+- Customize `preStop` in sidecars to ensure the mount container exits after the application container. Refer to [sidecar recommendations](../administration/going-production.md#sidecar) for details.
 
 ```yaml
   - pvcSelector:
@@ -323,15 +323,15 @@ Targeted scenarios:
 
 Targeted scenarios:
 
-- Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a separate Secret to store these files, and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
 - JuiceFS Enterprise Edition supports [shared block storage device](https://juicefs.com/docs/cloud/guide/block-device), which can be used as cache storage or permanent data storage.
 
 #### Via ConfigMap
 
-Minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
 
 ```yaml
-  # mount some volumes to the mount pod
+  # Mount some volumes to the Mount Pod
   - pvcSelector:
       matchLabels:
         need-block-device: "true"
@@ -357,7 +357,7 @@ Minimum required version is CSI Driver v0.24.7. Upon modification, application p
 
 #### Via secret
 
-JuiceFS Secret only supports configuring extra secret mounts within the `configs` field, shared block device mount are not supported here.
+JuiceFS Secret only supports configuring extra secret mounts within the `configs` field. Shared block device mounts are not supported here.
 
 ```yaml {8-9}
 apiVersion: v1
@@ -367,16 +367,16 @@ metadata:
 type: Opaque
 stringData:
   ...
-  # Set Secret name and mount directory in configs, this mounts the whole Secret into specified directory
+  # Set Secret name and mount directory in configs. This mounts the whole Secret into the specified directory
   configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
 ### Other features
 
-Many features is closely relevant to other topics, read more in their respective chapter:
+Many features are closely relevant to other topics. For more information:
 
-* Configure delayed deletion for mount pods, to save startup overhead when application pod lifecycles are short. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion);
-* Clean cache upon mount pod exit, refer to [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
+* Configure delayed deletion for Mount Pods to reduce startup overhead in short application pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
+* Clean cache upon mount pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
 
 ## Format options / auth options {#format-options}
 
