@@ -345,7 +345,7 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 }
 
 func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
-	hashVal := pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}

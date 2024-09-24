@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -110,7 +111,7 @@ func handleShutdown(conn net.Conn) {
 		return
 	}
 	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "metaurl")
-	hashVal := mountPod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := mountPod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
 		return
@@ -174,13 +175,13 @@ func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 			ctx,
 			p.pod.Name,
 			p.pod.Namespace,
-			config.MountContainerName,
+			common.MountContainerName,
 			[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
 		); err != nil {
 			log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
 			continue
 		}
-		upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, config.MountContainerName)
+		upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, common.MountContainerName)
 		if p.recreate {
 			upgradeEvtMsg = "Upgrade pod with recreating"
 			sendMessage(conn, upgradeEvtMsg)
@@ -203,7 +204,7 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, err
 	}
 
-	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
 
 	// get pid and sid from <mountpoint>/.config
 	msg := "get pid from config"
@@ -283,7 +284,7 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 }
 
 func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
-	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return false
 	}
@@ -318,7 +319,7 @@ func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
 
 func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	sendMessage(conn, "wait for upgrade...")
-	hashVal := p.pod.Labels[config.PodJuiceHashLabelKey]
+	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		return
 	}
@@ -345,8 +346,8 @@ func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 				reportDeleted = true
 			}
 			labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-				config.PodTypeKey:           config.PodTypeValue,
-				config.PodJuiceHashLabelKey: hashVal,
+				common.PodTypeKey:           common.PodTypeValue,
+				common.PodJuiceHashLabelKey: hashVal,
 			}}
 			fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 			pods, err := p.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
@@ -378,7 +379,7 @@ func (p *podUpgrade) uploadBinary(ctx context.Context) error {
 			ctx,
 			p.pod.Name,
 			p.pod.Namespace,
-			config.MountContainerName,
+			common.MountContainerName,
 			[]string{"sh", "-c", "rm -rf /usr/local/bin/juicefs && mv /tmp/juicefs /usr/local/bin/juicefs"},
 		)
 		if err != nil {
@@ -392,7 +393,7 @@ func (p *podUpgrade) uploadBinary(ctx context.Context) error {
 		ctx,
 		p.pod.Name,
 		p.pod.Namespace,
-		config.MountContainerName,
+		common.MountContainerName,
 		[]string{"sh", "-c", "rm -rf /usr/bin/juicefs && mv /tmp/juicefs /usr/bin/juicefs  && rm -rf /usr/local/juicefs/mount/jfsmount && mv /tmp/jfsmount /usr/local/juicefs/mount/jfsmount"},
 	)
 	if err != nil {

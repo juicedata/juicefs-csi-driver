@@ -403,7 +403,7 @@ func (api *API) getPodLatestImage() gin.HandlerFunc {
 			c.String(500, "Could not create k8s client: %v", err)
 			return
 		}
-		if rawPod.Labels[config.PodTypeKey] != config.PodTypeValue {
+		if rawPod.Labels[common.PodTypeKey] != common.PodTypeValue {
 			c.String(400, "pod %s is not a mount pod", rawPod.Name)
 			return
 		}

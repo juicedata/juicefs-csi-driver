@@ -234,7 +234,7 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 	if err != nil {
 		return nil, err
 	}
-	volumeId := mountPod.Labels[config.PodUniqueIdLabelKey]
+	volumeId := mountPod.Labels[common.PodUniqueIdLabelKey]
 	name := GenJobNameByVolumeId(volumeId) + "-canary"
 	if _, err := client.GetJob(ctx, name, config.Namespace); err == nil {
 		log.Info("canary job already exists, delete it first", "name", name)
