@@ -423,7 +423,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 
 	if len(existTargets) == 0 {
 		// do not need to create new one, umount
-		util.UmountPath(ctx, sourcePath)
+		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			util.UmountPath(ctx, sourcePath)
+			return nil
+		})
 		// clean mount point
 		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 			log.Info("Clean mount point", "mountPath", sourcePath)
@@ -736,7 +739,10 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 			return nil
 		}
 
-		util.UmountPath(subCtx, target)
+		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			util.UmountPath(subCtx, target)
+			return nil
+		})
 	}
 }
 

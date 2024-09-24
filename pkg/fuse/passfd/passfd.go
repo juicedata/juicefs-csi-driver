@@ -172,7 +172,9 @@ func (fs *Fds) CloseFd(podHashVal string) {
 
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
-	if fuseFd < 0 {
+	if fuseFd <= 0 {
+		// if can not get fuse fd, do not serve for it
+		fdLog.V(1).Info("get fuse fd error, ignore it", "fusePath", fusePath)
 		return
 	}
 
@@ -338,6 +340,7 @@ func GetFuseFd(path string, close bool) (int, []byte) {
 		exists, err = k8sMount.PathExists(path)
 		return
 	}); err != nil {
+		fdLog.V(1).Info("path exists error", "path", path)
 		return -1, nil
 	}
 

@@ -173,7 +173,10 @@ func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error 
 		}
 		// target is bind by other path, umount it
 		log.Info("target bind mount to other path, umount it", "target", target)
-		util.UmountPath(ctx, target)
+		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+			util.UmountPath(ctx, target)
+			return nil
+		})
 	}
 	// bind target to mountpath
 	log.Info("binding source at target", "source", bindSource, "target", target)
@@ -578,7 +581,10 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 			return os.MkdirAll(target, os.FileMode(0755))
 		} else if corruptedMnt = mount.IsCorruptedMnt(err); corruptedMnt {
 			// if target is a corrupted mount, umount it
-			util.UmountPath(ctx, target)
+			_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+				util.UmountPath(ctx, target)
+				return nil
+			})
 			continue
 		} else {
 			return err
