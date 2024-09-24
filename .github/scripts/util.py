@@ -117,7 +117,7 @@ def check_mount_point(check_path):
 
 def check_quota(name, expected):
     output = ""
-    for i in range(0, 10):
+    for i in range(0, 30):
         process = subprocess.run([
             "kubectl", "exec", name, "-c", "app", "-n", "default", "-t", "--", "df", "-h"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
