@@ -1035,3 +1035,44 @@ func Test_ParseFormatOptions(t *testing.T) {
 		})
 	}
 }
+func Test_getPVNameFromTarget(t *testing.T) {
+	tests := []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{
+			name:   "valid target",
+			target: "/var/lib/kubelet/pods/abc/volumes/kubernetes.io~csi/pv-name/mount",
+			want:   "pv-name",
+		},
+		{
+			name:   "invalid target - no csi",
+			target: "/var/lib/kubelet/pods/abc/volumes/kubernetes.io~other/pv-name/mount",
+			want:   "",
+		},
+		{
+			name:   "invalid target - no pv name",
+			target: "/var/lib/kubelet/pods/abc/volumes/kubernetes.io~csi//mount",
+			want:   "",
+		},
+		{
+			name:   "invalid target",
+			target: "xxxxxx",
+			want:   "",
+		},
+		{
+			name:   "empty string",
+			target: "",
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getPVNameFromTarget(tt.target); got != tt.want {
+				t.Errorf("getPVNameFromTarget() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
