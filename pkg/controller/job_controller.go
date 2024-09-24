@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
@@ -85,14 +86,14 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 	needRecycled := false
 	// check csi node exist or not
 	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
+		MatchLabels: map[string]string{common.CSINodeLabelKey: common.CSINodeLabelValue},
 	}
 	fieldSelector := fields.Set{
 		"spec.nodeName": nodeName,
 	}
 	csiPods, err := m.ListPod(ctx, config.Namespace, &labelSelector, &fieldSelector)
 	if err != nil {
-		jobCtrlLog.Error(err, "list pod by label and field error", "label", config.CSINodeLabelValue, "node", nodeName)
+		jobCtrlLog.Error(err, "list pod by label and field error", "label", common.CSINodeLabelValue, "node", nodeName)
 		return reconcile.Result{}, err
 	}
 	if len(csiPods) == 0 {

@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -71,10 +72,10 @@ func NewMountManager(
 			Scheme: scheme,
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.PodTypeValue}),
+					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
 				},
 				&batchv1.Job{}: {
-					Label: labels.SelectorFromSet(labels.Set{config.PodTypeKey: config.JobTypeValue}),
+					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.JobTypeValue}),
 				},
 			},
 		}),

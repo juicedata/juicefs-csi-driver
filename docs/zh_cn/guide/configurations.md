@@ -9,29 +9,32 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 mount pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
-由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，请优先在 ConfigMap 中对其进行配置，无需再使用旧版本中的实践。**
+由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
 
 :::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
 
-如果希望立即生效，可以给 CSI 组件 pods 临时添加 annotation 来触发更新：
+如果希望立即生效，可以给 CSI 组件临时添加 Annotation 来触发更新：
 
 ```shell
 kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
 ```
 
+ConfigMap 生效后，后续创建的 Mount Pod 都会应用新的配置，**但已有的 Mount Pod 并不会自动更新！** 根据所修改的项目不同，可能需要重建应用 Pod 或者 Mount Pod，方可令修改生效。请继续阅读下方相关章节了解各自项目具体的生效条件。
+:::
+
+:::info Sidecar 注意事项
+下方介绍的所有相关的字段，只要是合法的 Sidecar 容器配置，那么对于 Sidecar 容器同样生效。比如：
+
+* `resources` 是 Mount Pod 和 Sidecar 容器都具备的配置，因此对两种场景都生效；
+* `custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 Pod 独有的属性，Container 是没有标签的，因此 `custom-labels` 就只对 Mount Pod 生效，Sidecar 场景则会忽略该配置。
 :::
 
 ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
 
-### 定制 Mount Pod 和 Sidecar 容器 {#customize-mount-pod}
+<details>
 
-Mount Pod 并非由用户直接创建，而是 CSI Node 负责生成。Sidecar 容器则是 [webhook](#webhook) 负责注入，如果用户希望定制 mount pod 或者 sidecar 容器，需要通过下列介绍的方法进行。
-
-在 [ConfigMap](#configmap) 中，`mountPodPatch` 这个字段专门用于定制 mount pod 或者 sidecar 容器，可供定制的部分均已在示范中列出。使用前需要注意：
-
-* **修改后并不会立即生效**，Kubernetes 会定期同步 ConfigMap 的挂载。详见 [ConfigMap 的更新时效](#configmap)
-* 对于 sidecar 场景，相关的字段只要是合法的 sidecar 容器配置，那么对于 sidecar 容器同样生效：比如 `resources` 是 mount pod 和 sidecar 容器都具备的配置，因此对两种场景都生效；`custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 pod 独有的属性，container 是没有标签的，因此 `custom-labels` 就只对 mount pod 生效，sidecar 场景则会忽略该配置
+<summary>示例</summary>
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
@@ -128,7 +131,7 @@ globalConfig:
         - name: block-devices
           persistentVolumeClaim:
             claimName: block-pv
-        
+
       # 选择特定的 StorageClass
     - pvcSelector:
         matchStorageClassName: juicefs-sc
@@ -140,53 +143,238 @@ globalConfig:
       terminationGracePeriodSeconds: 60
 ```
 
-### 通过继承 CSI Node 配置进行定制（不推荐） {#inherit-from-csi-node}
+</details>
 
-:::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
-:::
+## 定制 Mount Pod 或者 Sidecar 容器 {#customize-mount-pod}
 
-Mount Pod 自身的资源定义（Kubernetes manifests，也就是 Pod YAML）大部分继承自 CSI Node，比方说如果希望给 mount pod 启用 hostNetwork，可以先为 CSI Node 启用 hostNetwork：
+虽然在[「ConfigMap 配置」](#configmap)的示范代码块里已经罗列了所有支持的定制项目和 PVC 选择器，但每一个配置项的修改生效条件和写法不尽相同，因此在本节一一罗列，使用前请详细阅读。
 
-```yaml title="values-mycluster.yaml"
-node:
-  hostNetwork: true
+### 容器镜像 {#custom-image}
+
+#### 使用 Configmap
+
+该功能最低需要 CSI 驱动版本 v0.24.0，修改后需重建业务 Pod 或者删除 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+
+```yaml {2-4}
+globalConfig:
+  mountPodPatch:
+    - ceMountImage: juicedata/mount:ce-v1.2.0
+      eeMountImage: juicedata/mount:ee-5.1.0-053aa0b
 ```
 
-让配置生效，后续生成的 mount pod 就会继承 hostNetwork 配置了。
+如果需要使用定制版本的容器镜像，或者寻找最新版本的 JuiceFS 客户端镜像，请阅读[定制容器镜像](./custom-image.md)。
 
-之所以说「大部分」配置继承自 CSI Node，是因为 labels、annotations 等字段包含组件特定内容，无法简单继承。因此为这部分配置提供单独的定制手段，继续阅读下一小节了解。
+### 环境变量 {#custom-env}
 
-### 通过 Annotation 进行定制（不推荐） {#others}
+#### 使用 Configmap
 
-:::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#configmap) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
-:::
+该功能最低需要 CSI 驱动版本 v0.24.5，修改后需要重建业务 Pod 生效。
 
-部分无法用继承方式定制的配置项，我们提供了额外的手段来单独定制。具体而言，就是下方代码块列出的字段，既可以将他们配置在 storageClass 的 parameters 参数中（动态配置），也可放在 PVC 的 annotations 中（静态配置）。
+```yaml {2-6}
+  mountPodPatch:
+    - env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+```
+
+#### 使用 Secret
+
+```yaml {11}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+  labels:
+    # 增加该标签以启用认证信息校验
+    juicefs.com/validate-secret: "true"
+type: Opaque
+stringData:
+  envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
+```
+
+### 资源限制 {#custom-resources}
+
+#### 使用 Configmap
+
+该功能最低需要 CSI 驱动版本 v0.24.0，修改后需要重建业务 Pod 或者重建 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+
+```yaml {2-5}
+  mountPodPatch:
+  - resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+```
+
+阅读[资源优化](./resource-optimization.md)以了解如何恰当设置资源定义，来兼顾性能和资源占用。
+
+### 挂载参数 {#mount-options}
+
+每一个 JuiceFS 挂载点都是 `juicefs mount` 命令创建的，在 CSI 驱动体系中，需要通过 `mountOptions` 字段填写需要调整的挂载配置。
+
+`mountOptions` 同时支持 JuiceFS 本身的挂载参数和 FUSE 相关选项。但要注意，虽然 FUSE 参数在命令行使用时会用 `-o` 传入，但在 `mountOptions` 中需要省略 `-o`，直接在列表中追加参数即可。以下方挂载命令为例：
+
+```shell
+juicefs mount ... --cache-size=204800 -o writeback_cache,debug
+```
+
+翻译成 CSI 中的 `mountOptions`，格式如下：
 
 ```yaml
-juicefs/mount-cpu-limit: ""
-juicefs/mount-memory-limit: ""
-juicefs/mount-cpu-request: ""
-juicefs/mount-memory-request: ""
-
-juicefs/mount-labels: ""
-juicefs/mount-annotations: ""
-juicefs/mount-service-account: ""
-juicefs/mount-image: ""
-juicefs/mount-delete-delay: ""
-
-# 退出时清理缓存
-juicefs/clean-cache: ""
-juicefs/mount-cache-pvc: ""
-juicefs/mount-cache-emptydir: ""
-juicefs/mount-cache-inline-volume: ""
-
-# 在 mount pod 中挂载宿主机文件或目录
-# 容器内路径将会等同宿主机路径，无法定制
-juicefs/host-path: "/data/file.txt"
+mountOptions:
+  # JuiceFS mount options
+  - cache-size=204800
+  # 额外的 FUSE 相关选项
+  - writeback_cache
+  - debug
 ```
+
+:::tip
+JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
+
+- [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
+- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+:::
+
+#### 使用 ConfigMap
+
+该功能最小需要 CSI 驱动 v0.24.7。修改 ConfigMap 相关配置后，需重建业务 Pod 生效。
+
+ConfigMap 中的配置具备最高优先级，他会递归合并覆盖 PV 中的 `mountOptions`，因此为了避免出现“修改了却不生效”的误用情况，建议将所有配置迁移到 ConfigMap，不再继续使用 PV 级别的 `mountOptions`。
+
+灵活使用 `pvcSelector` 可实现批量修改 `mountOptions` 的目的。
+
+```yaml
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          # 所有含有此 label 的 PVC 都将应用此配置
+          need-update-options: "true"
+      mountOptions:
+        - writeback
+        - cache-size=204800
+```
+
+#### 通过 PV 定义（不推荐） {#static-mount-options}
+
+注意，如果是修改已有 PV 的挂载配置，修改后需要重建应用 Pod，才会触发重新创建 Mount Pod，令变动生效。
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=204800
+  ...
+```
+
+#### 通过 StorageClass 定义（不推荐） {#dynamic-mount-options}
+
+在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
+
+注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV。**如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](#static-mount-options)。
+
+```yaml {6-7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+mountOptions:
+  - cache-size=204800
+parameters:
+  ...
+```
+
+### 健康检查 & 容器回调 {#custom-probe-lifecycle}
+
+该功能最低需要 CSI 驱动版本 v0.24.0，修改后需重建业务 Pod 或者删除 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+
+使用场景：
+
+- 配合 `readinessProbe` 配合监控体系，建立告警机制；
+- 定制 `preStopHook`，避免 sidecar 场景中，挂载容器早于业务容器退出，造成业务波动。详见 [Sidecar 模式推荐设置](../administration/going-production.md#sidecar)。
+
+```yaml
+  - pvcSelector:
+      matchLabels:
+        custom-probe: "true"
+    readinessProbe:
+      exec:
+        command:
+        - stat
+        - ${MOUNT_POINT}/${SUB_PATH}
+      failureThreshold: 3
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      successThreshold: 1
+```
+
+### 挂载额外的 Volume {#custom-volumes}
+
+使用场景：
+
+- 部分对象存储服务（比如 Google 云存储）在访问时需要提供额外的认证文件，这就需要你用创建单独的 Secret 保存这些文件，然后在认证信息中引用。这样一来，CSI 驱动便会将这些文件挂载进 Mount Pod，然后在 Mount Pod 中添加对应的环境变量，令 JuiceFS 挂载时使用该文件进行对象存储的认证。
+- JuiceFS 企业版支持挂载[共享块设备](https://juicefs.com/docs/zh/cloud/guide/block-device)，既可以作为缓存存储，也可以配置成数据块的永久存储。
+
+#### 使用 ConfigMap
+
+该功能最低需要 CSI 驱动版本 v0.24.7，修改后需重建业务 Pod 生效。
+
+```yaml
+  # mount some volumes to the mount pod
+  - pvcSelector:
+      matchLabels:
+        need-block-device: "true"
+    volumeDevices:
+      - name: block-devices
+        devicePath: /dev/sda1
+    volumes:
+      - name: block-devices
+        persistentVolumeClaim:
+          claimName: block-pv
+  - pvcSelector:
+      matchLabels:
+        need-mount-secret: "true"
+    volumeMounts:
+      - name: config-1
+        mountPath: /root/.config/gcloud
+    volumes:
+    - name: gc-secret
+      secret:
+        secretName: gc-secret
+        defaultMode: 420
+```
+
+#### 使用 secret
+
+在 JuiceFS Secret 的 `configs` 字段中，只能挂载额外的 Secret，无法配置共享块设备的挂载。
+
+```yaml {8-9}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  ...
+  # 在 configs 中填写 Secret 名称和挂载目录，将该 Secret 整体挂载进指定的目录
+  configs: "{gc-secret: /root/.config/gcloud}"
+```
+
+### 其他功能定制
+
+不少其他功能和其他话题高度相关，不在本章详细介绍，请阅读对应章节以详细了解：
+
+* 为 Mount Pod 配置延迟退出，在应用 Pod 生命周期极短时节约 Mount Pod 启动开销，阅读[延迟退出](./resource-optimization.md#delayed-mount-pod-deletion)；
+* 在 Mount Pod 退出时清理缓存，请阅读[清理缓存](./resource-optimization.md#clean-cache-when-mount-pod-exits)。
 
 ## 格式化参数/认证参数 {#format-options}
 
@@ -233,69 +421,6 @@ stringData:
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
   format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
-```
-
-## 挂载参数 {#mount-options}
-
-「挂载参数」，也就是 `juicefs mount` 命令所接受的参数，可以用于调整挂载配置。你需要通过 `mountOptions` 字段填写需要调整的挂载配置，在静态配置和动态配置下填写的位置不同，见下方示范。
-
-### 静态配置 {#static-mount-options}
-
-注意，如果是修改已有 PV 的挂载配置，修改后需要重建应用 Pod，才会触发重新创建 Mount Pod，令变动生效。
-
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=204800
-  ...
-```
-
-### 动态配置 {#dynamic-mount-options}
-
-在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
-
-注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV。**如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](#static-mount-options)。
-
-```yaml {6-7}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-mountOptions:
-  - cache-size=204800
-parameters:
-  ...
-```
-
-### 参数详解
-
-JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
-
-- [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
-- [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
-
-PV/StorageClass 中的 `mountOptions` 同时支持 JuiceFS 本身的挂载参数和 FUSE 相关选项。但要注意，虽然 FUSE 参数在命令行使用时会用 `-o` 传入，但在 `mountOptions` 中需要省略 `-o`，直接在列表中追加参数即可。以下方挂载命令为例：
-
-```shell
-juicefs mount ... --cache-size=204800 -o writeback_cache,debug
-```
-
-翻译成 CSI 中的 `mountOptions`，格式如下：
-
-```yaml
-mountOptions:
-  # JuiceFS mount options
-  - cache-size=204800
-  # 额外的 FUSE 相关选项
-  - writeback_cache
-  - debug
 ```
 
 ## 应用间共享存储 {#share-directory}

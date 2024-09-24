@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -108,7 +109,7 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 	isPrivileged := true
 	rootUser := int64(0)
 	return corev1.Container{
-		Name:  config.MountContainerName,
+		Name:  common.MountContainerName,
 		Image: r.BaseBuilder.jfsSetting.Attr.Image,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,
@@ -116,7 +117,7 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 		},
 		Env: []corev1.EnvVar{
 			{
-				Name:  config.JfsInsideContainer,
+				Name:  common.JfsInsideContainer,
 				Value: "1",
 			},
 		},
@@ -326,7 +327,7 @@ func (r *PodBuilder) genCleanCachePod() *corev1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey: config.PodTypeValue,
+				common.PodTypeKey: common.PodTypeValue,
 			},
 			Annotations: make(map[string]string),
 		},

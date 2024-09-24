@@ -27,7 +27,7 @@ import { getPodStatusBadge, podStatus } from '@/utils'
 const PodsTable: React.FC<{
   title: string
   source: 'pod' | 'pv' | 'pvc'
-  type: 'mountpods' | 'apppods'
+  type: 'mountpods' | 'apppods' | 'csi-nodes'
   name: string
   namespace?: string
 }> = ({ title, source, type, namespace, name }) => {
@@ -45,7 +45,7 @@ const PodsTable: React.FC<{
             render: (_, pod) => {
               return (
                 <Link
-                  to={`/pods/${pod.metadata?.namespace}/${pod.metadata?.name}`}
+                  to={`/${type === 'apppods' ? 'pods' : 'syspods'}/${pod.metadata?.namespace}/${pod.metadata?.name}`}
                 >
                   {pod.metadata?.namespace}/{pod.metadata?.name}
                 </Link>

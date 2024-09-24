@@ -34,6 +34,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -170,8 +171,8 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 					FSType:           "juicefs",
 					VolumeAttributes: volCtx,
 					NodePublishSecretRef: &corev1.SecretReference{
-						Name:      scParams[config.PublishSecretName],
-						Namespace: scParams[config.PublishSecretNamespace],
+						Name:      scParams[common.PublishSecretName],
+						Namespace: scParams[common.PublishSecretNamespace],
 					},
 				},
 			},
@@ -182,15 +183,15 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			VolumeMode:                    options.PVC.Spec.VolumeMode,
 		},
 	}
-	if scParams[config.ControllerExpandSecretName] != "" && scParams[config.ControllerExpandSecretNamespace] != "" {
+	if scParams[common.ControllerExpandSecretName] != "" && scParams[common.ControllerExpandSecretNamespace] != "" {
 		pv.Spec.CSI.ControllerExpandSecretRef = &corev1.SecretReference{
-			Name:      scParams[config.ControllerExpandSecretName],
-			Namespace: scParams[config.ControllerExpandSecretNamespace],
+			Name:      scParams[common.ControllerExpandSecretName],
+			Namespace: scParams[common.ControllerExpandSecretNamespace],
 		}
 	}
 
 	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
-		secret, err := j.K8sClient.GetSecret(ctx, scParams[config.ProvisionerSecretName], scParams[config.ProvisionerSecretNamespace])
+		secret, err := j.K8sClient.GetSecret(ctx, scParams[common.ProvisionerSecretName], scParams[common.ProvisionerSecretNamespace])
 		if err != nil {
 			provisionerLog.Error(err, "Get Secret error")
 			j.metrics.provisionErrors.Inc()
@@ -198,7 +199,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		}
 
 		provisionerLog.V(1).Info("Add Finalizer", "namespace", secret.Namespace, "name", secret.Name)
-		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer)
+		err = resource.AddSecretFinalizer(ctx, j.K8sClient, secret, common.Finalizer)
 		if err != nil {
 			provisionerLog.Error(err, "Fails to add a finalizer to the secret")
 		}
@@ -252,7 +253,7 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		}
 		if shouldRemoveFinalizer {
 			provisionerLog.V(1).Info("Remove Finalizer", "namespace", secretNamespace, "name", secretName)
-			if err = resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, config.Finalizer); err != nil {
+			if err = resource.RemoveSecretFinalizer(ctx, j.K8sClient, secret, common.Finalizer); err != nil {
 				return err
 			}
 		}

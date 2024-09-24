@@ -5,11 +5,12 @@
 package mocks
 
 import (
-	context "context"
-	reflect "reflect"
+	"context"
+	"reflect"
 
-	gomock "github.com/golang/mock/gomock"
-	config "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/golang/mock/gomock"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 // MockJfs is a mock of Jfs interface.

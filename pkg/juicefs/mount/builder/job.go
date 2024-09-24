@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -109,7 +110,7 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey: config.JobTypeValue,
+				common.PodTypeKey: common.JobTypeValue,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -136,7 +137,7 @@ func (r *JobBuilder) newCleanJob(jobName string) *batchv1.Job {
 			Name:      jobName,
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey: config.JobTypeValue,
+				common.PodTypeKey: common.JobTypeValue,
 			},
 		},
 		Spec: batchv1.JobSpec{

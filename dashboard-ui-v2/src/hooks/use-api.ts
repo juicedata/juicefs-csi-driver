@@ -81,7 +81,7 @@ export function usePods(
   namespace?: string,
   name?: string,
   source: 'pod' | 'pv' | 'pvc' = 'pod',
-  type: 'mountpods' | 'apppods' = 'apppods',
+  type: 'mountpods' | 'apppods' | 'csi-nodes' = 'apppods',
 ) {
   return useSWR<Pod[]>(
     source === 'pv'

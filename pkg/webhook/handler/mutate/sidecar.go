@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -257,7 +258,7 @@ func (s *SidecarMutate) injectLabel(pod *corev1.Pod) {
 		metaObj.Labels = map[string]string{}
 	}
 
-	metaObj.Labels[config.InjectSidecarDone] = config.True
+	metaObj.Labels[common.InjectSidecarDone] = common.True
 	metaObj.DeepCopyInto(&pod.ObjectMeta)
 }
 

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -67,7 +68,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 		mountCtrlLog.V(1).Info("pod is not deleted", "name", mountPod.Name)
 		return reconcile.Result{}, nil
 	}
-	if !util.ContainsString(mountPod.GetFinalizers(), config.Finalizer) {
+	if !util.ContainsString(mountPod.GetFinalizers(), common.Finalizer) {
 		// do nothing
 		return reconcile.Result{}, nil
 	}
@@ -75,14 +76,14 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	// check csi node exist or not
 	nodeName := mountPod.Spec.NodeName
 	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{config.CSINodeLabelKey: config.CSINodeLabelValue},
+		MatchLabels: map[string]string{common.CSINodeLabelKey: common.CSINodeLabelValue},
 	}
 	fieldSelector := fields.Set{
 		"spec.nodeName": nodeName,
 	}
 	csiPods, err := m.ListPod(ctx, config.Namespace, &labelSelector, &fieldSelector)
 	if err != nil {
-		mountCtrlLog.Error(err, "list pod by label and field error", "labels", config.CSINodeLabelValue, "node", nodeName)
+		mountCtrlLog.Error(err, "list pod by label and field error", "labels", common.CSINodeLabelValue, "node", nodeName)
 		return reconcile.Result{}, err
 	}
 	if len(csiPods) > 0 {
@@ -92,7 +93,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 
 	mountCtrlLog.Info("csi node did not exist. remove finalizer of pod", "node", nodeName, "name", mountPod.Name)
 	// remove finalizer
-	err = resource.RemoveFinalizer(ctx, m.K8sClient, mountPod, config.Finalizer)
+	err = resource.RemoveFinalizer(ctx, m.K8sClient, mountPod, common.Finalizer)
 	if err != nil {
 		mountCtrlLog.Error(err, "remove finalizer of pod error", "name", mountPod.Name)
 	}
@@ -115,7 +116,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", pod.Name)
 				return false
 			}
-			if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+			if !util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
 				return false
 			}
 			return true
@@ -143,7 +144,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", podNew.Name)
 				return false
 			}
-			if !util.ContainsString(podNew.GetFinalizers(), config.Finalizer) {
+			if !util.ContainsString(podNew.GetFinalizers(), common.Finalizer) {
 				return false
 			}
 			return true
@@ -156,7 +157,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", pod.Name)
 				return false
 			}
-			if !util.ContainsString(pod.GetFinalizers(), config.Finalizer) {
+			if !util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
 				// do nothing
 				return false
 			}

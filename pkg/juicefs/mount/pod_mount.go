@@ -38,6 +38,7 @@ import (
 	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -227,7 +228,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				passfd.GlobalFds.StopFd(ctx, po.Labels[jfsConfig.PodJuiceHashLabelKey])
+				passfd.GlobalFds.StopFd(ctx, po.Labels[common.PodJuiceHashLabelKey])
 			}
 
 			// delete related secret
@@ -313,9 +314,9 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	log := util.GenLog(ctx, p.log, "genMountPodName")
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		jfsConfig.PodTypeKey:           jfsConfig.PodTypeValue,
-		jfsConfig.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
-		jfsConfig.PodJuiceHashLabelKey: jfsSetting.HashVal,
+		common.PodTypeKey:           common.PodTypeValue,
+		common.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
+		common.PodJuiceHashLabelKey: jfsSetting.HashVal,
 	}}
 	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
@@ -374,7 +375,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					return err
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				newPod.Labels[jfsConfig.PodJuiceHashLabelKey] = jfsSetting.HashVal
+				newPod.Labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
 					nodeSelector := map[string]string{
 						"kubernetes.io/hostname": newPod.Spec.NodeName,
@@ -399,7 +400,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[jfsConfig.PodJuiceHashLabelKey]); err != nil {
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
 				}
@@ -530,7 +531,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 		}
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
-		delete(annotation, jfsConfig.DeleteDelayAtKey)
+		delete(annotation, common.DeleteDelayAtKey)
 		return resource.ReplacePodAnnotation(ctx, p.K8sClient, exist, annotation)
 	})
 	if err != nil {
@@ -547,8 +548,8 @@ func (p *PodMount) setUUIDAnnotation(ctx context.Context, podName string, uuid s
 	if err != nil {
 		return err
 	}
-	logger.Info("set pod annotation", "podName", podName, "key", jfsConfig.JuiceFSUUID, "uuid", uuid)
-	return resource.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{jfsConfig.JuiceFSUUID: uuid})
+	logger.Info("set pod annotation", "podName", podName, "key", common.JuiceFSUUID, "uuid", uuid)
+	return resource.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{common.JuiceFSUUID: uuid})
 }
 
 func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName string, podName, podNamespace string) (err error) {
@@ -559,7 +560,7 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 		return err
 	}
 	logger.Info("set mount info in pod", "podName", podName)
-	if err := resource.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{jfsConfig.UniqueId: ""}); err != nil {
+	if err := resource.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{common.UniqueId: ""}); err != nil {
 		return err
 	}
 

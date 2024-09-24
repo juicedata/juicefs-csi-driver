@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
@@ -53,8 +54,8 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey:          config.PodTypeValue,
-				config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+				common.PodTypeKey:          common.PodTypeValue,
+				common.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
 			},
 			Annotations: make(map[string]string),
 		},
@@ -93,7 +94,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		gracePeriod = *r.jfsSetting.Attr.TerminationGracePeriodSeconds
 	}
 	pod.Spec.TerminationGracePeriodSeconds = &gracePeriod
-	controllerutil.AddFinalizer(pod, config.Finalizer)
+	controllerutil.AddFinalizer(pod, common.Finalizer)
 
 	volumes, volumeMounts := r._genJuiceVolumes()
 	pod.Spec.Volumes = volumes
@@ -266,8 +267,8 @@ func (r *BaseBuilder) genMetricsPort() int32 {
 // _genMetadata generates labels & annotations
 func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
 	labels = map[string]string{
-		config.PodTypeKey:          config.PodTypeValue,
-		config.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
 	}
 	annotations = map[string]string{}
 
@@ -278,12 +279,12 @@ func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[
 		annotations[k] = v
 	}
 	if r.jfsSetting.DeletedDelay != "" {
-		annotations[config.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
+		annotations[common.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
 	}
-	annotations[config.JuiceFSUUID] = r.jfsSetting.UUID
-	annotations[config.UniqueId] = r.jfsSetting.UniqueId
+	annotations[common.JuiceFSUUID] = r.jfsSetting.UUID
+	annotations[common.UniqueId] = r.jfsSetting.UniqueId
 	if r.jfsSetting.CleanCache {
-		annotations[config.CleanCache] = "true"
+		annotations[common.CleanCache] = "true"
 	}
 	return
 }

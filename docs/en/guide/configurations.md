@@ -9,10 +9,10 @@ This chapter introduces JuiceFS PV configurations, as well as CSI Driver configu
 
 Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for mount pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
 
-ConfigMap is powerful and flexible, it will replace (or have already replaced) existing configuration methods that's been around in older versions of CSI Driver, below sections that's titled "deprecated" are all examples of outdated, less flexible methods and should be eschewed. **If something can be configured in ConfigMap, you should always prefer the ConfigMap way, rather than practices available in legacy versions.**
+ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
 :::info Update delay
-When ConfigMap changes, the changes won't take effect immediately, this is because CM mounted in a pod isn't updated in real-time, but synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
+When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
 
 If you wish for a force update, try adding a temporary label to CSI components:
 
@@ -20,18 +20,21 @@ If you wish for a force update, try adding a temporary label to CSI components:
 kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
 ```
 
+After ConfigMap is updated across CSI components, subsequent Mount Pods will apply the new configuration, but **existing Mount Pods will not automatically update**. Depending on what was changed, users must re-create the application pod or the Mount Pod for the changes to take effect. Refer to the sections below for more details.
 :::
 
-All supported fields are demonstrated in the [example config](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml), and also introduced in detail in our docs.
+:::info Sidecar headsup
+If a customization item appears to be a valid sidecar setting, it will work for the sidecar; otherwise, it will be ignored. For example:
 
-### Customize mount pod and sidecar container {#customize-mount-pod}
+* `resources` applies to both the Mount Pod and the sidecar, so it works for both.
+* `custom-labels` adds customized labels to the pod. However, since labels are an exclusive pod attribute, this setting does not apply to the sidecar.
+:::
 
-Since mount pods are created by CSI Node, and sidecar containers injected by [webhook](#webhook), users cannot directly control their definition. To customize, refer to the following methods.
+All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in our documentation.
 
-The `mountPodPatch` field from the [ConfigMap](#configmap) controls all mount pod & sidecar container customization, all supported fields are demonstrated below, but before use please notice:
+<details>
 
-* **Changes do not take effect immediately**, Kubernetes periodically syncs ConfigMap mounts, see [update delay](#configmap)
-* For sidecar mount mode, if a customization field appears to be a valid sidecar setting, it'll work with sidecar. otherwise it'll be ignored. For example, `custom-labels` adds customized labels to pod, since labels are an exclusive pod attribute, this setting is not applicable to sidecar
+<summary>Examples</summary>
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
@@ -109,7 +112,7 @@ globalConfig:
         # Clean cache when mount pod exits
         juicefs-clean-cache: "true"
 
-      # Define an environment variable for mount pod 
+      # Define an environment variable for the Mount Pod
     - pvcSelector:
         matchLabels:
           ...
@@ -142,53 +145,238 @@ globalConfig:
       terminationGracePeriodSeconds: 60
 ```
 
-### Inherit from CSI Node (deprecated) {#inherit-from-csi-node}
+</details>
 
-:::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
-:::
+## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
-Mount pod specs are mostly inherited from CSI Node, for example if you need to enable `hostNetwork` for mount pods, you have to instead add the config to CSI Node:
+Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
 
-```yaml title="values-mycluster.yaml"
-node:
-  hostNetwork: true
+### Custom mount image {#custom-image}
+
+#### Via ConfigMap
+
+The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, be sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance, to avoid permanent loss of mount point within the application pod.
+
+```yaml {2-4}
+globalConfig:
+  mountPodPatch:
+    - ceMountImage: juicedata/mount:ce-v1.2.0
+      eeMountImage: juicedata/mount:ee-5.1.0-053aa0b
 ```
 
-After the change, newly created mount pods will use hostNetwork.
+If you need to use a custom image or would like to find the latest available JuiceFS mount image, refer to [customize container image](./custom-image.md).
 
-As mentioned earlier, "most" specs are inherited from CSI-node, this leaves component specific content like labels, annotations, etc. These fields will not work through inheritance so we provide separate methods for customization, read the next section for more.
+### Environment variables {#custom-env}
 
-### Customize via annotations (deprecated) {#others}
+#### Via ConfigMap
 
-:::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#configmap), legacy method introduced in this section is not recommended.
-:::
+The minimum required version is CSI Driver v0.24.5. Upon modification, application pods need to be re-created for changes to take effect.
 
-Some of the fields that doesn't support CSI Node inheritance, are customized using the following fields in the code block, they can be defined both in storageClass parameters (for dynamic provisioning), and also PVC annotations (static provisioning).
+```yaml {2-6}
+  mountPodPatch:
+    - env:
+      - name: DEMO_GREETING
+        value: "Hello from the environment"
+      - name: DEMO_FAREWELL
+        value: "Such a sweet sorrow"
+```
+
+#### Via Secret
+
+```yaml {11}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+  labels:
+    # Add this label to enable secret validation
+    juicefs.com/validate-secret: "true"
+type: Opaque
+stringData:
+  envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
+```
+
+### Resource definition {#custom-resources}
+
+#### Via ConfigMap
+
+The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, be sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance, to avoid permanent loss of mount point within the application pod.
+
+```yaml {2-5}
+  mountPodPatch:
+  - resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+```
+
+Read [resource optimization](./resource-optimization.md) to learn how to properly set resource requests and limits.
+
+### Mount options {#mount-options}
+
+Each JuiceFS mount point is created by the `juicefs mount` command, and within the CSI Driver system, `mountOptions` manages all mount options.
+
+`mountOptions` supports both JuiceFS mount options and FUSE options. Note that although FUSE options are specified with `-o` in the JuiceFS command line, you must omit `-o` inside CSI `mountOptions` and just append each option directly in the YAML list. For example, a mount command like this:
+
+```shell
+juicefs mount ... --cache-size=204800 -o writeback_cache,debug
+```
+
+It would translate to CSI `mountOptions` as follows:
 
 ```yaml
-juicefs/mount-cpu-limit: ""
-juicefs/mount-memory-limit: ""
-juicefs/mount-cpu-request: ""
-juicefs/mount-memory-request: ""
-
-juicefs/mount-labels: ""
-juicefs/mount-annotations: ""
-juicefs/mount-service-account: ""
-juicefs/mount-image: ""
-juicefs/mount-delete-delay: ""
-
-# Clean cache at mount pod exit
-juicefs/clean-cache: ""
-juicefs/mount-cache-pvc: ""
-juicefs/mount-cache-emptydir: ""
-juicefs/mount-cache-inline-volume: ""
-
-# Mount the hosts file or directory to pod
-# Container mount path will be the same as host path, this doesn't support customization
-juicefs/host-path: "/data/file.txt"
+mountOptions:
+  # JuiceFS mount options
+  - cache-size=204800
+  # Extra FUSE options
+  - writeback_cache
+  - debug
 ```
+
+:::tip
+Mount options are different between the Community Edition and Cloud Service. See:
+
+- [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
+- [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
+:::
+
+#### Via ConfigMap
+
+The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+
+Items inside ConfigMap comes with the highest priority, and mount options defined in CM will recursively overwrite those defined in PV. To avoid confusion, please migrate all mount options to ConfigMap and avoid using PV-level `mountOptions`.
+
+By using `pvcSelector`, you can control mount options for multiple PVCs.
+
+```yaml
+  mountPodPatch:
+    - pvcSelector:
+        matchLabels:
+          # Applies to all PVCs with this label
+          need-update-options: "true"
+      mountOptions:
+        - writeback
+        - cache-size=204800
+```
+
+#### Via PV definition (deprecated) {#static-mount-options}
+
+After modifying the mount options for existing PVs, a rolling upgrade or re-creation of the application pod is required to apply the changes. This ensures CSI Driver re-creates the Mount Pod for the changes to take effect.
+
+```yaml {8-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  mountOptions:
+    - cache-size=204800
+  ...
+```
+
+#### Via StorageClass definition (deprecated) {#dynamic-mount-options}
+
+You can customize mount options in `StorageClass` definition. If different applications require different mount options, create multiple `StorageClass`, each with its own mount options.
+
+Since StorageClass serves as a template for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**. If you need to adjust mount options for dynamic provisioning, you have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
+
+```yaml {6-7}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+mountOptions:
+  - cache-size=204800
+parameters:
+  ...
+```
+
+### Health check & pod lifecycle {#custom-probe-lifecycle}
+
+The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, ensure that [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) is enabled to prevent the permanent loss of the mount point within the application pod.
+
+Targeted scenarios:
+
+- Use `readinessProbe` to set up health checks for the Mount Pod, supporting monitoring and alerting.
+- Customize `preStop` in sidecars to ensure the mount container exits after the application container. Refer to [sidecar recommendations](../administration/going-production.md#sidecar) for details.
+
+```yaml
+  - pvcSelector:
+      matchLabels:
+        custom-probe: "true"
+    readinessProbe:
+      exec:
+        command:
+        - stat
+        - ${MOUNT_POINT}/${SUB_PATH}
+      failureThreshold: 3
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      successThreshold: 1
+```
+
+### Mount extra volumes {#custom-volumes}
+
+Targeted scenarios:
+
+- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+- JuiceFS Enterprise Edition supports [shared block storage device](https://juicefs.com/docs/cloud/guide/block-device), which can be used as cache storage or permanent data storage.
+
+#### Via ConfigMap
+
+The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+
+```yaml
+  # Mount some volumes to the Mount Pod
+  - pvcSelector:
+      matchLabels:
+        need-block-device: "true"
+    volumeDevices:
+      - name: block-devices
+        devicePath: /dev/sda1
+    volumes:
+      - name: block-devices
+        persistentVolumeClaim:
+          claimName: block-pv
+  - pvcSelector:
+      matchLabels:
+        need-mount-secret: "true"
+    volumeMounts:
+      - name: config-1
+        mountPath: /root/.config/gcloud
+    volumes:
+    - name: gc-secret
+      secret:
+        secretName: gc-secret
+        defaultMode: 420
+```
+
+#### Via secret
+
+JuiceFS Secret only supports configuring extra secret mounts within the `configs` field. Shared block device mounts are not supported here.
+
+```yaml {8-9}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+type: Opaque
+stringData:
+  ...
+  # Set Secret name and mount directory in configs. This mounts the whole Secret into the specified directory
+  configs: "{gc-secret: /root/.config/gcloud}"
+```
+
+### Other features
+
+Many features are closely relevant to other topics. For more information:
+
+* Configure delayed deletion for Mount Pods to reduce startup overhead in short application pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
+* Clean cache upon mount pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
 
 ## Format options / auth options {#format-options}
 
@@ -256,48 +444,6 @@ spec:
   mountOptions:
     - cache-size=204800
   ...
-```
-
-### Dynamic provisioning {#dynamic-mount-options}
-
-Customize mount options in `StorageClass` definition. If you need to use different mount options for different applications, you'll need to create multiple `StorageClass`, each with different mount options.
-
-Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs**, if you need to adjust mount options for dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](#static-mount-options).
-
-```yaml {6-7}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-mountOptions:
-  - cache-size=204800
-parameters:
-  ...
-```
-
-### Parameter descriptions
-
-Mount options are different between Community Edition and Cloud Service, see:
-
-- [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
-- [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
-
-`mountOptions` in PV/StorageClass supports both JuiceFS mount options and FUSE options. Keep in mind that although FUSE options is specified using `-o` when using JuiceFS command line, the `-o` is to be omitted inside CSI `mountOptions`, just append each option directly in the YAML list. For a mount command example like below:
-
-```shell
-juicefs mount ... --cache-size=204800 -o writeback_cache,debug
-```
-
-Translated to CSI `mountOptions`:
-
-```yaml
-mountOptions:
-  # JuiceFS mount options
-  - cache-size=204800
-  # Extra FUSE options
-  - writeback_cache
-  - debug
 ```
 
 ## Share directory among applications {#share-directory}

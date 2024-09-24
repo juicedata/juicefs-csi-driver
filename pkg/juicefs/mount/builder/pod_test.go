@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 )
@@ -46,14 +47,14 @@ var (
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
 			Labels: map[string]string{
-				config.PodTypeKey:          config.PodTypeValue,
-				config.PodUniqueIdLabelKey: "",
+				common.PodTypeKey:          common.PodTypeValue,
+				common.PodUniqueIdLabelKey: "",
 			},
 			Annotations: map[string]string{
-				config.JuiceFSUUID: "",
-				config.UniqueId:    "",
+				common.JuiceFSUUID: "",
+				common.UniqueId:    "",
 			},
-			Finalizers: []string{config.Finalizer},
+			Finalizers: []string{common.Finalizer},
 		},
 		Spec: corev1.PodSpec{
 			Volumes: []corev1.Volume{
