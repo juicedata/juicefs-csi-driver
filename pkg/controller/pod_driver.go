@@ -687,7 +687,10 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		log.Info("recover volPath", "target", ti.target, "mountPath", sourcePath)
 		mountOption := []string{"bind"}
-		if err := p.Mount(sourcePath, ti.target, "none", mountOption); err != nil {
+		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			return p.Mount(sourcePath, ti.target, "none", mountOption)
+		})
+		if err != nil {
 			ms := fmt.Sprintf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
 			log.Error(err, "bind mount error")
 			return fmt.Errorf(ms)
