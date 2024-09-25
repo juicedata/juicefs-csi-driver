@@ -93,18 +93,6 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 			}
 		}
 	}
-	go func() {
-		t := time.NewTicker(5 * time.Second)
-		defer t.Stop()
-		for {
-			select {
-			case <-t.C:
-				for hashVal, f := range fs.fds {
-					fdLog.Info("fd in global fds", "hashVal", hashVal, "fd", f.fuseFd)
-				}
-			}
-		}
-	}()
 	return nil
 }
 
