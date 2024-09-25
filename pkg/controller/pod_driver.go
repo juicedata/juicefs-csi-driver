@@ -250,36 +250,35 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	if !needCreate {
-		return Result{}, nil
-	}
-	newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
-	log.Info("need to create a new one", "newPodName", newPodName)
-	newPod, err := p.newMountPod(ctx, pod, newPodName)
-	if err != nil {
-		return Result{}, err
-	}
-	// get sid
-	sid := passfd.GlobalFds.GetSid(hashVal)
-	if sid != 0 {
-		env := []corev1.EnvVar{}
-		oldEnv := newPod.Spec.Containers[0].Env
-		for _, v := range oldEnv {
-			if v.Name != "_JFS_META_SID" {
-				env = append(env, v)
-			}
+	if needCreate {
+		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		log.Info("need to create a new one", "newPodName", newPodName)
+		newPod, err := p.newMountPod(ctx, pod, newPodName)
+		if err != nil {
+			return Result{}, err
 		}
-		env = append(env, corev1.EnvVar{
-			Name:  "_JFS_META_SID",
-			Value: fmt.Sprintf("%d", sid),
-		})
-		newPod.Spec.Containers[0].Env = env
-	}
+		// get sid
+		sid := passfd.GlobalFds.GetSid(hashVal)
+		if sid != 0 {
+			env := []corev1.EnvVar{}
+			oldEnv := newPod.Spec.Containers[0].Env
+			for _, v := range oldEnv {
+				if v.Name != "_JFS_META_SID" {
+					env = append(env, v)
+				}
+			}
+			env = append(env, corev1.EnvVar{
+				Name:  "_JFS_META_SID",
+				Value: fmt.Sprintf("%d", sid),
+			})
+			newPod.Spec.Containers[0].Env = env
+		}
 
-	_, err = p.Client.CreatePod(ctx, newPod)
-	if err != nil {
-		log.Error(err, "Create pod")
-		return Result{}, err
+		_, err = p.Client.CreatePod(ctx, newPod)
+		if err != nil {
+			log.Error(err, "Create pod")
+			return Result{}, err
+		}
 	}
 
 	// delete the old one

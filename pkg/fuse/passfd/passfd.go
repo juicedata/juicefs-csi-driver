@@ -93,6 +93,18 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 			}
 		}
 	}
+	go func() {
+		t := time.NewTicker(5 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				for hashVal, f := range fs.fds {
+					fdLog.Info("fd in global fds", "hashVal", hashVal, "fd", f.fuseFd)
+				}
+			}
+		}
+	}()
 	return nil
 }
 
@@ -117,7 +129,6 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 	}
 	fs.globalMu.Lock()
 	fs.fds[podHashVal] = &fd{
-		fuseMu:             sync.Mutex{},
 		done:               make(chan struct{}),
 		fuseFd:             0,
 		fuseSetting:        []byte("FUSE"),
@@ -183,7 +194,6 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fdLog.V(1).Info("fuse fd path of pod", "hashVal", podHashVal, "fusePath", fusePath)
 
 	f := &fd{
-		fuseMu:             sync.Mutex{},
 		done:               make(chan struct{}),
 		fuseFd:             0,
 		fuseSetting:        []byte("FUSE"),
@@ -200,8 +210,7 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 }
 
 type fd struct {
-	fuseMu sync.Mutex
-	done   chan struct{}
+	done chan struct{}
 
 	fuseFd      int
 	fuseSetting []byte
@@ -268,14 +277,14 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		return
 	}
 	var fds = []int{0}
-	f.fuseMu.Lock()
+	fs.globalMu.Lock()
 	if f.fuseFd > 0 {
 		fds = append(fds, f.fuseFd)
 		fdLog.V(1).Info("send FUSE fd", "fd", f.fuseFd)
 	}
 	err := putFd(conn, f.fuseSetting, fds...)
 	if err != nil {
-		f.fuseMu.Unlock()
+		fs.globalMu.Unlock()
 		fdLog.Error(err, "send fuse fds error")
 		return
 	}
@@ -283,7 +292,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		_ = syscall.Close(f.fuseFd)
 		f.fuseFd = -1
 	}
-	f.fuseMu.Unlock()
+	fs.globalMu.Unlock()
 
 	var msg []byte
 	msg, fds, err = getFd(conn, 1)
@@ -292,7 +301,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		return
 	}
 
-	f.fuseMu.Lock()
+	fs.globalMu.Lock()
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
@@ -303,9 +312,6 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		}
 		fdLog.V(1).Info("recv msg and fds", "msg", string(msg), "fd", fds)
 	}
-	f.fuseMu.Unlock()
-
-	fs.globalMu.Lock()
 	fs.fds[podHashVal] = f
 	fs.globalMu.Unlock()
 }
@@ -364,6 +370,9 @@ func GetFuseFd(path string, close bool) (int, []byte) {
 		fdLog.V(1).Info("send close fuse fd")
 		_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
 		if len(fds) > 1 {
+			// close it in csi also
+			_ = syscall.Close(fds[1])
+			fdLog.Info("fd ")
 			return fds[1], msg
 		}
 		return fds[0], msg

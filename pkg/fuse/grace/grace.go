@@ -148,10 +148,12 @@ func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 		var err error
 
 		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
+			sendMessage(conn, "FAIL "+err.Error())
 			return err
 		}
 
 		if err := p.sighup(ctx, conn, jfsConf); err != nil {
+			sendMessage(conn, "FAIL "+err.Error())
 			return err
 		}
 		return nil
