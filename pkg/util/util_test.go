@@ -689,8 +689,23 @@ func TestClientVersion_SupportFusePass(t *testing.T) {
 			want:  true,
 		},
 		{
+			name:  "ce-1.3.0",
+			image: "juicedata/mount:ce-v1.3.0",
+			want:  true,
+		},
+		{
+			name:  "ce-2.0.0",
+			image: "juicedata/mount:ce-v2.0.0",
+			want:  true,
+		},
+		{
 			name:  "ee-5.1.0",
 			image: "juicedata/mount:ee-5.1.0-xxx",
+			want:  true,
+		},
+		{
+			name:  "ee-6.1.0",
+			image: "juicedata/mount:ee-6.1.0-xxx",
 			want:  true,
 		},
 	}
