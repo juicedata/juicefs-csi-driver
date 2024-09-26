@@ -126,7 +126,7 @@ func parseNodeConfig() {
 		os.Exit(1)
 	}
 	config.CSIPod = *pod
-	err = passfd.InitGlobalFds(context.TODO(), "/tmp")
+	err = passfd.InitGlobalFds(context.TODO(), k8sclient, "/tmp")
 	if err != nil {
 		log.Error(err, "Init global fds error")
 		os.Exit(1)

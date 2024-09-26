@@ -27,15 +27,22 @@ import (
 	"syscall"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var fdLog = klog.NewKlogr().WithName("passfd")
 
 type Fds struct {
+	client   *k8s.K8sClient
 	globalMu sync.Mutex
 	basePath string
 	fds      map[string]*fd
@@ -43,9 +50,10 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitGlobalFds(ctx context.Context, basePath string) error {
+func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) error {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
+		client:   client,
 		basePath: basePath,
 		fds:      make(map[string]*fd),
 	}
@@ -172,9 +180,29 @@ func (fs *Fds) CloseFd(podHashVal string) {
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
 	if fuseFd <= 0 {
-		// if can not get fuse fd, do not serve for it
-		fdLog.V(1).Info("get fuse fd error, ignore it", "fusePath", fusePath)
-		return
+		// get fuse fd error, try to get mount pod
+		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+			common.PodTypeKey:           common.PodTypeValue,
+			common.PodJuiceHashLabelKey: podHashVal,
+		}}
+		fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+		pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+		if err != nil {
+			fdLog.Error(err, "list pods error")
+			return
+		}
+		var mountPod *corev1.Pod
+		for _, pod := range pods {
+			if pod.DeletionTimestamp == nil {
+				mountPod = &pod
+				break
+			}
+		}
+		if mountPod == nil {
+			fdLog.V(1).Info("get fuse fd error and mount pod not found, ignore it", "hashVal", podHashVal, "fusePath", fusePath)
+			// if can not get fuse fd, do not serve for it
+			return
+		}
 	}
 
 	serverPath := path.Join(fs.basePath, podHashVal, "fuse_fd_csi_comm.sock")
