@@ -182,6 +182,12 @@ storageClasses:
         memory: "5Gi"
 ```
 
+## Set reasonable cache size for Mount Pod {#set-reasonable-cache-size-for-mount-pod}
+
+[Node-pressure eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/) usually be set in Kubernetes cluster, `nodefs.available` is available disk space on either the node's root filesystem. JuiceFS default cache size is 100GiB, default cache directory's minimum free space ratio `free-space-ratio` is 0.1, and the default cache size is very likely to trigger node eviction. It's recommended to set a reasonable cache size according to the actual disk space of the node.
+
+Cache size `cache-size` and the minimum free space ratio `free-space-ratio` of the cache directory can be set in mount options, see [Mount Options](./configurations.md#mount-options) for details.
+
 ## Set non-preempting PriorityClass for Mount Pod {#set-non-preempting-priorityclass-for-mount-pod}
 
 :::tip
