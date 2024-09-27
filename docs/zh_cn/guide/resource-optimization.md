@@ -117,7 +117,7 @@ resources:
 ### 其他方式（不推荐） {#deprecated-resources-definition}
 
 :::warning
-优先使用上方介绍的 PVC annotations 方式，他支持动态变更，所以是我们更为推荐的方式。而下方介绍的方式一旦设置成功，就无法修改，只能删除重建 PV，已不再推荐使用。
+推荐优先使用上方介绍的 PVC annotations 方式，这种方式支持动态变更，所以是我们更为推荐的方式。而下方介绍的方式一旦设置成功，就无法修改，只能删除重建 PV，已不再推荐使用。
 :::
 
 静态配置中，可以在 `PersistentVolume` 中配置资源请求和约束：
@@ -169,7 +169,7 @@ parameters:
   juicefs/mount-memory-request: 500Mi
 ```
 
-在 0.23.4 以及之后的版本中，由于支持[参数模板化](./pv.md#)，可以在 StorageClass 的 `parameters` 参数支持模版配置：
+在 0.23.4 以及之后的版本中，由于支持参数模板化，因此可以在 StorageClass 的 `parameters` 字段中引用 PVC 的注解：
 
 ```yaml {8-11}
 apiVersion: storage.k8s.io/v1
@@ -216,6 +216,7 @@ storageClasses:
 
 - 建议默认为 Mount Pod 设置非抢占式 PriorityClass
 - 如果 CSI 驱动的运行模式为[「Sidecar 模式」](../introduction.md#sidecar)，则不会遇到以下问题。
+
 :::
 
 CSI Node 在创建 Mount Pod 时，会默认给其设置 PriorityClass 为 `system-node-critical`，目的是为了在机器资源不足时，Mount Pod 不会被驱逐。

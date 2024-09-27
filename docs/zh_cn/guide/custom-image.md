@@ -35,6 +35,7 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 
 * 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者删除 Mount Pod 重建，才会采用新的镜像
 * [升级 CSI 驱动](../administration/upgrade-csi-driver.md)时，默认会连带升级到 mount 镜像的最新稳定版。但如果你覆盖了 mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 mount 镜像升级
+
 :::
 
 ### configmap 修改 {#overwrite-in-configmap}
