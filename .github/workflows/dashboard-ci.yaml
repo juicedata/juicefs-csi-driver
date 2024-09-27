@@ -13,6 +13,8 @@ on:
       - 'pkg/dashboard/**'
       - '!docs/**'
       - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
   pull_request:
     branches:
       - master
@@ -25,6 +27,8 @@ on:
       - 'pkg/dashboard/**'
       - '!docs/**'
       - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
 
 jobs:
   build:
