@@ -39,10 +39,9 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	jfsResource "github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
@@ -468,7 +467,7 @@ func genMountInfos() []mount.MountInfo {
 
 func TestPodDriver_podReadyHandler(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
-	fuse.InitTestFds()
+	passfd.InitTestFds()
 	Convey("Test pod ready handler", t, FailureContinues, func() {
 		Convey("pod ready add need recovery ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -714,7 +713,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 	Convey("Test pod delete handler", t, func() {
 		Convey("umount fail", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch1 := ApplyFunc(jfsResource.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
 				return "/test", "test", nil
 			})
 			defer patch1.Reset()
@@ -758,7 +757,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 		})
 		Convey("new pod create", func() {
 			var tmpCmd = &exec.Cmd{}
-			patch1 := ApplyFunc(jfsResource.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
 				return "/test", "test", nil
 			})
 			defer patch1.Reset()

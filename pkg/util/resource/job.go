@@ -17,11 +17,20 @@
 package resource
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
+
+var log = klog.NewKlogr().WithName("job-util")
 
 func IsJobCompleted(job *batchv1.Job) bool {
 	for _, cond := range job.Status.Conditions {
@@ -59,4 +68,31 @@ func IsJobShouldBeRecycled(job *batchv1.Job) bool {
 	// job exits after ttl time, should be recycled (should not happen)
 	ttlTime := job.Status.CompletionTime.Add(time.Duration(*job.Spec.TTLSecondsAfterFinished) * time.Second)
 	return ttlTime.Before(time.Now())
+}
+
+func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration) error {
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	// Wait until the mount point is ready
+	log.Info("waiting for job complete", "name", name)
+	timer := time.NewTicker(500 * time.Millisecond)
+	for {
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("job %s is not complete eventually", name)
+		case <-timer.C:
+			job, err := client.GetJob(waitCtx, name, config.Namespace)
+			if err != nil {
+				if err == context.Canceled || err == context.DeadlineExceeded {
+					return fmt.Errorf("job %s is not complete eventually", name)
+				}
+				if k8serrors.IsNotFound(err) {
+					return nil
+				}
+			}
+			if IsJobCompleted(job) {
+				return nil
+			}
+		}
+	}
 }

@@ -30,7 +30,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 )
 
 var (
@@ -67,7 +67,7 @@ var (
 						},
 					},
 				}, {
-					Name: JfsFuseFdPathName,
+					Name: config.JfsFuseFdPathName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: path.Join(JfsFuseFsPathInHost, "test"),
@@ -91,9 +91,6 @@ var (
 				Env: []corev1.EnvVar{{
 					Name:  "JFS_FOREGROUND",
 					Value: "1",
-				}, {
-					Name:  JfsCommEnv,
-					Value: "tmp/fuse_fd_csi_comm.sock",
 				}},
 				EnvFrom: []corev1.EnvFromSource{{
 					SecretRef: &corev1.SecretEnvSource{
@@ -108,7 +105,7 @@ var (
 						MountPath:        config.PodMountBase,
 						MountPropagation: &mp,
 					}, {
-						Name:      JfsFuseFdPathName,
+						Name:      config.JfsFuseFdPathName,
 						MountPath: "/tmp",
 					}, {
 
@@ -120,6 +117,11 @@ var (
 					Privileged: &isPrivileged,
 					RunAsUser:  &rootUser,
 				},
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{
+						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf("umount %s -l; rmdir %s; exit 0", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
+					},
+				},
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "metrics",
@@ -128,7 +130,7 @@ var (
 				},
 			}},
 			TerminationGracePeriodSeconds: &gracePeriod,
-			RestartPolicy:                 corev1.RestartPolicyAlways,
+			RestartPolicy:                 corev1.RestartPolicyOnFailure,
 			NodeName:                      "node",
 			Hostname:                      "test",
 			PriorityClassName:             config.JFSMountPriorityName,
@@ -211,7 +213,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 
 func TestNewMountPod(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
-	fuse.InitTestFds()
+	passfd.InitTestFds()
 	config.NodeName = "node"
 	config.Namespace = ""
 	podLabelTest := corev1.Pod{}

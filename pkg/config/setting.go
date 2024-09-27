@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -534,14 +533,19 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		return nil, fmt.Errorf("parse pvc resources error: %v", err)
 	}
 	attr.Resources = resources
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return nil, err
+	}
+
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
 		PV:        pv,
 		PVC:       pvc,
 		Name:      mountPod.Annotations[common.JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[common.UniqueId],
-		MountPath: filepath.Join(PodMountBase, pvName) + mountPod.Name[len(mountPod.Name)-7:],
 		Options:   pv.Spec.MountOptions,
+		MountPath: mntPath,
 	}
 	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 		setting.SubPath = v

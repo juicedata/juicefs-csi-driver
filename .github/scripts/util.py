@@ -184,6 +184,15 @@ def get_only_mount_pod_name(volume_id):
     return running_pods[0].metadata.name
 
 
+def wait_get_only_mount_pod_name(volume_id, timeout=60):
+    for i in range(0, timeout):
+        try:
+            return get_only_mount_pod_name(volume_id)
+        except Exception as e:
+            time.sleep(1)
+            continue
+
+
 def get_mount_pods(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,

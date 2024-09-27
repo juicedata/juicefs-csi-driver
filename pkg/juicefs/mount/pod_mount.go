@@ -40,7 +40,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -228,7 +228,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				fuse.GlobalFds.StopFd(ctx, po.Labels[common.PodJuiceHashLabelKey])
+				passfd.GlobalFds.StopFd(ctx, po.Labels[common.PodJuiceHashLabelKey])
 			}
 
 			// delete related secret
@@ -400,7 +400,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := fuse.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
 				}
@@ -424,6 +424,12 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 		if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
 			return err
 		}
+		// update mount path
+		jfsSetting.MountPath, _, err = util.GetMountPathOfPod(*oldPod)
+		if err != nil {
+			log.Error(err, "Get mount path of pod error", "podName", podName)
+			return err
+		}
 		return p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
 }
@@ -433,6 +439,17 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	err := resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
 	if err == nil {
 		return nil
+	}
+	if util.SupportFusePass(jfsSetting.Attr.Image) {
+		logger.Error(err, "pod is not ready within 60s")
+		// mount pod hang probably, close fd
+		logger.Info("close fuse fd")
+		passfd.GlobalFds.CloseFd(jfsSetting.HashVal)
+		// umount it
+		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+			util.UmountPath(ctx, jfsSetting.MountPath)
+			return nil
+		})
 	}
 	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(ctx, podName)

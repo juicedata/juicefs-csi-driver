@@ -39,7 +39,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
@@ -148,7 +148,10 @@ var testG = &corev1.Pod{
 		},
 	},
 	Spec: corev1.PodSpec{
-		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+		Containers: []corev1.Container{{
+			Image:   "juicedata/mount:ce-v1.2.1",
+			Command: []string{"sh", "-c", "exec mount.juicefs juicefs-test-node-j /jfs/juicefs-test-node-j"},
+		}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -170,7 +173,10 @@ var testH = &corev1.Pod{
 		},
 	},
 	Spec: corev1.PodSpec{
-		Containers: []corev1.Container{{Image: "juicedata/mount:ce-v1.2.1"}},
+		Containers: []corev1.Container{{
+			Image:   "juicedata/mount:ce-v1.2.1",
+			Command: []string{"sh", "-c", "exec mount.juicefs juicefs-test-node-h /jfs/juicefs-test-node-h"},
+		}},
 	},
 	Status: corev1.PodStatus{
 		Phase: corev1.PodRunning,
@@ -277,7 +283,7 @@ func TestAddRefOfMountWithMock(t *testing.T) {
 func TestJUmount(t *testing.T) {
 	defer func() { _ = os.RemoveAll("tmp") }()
 	fakeClientSet := fake.NewSimpleClientset()
-	fuse.InitTestFds()
+	passfd.InitTestFds()
 
 	type args struct {
 		podName string

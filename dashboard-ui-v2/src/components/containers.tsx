@@ -15,7 +15,7 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Space, Table, Tag, Tooltip } from 'antd'
+import { Button, Space, Table, Tag, Tooltip,} from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
@@ -28,12 +28,13 @@ import {
   AccessLogIcon,
   DebugIcon,
   LogIcon,
-  TerminalIcon,
+  TerminalIcon, UpgradeIcon,
   WarmupIcon,
 } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
-import { isMountPod, supportDebug } from '@/utils'
+import { isMountPod, supportBinarySmoothUpgrade, supportDebug } from '@/utils'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
 
 const Containers: React.FC<{
   pod: Pod
@@ -165,6 +166,24 @@ const Containers: React.FC<{
                         </Tooltip>
                       )}
                     </WarmupModal>
+
+                    {supportBinarySmoothUpgrade(c.image) ? (
+                      <UpgradeModal
+                        namespace={namespace!}
+                        name={name!}
+                        recreate={false}
+                      >
+                        {({ onClick }) => (
+                          <Tooltip title="Binary Upgrade" zIndex={0}>
+                            <Button
+                              className="action-button"
+                              onClick={onClick}
+                              icon={<UpgradeIcon />}
+                            />
+                          </Tooltip>
+                        )}
+                      </UpgradeModal>
+                    ) : null}
                   </>
                 ) : null}
               </Space>

@@ -28,7 +28,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
@@ -48,6 +48,7 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 // NewMountPod generates a pod with juicefs client
 func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	pod := r.genCommonJuicePod(r.genCommonContainer)
+	pod.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 	pod.Name = podName
 	mountCmd := r.genMountCommand()
@@ -64,7 +65,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 
 	// inject fuse fd
 	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		fdAddress, err := fuse.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
+		fdAddress, err := passfd.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +256,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			},
 		},
 		{
-			Name: JfsFuseFdPathName,
+			Name: config.JfsFuseFdPathName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: path.Join(JfsFuseFsPathInHost, r.jfsSetting.HashVal),
@@ -271,7 +272,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			MountPropagation: &mp,
 		},
 		{
-			Name:      JfsFuseFdPathName,
+			Name:      config.JfsFuseFdPathName,
 			MountPath: JfsFuseFsPathInPod,
 		},
 	}

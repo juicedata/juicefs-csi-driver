@@ -16,15 +16,17 @@
 
 import React, { useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, Tooltip } from 'antd'
+import { Button, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
-import { YamlIcon } from '@/icons'
+import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
-import { getPodStatusBadge, omitPod, podStatus } from '@/utils'
+import { getPodStatusBadge, isMountPod, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
+import { useMountPodImage } from '@/hooks/use-api.ts'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
 
 const PodBasic: React.FC<{
   pod: Pod
@@ -32,6 +34,8 @@ const PodBasic: React.FC<{
   const { pod } = props
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { data } = useMountPodImage(isMountPod(pod), pod.metadata?.namespace, pod.metadata?.name)
+  const [image] = useState(pod.spec?.containers[0].image)
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -45,7 +49,24 @@ const PodBasic: React.FC<{
     <ProCard
       title={<FormattedMessage id="basic" />}
       extra={
-        <>
+        <Space>
+          {supportPodSmoothUpgrade(image || '') && supportPodSmoothUpgrade(data || '') ? (
+            <UpgradeModal
+              namespace={pod.metadata?.namespace || ''}
+              name={pod.metadata?.name || ''}
+              recreate={true}
+            >
+              {({ onClick }) => (
+                <Tooltip title="Upgrade" zIndex={0}>
+                  <Button
+                    className="action-button"
+                    onClick={onClick}
+                    icon={<UpgradeIcon />}
+                  />
+                </Tooltip>
+              )}
+            </UpgradeModal>
+          ) : null}
           <Tooltip title="Show Yaml">
             <Button
               className="action-button"
@@ -60,7 +81,7 @@ const PodBasic: React.FC<{
               content={YAML.stringify(omitPod(pod))}
             />
           </Tooltip>
-        </>
+        </Space>
       }
     >
       <ProDescriptions

@@ -17,6 +17,7 @@
 package controller
 
 import (
+	ctx "context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -288,7 +289,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 	Convey("Test umountFuseSidecars", t, func() {
 		Convey("exec pod cmd normal", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
 				return "", "", nil
 			})
 			defer patch1.Reset()
@@ -372,7 +373,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 					a := &AppController{
 						K8sClient: client,
 					}
-					if err := a.umountFuseSidecars(tt.args.pod); (err != nil) != tt.wantErr {
+					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
 						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
 					}
 				})
@@ -380,7 +381,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 		})
 		Convey("exec pod cmd error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
 				return "", "", fmt.Errorf("exec error")
 			})
 			defer patch1.Reset()
@@ -464,7 +465,7 @@ func TestAppController_umountFuseSidecars(t *testing.T) {
 					a := &AppController{
 						K8sClient: client,
 					}
-					if err := a.umountFuseSidecars(tt.args.pod); (err != nil) != tt.wantErr {
+					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
 						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
 					}
 				})

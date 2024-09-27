@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"strings"
@@ -24,12 +25,16 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
+
+var log = klog.NewKlogr().WithName("job-builder")
 
 const DefaultJobTTLSecond = int32(5)
 
@@ -219,4 +224,76 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 			},
 		},
 	}
+}
+
+// NewCanaryJob
+// restart: pull image ahead
+// !restart: for download binary
+func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod, restart bool) (*batchv1.Job, error) {
+	attr, err := config.GenPodAttrWithMountPod(ctx, client, mountPod)
+	if err != nil {
+		return nil, err
+	}
+	volumeId := mountPod.Labels[common.PodUniqueIdLabelKey]
+	name := GenJobNameByVolumeId(volumeId) + "-canary"
+	if _, err := client.GetJob(ctx, name, config.Namespace); err == nil {
+		log.Info("canary job already exists, delete it first", "name", name)
+		if err := client.DeleteJob(ctx, name, config.Namespace); err != nil {
+			log.Error(err, "delete canary job error", "name", name)
+			return nil, err
+		}
+	}
+
+	log.Info("create canary job", "image", attr.Image, "name", name)
+	var (
+		mounts  []corev1.VolumeMount
+		volumes []corev1.Volume
+	)
+	for _, v := range mountPod.Spec.Volumes {
+		if v.Name == config.JfsFuseFdPathName {
+			volumes = append(volumes, v)
+		}
+	}
+	for _, c := range mountPod.Spec.Containers[0].VolumeMounts {
+		if c.Name == config.JfsFuseFdPathName {
+			mounts = append(mounts, c)
+		}
+	}
+	cmd := "juicefs version > /tmp/version"
+	if !restart {
+		ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
+		if ce {
+			cmd = fmt.Sprintf("%s && cp /usr/local/bin/juicefs /tmp/juicefs", cmd)
+		} else {
+			cmd = fmt.Sprintf("%s && cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount", cmd)
+		}
+	}
+	ttl := DefaultJobTTLSecond
+	cJob := batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: config.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: config.Namespace,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Image:        attr.Image,
+						Name:         "canary",
+						Command:      []string{"sh", "-c", cmd},
+						VolumeMounts: mounts,
+					}},
+					NodeName:      mountPod.Spec.NodeName,
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes:       volumes,
+				},
+			},
+			TTLSecondsAfterFinished: &ttl,
+		},
+	}
+	return &cJob, nil
 }

@@ -14,7 +14,7 @@ function die() {
 
 function install_deps() {
     sudo apt-get update && sudo apt-get install -y snapd curl netcat-openbsd bc dnsutils redis-tools librados2 python3
-    sudo pip install kubernetes==18.20.0
+    sudo apt install -y python3-kubernetes
     curl -fsSL -o /tmp/kustomize.tar.gz "$KUSTOMIZE_URL" \
         && tar -xf /tmp/kustomize.tar.gz -C /usr/local/bin \
         && chmod a+x /usr/local/bin/kustomize \

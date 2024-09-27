@@ -1,5 +1,5 @@
 /*
- Copyright 2024 Juicedata Inc
+ Copyright 2023 Juicedata Inc
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package fuse
+package passfd
 
 import (
 	"context"
@@ -27,15 +27,22 @@ import (
 	"syscall"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var fdLog = klog.NewKlogr().WithName("passfd")
 
 type Fds struct {
+	client   *k8s.K8sClient
 	globalMu sync.Mutex
 	basePath string
 	fds      map[string]*fd
@@ -43,9 +50,10 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitGlobalFds(ctx context.Context, basePath string) error {
+func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) error {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
+		client:   client,
 		basePath: basePath,
 		fds:      make(map[string]*fd),
 	}
@@ -87,8 +95,9 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		}
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
-				fdLog.V(1).Info("parse fuse fd", "path", subEntry.Name())
-				fs.parseFuse(ctx, entry.Name(), path.Join(fs.basePath, entry.Name(), subEntry.Name()))
+				subdir := path.Join(fs.basePath, entry.Name(), subEntry.Name())
+				fdLog.V(1).Info("parse fuse fd", "path", subdir)
+				fs.parseFuse(ctx, entry.Name(), subdir)
 			}
 		}
 	}
@@ -116,7 +125,6 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 	}
 	fs.globalMu.Lock()
 	fs.fds[podHashVal] = &fd{
-		fuseMu:             sync.Mutex{},
 		done:               make(chan struct{}),
 		fuseFd:             0,
 		fuseSetting:        []byte("FUSE"),
@@ -170,9 +178,31 @@ func (fs *Fds) CloseFd(podHashVal string) {
 }
 
 func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
-	fuseFd, fuseSetting := getFuseFd(fusePath)
+	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
 	if fuseFd <= 0 {
-		return
+		// get fuse fd error, try to get mount pod
+		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+			common.PodTypeKey:           common.PodTypeValue,
+			common.PodJuiceHashLabelKey: podHashVal,
+		}}
+		fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+		pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+		if err != nil {
+			fdLog.Error(err, "list pods error")
+			return
+		}
+		var mountPod *corev1.Pod
+		for _, pod := range pods {
+			if pod.DeletionTimestamp == nil {
+				mountPod = &pod
+				break
+			}
+		}
+		if mountPod == nil {
+			fdLog.V(1).Info("get fuse fd error and mount pod not found, ignore it", "hashVal", podHashVal, "fusePath", fusePath)
+			// if can not get fuse fd, do not serve for it
+			return
+		}
 	}
 
 	serverPath := path.Join(fs.basePath, podHashVal, "fuse_fd_csi_comm.sock")
@@ -180,7 +210,6 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	fdLog.V(1).Info("fuse fd path of pod", "hashVal", podHashVal, "fusePath", fusePath)
 
 	f := &fd{
-		fuseMu:             sync.Mutex{},
 		done:               make(chan struct{}),
 		fuseFd:             0,
 		fuseSetting:        []byte("FUSE"),
@@ -197,11 +226,11 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 }
 
 type fd struct {
-	fuseMu sync.Mutex
-	done   chan struct{}
+	done chan struct{}
 
 	fuseFd      int
 	fuseSetting []byte
+	sid         uint64
 
 	serverAddress      string // server for pod
 	serverAddressInPod string // server path in pod
@@ -264,14 +293,14 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		return
 	}
 	var fds = []int{0}
-	f.fuseMu.Lock()
+	fs.globalMu.Lock()
 	if f.fuseFd > 0 {
 		fds = append(fds, f.fuseFd)
 		fdLog.V(1).Info("send FUSE fd", "fd", f.fuseFd)
 	}
 	err := putFd(conn, f.fuseSetting, fds...)
 	if err != nil {
-		f.fuseMu.Unlock()
+		fs.globalMu.Unlock()
 		fdLog.Error(err, "send fuse fds error")
 		return
 	}
@@ -279,7 +308,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		_ = syscall.Close(f.fuseFd)
 		f.fuseFd = -1
 	}
-	f.fuseMu.Unlock()
+	fs.globalMu.Unlock()
 
 	var msg []byte
 	msg, fds, err = getFd(conn, 1)
@@ -288,7 +317,7 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		return
 	}
 
-	f.fuseMu.Lock()
+	fs.globalMu.Lock()
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
@@ -299,19 +328,41 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		}
 		fdLog.V(1).Info("recv msg and fds", "msg", string(msg), "fd", fds)
 	}
-	f.fuseMu.Unlock()
-
-	fs.globalMu.Lock()
 	fs.fds[podHashVal] = f
 	fs.globalMu.Unlock()
 }
 
-func getFuseFd(path string) (int, []byte) {
+func (fs *Fds) UpdateSid(podHashVal string, sid uint64) {
+	f := fs.fds[podHashVal]
+	if f == nil {
+		return
+	}
+
+	fs.globalMu.Lock()
+	f.sid = sid
+	fs.fds[podHashVal] = f
+	fs.globalMu.Unlock()
+}
+
+func (fs *Fds) GetSid(podHashVal string) uint64 {
+	f := fs.fds[podHashVal]
+	if f == nil {
+		return 0
+	}
+
+	fs.globalMu.Lock()
+	sid := f.sid
+	fs.globalMu.Unlock()
+	return sid
+}
+
+func GetFuseFd(path string, close bool) (int, []byte) {
 	var exists bool
 	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
 		exists, err = k8sMount.PathExists(path)
 		return
 	}); err != nil {
+		fdLog.V(1).Info("path exists error", "path", path)
 		return -1, nil
 	}
 
@@ -331,9 +382,20 @@ func getFuseFd(path string) (int, []byte) {
 	}
 	fdLog.V(1).Info("get fd and msg", "fd", fds)
 	_ = syscall.Close(fds[0])
+	if close {
+		fdLog.V(1).Info("send close fuse fd")
+		_ = putFd(conn.(*net.UnixConn), []byte("CLOSE"), 0) // close it
+		if len(fds) > 1 {
+			// close it in csi also
+			_ = syscall.Close(fds[1])
+			fdLog.Info("fd ")
+			return fds[1], msg
+		}
+		return fds[0], msg
+	}
 	if len(fds) > 1 {
-		err = putFd(conn.(*net.UnixConn), msg, fds[1])
 		fdLog.V(1).Info("send FUSE fd", "fd", fds[1])
+		err = putFd(conn.(*net.UnixConn), msg, fds[1])
 		if err != nil {
 			fdLog.Error(err, "send FUSE error")
 		}

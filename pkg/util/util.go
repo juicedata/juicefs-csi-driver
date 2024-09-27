@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -35,6 +36,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/io"
 )
@@ -244,6 +246,15 @@ func ContainsPrefix(slice []string, s string) bool {
 	return false
 }
 
+func ContainSubString(slice []string, s string) bool {
+	for _, item := range slice {
+		if strings.Contains(item, s) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetReferenceKey(target string) string {
 	h := sha256.New()
 	h.Write([]byte(target))
@@ -356,6 +367,39 @@ func UmountPath(ctx context.Context, sourcePath string) {
 	}
 }
 
+func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return "", "", fmt.Errorf("get error pod command:%v", cmd)
+	}
+	sourcePath, volumeId, err := parseMntPath(cmd[2])
+	if err != nil {
+		return "", "", err
+	}
+	return sourcePath, volumeId, nil
+}
+
+// parseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
+func parseMntPath(cmd string) (string, string, error) {
+	cmds := strings.Split(cmd, "\n")
+	mountCmd := cmds[len(cmds)-1]
+	args := strings.Fields(mountCmd)
+	if args[0] == "exec" {
+		args = args[1:]
+	}
+	if len(args) < 3 || !strings.HasPrefix(args[2], "/jfs") {
+		return "", "", fmt.Errorf("err cmd:%s", cmd)
+	}
+	argSlice := strings.Split(args[2], "/")
+	if len(argSlice) < 3 {
+		return "", "", fmt.Errorf("err mntPath:%s", args[2])
+	}
+	return args[2], argSlice[2], nil
+}
+
 // CheckExpectValue Check if the key has the expected value
 func CheckExpectValue(m map[string]string, key string, targetValue string) bool {
 	if len(m) == 0 {
@@ -465,6 +509,9 @@ type ClientVersion struct {
 
 const ceImageRegex = `ce-v(\d+)\.(\d+)\.(\d+)`
 const eeImageRegex = `ee-(\d+)\.(\d+)\.(\d+)`
+const ceVersionRegex = `version (\d+)\.(\d+)\.(\d+)+`
+const ceDevVersionRegex = `version (\d+)\.(\d+)\.(\d+)-dev`
+const eeVersionRegex = `version (\d+)\.(\d+)\.(\d+) `
 
 func (v ClientVersion) LessThan(o ClientVersion) bool {
 	if o.Dev {
@@ -474,19 +521,16 @@ func (v ClientVersion) LessThan(o ClientVersion) bool {
 	if v.Dev {
 		return false
 	}
-	if o.Major > v.Major {
-		return true
+	if v.Major != o.Major {
+		return v.Major < o.Major
 	}
-	if o.Minor > v.Minor {
-		return true
+	if v.Minor != o.Minor {
+		return v.Minor < o.Minor
 	}
-	if o.Patch > v.Patch {
-		return true
-	}
-	return false
+	return v.Patch < o.Patch
 }
 
-func parseClientVersion(image string) ClientVersion {
+func parseClientVersionFromImage(image string) ClientVersion {
 	if image == "" {
 		return ClientVersion{}
 	}
@@ -520,8 +564,48 @@ func parseClientVersion(image string) ClientVersion {
 	return version
 }
 
+func parseClientVersion(ce bool, version string) ClientVersion {
+	v := ClientVersion{IsCe: ce}
+	var re *regexp.Regexp
+	if !ce {
+		re = regexp.MustCompile(eeVersionRegex)
+	} else {
+		if strings.Contains(version, "dev") {
+			re = regexp.MustCompile(ceDevVersionRegex)
+			v.Dev = true
+		} else {
+			re = regexp.MustCompile(ceVersionRegex)
+		}
+	}
+
+	matches := re.FindStringSubmatch(version)
+	if len(matches) == 4 {
+		v.Major, _ = strconv.Atoi(matches[1])
+		v.Minor, _ = strconv.Atoi(matches[2])
+		v.Patch, _ = strconv.Atoi(matches[3])
+	}
+	return v
+}
+
+func SupportUpgradeRecreate(ce bool, version string) bool {
+	v := parseClientVersion(ce, version)
+	return supportFusePass(v)
+}
+
+func SupportUpgradeBinary(ce bool, version string) bool {
+	v := parseClientVersion(ce, version)
+	return supportUpgradeBinary(v)
+}
+
 func SupportFusePass(image string) bool {
-	v := parseClientVersion(image)
+	v := parseClientVersionFromImage(image)
+	if v.Dev {
+		return false
+	}
+	return supportFusePass(v)
+}
+
+func supportFusePass(v ClientVersion) bool {
 	ceFuseVersion := ClientVersion{
 		IsCe:  true,
 		Dev:   false,
@@ -540,4 +624,43 @@ func SupportFusePass(image string) bool {
 		return !v.LessThan(ceFuseVersion)
 	}
 	return !v.LessThan(eeFuseVersion)
+}
+
+func supportUpgradeBinary(v ClientVersion) bool {
+	ceFuseVersion := ClientVersion{
+		IsCe:  true,
+		Dev:   false,
+		Major: 1,
+		Minor: 2,
+		Patch: 0,
+	}
+	eeFuseVersion := ClientVersion{
+		IsCe:  false,
+		Dev:   false,
+		Major: 5,
+		Minor: 0,
+		Patch: 0,
+	}
+	if v.IsCe {
+		return !v.LessThan(ceFuseVersion)
+	}
+	return !v.LessThan(eeFuseVersion)
+}
+
+type JuiceConf struct {
+	Meta struct {
+		Sid uint64
+	}
+	Pid  int
+	PPid int
+}
+
+func ParseConfig(conf []byte) (*JuiceConf, error) {
+	var juiceConf JuiceConf
+	err := json.Unmarshal(conf, &juiceConf)
+	if err != nil {
+		klog.Errorf("ParseConfig: %v", err)
+		return nil, err
+	}
+	return &juiceConf, nil
 }

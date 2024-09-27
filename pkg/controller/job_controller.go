@@ -103,7 +103,7 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 
 	// if csi node not exist, or job should be recycled itself, delete it
 	if needRecycled || resource.IsJobShouldBeRecycled(job) {
-		jobCtrlLog.Info("recycle job %s", "name", job.Name)
+		jobCtrlLog.Info("recycle job", "name", job.Name)
 		err = m.DeleteJob(ctx, job.Name, job.Namespace)
 		if err != nil {
 			jobCtrlLog.Error(err, "delete job error", "name", job.Name)

@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota, is_quota_supported, update_config
+    get_voldel_job, check_quota, is_quota_supported, update_config, wait_get_only_mount_pod_name
 
 
 def test_deployment_using_storage_rw():
@@ -691,13 +691,15 @@ def test_dynamic_delete_pod():
     is_ready = False
     for i in range(0, 60):
         try:
-            is_ready = mount_pod.is_ready()
+            new_mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
             if is_ready:
                 break
             time.sleep(5)
         except Exception as e:
             LOG.info(e)
-            raise e
+            time.sleep(5)
+            continue
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
@@ -769,13 +771,15 @@ def test_static_delete_pod():
     is_ready = False
     for i in range(0, 60):
         try:
-            is_ready = mount_pod.is_ready()
+            new_mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
             if is_ready:
                 break
             time.sleep(5)
         except Exception as e:
             LOG.info(e)
-            raise e
+            time.sleep(5)
+            continue
     if not is_ready:
         raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
@@ -2598,10 +2602,20 @@ def test_mountpod_recreated():
 
     # wait for mountpod recreated
     LOG.info("Wait for mountpod recreated..")
+    is_ready = False
     for i in range(0, 60):
-        if mount_pod.watch_for_success():
-            break
-        time.sleep(5)
+        try:
+            new_mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
+            if is_ready:
+                break
+            time.sleep(5)
+        except Exception as e:
+            LOG.info(e)
+            time.sleep(5)
+            continue
+    if not is_ready:
+        raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
 
     # check mount point
     LOG.info("Check mount point..")
@@ -2685,6 +2699,7 @@ def test_config():
         ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
          "updatedAt=" + str(int(time.time()))])
 
+    time.sleep(2)
     # deploy pvc
     pvc1 = PVC(name="pvc-config-without-labels", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
     LOG.info("Deploy pvc {}".format(pvc1.name))
@@ -2863,6 +2878,8 @@ def test_recreate_mountpod_reload_config():
     subprocess.check_call(
         ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
          "updatedAt=" + str(int(time.time()))])
+    # sleep 2s to wait config update
+    time.sleep(2)
 
     LOG.info("Start to delete mountpod..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
@@ -2870,11 +2887,19 @@ def test_recreate_mountpod_reload_config():
 
     # wait for mountpod recreated
     LOG.info("Wait for mountpod recreated..")
-    time.sleep(20)
-    for i in range(0, 60):
-        if mount_pod.watch_for_success():
-            break
-        time.sleep(5)
+
+    result = pod.watch_for_success()
+    if not result:
+        if MOUNT_MODE == "webhook":
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
 
     # check mount point
     LOG.info("Check mount point..")
@@ -2882,7 +2907,7 @@ def test_recreate_mountpod_reload_config():
     if not result:
         raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
 
-    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod = Pod(name=wait_get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     if mount_pod.get_metadata().labels.get("apply") != "updated_config":
         raise Exception("mountpod config labels not set")
     if mount_pod.get_metadata().labels.get("volume_id") != volume_id:

@@ -36,6 +36,8 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -384,6 +386,37 @@ func (api *API) getPodHandler() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, pod)
+	}
+}
+
+func (api *API) getPodLatestImage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		po, ok := c.Get("pod")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		rawPod := po.(*corev1.Pod)
+		// gen k8s client
+		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
+		if err != nil {
+			c.String(500, "Could not create k8s client: %v", err)
+			return
+		}
+		if rawPod.Labels[common.PodTypeKey] != common.PodTypeValue {
+			c.String(400, "pod %s is not a mount pod", rawPod.Name)
+			return
+		}
+		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
+			c.String(500, "Load config from configmap error: %v", err)
+			return
+		}
+		attr, err := config.GenPodAttrWithMountPod(c, k8sClient, rawPod)
+		if err != nil {
+			c.String(500, "generate pod attribute error: %v", err)
+			return
+		}
+		c.IndentedJSON(200, attr.Image)
 	}
 }
 
@@ -847,7 +880,7 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				podLog.Error(err, "Failed to get mount path")
 				return
@@ -880,7 +913,7 @@ func (api *API) debugPod() gin.HandlerFunc {
 				podLog.Error(err, "Failed to get mount pod")
 				return
 			}
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				podLog.Error(err, "Failed to get mount path")
 				return
@@ -935,7 +968,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 				}
 			}
 
-			mntPath, _, err := resource.GetMountPathOfPod(*mountpod)
+			mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 			if err != nil || mntPath == "" {
 				klog.Error("Failed to get mount path: ", err)
 				return
@@ -975,5 +1008,46 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 			podLog.Error(err, "Failed to create SPDY executor")
 			return
 		}
+	}
+}
+
+func (api *API) smoothUpgrade() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+
+		mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+		if err != nil {
+			klog.Error("Failed to get mount pod: ", err)
+			return
+		}
+		recreate := c.Query("recreate")
+		podLog.Info("upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
+
+		csiNode, err := api.getCSINode(c, mountpod.Spec.NodeName)
+		if err != nil {
+			podLog.Error(err, "get csi node error", "node", mountpod.Spec.NodeName)
+			c.String(500, "get csi node error %v", err)
+			return
+		}
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+
+			podLog.Info("Start to upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
+			cmds := []string{"juicefs-csi-driver", "upgrade", mountpod.Name}
+			if recreate == "true" {
+				cmds = append(cmds, "--restart")
+			}
+			podLog.Info("cmds", "cmds", cmds)
+
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, csiNode.Namespace, csiNode.Name, "juicefs-plugin", cmds); err != nil {
+				podLog.Error(err, "Failed to start process")
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
 	}
 }

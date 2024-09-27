@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -61,6 +62,26 @@ func IsPodError(pod *corev1.Pod) bool {
 		return true
 	}
 	return containError(pod.Status.ContainerStatuses)
+}
+
+func IsPodComplete(pod *corev1.Pod) bool {
+	var reason string
+	for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
+		container := pod.Status.ContainerStatuses[i]
+
+		if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			reason = container.State.Waiting.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			reason = container.State.Terminated.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			if container.State.Terminated.Signal != 0 {
+				reason = fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
+			} else {
+				reason = fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
+			}
+		}
+	}
+	return reason == "Completed"
 }
 
 func IsPodResourceError(pod *corev1.Pod) bool {
@@ -240,7 +261,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 				log.Info("Mount point is ready", "podName", podName)
 				return nil
 			}
-			log.V(1).Info("Mount point is not ready, wait for it", "podName", podName)
+			log.V(1).Info("Mount point is not ready, wait for it", "mountPath", mntPath, "podName", podName)
 		}
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -276,39 +297,6 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 		return false, nil
 	}
 	return time.Now().Before(delayAt), nil
-}
-
-func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
-	if len(pod.Spec.Containers) == 0 {
-		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
-	}
-	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
-		return "", "", fmt.Errorf("get error pod command:%v", cmd)
-	}
-	sourcePath, volumeId, err := parseMntPath(cmd[2])
-	if err != nil {
-		return "", "", err
-	}
-	return sourcePath, volumeId, nil
-}
-
-// parseMntPath return mntPath, volumeId (/jfs/volumeId, volumeId err)
-func parseMntPath(cmd string) (string, string, error) {
-	cmds := strings.Split(cmd, "\n")
-	mountCmd := cmds[len(cmds)-1]
-	args := strings.Fields(mountCmd)
-	if args[0] == "exec" {
-		args = args[1:]
-	}
-	if len(args) < 3 || !strings.HasPrefix(args[2], config.PodMountBase) {
-		return "", "", fmt.Errorf("err cmd:%s", cmd)
-	}
-	argSlice := strings.Split(args[2], "/")
-	if len(argSlice) < 3 {
-		return "", "", fmt.Errorf("err mntPath:%s", args[2])
-	}
-	return args[2], argSlice[2], nil
 }
 
 func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, volumeHandle string, volCtx map[string]string) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim, error) {
@@ -354,4 +342,12 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 		return nil, nil, err
 	}
 	return pv, pvc, nil
+}
+
+func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
+	}
+	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
 }
