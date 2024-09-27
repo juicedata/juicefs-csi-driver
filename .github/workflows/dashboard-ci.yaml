@@ -11,6 +11,8 @@ on:
       - 'dashboard-ui-v2/**'
       - 'cmd/dashboard/**'
       - 'pkg/dashboard/**'
+      - '!docs/**'
+      - '!**.md'
   pull_request:
     branches:
       - master
@@ -21,6 +23,8 @@ on:
       - 'dashboard-ui-v2/**'
       - 'cmd/dashboard/**'
       - 'pkg/dashboard/**'
+      - '!docs/**'
+      - '!**.md'
 
 jobs:
   build:

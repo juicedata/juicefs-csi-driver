@@ -12,6 +12,8 @@ on:
       - '**.sh'
       - '**.mod'
       - '**.sum'
+      - '!docs/**'
+      - '!**.md'
   pull_request:
     branches:
       - master
@@ -23,6 +25,8 @@ on:
       - '**.sh'
       - '**.mod'
       - '**.sum'
+      - '!docs/**'
+      - '!**.md'
   workflow_dispatch:
     inputs:
       debug:
@@ -75,7 +79,7 @@ jobs:
           value=`printf '%s\n' "${testmode[@]}" | jq -R . | jq -cs .`
           echo "value: $value"
           echo "matrix=$value" >> $GITHUB_OUTPUT
-          
+
           wtestmode=("pod" "pod-mount-share" "pod-provisioner")
           value=`printf '%s\n' "${wtestmode[@]}" | jq -R . | jq -cs .`
           echo "value without kubelet: $value"
