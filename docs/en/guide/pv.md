@@ -339,7 +339,10 @@ After pod is up and running, you'll see `out.txt` being created by the container
 
 [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes) handles configurations to create different PVs, think of it as a profile for dynamic provisioning: each StorageClass may contain different volume credentials and mount options, so that you can use multiple settings under dynamic provisioning. Thus if you decide to use JuiceFS CSI Driver via [dynamic provisioning](#dynamic-provisioning), you'll need to create a StorageClass in advance.
 
-Due to StorageClass being the template used for creating PVs, **modifying mount options in StorageClass will not affect existing PVs,** if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](./configurations.md#static-mount-options).
+Note that StorageClass is only a "template" used to create PV under dynamic provisioning. Therefore, you must pay attention when using it:
+
+* **Modifying mount options in StorageClass will not affect existing PVs,** if you need to adjust mount options under dynamic provisioning, you'll have to delete existing PVCs, or [directly modify mount options in existing PVs](./configurations.md#static-mount-options).
+* Starting from v0.24.3, you can use `matchStorageClassName` in [ConfigMap](./configurations.md#configmap) to conveniently select existing PVCs. It is more recommended to use this method to modify StorageClass related configurations.
 
 ### Create via kubectl {#kubectl-sc}
 
@@ -367,6 +370,7 @@ reclaimPolicy: Retain
 
 * Managing StorageClass via Helm requires putting credentials directly in `values.yaml`, thus is usually advised against in production environments.
 * As is demonstrated with the `backend` field in the below examples, when StorageClass is created by Helm, volume credentials is created along the way, you should manage directly in Helm, rather than [creating volume credentials separately](#volume-credentials).
+
 :::
 
 Configuration are different between Cloud Service and Community Edition, below example is for Community Edition, but you will find full description at [Helm chart](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L122).

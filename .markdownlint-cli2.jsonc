@@ -15,7 +15,7 @@
     },
     "line-length": false,
     "no-duplicate-heading": {
-      "allow_different_nesting": true
+      "siblings_only": true
     },
     "no-inline-html": {
       "allowed_elements": [

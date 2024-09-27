@@ -15,6 +15,7 @@ Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 Ju
 
 * 在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
 * 对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存，但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
+
 :::
 
 缓存相关配置均通过挂载参数进行调整，因此方法如同[「调整挂载参数」](./configurations.md#mount-options)，也可以直接参考下方示范。如果你需要验证参数生效，可以创建并挂载了 PV 后，[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。

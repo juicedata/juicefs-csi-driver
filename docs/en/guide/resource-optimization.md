@@ -116,6 +116,10 @@ resources:
 
 ### Other methods (deprecated) {#deprecated-resources-definition}
 
+:::warning
+It is recommended to use the PVC annotations method introduced above. This method supports dynamic changes, so it is our more recommended method. Once the method described below is set up successfully, it cannot be modified. The only way is to delete and rebuild the PV, which is no longer recommended.
+:::
+
 For static provisioning, set resource requests and limits in `PersistentVolume`:
 
 ```yaml {22-25}
@@ -165,6 +169,24 @@ parameters:
   juicefs/mount-memory-request: 500Mi
 ```
 
+In versions 0.23.4 and later, since parameter templating is supported, PVC annotations can be referenced in the `parameters` field of StorageClass:
+
+```yaml {8-11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
+  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
+  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
+  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
+```
+
+It should be noted that since [define mount pod resources in PVC annotations](#mount-pod-resources-pvc) is already supported, this configuration method is no longer needed.
+
 If StorageClass is managed by Helm, you can define mount pod resources directly in `values.yaml`:
 
 ```yaml title="values.yaml" {5-12}
@@ -188,6 +210,7 @@ storageClasses:
 
 - It's recommended to set non-preempting PriorityClass for Mount Pod by default.
 - If the mount mode of CSI Driver is ["Sidecar mode"](../introduction.md#sidecar), the following problems will not be encountered.
+
 :::
 
 When CSI Node creates a Mount Pod, it will set PriorityClass to `system-node-critical` by default, so that the Mount Pod will not be evicted when the node resources are insufficient.
