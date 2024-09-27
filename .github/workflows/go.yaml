@@ -14,6 +14,8 @@ on:
       - '**.sum'
       - '!docs/**'
       - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
   pull_request:
     branches:
       - master
@@ -27,6 +29,8 @@ on:
       - '**.sum'
       - '!docs/**'
       - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
   workflow_dispatch:
     inputs:
       debug:
