@@ -406,7 +406,7 @@ storageClasses:
 
 创建 PVC 和应用 Pod，示范如下：
 
-```yaml {13}
+```yaml {14}
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -464,7 +464,7 @@ JuiceFS CSI 驱动的通用临时卷用法与「动态配置」类似，因此�
 
 在 Pod 定义中声明使用通用临时卷：
 
-```yaml {19-30}
+```yaml {20-31}
 apiVersion: v1
 kind: Pod
 metadata:

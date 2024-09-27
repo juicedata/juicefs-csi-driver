@@ -81,6 +81,55 @@ kubectl apply -f ./k8s.yaml
 
 Dealing with exceptions like this, alongside with comparing and merging YAML files can be wearisome, that's why [install via Helm](../getting_started.md#helm) is much more recommended on a production environment.
 
+### Migrate to Helm installation {#migrate-to-helm}
+
+Helm installation requires filling in `values.yaml` first - all changes you have made to `k8s.yaml`, as long as they are within the scope of normal use, can find the corresponding configuration fields in `values.yaml`. What you need to do just sort out the current configuration and fill them in `values.yaml`. Of course, if you have not customized `k8s.yaml` (nor directly modified the configuration of the production environment), then the migration will be very simple. Just skip the grooming step and just follow the instructions below to uninstall and reinstall.
+
+#### Sort out the configuration and fill in `values.yaml` {#sort-out-the-configuration-and-fill-in-values-yaml}
+
+Before you start, you need to determine the CSI Driver version you are currently using. You can directly use the method at the beginning of this document to determine. The following takes the upgrade from v0.18.0 to v0.21.0 as an example to explain how to sort out the configuration line by line and fill in `values.yaml`.
+
+1. Use a browser to access GitHub and open the diffs of the two versions. This process requires manually entering the link, pay attention to the version number at the end of the link, for example [https://github.com/juicedata/juicefs-csi-driver/compare/v0.18.0..v0.21.0](https://github.com/juicedata/juicefs-csi-driver/compare/v0.18.0..v0.21.0), found `k8s.yaml` in the file list. All `k8s.yaml` changes introduced by the version update will be displayed on the page. Keep this page, when sorting out the configuration later, if you are not sure which changes are your cluster's customized configuration and which are modifications brought about by the upgrade, you can refer to this page to judge;
+1. Find the `k8s.yaml` used in the current online cluster installation, and rename its copy to `k8s-online.yaml`. This document will also use this name to refer to the current online installation file later in this document. It must be noted that the file must accurately reflect the "current online configuration". If your team has temporarily modified the online configuration (such as using `kubectl edit` to temporarily add environment variables and modify the image), you need to confirm these changes and append to `k8s-online.yaml`;
+1. Install the new version (the link here takes v0.21.0 as an example) of the CSI Driver [`k8s.yaml`](https://github.com/juicedata/juicefs-csi-driver/blob/94d4f95a5d0f15a7a430ea31257d725306e90ca4/deploy/k8s.yaml) downloaded to the local, and compared with the online configuration, you can directly run `vimdiff k8s.yaml k8s-online.yaml`;
+1. Compare the configuration files line by line to determine whether each configuration modification is brought about by the upgrade or customized by your team. Determine whether these customizations need to be retained, and then fill them in `values.yaml`. If you're not sure how to fill it out, you can usually find clues by carefully reading the annotated documentation in `values.yaml`.
+
+We have the following suggestions for writing `values.yaml`:
+
+If the default Mount Pod image is [overridden](../guide/custom-image.md#overwrite-mount-pod-image) in `k8s-online.yaml` (you can pass the `JUICEFS_EE_MOUNT_IMAGE` environment variable, or the `juicefs/mount-image` field of StorageClass ), and an older version of the Mount Pod image is specified, we encourage you to discard this configuration, let the cluster upgrade with the CSI Driver, and enable the new version of the Mount Pod image, which is equivalent to upgrading the JuiceFS client along with the CSI Driver upgrade.
+
+Dynamic provisioning requires [create StorageClass](../guide/pv.md#create-storage-class), while in Helm Values, StorageClass and [volume credentials](../guide/pv.md#volume-credentials) are managed together. In order to avoid leaving sensitive information in `values.yaml`, we generally recommend manually managing the file system authentication information and StorageClass, and then disabling StorageClass in `values.yaml`:
+
+```yaml title="values.yaml"
+storageClasses:
+- enabled: false
+```
+
+#### Uninstall and reinstall {#uninstall-and-reinstall}
+
+If you use the default container mounting or sidecar mode, uninstalling the CSI Driver will not affect the current service (new PVs cannot be created or mounted during this period). Only [process mount mode](../introduction.md#by-process) will interrupt services due to uninstallation. If you are not using this mode, the migration process has no impact on the running PV and can be performed with confidence.
+
+If your environment is an offline cluster and you cannot directly pull the image from the external network, you also need to [move the image](./offline.md) in advance.
+
+Prepare the operation and maintenance commands that need to be run in advance, such as:
+
+```shell
+# Uninstall the CSI Driver
+kubectl delete -f k8s-online.yaml
+
+# Reinstall with Helm. The configuration of different clusters can be managed using different values.yaml files. For example values-dev.yaml, values-prod.yaml.
+# The CSI Driver has no special requirements for the installation namespace. You can modify it as needed, such as jfs-system.
+helm upgrade --install juicefs-csi-driver . -f values.yaml -n kube-system
+```
+
+Run these commands, and after reinstallation, immediately observe the startup status of each component of the CSI Driver:
+
+```shell
+kubectl -n kube-system get pods -l app.kubernetes.io/name=juicefs-csi-driver
+```
+
+Wait for all components to be started, and then simply create an application pod for verification. You can refer to [our demonstration](../guide/pv.md#static-provisioning).
+
 ## Upgrade CSI Driver (mount by process mode) {#mount-by-process-upgrade}
 
 [Mount by process](../introduction.md#by-process) means that JuiceFS Client runs inside CSI Node Service Pod, under this mode, upgrading CSI Driver will inevitably interrupt existing mounts, use one of below methods to carry out the upgrade.
