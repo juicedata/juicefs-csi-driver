@@ -237,6 +237,7 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
 :::
 
 #### 使用 ConfigMap

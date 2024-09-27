@@ -239,6 +239,7 @@ Mount options are different between the Community Edition and Cloud Service. See
 
 - [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
 - [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
+
 :::
 
 #### Via ConfigMap
