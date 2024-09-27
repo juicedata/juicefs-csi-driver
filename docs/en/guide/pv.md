@@ -407,7 +407,7 @@ Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dyna
 
 Create PVC and example pod:
 
-```yaml {13}
+```yaml {14}
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -464,7 +464,7 @@ Generic ephemeral volume works similar to dynamic provisioning, thus you'll need
 
 Declare generic ephemeral volume directly in pod definition:
 
-```yaml {19-30}
+```yaml {20-31}
 apiVersion: v1
 kind: Pod
 metadata:
