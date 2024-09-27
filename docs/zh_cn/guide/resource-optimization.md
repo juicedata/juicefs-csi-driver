@@ -204,6 +204,12 @@ storageClasses:
         memory: "5Gi"
 ```
 
+## 为 Mount Pod 设置合理的缓存大小 {#set-reasonable-cache-size-for-mount-pod}
+
+在云环境中，节点通常会设置[驱逐信号](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction)，其中 `nodefs.available` 为节点的根文件系统的可用磁盘空间。JuiceFS 默认缓存大小为 100GiB，默认的缓存目录的最小剩余空间占比 `free-space-ratio` 为 0.1，默认的缓存大小很可能触发节点驱逐。建议根据节点的实际磁盘空间，设置合理的缓存大小。
+
+缓存大小 `cache-size` 和缓存目录的最小剩余空间占比 `free-space-ratio` 可以在挂载参数中设置，具体参考[挂载参数](./configurations.md#mount-options)一节。
+
 ## 为 Mount Pod 设置非抢占式 PriorityClass {#set-non-preempting-priorityclass-for-mount-pod}
 
 :::tip 提示
