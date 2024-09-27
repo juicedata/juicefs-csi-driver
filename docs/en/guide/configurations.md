@@ -724,16 +724,23 @@ parameters:
 
 ### Injection field reference
 
-You can reference any Node / PVC metadata in the pattern, for example:
+In version 0.23.3, metadata of Node and PVC can be injected into the mount parameters and `pathPattern`, such as:
 
 1. `${.node.name}-${.node.podCIDR}`, inject node `metadata.name` and `spec.podCIDR`, e.g. `minikube-10.244.0.0/24`
-1. `${.node.labels.foo}`, inject node label `metadata.labels["foo"]`
-1. `${.node.annotations.bar}`, inject node annotation `metadata.annotations["bar"]`
-1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`
-1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value
-1. `${.PVC.annotations.bar}` results in the PV directory name being the `bar` annotation value
+2. `${.node.labels.foo}`, inject node label `metadata.labels["foo"]`
+3. `${.node.annotations.bar}`, inject node annotation `metadata.annotations["bar"]`
+4. `${.pvc.namespace}-${.pvc.name}`，inject `metadata.namespace` and `metadata.name` of PVC, e.g. `default-dynamic-pvc`
+5. `${.PVC.namespace}-${.PVC.name}`，inject `metadata.namespace` and `metadata.name` of PVC (compatible with older versions)
+6. `${.pvc.labels.foo}`, inject `metadata.labels["foo"]` of PVC
+7. `${.pvc.annotations.bar}`, inject `metadata.annotations["bar"]` of PVC
 
-## Common PV settings
+In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only supports injecting PVC metadata, such as:
+
+1. `${.PVC.namespace}-${.PVC.name}`，inject `metadata.namespace` and `metadata.name` of PVC (compatible with older versions)
+2. `${.PVC.labels.foo}`, inject `metadata.labels["foo"]` of PVC
+3. `${.PVC.annotations.bar}`, inject `metadata.annotations["bar"]` of PVC
+
+## Common PV settings {#common-pv-settings}
 
 ### Automatic mount point recovery {#automatic-mount-point-recovery}
 
@@ -782,9 +789,9 @@ Starting from v0.23.3, CSI Driver by default caches the configuration file for J
 Caching works like this:
 
 1. Users create or update [volume credential](./pv.md#volume-credentials), CSI Controller will watch for changes and immediately run `juicefs auth` to obtain the new config;
-1. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
-1. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
-1. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
+2. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
+3. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
+4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
 If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
 

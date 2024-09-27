@@ -738,7 +738,7 @@ parameters:
 2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`
 3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`
 
-## 常用 PV 设置
+## 常用 PV 设置 {#common-pv-settings}
 
 ### 挂载点自动恢复 {#automatic-mount-point-recovery}
 
