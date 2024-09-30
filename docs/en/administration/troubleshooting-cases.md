@@ -19,9 +19,18 @@ Above error message shows that the CSI Driver named `csi.juicefs.com` isn't foun
 If you used `mount pod` mode, follow these steps to troubleshoot:
 
 * Run `kubectl get csidrivers.storage.k8s.io` and check if `csi.juicefs.com` actually missing, if that is indeed the case, CSI Driver isn't installed at all, head to [Installation](../getting_started.md).
-* If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node.
-* [Check if CSI Node is working correctly](./troubleshooting.md#check-csi-node).
-* There should be a CSI Node pod on the exact Kubernetes node where the application pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on such worker nodes.
+* If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node, check its status:
+  * Before troubleshooting, navigate to [check CSI Node](./troubleshooting.md#check-csi-node) to see a list of helpful commands;
+  * A CSI Node pod is expected on the node where the application pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
+  * If CSI Node is actually running, look for error in its logs:
+
+  ```shell
+  # juicefs-plugin container handls actual CSI Driver work, if it cannot access Kubernetes API, mount pod cannot be created
+  kubectl logs -n kube-system juicefs-csi-node-xxx juicefs-plugin --tail 100
+
+  # node-driver-registrar container is in charge of registering csidriver, if there's been an error, it'll show in logs
+  kubectl logs -n kube-system juicefs-csi-node-xxx node-driver-registrar --tail 100
+  ```
 
 If you used `sidecar` mode, check if the namespace which application pod running has `juicefs.com/enable-injection=true` label:
 
