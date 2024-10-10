@@ -92,7 +92,7 @@ importers:
         version: 7.13.0(eslint@8.57.0)(typescript@5.4.5)
       '@vitejs/plugin-react':
         specifier: ^4.2.1
-        version: 4.3.1(vite@5.2.13(@types/node@20.14.6))
+        version: 4.3.1(vite@5.2.14(@types/node@20.14.6))
       eslint:
         specifier: ^8.57.0
         version: 8.57.0
@@ -106,8 +106,8 @@ importers:
         specifier: ^5.2.2
         version: 5.4.5
       vite:
-        specifier: ^5.2.0
-        version: 5.2.13(@types/node@20.14.6)
+        specifier: ^5.2.14
+        version: 5.2.14(@types/node@20.14.6)
 
 packages:
 
@@ -1060,6 +1060,7 @@ packages:
   eslint@8.57.0:
     resolution: {integrity: sha512-dZ6+mexnaTIbSBZWgou51U6OmzIhYM2VcNdtiTtI7qPNZm35Akpr0f6vtw3w1Kmn5PYo+tZVfh13WrhpS6oLqQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
 
   espree@9.6.1:
@@ -1835,8 +1836,8 @@ packages:
     peerDependencies:
       react: ^16.8.0  || ^17 || ^18
 
-  vite@5.2.13:
-    resolution: {integrity: sha512-SSq1noJfY9pR3I1TUENL3rQYDQCFqgD+lM6fTRAM8Nv6Lsg5hDLaXkjETVeBt+7vZBCMoibD+6IWnT2mJ+Zb/A==}
+  vite@5.2.14:
+    resolution: {integrity: sha512-TFQLuwWLPms+NBNlh0D9LZQ+HXW471COABxw/9TEUBrjuHMo9BrYBPrN/SYAwIuVL+rLerycxiLT41t4f5MZpA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
     peerDependencies:
@@ -2783,14 +2784,14 @@ snapshots:
 
   '@ungap/structured-clone@1.2.0': {}
 
-  '@vitejs/plugin-react@4.3.1(vite@5.2.13(@types/node@20.14.6))':
+  '@vitejs/plugin-react@4.3.1(vite@5.2.14(@types/node@20.14.6))':
     dependencies:
       '@babel/core': 7.24.7
       '@babel/plugin-transform-react-jsx-self': 7.24.7(@babel/core@7.24.7)
       '@babel/plugin-transform-react-jsx-source': 7.24.7(@babel/core@7.24.7)
       '@types/babel__core': 7.20.5
       react-refresh: 0.14.2
-      vite: 5.2.13(@types/node@20.14.6)
+      vite: 5.2.14(@types/node@20.14.6)
     transitivePeerDependencies:
       - supports-color
 
@@ -3884,7 +3885,7 @@ snapshots:
       lodash.debounce: 4.0.8
       react: 18.3.1
 
-  vite@5.2.13(@types/node@20.14.6):
+  vite@5.2.14(@types/node@20.14.6):
     dependencies:
       esbuild: 0.20.2
       postcss: 8.4.38
