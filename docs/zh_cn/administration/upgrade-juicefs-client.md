@@ -14,6 +14,62 @@ sidebar_position: 3
 
 注意，覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着[升级 CSI 驱动](./upgrade-csi-driver.md)而升级。
 
+## Mount Pod 平滑升级 {#smooth-upgrade}
+
+JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即在业务不停服的情况下升级 Mount Pod。
+
+:::tip 提示
+
+* 平滑升级仅适用于 Mount Pod 模式
+* 要求 Mount Pod 镜像在 v1.2.1（社区版）或 v5.1.0（企业版）及以上版本
+
+:::
+
+:::warning 平滑升级要求
+平滑升级要求 Mount Pod 的 `preStop` 不可配置 `umount ${MOUNT_POINT}` 操作，请务必确保 [CSI ConfigMap](./../guide/configurations.md#configmap) 中未配置 `umount`。
+:::
+
+平滑升级只可以在 CSI Dashboard 或者 JuiceFS kubectl plugin 中触发。
+
+### Dashboard 中触发平滑升级 {#dashboard}
+
+1. 在 CSI Dashboard 中，点击「配置」按钮，更新 Mount Pod 需要升级的新镜像版本。
+
+   ![ ](./../images/upgrade-image.png)
+
+2. 在 Mount Pod 的详情页，有两个升级按钮，分别是「Pod 升级」和「二进制升级」。Pod 升级是 Mount Pod 会重建，要求版本为 v1.2.1（社区版）或 v5.1.0（企业版）及以上版本；二进制升级是 Mount Pod 不重建，只升级其中的二进制要求版本为 v1.2.0（社区版）或 v5.0.0（企业版）及以上版本。两种升级均为平滑升级，业务可不停服。
+
+   ![ ](./../images/upgrade-menu.png)
+
+3. 点击升级按钮，即可触发 Mount Pod 的平滑升级。
+
+   ![ ](./../images/smooth-upgrade.png)
+
+### kubectl 插件中触发平滑升级 {#kubectl-plugin}
+
+要求 JuiceFS kubectl plugin 版本为 v0.3.0 及以上。
+
+1. 使用 kubectl 在 CSI ConfigMap 配置中更新 Mount Pod 所需要升级的镜像版本。
+
+   ```yaml
+   apiVersion: v1
+   data:
+      config.yaml: |
+         mountPodPatch:
+            - ceMountImage: juicedata/mount:ce-v1.2.0
+              eeMountImage: juicedata/mount:ee-5.1.1-ca439c2
+   kind: ConfigMap
+   ```
+  
+2. 使用 JuiceFS kubectl plugin 触发 Mount Pod 的平滑升级。
+
+   ```bash
+   # Pod 升级
+   kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af-ebngyg --recreate
+   # 二进制升级
+   kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af-ebngyg
+   ```
+
 ## 临时升级 JuiceFS 客户端
 
 :::tip 提示
