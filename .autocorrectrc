@@ -20,5 +20,6 @@ spellcheck:
     - JucieFS = JuiceFS
     - JueicFS = JuiceFS
     - JuiecFS = JuiceFS
+    - JuiceSF = JuiceFS
     - Kuberenetes = Kubernetes
     - mountpoint = mount point

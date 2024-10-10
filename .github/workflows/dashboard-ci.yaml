@@ -11,6 +11,10 @@ on:
       - 'dashboard-ui-v2/**'
       - 'cmd/dashboard/**'
       - 'pkg/dashboard/**'
+      - '!docs/**'
+      - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
   pull_request:
     branches:
       - master
@@ -21,6 +25,10 @@ on:
       - 'dashboard-ui-v2/**'
       - 'cmd/dashboard/**'
       - 'pkg/dashboard/**'
+      - '!docs/**'
+      - '!**.md'
+      - '!.autocorrectrc'
+      - '!.markdownlint-cli2.jsonc'
 
 jobs:
   build:

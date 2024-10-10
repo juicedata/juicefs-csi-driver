@@ -12,7 +12,7 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
 
 :::info 更新时效
-修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)）。
+修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/configmap/#%E8%A2%AB%E6%8C%82%E8%BD%BD%E7%9A%84-configmap-%E5%86%85%E5%AE%B9%E4%BC%9A%E8%A2%AB%E8%87%AA%E5%8A%A8%E6%9B%B4%E6%96%B0)）。
 
 如果希望立即生效，可以给 CSI 组件临时添加 Annotation 来触发更新：
 
@@ -110,7 +110,7 @@ globalConfig:
         # 退出时清理 cache
         juicefs-clean-cache: "true"
 
-      # 为 mount pod 注入 env
+    # 为 mount pod 注入环境变量
     - pvcSelector:
         matchLabels:
           ...
@@ -120,7 +120,7 @@ globalConfig:
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-      # 挂载 volumes 到 mount pod
+    # 挂载 volumes 到 mount pod
     - pvcSelector:
         matchLabels:
           ...
@@ -132,12 +132,12 @@ globalConfig:
           persistentVolumeClaim:
             claimName: block-pv
 
-      # 选择特定的 StorageClass
+    # 选择特定的 StorageClass
     - pvcSelector:
         matchStorageClassName: juicefs-sc
       terminationGracePeriodSeconds: 60
 
-      # 选择特定的 PVC
+    # 选择特定的 PVC
     - pvcSelector:
         matchName: pvc-name
       terminationGracePeriodSeconds: 60
@@ -237,6 +237,7 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 - [社区版](https://juicefs.com/docs/zh/community/command_reference#mount)
 - [云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)
+
 :::
 
 #### 使用 ConfigMap
@@ -409,7 +410,7 @@ stringData:
 
 企业版：
 
-```yaml {13}
+```yaml {11}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -478,7 +479,7 @@ stringData:
 
 如果想要在不同命名空间中共享同一个文件系统，只需要让不同 PV 使用相同的文件系统认证信息（Secret）即可：
 
-```yaml {10-12,24-26}
+```yaml {9-11,22-24}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -551,8 +552,8 @@ CSI 驱动提供两种方式进行 PV 初始化：
 
 此特性默认关闭，需要手动启用。启用的方式就是为 CSI Controller 增添 `--provisioner=true` 启动参数，并且删去原本的 sidecar 容器，相当于让 CSI Controller 主进程自行监听资源变更，并执行相应的初始化操作。请根据 CSI Controller 的安装方式，按照下方步骤启用。
 
-:::info
-[进程挂载模式](../introduction.md#by-process)不支持该功能。
+:::tip
+[进程挂载模式](../introduction.md#by-process)不支持高级 PV 初始化功能。
 :::
 
 ### Helm
@@ -572,7 +573,9 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-如果是 kubectl 安装方式，启用该功能需要手动编辑 CSI Controller，操作较为复杂，因此建议[迁移到 Helm 安装方式](../administration/upgrade-csi-driver.md#migrate-to-helm)。
+如果使用 kubectl 安装方式，启用该功能需要手动编辑 CSI Controller，操作较为复杂，因此建议[迁移到 Helm 安装方式](../administration/upgrade-csi-driver.md#migrate-to-helm)。
+
+手动修改 CSI Controller：
 
 ```shell
 kubectl edit sts -n kube-system juicefs-csi-controller
@@ -651,7 +654,7 @@ kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
 
 然后在 `StorageClass` 中修改相关配置：
 
-```yaml {11-13}
+```yaml {12-14}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -736,7 +739,7 @@ parameters:
 2. `${.PVC.labels.foo}`，注入 PVC 的 `metadata.labels["foo"]`
 3. `${.PVC.annotations.bar}`，注入 PVC 的 `metadata.annotations["bar"]`
 
-## 常用 PV 设置
+## 常用 PV 设置 {#common-pv-settings}
 
 ### 挂载点自动恢复 {#automatic-mount-point-recovery}
 

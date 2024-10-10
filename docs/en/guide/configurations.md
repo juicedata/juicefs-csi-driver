@@ -112,7 +112,7 @@ globalConfig:
         # Clean cache when mount pod exits
         juicefs-clean-cache: "true"
 
-      # Define an environment variable for the Mount Pod
+    # Define an environment variable for the Mount Pod
     - pvcSelector:
         matchLabels:
           ...
@@ -122,7 +122,7 @@ globalConfig:
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-      # Mount some volumes to mount pod
+    # Mount some volumes to mount pod
     - pvcSelector:
         matchLabels:
           ...
@@ -134,12 +134,12 @@ globalConfig:
           persistentVolumeClaim:
             claimName: block-pv
 
-      # Select by StorageClass
+    # Select by StorageClass
     - pvcSelector:
         matchStorageClassName: juicefs-sc
       terminationGracePeriodSeconds: 60
 
-      # Select by PVC
+    # Select by PVC
     - pvcSelector:
         matchName: pvc-name
       terminationGracePeriodSeconds: 60
@@ -239,6 +239,7 @@ Mount options are different between the Community Edition and Cloud Service. See
 
 - [Community Edition](https://juicefs.com/docs/community/command_reference#mount)
 - [Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount)
+
 :::
 
 #### Via ConfigMap
@@ -411,7 +412,7 @@ stringData:
 
 JuiceFS Enterprise Edition:
 
-```yaml {13}
+```yaml {11}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -423,27 +424,6 @@ stringData:
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
   format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
-```
-
-## Mount options {#mount-options}
-
-Mount options are really just the options supported by the `juicefs mount` command, in CSI Driver, you need to specify them in the `mountOptions` field, which resides in different manifest locations between static provisioning and dynamic provisioning, see below examples.
-
-### Static provisioning {#static-mount-options}
-
-After modifying the mount options for existing PVs, you need to perform a rolling upgrade or re-create the application pod, so that CSI Driver starts re-create the mount pod for the changes to take effect.
-
-```yaml {8-9}
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: juicefs-pv
-  labels:
-    juicefs-name: ten-pb-fs
-spec:
-  mountOptions:
-    - cache-size=204800
-  ...
 ```
 
 ## Share directory among applications {#share-directory}
@@ -501,7 +481,7 @@ There are two ways to mount subdirectory, one is through the `--subdir` mount op
 
 If you'd like to share the same file system across different namespaces, use the same set of volume credentials (Secret) in the PV definition:
 
-```yaml {10-12,24-26}
+```yaml {9-11,22-24}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -595,7 +575,7 @@ helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./v
 
 ### kubectl
 
-Helm is absolutely recommended since kubectl installation means a lot of complex manual edits. Please migrate to Helm installation as soon as possible.
+If you use the kubectl installation method, enabling this feature requires manual editing of the CSI Controller, which is complicated. Therefore, it is recommended to [migrate to Helm installation method](../administration/upgrade-csi-driver.md#migrate-to-helm).
 
 Manually edit CSI Controller:
 
@@ -676,7 +656,7 @@ kubectl annotate --overwrite node minikube myjfs.juicefs.com/cacheGroup=region-1
 
 And then modify relevant fields in SC:
 
-```yaml {11-13}
+```yaml {12-14}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -745,16 +725,23 @@ parameters:
 
 ### Injection field reference
 
-You can reference any Node / PVC metadata in the pattern, for example:
+In version 0.23.3, metadata of Node and PVC can be injected into the mount parameters and `pathPattern`, such as:
 
 1. `${.node.name}-${.node.podCIDR}`, inject node `metadata.name` and `spec.podCIDR`, e.g. `minikube-10.244.0.0/24`
-1. `${.node.labels.foo}`, inject node label `metadata.labels["foo"]`
-1. `${.node.annotations.bar}`, inject node annotation `metadata.annotations["bar"]`
-1. `${.PVC.namespace}-${.PVC.name}` results in the directory name being `<pvc-namespace>-<pvc-name>`
-1. `${.PVC.labels.foo}` results in the directory name being the `foo` label value
-1. `${.PVC.annotations.bar}` results in the PV directory name being the `bar` annotation value
+2. `${.node.labels.foo}`, inject node label `metadata.labels["foo"]`
+3. `${.node.annotations.bar}`, inject node annotation `metadata.annotations["bar"]`
+4. `${.pvc.namespace}-${.pvc.name}`，inject `metadata.namespace` and `metadata.name` of PVC, e.g. `default-dynamic-pvc`
+5. `${.PVC.namespace}-${.PVC.name}`，inject `metadata.namespace` and `metadata.name` of PVC (compatible with older versions)
+6. `${.pvc.labels.foo}`, inject `metadata.labels["foo"]` of PVC
+7. `${.pvc.annotations.bar}`, inject `metadata.annotations["bar"]` of PVC
 
-## Common PV settings
+In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only supports injecting PVC metadata, such as:
+
+1. `${.PVC.namespace}-${.PVC.name}`，inject `metadata.namespace` and `metadata.name` of PVC (compatible with older versions)
+2. `${.PVC.labels.foo}`, inject `metadata.labels["foo"]` of PVC
+3. `${.PVC.annotations.bar}`, inject `metadata.annotations["bar"]` of PVC
+
+## Common PV settings {#common-pv-settings}
 
 ### Automatic mount point recovery {#automatic-mount-point-recovery}
 
@@ -803,9 +790,9 @@ Starting from v0.23.3, CSI Driver by default caches the configuration file for J
 Caching works like this:
 
 1. Users create or update [volume credential](./pv.md#volume-credentials), CSI Controller will watch for changes and immediately run `juicefs auth` to obtain the new config;
-1. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
-1. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
-1. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
+2. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
+3. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
+4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
 If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
 

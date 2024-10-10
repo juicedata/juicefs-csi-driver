@@ -35,6 +35,7 @@ With mount pod image overwritten, note that:
 
 * Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or delete mount pod.
 * By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
+
 :::
 
 ### configmap modify {#overwrite-in-configmap}
