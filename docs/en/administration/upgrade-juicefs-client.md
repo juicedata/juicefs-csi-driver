@@ -15,6 +15,7 @@ Find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juiceda
 Pay attention that, with mount pod image overwritten, [upgrading CSI Driver](./upgrade-csi-driver.md) will no longer affect mount pod image.
 
 ## Smooth upgrades for Mount Pods {#smooth-upgrade}
+
 Starting from JuiceFS CSI Driver v0.25.0, smooth upgrades for Mount Pods are supported. This allows Mount Pods to be upgraded without interrupting the service.
 
 :::tip Prerequisites
@@ -25,6 +26,7 @@ Starting from JuiceFS CSI Driver v0.25.0, smooth upgrades for Mount Pods are sup
 :::
 
 :::warning Requirements for smooth upgrades
+
 To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured with `umount ${MOUNT_POINT}`. Ensure that `umount` is not configured in [CSI ConfigMap](./../guide/configurations.md#configmap).
 :::
 
@@ -36,11 +38,9 @@ Currently, smooth upgrades can only be triggered in CSI Dashboard or the JuiceFS
 
     ![Upgrade the image](../images/upgrade-image.png)
 
-2. In the Mount Pod details page, there are two upgrade buttons, **Pod Upgrade** and **Binary Upgrade**:
-    
-    - **Pod Upgrade** rebuilds the Mount Pod, requiring v1.2.1 or later for the Community Edition, and v5.1.0 or later for the Enterprise Edition.
-    - **Binary Upgrad** only updates the binary without rebuilding the Mount Pod, requiring v1.2.0 or later for the Community Edition, and v5.0.0 or later for the Enterprise Edition.
-    
+2. In the Mount Pod details page, there are two upgrade buttons. One is for a pod upgrade and the other one is for a binary upgrade:
+    - A pod upgrade rebuilds the Mount Pod, requiring v1.2.1 or later for the Community Edition, and v5.1.0 or later for the Enterprise Edition.
+    - A binary upgrade only updates the binary without rebuilding the Mount Pod, requiring v1.2.0 or later for the Community Edition, and v5.0.0 or later for the Enterprise Edition.
     Both upgrades are smooth upgrades, allowing services to continue running without interruption.
 
     ![Upgrade menu](../images/upgrade-menu.png)
@@ -53,7 +53,7 @@ Currently, smooth upgrades can only be triggered in CSI Dashboard or the JuiceFS
 
 Ensure that your JuiceFS kubectl plugin version is v0.3.0 or later.
 
-1. Update the image version for Mount Pod in CSI ConfigMap configuration using kubectl.
+1. Update the image version for the Mount Pod in CSI ConfigMap configuration using kubectl.
 
     ```yaml
     apiVersion: v1
