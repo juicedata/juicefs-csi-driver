@@ -646,12 +646,29 @@ func Test_genCacheDirs(t *testing.T) {
 		{
 			name: "test-cache-pvcs",
 			args: args{
-				JfsSetting: JfsSetting{},
-				volCtx:     map[string]string{"juicefs/mount-cache-pvc": "abc,def"},
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type: "PVC",
+								Name: "sss",
+							},
+						},
+					},
+				},
+				volCtx: map[string]string{"juicefs/mount-cache-pvc": "abc,def"},
 			},
 			want: JfsSetting{
-				CachePVCs: []CachePVC{{PVCName: "abc", Path: "/var/jfsCache-0"}, {PVCName: "def", Path: "/var/jfsCache-1"}},
-				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1"},
+				CachePVCs: []CachePVC{{PVCName: "abc", Path: "/var/jfsCache-0"}, {PVCName: "def", Path: "/var/jfsCache-1"}, {PVCName: "sss", Path: "/var/jfsCache-2"}},
+				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/var/jfsCache-2"},
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type: "PVC",
+							Name: "sss",
+						},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -683,6 +700,36 @@ func Test_genCacheDirs(t *testing.T) {
 					"/tmp/abc",
 				},
 				Options: []string{"cache-dir=/tmp/abc"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-hostPath-with-pod-attr",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type: "HostPath",
+								Path: "/abc",
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type: "HostPath",
+							Path: "/abc",
+						},
+					},
+				},
+				CacheDirs: []string{
+					"/abc",
+				},
+				Options: []string{"cache-dir=/abc"},
 			},
 			wantErr: false,
 		},

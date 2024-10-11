@@ -261,25 +261,23 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	if volCtx != nil && volCtx[common.CachePVC] != "" {
 		cachePVCs = strings.Split(strings.TrimSpace(volCtx[common.CachePVC]), ",")
 	}
-	if len(jfsSetting.Attr.CacheDirs) > 0 {
+	if jfsSetting.Attr != nil {
 		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
 			if cacheDir.Type == MountPatchCacheDirTypePVC {
 				cachePVCs = append(cachePVCs, cacheDir.Name)
 			}
 		}
 	}
-	if len(cachePVCs) > 0 {
-		for i, pvc := range cachePVCs {
-			if pvc == "" {
-				continue
-			}
-			volPath := fmt.Sprintf("/var/jfsCache-%d", i)
-			jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, CachePVC{
-				PVCName: pvc,
-				Path:    volPath,
-			})
-			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+	for i, pvc := range cachePVCs {
+		if pvc == "" {
+			continue
 		}
+		volPath := fmt.Sprintf("/var/jfsCache-%d", i)
+		jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, CachePVC{
+			PVCName: pvc,
+			Path:    volPath,
+		})
+		cacheDirsInContainer = append(cacheDirsInContainer, volPath)
 	}
 
 	// parse emptydir of cache
@@ -348,10 +346,12 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 		}
 	}
 	// parse hostPath dirs in setting attr
-	for _, cacheDir := range jfsSetting.Attr.CacheDirs {
-		if cacheDir.Type == MountPatchCacheDirTypeHostPath {
-			cacheDirsInContainer = append(cacheDirsInContainer, cacheDir.Path)
-			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, cacheDir.Path)
+	if jfsSetting.Attr != nil {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+			if cacheDir.Type == MountPatchCacheDirTypeHostPath {
+				cacheDirsInContainer = append(cacheDirsInContainer, cacheDir.Path)
+				jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, cacheDir.Path)
+			}
 		}
 	}
 	if len(cacheDirsInContainer) == 0 {
