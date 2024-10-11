@@ -104,6 +104,7 @@ type PodAttr struct {
 	VolumeDevices                 []corev1.VolumeDevice `json:"volumeDevices,omitempty"`
 	VolumeMounts                  []corev1.VolumeMount  `json:"volumeMounts,omitempty"`
 	Env                           []corev1.EnvVar       `json:"env,omitempty"`
+	CacheDirs                     []MountPatchCacheDir  `json:"cacheDirs,omitempty"`
 
 	// inherit from csi
 	Image            string
@@ -256,8 +257,18 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
+	cachePVCs := []string{}
 	if volCtx != nil && volCtx[common.CachePVC] != "" {
-		cachePVCs := strings.Split(strings.TrimSpace(volCtx[common.CachePVC]), ",")
+		cachePVCs = strings.Split(strings.TrimSpace(volCtx[common.CachePVC]), ",")
+	}
+	if len(jfsSetting.Attr.CacheDirs) > 0 {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+			if cacheDir.Type == MountPatchCacheDirTypePVC {
+				cachePVCs = append(cachePVCs, cacheDir.Name)
+			}
+		}
+	}
+	if len(cachePVCs) > 0 {
 		for i, pvc := range cachePVCs {
 			if pvc == "" {
 				continue
@@ -270,6 +281,7 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
 		}
 	}
+
 	// parse emptydir of cache
 	if volCtx != nil {
 		if _, ok := volCtx[common.CacheEmptyDir]; ok {
@@ -333,6 +345,13 @@ func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 			cacheDirsInContainer = append(cacheDirsInContainer, cacheDirsInOptions...)
 			options = append(options[:i], options[i+1:]...)
 			break
+		}
+	}
+	// parse hostPath dirs in setting attr
+	for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+		if cacheDir.Type == MountPatchCacheDirTypeHostPath {
+			cacheDirsInContainer = append(cacheDirsInContainer, cacheDir.Path)
+			jfsSetting.CacheDirs = append(jfsSetting.CacheDirs, cacheDir.Path)
 		}
 	}
 	if len(cacheDirsInContainer) == 0 {
@@ -749,6 +768,7 @@ func applyConfigPatch(setting *JfsSetting) {
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes
 	attr.Env = patch.Env
+	attr.CacheDirs = patch.CacheDirs
 
 	// merge or overwrite setting options
 	if setting.Options == nil {

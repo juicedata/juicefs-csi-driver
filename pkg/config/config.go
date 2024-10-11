@@ -130,13 +130,31 @@ type PVCSelector struct {
 	MatchName             string `json:"matchName,omitempty"`
 }
 
+type MountPatchCacheDirType string
+
+var (
+	MountPatchCacheDirTypeHostPath MountPatchCacheDirType = "HostPath"
+	MountPatchCacheDirTypePVC      MountPatchCacheDirType = "PVC"
+)
+
+type MountPatchCacheDir struct {
+	Type MountPatchCacheDirType `json:"type,omitempty"`
+
+	// required for HostPath type
+	Path string `json:"path,omitempty"`
+
+	// required for PVC type
+	Name string `json:"name,omitempty"`
+}
+
 type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
 	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
 
-	CEMountImage string `json:"ceMountImage,omitempty"`
-	EEMountImage string `json:"eeMountImage,omitempty"`
+	CEMountImage string               `json:"ceMountImage,omitempty"`
+	EEMountImage string               `json:"eeMountImage,omitempty"`
+	CacheDirs    []MountPatchCacheDir `json:"cacheDirs,omitempty"`
 
 	Image                         string                       `json:"-"`
 	Labels                        map[string]string            `json:"labels,omitempty"`
@@ -274,6 +292,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.MountOptions != nil {
 		mpp.MountOptions = mp.MountOptions
+	}
+	if mp.CacheDirs != nil {
+		mpp.CacheDirs = mp.CacheDirs
 	}
 }
 
