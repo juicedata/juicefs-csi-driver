@@ -533,7 +533,13 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	mountPods = append(mountPods, pods...)
 	// find pod by target
 	key := util.GetReferenceKey(mountPath)
+	lock := config.GetPodLock(hashVal)
+	lock.Lock()
+	defer lock.Unlock()
 	for _, po := range mountPods {
+		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
+			continue
+		}
 		if _, ok := po.Annotations[key]; ok {
 			mountPod = &po
 			break
@@ -545,9 +551,6 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		if hashVal == "" {
 			return fmt.Errorf("pod %s/%s has no hash label", mountPod.Namespace, mountPod.Name)
 		}
-		lock := config.GetPodLock(hashVal)
-		lock.Lock()
-		defer lock.Unlock()
 	}
 
 	// umount target path

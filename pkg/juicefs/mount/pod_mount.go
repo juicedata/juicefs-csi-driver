@@ -324,7 +324,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		return "", err
 	}
 	for _, pod := range pods {
-		if pod.DeletionTimestamp != nil {
+		if pod.DeletionTimestamp != nil || resource.IsPodComplete(&pod) {
 			continue
 		}
 		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {

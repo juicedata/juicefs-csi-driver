@@ -380,17 +380,16 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 
-	// remove finalizer of pod
-	if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
-		log.Error(err, "remove pod finalizer error")
-		return Result{}, err
-	}
-
 	go p.checkMountPodStuck(pod)
 
 	// pod with resource error
 	if resource.IsPodResourceError(pod) {
 		log.V(1).Info("The pod is PodResourceError, skip delete the pod")
+		// remove finalizer of pod
+		if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+			log.Error(err, "remove pod finalizer error")
+			return Result{}, err
+		}
 		return Result{}, nil
 	}
 
@@ -412,6 +411,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	if hashVal == "" {
 		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
+
+	lock := config.GetPodLock(hashVal)
+	lock.Lock()
+	defer lock.Unlock()
 
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
@@ -438,49 +441,46 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		go p.CleanUpCache(context.TODO(), pod)
 		// stop fuse fd and clean up socket
 		go passfd.GlobalFds.StopFd(context.TODO(), hashVal)
+		// remove finalizer of pod
+		if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+			log.Error(err, "remove pod finalizer error")
+			return Result{}, err
+		}
 		return Result{}, nil
 	}
 
-	lock := config.GetPodLock(hashVal)
-	lock.Lock()
-	defer lock.Unlock()
-
 	// create
-	log.Info("pod targetPath not empty, need to create pod")
-
-	// check pod delete
-	_, err = p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-	if err == nil || apierrors.IsNotFound(err) {
-		needCreate, err := p.needCreateMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
-		if err != nil {
-			return Result{}, err
-		}
-		if needCreate {
-			// create pod
-			newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
-			log.Info("need to create a new one", "newPodName", newPodName)
-			// delete tmp file
-			log.Info("delete tmp state file because it is not smoothly upgrade")
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
-			})
-			newPod, err := p.newMountPod(ctx, pod, newPodName)
-			if err == nil {
-				_, err = p.Client.CreatePod(ctx, newPod)
-				if err != nil {
-					log.Error(err, "Create pod")
-				}
-			}
-			return Result{RequeueImmediately: true}, err
-		}
-	}
+	needCreate, err := p.needCreateMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
 	if err != nil {
-		if apierrors.IsTimeout(err) {
-			err = fmt.Errorf("old pod %s %s deleting timeout", pod.Name, config.Namespace)
-			log.Error(err, "delete pod error")
+		return Result{}, err
+	}
+	if needCreate {
+		// create pod
+		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
+		// delete tmp file
+		log.Info("delete tmp state file because it is not smoothly upgrade")
+		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
+		})
+		newPod, err := p.newMountPod(ctx, pod, newPodName)
+		if err == nil {
+			_, err = p.Client.CreatePod(ctx, newPod)
+			if err != nil {
+				log.Error(err, "Create pod")
+				return Result{}, err
+			}
+		}
+		// remove finalizer of pod
+		if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+			log.Error(err, "remove pod finalizer error")
 			return Result{}, err
 		}
-		log.Error(err, "Get pod error")
+		return Result{RequeueImmediately: true}, err
+	}
+	// remove finalizer of pod
+	if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+		log.Error(err, "remove pod finalizer error")
 		return Result{}, err
 	}
 	return Result{}, nil
