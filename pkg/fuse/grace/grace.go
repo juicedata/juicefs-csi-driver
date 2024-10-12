@@ -153,7 +153,7 @@ func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error
 		return false, err
 	}
 	for _, e := range events {
-		if e.Type == "Upgrade" {
+		if e.Reason == "Upgrade" {
 			if e.LastTimestamp.Time.After(now.Add(-10 * time.Minute)) {
 				sendMessage(conn, "FAIL Upgrade is too frequent, try after 10min.")
 				return false, nil
