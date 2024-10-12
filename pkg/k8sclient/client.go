@@ -557,3 +557,14 @@ func (k *K8sClient) CreateEvent(ctx context.Context, pod corev1.Pod, evtType, re
 	}
 	return nil
 }
+
+func (k *K8sClient) GetEvents(ctx context.Context, pod *corev1.Pod) ([]corev1.Event, error) {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Get event", "name", pod.Name)
+	events, err := k.CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name), TypeMeta: metav1.TypeMeta{Kind: "Pod"}})
+	if err != nil {
+		log.V(1).Info("Can't get event", "podName", pod.Name, "error", err)
+		return nil, err
+	}
+	return events.Items, nil
+}
