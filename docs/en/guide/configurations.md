@@ -372,6 +372,43 @@ stringData:
   configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
+### Customize cache dirs {#custom-cachedirs}
+
+Cache paths are currently supported:
+
+1. HostPath
+2. PVC
+
+:::info
+
+- When using a PVC as a cache path, it is important to note that the PVC needs to be created in advance, and make sure it is in the same namespace as the MountPod.
+- If you have customized a Volume, you need to make sure that the MountPath in the customized Volume is not duplicated with the HostPath configured below.
+:::.
+
+#### Using ConfigMap
+
+The minimum required version is CSI Driver v0.25.1. Upon modification, application pods need to be re-created for changes to take effect.
+
+```yaml
+  - pvcSelector:
+      matchLabels:
+        need-cachedirs: "true"
+    cacheDirs:
+      - type: PVC
+        name: jfs-cache-pvc
+      - type: HostPath
+        path: /var/jfsCache
+```
+
+#### Using mount options
+
+This method only supports configuring a cache path in the form of HostPath.
+
+```yaml
+mountOptions:
+  - cachedir=/var/jfsCache1:/var/jfsCache1
+```
+
 ### Other features
 
 Many features are closely relevant to other topics. For more information:

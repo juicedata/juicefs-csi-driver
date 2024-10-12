@@ -370,6 +370,43 @@ stringData:
   configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
+### 定制缓存路径 {#custom-cachedirs}
+
+缓存路径目前支持：
+
+1. HostPath
+2. PVC
+
+:::info 注意事项
+
+- 使用 PVC 作为缓存路径是需要注意 PVC 需要提前创建，并确保和 MountPod 在同一个 namespace。
+- 如果自定义了 Volume，需要确保自定义 Volume 中的 MountPath 和下方配置的 HostPath 没有重复。
+:::
+
+#### 使用 ConfigMap
+
+该功能最低需要 CSI 驱动版本 v0.25.1，修改后需重建业务 Pod 生效。
+
+```yaml
+  - pvcSelector:
+      matchLabels:
+        need-cachedirs: "true"
+    cacheDirs:
+      - type: PVC
+        name: jfs-cache-pvc
+      - type: HostPath
+        path: /var/jfsCache
+```
+
+#### 使用 挂载参数
+
+该方法只支持配置 HostPath 形式的缓存路径。
+
+```yaml
+mountOptions:
+  - cachedir=/var/jfsCache1:/var/jfsCache1
+```
+
 ### 其他功能定制
 
 不少其他功能和其他话题高度相关，不在本章详细介绍，请阅读对应章节以详细了解：
