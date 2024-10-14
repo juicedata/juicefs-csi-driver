@@ -376,7 +376,6 @@ stringData:
 
 This section only covers basic usage. For more details on cache warmup and cleanup, see [Cache settings](./cache.md).
 
-
 With CSI Driver, you can use either a host directory or a PVC for cache storage. Note that:
 
 - When using a PVC as a cache path, ensure that the PVC is created in advance and is in the same namespace as the Mount Pod.
