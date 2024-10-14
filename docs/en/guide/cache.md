@@ -12,7 +12,6 @@ With CSI Driver, you can use either a host directory or a PVC for cache storage.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
 
-
 ## Using host directories (`hostPath`) {#cache-settings}
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
@@ -33,7 +32,6 @@ Read [Custom directory](./configurations.md#custom-cachedirs).
 ### Define in PV (deprecated)
 
 Since CSI Driver v0.25.1, cache directories are supported in ConfigMap. Please refer to the previous section to manage all PV settings in a centralized place. The following practice of defining cache directories in PVs is deprecated.
-
 
 Static provisioning:
 
