@@ -1,26 +1,27 @@
 ---
 title: Cache
 sidebar_position: 3
+description: Learn about JuiceFS cache settings and best practices for JuiceFS CSI Driver.
 ---
 
 JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/guide/cache), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
 
-With CSI Driver, you can use either a host directory, or a PVC as cache storage, the difference is mainly in isolation level and data locality, not performance, specifically:
+With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
+* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
+* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
+* When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
 
-* Host directories (`hostPath`) are simple to use, cache data resides directly in local cache disks so observation and management are fairly straightforward. But since Mount Pod (with application pods) can be scheduled to different nodes, all cache content will be lost if that happens, leaving residue that might require cleaning up in this process (read below sections on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
-* If all worker nodes are used to run JuiceFS Mount Pod, and every one of them host similar cache content (similar situation if you use distributed caching), then pod migration isn't really a problem, and you can still use host directories as cache storage.
-* When using a PVC as cache storage, different JuiceFS PV can isolate cache data. And if Mount Pod is migrated to another node, the PVC reference stays the same so there's no impact on caching.
 
 ## Using host directories (`hostPath`) {#cache-settings}
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
-After cache directory is set, it'll be accessible in the Mount Pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./configurations.md#mount-options).
+After the cache directory is set, it will be accessible in the Mount Pod via `hostPath`. You might also need to configure other cache-related options (like `--cache-size`) according to [Adjust mount options](./configurations.md#mount-options).
 
 :::note
 
 * In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
-* For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 
 :::
 
@@ -30,7 +31,8 @@ Read [Custom directory](./configurations.md#custom-cachedirs).
 
 ### Define in PV (deprecated)
 
-Since CSI Driver v0.25.1, cache directory is supported in ConfigMap as well, please refer to the previous section to manage all PV settings in a centralized place, and eschew below practice.
+Since CSI Driver v0.25.1, cache directories are supported in ConfigMap. Please refer to the previous section to manage all PV settings in a centralized place. The following practice of defining cache directories in PVs is deprecated.
+
 
 Static provisioning:
 
@@ -89,7 +91,7 @@ First, create a PVC according to your cloud service provider's manual, for examp
 * [Using the Google Compute Engine persistent disk CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
-Assuming a PVC named `jfs-cache-pvc` is already created under the same namespace as the Mount Pod (default to `kube-system`), use below example to use this PVC as cache directory for JuiceFS CSI Driver.
+Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as the Mount Pod (which defaults to `kube-system`), use the following example to set this PVC as the cache directory for JuiceFS CSI Driver.
 
 ### Using ConfigMap
 
@@ -144,7 +146,7 @@ parameters:
 
 ## Cache warm-up {#warmup}
 
-JuiceFS Client runs inside the Mount Pod, so cache warm-up has to happen inside the Mount Pod, use below commands to enter the Mount Pod and carry out the warm-up:
+The JuiceFS client runs inside the Mount Pod, so cache warm-up must be performed inside the Mount Pod. Use the commands below to enter the Mount Pod and carry out the warm-up operation:
 
 ```shell
 # Application pod information will be used in below commands, save them as environment variables.
