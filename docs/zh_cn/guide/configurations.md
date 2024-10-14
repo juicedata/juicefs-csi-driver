@@ -372,16 +372,10 @@ stringData:
 
 ### 定制缓存路径 {#custom-cachedirs}
 
-缓存路径目前支持：
+在 CSI 驱动中，可以选择使用宿主机路径或者 PVC 作为 JuiceFS 客户端缓存，对于这两种场景，需要注意：
 
-1. HostPath
-2. PVC
-
-:::info 注意事项
-
-- 使用 PVC 作为缓存路径是需要注意 PVC 需要提前创建，并确保和 MountPod 在同一个 namespace。
-- 如果自定义了 Volume，需要确保自定义 Volume 中的 MountPath 和下方配置的 HostPath 没有重复。
-:::
+- 如果使用 PVC 作为缓存路径，PVC 需要提前创建，并确保和 Mount Pod 在同一个 namespace。
+- 如果自定义了 Volume，确保自定义 Volume 中的 `mountPath` 和 `hostPath` 没有重复，避免冲突。
 
 #### 使用 ConfigMap
 
@@ -398,13 +392,13 @@ stringData:
         path: /var/jfsCache
 ```
 
-#### 使用 挂载参数
+#### 使用挂载参数
 
-该方法只支持配置 HostPath 形式的缓存路径。
+该方法只支持配置 `hostPath` 形式的缓存路径。
 
 ```yaml
 mountOptions:
-  - cachedir=/var/jfsCache1:/var/jfsCache1
+  - cache-dir=/mnt/jfsCache1:/mnt/jfsCache2
 ```
 
 ### 其他功能定制

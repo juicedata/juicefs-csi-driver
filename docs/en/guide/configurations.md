@@ -374,16 +374,10 @@ stringData:
 
 ### Customize cache dirs {#custom-cachedirs}
 
-Cache paths are currently supported:
+With CSI Driver, you can use either a host directory, or a PVC as cache storage. However, do notice that:
 
-1. HostPath
-2. PVC
-
-:::info
-
-- When using a PVC as a cache path, it is important to note that the PVC needs to be created in advance, and make sure it is in the same namespace as the MountPod.
-- If you have customized a Volume, you need to make sure that the MountPath in the customized Volume is not duplicated with the HostPath configured below.
-:::.
+- When using PVC as a cache path, it is the PVC must be created in advance, in the same namespace as the Mount Pod.
+- When using custom volume, make sure its `mountPath` does not conflict with other `hostPath` directory.
 
 #### Using ConfigMap
 
@@ -402,11 +396,11 @@ The minimum required version is CSI Driver v0.25.1. Upon modification, applicati
 
 #### Using mount options
 
-This method only supports configuring a cache path in the form of HostPath.
+This method only supports `hostPath` cache directories.
 
 ```yaml
 mountOptions:
-  - cachedir=/var/jfsCache1:/var/jfsCache1
+  - cache-dir=/mnt/jfsCache1:/mnt/jfsCache2
 ```
 
 ### Other features
