@@ -147,6 +147,17 @@ type podUpgrade struct {
 }
 
 func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error) {
+	// check mount pod now support upgrade or not
+	if !p.recreate && !util.SupportUpgradeBinary(p.ce, p.pod.Spec.Containers[0].Image) {
+		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support binary upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		return false, nil
+	}
+	if p.recreate && !util.SupportUpgradeRecreate(p.ce, p.pod.Spec.Containers[0].Image) {
+		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support recreate upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		return false, nil
+	}
+
+	// if the last upgrade event is within 10min, return false
 	now := time.Now()
 	events, err := p.client.GetEvents(ctx, p.pod)
 	if err != nil {
