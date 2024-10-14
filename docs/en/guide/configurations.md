@@ -862,6 +862,20 @@ spec:
       storage: 20Gi  # Specify a larger size here
 ```
 
+The above method will not affect existing PVs. If you need to expand existing PV, you must manually modify the PV to add Secret configuration.
+
+```yaml {7-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvc-xxxx
+spec:
+  csi:
+    controllerExpandSecretRef:
+      name: juicefs-secret
+      namespace: default
+```
+
 ### Access modes {#access-modes}
 
 JuiceFS PV supports `ReadWriteMany` and `ReadOnlyMany` as access modes, change the `accessModes` field accordingly in above PV/PVC (or `volumeClaimTemplate`) definitions.
