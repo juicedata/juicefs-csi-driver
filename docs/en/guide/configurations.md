@@ -372,7 +372,9 @@ stringData:
   configs: "{gc-secret: /root/.config/gcloud}"
 ```
 
-### Customize cache dirs {#custom-cachedirs}
+### Customize cache directory {#custom-cachedirs}
+
+This section only covers basic usage, read [cache settings](./cache.md) if you'd like to learn about cache warmup & cleanup.
 
 With CSI Driver, you can use either a host directory, or a PVC as cache storage. However, do notice that:
 

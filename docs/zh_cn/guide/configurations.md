@@ -372,6 +372,8 @@ stringData:
 
 ### 定制缓存路径 {#custom-cachedirs}
 
+本小节只介绍如何设置缓存路径，如有需要，请继续阅读[缓存](./cache.md)了解如何设置多个缓存目录，以及缓存的预热和清理。
+
 在 CSI 驱动中，可以选择使用宿主机路径或者 PVC 作为 JuiceFS 客户端缓存，对于这两种场景，需要注意：
 
 - 如果使用 PVC 作为缓存路径，PVC 需要提前创建，并确保和 Mount Pod 在同一个 namespace。

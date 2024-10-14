@@ -5,7 +5,9 @@ sidebar_position: 3
 
 JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.com/docs/zh/community/guide/cache)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。
 
-## 缓存设置 {#cache-settings}
+在 CSI 驱动中，可以选择使用宿主机路径或者 PVC 作为 JuiceFS 客户端缓存，两种用法并没有性能上的区别，主要在于隔离度，如果你偏好简单易用，对容量管理和隔离度没有特别要求，可以直接使用宿主机路径作为缓存存储。如果你希望每个 JuiceFS PV 的缓存存储互不影响，那么可以创建 PVC 作为缓存存储。在下方两节分别介绍。
+
+## 使用宿主机目录作为缓存（`hostPath`） {#cache-settings}
 
 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
 
@@ -18,53 +20,59 @@ Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 Ju
 
 :::
 
-缓存相关配置均通过挂载参数进行调整，因此方法如同[「调整挂载参数」](./configurations.md#mount-options)，也可以直接参考下方示范。如果你需要验证参数生效，可以创建并挂载了 PV 后，[打印 Mount Pod 的启动命令](../administration/troubleshooting.md#check-mount-pod)，确认参数中已经包含修改后的缓存路径，来验证配置生效。
+### 使用 ConfigMap
 
-* 静态配置：
+阅读[「调整挂载参数」](./configurations.md#custom-cachedirs)。
 
-  ```yaml {15-16}
-  apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: juicefs-pv
-    labels:
-      juicefs-name: ten-pb-fs
-  spec:
-    capacity:
-      storage: 10Pi
-    volumeMode: Filesystem
-    accessModes:
-      - ReadWriteMany
-    persistentVolumeReclaimPolicy: Retain
-    mountOptions:
-      - cache-dir=/dev/vdb1
-      - cache-size=204800
-    csi:
-      driver: csi.juicefs.com
-      volumeHandle: juicefs-pv
-      fsType: juicefs
-      nodePublishSecretRef:
-        name: juicefs-secret
-        namespace: default
-  ```
+### 在 PV 中定义（不推荐）
 
-* 动态配置：
+自 CSI 驱动 v0.25.1，ConfigMap 已经支持设置缓存路径，建议按照上一小节的指示用 ConfigMap 来对各个 JuiceFS PV 的配置进行中心化管理，避免使用下方示范，在各个 PV 定义中单独修改缓存路径。
 
-  ```yaml {12-13}
-  apiVersion: storage.k8s.io/v1
-  kind: StorageClass
-  metadata:
-    name: juicefs-sc
-  provisioner: csi.juicefs.com
-  parameters:
-    csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-    csi.storage.k8s.io/provisioner-secret-namespace: default
-    csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-    csi.storage.k8s.io/node-publish-secret-namespace: default
+静态配置示范：
+
+```yaml {15-16}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
   mountOptions:
     - cache-dir=/dev/vdb1
     - cache-size=204800
-  ```
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+```
+
+动态配置示范：
+
+```yaml {12-13}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+mountOptions:
+  - cache-dir=/dev/vdb1
+  - cache-size=204800
+```
 
 ## 使用 PVC 作为缓存路径
 
@@ -77,11 +85,17 @@ JuiceFS CSI 驱动 0.15.1 及以上版本支持使用 PVC 作为缓存路径，�
 * [使用 Google Compute Engine 永久性磁盘 CSI 驱动](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [阿里云 ACK 云盘存储卷](https://help.aliyun.com/document_detail/134767.html)
 
-假设 PVC `ebs-pvc` 创建完毕，与 Mount Pod 在同一个命名空间下（默认 `kube-system`），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
+假设名为 `jfs-cache-pvc` 的 PVC 创建完毕，与 Mount Pod 在同一个命名空间下（默认 `kube-system`），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
 
-### 静态配置
+### 使用 ConfigMap
 
-将这个 PVC 提供给 JuiceFS PV 使用：
+缓存相关配置均通过挂载参数进行调整，请阅读[「调整挂载参数」](./configurations.md#custom-cachedirs)。
+
+### 在 PV 中定义（不推荐）
+
+自 CSI 驱动 v0.25.1，ConfigMap 已经支持设置缓存路径，建议按照上一小节的指示用 ConfigMap 来对各个 JuiceFS PV 的配置进行中心化管理，避免使用下方示范，在各个 PV 定义中单独修改缓存路径。
+
+静态配置示范：
 
 ```yaml {22}
 apiVersion: v1
@@ -105,12 +119,10 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-cache-pvc: "ebs-pvc"
+      juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
 
-### 动态配置
-
-将 `ebs-pvc` 填入 StorageClass 中：
+动态配置示范，将 `jfs-cache-pvc` 填入 StorageClass 中：
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -123,7 +135,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-cache-pvc: "ebs-pvc"
+  juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
 
 ## 缓存预热 {#warmup}
