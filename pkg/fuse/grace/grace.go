@@ -128,7 +128,6 @@ func handleShutdown(conn net.Conn) {
 		log.Error(err, "check if can upgrade error")
 		return
 	} else if !ok {
-		log.Info("upgrade too frequent")
 		return
 	}
 	if err := pu.gracefulShutdown(ctx, conn); err != nil {
@@ -148,12 +147,14 @@ type podUpgrade struct {
 
 func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error) {
 	// check mount pod now support upgrade or not
-	if !p.recreate && !util.SupportUpgradeBinary(p.ce, p.pod.Spec.Containers[0].Image) {
+	if !p.recreate && !util.ImageSupportBinary(p.pod.Spec.Containers[0].Image) {
 		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support binary upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		log.Info("mount pod now do not support smooth binary upgrade")
 		return false, nil
 	}
-	if p.recreate && !util.SupportUpgradeRecreate(p.ce, p.pod.Spec.Containers[0].Image) {
+	if p.recreate && !util.SupportFusePass(p.pod.Spec.Containers[0].Image) {
 		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support recreate upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		log.Info("mount pod now do not support recreate smooth upgrade")
 		return false, nil
 	}
 
@@ -167,6 +168,7 @@ func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error
 		if e.Reason == "Upgrade" {
 			if e.LastTimestamp.Time.After(now.Add(-10 * time.Minute)) {
 				sendMessage(conn, "FAIL Upgrade is too frequent, try after 10min.")
+				log.Info("upgrade too frequent")
 				return false, nil
 			}
 		}
