@@ -7,6 +7,7 @@ description: Learn about JuiceFS cache settings and best practices for JuiceFS C
 JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/guide/cache), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
 
 With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
+
 * Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
