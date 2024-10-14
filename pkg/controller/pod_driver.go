@@ -423,7 +423,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 	}
 
-	if len(existTargets) == 0 {
+	shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
+	if err != nil {
+		return Result{}, err
+	}
+	if len(existTargets) == 0 && !shouldDelay {
 		// do not need to create new one, umount
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 			util.UmountPath(ctx, sourcePath)
@@ -579,12 +583,12 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, err
 	}
 
-	lock := config.GetPodLock(pod.Name)
-	lock.Lock()
-	defer lock.Unlock()
-
 	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
 	podHashVal := pod.Labels[common.PodJuiceHashLabelKey]
+
+	lock := config.GetPodLock(podHashVal)
+	lock.Lock()
+	defer lock.Unlock()
 
 	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
 	if err != nil {
