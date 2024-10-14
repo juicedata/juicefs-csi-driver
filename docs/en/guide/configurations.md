@@ -374,12 +374,13 @@ stringData:
 
 ### Customize cache directory {#custom-cachedirs}
 
-This section only covers basic usage, read [cache settings](./cache.md) if you'd like to learn about cache warmup & cleanup.
+This section only covers basic usage. For more details on cache warmup and cleanup, see [Cache settings](./cache.md).
 
-With CSI Driver, you can use either a host directory, or a PVC as cache storage. However, do notice that:
 
-- When using PVC as a cache path, it is the PVC must be created in advance, in the same namespace as the Mount Pod.
-- When using custom volume, make sure its `mountPath` does not conflict with other `hostPath` directory.
+With CSI Driver, you can use either a host directory or a PVC for cache storage. Note that:
+
+- When using a PVC as a cache path, ensure that the PVC is created in advance and is in the same namespace as the Mount Pod.
+- When using a custom volume, make sure its `mountPath` does not conflict with other `hostPath` directories.
 
 #### Using ConfigMap
 
