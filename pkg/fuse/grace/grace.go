@@ -158,21 +158,6 @@ func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error
 		return false, nil
 	}
 
-	// if the last upgrade event is within 10min, return false
-	now := time.Now()
-	events, err := p.client.GetEvents(ctx, p.pod)
-	if err != nil {
-		return false, err
-	}
-	for _, e := range events {
-		if e.Reason == "Upgrade" {
-			if e.LastTimestamp.Time.After(now.Add(-10 * time.Minute)) {
-				sendMessage(conn, "FAIL Upgrade is too frequent, try after 10min.")
-				log.Info("upgrade too frequent")
-				return false, nil
-			}
-		}
-	}
 	return true, nil
 }
 
