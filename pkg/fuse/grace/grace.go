@@ -124,6 +124,12 @@ func handleShutdown(conn net.Conn) {
 		ce:       ce,
 		hashVal:  hashVal,
 	}
+	if ok, err := pu.canUpgrade(ctx, conn); err != nil {
+		log.Error(err, "check if can upgrade error")
+		return
+	} else if !ok {
+		return
+	}
 	if err := pu.gracefulShutdown(ctx, conn); err != nil {
 		log.Error(err, "graceful shutdown error")
 		return
@@ -137,6 +143,22 @@ type podUpgrade struct {
 	ce         bool
 	hashVal    string
 	newVersion string
+}
+
+func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error) {
+	// check mount pod now support upgrade or not
+	if !p.recreate && !util.ImageSupportBinary(p.pod.Spec.Containers[0].Image) {
+		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support binary upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		log.Info("mount pod now do not support smooth binary upgrade")
+		return false, nil
+	}
+	if p.recreate && !util.SupportFusePass(p.pod.Spec.Containers[0].Image) {
+		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support recreate upgrade, image: %s", p.pod.Spec.Containers[0].Image))
+		log.Info("mount pod now do not support recreate smooth upgrade")
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
@@ -170,33 +192,29 @@ func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 
 func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.JuiceConf) error {
 	// send SIGHUP to mount pod
-	for i := 0; i < 600; i++ {
-		log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name)
-		sendMessage(conn, "send SIGHUP to mount pod")
-		if stdout, stderr, err := p.client.ExecuteInContainer(
-			ctx,
-			p.pod.Name,
-			p.pod.Namespace,
-			common.MountContainerName,
-			[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
-		); err != nil {
-			log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
-			continue
-		}
-		upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, common.MountContainerName)
-		if p.recreate {
-			upgradeEvtMsg = "Upgrade pod with recreating"
-			sendMessage(conn, upgradeEvtMsg)
-		} else {
-			sendMessage(conn, "SUCCESS "+upgradeEvtMsg)
-		}
-		if err := p.client.CreateEvent(ctx, *p.pod, corev1.EventTypeNormal, "Upgrade", upgradeEvtMsg); err != nil {
-			log.Error(err, "fail to create event")
-		}
-		return nil
+	log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name)
+	sendMessage(conn, "send SIGHUP to mount pod")
+	if stdout, stderr, err := p.client.ExecuteInContainer(
+		ctx,
+		p.pod.Name,
+		p.pod.Namespace,
+		common.MountContainerName,
+		[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
+	); err != nil {
+		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
+		sendMessage(conn, fmt.Sprintf("FAIL to send SIGHUP to mount pod: %v", err))
+		return err
 	}
-	sendMessage(conn, "FAIL to send SIGHUP to mount pod")
-	log.Info("mount point of mount pod is busy, stop upgrade", "podName", p.pod.Name)
+	upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, common.MountContainerName)
+	if p.recreate {
+		upgradeEvtMsg = "Upgrade pod with recreating"
+		sendMessage(conn, upgradeEvtMsg)
+	} else {
+		sendMessage(conn, "SUCCESS "+upgradeEvtMsg)
+	}
+	if err := p.client.CreateEvent(ctx, *p.pod, corev1.EventTypeNormal, "Upgrade", upgradeEvtMsg); err != nil {
+		log.Error(err, "fail to create event")
+	}
 	return nil
 }
 

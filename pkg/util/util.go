@@ -605,6 +605,14 @@ func SupportFusePass(image string) bool {
 	return supportFusePass(v)
 }
 
+func ImageSupportBinary(image string) bool {
+	v := parseClientVersionFromImage(image)
+	if v.Dev {
+		return false
+	}
+	return supportUpgradeBinary(v)
+}
+
 func supportFusePass(v ClientVersion) bool {
 	ceFuseVersion := ClientVersion{
 		IsCe:  true,
