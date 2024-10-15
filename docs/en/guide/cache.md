@@ -1,70 +1,83 @@
 ---
 title: Cache
 sidebar_position: 3
+description: Learn about JuiceFS cache settings and best practices for JuiceFS CSI Driver.
 ---
 
 JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/guide/cache), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
 
-## Cache settings {#cache-settings}
+With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
+
+* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
+* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
+* When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
+
+## Using host directories (`hostPath`) {#cache-settings}
 
 For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
 
-After cache directory is set, it'll be accessible in the mount pod via `hostPath`, you might also need to configure other cache related options (like `--cache-size`) according to ["Adjust mount options"](./configurations.md#mount-options).
+After the cache directory is set, it will be accessible in the Mount Pod via `hostPath`. You might also need to configure other cache-related options (like `--cache-size`) according to [Adjust mount options](./configurations.md#mount-options).
 
 :::note
 
 * In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
-* For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
 
 :::
 
-Cache related settings is configured in [mount options](./configurations.md#mount-options), you can also refer to the straightforward examples below. After PV is created and mounted, you can also [check the mount pod command](../administration/troubleshooting.md#check-mount-pod) to make sure the options contain the newly set cache directory.
+### Using ConfigMap
 
-* Static provisioning:
+Read [Custom directory](./configurations.md#custom-cachedirs).
 
-  ```yaml {15-16}
-  apiVersion: v1
-  kind: PersistentVolume
-  metadata:
-    name: juicefs-pv
-    labels:
-      juicefs-name: ten-pb-fs
-  spec:
-    capacity:
-      storage: 10Pi
-    volumeMode: Filesystem
-    accessModes:
-      - ReadWriteMany
-    persistentVolumeReclaimPolicy: Retain
-    mountOptions:
-      - cache-dir=/dev/vdb1
-      - cache-size=204800
-    csi:
-      driver: csi.juicefs.com
-      volumeHandle: juicefs-pv
-      fsType: juicefs
-      nodePublishSecretRef:
-        name: juicefs-secret
-        namespace: default
-  ```
+### Define in PV (deprecated)
 
-* Dynamic provisioning:
+Since CSI Driver v0.25.1, cache directories are supported in ConfigMap. Please refer to the previous section to manage all PV settings in a centralized place. The following practice of defining cache directories in PVs is deprecated.
 
-  ```yaml {12-13}
-  apiVersion: storage.k8s.io/v1
-  kind: StorageClass
-  metadata:
-    name: juicefs-sc
-  provisioner: csi.juicefs.com
-  parameters:
-    csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-    csi.storage.k8s.io/provisioner-secret-namespace: default
-    csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-    csi.storage.k8s.io/node-publish-secret-namespace: default
+Static provisioning:
+
+```yaml {15-16}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
   mountOptions:
     - cache-dir=/dev/vdb1
     - cache-size=204800
-  ```
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+```
+
+Dynamic provisioning:
+
+```yaml {12-13}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+mountOptions:
+  - cache-dir=/dev/vdb1
+  - cache-size=204800
+```
 
 ## Use PVC as cache path
 
@@ -77,11 +90,15 @@ First, create a PVC according to your cloud service provider's manual, for examp
 * [Using the Google Compute Engine persistent disk CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
-Assuming a PVC named `ebs-pvc` is already created under the same namespace as the mount pod (default to `kube-system`), use below example to use this PVC as cache directory for JuiceFS CSI Driver.
+Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as the Mount Pod (which defaults to `kube-system`), use the following example to set this PVC as the cache directory for JuiceFS CSI Driver.
 
-### Static provisioning
+### Using ConfigMap
 
-Use this PVC in a JuiceFS PV:
+Read [Custom directory](./configurations.md#custom-cachedirs).
+
+### Define in PV (deprecated)
+
+Static provisioning:
 
 ```yaml {22}
 apiVersion: v1
@@ -105,12 +122,12 @@ spec:
       name: juicefs-secret
       namespace: default
     volumeAttributes:
-      juicefs/mount-cache-pvc: "ebs-pvc"
+      juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
 
-### Dynamic provisioning
+Dynamic provisioning:
 
-To use `ebs-pvc` in StorageClass:
+Reference `jfs-cache-pvc` in StorageClass:
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -123,19 +140,19 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: default
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-cache-pvc: "ebs-pvc"
+  juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
 
 ## Cache warm-up {#warmup}
 
-JuiceFS Client runs inside the mount pod, so cache warm-up has to happen inside the mount pod, use below commands to enter the mount pod and carry out the warm-up:
+The JuiceFS client runs inside the Mount Pod, so cache warm-up must be performed inside the Mount Pod. Use the commands below to enter the Mount Pod and carry out the warm-up operation:
 
 ```shell
 # Application pod information will be used in below commands, save them as environment variables.
 APP_NS=default  # application pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Enter the mount pod using a single command
+# Enter the Mount Pod using a single command
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 
 # Locate the JuiceFS mount point inside pod
