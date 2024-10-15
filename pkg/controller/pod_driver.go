@@ -246,11 +246,11 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 	lock.Lock()
 	defer lock.Unlock()
 
-	notAvailable, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
+	hasAvailable, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
 	if err != nil {
 		return Result{}, err
 	}
-	if notAvailable {
+	if !hasAvailable {
 		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
 		log.Info("need to create a new one", "newPodName", newPodName)
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
@@ -423,16 +423,12 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 	}
 
-	notAvailable, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
+	hasAvailPod, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
 	if err != nil {
 		return Result{}, err
 	}
 
-	shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
-	if err != nil {
-		return Result{}, err
-	}
-	if len(existTargets) == 0 && !shouldDelay && notAvailable {
+	if len(existTargets) == 0 && !hasAvailPod {
 		// do not need to create new one, umount
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 			util.UmountPath(ctx, sourcePath)
@@ -450,16 +446,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		go p.CleanUpCache(context.TODO(), pod)
 		// stop fuse fd and clean up socket
 		go passfd.GlobalFds.StopFd(context.TODO(), hashVal)
-		// remove finalizer of pod
-		if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
-			log.Error(err, "remove pod finalizer error")
-			return Result{}, err
-		}
-		return Result{}, nil
 	}
 
 	// create
-	if notAvailable {
+	if len(existTargets) != 0 && !hasAvailPod {
 		// create pod
 		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
@@ -483,6 +473,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 		return Result{RequeueImmediately: true}, err
 	}
+
 	// remove finalizer of pod
 	if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
 		log.Error(err, "remove pod finalizer error")
@@ -961,7 +952,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 }
 
 func (p *PodDriver) hasAvailableMountPod(ctx context.Context, uniqueId, hashVal string) (bool, error) {
-	log := util.GenLog(ctx, podDriverLog, "needCreate")
+	log := util.GenLog(ctx, podDriverLog, "hasAvailableMountPod")
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		common.PodTypeKey:           common.PodTypeValue,
 		common.PodUniqueIdLabelKey:  uniqueId,
@@ -973,13 +964,13 @@ func (p *PodDriver) hasAvailableMountPod(ctx context.Context, uniqueId, hashVal 
 		log.Error(err, "List pod error")
 		return false, err
 	}
-	notAvailable := true
+	noPod := true
 	for _, po := range pods {
 		if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) {
-			notAvailable = false
+			noPod = false
 		}
 	}
-	return notAvailable, nil
+	return !noPod, nil
 }
 
 func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName string) (*corev1.Pod, error) {
