@@ -563,3 +563,36 @@ func TestGetAllRefKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestGetUniqueId(t *testing.T) {
+	type args struct {
+		pod corev1.Pod
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test",
+			args: args{
+				pod: corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "juicefs-test1-123-3456-6789-123",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "test1",
+					},
+				},
+			},
+			want: "123-3456-6789-123",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetUniqueId(tt.args.pod); got != tt.want {
+				t.Errorf("GetUniqueId() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

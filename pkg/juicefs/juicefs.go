@@ -506,7 +506,6 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	mountPods := []corev1.Pod{}
 	var mountPod *corev1.Pod
 	var podName string
-	var hashVal string
 	// get pod by exact name
 	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
 	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
@@ -533,9 +532,6 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	mountPods = append(mountPods, pods...)
 	// find pod by target
 	key := util.GetReferenceKey(mountPath)
-	lock := config.GetPodLock(hashVal)
-	lock.Lock()
-	defer lock.Unlock()
 	for _, po := range mountPods {
 		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
 			continue
@@ -547,11 +543,10 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	}
 	if mountPod != nil {
 		podName = mountPod.Name
-		hashVal = mountPod.Labels[common.PodJuiceHashLabelKey]
-		if hashVal == "" {
-			return fmt.Errorf("pod %s/%s has no hash label", mountPod.Namespace, mountPod.Name)
-		}
 	}
+	lock := config.GetPodLock(config.GetPodLockKey(mountPod))
+	lock.Lock()
+	defer lock.Unlock()
 
 	// umount target path
 	if err = mnt.UmountTarget(ctx, mountPath, podName); err != nil {
