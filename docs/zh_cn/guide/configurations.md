@@ -861,7 +861,7 @@ spec:
       storage: 20Gi  # 在此处指定更大的容量
 ```
 
-上述方法对存量 PV 不生效，如果需要对扩容存量 PV，需要手动修改 PV，为其增加 Secret 配置
+上述方法对存量 PV 不生效，如果需要对扩容存量 PV，需要手动修改 PV，为其增加 Secret 配置：
 
 ```yaml {7-9}
 apiVersion: v1

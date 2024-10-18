@@ -862,7 +862,7 @@ spec:
       storage: 20Gi  # Specify a larger size here
 ```
 
-The above method will not affect existing PVs. If you need to expand existing PV, you must manually modify the PV to add Secret configuration.
+The above method will not affect existing PVs. If you need to expand an existing PV, you must manually update the PV to include the Secret configuration.
 
 ```yaml {7-9}
 apiVersion: v1
