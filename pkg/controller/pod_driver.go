@@ -244,7 +244,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, err
 	}
 	if !hasAvailable {
-		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("need to create a new one", "newPodName", newPodName)
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err != nil {
@@ -437,7 +437,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	// create
 	if len(existTargets) != 0 && !hasAvailPod {
 		// create pod
-		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
