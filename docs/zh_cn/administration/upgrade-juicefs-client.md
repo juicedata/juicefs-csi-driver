@@ -24,7 +24,7 @@ sidebar_position: 3
 
 注意，覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着升级 CSI 驱动而升级。
 
-### 平滑升级 Mount Pod {#smooth-upgrade}
+### 平滑升级 Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
 JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即在业务不停服的情况下升级 Mount Pod。
 

@@ -24,7 +24,7 @@ Refer to [document](../guide/custom-image.md#ce-ee-separation) to find the label
 
 Pay attention that, with mount pod image overwritten, upgrading CSI Driver will no longer affect mount pod image.
 
-### Smooth upgrade mount pod {#smooth-upgrade}
+### Smooth upgrade mount pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
 Starting from JuiceFS CSI Driver v0.25.0, smooth upgrades for Mount Pods are supported. This allows Mount Pods to be upgraded without interrupting the service.
 

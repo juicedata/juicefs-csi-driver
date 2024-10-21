@@ -32,6 +32,10 @@ juicedata/mount:v1.0.3-4.8.3
 
 ## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
 
+:::tip
+JuiceFS CSI 驱动从 0.25.0 版本开始支持[平滑升级 Mount Pod](../administration/upgrade-juicefs-client.md#smooth-upgrade)，推荐优先使用这种方法升级 Mount Pod。
+:::
+
 JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，根据实际情况选择合适的手段。
 
 :::tip 提示
@@ -42,9 +46,9 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 
 :::
 
-### configmap 修改 {#overwrite-in-configmap}
+### 修改 ConfigMap {#overwrite-in-configmap}
 
-如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本
+如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本：
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:

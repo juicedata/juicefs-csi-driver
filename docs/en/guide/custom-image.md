@@ -32,6 +32,10 @@ juicedata/mount:v1.0.3-4.8.3
 
 ## Overwrite mount pod image {#overwrite-mount-pod-image}
 
+:::tip
+The JuiceFS CSI Driver supports [smooth upgrade of mount pod](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0. It is recommended to use this method to upgrade mount pod first.
+:::
+
 From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
 :::tip
@@ -42,9 +46,9 @@ With mount pod image overwritten, note that:
 
 :::
 
-### configmap modify {#overwrite-in-configmap}
+### Modify ConfigMap {#overwrite-in-configmap}
 
-From JuiceFS CSI Driver 0.24.0 and above, you can easily change the image version in the global configuration
+From JuiceFS CSI Driver 0.24.0 and above, you can easily change the image version in the global configuration:
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
