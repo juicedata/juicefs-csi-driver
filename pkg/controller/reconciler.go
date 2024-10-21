@@ -96,10 +96,6 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			reconcilerLog.Error(err, "doReconcile GetNodeRunningPods error")
 			goto finish
 		}
-		if err := mit.parse(); err != nil {
-			reconcilerLog.Error(err, "doReconcile ParseMountInfo error")
-			goto finish
-		}
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]

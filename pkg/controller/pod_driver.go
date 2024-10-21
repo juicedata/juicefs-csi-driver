@@ -587,6 +587,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	log := util.GenLog(ctx, podDriverLog, "recover")
+	if err := p.mit.parse(); err != nil {
+		log.Error(err, "parse mount info error")
+		return err
+	}
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			mi := p.mit.resolveTarget(ctx, target)
