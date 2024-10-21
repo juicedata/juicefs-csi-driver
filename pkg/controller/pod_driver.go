@@ -152,11 +152,7 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -239,10 +235,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 	}
 	log := util.GenLog(ctx, podDriverLog, "podCompleteHandler")
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -251,7 +244,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, err
 	}
 	if !hasAvailable {
-		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("need to create a new one", "newPodName", newPodName)
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err != nil {
@@ -293,11 +286,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -408,11 +397,8 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	existTargets := make(map[string]string)
 
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
 
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -451,7 +437,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	// create
 	if len(existTargets) != 0 && !hasAvailPod {
 		// create pod
-		newPodName := podmount.GenPodNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey], true)
+		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
@@ -488,11 +474,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return Result{}, fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
-	}
-	lock := config.GetPodLock(hashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -578,7 +560,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
 	podHashVal := pod.Labels[common.PodJuiceHashLabelKey]
 
-	lock := config.GetPodLock(podHashVal)
+	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -605,6 +587,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	log := util.GenLog(ctx, podDriverLog, "recover")
+	if err := p.mit.parse(); err != nil {
+		log.Error(err, "parse mount info error")
+		return err
+	}
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			mi := p.mit.resolveTarget(ctx, target)

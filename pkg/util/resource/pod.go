@@ -351,3 +351,15 @@ func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
 	}
 	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
 }
+
+func GetUniqueId(pod corev1.Pod) string {
+	if pod.Labels[common.PodUniqueIdLabelKey] != "" {
+		return pod.Labels[common.PodUniqueIdLabelKey]
+	}
+
+	// for backward compatibility
+	// pod created by version before: https://github.com/juicedata/juicefs-csi-driver/pull/370
+	nodeName := pod.Spec.NodeName
+	uniqueId := strings.SplitN(pod.Name, fmt.Sprintf("%s-", nodeName), 2)[1]
+	return uniqueId
+}

@@ -35,6 +35,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -104,6 +105,17 @@ func IsInterVolume(name string) bool {
 }
 
 var PodLocks [1024]sync.Mutex
+
+func GetPodLockKey(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	podHashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	if podHashVal == "" {
+		return pod.Name
+	}
+	return podHashVal
+}
 
 func GetPodLock(podHashVal string) *sync.Mutex {
 	h := fnv.New32a()

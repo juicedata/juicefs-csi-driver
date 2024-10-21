@@ -137,6 +137,9 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 }
 
 func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
+	if podHashVal == "" {
+		return
+	}
 	fs.globalMu.Lock()
 	f := fs.fds[podHashVal]
 	if f == nil {
