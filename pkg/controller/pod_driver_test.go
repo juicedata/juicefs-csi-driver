@@ -505,6 +505,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
+			patch4 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch4.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
@@ -524,7 +528,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			patch2 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("pod ready add target mntPath not exists ", func() {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
@@ -537,6 +541,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
+			patch4 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch4.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
@@ -703,6 +711,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 					}},
 				},
 			}
+			patch4 := ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+				return genMountInfos(), nil
+			})
+			defer patch4.Reset()
 			_, err := d.podReadyHandler(context.Background(), pod)
 			So(err, ShouldBeNil)
 		})
