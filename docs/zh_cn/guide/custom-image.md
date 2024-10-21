@@ -12,7 +12,11 @@ Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」
 * `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
 * `/usr/bin/juicefs`：商业版 JuiceFS 客户端
 
-为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+
+:::tip
+如果你需要把 Mount Pod 容器镜像从 Docker Hub 搬运到其它镜像仓库，请参考[文档](../administration/offline.md#copy-images)。
+:::
 
 ```shell
 # 社区版镜像标签以 ce- 开头

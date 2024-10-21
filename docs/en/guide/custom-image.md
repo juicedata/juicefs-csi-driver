@@ -12,7 +12,11 @@ JuiceFS Client runs inside the mount pod, and JuiceFS provides [Community Editio
 * `/usr/local/bin/juicefs`: JuiceFS Community Edition client
 * `/usr/bin/juicefs`: JuiceFS Enterprise Edition client
 
-To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image is provided for CE/EE, you can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v), the image tag looks like:
+To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image is provided for CE/EE, you can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags), the image tag looks like:
+
+:::tip
+If you need to move the Mount Pod image from Docker Hub to other container registry, please refer to [documentation](../administration/offline.md#copy-images).
+:::
 
 ```shell
 # Tag of community mount image begin with ce-
