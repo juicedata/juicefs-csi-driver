@@ -5,17 +5,17 @@ sidebar_position: 1
 
 本章介绍在生产环境中使用 CSI 驱动的一系列最佳实践，以及注意事项。
 
-## PV 设置 {#pv-settings}
+## Mount Pod 设置 {#mount-pod-settings}
 
+* 为了支持[平滑升级 Mount Pod](./upgrade-juicefs-client.md#smooth-upgrade)，请提前配置好 [CSI 控制台](./troubleshooting.md#csi-dashboard)或 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)；
 * 对于动态 PV 场景，建议[配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)；
-* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)；
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/guide/cache#client-write-cache)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache#client-write-cache)；
-* 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md)以调优；
+* 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md#mount-pod-resources)以调优；
 * 考虑为 mount pod 设置非抢占式 PriorityClass，避免资源不足时，mount pod 将业务容器驱逐。详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)。
 
 ## Sidecar 模式推荐设置 {#sidecar}
 
-目前 CSI 驱动不支持为 sidecar 模式的 mount 容器设置退出顺序，无法做到在应用容器退出以后，sidecar 才退出。这是由于 Kubernetes sidecar 自身便不支持退出顺序导致的，该特性在 [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 原生 sidecar 得到支持，因此如果你使用新版 Kubernetes 并且有相关需求，请在对应的 [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976)下记录需求。
+目前 CSI 驱动不支持为 sidecar 模式的 mount 容器设置退出顺序，无法做到在应用容器退出以后，sidecar 才退出。这是由于 Kubernetes sidecar 自身便不支持退出顺序导致的，该特性在 [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 原生 sidecar 得到支持，因此如果你使用新版 Kubernetes 并且有相关需求，请在对应的 [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976) 下记录需求。
 
 因此，在用户广泛采纳 Kubernetes v1.28，让 CSI 驱动有机会实现原生 sidecar 之前，我们建议用户通过设置 `preStop` 来满足延迟退出的需求：
 

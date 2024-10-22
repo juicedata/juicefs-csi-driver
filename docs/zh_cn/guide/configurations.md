@@ -9,7 +9,7 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 mount pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
-由于 ConfigMap 功能强大、更加灵活，他将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
+由于 ConfigMap 功能强大、更加灵活，它将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
 
 :::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/configmap/#%E8%A2%AB%E6%8C%82%E8%BD%BD%E7%9A%84-configmap-%E5%86%85%E5%AE%B9%E4%BC%9A%E8%A2%AB%E8%87%AA%E5%8A%A8%E6%9B%B4%E6%96%B0)）。
@@ -149,24 +149,21 @@ globalConfig:
 
 虽然在[「ConfigMap 配置」](#configmap)的示范代码块里已经罗列了所有支持的定制项目和 PVC 选择器，但每一个配置项的修改生效条件和写法不尽相同，因此在本节一一罗列，使用前请详细阅读。
 
-### 容器镜像 {#custom-image}
+:::tip
+通过 ConfigMap 修改配置后，借助 CSI 驱动 0.25.0 版本开始支持的[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性可以在不重建应用 Pod 的情况下使得修改后的配置立即生效。因此优先推荐使用这种方法来更新配置，**但是需要注意目前只有部分配置支持平滑升级，会在下文中以 <Badge type="primary">支持平滑升级</Badge> 徽章来特别注明**。
 
-#### 使用 Configmap
+如果不能使用「平滑升级 Mount Pod」特性，则需要重建应用 Pod 和 Mount Pod，请务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+:::
 
-该功能最低需要 CSI 驱动版本 v0.24.0，修改后需重建业务 Pod 或者删除 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+### 容器镜像 <Badge type="primary">支持平滑升级</Badge> {#custom-image}
 
-```yaml {2-4}
-globalConfig:
-  mountPodPatch:
-    - ceMountImage: juicedata/mount:ce-v1.2.0
-      eeMountImage: juicedata/mount:ee-5.1.0-053aa0b
-```
+#### 使用 ConfigMap {#custom-image-via-configmap}
 
-如果需要使用定制版本的容器镜像，或者寻找最新版本的 JuiceFS 客户端镜像，请阅读[定制容器镜像](./custom-image.md)。
+请参考[「升级 Mount Pod 容器镜像」](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image)文档。
 
 ### 环境变量 {#custom-env}
 
-#### 使用 Configmap
+#### 使用 ConfigMap
 
 该功能最低需要 CSI 驱动版本 v0.24.5，修改后需要重建业务 Pod 生效。
 
@@ -195,21 +192,21 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### 资源限制 {#custom-resources}
+### 资源限制 <Badge type="primary">支持平滑升级</Badge> {#custom-resources}
 
-#### 使用 Configmap
+#### 使用 ConfigMap {#custom-resources-via-configmap}
 
-该功能最低需要 CSI 驱动版本 v0.24.0，修改后需要重建业务 Pod 或者重建 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
+该特性需要的 CSI 驱动最低版本为 0.24.0，示例如下：
 
 ```yaml {2-5}
   mountPodPatch:
-  - resources:
-      requests:
-        cpu: 100m
-        memory: 512Mi
+    - resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
 ```
 
-阅读[资源优化](./resource-optimization.md)以了解如何恰当设置资源定义，来兼顾性能和资源占用。
+阅读[资源优化](./resource-optimization.md#mount-pod-resources)以了解如何恰当设置资源定义，来兼顾性能和资源占用。
 
 ### 挂载参数 {#mount-options}
 
@@ -280,7 +277,7 @@ spec:
 
 在 `StorageClass` 定义中调整挂载参数。如果需要为不同应用使用不同挂载参数，则需要创建多个 `StorageClass`，单独添加所需参数。
 
-注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV。**如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](#static-mount-options)。
+注意，StorageClass 仅仅是动态配置下用于创建 PV 的「模板」，也正因此，**在 StorageClass 中修改挂载配置，不影响已经创建的 PV**。如果你需要调整挂载配置，需要删除 PVC 重建，或者直接[在 PV 级别调整挂载配置](#static-mount-options)。
 
 ```yaml {6-7}
 apiVersion: storage.k8s.io/v1
@@ -294,11 +291,9 @@ parameters:
   ...
 ```
 
-### 健康检查 & 容器回调 {#custom-probe-lifecycle}
+### 健康检查 & 容器回调 <Badge type="primary">支持平滑升级</Badge> {#custom-probe-lifecycle}
 
-该功能最低需要 CSI 驱动版本 v0.24.0，修改后需重建业务 Pod 或者删除 Mount Pod 生效。若要使用重建 Mount Pod 的方式，务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
-
-使用场景：
+该特性需要的 CSI 驱动最低版本为 0.24.0，使用场景：
 
 - 配合 `readinessProbe` 配合监控体系，建立告警机制；
 - 定制 `preStopHook`，避免 sidecar 场景中，挂载容器早于业务容器退出，造成业务波动。详见 [Sidecar 模式推荐设置](../administration/going-production.md#sidecar)。
@@ -354,7 +349,7 @@ parameters:
         defaultMode: 420
 ```
 
-#### 使用 secret
+#### 使用 Secret
 
 在 JuiceFS Secret 的 `configs` 字段中，只能挂载额外的 Secret，无法配置共享块设备的挂载。
 
@@ -774,7 +769,11 @@ parameters:
 
 ## 常用 PV 设置 {#common-pv-settings}
 
-### 挂载点自动恢复 {#automatic-mount-point-recovery}
+### 挂载点自动恢复（不再推荐） {#automatic-mount-point-recovery}
+
+:::tip
+JuiceFS CSI 驱动从 0.25.0 版本开始支持[平滑升级 Mount Pod](../administration/upgrade-juicefs-client.md#smooth-upgrade)，因此不再需要使用以下方法来自动恢复挂载点。
+:::
 
 JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 遭遇故障，重启或重新创建 Mount Pod 以后，应用容器也能继续工作。
 

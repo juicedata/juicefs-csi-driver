@@ -15,7 +15,7 @@ There are currently two methods for upgrading mount pod container images:
 - [Smooth upgrade mount pod](#smooth-upgrade): This method can upgrade the mount pod without rebuilding the application pod.
 - [Modify mount pod image configuration](../guide/custom-image.md#overwrite-mount-pod-image): This method must rebuild the application pod to upgrade the mount pod.
 
-Refer to [document](../guide/custom-image.md#ce-ee-separation) to find the label of the new version of the mount pod container image in Docker Hub, and then select different upgrade method based on the CSI Driver version and mount mode you are using:
+Refer to [document](../guide/custom-image.md#ce-ee-separation) to find the tag of the new version of the mount pod container image in Docker Hub, and then select different upgrade method based on the CSI Driver version and mount mode you are using:
 
 |                    | Version 0.25.0 and above             | Version before 0.25.0                |
 |:------------------:|:------------------------------------:|:------------------------------------:|
