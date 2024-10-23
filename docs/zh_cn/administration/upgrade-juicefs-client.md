@@ -36,9 +36,9 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 平滑升级要求 Mount Pod 的 `preStop` 不可配置 `umount ${MOUNT_POINT}` 操作，请务必确保 [CSI ConfigMap](./../guide/configurations.md#configmap) 中未配置 `umount`。
 :::
 
-平滑升级 Mount Pod 有两种升级方式：「Pod 升级」和「二进制升级」。区别在于：
+平滑升级 Mount Pod 有两种升级方式：「Pod 重建升级」和「二进制升级」。区别在于：
 
-- Pod 升级：Mount Pod 会重建，Mount Pod 的最低版本要求为 1.2.1（社区版）或 5.1.0（企业版）；
+- Pod 重建升级：Mount Pod 会重建，Mount Pod 的最低版本要求为 1.2.1（社区版）或 5.1.0（企业版）；
 - 二进制升级：Mount Pod 不重建，只升级其中的二进制，不可变更其它配置，且升级完成后在 Mount Pod 的 YAML 中看到的依然是原来的镜像。Mount Pod 的最低版本要求为 1.2.0（社区版）或 5.0.0（企业版）。
 
 两种升级方式均为平滑升级，业务可不停服，请根据实际情况选择。
@@ -55,7 +55,7 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 
    ![CSI dashboard config mount pod image](./../images/upgrade-image.png)
 
-2. 在 Mount Pod 的详情页，有两个升级按钮，分别是「Pod 升级」和「二进制升级」：
+2. 在 Mount Pod 的详情页，有两个升级按钮，分别是「Pod 重建升级」和「二进制升级」：
 
    ![CSI dashboard mount pod upgrade button](./../images/upgrade-menu.png)
 
@@ -84,7 +84,7 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0
 2. 使用 JuiceFS kubectl 插件触发 Mount Pod 的平滑升级：
 
    ```bash
-   # Pod 升级
+   # Pod 重建升级
    kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af-ebngyg --recreate
 
    # 二进制升级

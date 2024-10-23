@@ -36,9 +36,9 @@ Smooth upgrades are only applicable to mount pod mode.
 To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured with `umount ${MOUNT_POINT}`. Ensure that `umount` is not configured in [CSI ConfigMap](./../guide/configurations.md#configmap).
 :::
 
-Smooth upgrade mount pod has two upgrade methods: "Pod upgrade" and "Binary upgrade". The difference is:
+Smooth upgrade mount pod has two upgrade methods: "Pod recreate upgrade" and "Binary upgrade". The difference is:
 
-- Pod upgrade: The mount pod will be rebuilt, and the minimum version requirement of mount pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition);
+- Pod recreate upgrade: The mount pod will be rebuilt, and the minimum version requirement of mount pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition);
 - Binary upgrade: The mount pod is not rebuilt, only the binary is upgraded, and other configurations cannot be changed. After the upgrade is completed, what you see in the YAML of the mount pod is still the original image. The minimum version requirement of mount pod is 1.2.0 (Community Edition) or 5.0.0 (Enterprise Edition).
 
 Both upgrade methods are smooth upgrades, and the service does not need to be stopped. Please choose according to the actual situation.
@@ -55,13 +55,13 @@ Smooth upgrade can only be triggered in [CSI dashboard](./troubleshooting.md#csi
 
    ![CSI dashboard config mount pod image](../images/upgrade-image.png)
 
-2. In the Mount Pod details page, there are two upgrade buttons. One is for a pod upgrade and the other one is for a binary upgrade:
+2. In the Mount Pod details page, there are two upgrade buttons. One is for a pod recreate upgrade and the other one is for a binary upgrade:
 
    ![CSI dashboard mount pod upgrade button](../images/upgrade-menu.png)
 
 3. Click **upgrade button** to trigger a smooth upgrade for the Mount Pod:
 
-    ![CSI dashboard mount pod smooth upgrade](../images/smooth-upgrade.png)
+   ![CSI dashboard mount pod smooth upgrade](../images/smooth-upgrade.png)
 
 #### Trigger a smooth upgrade in the kubectl plugin {#smooth-upgrade-via-kubectl-plugin}
 
@@ -84,7 +84,7 @@ The minimum version requirement for the JuiceFS kubectl plugin is 0.3.0.
 2. Trigger a smooth upgrade for the Mount Pod using the JuiceFS kubectl plugin:
 
     ```bash
-    # Pod upgrade
+    # Pod recreate upgrade
     kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af-ebngyg --recreate
 
     # Binary upgrade
