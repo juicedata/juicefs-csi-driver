@@ -12,15 +12,15 @@ sidebar_position: 3
 
 目前有两种升级 Mount Pod 容器镜像的方法：
 
-- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 pod 升级 Mount Pod
-- [修改 Mount Pod 镜像配置](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 pod 才能升级 Mount Pod
+- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 pod 升级已经创建好的 Mount Pod
+- [有损升级 Mount Pod](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 pod 才能升级已经创建好的 Mount Pod
 
 参考[文档](../guide/custom-image.md#ce-ee-separation)在 Docker Hub 找到新版 Mount Pod 容器镜像的标签，然后根据你使用的 CSI 驱动版本和运行模式，选择不同的升级方法：
 
-|                               | 0.25.0 及以上版本       | 0.25.0 以前的版本       |
-|:-----------------------------:|:-----------------------:|:-----------------------:|
-| **容器挂载（Mount Pod）模式** | 平滑升级 Mount Pod      | 修改 Mount Pod 镜像配置 |
-| **Sidecar 模式**              | 修改 Mount Pod 镜像配置 | 修改 Mount Pod 镜像配置 |
+|                               | 0.25.0 及以上版本  | 0.25.0 以前的版本  |
+|:-----------------------------:|:------------------:|:------------------:|
+| **容器挂载（Mount Pod）模式** | 平滑升级 Mount Pod | 有损升级 Mount Pod |
+| **Sidecar 模式**              | 有损升级 Mount Pod | 有损升级 Mount Pod |
 
 注意，覆盖 Mount Pod 容器镜像后，JuiceFS 客户端将不会随着升级 CSI 驱动而升级。
 
@@ -39,7 +39,7 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 平滑升级 Mount Pod 有两种升级方式：「Pod 升级」和「二进制升级」。区别在于：
 
 - Pod 升级：Mount Pod 会重建，Mount Pod 的最低版本要求为 1.2.1（社区版）或 5.1.0（企业版）；
-- 二进制升级：Mount Pod 不重建，只升级其中的二进制，Mount Pod 的最低版本要求为 1.2.0（社区版）或 5.0.0（企业版）。
+- 二进制升级：Mount Pod 不重建，只升级其中的二进制，不可变更其它配置，且升级完成后在 Mount Pod 的 YAML 中看到的依然是原来的镜像。Mount Pod 的最低版本要求为 1.2.0（社区版）或 5.0.0（企业版）。
 
 两种升级方式均为平滑升级，业务可不停服，请根据实际情况选择。
 

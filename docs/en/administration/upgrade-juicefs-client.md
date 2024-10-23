@@ -12,15 +12,16 @@ As a matter of fact, [upgrading JuiceFS CSI Driver](./upgrade-csi-driver.md) wil
 
 There are currently two methods for upgrading mount pod container images:
 
-- [Smooth upgrade mount pod](#smooth-upgrade): This method can upgrade the mount pod without rebuilding the application pod.
-- [Modify mount pod image configuration](../guide/custom-image.md#overwrite-mount-pod-image): This method must rebuild the application pod to upgrade the mount pod.
+- [Smooth upgrade mount pod](#smooth-upgrade): This method allows you to upgrade an already created mount pod without rebuilding the application pod.
+Lossy upgrade mount pod
+- [Lossy upgrade mount pod](../guide/custom-image.md#overwrite-mount-pod-image): This method requires that the application pod be rebuilt in order to upgrade an already created mount pod.
 
 Refer to [document](../guide/custom-image.md#ce-ee-separation) to find the tag of the new version of the mount pod container image in Docker Hub, and then select different upgrade method based on the CSI Driver version and mount mode you are using:
 
-|                    | Version 0.25.0 and above             | Version before 0.25.0                |
-|:------------------:|:------------------------------------:|:------------------------------------:|
-| **Mount pod mode** | Smooth upgrade mount pod             | Modify mount pod image configuration |
-| **Sidecar mode**   | Modify mount pod image configuration | Modify mount pod image configuration |
+|                    | Version 0.25.0 and above | Version before 0.25.0   |
+|:------------------:|:------------------------:|:-----------------------:|
+| **Mount pod mode** | Smooth upgrade mount pod | Lossy upgrade mount pod |
+| **Sidecar mode**   | Lossy upgrade mount pod  | Lossy upgrade mount pod |
 
 Pay attention that, with mount pod image overwritten, upgrading CSI Driver will no longer affect mount pod image.
 
@@ -38,8 +39,8 @@ To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured
 
 Smooth upgrade mount pod has two upgrade methods: "Pod upgrade" and "Binary upgrade". The difference is:
 
-- Pod upgrade: Mount pod will be rebuilt, and the minimum version requirement of mount pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition);
-- Binary upgrade: Mount pod does not rebuild, only the binary in it is upgraded. The minimum version requirement of mount pod is 1.2.0 (Community Edition) or 5.0.0 (Enterprise Edition).
+- Pod upgrade: The mount pod will be rebuilt, and the minimum version requirement of mount pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition);
+- Binary upgrade: The mount pod is not rebuilt, only the binary is upgraded, and other configurations cannot be changed. After the upgrade is completed, what you see in the YAML of the mount pod is still the original image. The minimum version requirement of mount pod is 1.2.0 (Community Edition) or 5.0.0 (Enterprise Edition).
 
 Both upgrade methods are smooth upgrades, and the service does not need to be stopped. Please choose according to the actual situation.
 
