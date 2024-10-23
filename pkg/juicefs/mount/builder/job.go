@@ -230,10 +230,11 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 // restart: pull image ahead
 // !restart: for download binary
 func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod, restart bool) (*batchv1.Job, error) {
-	attr, err := config.GenPodAttrWithMountPod(ctx, client, mountPod)
+	setting, err := config.GenSettingAttrWithMountPod(ctx, client, mountPod)
 	if err != nil {
 		return nil, err
 	}
+	attr := setting.Attr
 	volumeId := mountPod.Labels[common.PodUniqueIdLabelKey]
 	name := GenJobNameByVolumeId(volumeId) + "-canary"
 	if _, err := client.GetJob(ctx, name, config.Namespace); err == nil {
