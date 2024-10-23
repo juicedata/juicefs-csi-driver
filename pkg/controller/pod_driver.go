@@ -804,7 +804,9 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	pod.Spec.Containers[0].Resources = attr.Resources
 
 	if len(setting.Attr.CacheDirs) > 0 {
-		config.GenCacheDirs(setting, nil)
+		if err := config.GenCacheDirs(setting, nil); err != nil {
+			return err
+		}
 	}
 	// merge envs
 	resource.MergeEnvs(pod, attr.Env)
