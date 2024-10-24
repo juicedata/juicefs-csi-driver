@@ -53,15 +53,15 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
    相比手动修改 [CSI ConfigMap 配置](./../guide/configurations.md#configmap)，在 CSI 控制台上修改会立即生效。
    :::
 
-   ![CSI dashboard config mount pod image](./../images/upgrade-image.png)
+   ![CSI dashboard config Mount Pod image](./../images/upgrade-image.png)
 
 2. 在 Mount Pod 的详情页，有两个升级按钮，分别是「Pod 重建升级」和「二进制升级」：
 
-   ![CSI dashboard mount pod upgrade button](./../images/upgrade-menu.png)
+   ![CSI dashboard Mount Pod upgrade button](./../images/upgrade-menu.png)
 
 3. 点击升级按钮，即可触发 Mount Pod 的平滑升级：
 
-   ![CSI dashboard mount pod smooth upgrade](./../images/smooth-upgrade.png)
+   ![CSI dashboard Mount Pod smooth upgrade](./../images/smooth-upgrade.png)
 
 #### kubectl 插件中触发平滑升级 {#smooth-upgrade-via-kubectl-plugin}
 

@@ -3,11 +3,11 @@ title: Customize Container Image
 sidebar_position: 5
 ---
 
-This chapter describes how to overwrite the mount pod image and how to build the CSI Driver component image by yourself.
+This chapter describes how to overwrite the Mount Pod image and how to build the CSI Driver component image by yourself.
 
-## Mount pod image separation {#ce-ee-separation}
+## Mount Pod image separation {#ce-ee-separation}
 
-JuiceFS Client runs inside the mount pod, and JuiceFS provides [Community Edition](https://juicefs.com/docs/community/introduction) and [Enterprise Edition](https://juicefs.com/docs/cloud), for a long period of time, mount image contains both versions:
+JuiceFS Client runs inside the Mount Pod, and JuiceFS provides [Community Edition](https://juicefs.com/docs/community/introduction) and [Enterprise Edition](https://juicefs.com/docs/cloud), for a long period of time, mount image contains both versions:
 
 * `/usr/local/bin/juicefs`: JuiceFS Community Edition client
 * `/usr/bin/juicefs`: JuiceFS Enterprise Edition client
@@ -30,18 +30,18 @@ juicedata/mount:ee-5.0.23-8c7c134
 juicedata/mount:v1.0.3-4.8.3
 ```
 
-## Overwrite mount pod image {#overwrite-mount-pod-image}
+## Overwrite Mount Pod image {#overwrite-mount-pod-image}
 
 :::tip
 The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0. It is recommended to use this method to upgrade Mount Pods first.
 :::
 
-From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.
+From JuiceFS CSI Driver 0.17.1 and above, modifying the default Mount Pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.
 
 :::tip
-With mount pod image overwritten, note that:
+With Mount Pod image overwritten, note that:
 
-* Existing mount pods won't be affected, new images will run only if you rolling upgrade app pods, or delete mount pod.
+* Existing Mount Pods won't be affected, new images will run only if you rolling upgrade app pods, or delete Mount Pod.
 * By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 
 :::
@@ -62,7 +62,7 @@ globalConfig:
 
 See: [Customize Mount Pod and Sidecar containers](./configurations.md#customize-mount-pod)
 
-### Configure mount pod image globally {#overwrite-in-csi-node}
+### Configure Mount Pod image globally {#overwrite-in-csi-node}
 
 If you use Helm to manage CSI Driver, changing mount image is as simple as the following one-liner:
 
@@ -91,10 +91,10 @@ Also, don't forget to put these changes into `k8s.yaml`, to avoid losing these c
 ### Dynamic provisioning {#overwrite-in-sc}
 
 :::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+Starting from v0.24, CSI Driver can customize Mount Pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
 :::
 
-CSI Driver allows [overriding the mount pod image in the StorageClass definition](#overwrite-in-sc), if you need to use different mount pod image for different applications, you'll need to create multiple StorageClass, and specify the desired mount pod image for each StorageClass.
+CSI Driver allows [overriding the Mount Pod image in the StorageClass definition](#overwrite-in-sc), if you need to use different Mount Pod image for different applications, you'll need to create multiple StorageClass, and specify the desired Mount Pod image for each StorageClass.
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -110,15 +110,15 @@ parameters:
   juicefs/mount-image: juicedata/mount:ce-v1.2.0
 ```
 
-And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different mount pod image for different applications.
+And then in PVC definitions, reference the needed StorageClass via the `storageClassName` field, so that you may use different Mount Pod image for different applications.
 
 ### Static provisioning
 
 :::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
+Starting from v0.24, CSI Driver can customize Mount Pods and sidecar containers in the [ConfigMap](#overwrite-in-configmap), legacy method introduced in this section is not recommended.
 :::
 
-For [Static provisioning](./pv.md#static-provisioning), you'll have to configure mount pod image inside the PV definition.
+For [Static provisioning](./pv.md#static-provisioning), you'll have to configure Mount Pod image inside the PV definition.
 
 ```yaml {22}
 apiVersion: v1
@@ -147,11 +147,11 @@ spec:
 
 ## Build image
 
-### Build mount pod image {#build-mount-pod-image}
+### Build Mount Pod image {#build-mount-pod-image}
 
-JuiceFS CSI Driver adopt a [decoupled architecture](../introduction.md#architecture), mount pod image defaults to [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and community edition built using [`docker/ce.juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/ce.juicefs.Dockerfile).
+JuiceFS CSI Driver adopt a [decoupled architecture](../introduction.md#architecture), Mount Pod image defaults to [`juicedata/mount`](https://hub.docker.com/r/juicedata/mount), and community edition built using [`docker/ce.juicefs.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/ce.juicefs.Dockerfile).
 
-If you were to build your own mount pod image, refer to below code to clone the JuiceFS Community Edition repository, and then build the image using the provided Dockerfile:
+If you were to build your own Mount Pod image, refer to below code to clone the JuiceFS Community Edition repository, and then build the image using the provided Dockerfile:
 
 ```shell
 # Clone JuiceFS Community Edition repository
@@ -169,7 +169,7 @@ docker build -t registry.example.com/juicefs-csi-mount:ce-latest -f dev.juicefs.
 docker push registry.example.com/juicefs-csi-mount:ce-latest
 ```
 
-To use the newly built image, refer to [Overwrite mount pod image](#overwrite-mount-pod-image).
+To use the newly built image, refer to [Overwrite Mount Pod image](#overwrite-mount-pod-image).
 
 ### Build CSI Driver component image
 

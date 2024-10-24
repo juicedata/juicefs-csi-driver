@@ -134,7 +134,7 @@ Since v0.23.5, Helm chart supports `mountMode: serverless`, a special form of si
 The `serverless` mode allows CSI Driver to be installed in full virtual nodes, in comparison, the default `sidecar` mode still requires an actual VM.
 :::
 
-Sidecar is very different from the default mount pod mode, for example, sharing JuiceFS Client is not available, neither does it support [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery).
+Sidecar is very different from the default Mount Pod mode, for example, sharing JuiceFS Client is not available, neither does it support [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery).
 
 ### Helm
 

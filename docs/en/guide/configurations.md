@@ -7,7 +7,7 @@ This chapter introduces JuiceFS PV configurations, as well as CSI Driver configu
 
 ## ConfigMap {#configmap}
 
-Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for mount pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
+Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize Mount Pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for Mount Pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
 
 ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
@@ -319,7 +319,7 @@ The minimum version of the CSI Driver required for this feature is 0.24.0. Targe
 
 Targeted scenarios:
 
-- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the Mount Pod. The relevant environment variable needs to be added to specify the added files for authentication.
 - JuiceFS Enterprise Edition supports [shared block storage device](https://juicefs.com/docs/cloud/guide/block-device), which can be used as cache storage or permanent data storage.
 
 #### Via ConfigMap
@@ -405,7 +405,7 @@ mountOptions:
 Many features are closely relevant to other topics. For more information:
 
 * Configure delayed deletion for Mount Pods to reduce startup overhead in short application pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
-* Clean cache upon mount pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
+* Clean cache upon Mount Pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
 
 ## Format options / auth options {#format-options}
 
@@ -417,7 +417,7 @@ Format options / auth options are options used in `juicefs [format|auth]` comman
 Considering the similarities between the two commands, options all go to the `format-options` field, as follows.
 
 :::tip
-Changing `format-options` does not affect existing mount clients, even if mount pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
+Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
 :::
 
 JuiceFS Community Edition:
@@ -777,13 +777,13 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
 :::
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
+JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when Mount Pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
 
 :::note
 Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
 :::
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when mount pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1
@@ -817,13 +817,13 @@ You can also use tools provided by a community developer to automatically add `m
 
 Starting from v0.23.3, CSI Driver by default caches the configuration file for JuiceFS Client, i.e. [mount configuration for JuiceFS Enterprise Edition](https://juicefs.com/docs/cloud/reference/command_reference/#auth), which has the following benefits:
 
-* &#8203;<Badge type="primary">On-prem</Badge> If JuiceFS Web Console suffers from an outage, or clients undergo network issue, mount pods & sidecar containers can still mount via the cached config and continue to serve
+* &#8203;<Badge type="primary">On-prem</Badge> If JuiceFS Web Console suffers from an outage, or clients undergo network issue, Mount Pods & sidecar containers can still mount via the cached config and continue to serve
 
 Caching works like this:
 
 1. Users create or update [volume credential](./pv.md#volume-credentials), CSI Controller will watch for changes and immediately run `juicefs auth` to obtain the new config;
 2. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
-3. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
+3. When CSI Node creates Mount Pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
 4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
 If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
@@ -909,7 +909,7 @@ Dynamic provisioning supports `Delete|Retain` policies, `Delete` causes data to 
 
 ### Mount host's directory in Mount Pod {#mount-host-path}
 
-If you need to mount files or directories into the mount pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
+If you need to mount files or directories into the Mount Pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
 
 #### Static provisioning
 

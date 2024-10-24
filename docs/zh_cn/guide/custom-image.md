@@ -93,7 +93,7 @@ kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plu
 ### 动态配置 {#overwrite-in-sc}
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，本小节所介绍的方式已经不再推荐使用。
 :::
 
 CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
@@ -117,7 +117,7 @@ parameters:
 ### 静态配置
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，本小节所介绍的方式已经不再推荐使用。
 :::
 
 对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 PV 定义中配置 Mount Pod 镜像：

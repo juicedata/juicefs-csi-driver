@@ -6,7 +6,7 @@ slug: /ceph
 
 If you use [Ceph](https://ceph.io) as the underlying storage for JuiceFS, you can either use the standard [S3 RESTful API](https://docs.ceph.com/en/latest/radosgw/s3) to access the [Ceph Object Gateway (RGW)](https://docs.ceph.com/en/latest/radosgw), or the more efficient [`librados`](https://docs.ceph.com/en/latest/rados/api/librados) to access Ceph storage.
 
-JuiceFS CSI Driver supports [adding extra files to mount pod](../guide/pv.md#mount-pod-extra-files), with this mechanism, we can add Ceph client configuration files (obtained from the host path `/etc/ceph`) into the mount pod.
+JuiceFS CSI Driver supports [adding extra files to Mount Pod](../guide/pv.md#mount-pod-extra-files), with this mechanism, we can add Ceph client configuration files (obtained from the host path `/etc/ceph`) into the Mount Pod.
 
 ## Create JuiceFS volume using Ceph storage
 

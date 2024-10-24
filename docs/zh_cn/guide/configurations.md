@@ -7,7 +7,7 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 
 ## ConfigMap 配置 {#configmap}
 
-从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 mount pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 mount pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
+从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 Mount Pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 Mount Pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
 由于 ConfigMap 功能强大、更加灵活，它将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
 
@@ -821,7 +821,7 @@ spec:
 
 1. 用户填写或更新[文件系统认证信息](./pv.md#volume-credentials)，CSI Controller 会监听 Secret 的变化，并立刻发起认证、获取配置文件；
 1. CSI Controller 将配置文件注入进 Secret，保存在 `initconfig` 字段；
-1. 当 CSI Node 创建 mount pod，或者 CSI Controller 注入 sidecar 容器的时候，会将 `initconfig` 挂载进容器内；
+1. 当 CSI Node 创建 Mount Pod，或者 CSI Controller 注入 sidecar 容器的时候，会将 `initconfig` 挂载进容器内；
 1. 容器内的 JuiceFS 客户端会运行 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#auth) 命令，但由于配置文件已经挂载进容器内，因此就算容器无法访问 JuiceFS Web 控制台，挂载也能照常继续。
 
 如果希望关闭该功能，需要将 Helm 集群配置中的 [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) 字段设置为 `false`。

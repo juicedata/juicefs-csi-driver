@@ -27,7 +27,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 ### 在 ConfigMap 中配置资源声明 {#resources-configmap}
 
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 mount pod 和 sidecar 容器，修改资源定义非常简便：
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 Mount Pod 和 sidecar 容器，修改资源定义非常简便：
 
 ```yaml title="values-mycluster.yaml" {3-6}
 globalConfig:
@@ -38,18 +38,18 @@ globalConfig:
           memory: 512Mi
 ```
 
-修改完毕以后，滚动升级应用或者删除重建 mount pod，便会按照新的资源定义重建。
+修改完毕以后，滚动升级应用或者删除重建 Mount Pod，便会按照新的资源定义重建。
 
 ### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 mount pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 Mount Pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
 :::
 
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
 
-* 修改以后，已有的 mount pod 并不会自动按照新的配置重建。需要删除 mount pod，才能以新的资源配置触发创建新的 mount pod。
-* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 mount pod 的挂载点才能传播回应用 pod。
+* 修改以后，已有的 Mount Pod 并不会自动按照新的配置重建。需要删除 Mount Pod，才能以新的资源配置触发创建新的 Mount Pod。
+* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 pod。
 * 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
 
 ```yaml {6-9}
@@ -72,7 +72,7 @@ spec:
 
 ### 留空资源设置 {#omit-resources}
 
-如果需要在 mount pod 中省略特定的 resources 字段（不填 requests 或者 limits），那么可以将对应字段设置为“0”：
+如果需要在 Mount Pod 中省略特定的 resources 字段（不填 requests 或者 limits），那么可以将对应字段设置为“0”：
 
 ```yaml
 juicefs/mount-cpu-limit: "0"
@@ -82,7 +82,7 @@ juicefs/mount-cpu-requests: "1m"
 juicefs/mount-memory-requests: "4Mi"
 ```
 
-应用配置以后，新创建的 mount pod 会将“0”解释为省略不填，最终效果如下：
+应用配置以后，新创建的 Mount Pod 会将“0”解释为省略不填，最终效果如下：
 
 ```yaml
 resources:
@@ -91,7 +91,7 @@ resources:
     memory: 4Mi
 ```
 
-之所以不建议将 requests 设置为“0”，原因是 Kubernetes 在面对缺失 requests 时，会将其解释为与 limits 相等，也就是说，如果你设置了如下 mount pod 资源：
+之所以不建议将 requests 设置为“0”，原因是 Kubernetes 在面对缺失 requests 时，会将其解释为与 limits 相等，也就是说，如果你设置了如下 Mount Pod 资源：
 
 ```yaml
 # 错误示范，请勿模仿
@@ -102,7 +102,7 @@ juicefs/mount-cpu-requests: "0"
 juicefs/mount-memory-requests: "0"
 ```
 
-那么按照 requests = limits 的规则，最终渲染结果往往不符合用户预期，也无法创建 mount pod，造成资源创建失败。
+那么按照 requests = limits 的规则，最终渲染结果往往不符合用户预期，也无法创建 Mount Pod，造成资源创建失败。
 
 ```yaml
 resources:
@@ -185,7 +185,7 @@ parameters:
   juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
 ```
 
-需要注意，由于已经支持[在 PVC annotations 定义 mount pod 资源](#mount-pod-resources-pvc)，已不需要用到此配置方法。
+需要注意，由于已经支持[在 PVC annotations 定义 Mount Pod 资源](#mount-pod-resources-pvc)，已不需要用到此配置方法。
 
 如果你使用 Helm 管理 StorageClass，则直接在 `values.yaml` 中定义：
 

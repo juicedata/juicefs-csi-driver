@@ -61,13 +61,13 @@ mountPodPatch:
             done
 ```
 
-## Configure mount pod monitoring (Community Edition) {#monitoring}
+## Configure Mount Pod monitoring (Community Edition) {#monitoring}
 
 :::tip
 Content in this section is only applicable to JuiceFS Community Edition, because Enterprise Edition doesn't provide metrics via local port, instead a centralized metrics API is provided, see [enterprise docs](https://juicefs.com/docs/zh/cloud/administration/monitoring/#prometheus-api).
 :::
 
-By default (not using `hostNetwork`), the mount pod provides a metrics API through port 9567 (you can also add [`metrics`](https://juicefs.com/docs/community/command_reference#mount) option in [`mountOptions`](../guide/configurations.md#mount-options) to customize the port number), the port name is `metrics`, so the monitoring configuration of Prometheus can be configured as follows.
+By default (not using `hostNetwork`), the Mount Pod provides a metrics API through port 9567 (you can also add [`metrics`](https://juicefs.com/docs/community/command_reference#mount) option in [`mountOptions`](../guide/configurations.md#mount-options) to customize the port number), the port name is `metrics`, so the monitoring configuration of Prometheus can be configured as follows.
 
 ### Collect data in Prometheus {#collect-metrics}
 
@@ -182,15 +182,15 @@ Once metrics data is collected, refer to the following documents to set up Grafa
 * [JuiceFS Community Edition](https://juicefs.com/docs/community/administration/monitoring/#grafana)
 * [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/administration/monitor/#prometheus-api)
 
-## Collect mount pod logs using EFK {#collect-mount-pod-logs}
+## Collect Mount Pod logs using EFK {#collect-mount-pod-logs}
 
-Troubleshooting CSI Driver usually involves reading mount pod logs, if [checking mount pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
+Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking Mount Pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
 
 - Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
 - Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, refer to the [official documentation](https://docs.fluentd.org/installation).
 - Kibana: visual analysis of logs, including log search, processing, and gorgeous dashboard display, etc. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/kibana/current/install.html).
 
-Mount pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
+Mount Pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
 
 ```html
 <filter kubernetes.**>
@@ -383,11 +383,11 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
 
 * Configure cache persistence to ensure that the cache directory will not be lost when the container is destroyed. For specific configuration methods, read [Cache settings](../guide/cache.md#cache-settings);
 * Choose one of the following methods (you can also adopt both) to ensure that the JuiceFS client has enough time to complete the data upload when the application container exits:
-  * Enable [Delayed mount pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the mount pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
+  * Enable [Delayed Mount Pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the Mount Pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the Mount Pod, so you can modify `terminationGracePeriodSeconds`. By using [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks), you can ensure that the Mount Pod waits for data uploads to finish before exiting, as demonstrated below:
 
     :::warning
-    * After `preStop` is configured, if the write cache is not uploaded successfully, the mount pod will wait for the time set by the `terminationGracePeriodSeconds` parameter and cannot exit for a long time. This will affect the normal execution of certain operations (such as upgrading mount pod). Please fully test and understand the corresponding risks;
+    * After `preStop` is configured, if the write cache is not uploaded successfully, the Mount Pod will wait for the time set by the `terminationGracePeriodSeconds` parameter and cannot exit for a long time. This will affect the normal execution of certain operations (such as upgrading Mount Pod). Please fully test and understand the corresponding risks;
     * Neither of the above two solutions can **fully guarantee** that all write cache data will be uploaded successfully.
     :::
 
