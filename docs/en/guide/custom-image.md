@@ -12,10 +12,10 @@ JuiceFS Client runs inside the mount pod, and JuiceFS provides [Community Editio
 * `/usr/local/bin/juicefs`: JuiceFS Community Edition client
 * `/usr/bin/juicefs`: JuiceFS Enterprise Edition client
 
-To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated image is provided for CE/EE, you can find the latest mount pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags), the image tag looks like:
+To avoid misuse and reduce image size, from CSI Driver 0.19.0, separated images are provided for CE/EE. You can find the latest Mount Pod image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags). The image tag looks like:
 
 :::tip
-If you need to move the Mount Pod image from Docker Hub to other container registry, please refer to [documentation](../administration/offline.md#copy-images).
+If you need to move the Mount Pod image from Docker Hub to another container registry, please refer to the [documentation](../administration/offline.md#copy-images).
 :::
 
 ```shell
@@ -33,7 +33,7 @@ juicedata/mount:v1.0.3-4.8.3
 ## Overwrite mount pod image {#overwrite-mount-pod-image}
 
 :::tip
-The JuiceFS CSI Driver supports [smooth upgrade of mount pod](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0. It is recommended to use this method to upgrade mount pod first.
+The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0. It is recommended to use this method to upgrade Mount Pods first.
 :::
 
 From JuiceFS CSI Driver 0.17.1 and above, modifying the default mount pod image is supported. CSI Driver offers flexible control over the scope, choose a method that suits your situation.

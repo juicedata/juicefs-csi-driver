@@ -5,12 +5,12 @@ sidebar_position: 1
 
 Best practices and recommended settings when going production.
 
-## Mount pod settings {#mount-pod-settings}
+## Mount Pod settings {#mount-pod-settings}
 
-* In order to support [smooth upgrade of Mount Pod](./upgrade-juicefs-client.md#smooth-upgrade), please configure [CSI dashboard](./troubleshooting.md#csi-dashboard) or [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
+* To support [smooth upgrade of Mount Pods](./upgrade-juicefs-client.md#smooth-upgrade), please configure the [CSI dashboard](./troubleshooting.md#csi-dashboard) or [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
 * For dynamic PV scenarios, it is recommended to [configure a more readable PV directory name](../guide/configurations.md#using-path-pattern);
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
-* When cluster is low on resources, refer to optimization techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources);
+* When cluster resources are limited, refer to techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources) for optimization;
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
 
 ## Sidecar recommendations {#sidecar}

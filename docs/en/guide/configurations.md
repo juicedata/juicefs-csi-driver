@@ -152,16 +152,16 @@ globalConfig:
 Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
 
 :::tip
-After modifying the configuration through ConfigMap, you can use the ["Smooth upgrade mount pod"](../administration/upgrade-juicefs-client.md#smooth-upgrade) feature supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only some configurations currently support smooth upgrade, which will be specially noted below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
+After modifying the configuration through ConfigMap, you can use the [smooth upgrade feature of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only certain configurations currently support smooth upgrade, which will be indicated below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
 
-If you cannot use the "Smooth upgrade mount pod" feature, you need to rebuild the application pod and mount pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the mount pod.
+If you cannot use the smooth upgrade feature of Mount Pods, you need to rebuild the application pod and Mount Pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
 :::
 
 ### Custom mount image <Badge type="primary">Support smooth upgrade</Badge> {#custom-image}
 
 #### Via ConfigMap {#custom-image-via-configmap}
 
-Please refer to the ["Upgrade container image for mount pod"](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image) document.
+Please refer to the ["Upgrade container images for Mount Pods"](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image) document.
 
 ### Environment variables {#custom-env}
 
@@ -774,7 +774,7 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 ### Automatic mount point recovery (no longer recommended) {#automatic-mount-point-recovery}
 
 :::tip
-The JuiceFS CSI Driver supports [smooth upgrade of mount pod](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
+The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
 :::
 
 JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.

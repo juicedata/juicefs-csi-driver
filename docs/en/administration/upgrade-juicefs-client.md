@@ -6,48 +6,48 @@ sidebar_position: 3
 
 Upgrade JuiceFS Client to the latest version to enjoy all kinds of improvements and fixes, read [release notes for JuiceFS Community Edition](https://github.com/juicedata/juicefs/releases) or [release notes for JuiceFS Cloud Service](https://juicefs.com/docs/cloud/release) to learn more.
 
-As a matter of fact, [upgrading JuiceFS CSI Driver](./upgrade-csi-driver.md) will bring upgrade to JuiceFS Client along the way, because every release includes the current latest [mount pod image](../guide/custom-image.md#ce-ee-separation), but if you'd like to use the latest JuiceFS Client before CSI Driver release, or even before mount pod image release, refer to methods introduced in this chapter.
+In fact, upgrading [JuiceFS CSI Driver](./upgrade-csi-driver.md) will also upgrade the JuiceFS client, as each release includes the latest [Mount Pod image](../guide/custom-image.md#ce-ee-separation). However, if you'd like to use the latest JuiceFS client ahead of the next CSI Driver release, or even before the Mount Pod image is updated, refer to the methods introduced in this chapter.
 
 ## Upgrade container image for mount pod {#upgrade-mount-pod-image}
 
-There are currently two methods for upgrading mount pod container images:
+Currently, there are two methods for upgrading Mount Pod container images:
 
-- [Smooth upgrade mount pod](#smooth-upgrade): This method allows you to upgrade an already created mount pod without rebuilding the application pod.
-- [Lossy upgrade mount pod](../guide/custom-image.md#overwrite-mount-pod-image): This method requires that the application pod be rebuilt in order to upgrade an already created mount pod.
+- [Smooth upgrade of Mount Pods](#smooth-upgrade): This method allows you to upgrade an already created Mount Pod without rebuilding the application pod.
+- [Lossy upgrade of Mount Pods](../guide/custom-image.md#overwrite-mount-pod-image): This method requires rebuilding the application pod to upgrade an existing Mount Pod.
 
-Refer to [document](../guide/custom-image.md#ce-ee-separation) to find the tag of the new version of the mount pod container image in Docker Hub, and then select different upgrade method based on the CSI Driver version and mount mode you are using:
+Refer to [this document](../guide/custom-image.md#ce-ee-separation) to find the tag for the latest Mount Pod container image in Docker Hub. Then, choose the appropriate upgrade method based on your CSI Driver version and the mount mode you are using:
 
 |                    | Version 0.25.0 and above | Version before 0.25.0   |
 |:------------------:|:------------------------:|:-----------------------:|
-| **Mount pod mode** | Smooth upgrade mount pod | Lossy upgrade mount pod |
-| **Sidecar mode**   | Lossy upgrade mount pod  | Lossy upgrade mount pod |
+| **Mount Pod mode** | Smooth upgrade of Mount Pods | Lossy upgrade of Mount Pods |
+| **Sidecar mode**   | Lossy upgrade of Mount Pods  | Lossy upgrade of Mount Pods |
 
-Pay attention that, with mount pod image overwritten, upgrading CSI Driver will no longer affect mount pod image.
+**Note:** After overwriting the Mount Pod image, further CSI Driver upgrades will no longer automatically update the Mount Pod image.
 
 ### Smooth upgrade mount pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
 Starting from JuiceFS CSI Driver v0.25.0, smooth upgrades for Mount Pods are supported. This allows Mount Pods to be upgraded without interrupting the service.
 
 :::tip
-Smooth upgrades are only applicable to mount pod mode.
+Smooth upgrades are only applicable to Mount Pod mode.
 :::
 
 :::warning Requirements for smooth upgrades
 To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured with `umount ${MOUNT_POINT}`. Ensure that `umount` is not configured in [CSI ConfigMap](./../guide/configurations.md#configmap).
 :::
 
-Smooth upgrade mount pod has two upgrade methods: "Pod recreate upgrade" and "Binary upgrade". The difference is:
+Smooth upgrade of Mount Pods has two upgrade methods: "Pod recreate upgrade" and "Binary upgrade." The difference is as follows:
 
-- Pod recreate upgrade: The mount pod will be rebuilt, and the minimum version requirement of mount pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition);
-- Binary upgrade: The mount pod is not rebuilt, only the binary is upgraded, and other configurations cannot be changed. After the upgrade is completed, what you see in the YAML of the mount pod is still the original image. The minimum version requirement of mount pod is 1.2.0 (Community Edition) or 5.0.0 (Enterprise Edition).
+- Pod recreate upgrade: The Mount Pod will be rebuilt. The minimum version requirement for the Mount Pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition).
+- Binary upgrade: The Mount Pod is not rebuilt; only the binary is upgraded. Other configurations remain unchanged. After the upgrade, the YAML for the Mount Pod will still display the original image. The minimum version requirement for this upgrade is 1.2.0 (Community Edition) or 5.0.0 (Enterprise Edition).
 
-Both upgrade methods are smooth upgrades, and the service does not need to be stopped. Please choose according to the actual situation.
+Both upgrade methods are smooth upgrades, allowing services to continue without interruption. Choose the method according to your situation.
 
-Smooth upgrade can only be triggered in [CSI dashboard](./troubleshooting.md#csi-dashboard) or [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin).
+Smooth upgrade can only be triggered in the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin).
 
 #### Trigger a smooth upgrade in CSI dashboard {#smooth-upgrade-via-csi-dashboard}
 
-1. In CSI dashboard, click the **Configuration** button in the upper right corner to update and save the new image version for the Mount Pod that needs to be upgraded:
+1. In the CSI dashboard, click the **Configuration** button in the upper right corner to update and save the new image version for the Mount Pod that needs to be upgraded:
 
    :::tip
    Compared to manually modifying [CSI ConfigMap configuration](./../guide/configurations.md#configmap), modifications on the CSI dashboard take effect immediately.
@@ -59,7 +59,7 @@ Smooth upgrade can only be triggered in [CSI dashboard](./troubleshooting.md#csi
 
    ![CSI dashboard mount pod upgrade button](../images/upgrade-menu.png)
 
-3. Click **upgrade button** to trigger a smooth upgrade for the Mount Pod:
+3. Click the **upgrade** button to trigger a smooth upgrade for the Mount Pod:
 
    ![CSI dashboard mount pod smooth upgrade](../images/smooth-upgrade.png)
 
