@@ -58,29 +58,29 @@ Read our docs on [enabling kubelet authentication](../administration/going-produ
 
 ## Mount Pod failure {#mount-pod-error}
 
-JuiceFS Client runs inside the mount pod and there's a variety of possible causes for error, this section covers some of the more frequently seen problems.
+The JuiceFS client operates within the Mount Pod, and errors can arise from various causes. This section covers some of the most common issues.
 
 <details>
-<summary>**Mount pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**</summary>
+<summary>**Mount Pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**</summary>
 
-When this happens, [Check mount pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
+When this happens, [Check Mount Pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
 
-In addition, when kubelet enables the preemption, the mount pod may preempt application resources after startup, resulting in repeated creation and destruction of both the mount pod and the application pod, with the mount pod event saying:
+In addition, when kubelet enables the preemption, the Mount Pod may preempt application resources after startup, resulting in repeated creation and destruction of both the Mount Pod and the application pod, with the Mount Pod event saying:
 
 ```
 Preempted in order to admit critical pod
 ```
 
-Default resource requests for mount pod is 1 CPU, 1GiB memory, mount pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
+Default resource requests for Mount Pod is 1 CPU, 1GiB memory, Mount Pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
 
 Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` state. By default, the Mount Pod starts with `hostNetwork: false`, which may consume a large amount of cluster IP resources. If the cluster IP resources are insufficient, this may prevent the Mount Pod from starting successfully. Please contact your cloud service provider to increase the number of IPs for your Kubernetes cluster, or start with `hostNetwork: true`. For details, see [Customize Mount Pod and sidecar container](../guide/configurations.md#customize-mount-pod).
 
 </details>
 
 <details>
-<summary>**After mount pod is restarted or recreated, application pods cannot access JuiceFS**</summary>
+<summary>**After Mount Pod is restarted or recreated, application pods cannot access JuiceFS**</summary>
 
-If mount pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
+If Mount Pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
 
 ```
 Transport endpoint is not connected
@@ -88,14 +88,14 @@ Transport endpoint is not connected
 df: /jfs: Socket not connected
 ```
 
-In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the mount pod can continue to run after failure, application will be able to use JuiceFS inside container.
+In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the Mount Pod can continue to run after failure, application will be able to use JuiceFS inside container.
 
 </details>
 
 <details>
-<summary>**Mount pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**</summary>
+<summary>**Mount Pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**</summary>
 
-Mount pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
+Mount Pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
 
 ```shell {4}
 $ kubectl describe pod juicefs-app
@@ -104,7 +104,7 @@ $ kubectl describe pod juicefs-app
   Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
 ```
 
-The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. You should inspect the mount pod start-up command to identify the cause for this (the following commands are from the ["Check mount pod"](./troubleshooting.md#check-mount-pod) documentation):
+The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. You should inspect the Mount Pod start-up command to identify the cause for this (the following commands are from the ["Check Mount Pod"](./troubleshooting.md#check-mount-pod) documentation):
 
 ```shell
 APP_NS=default  # application pod namespace
@@ -118,7 +118,7 @@ MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 ```
 
-Check the mount pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the mount pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
+Check the Mount Pod start-up command carefully. In the above example, the options followed by `-o` are the mount parameters of the JuiceFS file system. If there are multiple mount parameters, they will be connected through `,` (such as `-o aaa,bbb`). If you find a wrong format like `-o debug foreground` (the correct format should be `-o debug,foreground`), it will cause the Mount Pod to fail to start normally. This type of error is usually caused by erroneous `mountOptions`, refer to [Adjust mount options](../guide/configurations.md#mount-options) and thoroughly check for any format errors.
 
 </details>
 
@@ -211,7 +211,7 @@ spec:
 
 ## File system creation failure (Community Edition) {#file-system-creation-failure-community-edition}
 
-When you choose to dynamically create file system inside mount pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
+When you choose to dynamically create file system inside Mount Pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
 
 ```
 format: ERR illegal address: xxxx
@@ -267,7 +267,7 @@ $ juicefs stats /var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx
 
 Read performance really depends on cache, so when read performance isn't ideal, pay special attention to the `blockcache` related metrics, block cache is data blocks cached on disk, notice how `blockcache.read` is always larger than 0 in the above data, this means kernel page cache isn't built, thus all read requests is handled by the slower disk reads. Now we will investigate why page cache won't build.
 
-Similar to what we'll do on a host, let's first check the mount pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the Docker container for our mount pod, and see its stats:
+Similar to what we'll do on a host, let's first check the Mount Pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the Docker container for our Mount Pod, and see its stats:
 
 ```shell
 # change $APP_POD_NAME to actual application pod name
@@ -276,7 +276,7 @@ CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   B
 90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
 ```
 
-Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for mount pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application pod, and then try again.
+Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application pod, and then try again.
 
 :::note
 `docker stats` counts memory usage differently under cgroup v1/v2, v1 does not include kernel page cache while v2 does, the case described here is carried out under cgroup v1, but it doesn't affect the troubleshooting thought process and conclusion.
@@ -311,9 +311,9 @@ Conclusion: **When using JuiceFS inside containers, memory limit should be large
 
   If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
 
-## Umount error (mount pod hangs) {#umount-error}
+## Umount error (Mount Pod hangs) {#umount-error}
 
-JuiceFS cannot be unmounted when files or directories are still opened. If this happens within a Kubernetes cluster, mount pod will exit with the mount point not being released:
+JuiceFS cannot be unmounted when files or directories are still opened. If this happens within a Kubernetes cluster, Mount Pod will exit with the mount point not being released:
 
 ```
 2m17s       Normal    Started             pod/juicefs-xxx   Started container jfs-mount
@@ -321,7 +321,7 @@ JuiceFS cannot be unmounted when files or directories are still opened. If this 
 44s         Warning   FailedPreStopHook   pod/juicefs-xxx   PreStopHook failed
 ```
 
-A worse case is JuiceFS Client process entering uninterruptible sleep (D) state, mount pod cannot be deleted and will stuck at Terminating state, the attached cgroup cannot be deleted either, causing kubelet to produce the following error:
+A worse case is JuiceFS Client process entering uninterruptible sleep (D) state, Mount Pod cannot be deleted and will stuck at Terminating state, the attached cgroup cannot be deleted either, causing kubelet to produce the following error:
 
 ```
 Failed to remove cgroup (will retry)" error="rmdir /sys/fs/cgroup/blkio/kubepods/burstable/podxxx/xxx: device or resource busy

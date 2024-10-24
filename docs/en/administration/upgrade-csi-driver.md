@@ -12,7 +12,7 @@ kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..i
 
 Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. Be aware that:
 
-* Upgrading CSI Driver accompanies JuiceFS Client upgrade (i.e. mount image), service won't be affected because existing mount pods will remain the same, newer versions take effect after application pod is re-created
+* Upgrading CSI Driver accompanies JuiceFS Client upgrade (i.e. mount image), service won't be affected because existing Mount Pods will remain the same, newer versions take effect after application pod is re-created
 * If you already explicitedly defined mount image tag via [other approaches](../guide/custom-image.md), then upgrading CSI Driver no longer affect mount image version
 * If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md)
 
@@ -20,9 +20,9 @@ Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releas
 
 Since v0.10.0, JuiceFS Client is separated from CSI Driver, upgrading CSI Driver will no longer affect existing PVs, allowing a much easier upgrade process, which doesn't interrupt running applications.
 
-But on the other hand, this also means **upgrading CSI Driver will not automatically apply update to JuiceFS Client for application pods**. You'll have to re-create application pods, so that CSI Node makes mount pods using the newer version of mount pod image.
+But on the other hand, this also means **upgrading CSI Driver will not automatically apply update to JuiceFS Client for application pods**. You'll have to re-create application pods, so that CSI Node makes Mount Pods using the newer version of Mount Pod image.
 
-Another thing to keep in mind, if you have [overwritten mount pod image](../guide/custom-image.md#overwrite-mount-pod-image), then upgrading CSI Driver will not affect JuiceFS Client version at all, you should just continue manage mount pod image according to the [docs](../guide/custom-image.md#overwrite-mount-pod-image).
+Another thing to keep in mind, if you have [overwritten Mount Pod image](../guide/custom-image.md#overwrite-mount-pod-image), then upgrading CSI Driver will not affect JuiceFS Client version at all, you should just continue manage Mount Pod image according to the [docs](../guide/custom-image.md#overwrite-mount-pod-image).
 
 ### Upgrade via Helm {#helm-upgrade}
 

@@ -12,7 +12,11 @@ Mount Pod 中运行着 JuiceFS 客户端，而 JuiceFS 又提供[「社区版」
 * `/usr/local/bin/juicefs`：社区版 JuiceFS 客户端
 * `/usr/bin/juicefs`：商业版 JuiceFS 客户端
 
-为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags?page=1&name=v) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+为了避免误用、同时精简容器镜像，在 CSI 驱动 0.19.0 及以上版本对镜像进行了拆分，你可以在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 找到 CSI 驱动所使用的 Mount Pod 容器镜像，形如：
+
+:::tip
+如果你需要把 Mount Pod 容器镜像从 Docker Hub 搬运到其它镜像仓库，请参考[文档](../administration/offline.md#copy-images)。
+:::
 
 ```shell
 # 社区版镜像标签以 ce- 开头
@@ -28,6 +32,10 @@ juicedata/mount:v1.0.3-4.8.3
 
 ## 覆盖 Mount Pod 镜像 {#overwrite-mount-pod-image}
 
+:::tip
+JuiceFS CSI 驱动从 0.25.0 版本开始支持[平滑升级 Mount Pod](../administration/upgrade-juicefs-client.md#smooth-upgrade)，推荐优先使用这种方法升级 Mount Pod。
+:::
+
 JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有多种修改 Mount Pod 镜像的方式，满足不同的定制需要，根据实际情况选择合适的手段。
 
 :::tip 提示
@@ -38,9 +46,9 @@ JuiceFS CSI 驱动 0.17.1 及以上版本支持自定义 Mount Pod 镜像，有�
 
 :::
 
-### configmap 修改 {#overwrite-in-configmap}
+### 修改 ConfigMap {#overwrite-in-configmap}
 
-如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本
+如果你的 CSI 驱动版本大于 0.24.0 可以非常方便的全局配置中修改镜像版本：
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
@@ -85,7 +93,7 @@ kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plu
 ### 动态配置 {#overwrite-in-sc}
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，本小节所介绍的方式已经不再推荐使用。
 :::
 
 CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
@@ -109,7 +117,7 @@ parameters:
 ### 静态配置
 
 :::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 mount pod 镜像，本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，本小节所介绍的方式已经不再推荐使用。
 :::
 
 对于[「静态配置」](./pv.md#static-provisioning)用法，需要在 PV 定义中配置 Mount Pod 镜像：

@@ -16,7 +16,7 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 
 上方的报错信息表示，名为 `csi.juicefs.com` 的驱动没有找到，请先确认使用的是 Mount Pod 模式还是 Sidecar 模式。
 
-若使用的是 mount pod 模式，遵循以下步骤进行排查：
+若使用的是 Mount Pod 模式，遵循以下步骤进行排查：
 
 * 运行 `kubectl get csidrivers.storage.k8s.io`，如果输出的中确没有 `csi.juicefs.com` 字样，说明 CSI 驱动并未安装，仔细回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)；
 * 如果上方的 `csidrivers` 列表中存在 `csi.juicefs.com`，那么说明 CSI 驱动已经安装，问题出在 CSI Node，检查 CSI Node 是否正常运作：
@@ -213,7 +213,7 @@ spec:
 
 ## 文件系统创建错误（社区版） {#file-system-creation-failure-community-edition}
 
-如果你选择在 mount pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
+如果你选择在 Mount Pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
 
 ```
 format: ERR illegal address: xxxx

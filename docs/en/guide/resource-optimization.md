@@ -5,14 +5,14 @@ sidebar_position: 4
 
 Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI Driver, there's much to be done in this aspect. Methods on resource optimizations are introduced in this chapter.
 
-## Adjust resources for mount pod {#mount-pod-resources}
+## Adjust resources for Mount Pod {#mount-pod-resources}
 
-Every application pod that uses JuiceFS PV requires a running mount pod (reused for pods using a same PV), thus configuring proper resource definition for mount pod can effectively optimize resource usage. Read [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits.
+Every application pod that uses JuiceFS PV requires a running Mount Pod (reused for pods using a same PV), thus configuring proper resource definition for Mount Pod can effectively optimize resource usage. Read [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits.
 
-Under the default settings, JuiceFS mount pod resource `requests` is 1 CPU and 1GiB memory, resource `limits` is 5 CPU and 5GiB memory, this might not be the perfect setup for you since JuiceFS is used in so many different scenarios, you should make adjustments to fit the actual resource usage:
+Under the default settings, JuiceFS Mount Pod resource `requests` is 1 CPU and 1GiB memory, resource `limits` is 5 CPU and 5GiB memory, this might not be the perfect setup for you since JuiceFS is used in so many different scenarios, you should make adjustments to fit the actual resource usage:
 
-* If actual usage is lower, e.g. mount pod uses only 0.1 CPU, 100MiB memory, then you should match the resources `requests` to the actual usage, to avoid wasting resources, or worse, mount pod not being able to schedule to due overly large resource `requests`, this might also cause pod preemptions which should be absolutely avoided in a production environment. For resource `limits`, you should also configure a reasonably larger value, so that the mount pod can deal with temporary load increases.
-* If actual usage is higher, e.g. 2 CPU, 2GiB memory, even though the default `requests` allows for its scheduling, things are risky because mount pod is using more resources than it declares, this is called overcommitment and constant overcommitment can cause all sorts of stability issues like CPU throttling and OOM. So under this circumstance, you should also adjust requests and limits according to the actual usage.
+* If actual usage is lower, e.g. Mount Pod uses only 0.1 CPU, 100MiB memory, then you should match the resources `requests` to the actual usage, to avoid wasting resources, or worse, Mount Pod not being able to schedule to due overly large resource `requests`, this might also cause pod preemptions which should be absolutely avoided in a production environment. For resource `limits`, you should also configure a reasonably larger value, so that the Mount Pod can deal with temporary load increases.
+* If actual usage is higher, e.g. 2 CPU, 2GiB memory, even though the default `requests` allows for its scheduling, things are risky because Mount Pod is using more resources than it declares, this is called overcommitment and constant overcommitment can cause all sorts of stability issues like CPU throttling and OOM. So under this circumstance, you should also adjust requests and limits according to the actual usage.
 * If high performance is required in actual scenarios, but `limits` is set too small, it will have a great negative impact on performance.
 
 If you already have [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server) installed, use commands like these to conveniently check actual resource usage for CSI Driver components:
@@ -27,7 +27,7 @@ kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-csi-driver
 
 ### Define resources in ConfigMap {#resources-configmap}
 
-Starting from v0.24, you can easily customize mount pods and sidecar containers in [ConfigMap](./configurations.md#customize-mount-pod), changing resource definition is as simple as:
+Starting from v0.24, you can easily customize Mount Pods and sidecar containers in [ConfigMap](./configurations.md#customize-mount-pod), changing resource definition is as simple as:
 
 ```yaml title="values-mycluster.yaml" {3-6}
 globalConfig:
@@ -38,17 +38,17 @@ globalConfig:
           memory: 512Mi
 ```
 
-After changes are applied, rollout the application pods or delete the mount pods to take effect.
+After changes are applied, rollout the application pods or delete the Mount Pods to take effect.
 
 ### Declare resources in PVC annotations {#mount-pod-resources-pvc}
 
 :::tip
-Starting from v0.24, CSI Driver can customize mount pods and sidecar containers in the [ConfigMap](./configurations.md#customize-mount-pod), legacy method introduced in this section is not recommended.
+Starting from v0.24, CSI Driver can customize Mount Pods and sidecar containers in the [ConfigMap](./configurations.md#customize-mount-pod), legacy method introduced in this section is not recommended.
 :::
 
-Since 0.23.4, users can declare mount pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage mount pod resources. But do note this:
+Since 0.23.4, users can declare Mount Pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage Mount Pod resources. But do note this:
 
-* After annotations are edited, existing mount pods won't be re-created according to the current config, you'll need to delete existing mount pods to trigger the re-creation.
+* After annotations are edited, existing Mount Pods won't be re-created according to the current config, you'll need to delete existing Mount Pods to trigger the re-creation.
 * [Automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) must be set up in advance so that the new mount points can be propagated back to the application pods.
 * Even with automatic mount point recovery, this process WILL cause short service abruption.
 
@@ -82,7 +82,7 @@ juicefs/mount-cpu-requests: "1m"
 juicefs/mount-memory-requests: "4Mi"
 ```
 
-Apply the above config and new mount pods will interprete "0" as omit, forming the following definition:
+Apply the above config and new Mount Pods will interprete "0" as omit, forming the following definition:
 
 ```yaml
 resources:
@@ -102,7 +102,7 @@ juicefs/mount-cpu-requests: "0"
 juicefs/mount-memory-requests: "0"
 ```
 
-According to the requests = limits interpretation, the resulting definition is usually NOT what users expected, and mount pods cannot start.
+According to the requests = limits interpretation, the resulting definition is usually NOT what users expected, and Mount Pods cannot start.
 
 ```yaml
 resources:
@@ -185,9 +185,9 @@ parameters:
   juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
 ```
 
-It should be noted that since [define mount pod resources in PVC annotations](#mount-pod-resources-pvc) is already supported, this configuration method is no longer needed.
+It should be noted that since [define Mount Pod resources in PVC annotations](#mount-pod-resources-pvc) is already supported, this configuration method is no longer needed.
 
-If StorageClass is managed by Helm, you can define mount pod resources directly in `values.yaml`:
+If StorageClass is managed by Helm, you can define Mount Pod resources directly in `values.yaml`:
 
 ```yaml title="values.yaml" {5-12}
 storageClasses:
@@ -243,31 +243,31 @@ However, when the Mount Pod is created, if the node resources are insufficient, 
    kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
    ```
 
-## Share mount pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
+## Share Mount Pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
 
-By default, mount pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share mount pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one mount pod is serving multiple application pods.
+By default, Mount Pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share Mount Pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one Mount Pod is serving multiple application pods.
 
-To enable mount pod sharing for the same StorageClass, add the `STORAGE_CLASS_SHARE_MOUNT` environment variable to the CSI Node Service:
+To enable Mount Pod sharing for the same StorageClass, add the `STORAGE_CLASS_SHARE_MOUNT` environment variable to the CSI Node Service:
 
 ```shell
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
 ```
 
-Evidently, more aggressive sharing policy means lower isolation level, mount pod crashes will bring worse consequences, so if you do decide to use mount pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase mount pod resources](#mount-pod-resources).
+Evidently, more aggressive sharing policy means lower isolation level, Mount Pod crashes will bring worse consequences, so if you do decide to use Mount Pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase Mount Pod resources](#mount-pod-resources).
 
-## Clean cache when mount pod exits {#clean-cache-when-mount-pod-exits}
+## Clean cache when Mount Pod exits {#clean-cache-when-mount-pod-exits}
 
 Refer to [relevant section in Cache](./cache.md#mount-pod-clean-cache).
 
-## Delayed mount pod deletion {#delayed-mount-pod-deletion}
+## Delayed Mount Pod deletion {#delayed-mount-pod-deletion}
 
-Mount pod will be re-used when multiple applications reference a same PV, JuiceFS CSI Node Service will manage mount pod life cycle using reference counting: when no application is using a JuiceFS PV anymore, JuiceFS CSI Node Service will delete the corresponding mount pod.
+Mount Pod will be re-used when multiple applications reference a same PV, JuiceFS CSI Node Service will manage Mount Pod life cycle using reference counting: when no application is using a JuiceFS PV anymore, JuiceFS CSI Node Service will delete the corresponding Mount Pod.
 
-But with Kubernetes, containers are ephemeral and sometimes scheduling happens so frequently, you may prefer to keep the mount pod for a short while after PV deletion, so that newly created pods can continue using the same mount pod without the need to re-create, further saving cluster resources.
+But with Kubernetes, containers are ephemeral and sometimes scheduling happens so frequently, you may prefer to keep the Mount Pod for a short while after PV deletion, so that newly created pods can continue using the same Mount Pod without the need to re-create, further saving cluster resources.
 
 Delayed deletion is controlled by a piece of config that looks like `juicefs/mount-delete-delay: 1m`, this supports a variety of units: `ns` (nanoseconds), `us` (microseconds), `ms` (milliseconds), `s` (seconds), `m` (minutes), `h` (hours).
 
-With delete delay set, when reference count becomes zero, the mount pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this mount pod.
+With delete delay set, when reference count becomes zero, the Mount Pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this Mount Pod.
 
 ### Configuration
 

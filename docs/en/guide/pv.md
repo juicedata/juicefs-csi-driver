@@ -54,7 +54,7 @@ Fields description:
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list
 - `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage
 - `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount pod environment variables
+- `envs`：Mount Pod environment variables
 - `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/community/command_reference#format). This options is only available in v0.13.3 and above
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
@@ -91,7 +91,7 @@ Fields description:
 - `name`: The JuiceFS file system name
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
 - `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount pod environment variables
+- `envs`：Mount Pod environment variables
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
@@ -128,7 +128,7 @@ Fields description:
 - `name`: The JuiceFS file system name
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
 - `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
+- `envs`：Mount Pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
 
 ### Using multiple file systems {#multiple-volumes}
@@ -215,13 +215,13 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: kube-system
 ```
 
-### Adding extra files / environment variables into mount pod {#mount-pod-extra-files}
+### Adding extra files / environment variables into Mount Pod {#mount-pod-extra-files}
 
-Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a separate Secret to store these files, and reference it in volume credentials (`juicefs-secret` in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+Some object storage providers (like Google Cloud Storage) requires extra credential files for authentication, this means you'll have to create a separate Secret to store these files, and reference it in volume credentials (`juicefs-secret` in below examples), so that CSI Driver will mount these files into the Mount Pod. The relevant environment variable needs to be added to specify the added files for authentication.
 
-If you need to add environment variables for mount pod, use the `envs` field in volume credentials. For example MinIO may require clients to set the `MINIO_REGION` variable.
+If you need to add environment variables for Mount Pod, use the `envs` field in volume credentials. For example MinIO may require clients to set the `MINIO_REGION` variable.
 
-Here we'll use Google Cloud Storage as example, to demonstrate how to add extra files / environment variables into mount pod.
+Here we'll use Google Cloud Storage as example, to demonstrate how to add extra files / environment variables into Mount Pod.
 
 To obtain the [service account key file](https://cloud.google.com/docs/authentication/production#create_service_account), you need to first learn about [authentication](https://cloud.google.com/docs/authentication) and [authorization](https://cloud.google.com/iam/docs/overview). Assuming you already have the key file `application_default_credentials.json`, create the corresponding Kubernetes Secret:
 
@@ -230,7 +230,7 @@ kubectl create secret generic gc-secret \
   --from-file=application_default_credentials.json=application_default_credentials.json
 ```
 
-Now that the key file is saved in `gc-secret`, we'll reference it in `juicefs-secret`, this tells CSI Driver to mount the files into the mount pod, and set relevant environment variables accordingly:
+Now that the key file is saved in `gc-secret`, we'll reference it in `juicefs-secret`, this tells CSI Driver to mount the files into the Mount Pod, and set relevant environment variables accordingly:
 
 ```yaml {8-11}
 apiVersion: v1
@@ -246,7 +246,7 @@ stringData:
   envs: "{GOOGLE_APPLICATION_CREDENTIALS: /root/.config/gcloud/application_default_credentials.json}"
 ```
 
-After this is done, newly created PVs will start to use this configuration. You can [enter the mount pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` command to ensure the variables are set.
+After this is done, newly created PVs will start to use this configuration. You can [enter the Mount Pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` command to ensure the variables are set.
 
 ## Static provisioning {#static-provisioning}
 

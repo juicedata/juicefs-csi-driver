@@ -7,7 +7,7 @@ This chapter introduces JuiceFS PV configurations, as well as CSI Driver configu
 
 ## ConfigMap {#configmap}
 
-Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize mount pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for mount pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
+Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called `juicefs-csi-driver-config`. Various settings are supported to customize Mount Pod & sidecar container, as well as settings for CSI Driver components. CM is updated dynamically: for Mount Pod customizations you no longer have to re-create PV & PVCs, and for CSI Driver settings there's no need to restart any CSI Driver components on update.
 
 ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
@@ -151,20 +151,17 @@ globalConfig:
 
 Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
 
-### Custom mount image {#custom-image}
+:::tip
+After modifying the configuration through ConfigMap, you can use the [smooth upgrade feature of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only certain configurations currently support smooth upgrade, which will be indicated below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
 
-#### Via ConfigMap
+If you cannot use the smooth upgrade feature of Mount Pods, you need to rebuild the application pod and Mount Pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
+:::
 
-The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, be sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance, to avoid permanent loss of mount point within the application pod.
+### Custom mount image <Badge type="primary">Support smooth upgrade</Badge> {#custom-image}
 
-```yaml {2-4}
-globalConfig:
-  mountPodPatch:
-    - ceMountImage: juicedata/mount:ce-v1.2.0
-      eeMountImage: juicedata/mount:ee-5.1.0-053aa0b
-```
+#### Via ConfigMap {#custom-image-via-configmap}
 
-If you need to use a custom image or would like to find the latest available JuiceFS mount image, refer to [customize container image](./custom-image.md).
+Please refer to the ["Upgrade container images for Mount Pods"](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image) document.
 
 ### Environment variables {#custom-env}
 
@@ -197,21 +194,21 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### Resource definition {#custom-resources}
+### Resource definition <Badge type="primary">Support smooth upgrade</Badge> {#custom-resources}
 
-#### Via ConfigMap
+#### Via ConfigMap {#custom-resources-via-configmap}
 
-The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, be sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance, to avoid permanent loss of mount point within the application pod.
+The minimum version of the CSI Driver required for this feature is 0.24.0. An example is as follows:
 
 ```yaml {2-5}
   mountPodPatch:
-  - resources:
-      requests:
-        cpu: 100m
-        memory: 512Mi
+    - resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
 ```
 
-Read [resource optimization](./resource-optimization.md) to learn how to properly set resource requests and limits.
+Read [resource optimization](./resource-optimization.md#mount-pod-resources) to learn how to properly set resource requests and limits.
 
 ### Mount options {#mount-options}
 
@@ -296,11 +293,9 @@ parameters:
   ...
 ```
 
-### Health check & pod lifecycle {#custom-probe-lifecycle}
+### Health check & pod lifecycle <Badge type="primary">Support smooth upgrade</Badge> {#custom-probe-lifecycle}
 
-The minimum required version is CSI Driver v0.24.0. Upon modification, application pods or Mount Pods need to be re-created for changes to take effect. If you decide to re-create Mount Pods, ensure that [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) is enabled to prevent the permanent loss of the mount point within the application pod.
-
-Targeted scenarios:
+The minimum version of the CSI Driver required for this feature is 0.24.0. Targeted scenarios:
 
 - Use `readinessProbe` to set up health checks for the Mount Pod, supporting monitoring and alerting.
 - Customize `preStop` in sidecars to ensure the mount container exits after the application container. Refer to [sidecar recommendations](../administration/going-production.md#sidecar) for details.
@@ -324,7 +319,7 @@ Targeted scenarios:
 
 Targeted scenarios:
 
-- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the mount pod. The relevant environment variable needs to be added to specify the added files for authentication.
+- Some object storage providers (like Google Cloud Storage) require extra credential files for authentication. This means you will have to create a separate Secret to store these files and reference it in volume credentials (JuiceFS-secret in below examples), so that CSI Driver will mount these files into the Mount Pod. The relevant environment variable needs to be added to specify the added files for authentication.
 - JuiceFS Enterprise Edition supports [shared block storage device](https://juicefs.com/docs/cloud/guide/block-device), which can be used as cache storage or permanent data storage.
 
 #### Via ConfigMap
@@ -356,7 +351,7 @@ The minimum required version is CSI Driver v0.24.7. Upon modification, applicati
         defaultMode: 420
 ```
 
-#### Via secret
+#### Via Secret
 
 JuiceFS Secret only supports configuring extra secret mounts within the `configs` field. Shared block device mounts are not supported here.
 
@@ -410,7 +405,7 @@ mountOptions:
 Many features are closely relevant to other topics. For more information:
 
 * Configure delayed deletion for Mount Pods to reduce startup overhead in short application pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
-* Clean cache upon mount pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
+* Clean cache upon Mount Pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
 
 ## Format options / auth options {#format-options}
 
@@ -422,7 +417,7 @@ Format options / auth options are options used in `juicefs [format|auth]` comman
 Considering the similarities between the two commands, options all go to the `format-options` field, as follows.
 
 :::tip
-Changing `format-options` does not affect existing mount clients, even if mount pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
+Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
 :::
 
 JuiceFS Community Edition:
@@ -776,15 +771,19 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 
 ## Common PV settings {#common-pv-settings}
 
-### Automatic mount point recovery {#automatic-mount-point-recovery}
+### Automatic mount point recovery (no longer recommended) {#automatic-mount-point-recovery}
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when mount pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
+:::tip
+The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
+:::
+
+JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when Mount Pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
 
 :::note
 Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
 :::
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when mount pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1
@@ -818,13 +817,13 @@ You can also use tools provided by a community developer to automatically add `m
 
 Starting from v0.23.3, CSI Driver by default caches the configuration file for JuiceFS Client, i.e. [mount configuration for JuiceFS Enterprise Edition](https://juicefs.com/docs/cloud/reference/command_reference/#auth), which has the following benefits:
 
-* &#8203;<Badge type="primary">On-prem</Badge> If JuiceFS Web Console suffers from an outage, or clients undergo network issue, mount pods & sidecar containers can still mount via the cached config and continue to serve
+* &#8203;<Badge type="primary">On-prem</Badge> If JuiceFS Web Console suffers from an outage, or clients undergo network issue, Mount Pods & sidecar containers can still mount via the cached config and continue to serve
 
 Caching works like this:
 
 1. Users create or update [volume credential](./pv.md#volume-credentials), CSI Controller will watch for changes and immediately run `juicefs auth` to obtain the new config;
 2. CSI Controller injects configuration into the secret, saved as the `initconfig` field;
-3. When CSI Node creates mount pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
+3. When CSI Node creates Mount Pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
 4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
 If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
@@ -910,7 +909,7 @@ Dynamic provisioning supports `Delete|Retain` policies, `Delete` causes data to 
 
 ### Mount host's directory in Mount Pod {#mount-host-path}
 
-If you need to mount files or directories into the mount pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
+If you need to mount files or directories into the Mount Pod, use `juicefs/host-path`, you can specify multiple path (separated by comma) in this field. Also, this field appears in different locations for static / dynamic provisioning, take `/data/file.txt` for an example:
 
 #### Static provisioning
 
