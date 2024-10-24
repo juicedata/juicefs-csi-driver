@@ -116,12 +116,12 @@ func (a *AppController) umountFuseSidecar(ctx context.Context, pod *corev1.Pod, 
 
 	// get prestop
 	if fuseContainer.Lifecycle == nil || fuseContainer.Lifecycle.PreStop == nil || fuseContainer.Lifecycle.PreStop.Exec == nil {
-		log.Info("no prestop in container of pod", "cnName", common.MountContainerName)
+		log.Info("no prestop in container of pod", "cnName", fuseContainer.Name)
 		return nil
 	}
 	cmd := fuseContainer.Lifecycle.PreStop.Exec.Command
 
-	log.Info("exec cmd in container of pod", "command", cmd, "cnName", common.MountContainerName)
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", fuseContainer.Name)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(ctx, pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		if strings.Contains(stderr, "not mounted") ||
@@ -156,7 +156,7 @@ func (a *AppController) killFuseProcess(ctx context.Context, pod *corev1.Pod, fu
 	}
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
 	cmd := []string{"sh", "-c", "pkill mount.juicefs"}
-	log.Info("exec cmd in container of pod", "command", cmd, "cnName", common.MountContainerName)
+	log.Info("exec cmd in container of pod", "command", cmd, "cnName", fuseContainer.Name)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(ctx, pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
 		return err
