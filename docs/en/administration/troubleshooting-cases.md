@@ -58,7 +58,7 @@ Read our docs on [enabling kubelet authentication](../administration/going-produ
 
 ## Mount Pod failure {#mount-pod-error}
 
-JuiceFS Client runs inside the Mount Pod and there's a variety of possible causes for error, this section covers some of the more frequently seen problems.
+The JuiceFS client operates within the Mount Pod, and errors can arise from various causes. This section covers some of the most common issues.
 
 <details>
 <summary>**Mount Pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**</summary>

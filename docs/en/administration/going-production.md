@@ -7,7 +7,7 @@ Best practices and recommended settings when going production.
 
 ## Mount Pod settings {#mount-pod-settings}
 
-* To support [smooth upgrade of Mount Pods](./upgrade-juicefs-client.md#smooth-upgrade), please configure the [CSI dashboard](./troubleshooting.md#csi-dashboard) or [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
+* To support [smooth upgrade of Mount Pods](./upgrade-juicefs-client.md#smooth-upgrade), please configure the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
 * For dynamic PV scenarios, it is recommended to [configure a more readable PV directory name](../guide/configurations.md#using-path-pattern);
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
 * When cluster resources are limited, refer to techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources) for optimization;
@@ -190,7 +190,7 @@ Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking
 - Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, refer to the [official documentation](https://docs.fluentd.org/installation).
 - Kibana: visual analysis of logs, including log search, processing, and gorgeous dashboard display, etc. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/kibana/current/install.html).
 
-Mount Pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add below config to the Fluentd configuration:
+The Mount Pod is labeled `app.kubernetes.io/name: juicefs-mount`. Add the configuration below to the Fluentd configuration:
 
 ```html
 <filter kubernetes.**>
@@ -387,7 +387,7 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the Mount Pod, so you can modify `terminationGracePeriodSeconds`. By using [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks), you can ensure that the Mount Pod waits for data uploads to finish before exiting, as demonstrated below:
 
     :::warning
-    * After `preStop` is configured, if the write cache is not uploaded successfully, the Mount Pod will wait for the time set by the `terminationGracePeriodSeconds` parameter and cannot exit for a long time. This will affect the normal execution of certain operations (such as upgrading Mount Pod). Please fully test and understand the corresponding risks;
+    * After `preStop` is configured, if the write cache is not uploaded successfully, the Mount Pod will wait for the time set by the `terminationGracePeriodSeconds` parameter and cannot exit for a long time. This will affect the normal execution of certain operations (such as upgrading the Mount Pod). Please fully test and understand the corresponding risks;
     * Neither of the above two solutions can **fully guarantee** that all write cache data will be uploaded successfully.
     :::
 

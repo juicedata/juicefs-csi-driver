@@ -11,7 +11,7 @@ This section is currently only available in Chinese.
 
 ## Change Mount Pod SA to allow pull image {#mount-pod-sa}
 
-Offline clusters often use private image registries, which require authentication to access. The default ServiceAccount (SA) for Mount Pod is `juicefs-csi-node-sa`, which probably isn't equipped to pull images from your private registry. Follow below guide to change SA for Mount Pod in order to pull its image normally.
+Offline clusters often use private image registries, which require authentication to access. The default ServiceAccount (SA) for a Mount Pod is `juicefs-csi-node-sa`, which probably isn't equipped to pull images from your private registry. Follow the guide below to change SA for the Mount Pod in order to pull its image normally.
 
 A SA called `juicefs-mount-sa` is assumed to have access to your private registry, make adjustments accordingly in your environment (refer to [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account) to see how to create the SA).
 
