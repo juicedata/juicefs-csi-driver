@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -687,9 +688,7 @@ func TestMergeEnvs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			MergeEnvs(tt.args.pod, tt.args.env)
-			if !reflect.DeepEqual(tt.args.pod.Spec.Containers[0].Env, tt.want) {
-				t.Errorf("MergeEnvs() = %v, want %v", tt.args.pod.Spec.Containers[0].Env, tt.want)
-			}
+			assert.Equal(t, tt.args.pod.Spec.Containers[0].Env, tt.want)
 		})
 	}
 }
@@ -705,21 +704,12 @@ func TestMergeVolumes(t *testing.T) {
 		want *corev1.Pod
 	}{
 		{
-			name: "test-merge-volumes",
+			name: "test-append-extra-volumes",
 			args: args{
 				pod: &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
-					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{{
-							Name:  "test-cn",
-							Image: "nginx",
 							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "cachedir-1",
-									MountPath: "/cache1",
-								},
 								{
 									Name:      "test-init-config",
 									MountPath: "/test-init-config",
@@ -727,18 +717,6 @@ func TestMergeVolumes(t *testing.T) {
 							},
 						}},
 						Volumes: []corev1.Volume{
-							{
-								Name: "cachedir-1",
-								VolumeSource: corev1.VolumeSource{
-									HostPath: &corev1.HostPathVolumeSource{
-										Path: "/cache1",
-										Type: func() *corev1.HostPathType {
-											hostPathType := corev1.HostPathDirectoryOrCreate
-											return &hostPathType
-										}(),
-									},
-								},
-							},
 							{
 								Name: "test-init-config",
 								VolumeSource: corev1.VolumeSource{
@@ -755,10 +733,6 @@ func TestMergeVolumes(t *testing.T) {
 					},
 				},
 				jfsSetting: &config.JfsSetting{
-					CacheDirs: []string{"/cache1", "/cache2"},
-					CachePVCs: []config.CachePVC{
-						{PVCName: "pvc1", Path: "/pvc1"},
-					},
 					Attr: &config.PodAttr{
 						Volumes: []corev1.Volume{
 							{
@@ -784,29 +758,12 @@ func TestMergeVolumes(t *testing.T) {
 				},
 			},
 			want: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:  "test-cn",
-						Image: "nginx",
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "test-init-config",
 								MountPath: "/test-init-config",
-							},
-							{
-								Name:      "cachedir-0",
-								MountPath: "/cache1",
-							},
-							{
-								Name:      "cachedir-1",
-								MountPath: "/cache2",
-							},
-							{
-								Name:      "cachedir-pvc-0",
-								MountPath: "/pvc1",
 							},
 							{
 								Name:      "extra-volume1",
@@ -834,22 +791,50 @@ func TestMergeVolumes(t *testing.T) {
 							},
 						},
 						{
+							Name: "extra-volume1",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "test-append-cachedir-volumes",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{}}},
+				},
+				jfsSetting: &config.JfsSetting{
+					CacheDirs: []string{"/cache1"},
+					CachePVCs: []config.CachePVC{
+						{PVCName: "pvc1", Path: "/pvc1"},
+					},
+				},
+			},
+			want: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "cachedir-0",
+								MountPath: "/cache1",
+							},
+							{
+								Name:      "cachedir-pvc-0",
+								MountPath: "/pvc1",
+							},
+						},
+						VolumeDevices: []corev1.VolumeDevice{},
+					}},
+					Volumes: []corev1.Volume{
+						{
 							Name: "cachedir-0",
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/cache1",
-									Type: func() *corev1.HostPathType {
-										hostPathType := corev1.HostPathDirectoryOrCreate
-										return &hostPathType
-									}(),
-								},
-							},
-						},
-						{
-							Name: "cachedir-1",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/cache2",
 									Type: func() *corev1.HostPathType {
 										hostPathType := corev1.HostPathDirectoryOrCreate
 										return &hostPathType
@@ -866,13 +851,48 @@ func TestMergeVolumes(t *testing.T) {
 								},
 							},
 						},
-						{
-							Name: "extra-volume1",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			},
+		},
+		{
+			name: "test-overwrite-cachedir-volumes",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "cachedir-0",
+									MountPath: "/cache1",
+								},
+							},
+						}},
+						Volumes: []corev1.Volume{
+							{
+								Name: "cachedir-0",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{
+										Path: "/cache1",
+										Type: func() *corev1.HostPathType {
+											hostPathType := corev1.HostPathDirectoryOrCreate
+											return &hostPathType
+										}(),
+									},
+								},
 							},
 						},
 					},
+				},
+				jfsSetting: &config.JfsSetting{},
+			},
+			want: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						VolumeMounts:  []corev1.VolumeMount{},
+						VolumeDevices: []corev1.VolumeDevice{},
+					}},
+					Volumes: []corev1.Volume{},
 				},
 			},
 		},
@@ -880,17 +900,15 @@ func TestMergeVolumes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			MergeVolumes(tt.args.pod, tt.args.jfsSetting)
-			if !reflect.DeepEqual(tt.args.pod, tt.want) {
-				t.Errorf("MergeVolumes() = %v, want %v", tt.args.pod, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.args.pod)
 		})
 	}
 }
 
 func TestMergeMountOptions(t *testing.T) {
 	type args struct {
-		pod  *corev1.Pod
-		opts []string
+		pod        *corev1.Pod
+		jfsSetting *config.JfsSetting
 	}
 	tests := []struct {
 		name string
@@ -916,7 +934,9 @@ func TestMergeMountOptions(t *testing.T) {
 						}},
 					},
 				},
-				opts: []string{"opt3", "opt4"},
+				jfsSetting: &config.JfsSetting{
+					Options: []string{"opt3", "opt4"},
+				},
 			},
 			want: []string{
 				"sh",
@@ -943,8 +963,37 @@ func TestMergeMountOptions(t *testing.T) {
 						}},
 					},
 				},
-				opts: []string{"opt3", "opt4"},
+				jfsSetting: &config.JfsSetting{
+					Options: []string{"opt3", "opt4"},
+				}},
+			want: []string{
+				"sh",
+				"-c",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o opt3,opt4,foreground,no-update",
 			},
+		},
+		{
+			name: "test-with-cachedir",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test-cn",
+							Image: "nginx",
+							Command: []string{
+								"sh",
+								"-c",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,cache-dir=/cache1",
+							},
+						}},
+					},
+				},
+				jfsSetting: &config.JfsSetting{
+					Options: []string{"opt3", "opt4"},
+				}},
 			want: []string{
 				"sh",
 				"-c",
@@ -954,10 +1003,8 @@ func TestMergeMountOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			MergeMountOptions(tt.args.pod, tt.args.opts)
-			if !reflect.DeepEqual(tt.args.pod.Spec.Containers[0].Command, tt.want) {
-				t.Errorf("MergeVolumes() = %v, want %v", tt.args.pod.Spec.Containers[0].Command, tt.want)
-			}
+			MergeMountOptions(tt.args.pod, tt.args.jfsSetting)
+			assert.Equal(t, tt.want, tt.args.pod.Spec.Containers[0].Command)
 		})
 	}
 }

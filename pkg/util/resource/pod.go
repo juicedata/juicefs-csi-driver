@@ -373,10 +373,15 @@ func MergeEnvs(pod *corev1.Pod, env []corev1.EnvVar) {
 	pod.Spec.Containers[0].Env = env
 }
 
-func MergeMountOptions(pod *corev1.Pod, opts []string) {
+func MergeMountOptions(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
+	opts := jfsSetting.Options
 	for _, existsOpt := range util.GetMountOptionsOfPod(pod) {
-		existsOpt := strings.Split(existsOpt, "=")[0]
-		if !util.ContainsString(opts, existsOpt) {
+		pair := strings.Split(existsOpt, "=")
+		// if not set cache-dir, ignore cache-dir option
+		if pair[0] == "cache-dir" && len(jfsSetting.CacheDirs) == 0 {
+			continue
+		}
+		if !util.ContainsString(opts, pair[0]) {
 			opts = append(opts, existsOpt)
 		}
 	}
@@ -436,26 +441,32 @@ func MergeVolumes(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
 			MountPath: cache.Path,
 		})
 	}
-	for i, volume := range pod.Spec.Volumes {
-		if strings.HasPrefix(volume.Name, "cachedir-") ||
-			util.ContainsVolumes(jfsSetting.Attr.Volumes, volume.Name) {
-			pod.Spec.Volumes = append(pod.Spec.Volumes[:i], pod.Spec.Volumes[i+1:]...)
+	volumes := cacheVolumes
+	for _, volume := range pod.Spec.Volumes {
+		if !strings.HasPrefix(volume.Name, "cachedir-") &&
+			(jfsSetting.Attr == nil || !util.ContainsVolumes(jfsSetting.Attr.Volumes, volume.Name)) {
+			volumes = append(volumes, volume)
 		}
 	}
-	for i, vm := range pod.Spec.Containers[0].VolumeMounts {
-		if strings.HasPrefix(vm.Name, "cachedir-") ||
-			util.ContainsVolumeMounts(jfsSetting.Attr.VolumeMounts, vm.Name) {
-			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts[:i], pod.Spec.Containers[0].VolumeMounts[i+1:]...)
+	vms := cacheVolumeMounts
+	for _, vm := range pod.Spec.Containers[0].VolumeMounts {
+		if !strings.HasPrefix(vm.Name, "cachedir-") &&
+			(jfsSetting.Attr == nil || !util.ContainsVolumeMounts(jfsSetting.Attr.VolumeMounts, vm.Name)) {
+			vms = append(vms, vm)
 		}
 	}
+	vds := []corev1.VolumeDevice{}
 	for i, vd := range pod.Spec.Containers[0].VolumeDevices {
-		if util.ContainsVolumeDevices(jfsSetting.Attr.VolumeDevices, vd.Name) {
-			pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices[:i], pod.Spec.Containers[0].VolumeDevices[i+1:]...)
+		if !util.ContainsVolumeDevices(jfsSetting.Attr.VolumeDevices, vd.Name) {
+			vds = append(vds, pod.Spec.Containers[0].VolumeDevices[i])
 		}
 	}
-	pod.Spec.Volumes = append(pod.Spec.Volumes, cacheVolumes...)
-	pod.Spec.Volumes = append(pod.Spec.Volumes, jfsSetting.Attr.Volumes...)
-	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
-	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, jfsSetting.Attr.VolumeMounts...)
-	pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices, jfsSetting.Attr.VolumeDevices...)
+	if jfsSetting.Attr != nil {
+		volumes = append(volumes, jfsSetting.Attr.Volumes...)
+		vms = append(vms, jfsSetting.Attr.VolumeMounts...)
+		vds = append(vds, jfsSetting.Attr.VolumeDevices...)
+	}
+	pod.Spec.Volumes = volumes
+	pod.Spec.Containers[0].VolumeMounts = vms
+	pod.Spec.Containers[0].VolumeDevices = vds
 }

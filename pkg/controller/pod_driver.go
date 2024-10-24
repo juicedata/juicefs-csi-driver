@@ -808,11 +808,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 			return err
 		}
 	}
-	// merge envs
 	resource.MergeEnvs(pod, attr.Env)
-	// merge opts
-	resource.MergeMountOptions(pod, setting.Options)
-	// overwrite volumes
+	resource.MergeMountOptions(pod, setting)
 	resource.MergeVolumes(pod, setting)
 	return nil
 }
