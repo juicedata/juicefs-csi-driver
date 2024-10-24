@@ -66,7 +66,7 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 #### kubectl 插件中触发平滑升级 {#smooth-upgrade-via-kubectl-plugin}
 
 :::tip
-JuiceFS kubectl 插件的最低版本要求为 0.3.0
+JuiceFS kubectl 插件的最低版本要求为 0.3.0。
 :::
 
 1. 使用 kubectl 在 [CSI ConfigMap 配置](./../guide/configurations.md#configmap)中更新 Mount Pod 所需要升级的镜像版本：
