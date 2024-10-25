@@ -365,26 +365,29 @@ func GetUniqueId(pod corev1.Pod) string {
 }
 
 func MergeEnvs(pod *corev1.Pod, env []corev1.EnvVar) {
+	newEnvs := []corev1.EnvVar{}
 	for _, existsEnv := range pod.Spec.Containers[0].Env {
-		if !util.ContainsEnv(env, existsEnv.Name) {
-			env = append(env, existsEnv)
+		if _, ok := config.CSISetEnvMap[existsEnv.Name]; ok {
+			if !util.ContainsEnv(env, existsEnv.Name) {
+				newEnvs = append(newEnvs, existsEnv)
+			}
 		}
 	}
-	pod.Spec.Containers[0].Env = env
+	newEnvs = append(newEnvs, env...)
+	pod.Spec.Containers[0].Env = newEnvs
 }
 
 func MergeMountOptions(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
-	opts := jfsSetting.Options
+	newOpts := []string{}
 	for _, existsOpt := range util.GetMountOptionsOfPod(pod) {
 		pair := strings.Split(existsOpt, "=")
-		// if not set cache-dir, ignore cache-dir option
-		if pair[0] == "cache-dir" && len(jfsSetting.CacheDirs) == 0 {
-			continue
-		}
-		if !util.ContainsString(opts, pair[0]) {
-			opts = append(opts, existsOpt)
+		if _, ok := config.CSISetOptsMap[pair[0]]; ok {
+			if !util.ContainsPrefix(jfsSetting.Options, pair[0]) {
+				newOpts = append(newOpts, existsOpt)
+			}
 		}
 	}
+	newOpts = append(newOpts, jfsSetting.Options...)
 
 	if len(pod.Spec.Containers[0].Command) < 3 {
 		return
@@ -396,7 +399,7 @@ func MergeMountOptions(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
 	if len(mountCmds) < 3 || mountCmds[len(mountCmds)-2] != "-o" {
 		return
 	}
-	mountCmds[len(mountCmds)-1] = strings.Join(opts, ",")
+	mountCmds[len(mountCmds)-1] = strings.Join(newOpts, ",")
 	command[len(command)-1] = strings.Join(mountCmds, " ")
 	pod.Spec.Containers[0].Command[2] = strings.Join(command, "\n")
 }

@@ -621,6 +621,7 @@ func TestMergeEnvs(t *testing.T) {
 							Name:  "test-cn",
 							Image: "nginx",
 							Env: []corev1.EnvVar{
+								{Name: "JFS_FOREGROUND", Value: "true"},
 								{Name: "EXISTING_ENV", Value: "existing_value"},
 							},
 						}},
@@ -632,8 +633,8 @@ func TestMergeEnvs(t *testing.T) {
 				},
 			},
 			want: []corev1.EnvVar{
+				{Name: "JFS_FOREGROUND", Value: "true"},
 				{Name: "NEW_ENV", Value: "new_value"},
-				{Name: "EXISTING_ENV", Value: "existing_value"},
 			},
 		},
 		{
@@ -648,16 +649,19 @@ func TestMergeEnvs(t *testing.T) {
 							Name:  "test-cn",
 							Image: "nginx",
 							Env: []corev1.EnvVar{
+								{Name: "JFS_NO_UPDATE_CONFIG", Value: "true"},
 								{Name: "EXISTING_ENV", Value: "existing_value"},
 							},
 						}},
 					},
 				},
 				env: []corev1.EnvVar{
+					{Name: "JFS_NO_UPDATE_CONFIG", Value: "false"},
 					{Name: "EXISTING_ENV", Value: "new_value"},
 				},
 			},
 			want: []corev1.EnvVar{
+				{Name: "JFS_NO_UPDATE_CONFIG", Value: "false"},
 				{Name: "EXISTING_ENV", Value: "new_value"},
 			},
 		},
@@ -688,7 +692,7 @@ func TestMergeEnvs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			MergeEnvs(tt.args.pod, tt.args.env)
-			assert.Equal(t, tt.args.pod.Spec.Containers[0].Env, tt.want)
+			assert.Equal(t, tt.want, tt.args.pod.Spec.Containers[0].Env)
 		})
 	}
 }
@@ -941,7 +945,7 @@ func TestMergeMountOptions(t *testing.T) {
 			want: []string{
 				"sh",
 				"-c",
-				"cp test.config /root/test.config\n/sbin/mount.juicefs test /jfs/mntPath -o opt3,opt4,foreground,no-update",
+				"cp test.config /root/test.config\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,opt3,opt4",
 			},
 		},
 		{
@@ -958,7 +962,7 @@ func TestMergeMountOptions(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update",
 							},
 						}},
 					},
@@ -969,7 +973,7 @@ func TestMergeMountOptions(t *testing.T) {
 			want: []string{
 				"sh",
 				"-c",
-				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o opt3,opt4,foreground,no-update",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,opt3,opt4",
 			},
 		},
 		{
@@ -986,7 +990,7 @@ func TestMergeMountOptions(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,cache-dir=/cache1",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,cache-dir=/cache1",
 							},
 						}},
 					},
@@ -997,7 +1001,65 @@ func TestMergeMountOptions(t *testing.T) {
 			want: []string{
 				"sh",
 				"-c",
-				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-algeng-qhd01 --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o opt3,opt4,foreground,no-update",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,opt3,opt4",
+			},
+		},
+		{
+			name: "test-remove-option",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test-cn",
+							Image: "nginx",
+							Command: []string{
+								"sh",
+								"-c",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,verbose",
+							},
+						}},
+					},
+				},
+				jfsSetting: &config.JfsSetting{
+					Options: []string{},
+				}},
+			want: []string{
+				"sh",
+				"-c",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update",
+			},
+		},
+		{
+			name: "test-overwrite-inter-option",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test-cn",
+							Image: "nginx",
+							Command: []string{
+								"sh",
+								"-c",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8080",
+							},
+						}},
+					},
+				},
+				jfsSetting: &config.JfsSetting{
+					Options: []string{
+						"metrics=0.0.0.0:8081",
+					},
+				}},
+			want: []string{
+				"sh",
+				"-c",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8081",
 			},
 		},
 	}
