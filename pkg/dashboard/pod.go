@@ -795,7 +795,7 @@ func newLogPipe(ctx context.Context, conn *websocket.Conn, stream io.ReadCloser)
 					l.stream.Close()
 					return
 				}
-				if string(temp) == "ping" {
+				if strings.Contains(string(temp), "ping") {
 					_ = websocket.Message.Send(l.conn, "pong")
 				}
 			}
