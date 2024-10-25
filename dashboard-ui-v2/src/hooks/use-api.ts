@@ -105,6 +105,10 @@ export function useWebsocket(
         message: '{"type":"ping","data":"ping"}',
         interval: 3000,
       },
+      onMessage: (msg) => {
+        if (msg.data === 'pong') return
+        opts?.onMessage?.(msg)
+      },
     },
     shouldConnect,
   )
