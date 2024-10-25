@@ -35,12 +35,9 @@ import (
 )
 
 const (
-	JfsDirName          = "jfs-dir"
-	UpdateDBDirName     = "updatedb"
-	UpdateDBCfgFile     = "/etc/updatedb.conf"
-	JfsFuseFsPathInPod  = "/tmp"
-	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
-	JfsCommEnv          = "JFS_SUPER_COMM"
+	JfsDirName      = "jfs-dir"
+	UpdateDBDirName = "updatedb"
+	UpdateDBCfgFile = "/etc/updatedb.conf"
 )
 
 type BaseBuilder struct {
