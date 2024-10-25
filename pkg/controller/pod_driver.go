@@ -782,10 +782,11 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 }
 
 func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error {
-	attr, err := config.GenPodAttrWithMountPod(ctx, p.Client, pod)
+	setting, err := config.GenSettingAttrWithMountPod(ctx, p.Client, pod)
 	if err != nil {
 		return err
 	}
+	attr := setting.Attr
 	// update pod spec
 	pod.Labels = attr.Labels
 	pod.Annotations = attr.Annotations
@@ -801,6 +802,15 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	pod.Spec.Containers[0].Lifecycle = attr.Lifecycle
 	pod.Spec.Containers[0].Image = attr.Image
 	pod.Spec.Containers[0].Resources = attr.Resources
+
+	if len(setting.Attr.CacheDirs) > 0 {
+		if err := config.GenCacheDirs(setting, nil); err != nil {
+			return err
+		}
+	}
+	resource.MergeEnvs(pod, attr.Env)
+	resource.MergeMountOptions(pod, setting)
+	resource.MergeVolumes(pod, setting)
 	return nil
 }
 

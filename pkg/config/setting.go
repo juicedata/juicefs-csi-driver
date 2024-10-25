@@ -247,13 +247,13 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if err := genAndValidOptions(&jfsSetting, options); err != nil {
 		return nil, fmt.Errorf("genAndValidOptions error: %v", err)
 	}
-	if err := genCacheDirs(&jfsSetting, volCtx); err != nil {
+	if err := GenCacheDirs(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("genCacheDirs error: %v", err)
 	}
 	return &jfsSetting, nil
 }
 
-func genCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
+func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -485,13 +485,13 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	return nil
 }
 
-// GenPodAttrWithMountPod generate pod attr with mount pod
+// GenSettingAttrWithMountPod generate pod attr with mount pod
 // Return the latest pod attributes following the priorities below:
 //
 // 1. original mount pod
 // 2. pvc annotations
 // 3. global config
-func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) (*PodAttr, error) {
+func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) (*JfsSetting, error) {
 	attr := &PodAttr{
 		Namespace:            mountPod.Namespace,
 		MountPointPath:       MountPointPath,
@@ -509,6 +509,7 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 		ServiceAccountName:   mountPod.Spec.ServiceAccountName,
 		Labels:               make(map[string]string),
 		Annotations:          make(map[string]string),
+		Env:                  mountPod.Spec.Containers[0].Env,
 	}
 	if mountPod.Spec.Containers != nil && len(mountPod.Spec.Containers) > 0 {
 		attr.Image = mountPod.Spec.Containers[0].Image
@@ -572,7 +573,7 @@ func GenPodAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mo
 	setting.Attr = attr
 	// apply config patch
 	applyConfigPatch(setting)
-	return attr, nil
+	return setting, nil
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {

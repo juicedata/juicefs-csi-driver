@@ -363,3 +363,113 @@ func GetUniqueId(pod corev1.Pod) string {
 	uniqueId := strings.SplitN(pod.Name, fmt.Sprintf("%s-", nodeName), 2)[1]
 	return uniqueId
 }
+
+func MergeEnvs(pod *corev1.Pod, env []corev1.EnvVar) {
+	newEnvs := []corev1.EnvVar{}
+	for _, existsEnv := range pod.Spec.Containers[0].Env {
+		if _, ok := config.CSISetEnvMap[existsEnv.Name]; ok {
+			if !util.ContainsEnv(env, existsEnv.Name) {
+				newEnvs = append(newEnvs, existsEnv)
+			}
+		}
+	}
+	newEnvs = append(newEnvs, env...)
+	pod.Spec.Containers[0].Env = newEnvs
+}
+
+func MergeMountOptions(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
+	newOpts := []string{}
+	for _, existsOpt := range util.GetMountOptionsOfPod(pod) {
+		pair := strings.Split(existsOpt, "=")
+		if _, ok := config.CSISetOptsMap[pair[0]]; ok {
+			if !util.ContainsPrefix(jfsSetting.Options, pair[0]) {
+				newOpts = append(newOpts, existsOpt)
+			}
+		}
+	}
+	newOpts = append(newOpts, jfsSetting.Options...)
+
+	if len(pod.Spec.Containers[0].Command) < 3 {
+		return
+	}
+	command := strings.Split(pod.Spec.Containers[0].Command[2], "\n")
+	mountCmds := strings.Fields(command[len(command)-1])
+
+	// not valid cmd
+	if len(mountCmds) < 3 || mountCmds[len(mountCmds)-2] != "-o" {
+		return
+	}
+	mountCmds[len(mountCmds)-1] = strings.Join(newOpts, ",")
+	command[len(command)-1] = strings.Join(mountCmds, " ")
+	pod.Spec.Containers[0].Command[2] = strings.Join(command, "\n")
+}
+
+// MergeVolumes merges the cache volumes and volume mounts specified in the JfsSetting
+// into the given pod's spec.
+func MergeVolumes(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
+	cacheVolumes := []corev1.Volume{}
+	cacheVolumeMounts := []corev1.VolumeMount{}
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	for idx, cacheDir := range jfsSetting.CacheDirs {
+		name := fmt.Sprintf("cachedir-%d", idx)
+		cacheVolumes = append(cacheVolumes, corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: cacheDir,
+					Type: &hostPathType,
+				},
+			},
+		})
+		cacheVolumeMounts = append(cacheVolumeMounts, corev1.VolumeMount{
+			Name:      name,
+			MountPath: cacheDir,
+		})
+	}
+
+	for i, cache := range jfsSetting.CachePVCs {
+		name := fmt.Sprintf("cachedir-pvc-%d", i)
+		cacheVolumes = append(cacheVolumes, corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: cache.PVCName,
+					ReadOnly:  false,
+				},
+			},
+		})
+		cacheVolumeMounts = append(cacheVolumeMounts, corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: cache.Path,
+		})
+	}
+	volumes := cacheVolumes
+	for _, volume := range pod.Spec.Volumes {
+		if !strings.HasPrefix(volume.Name, "cachedir-") &&
+			(jfsSetting.Attr == nil || !util.ContainsVolumes(jfsSetting.Attr.Volumes, volume.Name)) {
+			volumes = append(volumes, volume)
+		}
+	}
+	vms := cacheVolumeMounts
+	for _, vm := range pod.Spec.Containers[0].VolumeMounts {
+		if !strings.HasPrefix(vm.Name, "cachedir-") &&
+			(jfsSetting.Attr == nil || !util.ContainsVolumeMounts(jfsSetting.Attr.VolumeMounts, vm.Name)) {
+			vms = append(vms, vm)
+		}
+	}
+	vds := []corev1.VolumeDevice{}
+	for i, vd := range pod.Spec.Containers[0].VolumeDevices {
+		if !util.ContainsVolumeDevices(jfsSetting.Attr.VolumeDevices, vd.Name) {
+			vds = append(vds, pod.Spec.Containers[0].VolumeDevices[i])
+		}
+	}
+	if jfsSetting.Attr != nil {
+		volumes = append(volumes, jfsSetting.Attr.Volumes...)
+		vms = append(vms, jfsSetting.Attr.VolumeMounts...)
+		vds = append(vds, jfsSetting.Attr.VolumeDevices...)
+	}
+	pod.Spec.Volumes = volumes
+	pod.Spec.Containers[0].VolumeMounts = vms
+	pod.Spec.Containers[0].VolumeDevices = vds
+}

@@ -737,7 +737,7 @@ func Test_genCacheDirs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := genCacheDirs(&tt.args.JfsSetting, tt.args.volCtx)
+			err := GenCacheDirs(&tt.args.JfsSetting, tt.args.volCtx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("genCacheDirs() error = %v, wantErr %v", err, tt.wantErr)
 				return

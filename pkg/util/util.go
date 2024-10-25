@@ -672,3 +672,57 @@ func ParseConfig(conf []byte) (*JuiceConf, error) {
 	}
 	return &juiceConf, nil
 }
+
+func ContainsEnv(envs []corev1.EnvVar, key string) bool {
+	for _, env := range envs {
+		if env.Name == key {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainsVolumes(volumes []corev1.Volume, name string) bool {
+	for _, volume := range volumes {
+		if volume.Name == name {
+			return true
+		}
+	}
+	return false
+}
+func ContainsVolumeDevices(vds []corev1.VolumeDevice, name string) bool {
+	for _, vd := range vds {
+		if vd.Name == name {
+			return true
+		}
+	}
+	return false
+}
+func ContainsVolumeMounts(vms []corev1.VolumeMount, name string) bool {
+	for _, vm := range vms {
+		if vm.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func GetMountOptionsOfPod(pod *corev1.Pod) []string {
+	if len(pod.Spec.Containers) == 0 {
+		return nil
+	}
+	cmd := pod.Spec.Containers[0].Command
+	if cmd == nil || len(cmd) < 3 {
+		return nil
+	}
+	mountCmds := strings.Fields(cmd[2])
+	// not valid cmd
+	if len(mountCmds) < 3 {
+		return nil
+	}
+	// not valid cmd
+	if mountCmds[len(mountCmds)-2] != "-o" {
+		return nil
+	}
+	return strings.Split(mountCmds[len(mountCmds)-1], ",")
+}

@@ -411,12 +411,12 @@ func (api *API) getPodLatestImage() gin.HandlerFunc {
 			c.String(500, "Load config from configmap error: %v", err)
 			return
 		}
-		attr, err := config.GenPodAttrWithMountPod(c, k8sClient, rawPod)
+		setting, err := config.GenSettingAttrWithMountPod(c, k8sClient, rawPod)
 		if err != nil {
 			c.String(500, "generate pod attribute error: %v", err)
 			return
 		}
-		c.IndentedJSON(200, attr.Image)
+		c.IndentedJSON(200, setting.Attr.Image)
 	}
 }
 

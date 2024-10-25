@@ -1016,3 +1016,72 @@ func TestSupportUpgradeBinary(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMountOptionsOfPod(t *testing.T) {
+	tests := []struct {
+		name string
+		pod  *corev1.Pod
+		want []string
+	}{
+		{
+			name: "test-valid-options",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Command: []string{"sh", "-c", "exec /sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update"},
+						},
+					},
+				},
+			},
+			want: []string{"foreground", "no-update"},
+		},
+		{
+			name: "test-with-cp",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Command: []string{"sh", "-c", "cp test.config /root/test.config\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update"},
+						},
+					},
+				},
+			},
+			want: []string{"foreground", "no-update"},
+		},
+		{
+			name: "test-without-exec",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Command: []string{"sh", "-c", "/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update"},
+						},
+					},
+				},
+			},
+			want: []string{"foreground", "no-update"},
+		},
+		{
+			name: "test-no-options",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Command: []string{"sh", "-c", "exec /sbin/mount.juicefs test /jfs/mntPath"},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetMountOptionsOfPod(tt.pod); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMountOptionsOfPod() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

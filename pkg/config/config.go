@@ -86,6 +86,28 @@ var (
 	DefaultEEMountImage = "juicedata/mount:ee-nightly" // mount pod ee image, override by ENV
 )
 
+// env auto set by the csi side
+var CSISetEnvMap = map[string]interface{}{
+	"_JFS_META_SID":                     nil,
+	"JFS_NO_UMOUNT":                     nil,
+	"JFS_NO_UPDATE":                     nil,
+	"JFS_FOREGROUND":                    nil,
+	"JFS_SUPER_COMM":                    nil,
+	"JFS_INSIDE_CONTAINER":              nil,
+	"JUICEFS_CLIENT_PATH":               nil,
+	"JUICEFS_CLIENT_SIDERCAR_CONTAINER": nil,
+	"JFS_NO_CHECK_OBJECT_STORAGE":       nil,
+}
+
+// opts auto set by the csi side
+var CSISetOptsMap = map[string]interface{}{
+	"no-update":  nil,
+	"foreground": nil,
+	"metrics":    nil,
+	"rsa-key":    nil,
+}
+
+// volume set by the csi side
 var interVolumesPrefix = []string{
 	"rsa-key",
 	"init-config",
