@@ -908,22 +908,6 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 
 func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	log := util.GenLog(ctx, podDriverLog, "mkrMp")
-	var shouldMkrMp bool
-	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		cn := pod.Spec.Containers[0]
-		if cn.Lifecycle != nil && cn.Lifecycle.PreStop != nil && cn.Lifecycle.PreStop.Exec != nil {
-			for _, cmd := range cn.Lifecycle.PreStop.Exec.Command {
-				if strings.Contains(cmd, "rmdir") {
-					shouldMkrMp = true
-				}
-			}
-		}
-	} else {
-		shouldMkrMp = true
-	}
-	if !shouldMkrMp {
-		return nil
-	}
 	log.V(1).Info("Prepare mountpoint for pod")
 	// mkdir mountpath
 	// get mount point
@@ -935,7 +919,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 		return err
 	}
 	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		exist, _ := mount.PathExists(mntPath)
+		exist := util.Exists(mntPath)
 		if !exist {
 			return os.MkdirAll(mntPath, 0777)
 		}
