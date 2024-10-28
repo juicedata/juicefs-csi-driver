@@ -473,3 +473,13 @@ func MergeVolumes(pod *corev1.Pod, jfsSetting *config.JfsSetting) {
 	pod.Spec.Containers[0].VolumeMounts = vms
 	pod.Spec.Containers[0].VolumeDevices = vds
 }
+
+func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T {
+	var filteredVars []T
+	for _, v := range vars {
+		if getName(v) != excludeName {
+			filteredVars = append(filteredVars, v)
+		}
+	}
+	return filteredVars
+}

@@ -89,9 +89,7 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 		}
 	case "ping":
 		t.lastHeartbeatAt = time.Now()
-		if err := websocket.Message.Send(t.conn, "pong"); err != nil {
-			resourceLog.Error(err, "Terminal send heartbeat msg err")
-		}
+		_ = websocket.Message.Send(t.conn, "pong")
 	default:
 		return copy(p, t.endOfTransmission), nil
 	}

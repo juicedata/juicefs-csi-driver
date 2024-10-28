@@ -70,7 +70,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 			return nil, err
 		}
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
-			Name:  JfsCommEnv,
+			Name:  common.JfsCommEnv,
 			Value: fdAddress,
 		})
 	}
@@ -259,7 +259,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			Name: config.JfsFuseFdPathName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path.Join(JfsFuseFsPathInHost, r.jfsSetting.HashVal),
+					Path: path.Join(common.JfsFuseFsPathInHost, r.jfsSetting.HashVal),
 					Type: &dir,
 				},
 			},
@@ -273,7 +273,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 		},
 		{
 			Name:      config.JfsFuseFdPathName,
-			MountPath: JfsFuseFsPathInPod,
+			MountPath: common.JfsFuseFsPathInPod,
 		},
 	}
 

@@ -33,18 +33,22 @@ import (
 var log = klog.NewKlogr().WithName("job-util")
 
 func IsJobCompleted(job *batchv1.Job) bool {
-	for _, cond := range job.Status.Conditions {
-		if cond.Status == corev1.ConditionTrue && cond.Type == batchv1.JobComplete {
-			return true
+	if job.Status.Conditions != nil {
+		for _, cond := range job.Status.Conditions {
+			if cond.Status == corev1.ConditionTrue && cond.Type == batchv1.JobComplete {
+				return true
+			}
 		}
 	}
 	return false
 }
 
 func IsJobFailed(job *batchv1.Job) bool {
-	for _, cond := range job.Status.Conditions {
-		if cond.Status == corev1.ConditionTrue && cond.Type == batchv1.JobFailed {
-			return true
+	if job.Status.Conditions != nil {
+		for _, cond := range job.Status.Conditions {
+			if cond.Status == corev1.ConditionTrue && cond.Type == batchv1.JobFailed {
+				return true
+			}
 		}
 	}
 	return false

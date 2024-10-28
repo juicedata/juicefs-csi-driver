@@ -80,4 +80,9 @@ const (
 
 	PodInfoName      = "csi.storage.k8s.io/pod.name"
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
+
+	// smooth upgrade
+	JfsFuseFsPathInPod  = "/tmp"
+	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
+	JfsCommEnv          = "JFS_SUPER_COMM"
 )
