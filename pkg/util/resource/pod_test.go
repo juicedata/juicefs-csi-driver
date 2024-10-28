@@ -20,11 +20,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var (
@@ -1069,4 +1070,77 @@ func TestMergeMountOptions(t *testing.T) {
 			assert.Equal(t, tt.want, tt.args.pod.Spec.Containers[0].Command)
 		})
 	}
+}
+
+func TestFilterVars(t *testing.T) {
+	t.Run("test env", func(t *testing.T) {
+		if got := FilterVars([]corev1.EnvVar{
+			{
+				Name:  "test1",
+				Value: "value1",
+			},
+			{
+				Name:  "abc",
+				Value: "value1",
+			},
+		}, "abc", func(envVar corev1.EnvVar) string {
+			return envVar.Name
+		}); !reflect.DeepEqual(got, []corev1.EnvVar{
+			{
+				Name:  "test1",
+				Value: "value1",
+			},
+		}) {
+			t.Errorf("FilterVars env error, got: %v", got)
+		}
+	})
+
+	t.Run("test volume", func(t *testing.T) {
+		if got := FilterVars([]corev1.Volume{
+			{
+				Name: "test1",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "abc",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		}, "abc", func(volume corev1.Volume) string {
+			return volume.Name
+		}); !reflect.DeepEqual(got, []corev1.Volume{
+			{
+				Name: "test1",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		}) {
+			t.Errorf("FilterVars volume error, got: %v", got)
+		}
+	})
+	t.Run("test volumeMount", func(t *testing.T) {
+		if got := FilterVars([]corev1.VolumeMount{
+			{
+				Name:      "test1",
+				MountPath: "/tmp",
+			},
+			{
+				Name:      "abc",
+				MountPath: "/tmp",
+			},
+		}, "abc", func(volume corev1.VolumeMount) string {
+			return volume.Name
+		}); !reflect.DeepEqual(got, []corev1.VolumeMount{
+			{
+				Name:      "test1",
+				MountPath: "/tmp",
+			},
+		}) {
+			t.Errorf("FilterVars volumeMount error, got: %v", got)
+		}
+	})
 }

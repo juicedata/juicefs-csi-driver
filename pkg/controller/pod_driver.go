@@ -908,22 +908,6 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 
 func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	log := util.GenLog(ctx, podDriverLog, "mkrMp")
-	var shouldMkrMp bool
-	if util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		cn := pod.Spec.Containers[0]
-		if cn.Lifecycle != nil && cn.Lifecycle.PreStop != nil && cn.Lifecycle.PreStop.Exec != nil {
-			for _, cmd := range cn.Lifecycle.PreStop.Exec.Command {
-				if strings.Contains(cmd, "rmdir") {
-					shouldMkrMp = true
-				}
-			}
-		}
-	} else {
-		shouldMkrMp = true
-	}
-	if !shouldMkrMp {
-		return nil
-	}
 	log.V(1).Info("Prepare mountpoint for pod")
 	// mkdir mountpath
 	// get mount point
@@ -935,7 +919,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 		return err
 	}
 	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		exist, _ := mount.PathExists(mntPath)
+		exist := util.Exists(mntPath)
 		if !exist {
 			return os.MkdirAll(mntPath, 0777)
 		}
@@ -992,6 +976,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if err := p.applyConfigPatch(ctx, newPod); err != nil {
 		log.Error(err, "apply config patch error, will ignore")
 	}
+	newSupportFusePass := util.SupportFusePass(newPod.Spec.Containers[0].Image)
 	if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi
@@ -1011,6 +996,53 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 				util.UmountPath(ctx, sourcePath)
 				return nil
 			})
+		}
+	}
+	// new image support fuse pass and old image do not support
+	if !oldSupportFusePass && newSupportFusePass {
+		// add fd address to env
+		fdAddress, err := passfd.GlobalFds.GetFdAddress(ctx, hashVal)
+		if err != nil {
+			return nil, err
+		}
+		newPod.Spec.Containers[0].Env = append(
+			resource.FilterVars(newPod.Spec.Containers[0].Env, common.JfsCommEnv, func(envVar corev1.EnvVar) string {
+				return envVar.Name
+			}),
+			corev1.EnvVar{
+				Name:  common.JfsCommEnv,
+				Value: fdAddress,
+			},
+		)
+
+		// add fd address to volume and volumeMount
+		newPod.Spec.Containers[0].VolumeMounts = append(
+			resource.FilterVars(newPod.Spec.Containers[0].VolumeMounts, config.JfsFuseFdPathName, func(volumeMount corev1.VolumeMount) string {
+				return volumeMount.Name
+			}),
+			corev1.VolumeMount{
+				Name:      config.JfsFuseFdPathName,
+				MountPath: common.JfsFuseFsPathInPod,
+			})
+		dir := corev1.HostPathDirectoryOrCreate
+		newPod.Spec.Volumes = append(
+			resource.FilterVars(newPod.Spec.Volumes, config.JfsFuseFdPathName, func(volume corev1.Volume) string {
+				return volume.Name
+			}),
+			corev1.Volume{
+				Name: config.JfsFuseFdPathName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: path.Join(common.JfsFuseFsPathInHost, hashVal),
+						Type: &dir,
+					},
+				},
+			},
+		)
+
+		// start fd in csi
+		if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
+			log.Error(err, "serve fuse fd error")
 		}
 	}
 	err = mkrMp(ctx, *newPod)

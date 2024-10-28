@@ -89,7 +89,7 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 		}
 	case "ping":
 		t.lastHeartbeatAt = time.Now()
-		websocket.Message.Send(t.conn, "pong")
+		_ = websocket.Message.Send(t.conn, "pong")
 	default:
 		return copy(p, t.endOfTransmission), nil
 	}
