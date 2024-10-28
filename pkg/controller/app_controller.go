@@ -155,7 +155,7 @@ func (a *AppController) killFuseProcess(ctx context.Context, pod *corev1.Pod, fu
 		return nil
 	}
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
-	cmd := []string{"sh", "-c", "pkill mount.juicefs"}
+	cmd := []string{"sh", "-c", "pkill -fe juicefs"}
 	log.Info("exec cmd in container of pod", "command", cmd, "cnName", fuseContainer.Name)
 	stdout, stderr, err := a.K8sClient.ExecuteInContainer(ctx, pod.Name, pod.Namespace, fuseContainer.Name, cmd)
 	if err != nil {
