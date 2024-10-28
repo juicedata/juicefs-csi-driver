@@ -70,7 +70,7 @@ var (
 					Name: config.JfsFuseFdPathName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: path.Join(JfsFuseFsPathInHost, "test"),
+							Path: path.Join(common.JfsFuseFsPathInHost, "test"),
 							Type: &dir,
 						},
 					},
