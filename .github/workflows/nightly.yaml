@@ -235,6 +235,15 @@ jobs:
           make -C docker ce-image
           make -C docker ee-image
           make -C docker dashboard-build
+      - name: sync image
+        env:
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          ./sync.sh csi-driver nightly
+          ./sync.sh mount ee-nightly
+          ./sync.sh mount ce-nightly
       - name: Success
         if: ${{ success() }}
         run: echo "All Done"
