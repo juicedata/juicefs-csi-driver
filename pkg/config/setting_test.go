@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -1120,6 +1121,81 @@ func Test_getPVNameFromTarget(t *testing.T) {
 			if got := getPVNameFromTarget(tt.target); got != tt.want {
 				t.Errorf("getPVNameFromTarget() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_applyConfigPatch(t *testing.T) {
+	type args struct {
+		setting *JfsSetting
+		patch   MountPodPatch
+	}
+	tests := []struct {
+		name string
+		args args
+		want *JfsSetting
+	}{
+		{
+			name: "test-merge-options",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+					Options: []string{
+						"a=c",
+						"b=d",
+						"c=e",
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"a=b", "c=d"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{},
+				Options: []string{
+					"a=b",
+					"c=d",
+					"b=d",
+				},
+			},
+		},
+		{
+			name: "test-large-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("10Mi"),
+							},
+						},
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("10Mi"),
+						},
+					},
+				},
+				Options: []string{
+					"buffer-size=10Mi",
+				},
+			},
+		},
+	}
+
+	defer GlobalConfig.Reset()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			GlobalConfig.MountPodPatch = []MountPodPatch{tt.args.patch}
+			applyConfigPatch(tt.args.setting)
+			assert.Equal(t, tt.want, tt.args.setting)
 		})
 	}
 }

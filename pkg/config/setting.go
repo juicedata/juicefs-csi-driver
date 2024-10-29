@@ -511,7 +511,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		Annotations:          make(map[string]string),
 		Env:                  mountPod.Spec.Containers[0].Env,
 	}
-	if mountPod.Spec.Containers != nil && len(mountPod.Spec.Containers) > 0 {
+	if len(mountPod.Spec.Containers) > 0 {
 		attr.Image = mountPod.Spec.Containers[0].Image
 		attr.Resources = mountPod.Spec.Containers[0].Resources
 	}
@@ -771,18 +771,33 @@ func applyConfigPatch(setting *JfsSetting) {
 	attr.Env = patch.Env
 	attr.CacheDirs = patch.CacheDirs
 
-	// merge or overwrite setting options
-	if setting.Options == nil {
-		setting.Options = make([]string, 0)
-	}
+	newOptions := make([]string, 0)
+	patchOptionsMap := make(map[string]bool)
 	for _, option := range patch.MountOptions {
-		for i, o := range setting.Options {
-			if strings.Split(o, "=")[0] == option {
-				setting.Options = append(setting.Options[:i], setting.Options[i+1:]...)
+		pair := strings.Split(option, "=")
+		patchOptionsMap[pair[0]] = true
+		if len(pair) == 2 && pair[0] == "buffer-size" {
+			memLimit := setting.Attr.Resources.Limits[corev1.ResourceMemory]
+			memLimitByte := memLimit.Value()
+			bufferSize, err := util.ParseToBytes(pair[1])
+			if err != nil {
+				log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
+				continue
 			}
+			if bufferSize > uint64(memLimitByte) {
+				log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", memLimit.String())
+				pair[1] = strconv.FormatInt(memLimitByte, 10)
+			}
+			option = strings.Join(pair, "=")
 		}
-		setting.Options = append(setting.Options, option)
+		newOptions = append(newOptions, option)
 	}
+	for _, o := range setting.Options {
+		if _, ok := patchOptionsMap[strings.Split(o, "=")[0]]; !ok {
+			newOptions = append(newOptions, o)
+		}
+	}
+	setting.Options = newOptions
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE
