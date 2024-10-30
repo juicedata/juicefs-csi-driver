@@ -1189,6 +1189,32 @@ func Test_applyConfigPatch(t *testing.T) {
 			},
 		},
 		{
+			name: "test-large-buff-size-in-pv",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("10Mi"),
+							},
+						},
+					},
+					Options: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("10Mi"),
+						},
+					},
+				}, Options: []string{
+					"buffer-size=10",
+				},
+			},
+		},
+		{
 			name: "test-empty-limit-resources-buff-size",
 			args: args{
 				setting: &JfsSetting{

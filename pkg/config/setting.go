@@ -738,6 +738,32 @@ func getDefaultResource() corev1.ResourceRequirements {
 	}
 }
 
+func processOption(option string, resources corev1.ResourceRequirements) string {
+	pair := strings.Split(option, "=")
+	if len(pair) != 2 || pair[0] != "buffer-size" {
+		return option
+	}
+	memLimit := resources.Limits[corev1.ResourceMemory]
+	memLimitByte := memLimit.Value()
+	if memLimitByte <= 0 {
+		return option
+	}
+
+	bufferSize, err := util.ParseToBytes(pair[1])
+	if err != nil {
+		log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
+		return ""
+	}
+
+	if bufferSize > uint64(memLimitByte) {
+		log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", strconv.FormatInt(memLimitByte, 10))
+		pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
+		option = strings.Join(pair, "=")
+	}
+
+	return option
+}
+
 func applyConfigPatch(setting *JfsSetting) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
@@ -776,27 +802,16 @@ func applyConfigPatch(setting *JfsSetting) {
 	for _, option := range patch.MountOptions {
 		pair := strings.Split(option, "=")
 		patchOptionsMap[pair[0]] = true
-		if len(pair) == 2 && pair[0] == "buffer-size" {
-			memLimit := setting.Attr.Resources.Limits[corev1.ResourceMemory]
-			memLimitByte := memLimit.Value()
-			if memLimitByte > 0 {
-				bufferSize, err := util.ParseToBytes(pair[1])
-				if err != nil {
-					log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
-					continue
-				}
-				if bufferSize > uint64(memLimitByte) {
-					log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", memLimit.String())
-					pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
-				}
-				option = strings.Join(pair, "=")
-			}
+		if v := processOption(option, setting.Attr.Resources); v != "" {
+			newOptions = append(newOptions, v)
 		}
-		newOptions = append(newOptions, option)
 	}
-	for _, o := range setting.Options {
-		if _, ok := patchOptionsMap[strings.Split(o, "=")[0]]; !ok {
-			newOptions = append(newOptions, o)
+	for _, option := range setting.Options {
+		pair := strings.Split(option, "=")
+		if _, ok := patchOptionsMap[pair[0]]; !ok {
+			if v := processOption(option, setting.Attr.Resources); v != "" {
+				newOptions = append(newOptions, v)
+			}
 		}
 	}
 	setting.Options = newOptions
