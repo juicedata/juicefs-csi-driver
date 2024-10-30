@@ -1184,7 +1184,7 @@ func Test_applyConfigPatch(t *testing.T) {
 					},
 				},
 				Options: []string{
-					"buffer-size=10485760",
+					"buffer-size=10",
 				},
 			},
 		},
