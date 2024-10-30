@@ -786,7 +786,7 @@ func applyConfigPatch(setting *JfsSetting) {
 			}
 			if bufferSize > uint64(memLimitByte) {
 				log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", memLimit.String())
-				pair[1] = strconv.FormatInt(memLimitByte, 10)
+				pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
 			}
 			option = strings.Join(pair, "=")
 		}
