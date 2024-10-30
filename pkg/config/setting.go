@@ -779,16 +779,18 @@ func applyConfigPatch(setting *JfsSetting) {
 		if len(pair) == 2 && pair[0] == "buffer-size" {
 			memLimit := setting.Attr.Resources.Limits[corev1.ResourceMemory]
 			memLimitByte := memLimit.Value()
-			bufferSize, err := util.ParseToBytes(pair[1])
-			if err != nil {
-				log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
-				continue
+			if memLimitByte > 0 {
+				bufferSize, err := util.ParseToBytes(pair[1])
+				if err != nil {
+					log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
+					continue
+				}
+				if bufferSize > uint64(memLimitByte) {
+					log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", memLimit.String())
+					pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
+				}
+				option = strings.Join(pair, "=")
 			}
-			if bufferSize > uint64(memLimitByte) {
-				log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", memLimit.String())
-				pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
-			}
-			option = strings.Join(pair, "=")
 		}
 		newOptions = append(newOptions, option)
 	}

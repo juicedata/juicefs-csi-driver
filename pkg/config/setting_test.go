@@ -1188,6 +1188,23 @@ func Test_applyConfigPatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test-empty-limit-resources-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{},
+				Options: []string{
+					"buffer-size=1G",
+				},
+			},
+		},
 	}
 
 	defer GlobalConfig.Reset()
