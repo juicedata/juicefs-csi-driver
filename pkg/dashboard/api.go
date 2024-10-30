@@ -76,6 +76,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
+	group.GET("/upgrade-pods", api.getPodsToUpgrade())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/latestimage", api.getPodLatestImage())
@@ -108,4 +109,5 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	websocketAPI.GET("/pod/:namespace/:name/upgrade", api.smoothUpgrade())
 	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
+	websocketAPI.GET("/upgrade-pods", api.upgradePods())
 }

@@ -1039,13 +1039,33 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			podLog.Info("Start to upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
 			cmds := []string{"juicefs-csi-driver", "upgrade", mountpod.Name}
 			if recreate == "true" {
-				cmds = append(cmds, "--restart")
+				cmds = append(cmds, "--recreate")
 			}
 			podLog.Info("cmds", "cmds", cmds)
 
 			if err := resource.ExecInPod(
 				api.client, api.kubeconfig, terminal, csiNode.Namespace, csiNode.Name, "juicefs-plugin", cmds); err != nil {
 				podLog.Error(err, "Failed to start process")
+				return
+			}
+		}).ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func (api *API) upgradePods() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			defer cancel()
+			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfTransmission)
+			if err := resource.ExecInPod(
+				api.client, api.kubeconfig, terminal, namespace, name, container,
+				[]string{"sh", "-c", "bash || sh"}); err != nil {
+				podLog.Error(err, "Failed to exec in pod")
 				return
 			}
 		}).ServeHTTP(c.Writer, c.Request)

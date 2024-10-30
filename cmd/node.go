@@ -136,6 +136,7 @@ func parseNodeConfig() {
 		log.Error(err, "Serve graceful shutdown error")
 		os.Exit(1)
 	}
+	grace.InitBatchUpgrade(k8sclient)
 }
 
 func nodeRun(ctx context.Context) {
