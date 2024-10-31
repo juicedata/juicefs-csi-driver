@@ -511,7 +511,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		Annotations:          make(map[string]string),
 		Env:                  mountPod.Spec.Containers[0].Env,
 	}
-	if mountPod.Spec.Containers != nil && len(mountPod.Spec.Containers) > 0 {
+	if len(mountPod.Spec.Containers) > 0 {
 		attr.Image = mountPod.Spec.Containers[0].Image
 		attr.Resources = mountPod.Spec.Containers[0].Resources
 	}
@@ -738,6 +738,32 @@ func getDefaultResource() corev1.ResourceRequirements {
 	}
 }
 
+func processOption(option string, resources corev1.ResourceRequirements) string {
+	pair := strings.Split(option, "=")
+	if len(pair) != 2 || pair[0] != "buffer-size" {
+		return option
+	}
+	memLimit := resources.Limits[corev1.ResourceMemory]
+	memLimitByte := memLimit.Value()
+	if memLimitByte <= 0 {
+		return option
+	}
+
+	bufferSize, err := util.ParseToBytes(pair[1])
+	if err != nil {
+		log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
+		return ""
+	}
+
+	if bufferSize > uint64(memLimitByte) {
+		log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", strconv.FormatInt(memLimitByte, 10))
+		pair[1] = strconv.FormatInt(memLimitByte/1024/1024, 10)
+		option = strings.Join(pair, "=")
+	}
+
+	return option
+}
+
 func applyConfigPatch(setting *JfsSetting) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
@@ -771,18 +797,24 @@ func applyConfigPatch(setting *JfsSetting) {
 	attr.Env = patch.Env
 	attr.CacheDirs = patch.CacheDirs
 
-	// merge or overwrite setting options
-	if setting.Options == nil {
-		setting.Options = make([]string, 0)
-	}
+	newOptions := make([]string, 0)
+	patchOptionsMap := make(map[string]bool)
 	for _, option := range patch.MountOptions {
-		for i, o := range setting.Options {
-			if strings.Split(o, "=")[0] == option {
-				setting.Options = append(setting.Options[:i], setting.Options[i+1:]...)
+		pair := strings.Split(option, "=")
+		patchOptionsMap[pair[0]] = true
+		if v := processOption(option, setting.Attr.Resources); v != "" {
+			newOptions = append(newOptions, v)
+		}
+	}
+	for _, option := range setting.Options {
+		pair := strings.Split(option, "=")
+		if _, ok := patchOptionsMap[pair[0]]; !ok {
+			if v := processOption(option, setting.Attr.Resources); v != "" {
+				newOptions = append(newOptions, v)
 			}
 		}
-		setting.Options = append(setting.Options, option)
 	}
+	setting.Options = newOptions
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE
