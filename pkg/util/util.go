@@ -320,7 +320,7 @@ func RandStringRunes(n int) string {
 }
 
 func DoWithContext(ctx context.Context, f func() error) error {
-	doneCh := make(chan error)
+	doneCh := make(chan error, 1)
 	go func() {
 		doneCh <- f()
 	}()
@@ -337,7 +337,7 @@ func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	doneCh := make(chan error)
+	doneCh := make(chan error, 1)
 	go func() {
 		doneCh <- f()
 	}()
