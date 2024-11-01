@@ -102,6 +102,8 @@ export default {
   docs: 'Documents',
   save: 'Save',
   config: 'Configs',
+  batchUpgrade: 'BatchUpgrade',
+  upgrading: 'upgrading',
   reset: 'Reset',
   image: 'Image',
 }

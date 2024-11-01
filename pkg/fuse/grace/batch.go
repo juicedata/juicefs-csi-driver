@@ -23,6 +23,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -72,6 +73,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		return err
 	}
 	for _, pod := range podLists {
+		po := pod
 		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
 		hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 		if hashVal == "" {
@@ -81,7 +83,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		// todo: filter pod do not need to upgrade
 		pu := &PodUpgrade{
 			client:   u.client,
-			pod:      &pod,
+			pod:      &po,
 			recreate: u.recreate,
 			ce:       ce,
 			hashVal:  hashVal,
@@ -95,9 +97,10 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 
 	podNames := []string{}
 	for _, pu := range u.podsToUpgrade {
-		podNames = append(podNames, pu.pod.Name)
+		name := pu.pod.Name
+		podNames = append(podNames, name)
 	}
-	log.Info("node pods to upgrade", "pods", strings.Join(podNames, ", "))
+	log.Info("pods to upgrade", "pods", strings.Join(podNames, ", "))
 	return nil
 }
 
@@ -123,35 +126,48 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 		return
 	}
 	var (
-		wg      = sync.WaitGroup{}
 		success = true
 	)
+	// todo: deploy canary job before batch upgrade
 	for _, pu := range u.podsToUpgrade {
 		p := pu
 		p.recreate = recreate
-		wg.Add(1)
+		errCh := make(chan error, 1)
 		go func() {
-			defer wg.Done()
+			sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
 			if err := p.gracefulShutdown(ctx, conn); err != nil {
 				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
-				sendMessage(conn, fmt.Sprintf("POD-FAIL upgrade pod [%s] in node [%s] error", p.pod.Name, config.NodeName))
+				sendMessage(conn, fmt.Sprintf("POD-FAIL upgrade pod [%s] error", p.pod.Name))
 				success = false
+				errCh <- err
 				return
 			}
 			if p.status == podUpgradeSuccess {
-				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] in node [%s] upgraded success", p.pod.Name, config.NodeName))
+				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", p.pod.Name))
 			} else {
-				sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] in node [%s] upgraded failed", p.pod.Name, config.NodeName))
+				sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", p.pod.Name))
 				success = false
 			}
+			errCh <- nil
 		}()
+		select {
+		case <-ctx.Done():
+			sendMessage(conn, fmt.Sprintf("BATCH-FAIL upgrade timeout in node %s", config.NodeName))
+			return
+		case err := <-errCh:
+			if err != nil {
+				sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
+				return
+			}
+		}
+		if !success {
+			sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
+			return
+		}
 	}
 
-	wg.Wait()
 	if success {
-		sendMessage(conn, "BATCH-SUCCESS all pods upgrade success")
-	} else {
-		sendMessage(conn, "BATCH-FAIL some pods upgrade failed")
+		sendMessage(conn, fmt.Sprintf("BATCH-SUCCESS all pods upgrade success in node %s", config.NodeName))
 	}
 }
 
@@ -159,32 +175,37 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 	var (
 		finishPod = []string{}
 		success   = true
+		t         = time.NewTimer(2 * time.Second)
 	)
+	defer t.Stop()
+
 	for {
+		for _, pu := range u.podsToUpgrade {
+			if pu.status == podUpgradeSuccess && !util.ContainsString(finishPod, pu.pod.Name) {
+				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", pu.pod.Name))
+				finishPod = append(finishPod, pu.pod.Name)
+			}
+			if pu.status == podUpgradeFail && !util.ContainsString(finishPod, pu.pod.Name) {
+				success = false
+				sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", pu.pod.Name))
+				finishPod = append(finishPod, pu.pod.Name)
+			}
+		}
+		if len(finishPod) == len(u.podsToUpgrade) {
+			if success {
+				sendMessage(conn, fmt.Sprintf("BATCH-SUCCESS all pods upgrade success in node %s", config.NodeName))
+			} else {
+				sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
+			}
+			return
+		}
+
 		select {
 		case <-ctx.Done():
-			sendMessage(conn, "BATCH-FAIL upgrade timeout")
+			sendMessage(conn, fmt.Sprintf("BATCH-FAIL upgrade timeout in node %s", config.NodeName))
 			return
-		default:
-			for _, pu := range u.podsToUpgrade {
-				if pu.status == podUpgradeSuccess && !util.ContainsString(finishPod, pu.pod.Name) {
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] in node [%s] upgraded success", pu.pod.Name, config.NodeName))
-					finishPod = append(finishPod, pu.pod.Name)
-				}
-				if pu.status == podUpgradeFail && !util.ContainsString(finishPod, pu.pod.Name) {
-					success = false
-					sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] in node [%s] upgraded failed", pu.pod.Name, config.NodeName))
-					finishPod = append(finishPod, pu.pod.Name)
-				}
-			}
-			if len(finishPod) == len(u.podsToUpgrade) {
-				if success {
-					sendMessage(conn, "BATCH-SUCCESS all pods upgrade success")
-				} else {
-					sendMessage(conn, "BATCH-FAIL some pods upgrade failed")
-				}
-				return
-			}
+		case <-t.C:
+			continue
 		}
 	}
 }

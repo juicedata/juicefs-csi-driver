@@ -35,9 +35,10 @@ import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
 import ConfigModal from './config-modal'
-import { DSIcon, LocaleIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
+import { DSIcon, LocaleIcon, PODIcon, PVCIcon, PVIcon, SCIcon, UpgradeIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
+import BatchUpgradeModal from '@/components/batch-upgrade-modal.tsx'
 
 const { Header, Sider, Content } = AntdLayout
 
@@ -133,6 +134,18 @@ export default function Layout(props: { children: ReactNode }) {
                 </Tooltip>
               )}
             </ConfigModal>
+            <BatchUpgradeModal>
+              {({ onClick }) => (
+                <Tooltip title={<FormattedMessage id="batchUpgrade" />}>
+                  <Button
+                    className="header-button"
+                    onClick={onClick}
+                    icon={<UpgradeIcon />}
+                  />
+                </Tooltip>
+              )}
+
+            </BatchUpgradeModal>
             <Tooltip title="English / 中文">
               <Button
                 icon={<LocaleIcon />}

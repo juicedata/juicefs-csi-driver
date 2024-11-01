@@ -283,7 +283,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, err
 	}
 	sendMessage(conn, fmt.Sprintf("create canary job %s", cJob.Name))
-	if _, err := p.client.CreateJob(ctx, cJob); err != nil {
+	if _, err := p.client.CreateJob(ctx, cJob); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error(err, "create canary pod error", "name", p.pod.Name)
 		return nil, err
 	}
@@ -296,11 +296,6 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	}
 
 	sendMessage(conn, fmt.Sprintf("new image: %s", cJob.Spec.Template.Spec.Containers[0].Image))
-	sendMessage(conn, "validate new version")
-	v := p.validateVersion(ctx, conn)
-	if !v {
-		return nil, fmt.Errorf("new version is not supported")
-	}
 
 	if p.recreate {
 		// set fuse fd to -1 in mount pod
@@ -338,43 +333,6 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		}
 	}
 	return jfsConf, nil
-}
-
-func (p *PodUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return false
-	}
-	// read from version file
-	var (
-		v   []byte
-		err error
-	)
-	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		v, err = os.ReadFile(fmt.Sprintf("/tmp/%s/version", hashVal))
-		return err
-	})
-	if err != nil {
-		log.Error(err, "read version file error", "hash", hashVal)
-		sendMessage(conn, fmt.Sprintf("FAIL read version file error: %v", err))
-		p.status = podUpgradeFail
-		return false
-	}
-	p.newVersion = string(v)
-	if p.recreate {
-		supported := util.SupportUpgradeRecreate(p.ce, string(v))
-		if !supported {
-			sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
-			p.status = podUpgradeFail
-		}
-		return supported
-	}
-	supported := util.SupportUpgradeBinary(p.ce, string(v))
-	if !supported {
-		sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
-		p.status = podUpgradeFail
-	}
-	return supported
 }
 
 func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {

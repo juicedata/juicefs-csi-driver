@@ -93,6 +93,8 @@ export default {
   docs: '文档',
   save: '保存',
   config: '配置',
+  batchUpgrade: '批量升级',
+  upgrading: '升级中',
   reset: '重置',
   action: '操作',
   image: '镜像',

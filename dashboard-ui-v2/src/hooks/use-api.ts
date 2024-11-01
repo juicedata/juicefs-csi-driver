@@ -20,7 +20,7 @@ import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { Pod } from '@/types/k8s'
+import { Pod, PodToUpgrade } from '@/types/k8s'
 import { getBasePath, getHost } from '@/utils'
 
 export function useAppPods(args: AppPagingListArgs) {
@@ -150,4 +150,12 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
         window.URL.revokeObjectURL(url)
       })
   })
+}
+
+export function usePodsToUpgrade(recreate: boolean, nodeName?: string) {
+  return useSWR<PodToUpgrade[]>(
+    recreate ?
+      `/api/v1/upgrade-pods?nodeName=${nodeName}&recreate=true`
+      : `/api/v1/upgrade-pods?nodeName=${nodeName}`,
+  )
 }

@@ -85,8 +85,3 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 		c.JSON(200, cm)
 	}
 }
-
-func (api *API) getPodsToUpgrade() gin.HandlerFunc {
-	return func(c *gin.Context) {
-	}
-}

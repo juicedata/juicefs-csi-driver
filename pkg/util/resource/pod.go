@@ -483,3 +483,27 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 	}
 	return filteredVars
 }
+
+func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
+	var (
+		pods = []corev1.Pod{}
+	)
+	for _, pod := range podLists.Items {
+		if len(pod.Spec.Containers) == 0 {
+			continue
+		}
+		hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+		if hashVal == "" {
+			log.Info("pod has no hash label")
+			continue
+		}
+		// todo: filter pod do not need to upgrade
+		if (recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image)) ||
+			(!recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image)) {
+			continue
+		}
+
+		pods = append(pods, pod)
+	}
+	return pods
+}
