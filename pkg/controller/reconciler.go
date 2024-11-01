@@ -142,6 +142,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					result, err := podDriver.Run(ctx, pod)
 					lastStatus.syncAt = time.Now()
 					if err != nil {
+						reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
 						backOff.Next(backOffID, time.Now())
 						lastStatus.nextSyncAt = time.Now()
 						errChan <- err
@@ -162,7 +163,6 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					reconcilerLog.Info("goroutine of pod cancel", "name", pod.Name)
 					return nil
 				case err := <-errChan:
-					reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
 					return err
 				}
 			})

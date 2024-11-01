@@ -594,7 +594,7 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
-			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			err := util.DoWithTimeout(ctx, 5*defaultCheckoutTimeout, func() error {
 				mi = p.mit.resolveTarget(ctx, target)
 				return nil
 			})
