@@ -893,6 +893,20 @@ spec:
       storage: 20Gi  # 在此处指定更大的容量
 ```
 
+上述方法对存量 PV 不生效，如果需要对扩容存量 PV，需要手动修改 PV，为其增加 Secret 配置：
+
+```yaml {7-9}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pvc-xxxx
+spec:
+  csi:
+    controllerExpandSecretRef:
+      name: juicefs-secret
+      namespace: default
+```
+
 ### 访问模式 {#access-modes}
 
 JuiceFS PV 支持 `ReadWriteMany` 和 `ReadOnlyMany` 两种访问方式。根据使用 CSI 驱动的方式不同，在上方 PV／PVC（或 `volumeClaimTemplate`）定义中，填写需要的 `accessModes` 即可。
