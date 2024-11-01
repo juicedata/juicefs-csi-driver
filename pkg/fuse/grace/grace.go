@@ -345,7 +345,7 @@ func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	}
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	reportDeleted := false
 	for {
@@ -387,7 +387,7 @@ func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 				}
 			}
 		case <-ctx.Done():
-			sendMessage(conn, "FAIL Upgrade mount pod timeout")
+			sendMessage(conn, "FAIL node may be busy, upgrade mount pod timeout, please check it later manually.")
 			return
 		}
 	}
