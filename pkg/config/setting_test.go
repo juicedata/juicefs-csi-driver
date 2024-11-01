@@ -65,6 +65,7 @@ func TestParseSecret(t *testing.T) {
 		secrets map[string]string
 		volCtx  map[string]string
 		options []string
+		patch   *MountPodPatch
 		usePod  bool
 	}
 	tests := []struct {
@@ -593,10 +594,38 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "overwrite options",
+			args: args{
+				secrets: map[string]string{"name": "test"},
+				options: []string{"buffer-size=10G"},
+				patch:   &MountPodPatch{MountOptions: []string{"buffer-size=100"}},
+			},
+			want: &JfsSetting{
+				Name:      "test",
+				Source:    "test",
+				Configs:   map[string]string{},
+				Envs:      map[string]string{},
+				Options:   []string{"buffer-size=100"},
+				CacheDirs: []string{"/var/jfsCache"},
+				Attr: &PodAttr{
+					Resources:            defaultResource,
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "juicedata/mount:ee-nightly",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs: []CachePVC{},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			GlobalConfig.Reset()
+			defer GlobalConfig.Reset()
+			if tt.args.patch != nil {
+				GlobalConfig.MountPodPatch = []MountPodPatch{*tt.args.patch}
+			}
 			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.usePod, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
@@ -753,7 +782,6 @@ func Test_genCacheDirs(t *testing.T) {
 func Test_genAndValidOptions(t *testing.T) {
 	type args struct {
 		JfsSetting *JfsSetting
-		options    []string
 	}
 	tests := []struct {
 		name    string
@@ -764,8 +792,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-normal",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{"cache-dir=xxx"},
+				JfsSetting: &JfsSetting{
+					Options: []string{"cache-dir=xxx"},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -773,8 +802,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-space1",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{" cache-dir=xxx "},
+				JfsSetting: &JfsSetting{
+					Options: []string{" cache-dir=xxx "},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -782,8 +812,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-space2",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{" cache-dir = xxx "},
+				JfsSetting: &JfsSetting{
+					Options: []string{" cache-dir = xxx "},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -791,8 +822,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-error",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{"cache-dir=xxx cache-size=1024"},
+				JfsSetting: &JfsSetting{
+					Options: []string{"cache-dir=xxx cache-size=1024"},
+				},
 			},
 			want:    nil,
 			wantErr: true,
@@ -808,8 +840,8 @@ func Test_genAndValidOptions(t *testing.T) {
 							},
 						},
 					},
+					Options: []string{"buffer-size=1024"},
 				},
-				options: []string{"buffer-size=1024"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -825,8 +857,8 @@ func Test_genAndValidOptions(t *testing.T) {
 							},
 						},
 					},
+					Options: []string{"buffer-size=1024M"},
 				},
-				options: []string{"buffer-size=1024M"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -834,8 +866,8 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-buffersize-with-unit",
 			args: args{
-				options: []string{"buffer-size=10M"},
 				JfsSetting: &JfsSetting{
+					Options: []string{"buffer-size=10M"},
 					Attr: &PodAttr{
 						Resources: corev1.ResourceRequirements{
 							Limits: map[corev1.ResourceName]resource.Quantity{
@@ -851,9 +883,12 @@ func Test_genAndValidOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := genAndValidOptions(tt.args.JfsSetting, tt.args.options)
+			err := genAndValidOptions(tt.args.JfsSetting)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
 				return
 			}
 			if !reflect.DeepEqual(tt.args.JfsSetting.Options, tt.want) {
