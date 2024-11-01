@@ -7,6 +7,7 @@ sidebar_position: 1
 
 ## Mount Pod 设置 {#mount-pod-settings}
 
+* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)；
 * 为了支持[平滑升级 Mount Pod](./upgrade-juicefs-client.md#smooth-upgrade)，请提前配置好 [CSI 控制台](./troubleshooting.md#csi-dashboard)或 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)；
 * 对于动态 PV 场景，建议[配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)；
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/guide/cache#client-write-cache)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache#client-write-cache)；

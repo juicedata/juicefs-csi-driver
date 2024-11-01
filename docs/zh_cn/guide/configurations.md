@@ -722,7 +722,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-在 JuiceFS CSI 驱动 0.13.3 及以上版本，支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
+JuiceFS CSI 驱动支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
 
 ```shell
 $ ls /jfs
@@ -730,7 +730,10 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
 :::tip
-如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+
+* 一个已经开始使用的 StorageClass，如果为其中途变更、加入 `pathPattern`，那么后续创建的 PV 子目录命名格式会改变，从前的挂载点写入的文件仍位于 `pvc-xxx-xxx...` 这样的 UUID 格式命名的目录。为了避免误会，修改后可以考虑将文件移动到新创建的目录下；
+* 如果你需要在动态配置下，让多个应用挂载同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+
 :::
 
 在 `StorageClass` 中这样使用 `pathPattern`：

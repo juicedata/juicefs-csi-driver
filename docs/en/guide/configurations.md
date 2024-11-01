@@ -724,7 +724,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
+JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
 
 ```shell
 $ ls /jfs
@@ -732,7 +732,10 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
 :::tip
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+
+* For a StorageClass that's already being used, if you change it midway and add `pathPattern`, then all subsequent PV directories will employ a new name format, different from the original `pvc-xxx-xxx...` UUID format, where all existing data resides. Users sometimes get confused at the fact that the new mount directories are empty, if this happens, you can simply move the data into the new directories;
+* Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+
 :::
 
 Define `pathPattern` in StorageClass:
