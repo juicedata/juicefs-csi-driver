@@ -118,47 +118,53 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			}
 
 			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
+			if backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
+				continue
+			}
 			g.Go(func() error {
 				mounter := mount.SafeFormatAndMount{
 					Interface: mount.New(""),
 					Exec:      k8sexec.New(),
 				}
-
 				podDriver := NewPodDriver(ks, mounter)
 				podDriver.SetMountInfo(*mit)
 				podDriver.mit.setPodsStatus(podList)
+
+				errChan := make(chan error, 1)
+				go func() {
+					defer close(errChan)
+					defer func() {
+						statusMu.Lock()
+						lastStatus.podStatus = crtPodStatus
+						lastPodStatus[pod.Name] = lastStatus
+						statusMu.Unlock()
+					}()
+					result, err := podDriver.Run(ctx, pod)
+					lastStatus.syncAt = time.Now()
+					if err != nil {
+						backOff.Next(backOffID, time.Now())
+						lastStatus.nextSyncAt = time.Now()
+						errChan <- err
+						return
+					}
+					backOff.Reset(backOffID)
+					if result.RequeueImmediately {
+						lastStatus.nextSyncAt = time.Now()
+					} else if result.RequeueAfter > 0 {
+						lastStatus.nextSyncAt = time.Now().Add(result.RequeueAfter)
+					} else {
+						lastStatus.nextSyncAt = time.Now().Add(10 * time.Minute)
+					}
+				}()
 
 				select {
 				case <-ctx.Done():
 					reconcilerLog.Info("goroutine of pod cancel", "name", pod.Name)
 					return nil
-				default:
-					if !backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
-						defer func() {
-							statusMu.Lock()
-							lastStatus.podStatus = crtPodStatus
-							lastPodStatus[pod.Name] = lastStatus
-							statusMu.Unlock()
-						}()
-						result, err := podDriver.Run(ctx, pod)
-						lastStatus.syncAt = time.Now()
-						if err != nil {
-							reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
-							backOff.Next(backOffID, time.Now())
-							lastStatus.nextSyncAt = time.Now()
-							return err
-						}
-						backOff.Reset(backOffID)
-						if result.RequeueImmediately {
-							lastStatus.nextSyncAt = time.Now()
-						} else if result.RequeueAfter > 0 {
-							lastStatus.nextSyncAt = time.Now().Add(result.RequeueAfter)
-						} else {
-							lastStatus.nextSyncAt = time.Now().Add(10 * time.Minute)
-						}
-					}
+				case err := <-errChan:
+					reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
+					return err
 				}
-				return nil
 			})
 		}
 		backOff.GC()
