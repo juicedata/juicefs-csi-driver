@@ -593,12 +593,15 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 	}
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			mi := p.mit.resolveTarget(ctx, target)
-			if mi == nil {
-				log.Info("pod target resolve fail", "target", target)
+			var mi *mountItem
+			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				mi = p.mit.resolveTarget(ctx, target)
+				return nil
+			})
+			if err != nil || mi == nil {
+				log.Info("pod target resolve fail", "target", target, "err", err)
 				continue
 			}
-
 			if err := p.recoverTarget(ctx, pod.Name, mntPath, mi.baseTarget, mi); err != nil {
 				return err
 			}
