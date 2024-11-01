@@ -771,17 +771,11 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 
 ## Common PV settings {#common-pv-settings}
 
-### Automatic mount point recovery (no longer recommended) {#automatic-mount-point-recovery}
+### Automatic mount point recovery {#automatic-mount-point-recovery}
 
-:::tip
-The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
-:::
+JuiceFS Client runs within the Mount Pod, and when this pod encounters any kind of crash (like a simple OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application pod will not recover since it's bound from external by our CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when Mount Pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
-
-:::note
-Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
-:::
+To avoid this kind of situation, we recommend that all application pods uses mount propagation, so that the recovered mount point can be bound back. But do notice that the process isn't completely smooth, although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart, application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
 To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 

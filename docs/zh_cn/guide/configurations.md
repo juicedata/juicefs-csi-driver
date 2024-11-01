@@ -769,17 +769,11 @@ parameters:
 
 ## 常用 PV 设置 {#common-pv-settings}
 
-### 挂载点自动恢复（不再推荐） {#automatic-mount-point-recovery}
+### 挂载点自动恢复 {#automatic-mount-point-recovery}
 
-:::tip
-JuiceFS CSI 驱动从 0.25.0 版本开始支持[平滑升级 Mount Pod](../administration/upgrade-juicefs-client.md#smooth-upgrade)，因此不再需要使用以下方法来自动恢复挂载点。
-:::
+JuiceFS 客户端运行在 Mount Pod 里，如果 Pod 出现故障发生重启（比如 OOM），那么随着重启，Mount Pod 内的挂载点会重新创建，但考虑到应用 Pod 里的挂载点是 CSI Node 从宿主机上 bind 而来的（`mount --bind`），重启以后如果没有外部组件将其重新 bind 回来，那么应用 Pod 内的挂载点将会永久丢失，任何访问都会提示 `Transport endpoint is not connected` 错误。
 
-JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 遭遇故障，重启或重新创建 Mount Pod 以后，应用容器也能继续工作。
-
-:::note 注意
-挂载点自动恢复后，已经打开的文件无法继续访问，请在应用程序中做好重试，重新打开文件，避免异常。
-:::
+为了避免这种情况，我们推荐所有应用 Pod 在挂载时都启用挂载点传播，这样便能将自动恢复的挂载点重新绑定回容器中，不至于一次 Mount Pod 故障就造成应用挂载点的永久丢失。但也要注意，挂载点虽然能够自动恢复后，但由于 Mount Pod 重启过，应用程序中已经打开的文件句柄无法继续访问，所以应用侧也需要做好错误重试，面对文件句柄损坏时，重新打开文件。
 
 启用自动恢复，需要在应用 Pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载传播给 Pod。这样一来，Mount Pod 重启后，宿主机上的挂载点被重新挂载，然后 CSI 驱动将会在容器挂载路径上重新执行一次 mount bind。
 
