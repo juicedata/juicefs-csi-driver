@@ -774,7 +774,7 @@ parameters:
 
 ### 挂载点自动恢复 {#automatic-mount-point-recovery}
 
-从 v0.25.0 开始，CSI 驱动支持[「Mount Pod 平滑升级」](../administration/upgrade-juicefs-client.md#smooth-upgrade)。虽说名为“升级”，但事实上该功能是利用 JuiceFS 客户端的平滑重启能力（关于这一点，可以分别参考[社区版](https://juicefs.com/docs/zh/community/administration/upgrade/)和[企业版](https://juicefs.com/docs/zh/cloud/getting_started#upgrade-juicefs)文档）。如果 Mount Pod 发生意外重启，那么 CSI Node 会持有文件句柄，让文件系统的请求暂时卡住，等 Mount Pod 恢复后，JuiceFS 客户端就会继续服务，一般来说这个过程非常快，应用不会出现超时或访问异常。因此对于 v0.25.0 或更新版，本节的配置是**推荐但不必要**的：就算没有设置挂载点传播，CSI Node 也会保证重启后自动恢复。但我们依旧推荐，是因为在极端情况下，CSI Node 也有可能出现异常，`mountPropagation` 可以进行兜底，在平滑重启机制失效的情况下，让挂载点依然得以自动恢复。
+从 v0.25.0 开始，CSI 驱动支持[「Mount Pod 平滑升级」](../administration/upgrade-juicefs-client.md#smooth-upgrade)。虽说名为“升级”，但事实上该功能是利用 JuiceFS 客户端的平滑重启能力（关于这一点，可以分别参考[社区版](https://juicefs.com/docs/zh/community/administration/upgrade)和[企业版](https://juicefs.com/docs/zh/cloud/getting_started#upgrade-juicefs)文档）。如果 Mount Pod 发生意外重启，那么 CSI Node 会持有文件句柄，让文件系统的请求暂时卡住，等 Mount Pod 恢复后，JuiceFS 客户端就会继续服务，一般来说这个过程非常快，应用不会出现超时或访问异常。因此对于 v0.25.0 或更新版，本节的配置是**推荐但不必要**的：就算没有设置挂载点传播，CSI Node 也会保证重启后自动恢复。但我们依旧推荐，是因为在极端情况下，CSI Node 也有可能出现异常，`mountPropagation` 可以进行兜底，在平滑重启机制失效的情况下，让挂载点依然得以自动恢复。
 
 如果你仍在使用 v0.25.0 之前的版本，那么如果 Mount Pod 出现故障发生重启（比如 OOM），那么随着重启，Mount Pod 内的挂载点会重新创建，考虑到应用 Pod 里的挂载点是 CSI Node 从宿主机上 bind 而来的（`mount --bind`），重启以后如果没有外部组件将其重新 bind 回来，那么应用 Pod 内的挂载点将会永久丢失，任何访问都会提示 `Transport endpoint is not connected` 错误。因此，如果你仍在使用旧版本 CSI 驱动，务必按照本小节的指示配置好挂载点传播，让挂载点可以自动恢复。
 
