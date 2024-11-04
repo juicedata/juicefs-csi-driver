@@ -72,17 +72,22 @@ sync_image() {
 }
 
 if [ "$imageName" = "mount" ]; then
-  if [ "$tag" = "latest" ]; then
+  if [[ $tag == *"latest"* || $tag == *"nightly"* ]]; then
     sync_image "juicedata" "mount"
   else
     sync_image "juicedata" "mount"
     sync_image "juicedata" "mount" "arm64"
   fi
 elif [ "$imageName" = "csi-driver" ]; then
-  sync_image "juicedata" "juicefs-csi-driver"
-  sync_image "juicedata" "juicefs-csi-driver" "arm64"
-  sync_image "juicedata" "csi-dashboard"
-  sync_image "juicedata" "csi-dashboard" "arm64"
+  if [ "$tag" = "nightly" ]; then
+    sync_image "juicedata" "juicefs-csi-driver"
+    sync_image "juicedata" "csi-dashboard"
+  else
+    sync_image "juicedata" "juicefs-csi-driver"
+    sync_image "juicedata" "juicefs-csi-driver" "arm64"
+    sync_image "juicedata" "csi-dashboard"
+    sync_image "juicedata" "csi-dashboard" "arm64"
+  fi
 else
   image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)
   registryName=$(echo $imageName | awk -F'/' '{OFS="/"; $NF=""; NF--; print $0}')
