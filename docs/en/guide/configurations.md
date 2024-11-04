@@ -149,9 +149,9 @@ globalConfig:
 
 ## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
-After you modify the ConfigMap, we recommend that you use the [smooth upgrade feature](../administration/upgrade-juicefs-client.md#smooth-upgrade) to bring the changes online without any service abruption. However, you must use v0.25.2 or newer versions to fully take advantage of this feature, some items doesn't support smooth upgrade in v0.25.0 (when this feature was first released).
+After you modify the ConfigMap, we recommend that you use the [smooth upgrade feature](../administration/upgrade-juicefs-client.md#smooth-upgrade) to apply the changes without interrupting service. To fully utilize this feature, you need v0.25.2 or later. Some items do not support smooth upgrade in v0.25.0 (the initial release of this feature).
 
-If you cannot use the smooth upgrade feature, you will need to rebuild the application pod or the Mount Pod, according to the descriptions in below sections. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
+If you cannot use the smooth upgrade feature, you need to rebuild the application pod or the Mount Pod, as described in the sections below. Make sure to configure [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
 
 ### Custom mount image {#custom-image}
 
@@ -720,7 +720,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
+JuiceFS CSI Driver supports defining a path pattern for PV directories created in JuiceFS, making directory names easier to read and locate:
 
 ```shell
 $ ls /jfs
@@ -729,8 +729,8 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 
 :::tip
 
-* For a StorageClass that's already being used, if you change it midway and add `pathPattern`, then all subsequent PV directories will employ a new name format, different from the original `pvc-xxx-xxx...` UUID format, where all existing data resides. Users sometimes get confused at the fact that the new mount directories are empty, if this happens, you can simply move the data into the new directories;
-* Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+* For a StorageClass that is in use, if you change it midway and add `pathPattern`, all subsequent PV directories will employ a new name format, different from the original `pvc-xxx-xxx...` UUID format, where all existing data resides. If you find the new mount directories empty, simply move the data to the new directories.
+* Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs can write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple and straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications). If possible, consider using static provisioning for easier setup.
 
 :::
 
@@ -772,11 +772,11 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 
 ### Automatic mount point recovery {#automatic-mount-point-recovery}
 
-Since v0.25.0, CSI Driver supports [「Mount Pod smooth upgrade」](../administration/upgrade-juicefs-client.md#smooth-upgrade), emphasis on "smooth", because this feature leverages the zero-downtime restart capability of the JuiceFS Client (learn more at our [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation). If Mount Pod restarts or encounters any sort of crash, CSI Node will hold on to all opened file descriptors, making existing FUSE requests hang until Mount Pod recovers. This is usually pretty fast and there won't be any timeout or other exceptions. Hence, for v0.25.0 or newer versions, practices introduced in this section is **no longer necessary but still recommended**: CSI Node already guarantees smooth recovery. But `mountPropagation` is still recommended, because in some cases CSI Node can run into errors as well, mount propagation protects against the worse case scenario.
+Since v0.25.0, JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade), leveraging the JuiceFS Client's zero-downtime restart capability (learn more in the [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation). If a Mount Pod restarts or encounters a crash, CSI Node will hold all open file descriptors, making existing FUSE requests hang until Mount Pod recovers. This is usually fast and there will not be any timeout or other exceptions. Hence, for v0.25.0 and newer versions, practices introduced in this section are **no longer necessary but still recommended**: CSI Node guarantees smooth recovery. However, it is still recommended to configure `mountPropagation` as a safeguard. In rare cases where CSI Node might encounter issues, `mountPropagation` will ensure the mount point automatically recovers, even if the smooth restart mechanism fails.
 
-If you are still using CSI Driver prior to v0.25.0, when Mount Pod encounters any kind of crash (like a simple OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application pod will not recover since it's bound from external by our CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
+For CSI Driver versions prior to v0.25.0, if a Mount Pod crashes (for example, due to OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application pod will not recover since it relies on an external binding from CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
 
-To avoid this kind of situation, we recommend that all application pods uses mount propagation, so that the recovered mount point can be bound back. But do notice that the process isn't completely smooth, although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart, application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
+To prevent such issues, we recommend enabling mount propagation in all application pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
 To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
