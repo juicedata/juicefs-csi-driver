@@ -244,7 +244,7 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
-	if err := genAndValidOptions(&jfsSetting, options); err != nil {
+	if err := genAndValidOptions(&jfsSetting); err != nil {
 		return nil, fmt.Errorf("genAndValidOptions error: %v", err)
 	}
 	if err := GenCacheDirs(&jfsSetting, volCtx); err != nil {
@@ -373,9 +373,9 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	return nil
 }
 
-func genAndValidOptions(JfsSetting *JfsSetting, options []string) error {
+func genAndValidOptions(JfsSetting *JfsSetting) error {
 	mountOptions := []string{}
-	for _, option := range options {
+	for _, option := range JfsSetting.Options {
 		mountOption := strings.TrimSpace(option)
 		ops := strings.Split(mountOption, "=")
 		if len(ops) > 2 {
