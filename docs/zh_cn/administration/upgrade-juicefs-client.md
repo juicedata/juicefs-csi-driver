@@ -26,11 +26,7 @@ sidebar_position: 3
 
 ### 平滑升级 Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即在业务不停服的情况下升级 Mount Pod。
-
-:::tip
-平滑升级仅适用于容器挂载（Mount Pod）模式
-:::
+CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级（Sidecar 和进程挂载模式不支持该特性），即在业务不停服的情况下升级 Mount Pod。由于平滑升级实际上利用了 JuiceFS 客户端自身的平滑重启能力，因此该特性还额外允许 Mount Pod 平滑重启与恢复，详见[自动恢复](../guide/configurations.md#automatic-mount-point-recovery)。
 
 :::warning 平滑升级要求
 平滑升级要求 Mount Pod 的 `preStop` 不可配置 `umount ${MOUNT_POINT}` 操作，请务必确保 [CSI ConfigMap](./../guide/configurations.md#configmap) 中未配置 `umount`。
@@ -43,7 +39,7 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 
 两种升级方式均为平滑升级，业务可不停服，请根据实际情况选择。
 
-平滑升级只可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)中触发。
+平滑升级可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)中触发，根据你的场景在下方小节中选择合适的方式。
 
 #### CSI 控制台中触发平滑升级 {#smooth-upgrade-via-csi-dashboard}
 
