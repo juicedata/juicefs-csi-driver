@@ -26,7 +26,7 @@ Refer to [this document](../guide/custom-image.md#ce-ee-separation) to find the 
 
 ### Smooth upgrade Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-Starting from CSI Driver v0.25.0, smooth upgrade of Mount Pod is supported (Sidecar & Mount by process mode are not supported), this means Mount Pod can be upgraded without service abruption. In fact, this feature leverages the zero-downtime restart capability of the JuiceFS Client (learn more at our [Community Edition](https://juicefs.com/docs/community/administration/upgrade/) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation), this version comes with another merit that allows smooth restart and recovery of the Mount Pod, learn more at [automatic recovery](../guide/configurations.md#automatic-mount-point-recovery).
+Starting from CSI Driver v0.25.0, smooth upgrade of Mount Pod is supported (Sidecar & Mount by process mode are not supported), this means Mount Pod can be upgraded without service abruption. In fact, this feature leverages the zero-downtime restart capability of the JuiceFS Client (learn more at our [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation), this version comes with another merit that allows smooth restart and recovery of the Mount Pod, learn more at [automatic recovery](../guide/configurations.md#automatic-mount-point-recovery).
 
 :::warning Requirements for smooth upgrades
 To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured with `umount ${MOUNT_POINT}`. Ensure that `umount` is not configured in [CSI ConfigMap](./../guide/configurations.md#configmap).
