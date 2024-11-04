@@ -147,15 +147,11 @@ globalConfig:
 
 ## 定制 Mount Pod 或者 Sidecar 容器 {#customize-mount-pod}
 
-虽然在[「ConfigMap 配置」](#configmap)的示范代码块里已经罗列了所有支持的定制项目和 PVC 选择器，但每一个配置项的修改生效条件和写法不尽相同，因此在本节一一罗列，使用前请详细阅读。
+通过 ConfigMap 修改配置后，推荐使用[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性来在不重建应用 Pod 的情况下使修改生效，但是需要注意，请升级到 v0.25.2 或更新版本，v0.25.0（该功能首次发布）尚不支持某些配置平滑升级，如果希望充分利用平滑升级的能力，务必升级到最新版再操作。
 
-:::tip
-通过 ConfigMap 修改配置后，借助 CSI 驱动 0.25.0 版本开始支持的[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性可以在不重建应用 Pod 的情况下使得修改后的配置立即生效。因此优先推荐使用这种方法来更新配置，**但是需要注意目前只有部分配置支持平滑升级，会在下文中以 <Badge type="primary">支持平滑升级</Badge> 徽章来特别注明**。
+如果仍在使用旧版、无法享受到平滑升级，则需要根据情况来重建应用 Pod 或 Mount Pod，具体操作在下方，请务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
 
-如果不能使用「平滑升级 Mount Pod」特性，则需要重建应用 Pod 和 Mount Pod，请务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
-:::
-
-### 容器镜像 <Badge type="primary">支持平滑升级</Badge> {#custom-image}
+### 容器镜像 {#custom-image}
 
 #### 使用 ConfigMap {#custom-image-via-configmap}
 
@@ -192,7 +188,7 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### 资源限制 <Badge type="primary">支持平滑升级</Badge> {#custom-resources}
+### 资源限制 {#custom-resources}
 
 #### 使用 ConfigMap {#custom-resources-via-configmap}
 
@@ -291,7 +287,7 @@ parameters:
   ...
 ```
 
-### 健康检查 & 容器回调 <Badge type="primary">支持平滑升级</Badge> {#custom-probe-lifecycle}
+### 健康检查 & 容器回调 {#custom-probe-lifecycle}
 
 该特性需要的 CSI 驱动最低版本为 0.24.0，使用场景：
 

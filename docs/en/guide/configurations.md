@@ -149,15 +149,11 @@ globalConfig:
 
 ## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
-Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
+After you modify the ConfigMap, we recommend that you use the [smooth upgrade feature](../administration/upgrade-juicefs-client.md#smooth-upgrade) to bring the changes online without any service abruption. However, you must use v0.25.2 or newer versions to fully take advantage of this feature, some items doesn't support smooth upgrade in v0.25.0 (when this feature was first released).
 
-:::tip
-After modifying the configuration through ConfigMap, you can use the [smooth upgrade feature of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only certain configurations currently support smooth upgrade, which will be indicated below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
+If you cannot use the smooth upgrade feature, you will need to rebuild the application pod or the Mount Pod, according to the descriptions in below sections. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
 
-If you cannot use the smooth upgrade feature of Mount Pods, you need to rebuild the application pod and Mount Pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
-:::
-
-### Custom mount image <Badge type="primary">Support smooth upgrade</Badge> {#custom-image}
+### Custom mount image {#custom-image}
 
 #### Via ConfigMap {#custom-image-via-configmap}
 
@@ -194,7 +190,7 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### Resource definition <Badge type="primary">Support smooth upgrade</Badge> {#custom-resources}
+### Resource definition {#custom-resources}
 
 #### Via ConfigMap {#custom-resources-via-configmap}
 
@@ -293,7 +289,7 @@ parameters:
   ...
 ```
 
-### Health check & pod lifecycle <Badge type="primary">Support smooth upgrade</Badge> {#custom-probe-lifecycle}
+### Health check & pod lifecycle {#custom-probe-lifecycle}
 
 The minimum version of the CSI Driver required for this feature is 0.24.0. Targeted scenarios:
 
