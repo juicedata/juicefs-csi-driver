@@ -78,7 +78,7 @@ func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
 	if pod.Spec.Containers[0].Lifecycle == nil {
 		pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
 	}
-	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.Handler{
+	pod.Spec.Containers[0].Lifecycle.PostStart = &corev1.LifecycleHandler{
 		Exec: &corev1.ExecAction{Command: []string{"bash", "-c",
 			fmt.Sprintf("time subpath=%s name=%s capacity=%s community=%s quotaPath=%s %s '%s' >> /proc/1/fd/1",
 				security.EscapeBashStr(subpath),

@@ -107,9 +107,9 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod := event.Object.(*corev1.Pod)
+	return c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
 			mountCtrlLog.V(1).Info("watch pod created", "name", pod.GetName())
 			// check mount pod deleted
 			if pod.DeletionTimestamp == nil {
@@ -121,20 +121,8 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
-			mountCtrlLog.V(1).Info("watch pod updated", "name", podNew.GetName())
-			if !ok {
-				mountCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "object", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				mountCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "object", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew, podOld := updateEvent.ObjectNew, updateEvent.ObjectOld
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				mountCtrlLog.V(1).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
@@ -149,8 +137,8 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pod := deleteEvent.Object.(*corev1.Pod)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+			pod := deleteEvent.Object
 			mountCtrlLog.V(1).Info("watch pod deleted", "name", pod.GetName())
 			// check mount pod deleted
 			if pod.DeletionTimestamp == nil {
@@ -163,5 +151,5 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-	})
+	}))
 }

@@ -47,6 +47,7 @@ var (
 const defaultCheckTimeout = 2 * time.Second
 
 type nodeService struct {
+	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
 	juicefs   juicefs.Interface
 	nodeID    string
@@ -264,7 +265,7 @@ func (d *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	log := klog.NewKlogr().WithName("NodeGetVolumeStats")
-	log.V(1).Info("called with args", "args", req)
+	log.Info("called with args", "args", req)
 
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
