@@ -18,6 +18,7 @@ package sanity
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -41,6 +42,13 @@ type fakeJfsProvider struct {
 var _ juicefs.Interface = &fakeJfsProvider{}
 
 func (j *fakeJfsProvider) CreateTarget(ctx context.Context, target string) error {
+	exist, err := mount.PathExists(target)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return os.Mkdir(target, 0750)
+	}
 	return nil
 }
 
@@ -86,6 +94,13 @@ func (j *fakeJfsProvider) AuthFs(ctx context.Context, secrets map[string]string,
 	return "", nil
 }
 func (j *fakeJfsProvider) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
+	exist, err := mount.PathExists(mountPath)
+	if err != nil {
+		return err
+	}
+	if exist {
+		return os.Remove(mountPath)
+	}
 	return nil
 }
 
