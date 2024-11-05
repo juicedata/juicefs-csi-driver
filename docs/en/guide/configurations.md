@@ -149,15 +149,11 @@ globalConfig:
 
 ## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
-Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
+After you modify the ConfigMap, we recommend that you use the [smooth upgrade feature](../administration/upgrade-juicefs-client.md#smooth-upgrade) to apply the changes without interrupting service. To fully utilize this feature, you need v0.25.2 or later. Some items do not support smooth upgrade in v0.25.0 (the initial release of this feature).
 
-:::tip
-After modifying the configuration through ConfigMap, you can use the [smooth upgrade feature of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only certain configurations currently support smooth upgrade, which will be indicated below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
+If you cannot use the smooth upgrade feature, you need to rebuild the application pod or the Mount Pod, as described in the sections below. Make sure to configure [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
 
-If you cannot use the smooth upgrade feature of Mount Pods, you need to rebuild the application pod and Mount Pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
-:::
-
-### Custom mount image <Badge type="primary">Support smooth upgrade</Badge> {#custom-image}
+### Custom mount image {#custom-image}
 
 #### Via ConfigMap {#custom-image-via-configmap}
 
@@ -194,7 +190,7 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### Resource definition <Badge type="primary">Support smooth upgrade</Badge> {#custom-resources}
+### Resource definition {#custom-resources}
 
 #### Via ConfigMap {#custom-resources-via-configmap}
 
@@ -293,7 +289,7 @@ parameters:
   ...
 ```
 
-### Health check & pod lifecycle <Badge type="primary">Support smooth upgrade</Badge> {#custom-probe-lifecycle}
+### Health check & pod lifecycle {#custom-probe-lifecycle}
 
 The minimum version of the CSI Driver required for this feature is 0.24.0. Targeted scenarios:
 
@@ -724,7 +720,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
+JuiceFS CSI Driver supports defining a path pattern for PV directories created in JuiceFS, making directory names easier to read and locate:
 
 ```shell
 $ ls /jfs
@@ -732,7 +728,10 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
 :::tip
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+
+* For a StorageClass that is in use, if you change it midway and add `pathPattern`, all subsequent PV directories will employ a new name format, different from the original `pvc-xxx-xxx...` UUID format, where all existing data resides. If you find the new mount directories empty, simply move the data to the new directories.
+* Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs can write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple and straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications). If possible, consider using static provisioning for easier setup.
+
 :::
 
 Define `pathPattern` in StorageClass:
@@ -771,17 +770,13 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 
 ## Common PV settings {#common-pv-settings}
 
-### Automatic mount point recovery (no longer recommended) {#automatic-mount-point-recovery}
+### Automatic mount point recovery {#automatic-mount-point-recovery}
 
-:::tip
-The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
-:::
+Since v0.25.0, JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade), leveraging the JuiceFS Client's zero-downtime restart capability (learn more in the [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation). If a Mount Pod restarts or encounters a crash, CSI Node will hold all open file descriptors, making existing FUSE requests hang until Mount Pod recovers. This is usually fast and there will not be any timeout or other exceptions. Hence, for v0.25.0 and newer versions, practices introduced in this section are **no longer necessary but still recommended**: CSI Node guarantees smooth recovery. However, it is still recommended to configure `mountPropagation` as a safeguard. In rare cases where CSI Node might encounter issues, `mountPropagation` will ensure the mount point automatically recovers, even if the smooth restart mechanism fails.
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when Mount Pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
+For CSI Driver versions prior to v0.25.0, if a Mount Pod crashes (for example, due to OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application pod will not recover since it relies on an external binding from CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
 
-:::note
-Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
-:::
+To prevent such issues, we recommend enabling mount propagation in all application pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
 To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 

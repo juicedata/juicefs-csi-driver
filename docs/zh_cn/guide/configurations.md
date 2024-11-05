@@ -147,15 +147,11 @@ globalConfig:
 
 ## 定制 Mount Pod 或者 Sidecar 容器 {#customize-mount-pod}
 
-虽然在[「ConfigMap 配置」](#configmap)的示范代码块里已经罗列了所有支持的定制项目和 PVC 选择器，但每一个配置项的修改生效条件和写法不尽相同，因此在本节一一罗列，使用前请详细阅读。
+通过 ConfigMap 修改配置后，推荐使用[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性来在不重建应用 Pod 的情况下使修改生效，但是需要注意，请升级到 v0.25.2 或更新版本，v0.25.0（该功能首次发布）尚不支持某些配置平滑升级，如果希望充分利用平滑升级的能力，务必升级到最新版再操作。
 
-:::tip
-通过 ConfigMap 修改配置后，借助 CSI 驱动 0.25.0 版本开始支持的[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性可以在不重建应用 Pod 的情况下使得修改后的配置立即生效。因此优先推荐使用这种方法来更新配置，**但是需要注意目前只有部分配置支持平滑升级，会在下文中以 <Badge type="primary">支持平滑升级</Badge> 徽章来特别注明**。
+如果仍在使用旧版、无法享受到平滑升级，则需要根据情况来重建应用 Pod 或 Mount Pod，具体操作在下方，请务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
 
-如果不能使用「平滑升级 Mount Pod」特性，则需要重建应用 Pod 和 Mount Pod，请务必提前配置好[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，避免重建 Mount Pod 后，应用 Pod 中的挂载点永久丢失。
-:::
-
-### 容器镜像 <Badge type="primary">支持平滑升级</Badge> {#custom-image}
+### 容器镜像 {#custom-image}
 
 #### 使用 ConfigMap {#custom-image-via-configmap}
 
@@ -192,7 +188,7 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### 资源限制 <Badge type="primary">支持平滑升级</Badge> {#custom-resources}
+### 资源限制 {#custom-resources}
 
 #### 使用 ConfigMap {#custom-resources-via-configmap}
 
@@ -291,7 +287,7 @@ parameters:
   ...
 ```
 
-### 健康检查 & 容器回调 <Badge type="primary">支持平滑升级</Badge> {#custom-probe-lifecycle}
+### 健康检查 & 容器回调 {#custom-probe-lifecycle}
 
 该特性需要的 CSI 驱动最低版本为 0.24.0，使用场景：
 
@@ -722,7 +718,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-在 JuiceFS CSI 驱动 0.13.3 及以上版本，支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
+JuiceFS CSI 驱动支持通过 `pathPattern` 这个配置来定义其不同 PV 的子目录格式，让目录名称更容易阅读、查找：
 
 ```shell
 $ ls /jfs
@@ -730,7 +726,10 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
 :::tip
-如果你的场景需要在动态配置下，让多个应用使用同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+
+* 一个已经开始使用的 StorageClass，如果为其中途变更、加入 `pathPattern`，那么后续创建的 PV 子目录命名格式会改变，从前的挂载点写入的文件仍位于 `pvc-xxx-xxx...` 这样的 UUID 格式命名的目录。为了避免误会，修改后可以考虑将文件移动到新创建的目录下；
+* 如果你需要在动态配置下，让多个应用挂载同一个 JuiceFS 子目录，也可以合理配置 `pathPattern`，让多个 PV 对应着 JuiceFS 文件系统中相同的子目录，实现多应用共享存储。顺带一提，[「静态配置」](#share-directory)是更为简单直接的实现多应用共享存储的方式（多个应用复用同一个 PVC 即可），如果条件允许，不妨优先采用静态配置方案。
+
 :::
 
 在 `StorageClass` 中这样使用 `pathPattern`：
@@ -769,17 +768,13 @@ parameters:
 
 ## 常用 PV 设置 {#common-pv-settings}
 
-### 挂载点自动恢复（不再推荐） {#automatic-mount-point-recovery}
+### 挂载点自动恢复 {#automatic-mount-point-recovery}
 
-:::tip
-JuiceFS CSI 驱动从 0.25.0 版本开始支持[平滑升级 Mount Pod](../administration/upgrade-juicefs-client.md#smooth-upgrade)，因此不再需要使用以下方法来自动恢复挂载点。
-:::
+从 v0.25.0 开始，CSI 驱动支持[「Mount Pod 平滑升级」](../administration/upgrade-juicefs-client.md#smooth-upgrade)。虽说名为“升级”，但事实上该功能是利用 JuiceFS 客户端的平滑重启能力（关于这一点，可以分别参考[社区版](https://juicefs.com/docs/zh/community/administration/upgrade)和[企业版](https://juicefs.com/docs/zh/cloud/getting_started#upgrade-juicefs)文档）。如果 Mount Pod 发生意外重启，那么 CSI Node 会持有文件句柄，让文件系统的请求暂时卡住，等 Mount Pod 恢复后，JuiceFS 客户端就会继续服务，一般来说这个过程非常快，应用不会出现超时或访问异常。因此对于 v0.25.0 或更新版，本节的配置是**推荐但不必要**的：就算没有设置挂载点传播，CSI Node 也会保证重启后自动恢复。但我们依旧推荐，是因为在极端情况下，CSI Node 也有可能出现异常，`mountPropagation` 可以进行兜底，在平滑重启机制失效的情况下，让挂载点依然得以自动恢复。
 
-JuiceFS CSI 驱动自 v0.10.7 开始支持挂载点自动恢复：当 Mount Pod 遭遇故障，重启或重新创建 Mount Pod 以后，应用容器也能继续工作。
+如果你仍在使用 v0.25.0 之前的版本，那么如果 Mount Pod 出现故障发生重启（比如 OOM），那么随着重启，Mount Pod 内的挂载点会重新创建，考虑到应用 Pod 里的挂载点是 CSI Node 从宿主机上 bind 而来的（`mount --bind`），重启以后如果没有外部组件将其重新 bind 回来，那么应用 Pod 内的挂载点将会永久丢失，任何访问都会提示 `Transport endpoint is not connected` 错误。因此，如果你仍在使用旧版本 CSI 驱动，务必按照本小节的指示配置好挂载点传播，让挂载点可以自动恢复。
 
-:::note 注意
-挂载点自动恢复后，已经打开的文件无法继续访问，请在应用程序中做好重试，重新打开文件，避免异常。
-:::
+为了避免这种情况，我们推荐所有应用 Pod 在挂载时都启用挂载点传播，这样便能将自动恢复的挂载点重新绑定回容器中，不至于一次 Mount Pod 故障就造成应用挂载点的永久丢失。但也要注意，挂载点虽然能够自动恢复后，但由于 Mount Pod 重启过，应用程序中已经打开的文件句柄无法继续访问，所以应用侧也需要做好错误重试，面对文件句柄损坏时，重新打开文件。
 
 启用自动恢复，需要在应用 Pod 的 `volumeMounts` 中[设置 `mountPropagation` 为 `HostToContainer` 或 `Bidirectional`](https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/#mount-propagation)，从而将宿主机的挂载传播给 Pod。这样一来，Mount Pod 重启后，宿主机上的挂载点被重新挂载，然后 CSI 驱动将会在容器挂载路径上重新执行一次 mount bind。
 

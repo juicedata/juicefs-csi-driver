@@ -24,13 +24,9 @@ Refer to [this document](../guide/custom-image.md#ce-ee-separation) to find the 
 
 **Note:** After overwriting the Mount Pod image, further CSI Driver upgrades will no longer automatically update the Mount Pod image.
 
-### Smooth upgrade Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
+### Smooth upgrade of Mount Pods <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-Starting from JuiceFS CSI Driver v0.25.0, smooth upgrades for Mount Pods are supported. This allows Mount Pods to be upgraded without interrupting the service.
-
-:::tip
-Smooth upgrades are only applicable to Mount Pod mode.
-:::
+Starting from CSI Driver v0.25.0, smooth upgrade of Mount Pods is supported (note that this does not apply to Sidecar & Mount by process mode). This feature enables Mount Pods to upgrade seamlessly without disrupting services, leveraging the JuiceFS Client's zero-downtime restart capability. For more information, see our documentation for the [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs). This version comes with another merit that allows smooth restart and recovery of Mount Pods. Learn more in the [automatic recovery](../guide/configurations.md#automatic-mount-point-recovery) section.
 
 :::warning Requirements for smooth upgrades
 To perform a smooth upgrade, `preStop` of the Mount Pod should not be configured with `umount ${MOUNT_POINT}`. Ensure that `umount` is not configured in [CSI ConfigMap](./../guide/configurations.md#configmap).
@@ -43,7 +39,7 @@ Smooth upgrade of Mount Pods has two upgrade methods: "Pod recreate upgrade" and
 
 Both upgrade methods are smooth upgrades, allowing services to continue without interruption. Choose the method according to your situation.
 
-Smooth upgrade can only be triggered in the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin).
+Smooth upgrade can be triggered in the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin).
 
 #### Trigger a smooth upgrade in CSI dashboard {#smooth-upgrade-via-csi-dashboard}
 
