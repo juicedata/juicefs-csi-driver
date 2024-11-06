@@ -49,7 +49,7 @@ globalConfig:
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
 
 * 修改以后，已有的 Mount Pod 并不会自动按照新的配置重建。需要删除 Mount Pod，才能以新的资源配置触发创建新的 Mount Pod。
-* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 pod。
+* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 Pod。
 * 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
 
 ```yaml {6-9}

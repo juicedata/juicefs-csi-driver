@@ -94,7 +94,7 @@ spec:
 
 Refer to below examples to deploy a stable, dedicated cache cluster within Kubernetes, on selected nodes.
 
-StatefulSet and DaemonSet are both provided, they don't come with any functionality differences, but note that when you adjust config and restart a StatefulSet, pods are restarted one by one in descending order. While daemonset executes the restart according to its own `updateStrategy`. When faced with a large cluster, carefully configure this strategy to avoid service impact.
+StatefulSet and DaemonSet are both provided, they don't come with any functionality differences, but note that when you adjust config and restart a StatefulSet, Pods are restarted one by one in descending order. While daemonset executes the restart according to its own `updateStrategy`. When faced with a large cluster, carefully configure this strategy to avoid service impact.
 
 Apart from that, there's no actual differences between the two.
 

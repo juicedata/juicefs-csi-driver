@@ -69,7 +69,7 @@ $ kubectl jfs pv
 $ kubectl jfs pvc
 ```
 
-对于有问题的应用 pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
+对于有问题的应用 Pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
 
 ```shell
 # 诊断应用 pod
@@ -195,13 +195,13 @@ $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 
 ### 应用 Pod 创建失败
 
-在 CSI 驱动的架构下，JuiceFS 客户端运行在 Mount Pod 中。因此每一个应用 pod 都伴随着一个对应的 Mount Pod。
+在 CSI 驱动的架构下，JuiceFS 客户端运行在 Mount Pod 中。因此每一个应用 Pod 都伴随着一个对应的 Mount Pod。
 
-CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 pod 内。因此如果应用 pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
+CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 Pod 内。因此如果应用 Pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
 
 #### 查看应用 Pod 事件
 
-若挂载期间有报错，报错信息往往出现在应用 pod 事件中：
+若挂载期间有报错，报错信息往往出现在应用 Pod 事件中：
 
 ```shell {7}
 $ kubectl describe po dynamic-ce-1
@@ -213,11 +213,11 @@ Events:
   Warning  FailedMount  4s (x3 over 37s)  kubelet            MountVolume.SetUp failed for volume "ce-static" : rpc error: code = Internal desc = Could not mount juicefs: juicefs status 16s timed out
 ```
 
-通过应用 pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
+通过应用 Pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
 
 #### 检查 CSI Node {#check-csi-node}
 
-首先，我们需要检查应用 pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
+首先，我们需要检查应用 Pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
 
 ```shell
 # 提前将应用 pod 信息存为环境变量
@@ -237,7 +237,7 @@ kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.node
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-或者直接用一行命令打印出应用 pod 对应的 CSI Node pod 日志（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
+或者直接用一行命令打印出应用 Pod 对应的 CSI Node Pod 日志（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
 
 ```shell
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin

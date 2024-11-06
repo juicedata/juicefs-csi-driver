@@ -8,8 +8,8 @@ JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edit
 
 With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
 
-* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
-* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
+* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application Pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
+* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
 
 ## Using host directories (`hostPath`) {#cache-settings}
@@ -21,7 +21,7 @@ After the cache directory is set, it will be accessible in the Mount Pod via `ho
 :::note
 
 * In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
-* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
 :::
 

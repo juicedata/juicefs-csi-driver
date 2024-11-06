@@ -21,7 +21,7 @@ If you used `mount pod` mode, follow these steps to troubleshoot:
 * Run `kubectl get csidrivers.storage.k8s.io` and check if `csi.juicefs.com` actually missing, if that is indeed the case, CSI Driver isn't installed at all, head to [Installation](../getting_started.md).
 * If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node, check its status:
   * Before troubleshooting, navigate to [check CSI Node](./troubleshooting.md#check-csi-node) to see a list of helpful commands;
-  * A CSI Node pod is expected on the node where the application Pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
+  * A CSI Node Pod is expected on the node where the application Pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
   * If CSI Node is actually running, look for error in its logs:
 
   ```shell
@@ -39,15 +39,15 @@ If you used `sidecar` mode, check if the namespace which application Pod running
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod failure {#csi-node-pod-failure}
+## CSI Node Pod failure {#csi-node-pod-failure}
 
-If CSI Node pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application Pod events:
+If CSI Node Pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application Pod events:
 
 ```
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
 ```
 
-[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot. A commonly encountered problem is kubelet being started without authentication webhook, which results in error when getting pod list:
+[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot. A commonly encountered problem is kubelet being started without authentication webhook, which results in error when getting Pod list:
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
@@ -127,15 +127,15 @@ Check the Mount Pod start-up command carefully. In the above example, the option
 
 Use `kubectl describe <app-pod-name>` to view the events of the current application Pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
 
-If the application pod's event is:
+If the application Pod's event is:
 
 - `driver name csi.juicefs.com not found` or `csi.sock no such file`
 
-  Check whether the CSI Node pod on the corresponding node is running normally. For details, see [documentation](#csi-node-pod-failure).
+  Check whether the CSI Node Pod on the corresponding node is running normally. For details, see [documentation](#csi-node-pod-failure).
 
 - `Unable to attach or mount volumes: xxx`
 
-  Check the logs of the CSI Node pod on the corresponding node and filter out the relevant logs of the corresponding PV. If you cannot find logs similar to `NodePublishVolume: volume_id is <pv name>`, and the Kubernetes version is below 1.26.0, 1.25.1, 1.24.5, 1.23.11, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
+  Check the logs of the CSI Node Pod on the corresponding node and filter out the relevant logs of the corresponding PV. If you cannot find logs similar to `NodePublishVolume: volume_id is <pv name>`, and the Kubernetes version is below 1.26.0, 1.25.1, 1.24.5, 1.23.11, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
 
   At this point, you can try:
 
@@ -211,7 +211,7 @@ spec:
 
 ## File system creation failure (Community Edition) {#file-system-creation-failure-community-edition}
 
-When you choose to dynamically create file system inside Mount Pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
+When you choose to dynamically create file system inside Mount Pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node Pod:
 
 ```
 format: ERR illegal address: xxxx
@@ -276,7 +276,7 @@ CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   B
 90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
 ```
 
-Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application Pod, and then try again.
+Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the Pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application Pod, and then try again.
 
 :::note
 `docker stats` counts memory usage differently under cgroup v1/v2, v1 does not include kernel page cache while v2 does, the case described here is carried out under cgroup v1, but it doesn't affect the troubleshooting thought process and conclusion.
@@ -307,9 +307,9 @@ Conclusion: **When using JuiceFS inside containers, memory limit should be large
 
 * **Slow write speed for intensive small writes (like untar, unzip)**
 
-  For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+  For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
-  If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
+  If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve Pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
 
 ## Umount error (Mount Pod hangs) {#umount-error}
 

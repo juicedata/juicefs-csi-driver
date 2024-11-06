@@ -69,7 +69,7 @@ $ kubectl jfs pv
 $ kubectl jfs pvc
 ```
 
-For problematic application pods, PVCs, and PVs, you can use the following commands for preliminary diagnosis, and the JuiceFS plugin will suggest the next steps for troubleshooting:
+For problematic application Pods, PVCs, and PVs, you can use the following commands for preliminary diagnosis, and the JuiceFS plugin will suggest the next steps for troubleshooting:
 
 ```shell
 # troubleshooting application Pod
@@ -137,7 +137,7 @@ KBCTL=kubectl_1 ./csi-doctor.sh debug my-app-pod -n default
 KBCTL=kubectl_2 ./csi-doctor.sh debug my-app-pod -n default
 ```
 
-A commonly used feature is obtaining Mount Pod information. Assuming application Pod being `my-app-pod` in namespace `default`, to obtain the Mount Pod that accompanies the application pod:
+A commonly used feature is obtaining Mount Pod information. Assuming application Pod being `my-app-pod` in namespace `default`, to obtain the Mount Pod that accompanies the application Pod:
 
 ```shell
 # Get Mount Pod for specified application Pod
@@ -159,7 +159,7 @@ Run above command and thoroughly check its output, try to debug using the troubl
 
 ## Basic principles for troubleshooting {#basic-principles}
 
-In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and pod creation failures (managed by CSI Node / Mount Pod).
+In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and Pod creation failures (managed by CSI Node / Mount Pod).
 
 ### PV creation failure
 
@@ -237,7 +237,7 @@ kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.node
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-Or simply use this one-liner to print logs of the relevant CSI Node pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
+Or simply use this one-liner to print logs of the relevant CSI Node Pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
 
 ```shell
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
@@ -298,13 +298,13 @@ kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector
 
 #### Debug Mount Pod {#debug-mount-pod}
 
-A pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `kubectl debug` to create an environment that's available for interactive debugging:
+A Pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `kubectl debug` to create an environment that's available for interactive debugging:
 
 ```shell
 kubectl -n <namespace> debug <mount-pod> -it  --copy-to=jfs-mount-debug --container=jfs-mount --image=<mount-image> -- bash
 ```
 
-In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug Pod.
+In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a Pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug Pod.
 
 After troubleshooting, don't forget to clean up:
 

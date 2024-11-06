@@ -41,9 +41,9 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod 异常 {#csi-node-pod-failure}
+## CSI Node Pod 异常 {#csi-node-pod-failure}
 
-如果 CSI Node pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 pod 事件中会看到如下错误日志：
+如果 CSI Node Pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 Pod 事件中会看到如下错误日志：
 
 ```
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
@@ -127,17 +127,17 @@ kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 <details>
 <summary>**Mount Pod 没有创建**</summary>
 
-使用 `kubectl describe <app-pod-name>` 查看当前应用 pod 的事件，确认已经进入挂载流程，而不是调度失败或者其它与挂载 JuiceFS 无关的错误。
+使用 `kubectl describe <app-pod-name>` 查看当前应用 Pod 的事件，确认已经进入挂载流程，而不是调度失败或者其它与挂载 JuiceFS 无关的错误。
 
-如果应用 pod 的事件为：
+如果应用 Pod 的事件为：
 
 - `driver name csi.juicefs.com not found` 或者 `csi.sock no such file`
 
-  检查对应节点上的 CSI Node pod 是否运行正常，详见[文档](#csi-node-pod-failure)。
+  检查对应节点上的 CSI Node Pod 是否运行正常，详见[文档](#csi-node-pod-failure)。
 
 - `Unable to attach or mount volumes: xxx`
 
-  查看对应节点上 CSI Node pod 的日志，过滤出对应 PV 的相关日志。如果没有找到类似于 `NodePublishVolume: volume_id is <pv-name>` 的日志，并且 Kubernetes 版本低于 1.26.0、1.25.1、1.24.5、1.23.11，可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)。
+  查看对应节点上 CSI Node Pod 的日志，过滤出对应 PV 的相关日志。如果没有找到类似于 `NodePublishVolume: volume_id is <pv-name>` 的日志，并且 Kubernetes 版本低于 1.26.0、1.25.1、1.24.5、1.23.11，可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)。
 
   此时可以尝试：
 
@@ -171,7 +171,7 @@ Events:
 <details>
 <summary>**`volumeHandle` 冲突，导致 PVC 创建失败**</summary>
 
-一个 pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
+一个 Pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
 
 ```shell {6}
 $ kubectl describe pvc jfs-static
@@ -182,7 +182,7 @@ Events:
   Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
 ```
 
-另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
+另外，应用 Pod 也会伴随着以下错误事件，应用 Pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
 
 ```shell
 Events:
@@ -213,7 +213,7 @@ spec:
 
 ## 文件系统创建错误（社区版） {#file-system-creation-failure-community-edition}
 
-如果你选择在 Mount Pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
+如果你选择在 Mount Pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node Pod 中看到如下错误：
 
 ```
 format: ERR illegal address: xxxx

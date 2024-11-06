@@ -12,7 +12,7 @@ Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called
 ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
 :::info Update delay
-When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
+When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a Pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
 
 If you wish for a force update, try adding a temporary label to CSI components:
 
@@ -27,7 +27,7 @@ After ConfigMap is updated across CSI components, subsequent Mount Pods will app
 If a customization item appears to be a valid sidecar setting, it will work for the sidecar; otherwise, it will be ignored. For example:
 
 * `resources` applies to both the Mount Pod and the sidecar, so it works for both.
-* `custom-labels` adds customized labels to the Pod. However, since labels are an exclusive pod attribute, this setting does not apply to the sidecar.
+* `custom-labels` adds customized labels to the Pod. However, since labels are an exclusive Pod attribute, this setting does not apply to the sidecar.
 :::
 
 All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in our documentation.
@@ -289,7 +289,7 @@ parameters:
   ...
 ```
 
-### Health check & pod lifecycle {#custom-probe-lifecycle}
+### Health check & Pod lifecycle {#custom-probe-lifecycle}
 
 The minimum version of the CSI Driver required for this feature is 0.24.0. Targeted scenarios:
 
@@ -413,7 +413,7 @@ Format options / auth options are options used in `juicefs [format|auth]` comman
 Considering the similarities between the two commands, options all go to the `format-options` field, as follows.
 
 :::tip
-Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
+Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application Pods, or re-create PVC for the changes to take effect.
 :::
 
 JuiceFS Community Edition:
@@ -545,7 +545,7 @@ Special options can be added to run CSI Controller as a webhook, so that more ad
 
 If [sidecar mount mode](../introduction.md#sidecar) is used, then Controller also runs as a mutating webhook, and its args will contain [`--webhook`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L76), you can use this argument to verify if sidecar mode is enabled.
 
-A murating webhook mutates Kubernetes resources, in our case all pod creation under the specified namespace will go through our webhook, and if JuiceFS PV is used, webhook will inject the corresponding sidecar container.
+A murating webhook mutates Kubernetes resources, in our case all Pod creation under the specified namespace will go through our webhook, and if JuiceFS PV is used, webhook will inject the corresponding sidecar container.
 
 ### Validating webhook
 
@@ -566,8 +566,8 @@ validatingWebhook:
 
 CSI Driver provides 2 types of PV provisioning:
 
-* Using standard [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner), which is the default mode for older versions of CSI Driver. When running in this mode, juicefs-csi-controller pod includes 4 containers
-* (Recommended) Move away from the standard CSI provisioner and use our own in-house controller as provisioner. Since v0.23.4, if CSI Driver is installed via Helm, then this feature is already enabled, and juicefs-csi-controller pod will only have 3 containers
+* Using standard [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner), which is the default mode for older versions of CSI Driver. When running in this mode, juicefs-csi-controller Pod includes 4 containers
+* (Recommended) Move away from the standard CSI provisioner and use our own in-house controller as provisioner. Since v0.23.4, if CSI Driver is installed via Helm, then this feature is already enabled, and juicefs-csi-controller Pod will only have 3 containers
 
 Our in-house provisioner is favored because it opens up a series of new functionalities:
 
@@ -776,9 +776,9 @@ Since v0.25.0, JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../adm
 
 For CSI Driver versions prior to v0.25.0, if a Mount Pod crashes (for example, due to OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application Pod will not recover since it relies on an external binding from CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application Pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
 
-To prevent such issues, we recommend enabling mount propagation in all application pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
+To prevent such issues, we recommend enabling mount propagation in all application Pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the Pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in Pod `volumeMounts`. In this way, host mount is propagated to the Pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1
@@ -846,7 +846,7 @@ resources:
     storage: 100Gi
 ```
 
-After PV is created and mounted, verify by executing `df -h` command within the application pod:
+After PV is created and mounted, verify by executing `df -h` command within the application Pod:
 
 ```bash
 $ df -h

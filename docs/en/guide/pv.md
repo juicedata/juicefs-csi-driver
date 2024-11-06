@@ -333,7 +333,7 @@ spec:
       claimName: juicefs-pvc
 ```
 
-After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](./configurations.md#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
+After Pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](./configurations.md#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
 
 ## Create a StorageClass {#create-storage-class}
 
@@ -405,7 +405,7 @@ storageClasses:
 
 Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, each corresponds to a sub-directory inside the JuiceFS volume, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
-Create PVC and example pod:
+Create PVC and example Pod:
 
 ```yaml {14}
 kubectl apply -f - <<EOF
@@ -448,7 +448,7 @@ spec:
 EOF
 ```
 
-Verify that pod is running, and check if data is written into JuiceFS:
+Verify that Pod is running, and check if data is written into JuiceFS:
 
 ```shell
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
@@ -458,11 +458,11 @@ Upon mount success, a dynamic PV creates a random subdir in JuiceFS volume, dire
 
 ## Use generic ephemeral volume {#general-ephemeral-storage}
 
-[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application Pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
+[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-Pod directory for scratch data. When application Pods need large volume, per-Pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
 Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each Pod.
 
-Declare generic ephemeral volume directly in pod definition:
+Declare generic ephemeral volume directly in Pod definition:
 
 ```yaml {20-31}
 apiVersion: v1
