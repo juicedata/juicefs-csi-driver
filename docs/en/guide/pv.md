@@ -41,7 +41,7 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # Adjust mount pod timezone, defaults to UTC.
+  # Adjust Mount Pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
   # If you need to format a volume within the mount pod, fill in format options below.
   # format-options: trash-days=1,block-size=4096
@@ -80,7 +80,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Adjust mount pod timezone, defaults to UTC.
+  # Adjust Mount Pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
@@ -250,7 +250,7 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 ## Static provisioning {#static-provisioning}
 
-Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application pod (also refer to [mount subdirectory](./configurations.md#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
+Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application Pod (also refer to [mount subdirectory](./configurations.md#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
 Create the following Kubernetes resources, refer to YAML comments for field descriptions:
 
@@ -322,7 +322,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: data
-      # Propagation must be added for automatic mount point recovery (if mount pod ever fails)
+      # Propagation must be added for automatic mount point recovery (if Mount Pod ever fails)
       mountPropagation: HostToContainer
     resources:
       requests:
@@ -389,10 +389,10 @@ storageClasses:
     accessKey: "<access-key>"    # Access Key for object storage
     secretKey: "<secret-key>"    # Secret Key for object storage
     bucket: "<bucket>"           # A bucket URL to store data
-    # Adjust mount pod timezone, defaults to UTC
+    # Adjust Mount Pod timezone, defaults to UTC
     # envs: "{TZ: Asia/Shanghai}"
   mountPod:
-    resources:                   # Resource limit/request for mount pod
+    resources:                   # Resource limit/request for Mount Pod
       requests:
         cpu: "1"
         memory: "1Gi"
@@ -458,7 +458,7 @@ Upon mount success, a dynamic PV creates a random subdir in JuiceFS volume, dire
 
 ## Use generic ephemeral volume {#general-ephemeral-storage}
 
-[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
+[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application Pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
 Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each pod.
 

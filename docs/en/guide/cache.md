@@ -148,8 +148,8 @@ parameters:
 The JuiceFS client runs inside the Mount Pod, so cache warm-up must be performed inside the Mount Pod. Use the commands below to enter the Mount Pod and carry out the warm-up operation:
 
 ```shell
-# Application pod information will be used in below commands, save them as environment variables.
-APP_NS=default  # application pod namespace
+# application Pod information will be used in below commands, save them as environment variables.
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
 # Enter the Mount Pod using a single command

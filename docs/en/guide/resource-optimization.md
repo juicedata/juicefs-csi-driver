@@ -7,7 +7,7 @@ Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI
 
 ## Adjust resources for Mount Pod {#mount-pod-resources}
 
-Every application pod that uses JuiceFS PV requires a running Mount Pod (reused for pods using a same PV), thus configuring proper resource definition for Mount Pod can effectively optimize resource usage. Read [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits.
+Every application Pod that uses JuiceFS PV requires a running Mount Pod (reused for pods using a same PV), thus configuring proper resource definition for Mount Pod can effectively optimize resource usage. Read [Resource Management for Pods and Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers) to learn about pod resource requests and limits.
 
 Under the default settings, JuiceFS Mount Pod resource `requests` is 1 CPU and 1GiB memory, resource `limits` is 5 CPU and 5GiB memory, this might not be the perfect setup for you since JuiceFS is used in so many different scenarios, you should make adjustments to fit the actual resource usage:
 
@@ -18,7 +18,7 @@ Under the default settings, JuiceFS Mount Pod resource `requests` is 1 CPU and 1
 If you already have [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server) installed, use commands like these to conveniently check actual resource usage for CSI Driver components:
 
 ```shell
-# Check mount pod resource usage
+# Check Mount Pod resource usage
 kubectl top pod -n kube-system -l app.kubernetes.io/name=juicefs-mount
 
 # Check resource usage for CSI Controller and CSI Node, you may adjust their resource definition following the same principle
@@ -38,7 +38,7 @@ globalConfig:
           memory: 512Mi
 ```
 
-After changes are applied, rollout the application pods or delete the Mount Pods to take effect.
+After changes are applied, rollout the application Pods or delete the Mount Pods to take effect.
 
 ### Declare resources in PVC annotations {#mount-pod-resources-pvc}
 
@@ -77,7 +77,7 @@ If omitting certain resources fields is required, you can set them to "0":
 ```yaml
 juicefs/mount-cpu-limit: "0"
 juicefs/mount-memory-limit: "0"
-# if mount pod uses little resource, use a very low value instead of 0
+# if Mount Pod uses little resource, use a very low value instead of 0
 juicefs/mount-cpu-requests: "1m"
 juicefs/mount-memory-requests: "4Mi"
 ```
@@ -245,7 +245,7 @@ However, when the Mount Pod is created, if the node resources are insufficient, 
 
 ## Share Mount Pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
 
-By default, Mount Pod is only shared when multiple application pods are using a same PV. However, you can take a step further and share Mount Pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application pods will bind the host mount point on different paths, so that one Mount Pod is serving multiple application pods.
+By default, Mount Pod is only shared when multiple application Pods are using a same PV. However, you can take a step further and share Mount Pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application Pods will bind the host mount point on different paths, so that one Mount Pod is serving multiple application pods.
 
 To enable Mount Pod sharing for the same StorageClass, add the `STORAGE_CLASS_SHARE_MOUNT` environment variable to the CSI Node Service:
 
@@ -267,7 +267,7 @@ But with Kubernetes, containers are ephemeral and sometimes scheduling happens s
 
 Delayed deletion is controlled by a piece of config that looks like `juicefs/mount-delete-delay: 1m`, this supports a variety of units: `ns` (nanoseconds), `us` (microseconds), `ms` (milliseconds), `s` (seconds), `m` (minutes), `h` (hours).
 
-With delete delay set, when reference count becomes zero, the Mount Pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application pods to continue using this Mount Pod.
+With delete delay set, when reference count becomes zero, the Mount Pod is marked with the `juicefs-delete-at` annotation (a timestamp), CSI Node Service will schedule deletion only after it reaches `juicefs-delete-at`. But in the mean time, if a newly created application needs to use this exact PV, the annotation `juicefs-delete-at` will be emptied, allowing new application Pods to continue using this Mount Pod.
 
 ### Configuration
 

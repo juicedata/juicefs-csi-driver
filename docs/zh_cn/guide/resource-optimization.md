@@ -77,7 +77,7 @@ spec:
 ```yaml
 juicefs/mount-cpu-limit: "0"
 juicefs/mount-memory-limit: "0"
-# 如果 mount pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
+# 如果 Mount Pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
 juicefs/mount-cpu-requests: "1m"
 juicefs/mount-memory-requests: "4Mi"
 ```

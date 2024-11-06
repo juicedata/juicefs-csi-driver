@@ -23,3 +23,9 @@ spellcheck:
     - JuiceSF = JuiceFS
     - Kuberenetes = Kubernetes
     - mountpoint = mount point
+    - critical pod = critical Pod
+    - mount pod = Mount Pod
+    - mount pods = Mount Pods
+    - application pod = application Pod
+    - application pods = application Pods
+    - pod list = Pod list

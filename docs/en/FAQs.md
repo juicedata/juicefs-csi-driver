@@ -13,7 +13,7 @@ Try searching for your problems in the top right corner, using different keyword
 
 ## How to seamlessly remount JuiceFS file system? {#seamless-remount}
 
-If you can accept downtime, simply delete the Mount Pod and JuiceFS is remounted when the Mount Pod is re-created (note that if [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
+If you can accept downtime, simply delete the Mount Pod and JuiceFS is remounted when the Mount Pod is re-created (note that if [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery) isn't enabled, you'll need to restart or re-create application Pods to bring mount point back into service). But in Kubernetes, we often wish a seamless remount. You can achieve a seamless remount by the following process:
 
 * When [upgrading or downgrading CSI Driver](./administration/upgrade-csi-driver.md), if the Mount Pod image is changed along the way, CSI Driver will create a new Mount Pod when you perform a rolling upgrade on application pods.
 * Modify [mount options](./guide/configurations.md#mount-options) at PV level, and perform a rolling upgrade on application pods. Note that for dynamic provisioning, although you can modify mount options in [StorageClass](./guide/pv.md#create-storage-class), but the changes made will not be reflected on existing PVs, a rolling upgrade thereafter will not trigger Mount Pod re-creation.

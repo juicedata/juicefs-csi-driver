@@ -299,7 +299,7 @@ spec:
         volumeMounts:
         - mountPath: /root/.juicefs
           name: jfs-root-dir
-        # Use the mount pod container image
+        # Use the Mount Pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
         image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
@@ -518,7 +518,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        # Use the mount pod container image
+        # Use the Mount Pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
         image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:

@@ -70,7 +70,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
 
 ```
-Preempted in order to admit critical pod
+Preempted in order to admit critical Pod
 ```
 
 Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况 [调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。

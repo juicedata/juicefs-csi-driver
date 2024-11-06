@@ -110,7 +110,7 @@ globalConfig:
         # 退出时清理 cache
         juicefs-clean-cache: "true"
 
-    # 为 mount pod 注入环境变量
+    # 为 Mount Pod 注入环境变量
     - pvcSelector:
         matchLabels:
           ...
@@ -120,7 +120,7 @@ globalConfig:
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-    # 挂载 volumes 到 mount pod
+    # 挂载 volumes 到 Mount Pod
     - pvcSelector:
         matchLabels:
           ...
@@ -321,7 +321,7 @@ parameters:
 该功能最低需要 CSI 驱动版本 v0.24.7，修改后需重建业务 Pod 生效。
 
 ```yaml
-  # mount some volumes to the mount pod
+  # mount some volumes to the Mount Pod
   - pvcSelector:
       matchLabels:
         need-block-device: "true"

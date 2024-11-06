@@ -36,7 +36,7 @@ To use JuiceFS CSI Driver, you can create and manage a PersistentVolume (PV) via
 
 ### Static provisioning
 
-Static provisioning is the simpler approach, which by default mounts the whole JuiceFS volume root into application pod (also supports [mounting subdirectories](./guide/configurations.md#mount-subdirectory)), the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application pod definition. The relationship between different resources:
+Static provisioning is the simpler approach, which by default mounts the whole JuiceFS volume root into application Pod (also supports [mounting subdirectories](./guide/configurations.md#mount-subdirectory)), the Kubernetes administrator is in charge of creating the PersistentVolume (PV) and [JuiceFS Volume Credentials](./guide/pv.md#volume-credentials) (stored as Kubernetes secret). After that, user will create a PVC binding that PV, and then finally use this PVC in application Pod definition. The relationship between different resources:
 
 ![static-provisioning](./images/static-provisioning.svg)
 
@@ -62,7 +62,7 @@ Taking Mount Pod mode for example, this is the overall process:
 * CSI Node Service creates Mount Pod on the associating node;
 * A JuiceFS Client runs inside the Mount Pod, and mounts JuiceFS volume to host, path being `/var/lib/juicefs/volume/[pv-name]`;
 * CSI Node Service waits until Mount Pod is up and running, and binds PV with the associated container, the PV sub-directory is mounted in pod, path defined by `volumeMounts`;
-* Application pod is started by Kubelet.
+* application Pod is started by Kubelet.
 
 ## Other mount modes {#other-mount-modes}
 
@@ -79,7 +79,7 @@ In this mode, CSI Node is no longer needed, CSI Controller is the only installed
 The overall process:
 
 * A Webhook is registered to API Server when CSI Controller starts;
-* An application pod reference an existing JuiceFS PVC;
+* An application Pod reference an existing JuiceFS PVC;
 * Before actual pod creation, API Server will query against the Webhook API;
 * CSI Controller injects the sidecar container (with JuiceFS Client running inside) into the application pod;
 * API Server creates the application pod, with JuiceFS Client running in its sidecar container, application container can access JuiceFS once it's started.
@@ -96,7 +96,7 @@ To use sidecar mode, [install CSI Driver in sidecar mode](./getting_started.md#s
 
 ### Mount by process {#by-process}
 
-Apart from using a dedicated Mount Pod or a sidecar container to run JuiceFS Client, JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node Service, as processes (mount by process). In this mode, one or several JuiceFS Clients will run inside the CSI Node Service pod, managing all JuiceFS mount points for application pods referencing JuiceFS PV in the associating node.
+Apart from using a dedicated Mount Pod or a sidecar container to run JuiceFS Client, JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node Service, as processes (mount by process). In this mode, one or several JuiceFS Clients will run inside the CSI Node Service pod, managing all JuiceFS mount points for application Pods referencing JuiceFS PV in the associating node.
 
 ![byprocess-architecture](./images/byprocess-architecture.svg)
 
