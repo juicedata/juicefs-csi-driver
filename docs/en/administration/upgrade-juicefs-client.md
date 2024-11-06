@@ -13,14 +13,14 @@ In fact, upgrading [JuiceFS CSI Driver](./upgrade-csi-driver.md) will also upgra
 Currently, there are two methods for upgrading Mount Pod container images:
 
 - [Smooth upgrade of Mount Pods](#smooth-upgrade): This method allows you to upgrade an already created Mount Pod without rebuilding the application Pod.
-- [Lossy upgrade of Mount Pods](../guide/custom-image.md#overwrite-mount-pod-image): This method requires rebuilding the application Pod to upgrade an existing Mount Pod.
+- [Disruptive upgrade of Mount Pods](../guide/custom-image.md#overwrite-mount-pod-image): This method requires rebuilding the application Pod to upgrade an existing Mount Pod.
 
 Refer to [this document](../guide/custom-image.md#ce-ee-separation) to find the tag for the latest Mount Pod container image in Docker Hub. Then, choose the appropriate upgrade method based on your CSI Driver version and the mount mode you are using:
 
 |                    | Version 0.25.0 and above | Version before 0.25.0   |
 |:------------------:|:------------------------:|:-----------------------:|
-| **Mount Pod mode** | Smooth upgrade of Mount Pods | Lossy upgrade of Mount Pods |
-| **Sidecar mode**   | Lossy upgrade of Mount Pods  | Lossy upgrade of Mount Pods |
+| **Mount Pod mode** | Smooth upgrade of Mount Pods | Disruptive upgrade of Mount Pods |
+| **Sidecar mode**   | Disruptive upgrade of Mount Pods | Disruptive upgrade of Mount Pods |
 
 **Note:** After overwriting the Mount Pod image, further CSI Driver upgrades will no longer automatically update the Mount Pod image.
 
