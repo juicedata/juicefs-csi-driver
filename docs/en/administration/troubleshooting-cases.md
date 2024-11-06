@@ -65,7 +65,7 @@ The JuiceFS client operates within the Mount Pod, and errors can arise from vari
 
 When this happens, [Check Mount Pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
 
-In addition, when kubelet enables the preemption, the Mount Pod may preempt application resources after startup, resulting in repeated creation and destruction of both the Mount Pod and the application pod, with the Mount Pod event saying:
+In addition, when kubelet enables the preemption, the Mount Pod may preempt application resources after startup, resulting in repeated creation and destruction of both the Mount Pod and the application Pod, with the Mount Pod event saying:
 
 ```
 Preempted in order to admit critical Pod
@@ -88,7 +88,7 @@ Transport endpoint is not connected
 df: /jfs: Socket not connected
 ```
 
-In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the Mount Pod can continue to run after failure, application will be able to use JuiceFS inside container.
+In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application Pod, as long as the Mount Pod can continue to run after failure, application will be able to use JuiceFS inside container.
 
 </details>
 
@@ -125,7 +125,7 @@ Check the Mount Pod start-up command carefully. In the above example, the option
 <details>
 <summary>**Mount Pod not created**</summary>
 
-Use `kubectl describe <app-pod-name>` to view the events of the current application pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
+Use `kubectl describe <app-pod-name>` to view the events of the current application Pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
 
 If the application pod's event is:
 
@@ -180,7 +180,7 @@ Events:
   Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
 ```
 
-In addition, the application Pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
+In addition, the application Pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application Pod, and an error will be reported in event that one of the volumes is not mounted:
 
 ```shell
 Events:
@@ -276,7 +276,7 @@ CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   B
 90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
 ```
 
-Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application pod, and then try again.
+Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application Pod, and then try again.
 
 :::note
 `docker stats` counts memory usage differently under cgroup v1/v2, v1 does not include kernel page cache while v2 does, the case described here is carried out under cgroup v1, but it doesn't affect the troubleshooting thought process and conclusion.

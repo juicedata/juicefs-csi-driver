@@ -197,7 +197,7 @@ $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 
 Due to the architecture of the CSI Driver, JuiceFS Client runs in a dedicated Mount Pod, thus, every application Pod is accompanied by a Mount Pod.
 
-CSI Node will create the Mount Pod, mount the JuiceFS file system within the pod, and finally bind the mount point to the application pod. If application Pod fails to start, we shall look for issues in CSI Node, or Mount Pod.
+CSI Node will create the Mount Pod, mount the JuiceFS file system within the Pod, and finally bind the mount point to the application Pod. If application Pod fails to start, we shall look for issues in CSI Node, or Mount Pod.
 
 #### Check application Pod events
 
@@ -304,7 +304,7 @@ A pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `
 kubectl -n <namespace> debug <mount-pod> -it  --copy-to=jfs-mount-debug --container=jfs-mount --image=<mount-image> -- bash
 ```
 
-In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug pod.
+In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug Pod.
 
 After troubleshooting, don't forget to clean up:
 
@@ -323,9 +323,9 @@ Under JuiceFS file system root, there are some pseudo files that provide special
 * `cat /jfs/.accesslog` prints access logs in real time, use this to analyze file system access patterns. See [Access log (Community Edition)](https://juicefs.com/docs/community/fault_diagnosis_and_analysis/#access-log) and [Access log (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#oplog)
 * `cat /jfs/.stats` prints real-time statistics for this JuiceFS mount point. When performance isn't ideal, use this to find out the culprit. See [Real-time statistics (Community Edition)](https://juicefs.com/docs/community/performance_evaluation_guide/#juicefs-stats) and [Real-time statistics (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#real-time-statistics)
 
-Obtaining file system access log for application Pods can be wearisome, you'll need to first locate the Mount Pod for the application pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
+Obtaining file system access log for application Pods can be wearisome, you'll need to first locate the Mount Pod for the application Pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
 
-Inside Mount Pod, JuiceFS root is mounted at a directory that looks like `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx`, and then bind to container via the Kubernetes bind mechanism. So for a given application pod, you can find its JuiceFS mount point on host using below commands, and access its pseudo files:
+Inside Mount Pod, JuiceFS root is mounted at a directory that looks like `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx`, and then bind to container via the Kubernetes bind mechanism. So for a given application Pod, you can find its JuiceFS mount point on host using below commands, and access its pseudo files:
 
 ```shell
 # application Pod information will be used in below commands, save them as environment variables.

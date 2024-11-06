@@ -58,10 +58,10 @@ Taking Mount Pod mode for example, this is the overall process:
 * User creates a PVC using an existing JuiceFS StorageClass;
 * PV is created and provisioned by CSI Controller, by default, a sub-directory named with PV ID will be created under JuiceFS root, settings controlling this process are defined (or referenced) in StorageClass definition.
 * Kubernetes PV Controller binds user-created PVC with the PV created by CSI Controller, PVC and PV both enter "Bound" state;
-* User creates application pod, referencing PVC previously created;
+* User creates application Pod, referencing PVC previously created;
 * CSI Node Service creates Mount Pod on the associating node;
 * A JuiceFS Client runs inside the Mount Pod, and mounts JuiceFS volume to host, path being `/var/lib/juicefs/volume/[pv-name]`;
-* CSI Node Service waits until Mount Pod is up and running, and binds PV with the associated container, the PV sub-directory is mounted in pod, path defined by `volumeMounts`;
+* CSI Node Service waits until Mount Pod is up and running, and binds PV with the associated container, the PV sub-directory is mounted in Pod, path defined by `volumeMounts`;
 * application Pod is started by Kubelet.
 
 ## Other mount modes {#other-mount-modes}
@@ -82,12 +82,12 @@ The overall process:
 * An application Pod reference an existing JuiceFS PVC;
 * Before actual pod creation, API Server will query against the Webhook API;
 * CSI Controller injects the sidecar container (with JuiceFS Client running inside) into the application pod;
-* API Server creates the application pod, with JuiceFS Client running in its sidecar container, application container can access JuiceFS once it's started.
+* API Server creates the application Pod, with JuiceFS Client running in its sidecar container, application container can access JuiceFS once it's started.
 
 Some sidecar caveats:
 
 * FUSE must be supported, meaning that container will run in privileged mode;
-* Different from mount by pod, a sidecar container is injected into the application pod, so sharing PV is not possible. Carefully manage resources when use at scale;
+* Different from mount by Pod, a sidecar container is injected into the application Pod, so sharing PV is not possible. Carefully manage resources when use at scale;
 * Mount point is shared between sidecar & application container using `hostPath`, which means sidecar container is actually stateful, so in the event of a sidecar container crash, mount point cannot automatically restore without re-creating the whole pod (in contrast, Mount Pod mode supports [automatic mount point recovery](./guide/configurations.md#automatic-mount-point-recovery));
 * Do not switch to sidecar mode directly from Mount Pod mode, as existing Mount Pods won't automatically migrate to sidecar mode, and just simply stagnate;
 * CSI Controller will listen for all pod change events under namespaces with sidecar injections enabled. If you'd like to minimize overhead, you can even ignore pods by labeling them with `disable.sidecar.juicefs.com/inject: true`, so that CSI Controller deliberately ignores them.
@@ -96,11 +96,11 @@ To use sidecar mode, [install CSI Driver in sidecar mode](./getting_started.md#s
 
 ### Mount by process {#by-process}
 
-Apart from using a dedicated Mount Pod or a sidecar container to run JuiceFS Client, JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node Service, as processes (mount by process). In this mode, one or several JuiceFS Clients will run inside the CSI Node Service pod, managing all JuiceFS mount points for application Pods referencing JuiceFS PV in the associating node.
+Apart from using a dedicated Mount Pod or a sidecar container to run JuiceFS Client, JuiceFS CSI Driver also supports running JuiceFS Client directly inside CSI Node Service, as processes (mount by process). In this mode, one or several JuiceFS Clients will run inside the CSI Node Service Pod, managing all JuiceFS mount points for application Pods referencing JuiceFS PV in the associating node.
 
 ![byprocess-architecture](./images/byprocess-architecture.svg)
 
-When all JuiceFS Client run inside CSI Node Service pod, it's not hard to imagine that CSI Node Service will be needing more resource. It's recommended to increase resource requests to 1 CPU and 1GiB Memory, limits to 2 CPU and 5GiB Memory, or adjust according to the actual resource usage.
+When all JuiceFS Client run inside CSI Node Service Pod, it's not hard to imagine that CSI Node Service will be needing more resource. It's recommended to increase resource requests to 1 CPU and 1GiB Memory, limits to 2 CPU and 5GiB Memory, or adjust according to the actual resource usage.
 
 In Kubernetes, mount by pod is no doubt the more recommended way to use JuiceFS CSI Driver. But outside the Kubernetes world, there'll be scenarios requiring the mount by process mode, for example, [Use JuiceFS CSI Driver in Nomad](./cookbook/csi-in-nomad.md).
 

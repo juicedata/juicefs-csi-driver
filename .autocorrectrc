@@ -26,6 +26,8 @@ spellcheck:
     - critical pod = critical Pod
     - mount pod = Mount Pod
     - mount pods = Mount Pods
+    - pod, = Pod,
+    - pod. = Pod.
     - application pod = application Pod
     - application pods = application Pods
     - pod list = Pod list

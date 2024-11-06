@@ -15,7 +15,7 @@ Although in the examples below, secrets are usually named `juicefs-secret`, they
 :::tip
 
 * If you're already [managing StorageClass via Helm](#helm-sc), you can skip this step as the Kubernetes Secret is already created along the way.
-* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application Pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
 * Secret only stores the volume credentials (that is, the options required by the `juicefs format` command (community version) and the `juicefs auth` command (cloud service)), and does not support filling in the mount options. If you want to modify the mount options, refer to ["Mount options"](./configurations.md#mount-options).
 
 :::
@@ -43,7 +43,7 @@ stringData:
   secret-key: <SECRET_KEY>
   # Adjust Mount Pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # If you need to format a volume within the mount pod, fill in format options below.
+  # If you need to format a volume within the mount Pod, fill in format options below.
   # format-options: trash-days=1,block-size=4096
 ```
 
@@ -302,7 +302,7 @@ spec:
       juicefs-name: ten-pb-fs
 ```
 
-And then create an application pod, using the PVC created above:
+And then create an application Pod, using the PVC created above:
 
 ```yaml
 apiVersion: v1
@@ -460,7 +460,7 @@ Upon mount success, a dynamic PV creates a random subdir in JuiceFS volume, dire
 
 [Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application Pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
-Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each pod.
+Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each Pod.
 
 Declare generic ephemeral volume directly in pod definition:
 

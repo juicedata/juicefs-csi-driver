@@ -27,7 +27,7 @@ After ConfigMap is updated across CSI components, subsequent Mount Pods will app
 If a customization item appears to be a valid sidecar setting, it will work for the sidecar; otherwise, it will be ignored. For example:
 
 * `resources` applies to both the Mount Pod and the sidecar, so it works for both.
-* `custom-labels` adds customized labels to the pod. However, since labels are an exclusive pod attribute, this setting does not apply to the sidecar.
+* `custom-labels` adds customized labels to the Pod. However, since labels are an exclusive pod attribute, this setting does not apply to the sidecar.
 :::
 
 All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in our documentation.
@@ -778,7 +778,7 @@ For CSI Driver versions prior to v0.25.0, if a Mount Pod crashes (for example, d
 
 To prevent such issues, we recommend enabling mount propagation in all application pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the Pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1
@@ -956,7 +956,7 @@ parameters:
 
 #### Advanced usage
 
-Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) is usually the better approach).
+Mount the `/etc/hosts` file into the Pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) is usually the better approach).
 
 ```yaml
 juicefs/host-path: "/etc/hosts"
