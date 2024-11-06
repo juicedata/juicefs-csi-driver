@@ -262,22 +262,22 @@ spec:
 
 在每台节点上执行以下操作：
 
-1. 删除当前节点上的 CSI Node Service pod：
+1. 删除当前节点上的 CSI Node Service Pod：
 
    ```shell
    kubectl -n kube-system delete po juicefs-csi-node-df7m7
    ```
 
-2. 确认新的 CSI Node Service pod 已经 ready：
+2. 确认新的 CSI Node Service Pod 已经 ready：
 
    ```shell
    $ kubectl -n kube-system get po -o wide -l app.kubernetes.io/name=juicefs-csi-driver | grep kube-node-2
    juicefs-csi-node-6bgc6     3/3     Running   0          60s   172.16.11.11   kube-node-2   <none>           <none>
    ```
 
-3. 在当前节点上，删除使用 JuiceFS 的业务 pod 并重新创建。
+3. 在当前节点上，删除使用 JuiceFS 的业务 Pod 并重新创建。
 
-4. 确认使用 JuiceFS 的业务 pod 已经 ready，并检查是否正常工作。
+4. 确认使用 JuiceFS 的业务 Pod 已经 ready，并检查是否正常工作。
 
 #### 5. 升级 CSI Controller 及其 role
 

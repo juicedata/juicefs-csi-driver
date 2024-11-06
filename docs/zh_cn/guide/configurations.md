@@ -27,7 +27,7 @@ ConfigMap 生效后，后续创建的 Mount Pod 都会应用新的配置，**但
 下方介绍的所有相关的字段，只要是合法的 Sidecar 容器配置，那么对于 Sidecar 容器同样生效。比如：
 
 * `resources` 是 Mount Pod 和 Sidecar 容器都具备的配置，因此对两种场景都生效；
-* `custom-labels` 的作用是为 pod 添加自定义标签，而「标签」是 Pod 独有的属性，Container 是没有标签的，因此 `custom-labels` 就只对 Mount Pod 生效，Sidecar 场景则会忽略该配置。
+* `custom-labels` 的作用是为 Pod 添加自定义标签，而「标签」是 Pod 独有的属性，Container 是没有标签的，因此 `custom-labels` 就只对 Mount Pod 生效，Sidecar 场景则会忽略该配置。
 :::
 
 ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
@@ -110,7 +110,7 @@ globalConfig:
         # 退出时清理 cache
         juicefs-clean-cache: "true"
 
-    # 为 mount pod 注入环境变量
+    # 为 Mount Pod 注入环境变量
     - pvcSelector:
         matchLabels:
           ...
@@ -120,7 +120,7 @@ globalConfig:
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-    # 挂载 volumes 到 mount pod
+    # 挂载 volumes 到 Mount Pod
     - pvcSelector:
         matchLabels:
           ...
@@ -321,7 +321,7 @@ parameters:
 该功能最低需要 CSI 驱动版本 v0.24.7，修改后需重建业务 Pod 生效。
 
 ```yaml
-  # mount some volumes to the mount pod
+  # mount some volumes to the Mount Pod
   - pvcSelector:
       matchLabels:
         need-block-device: "true"
@@ -543,7 +543,7 @@ CSI 驱动的 Controller 组件可以通过增加相关参数，令其兼具 Web
 
 如果启用了 [sidecar 模式](../introduction.md#sidecar)，那么 Controller 同时会作为 mutating webhook 运行，此时 Controller 进程的启动参数里会包含 [`--webhook`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L76)，你可以通过这个参数判断目前是否启用了该特性。
 
-顾名思义，mutating 会对资源进行变更，也就是指定命名空间下的所有 pod 创建，都会经过这个 webhook，如果检测到他使用了 JuiceFS PV，便会向其中注入 sidecar 容器。
+顾名思义，mutating 会对资源进行变更，也就是指定命名空间下的所有 Pod 创建，都会经过这个 webhook，如果检测到他使用了 JuiceFS PV，便会向其中注入 sidecar 容器。
 
 ### Validating webhook
 

@@ -41,7 +41,7 @@ From JuiceFS CSI Driver 0.17.1 and above, modifying the default Mount Pod image 
 :::tip
 With Mount Pod image overwritten, note that:
 
-* Existing Mount Pods won't be affected, new images will run only if you rolling upgrade app pods, or delete Mount Pod.
+* Existing Mount Pods won't be affected, new images will run only if you rolling upgrade app Pods, or delete Mount Pod.
 * By default, if you [upgrad CSI Driver](../administration/upgrade-csi-driver.md), it'll use the latest stable mount image included with the release. But if you overwrite the mount image using steps provided in this section, then it'll be a fixated config and no longer related to CSI Driver upgrades
 
 :::
@@ -173,7 +173,7 @@ To use the newly built image, refer to [Overwrite Mount Pod image](#overwrite-mo
 
 ### Build CSI Driver component image
 
-JuiceFS CSI Controller / JuiceFS CSI Node pod image default to [`juicedata/juicefs-csi-driver`](https://hub.docker.com/r/juicedata/juicefs-csi-driver), built using [`docker/csi.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/csi.Dockerfile).
+JuiceFS CSI Controller / JuiceFS CSI Node Pod image default to [`juicedata/juicefs-csi-driver`](https://hub.docker.com/r/juicedata/juicefs-csi-driver), built using [`docker/csi.Dockerfile`](https://github.com/juicedata/juicefs-csi-driver/blob/master/docker/csi.Dockerfile).
 
 If you wish to make modifications and build your own JuiceFS CSI Driver, use below commands to clone the repository, and build the Docker image using the provided script:
 

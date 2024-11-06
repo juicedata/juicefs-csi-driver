@@ -15,7 +15,7 @@ Although in the examples below, secrets are usually named `juicefs-secret`, they
 :::tip
 
 * If you're already [managing StorageClass via Helm](#helm-sc), you can skip this step as the Kubernetes Secret is already created along the way.
-* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
+* After modifying the volume credentials, you need to perform a rolling upgrade or restart the application Pod, and the CSI Driver will recreate the Mount Pod for the configuration changes to take effect.
 * Secret only stores the volume credentials (that is, the options required by the `juicefs format` command (community version) and the `juicefs auth` command (cloud service)), and does not support filling in the mount options. If you want to modify the mount options, refer to ["Mount options"](./configurations.md#mount-options).
 
 :::
@@ -41,9 +41,9 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # Adjust mount pod timezone, defaults to UTC.
+  # Adjust Mount Pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
-  # If you need to format a volume within the mount pod, fill in format options below.
+  # If you need to format a volume within the mount Pod, fill in format options below.
   # format-options: trash-days=1,block-size=4096
 ```
 
@@ -80,7 +80,7 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Adjust mount pod timezone, defaults to UTC.
+  # Adjust Mount Pod timezone, defaults to UTC.
   # envs: "{TZ: Asia/Shanghai}"
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
@@ -250,7 +250,7 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 ## Static provisioning {#static-provisioning}
 
-Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application pod (also refer to [mount subdirectory](./configurations.md#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
+Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application Pod (also refer to [mount subdirectory](./configurations.md#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
 
 Create the following Kubernetes resources, refer to YAML comments for field descriptions:
 
@@ -302,7 +302,7 @@ spec:
       juicefs-name: ten-pb-fs
 ```
 
-And then create an application pod, using the PVC created above:
+And then create an application Pod, using the PVC created above:
 
 ```yaml
 apiVersion: v1
@@ -322,7 +322,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: data
-      # Propagation must be added for automatic mount point recovery (if mount pod ever fails)
+      # Propagation must be added for automatic mount point recovery (if Mount Pod ever fails)
       mountPropagation: HostToContainer
     resources:
       requests:
@@ -333,7 +333,7 @@ spec:
       claimName: juicefs-pvc
 ```
 
-After pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](./configurations.md#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
+After Pod is up and running, you'll see `out.txt` being created by the container inside the JuiceFS mount point. For static provisioning, if [mount subdirectory](./configurations.md#mount-subdirectory) is not explicitly specified, the root directory of the file system will be mounted into the container. Mount a subdirectory or use [dynamic provisioning](#dynamic-provisioning) if data isolation is required.
 
 ## Create a StorageClass {#create-storage-class}
 
@@ -389,10 +389,10 @@ storageClasses:
     accessKey: "<access-key>"    # Access Key for object storage
     secretKey: "<secret-key>"    # Secret Key for object storage
     bucket: "<bucket>"           # A bucket URL to store data
-    # Adjust mount pod timezone, defaults to UTC
+    # Adjust Mount Pod timezone, defaults to UTC
     # envs: "{TZ: Asia/Shanghai}"
   mountPod:
-    resources:                   # Resource limit/request for mount pod
+    resources:                   # Resource limit/request for Mount Pod
       requests:
         cpu: "1"
         memory: "1Gi"
@@ -405,7 +405,7 @@ storageClasses:
 
 Read [Usage](../introduction.md#usage) to learn about dynamic provisioning. Dynamic provisioning automatically creates PV for you, each corresponds to a sub-directory inside the JuiceFS volume, and the parameters needed by PV resides in StorageClass, thus you'll have to [create a StorageClass](#create-storage-class) in advance.
 
-Create PVC and example pod:
+Create PVC and example Pod:
 
 ```yaml {14}
 kubectl apply -f - <<EOF
@@ -448,7 +448,7 @@ spec:
 EOF
 ```
 
-Verify that pod is running, and check if data is written into JuiceFS:
+Verify that Pod is running, and check if data is written into JuiceFS:
 
 ```shell
 kubectl exec -ti juicefs-app -- tail -f /data/out.txt
@@ -458,11 +458,11 @@ Upon mount success, a dynamic PV creates a random subdir in JuiceFS volume, dire
 
 ## Use generic ephemeral volume {#general-ephemeral-storage}
 
-[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-pod directory for scratch data. When application pods need large volume, per-pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
+[Generic ephemeral volumes](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) are similar to `emptyDir`, which provides a per-Pod directory for scratch data. When application Pods need large volume, per-Pod ephemeral storage, consider using JuiceFS as generic ephemeral volume.
 
-Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each pod.
+Generic ephemeral volume works similar to dynamic provisioning, thus you'll need to [create a StorageClass](#create-storage-class) as well. But generic ephemeral volume uses `volumeClaimTemplate` which automatically creates PVC for each Pod.
 
-Declare generic ephemeral volume directly in pod definition:
+Declare generic ephemeral volume directly in Pod definition:
 
 ```yaml {20-31}
 apiVersion: v1

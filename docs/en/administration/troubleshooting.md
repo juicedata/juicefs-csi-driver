@@ -41,7 +41,7 @@ kubectl krew install jfs
 #### Usage {#kubectl-jfs-plugin-usage}
 
 ```shell
-# show all application pods using JuiceFS PV quickly
+# show all application Pods using JuiceFS PV quickly
 $ kubectl jfs po
 NAME                       NAMESPACE  MOUNT PODS                                             STATUS             AGE
 cn-wrong-7b7577678d-7j8dc  default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  CrashLoopBackOff   10d
@@ -69,10 +69,10 @@ $ kubectl jfs pv
 $ kubectl jfs pvc
 ```
 
-For problematic application pods, PVCs, and PVs, you can use the following commands for preliminary diagnosis, and the JuiceFS plugin will suggest the next steps for troubleshooting:
+For problematic application Pods, PVCs, and PVs, you can use the following commands for preliminary diagnosis, and the JuiceFS plugin will suggest the next steps for troubleshooting:
 
 ```shell
-# troubleshooting application pod
+# troubleshooting application Pod
 $ kubectl jfs debug pod wrong
 Name:        wrong
 Namespace:   default
@@ -137,14 +137,14 @@ KBCTL=kubectl_1 ./csi-doctor.sh debug my-app-pod -n default
 KBCTL=kubectl_2 ./csi-doctor.sh debug my-app-pod -n default
 ```
 
-A commonly used feature is obtaining Mount Pod information. Assuming application pod being `my-app-pod` in namespace `default`, to obtain the Mount Pod that accompanies the application pod:
+A commonly used feature is obtaining Mount Pod information. Assuming application Pod being `my-app-pod` in namespace `default`, to obtain the Mount Pod that accompanies the application Pod:
 
 ```shell
-# Get mount pod for specified application pod
+# Get Mount Pod for specified application Pod
 $ ./csi-doctor.sh get-mount my-app-pod
 kube-system juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 
-# Get all application pods that's sharing the specified mount pod
+# Get all application Pods that's sharing the specified Mount Pod
 $ ./csi-doctor.sh get-app juicefs-ubuntu-node-2-pvc-b94bd312-f5f7-4f46-afdb-2d1bc20371b5-whrrym
 default my-app-pod
 ```
@@ -159,7 +159,7 @@ Run above command and thoroughly check its output, try to debug using the troubl
 
 ## Basic principles for troubleshooting {#basic-principles}
 
-In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and pod creation failures (managed by CSI Node / Mount Pod).
+In JuiceFS CSI Driver, most frequently encountered problems are PV creation failures (managed by CSI Controller) and Pod creation failures (managed by CSI Node / Mount Pod).
 
 ### PV creation failure
 
@@ -193,15 +193,15 @@ juicefs-csi-controller-0   3/3     Running   0          8d
 $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 ```
 
-### Application pod failure
+### application Pod failure
 
-Due to the architecture of the CSI Driver, JuiceFS Client runs in a dedicated Mount Pod, thus, every application pod is accompanied by a Mount Pod.
+Due to the architecture of the CSI Driver, JuiceFS Client runs in a dedicated Mount Pod, thus, every application Pod is accompanied by a Mount Pod.
 
-CSI Node will create the Mount Pod, mount the JuiceFS file system within the pod, and finally bind the mount point to the application pod. If application pod fails to start, we shall look for issues in CSI Node, or Mount Pod.
+CSI Node will create the Mount Pod, mount the JuiceFS file system within the Pod, and finally bind the mount point to the application Pod. If application Pod fails to start, we shall look for issues in CSI Node, or Mount Pod.
 
-#### Check application pod events
+#### Check application Pod events
 
-If error occurs during the mount, look for clues in the application pod events:
+If error occurs during the mount, look for clues in the application Pod events:
 
 ```shell {7}
 $ kubectl describe po dynamic-ce-1
@@ -220,24 +220,24 @@ If error event indicates problems within the JuiceFS space, follow below guide t
 Verify CSI Node is alive and working correctly:
 
 ```shell
-# Application pod information will be used in below commands, save them as environment variables.
-APP_NS=default  # application pod namespace
+# application Pod information will be used in below commands, save them as environment variables.
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Locate worker node via application pod name
+# Locate worker node via application Pod name
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
 
 # Print all CSI Node pods
 kubectl -n kube-system get po -l app=juicefs-csi-node
 
-# Print CSI Node pod closest to the application pod
+# Print CSI Node pod closest to the application Pod
 kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.nodeName=$NODE_NAME
 
 # Substitute $CSI_NODE_POD with actual CSI Node pod name acquired above
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-Or simply use this one-liner to print logs of the relevant CSI Node pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
+Or simply use this one-liner to print logs of the relevant CSI Node Pod (the `APP_NS` and `APP_POD_NAME` environment variables need to be set):
 
 ```shell
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
@@ -250,37 +250,37 @@ If no errors are shown in the CSI Node logs, check if Mount Pod is working corre
 You can easily acquire Mount Pod name using the [diagnostic script](#csi-doctor), but if you need to debug without the script, here's a series of commands to help you with this process:
 
 ```shell
-# In less complex situations, use below command to print logs for all mount pods
+# In less complex situations, use below command to print logs for all Mount Pods
 kubectl -n kube-system logs -l app.kubernetes.io/name=juicefs-mount | grep -v "<WARNING>" | grep -v "<INFO>"
 
-# Application pod information will be used in below commands, save them as environment variables.
-APP_NS=default  # application pod namespace
+# application Pod information will be used in below commands, save them as environment variables.
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Find Node / PVC / PV name via application pod
+# Find Node / PVC / PV name via application Pod
 NODE_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}')
-# If application pod uses multiple PVs, below command only obtains the first one, adjust accordingly.
+# If application Pod uses multiple PVs, below command only obtains the first one, adjust accordingly.
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}'|awk '{print $1}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
 
-# Find mount pod via application pod
+# Find Mount Pod via application Pod
 MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
 
-# Check mount pod state
+# Check Mount Pod state
 kubectl -n kube-system get po $MOUNT_POD_NAME
 
-# Check mount pod events
+# Check Mount Pod events
 kubectl -n kube-system describe po $MOUNT_POD_NAME
 
-# Print mount pod logs, which contain JuiceFS Client logs.
+# Print Mount Pod logs, which contain JuiceFS Client logs.
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
-# Print mount pod command, an easily ignored troubleshooting step.
-# If you define mount options in an erroneous format, the resulting mount pod start-up command will not work correctly.
+# Print Mount Pod command, an easily ignored troubleshooting step.
+# If you define mount options in an erroneous format, the resulting Mount Pod start-up command will not work correctly.
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 
-# Find all mount pod for give PV
+# Find all Mount Pod for give PV
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
 ```
 
@@ -289,22 +289,22 @@ Or simply use below one-liners:
 ```shell
 # APP_NS and APP_POD_NAME environment variables need to be set
 
-# Print mount pod name
+# Print Mount Pod name
 kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')
 
-# Enter the mount pod to start a interactive shell
+# Enter the Mount Pod to start a interactive shell
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 
 #### Debug Mount Pod {#debug-mount-pod}
 
-A pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `kubectl debug` to create an environment that's available for interactive debugging:
+A Pod in `CrashLoopBackOff` state cannot be easily debugged, in such case, use `kubectl debug` to create an environment that's available for interactive debugging:
 
 ```shell
 kubectl -n <namespace> debug <mount-pod> -it  --copy-to=jfs-mount-debug --container=jfs-mount --image=<mount-image> -- bash
 ```
 
-In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug pod.
+In the above demonstration, set `<mount-image>` to the mount image, and the `debug` command will create a Pod dedicated for interactive debugging, you'll try to reproduce and resolve the issue in this debug Pod.
 
 After troubleshooting, don't forget to clean up:
 
@@ -323,16 +323,16 @@ Under JuiceFS file system root, there are some pseudo files that provide special
 * `cat /jfs/.accesslog` prints access logs in real time, use this to analyze file system access patterns. See [Access log (Community Edition)](https://juicefs.com/docs/community/fault_diagnosis_and_analysis/#access-log) and [Access log (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#oplog)
 * `cat /jfs/.stats` prints real-time statistics for this JuiceFS mount point. When performance isn't ideal, use this to find out the culprit. See [Real-time statistics (Community Edition)](https://juicefs.com/docs/community/performance_evaluation_guide/#juicefs-stats) and [Real-time statistics (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#real-time-statistics)
 
-Obtaining file system access log for application pods can be wearisome, you'll need to first locate the Mount Pod for the application pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
+Obtaining file system access log for application Pods can be wearisome, you'll need to first locate the Mount Pod for the application Pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
 
-Inside Mount Pod, JuiceFS root is mounted at a directory that looks like `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx`, and then bind to container via the Kubernetes bind mechanism. So for a given application pod, you can find its JuiceFS mount point on host using below commands, and access its pseudo files:
+Inside Mount Pod, JuiceFS root is mounted at a directory that looks like `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx`, and then bind to container via the Kubernetes bind mechanism. So for a given application Pod, you can find its JuiceFS mount point on host using below commands, and access its pseudo files:
 
 ```shell
-# Application pod information will be used in below commands, save them as environment variables.
-APP_NS=default  # application pod namespace
+# application Pod information will be used in below commands, save them as environment variables.
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# If application pod uses multiple PVs, below command only obtains the first one, adjust accordingly.
+# If application Pod uses multiple PVs, below command only obtains the first one, adjust accordingly.
 PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}')
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 
@@ -357,7 +357,7 @@ This sections only covers finding pseudo files in JuiceFS CSI Driver, troublesho
 
 If you are not able to troubleshoot, seek help from the JuiceFS community or the Juicedata team. You should collect some information so others can further diagnose.
 
-Use the [diagnostic script](#csi-doctor) to collect related information, assuming the application pod being `my-app-pod`, in namespace `default`, run:
+Use the [diagnostic script](#csi-doctor) to collect related information, assuming the application Pod being `my-app-pod`, in namespace `default`, run:
 
 ```shell
 $ ./csi-doctor.sh collect my-app-pod -n default

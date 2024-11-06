@@ -12,8 +12,8 @@ In fact, upgrading [JuiceFS CSI Driver](./upgrade-csi-driver.md) will also upgra
 
 Currently, there are two methods for upgrading Mount Pod container images:
 
-- [Smooth upgrade of Mount Pods](#smooth-upgrade): This method allows you to upgrade an already created Mount Pod without rebuilding the application pod.
-- [Lossy upgrade of Mount Pods](../guide/custom-image.md#overwrite-mount-pod-image): This method requires rebuilding the application pod to upgrade an existing Mount Pod.
+- [Smooth upgrade of Mount Pods](#smooth-upgrade): This method allows you to upgrade an already created Mount Pod without rebuilding the application Pod.
+- [Lossy upgrade of Mount Pods](../guide/custom-image.md#overwrite-mount-pod-image): This method requires rebuilding the application Pod to upgrade an existing Mount Pod.
 
 Refer to [this document](../guide/custom-image.md#ce-ee-separation) to find the tag for the latest Mount Pod container image in Docker Hub. Then, choose the appropriate upgrade method based on your CSI Driver version and the mount mode you are using:
 
@@ -51,7 +51,7 @@ Smooth upgrade can be triggered in the [CSI dashboard](./troubleshooting.md#csi-
 
    ![CSI dashboard config Mount Pod image](../images/upgrade-image.png)
 
-2. In the Mount Pod details page, there are two upgrade buttons. One is for a pod recreate upgrade and the other one is for a binary upgrade:
+2. In the Mount Pod details page, there are two upgrade buttons. One is for a Pod recreate upgrade and the other one is for a binary upgrade:
 
    ![CSI dashboard Mount Pod upgrade button](../images/upgrade-menu.png)
 
@@ -93,11 +93,11 @@ The minimum version requirement for the JuiceFS kubectl plugin is 0.3.0.
 You are strongly encouraged to upgrade JuiceFS CSI Driver to v0.10 and later versions, the method demonstrated below are not recommended for production use.
 :::
 
-If you're using [Mount by process mode](../introduction.md#by-process), or using CSI Driver prior to v0.10.0, and cannot easily upgrade to v0.10, you can choose to upgrade JuiceFS Client independently, inside the CSI Node Service pod.
+If you're using [Mount by process mode](../introduction.md#by-process), or using CSI Driver prior to v0.10.0, and cannot easily upgrade to v0.10, you can choose to upgrade JuiceFS Client independently, inside the CSI Node Service Pod.
 
-This is only a temporary solution, if CSI Node Service pods are recreated, or new nodes are added to Kubernetes cluster, you'll need to run this script again.
+This is only a temporary solution, if CSI Node Service Pods are recreated, or new nodes are added to Kubernetes cluster, you'll need to run this script again.
 
-1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` pod with the new built one:
+1. Use this script to replace the `juicefs` binary in `juicefs-csi-node` Pod with the new built one:
 
    ```bash
    #!/bin/bash
@@ -119,4 +119,4 @@ This is only a temporary solution, if CSI Node Service pods are recreated, or ne
    Replace `/path/to/kubectl` and `/path/to/new/juicefs` in the script with the actual values, then execute the script.
    :::
 
-2. Restart the applications one by one, or kill the existing pods.
+2. Restart the applications one by one, or kill the existing Pods.

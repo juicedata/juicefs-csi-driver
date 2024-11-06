@@ -12,8 +12,8 @@ sidebar_position: 3
 
 目前有两种升级 Mount Pod 容器镜像的方法：
 
-- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 pod 升级已经创建好的 Mount Pod
-- [有损升级 Mount Pod](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 pod 才能升级已经创建好的 Mount Pod
+- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 Pod 升级已经创建好的 Mount Pod
+- [有损升级 Mount Pod](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 Pod 才能升级已经创建好的 Mount Pod
 
 参考[文档](../guide/custom-image.md#ce-ee-separation)在 Docker Hub 找到新版 Mount Pod 容器镜像的标签，然后根据你使用的 CSI 驱动版本和运行模式，选择不同的升级方法：
 
@@ -97,7 +97,7 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0。
 
 由于这是在 CSI Node Service 容器中临时升级 JuiceFS 客户端，完全是临时解决方案，可想而知，如果 CSI Node Service 的 Pod 发生了重建，又或是新增了节点，都需要再次执行该升级过程。
 
-1. 使用以下脚本将 `juicefs-csi-node` pod 中的 `juicefs` 客户端替换为新版：
+1. 使用以下脚本将 `juicefs-csi-node` Pod 中的 `juicefs` 客户端替换为新版：
 
    ```bash
    #!/bin/bash
@@ -116,4 +116,4 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0。
        chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
    ```
 
-2. 将应用逐个重新启动，或 kill 掉已存在的 pod。
+2. 将应用逐个重新启动，或 kill 掉已存在的 Pod。

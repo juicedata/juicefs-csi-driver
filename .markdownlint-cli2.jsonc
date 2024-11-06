@@ -133,6 +133,8 @@
         "POSIX",
         "PV",
         "PVC",
+        "Pod",
+        "Pods",
         "PostgreSQL",
         "PowerShell",
         "Prometheus",
