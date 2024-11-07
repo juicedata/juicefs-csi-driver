@@ -234,8 +234,8 @@ func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 		default:
 			return false
 		}
-		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
+		for i := range volumeCaps {
+			if volumeCaps[i].GetMode() == cap.AccessMode.GetMode() {
 				return true
 			}
 		}
