@@ -95,6 +95,8 @@ export default {
   config: '配置',
   batchUpgrade: '批量升级',
   upgrading: '升级中',
+  recreate: '是否重建',
+  upgrade: '升级',
   reset: '重置',
   action: '操作',
   image: '镜像',

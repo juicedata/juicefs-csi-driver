@@ -21,7 +21,9 @@ import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { Pod, PodToUpgrade } from '@/types/k8s'
+import { Node } from 'kubernetes-types/core/v1'
 import { getBasePath, getHost } from '@/utils'
+import { Job } from 'kubernetes-types/batch/v1'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -155,7 +157,36 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
 export function usePodsToUpgrade(recreate: boolean, nodeName?: string) {
   return useSWR<PodToUpgrade[]>(
     recreate ?
-      `/api/v1/upgrade-pods?nodeName=${nodeName}&recreate=true`
-      : `/api/v1/upgrade-pods?nodeName=${nodeName}`,
+      `/api/v1/batch/pods?nodeName=${nodeName}&recreate=true`
+      : `/api/v1/batch/pods?nodeName=${nodeName}`,
   )
+}
+
+export function useNodes() {
+  return useSWR<Node[]>(
+    `/api/v1/nodes`,
+  )
+}
+
+export function useUpgradePods() {
+  return useAsync(async ({ nodeName, recreate }) => {
+    const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nodeName: nodeName,
+        recreate: recreate,
+      }),
+    })
+    const result: {
+      jobName: string,
+    } = await response.json()
+    return result
+  })
+}
+
+export function useUpgradeStatus() {
+  return useSWR<Job>(`/api/v1/batch/job`)
 }

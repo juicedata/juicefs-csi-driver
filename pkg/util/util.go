@@ -726,3 +726,7 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 	}
 	return strings.Split(mountCmds[len(mountCmds)-1], ",")
 }
+
+func ToPtr[T any](v T) *T {
+	return &v
+}

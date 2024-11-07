@@ -103,7 +103,9 @@ export default {
   save: 'Save',
   config: 'Configs',
   batchUpgrade: 'BatchUpgrade',
-  upgrading: 'upgrading',
+  upgrading: 'Upgrading',
+  recreate: 'Recreate',
+  upgrade: 'Upgrade',
   reset: 'Reset',
   image: 'Image',
 }

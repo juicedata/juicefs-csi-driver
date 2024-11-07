@@ -19,6 +19,7 @@ import Editor from '@monaco-editor/react'
 import { Button, Modal, Space } from 'antd'
 
 import { useMountPodImage, useWebsocket } from '@/hooks/use-api'
+import { FormattedMessage } from 'react-intl'
 
 const upgradeHelpMessage = `Click Start to upgrade mount pod
 
@@ -115,7 +116,7 @@ const UpgradeModal: React.FC<{
                     disabled={start}
                     type="primary"
                   >
-                    Upgrade
+                    <FormattedMessage id="upgrade" />
                   </Button>
                 </Space>
               </Space>

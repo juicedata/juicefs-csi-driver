@@ -15,117 +15,198 @@
  */
 
 
-import { memo, ReactNode, useState } from 'react'
-import { Button, Modal, Space, Progress, Flex, Input } from 'antd'
+import React, { memo, ReactNode, useEffect, useState } from 'react'
+import { Button, Modal, Space, Progress, Dropdown, MenuProps, Checkbox, Spin } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
-import { usePodsToUpgrade, useWebsocket } from '@/hooks/use-api.ts'
+import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
 import { Pod } from 'kubernetes-types/core/v1'
 import { PodToUpgrade } from '@/types/k8s.ts'
+import { DownOutlined } from '@ant-design/icons'
+
+
+const helpMessage = `Click Start to upgrade mount pod by batch.
+
+- node: select a node to upgrade all Mount Pods on it, not select means all nodes. 
+- recreate: upgrade Mount Pod with recreating it or not.
+
+---
+`
 
 const BatchUpgradeModal: React.FC<{
   children: ({ onClick }: { onClick: () => void }) => ReactNode
 }> = memo(({ children }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isBatchModalOpen, setIsBatchModelOpen] = useState(false)
   const [start, setStart] = useState(false)
-  const [progressShow, setProgressShow] = useState(false)
   const [fail, setFail] = useState(false)
-  const [data, setData] = useState<string>('')
-  const [node, setNode] = useState('')
+  const [data, setData] = useState<string>(helpMessage)
   const [percent, setPercent] = useState(Number)
-  const { data: podsToUpgrade } = usePodsToUpgrade(true, node)
+  const [selectedNode, setSelectedNode] = useState('')
+  const { data: podsToUpgrade } = usePodsToUpgrade(true, selectedNode)
+  const { data: allNodes } = useNodes()
+  const { data: job } = useUpgradeStatus()
+  const [, actions] = useUpgradePods()
+  const [jobName, setJobName] = useState('')
+  const [recreate, setRecreate] = useState(false)
 
   const showModal = () => {
-    setIsModalOpen(true)
+    setIsBatchModelOpen(true)
   }
   const handleOk = () => {
-    setIsModalOpen(false)
+    setIsBatchModelOpen(false)
   }
   const handleCancel = () => {
-    setIsModalOpen(false)
-    setData('')
-    setProgressShow(false)
+    setIsBatchModelOpen(false)
+    setData(helpMessage)
+    setJobName('')
+    setPercent(0)
+    setFail(false)
   }
 
+  useEffect(() => {
+    if (job && (job.metadata?.name || '') !== '') {
+      setJobName(job.metadata?.name || '')
+      setStart(true)
+      if (job.metadata?.labels) {
+        setSelectedNode(job.metadata.labels['juicefs-upgrade-node'] || '')
+        setRecreate(job.metadata.labels['juicefs-upgrade-recreate'] === 'true')
+      }
+    } else {
+      setData(helpMessage)
+      setJobName('')
+      setStart(false)
+    }
+  }, [job, isBatchModalOpen])
+
   useWebsocket(
-    `/api/v1/ws/upgrade-pods`,
+    `/api/v1/ws/batch/upgrade/logs`,
     {
       queryParams: {
-        recreate: 'true',
-        nodeName: node,
+        job: jobName,
       },
       onClose: () => {
         setStart(false)
       },
       onMessage: async (msg) => {
         setData((prev) => prev + msg.data)
-        if (msg.data.includes('POD-SUCCESS')) {
-          console.log('percent: ', percent)
-          console.log('pods: ', podsToUpgrade)
-          console.log('node: ', node)
-          if (getPodsUpgradeOfNode(node, podsToUpgrade).length !== 0) {
-            setPercent(percent + 1 / getPodsUpgradeOfNode(node, podsToUpgrade).length * 100)
-            console.log('set percent: ', percent)
-          }
+
+        const matchRegex = new RegExp('POD-', 'g')
+        const matches = msg.data.match(matchRegex)
+
+        const totalPods = getPodsUpgradeOfNode(selectedNode, podsToUpgrade).length
+        if (totalPods !== 0 && matches) {
+          setPercent((prevPercent) => {
+            const newPercent = prevPercent + (matches.length / totalPods) * 100
+            return Math.min(Math.ceil(newPercent), 100)
+          })
         }
-        if (msg.data.includes('BATCH-FAIL')) {
+
+        if (msg.data.includes('FAIL')) {
           setFail(true)
+          close()
+        }
+        if (msg.data.includes('BATCH-')) {
+          return
         }
       },
     },
-    isModalOpen && start,
+    isBatchModalOpen && start && jobName !== '',
   )
+
+  const nodeItems = allNodes?.map((item, index) => ({
+    key: index.toString(),
+    label: item.metadata?.name,
+  }))
+
+  const handleNodeSelected: MenuProps['onClick'] = (e) => {
+    const selectedItem = nodeItems?.find(item => item.key === e.key)
+    if (selectedItem) {
+      setSelectedNode(selectedItem.label || '')
+    }
+  }
+
+  const menuProps = {
+    items: nodeItems,
+    onClick: handleNodeSelected,
+  }
 
   return (
     <>
       {children({ onClick: showModal })}
-      {isModalOpen ? (
+      {isBatchModalOpen ? (
         <Modal
           title={<FormattedMessage id={start ? 'upgrading' : 'batchUpgrade'} />}
-          open={isModalOpen}
-          onOk={handleOk}
-          onCancel={handleCancel}
+          open={isBatchModalOpen}
           footer={() => (
             <div style={{ textAlign: 'start' }}>
               <Space>
-                <Input
-                  addonBefore="node"
-                  value={node}
-                  onChange={(v) => v && setNode(v.target.value)}
-                />
-
                 <Space style={{ textAlign: 'end' }}>
+                  <Dropdown menu={menuProps}>
+                    <Button>
+                      <Space>
+                        {selectedNode || 'select a node'}
+                        <DownOutlined />
+                      </Space>
+                    </Button>
+                  </Dropdown>
+
+                  <Checkbox
+                    checked={recreate}
+                    onChange={(value) => value && setRecreate(value.target.checked)}
+                  >
+                    <FormattedMessage id="recreate" />
+                  </Checkbox>
+
                   <Button
-                    onClick={() => {
-                      setStart(true)
-                      setProgressShow(true)
-                    }}
                     disabled={start}
                     type="primary"
+                    onClick={() => {
+                      setData(helpMessage)
+                      actions.execute({
+                        nodeName: selectedNode,
+                        recreate: recreate,
+                      }).then(response => {
+                        setJobName(response.jobName)
+                      })
+                      setStart(true)
+                      setPercent(0)
+                    }}
                   >
-                    Upgrade
+                    <FormattedMessage id="batchUpgrade" />
                   </Button>
                 </Space>
               </Space>
             </div>
           )}
+          onOk={handleOk}
+          onCancel={handleCancel}
         >
-          {progressShow ? (
-            <Flex vertical gap="">
-              <Progress percent={percent} status={fail ? 'exception' : 'active'} />
-              <div style={{ height: '20px' }}></div>
-            </Flex>
-          ) : null}
-          <Editor
-            language="shell"
-            options={{
-              wordWrap: 'on',
-              readOnly: true,
-              theme: 'vs-light', // TODO dark mode
-              scrollBeyondLastLine: false,
-            }}
-            value={data}
-          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {jobName !== '' ? (
+              <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                {start && <Spin style={{ marginRight: 16 }} />}
+                {fail ?
+                  <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
+                  <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
+                }
+                <div style={{ height: '20px' }}></div>
+              </div>
+            ) : null}
+            <div style={{ flexGrow: 1 }}>
+              <Editor
+                language="shell"
+                options={{
+                  wordWrap: 'on',
+                  readOnly: true,
+                  theme: 'vs-light', // TODO dark mode
+                  scrollBeyondLastLine: false,
+                }}
+                value={data}
+              />
+            </div>
+          </div>
+
         </Modal>
       ) : null}
     </>
@@ -135,11 +216,11 @@ const BatchUpgradeModal: React.FC<{
 export default BatchUpgradeModal
 
 function getPodsUpgradeOfNode(node: string, podsForNode?: PodToUpgrade[]): Pod[] {
-  let pods: Pod[] = []
+  const pods: Pod[] = []
   if (podsForNode) {
     podsForNode.forEach((v) => {
-      if (v.node === node) {
-        pods = v.pods
+      if (v.node === node || node === '') {
+        pods.push(...v.pods)
       }
     })
   }

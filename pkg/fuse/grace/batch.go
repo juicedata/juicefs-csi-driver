@@ -72,6 +72,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		log.Error(err, "reconcile ListPod error")
 		return err
 	}
+	u.podsToUpgrade = []*PodUpgrade{}
 	for _, pod := range podLists {
 		po := pod
 		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
@@ -107,7 +108,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn, recreate bool) {
 	if u.status == batchUpgradeRunning {
 		log.Info("upgrade is running")
-		sendMessage(conn, "upgrade is running")
+		sendMessage(conn, "upgrade is still running")
 		u.syncStatus(ctx, conn)
 		return
 	}
@@ -119,7 +120,6 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 	u.status = batchUpgradeRunning
 	defer func() {
 		u.status = batchUpgradeWaiting
-		u.podsToUpgrade = []*PodUpgrade{}
 		defer u.lock.Unlock()
 	}()
 	if err := u.fetchPods(ctx); err != nil {
@@ -175,11 +175,12 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 	var (
 		finishPod = []string{}
 		success   = true
-		t         = time.NewTimer(2 * time.Second)
+		t         = time.NewTicker(2 * time.Second)
 	)
 	defer t.Stop()
 
 	for {
+		sendMessage(conn, "waiting for upgrade...")
 		for _, pu := range u.podsToUpgrade {
 			if pu.status == podUpgradeSuccess && !util.ContainsString(finishPod, pu.pod.Name) {
 				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", pu.pod.Name))
@@ -205,7 +206,7 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 			sendMessage(conn, fmt.Sprintf("BATCH-FAIL upgrade timeout in node %s", config.NodeName))
 			return
 		case <-t.C:
-			continue
+			break
 		}
 	}
 }

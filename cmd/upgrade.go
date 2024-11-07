@@ -28,6 +28,7 @@ import (
 
 var (
 	recreate = false
+	status   = false
 )
 
 var upgradeCmd = &cobra.Command{

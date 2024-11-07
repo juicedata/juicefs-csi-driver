@@ -44,6 +44,13 @@ import (
 
 var log = klog.NewKlogr().WithName("grace")
 
+const (
+	batch                = "BATCH"
+	recreate             = "RECREATE"
+	singleUpgradeTimeout = 30 * time.Minute
+	batchUpgradeTimeout  = 120 * time.Minute
+)
+
 func ServeGfShutdown(addr string) error {
 	_ = os.RemoveAll(addr)
 
@@ -83,30 +90,29 @@ func handleShutdown(conn net.Conn) {
 
 	message := string(buf[:n])
 
-	var recreate bool
+	var action string
 	ss := strings.Split(message, " ")
 	name := ss[0]
 	if len(ss) == 2 {
-		recreate = true
+		action = ss[1]
 	}
 
 	log.V(1).Info("Received shutdown message", "message", message)
 
-	if name == "BATCH" {
-		ctx, cancel := context.WithTimeout(context.TODO(), 120*time.Minute)
+	if name == batch {
+		ctx, cancel := context.WithTimeout(context.TODO(), batchUpgradeTimeout)
 		defer cancel()
-		globalBatchUpgrade.BatchUpgrade(ctx, conn, recreate)
+		globalBatchUpgrade.BatchUpgrade(ctx, conn, action == recreate)
 		return
-	} else {
-		client, err := k8s.NewClient()
-		if err != nil {
-			log.Error(err, "failed to create k8s client")
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Minute)
-		defer cancel()
-		SinglePodUpgrade(ctx, client, name, recreate, conn)
 	}
+	client, err := k8s.NewClient()
+	if err != nil {
+		log.Error(err, "failed to create k8s client")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.TODO(), singleUpgradeTimeout)
+	defer cancel()
+	SinglePodUpgrade(ctx, client, name, action == recreate, conn)
 }
 
 func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) {
@@ -136,13 +142,12 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 }
 
 type PodUpgrade struct {
-	client     *k8s.K8sClient
-	pod        *corev1.Pod
-	recreate   bool
-	ce         bool
-	hashVal    string
-	newVersion string
-	status     podUpgradeStatus
+	client   *k8s.K8sClient
+	pod      *corev1.Pod
+	recreate bool
+	ce       bool
+	hashVal  string
+	status   podUpgradeStatus
 }
 
 type podUpgradeStatus string
@@ -241,7 +246,7 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		p.status = podUpgradeFail
 		return err
 	}
-	upgradeEvtMsg := fmt.Sprintf("Upgrade binary in [%s] to %s in %s", p.pod.Name, p.newVersion, common.MountContainerName)
+	upgradeEvtMsg := fmt.Sprintf("Upgrade binary in [%s] in %s", p.pod.Name, common.MountContainerName)
 	if p.recreate {
 		upgradeEvtMsg = "Upgrade pod with recreating"
 		sendMessage(conn, upgradeEvtMsg)
@@ -424,7 +429,7 @@ func (p *PodUpgrade) uploadBinary(ctx context.Context) error {
 
 }
 
-func TriggerShutdown(socketPath string, name string, recreate bool) error {
+func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
@@ -433,8 +438,8 @@ func TriggerShutdown(socketPath string, name string, recreate bool) error {
 	defer conn.Close()
 
 	message := name
-	if recreate {
-		message = fmt.Sprintf("%s RECREATE", name)
+	if recreateFlag {
+		message = fmt.Sprintf("%s %s", name, recreate)
 	}
 
 	_, err = conn.Write([]byte(message))
