@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	utilpointer "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
@@ -141,7 +141,7 @@ func (r *ServerlessBuilder) genServerlessVolumes() ([]corev1.Volume, []corev1.Vo
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  secretName,
-					DefaultMode: utilpointer.Int32Ptr(mode),
+					DefaultMode: ptr.To(mode),
 				},
 			},
 		},
