@@ -68,7 +68,7 @@ func NewWebhookManager(certDir string, webhookPort int, leaderElection bool,
 			Scheme: scheme,
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
+					Label: labels.SelectorFromSet(labels.Set{common.InjectSidecarDone: common.True}),
 				},
 			},
 		},

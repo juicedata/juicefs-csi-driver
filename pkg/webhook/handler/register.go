@@ -23,6 +23,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -38,6 +39,7 @@ var (
 
 // Register registers the handlers to the manager
 func Register(mgr manager.Manager, client *k8sclient.K8sClient) {
+	ctrllog.SetLogger(webhookLog)
 	server := mgr.GetWebhookServer()
 	server.Register(SidecarPath, &webhook.Admission{Handler: NewSidecarHandler(client, false, mgr.GetScheme())})
 	webhookLog.Info("Registered webhook handler for sidecar", "path", SidecarPath)
