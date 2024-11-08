@@ -152,6 +152,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - delete
+  - update
 - apiGroups:
   - ""
   resources:
@@ -904,6 +907,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - delete
+  - update
 - apiGroups:
   - ""
   resources:
