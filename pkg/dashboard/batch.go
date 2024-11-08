@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -252,6 +253,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				case <-ctx.Done():
 					c.String(500, "get job or list pod timeout")
 					batchLog.Info("get job or list pod timeout", "job", jobName)
+					ws.Write([]byte(fmt.Sprintf("Upgrade timeout, job for upgrade is not ready, please check job [%s] in [%s] and try again later.", jobName, getSysNamespace())))
 					t.Stop()
 					return
 				case <-t.C:
