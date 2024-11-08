@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.22-alpine AS csi-builder
+FROM golang:1.22-bookworm AS csi-builder
 ARG GOPROXY
 ARG TARGETARCH
 
