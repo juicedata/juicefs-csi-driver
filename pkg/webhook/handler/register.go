@@ -41,12 +41,13 @@ var (
 func Register(mgr manager.Manager, client *k8sclient.K8sClient) {
 	ctrllog.SetLogger(webhookLog)
 	server := mgr.GetWebhookServer()
-	server.Register(SidecarPath, &webhook.Admission{Handler: NewSidecarHandler(client, false, mgr.GetScheme())})
+	scheme := mgr.GetScheme()
+	server.Register(SidecarPath, &webhook.Admission{Handler: NewSidecarHandler(client, false, scheme)})
 	webhookLog.Info("Registered webhook handler for sidecar", "path", SidecarPath)
-	server.Register(ServerlessPath, &webhook.Admission{Handler: NewSidecarHandler(client, true, mgr.GetScheme())})
+	server.Register(ServerlessPath, &webhook.Admission{Handler: NewSidecarHandler(client, true, scheme)})
 	webhookLog.Info("Registered webhook handler path for serverless", "path", ServerlessPath)
 	if config.ValidatingWebhook {
-		server.Register(SecretPath, &webhook.Admission{Handler: NewSecretHandler(client, mgr.GetScheme())})
-		server.Register(PVPath, &webhook.Admission{Handler: NewPVHandler(client, mgr.GetScheme())})
+		server.Register(SecretPath, &webhook.Admission{Handler: NewSecretHandler(client, scheme)})
+		server.Register(PVPath, &webhook.Admission{Handler: NewPVHandler(client, scheme)})
 	}
 }
