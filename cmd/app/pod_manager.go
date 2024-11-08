@@ -25,6 +25,8 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
@@ -47,18 +49,20 @@ func NewPodManager() (*PodManager, error) {
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme:             scheme,
-		Port:               9442,
-		MetricsBindAddress: "0.0.0.0:8082",
-		LeaderElectionID:   "pod.juicefs.com",
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8082",
+		},
+		LeaderElectionResourceLock: "leases",
+		LeaderElectionID:           "pod.juicefs.com",
+		Cache: cache.Options{
 			Scheme: scheme,
-			SelectorsByObject: cache.SelectorsByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
 				},
 			},
-		}),
+		},
 	})
 	if err != nil {
 		log.Error(err, "New pod controller error")

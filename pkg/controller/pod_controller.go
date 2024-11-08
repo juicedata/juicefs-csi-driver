@@ -138,45 +138,30 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod := event.Object.(*corev1.Pod)
+	return c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
 			podCtrlLog.V(1).Info("watch pod created", "podName", pod.GetName())
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
-			if podNew.Spec.NodeName != config.NodeName && podNew.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
-				return false
-			}
-			podCtrlLog.V(1).Info("watch pod updated", "podName", podNew.GetName())
-			if !ok {
-				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "objectName", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip object", "objectName", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew, podOld := updateEvent.ObjectNew, updateEvent.ObjectOld
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			pod := deleteEvent.Object.(*corev1.Pod)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+			pod := deleteEvent.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
 			podCtrlLog.V(1).Info("watch pod deleted", "podName", pod.GetName())
 			return true
 		},
-	})
+	}))
 }

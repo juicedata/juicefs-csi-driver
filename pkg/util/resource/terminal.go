@@ -121,7 +121,7 @@ type Handler interface {
 	remotecommand.TerminalSizeQueue
 }
 
-func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespace, name, container string, cmd []string) error {
+func ExecInPod(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, h Handler, namespace, name, container string, cmd []string) error {
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(name).
@@ -140,7 +140,7 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 		resourceLog.Error(err, "Failed to create SPDY executor")
 		return err
 	}
-	if err := executor.Stream(remotecommand.StreamOptions{
+	if err := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             h,
 		Stdout:            h,
 		Stderr:            h,
@@ -154,7 +154,7 @@ func ExecInPod(client kubernetes.Interface, cfg *rest.Config, h Handler, namespa
 	return nil
 }
 
-func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Writer, namespace, name, container string, cmd []string) error {
+func DownloadPodFile(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, writer io.Writer, namespace, name, container string, cmd []string) error {
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(name).
@@ -171,7 +171,7 @@ func DownloadPodFile(client kubernetes.Interface, cfg *rest.Config, writer io.Wr
 		resourceLog.Error(err, "Failed to create SPDY executor")
 		return err
 	}
-	if err := executor.Stream(remotecommand.StreamOptions{
+	if err := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: writer,
 		Stderr: writer,
 	}); err != nil {

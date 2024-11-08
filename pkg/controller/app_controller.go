@@ -176,14 +176,9 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			pod, ok := event.Object.(*corev1.Pod)
-			if !ok {
-				appCtrlLog.V(1).Info("[pod.onCreate] can not turn into pod, Skip.", "object", event.Object)
-				return false
-			}
-
+	return c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
 			if !ShouldInQueue(pod) {
 				appCtrlLog.V(1).Info("[pod.onCreate] skip due to shouldRequeue false.", "name", pod.Name, "namespace", pod.Namespace)
 				return false
@@ -192,19 +187,8 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 			appCtrlLog.V(1).Info("[pod.onCreate] pod in requeue", "name", pod.Name, "namespace", pod.Namespace)
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			podNew, ok := updateEvent.ObjectNew.(*corev1.Pod)
-			if !ok {
-				appCtrlLog.V(1).Info("[pod.onUpdate] can not turn into pod, Skip.", "object", updateEvent.ObjectNew)
-				return false
-			}
-
-			podOld, ok := updateEvent.ObjectOld.(*corev1.Pod)
-			if !ok {
-				appCtrlLog.V(1).Info("[pod.onUpdate] can not turn into pod, Skip.", "object", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+			podNew, podOld := updateEvent.ObjectNew, updateEvent.ObjectOld
 			if podNew.GetResourceVersion() == podOld.GetResourceVersion() {
 				appCtrlLog.V(1).Info("[pod.onUpdate] Skip due to resourceVersion not changed", "name", podNew.Name, "namespace", podNew.Namespace)
 				return false
@@ -219,11 +203,11 @@ func (a *AppController) SetupWithManager(mgr ctrl.Manager) error {
 			appCtrlLog.V(1).Info("[pod.onUpdate] pod requeue", "name", podNew.Name, "namespace", podNew.Namespace)
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
 			// ignore delete event
 			return false
 		},
-	})
+	}))
 }
 
 func ShouldInQueue(pod *corev1.Pod) bool {

@@ -139,7 +139,7 @@ storage:     4 bytes
 
 我们希望之前创建的 `ceph-conf` Secret 被挂载到 `/etc/ceph` 下，因此这里构造了一个 Key 为 `configs` 的 JSON 字符串 `{"ceph-conf": "/etc/ceph"}`。
 
-## 在 Kubernetes pod 中访问 JuiceFS volume
+## 在 Kubernetes Pod 中访问 JuiceFS volume
 
 ### 动态挂载
 

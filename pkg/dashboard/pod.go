@@ -856,6 +856,7 @@ func (api *API) execPod() gin.HandlerFunc {
 			defer cancel()
 			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfTransmission)
 			if err := resource.ExecInPod(
+				ctx,
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "bash || sh"}); err != nil {
 				podLog.Error(err, "Failed to exec in pod")
@@ -886,6 +887,7 @@ func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 				return
 			}
 			if err := resource.ExecInPod(
+				ctx,
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{"sh", "-c", "cat " + mntPath + "/.accesslog"}); err != nil {
 				podLog.Error(err, "Failed to exec in pod")
@@ -919,6 +921,7 @@ func (api *API) debugPod() gin.HandlerFunc {
 				return
 			}
 			if err := resource.ExecInPod(
+				ctx,
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				[]string{
 					"juicefs", "debug",
@@ -986,6 +989,7 @@ func (api *API) warmupPod() gin.HandlerFunc {
 			}
 			cmds = append(cmds, path.Join(mntPath, rootPath, customSubPath))
 			if err := resource.ExecInPod(
+				ctx,
 				api.client, api.kubeconfig, terminal, namespace, name, container,
 				cmds); err != nil {
 				klog.Error("Failed to start process: ", err)
@@ -1002,6 +1006,7 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 		container := common.MountContainerName
 		c.Header("Content-Disposition", "attachment; filename="+namespace+"_"+name+"_"+"debug.zip")
 		err := resource.DownloadPodFile(
+			c.Request.Context(),
 			api.client, api.kubeconfig, c.Writer, namespace, name, container,
 			[]string{"sh", "-c", "cat $(ls -t /debug/*.zip | head -n 1) && exit 0"})
 		if err != nil {
@@ -1044,6 +1049,7 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			podLog.Info("cmds", "cmds", cmds)
 
 			if err := resource.ExecInPod(
+				ctx,
 				api.client, api.kubeconfig, terminal, csiNode.Namespace, csiNode.Name, "juicefs-plugin", cmds); err != nil {
 				podLog.Error(err, "Failed to start process")
 				return

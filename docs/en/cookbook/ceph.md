@@ -139,7 +139,7 @@ storage:     4 bytes
 
 As we want the `ceph-conf` secret we created before to be mounted under `/etc/ceph`, we construct a JSON string `{"ceph-conf": "/etc/ceph"}` for the key `configs` .
 
-## Access JuiceFS volume in Kubernetes pod
+## Access JuiceFS volume in Kubernetes Pod
 
 ### Dynamic provisioning
 

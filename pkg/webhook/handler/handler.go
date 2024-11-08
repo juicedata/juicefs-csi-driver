@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -39,7 +40,7 @@ import (
 type SidecarHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 	// is in serverless environment
 	serverless bool
 }
@@ -48,10 +49,11 @@ var (
 	handlerLog = klog.NewKlogr().WithName("sidecar-handler")
 )
 
-func NewSidecarHandler(client *k8sclient.K8sClient, serverless bool) *SidecarHandler {
+func NewSidecarHandler(client *k8sclient.K8sClient, serverless bool, scheme *runtime.Scheme) *SidecarHandler {
 	return &SidecarHandler{
 		Client:     client,
 		serverless: serverless,
+		decoder:    admission.NewDecoder(scheme),
 	}
 }
 
@@ -106,26 +108,21 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	return resp
 }
 
-// InjectDecoder injects the decoder.
-func (s *SidecarHandler) InjectDecoder(d *admission.Decoder) error {
-	s.decoder = d
-	return nil
-}
-
 type SecretHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
-func NewSecretHandler(client *k8sclient.K8sClient) *SecretHandler {
+func NewSecretHandler(client *k8sclient.K8sClient, scheme *runtime.Scheme) *SecretHandler {
 	return &SecretHandler{
-		Client: client,
+		Client:  client,
+		decoder: admission.NewDecoder(scheme),
 	}
 }
 
 // InjectDecoder injects the decoder.
-func (s *SecretHandler) InjectDecoder(d *admission.Decoder) error {
+func (s *SecretHandler) InjectDecoder(d admission.Decoder) error {
 	s.decoder = d
 	return nil
 }
@@ -150,19 +147,14 @@ func (s *SecretHandler) Handle(ctx context.Context, request admission.Request) a
 type PVHandler struct {
 	Client *k8sclient.K8sClient
 	// A decoder will be automatically injected
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
-func NewPVHandler(client *k8sclient.K8sClient) *PVHandler {
+func NewPVHandler(client *k8sclient.K8sClient, scheme *runtime.Scheme) *PVHandler {
 	return &PVHandler{
-		Client: client,
+		Client:  client,
+		decoder: admission.NewDecoder(scheme),
 	}
-}
-
-// InjectDecoder injects the decoder.
-func (s *PVHandler) InjectDecoder(d *admission.Decoder) error {
-	s.decoder = d
-	return nil
 }
 
 func (s *PVHandler) Handle(ctx context.Context, request admission.Request) admission.Response {

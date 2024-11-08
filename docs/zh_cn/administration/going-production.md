@@ -7,6 +7,7 @@ sidebar_position: 1
 
 ## Mount Pod 设置 {#mount-pod-settings}
 
+* 启用[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)；
 * 为了支持[平滑升级 Mount Pod](./upgrade-juicefs-client.md#smooth-upgrade)，请提前配置好 [CSI 控制台](./troubleshooting.md#csi-dashboard)或 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)；
 * 对于动态 PV 场景，建议[配置更加易读的 PV 目录名称](../guide/configurations.md#using-path-pattern)；
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/guide/cache#client-write-cache)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache#client-write-cache)；
@@ -383,7 +384,7 @@ authorization:
 
 * 配置好缓存持久化，确保缓存目录不会随着容器销毁而丢失。具体配置方法阅读[缓存设置](../guide/cache.md#cache-settings)；
 * 选择下列方法之一（也可以都采纳），实现在应用容器退出的情况下，也保证 JuiceFS 客户端有足够的时间将数据上传完成：
-  * 启用[延迟删除 Mount Pod](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 pod 退出，Mount Pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
+  * 启用[延迟删除 Mount Pod](../guide/resource-optimization.md#delayed-mount-pod-deletion)，即便应用 Pod 退出，Mount Pod 也会等待指定时间后，才由 CSI Node 销毁。合理设置延时，保证数据及时上传完成；
   * 自 v0.24 起，CSI 驱动支持[定制](../guide/configurations.md#customize-mount-pod) Mount Pod 的方方面面，因此可以修改 `terminationGracePeriodSeconds`，再配合 [`preStop`](https://kubernetes.io/zh-cn/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) 实现等待数据上传完成后，Mount Pod 才退出，示范如下：
 
     :::warning

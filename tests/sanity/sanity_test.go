@@ -20,8 +20,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kubernetes-csi/csi-test/pkg/sanity"
-	. "github.com/onsi/ginkgo"
+	"github.com/kubernetes-csi/csi-test/v5/pkg/sanity"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
@@ -54,10 +54,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("JuiceFS CSI Driver", func() {
-	config := &sanity.Config{
-		Address:     endpoint,
-		TargetPath:  mountPath,
-		StagingPath: stagePath,
-	}
-	sanity.GinkgoTest(config)
+	config := sanity.NewTestConfig()
+	config.Address = endpoint
+	sanity.GinkgoTest(&config)
 })

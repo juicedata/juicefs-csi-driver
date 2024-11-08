@@ -12,7 +12,7 @@ Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called
 ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
 :::info Update delay
-When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
+When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a Pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
 
 If you wish for a force update, try adding a temporary label to CSI components:
 
@@ -20,14 +20,14 @@ If you wish for a force update, try adding a temporary label to CSI components:
 kubectl -n kube-system annotate pods -l app.kubernetes.io/name=juicefs-csi-driver useless-annotation=true
 ```
 
-After ConfigMap is updated across CSI components, subsequent Mount Pods will apply the new configuration, but **existing Mount Pods will not automatically update**. Depending on what was changed, users must re-create the application pod or the Mount Pod for the changes to take effect. Refer to the sections below for more details.
+After ConfigMap is updated across CSI components, subsequent Mount Pods will apply the new configuration, but **existing Mount Pods will not automatically update**. Depending on what was changed, users must re-create the application Pod or the Mount Pod for the changes to take effect. Refer to the sections below for more details.
 :::
 
 :::info Sidecar headsup
 If a customization item appears to be a valid sidecar setting, it will work for the sidecar; otherwise, it will be ignored. For example:
 
 * `resources` applies to both the Mount Pod and the sidecar, so it works for both.
-* `custom-labels` adds customized labels to the pod. However, since labels are an exclusive pod attribute, this setting does not apply to the sidecar.
+* `custom-labels` adds customized labels to the Pod. However, since labels are an exclusive Pod attribute, this setting does not apply to the sidecar.
 :::
 
 All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in our documentation.
@@ -107,9 +107,9 @@ globalConfig:
         matchLabels:
           ...
       annotations:
-        # Delayed mount pod deletion
+        # Delayed Mount Pod deletion
         juicefs-delete-delay: 5m
-        # Clean cache when mount pod exits
+        # Clean cache when Mount Pod exits
         juicefs-clean-cache: "true"
 
     # Define an environment variable for the Mount Pod
@@ -122,7 +122,7 @@ globalConfig:
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-    # Mount some volumes to mount pod
+    # Mount some volumes to Mount Pod
     - pvcSelector:
         matchLabels:
           ...
@@ -149,15 +149,11 @@ globalConfig:
 
 ## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
-Although all supported configuration items and PVC selectors are listed in the example snippet from the above section, the behavior of each item may vary, so they are introduced in the sections below. Please read carefully before use.
+After you modify the ConfigMap, we recommend that you use the [smooth upgrade feature](../administration/upgrade-juicefs-client.md#smooth-upgrade) to apply the changes without interrupting service. To fully utilize this feature, you need v0.25.2 or later. Some items do not support smooth upgrade in v0.25.0 (the initial release of this feature).
 
-:::tip
-After modifying the configuration through ConfigMap, you can use the [smooth upgrade feature of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) supported by the CSI Driver version 0.25.0 without rebuilding the application pod. In this case, the modified configuration will take effect immediately. Therefore, it is recommended to use this method to update the configuration. **However, it should be noted that only certain configurations currently support smooth upgrade, which will be indicated below with the <Badge type="primary">Support smooth upgrade</Badge> badge.**
+If you cannot use the smooth upgrade feature, you need to rebuild the application Pod or the Mount Pod, as described in the sections below. Make sure to configure [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application Pod from being permanently lost after rebuilding the Mount Pod.
 
-If you cannot use the smooth upgrade feature of Mount Pods, you need to rebuild the application pod and Mount Pod. Please be sure to configure ["Automatic mount point recovery"](./configurations.md#automatic-mount-point-recovery) in advance. This prevents the mount point in the application pod from being permanently lost after rebuilding the Mount Pod.
-:::
-
-### Custom mount image <Badge type="primary">Support smooth upgrade</Badge> {#custom-image}
+### Custom mount image {#custom-image}
 
 #### Via ConfigMap {#custom-image-via-configmap}
 
@@ -167,7 +163,7 @@ Please refer to the ["Upgrade container images for Mount Pods"](../administratio
 
 #### Via ConfigMap
 
-The minimum required version is CSI Driver v0.24.5. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.24.5. Upon modification, application Pods need to be re-created for changes to take effect.
 
 ```yaml {2-6}
   mountPodPatch:
@@ -194,7 +190,7 @@ stringData:
   envs: '{"BASE_URL": "http://10.0.0.1:8080/static"}'
 ```
 
-### Resource definition <Badge type="primary">Support smooth upgrade</Badge> {#custom-resources}
+### Resource definition {#custom-resources}
 
 #### Via ConfigMap {#custom-resources-via-configmap}
 
@@ -241,7 +237,7 @@ Mount options are different between the Community Edition and Cloud Service. See
 
 #### Via ConfigMap
 
-The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.24.7. Upon modification, application Pods need to be re-created for changes to take effect.
 
 Items inside ConfigMap comes with the highest priority, and mount options defined in CM will recursively overwrite those defined in PV. To avoid confusion, please migrate all mount options to ConfigMap and avoid using PV-level `mountOptions`.
 
@@ -260,7 +256,7 @@ By using `pvcSelector`, you can control mount options for multiple PVCs.
 
 #### Via PV definition (deprecated) {#static-mount-options}
 
-After modifying the mount options for existing PVs, a rolling upgrade or re-creation of the application pod is required to apply the changes. This ensures CSI Driver re-creates the Mount Pod for the changes to take effect.
+After modifying the mount options for existing PVs, a rolling upgrade or re-creation of the application Pod is required to apply the changes. This ensures CSI Driver re-creates the Mount Pod for the changes to take effect.
 
 ```yaml {8-9}
 apiVersion: v1
@@ -293,7 +289,7 @@ parameters:
   ...
 ```
 
-### Health check & pod lifecycle <Badge type="primary">Support smooth upgrade</Badge> {#custom-probe-lifecycle}
+### Health check & Pod lifecycle {#custom-probe-lifecycle}
 
 The minimum version of the CSI Driver required for this feature is 0.24.0. Targeted scenarios:
 
@@ -324,7 +320,7 @@ Targeted scenarios:
 
 #### Via ConfigMap
 
-The minimum required version is CSI Driver v0.24.7. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.24.7. Upon modification, application Pods need to be re-created for changes to take effect.
 
 ```yaml
   # Mount some volumes to the Mount Pod
@@ -378,7 +374,7 @@ With CSI Driver, you can use either a host directory or a PVC for cache storage.
 
 #### Using ConfigMap
 
-The minimum required version is CSI Driver v0.25.1. Upon modification, application pods need to be re-created for changes to take effect.
+The minimum required version is CSI Driver v0.25.1. Upon modification, application Pods need to be re-created for changes to take effect.
 
 ```yaml
   - pvcSelector:
@@ -404,7 +400,7 @@ mountOptions:
 
 Many features are closely relevant to other topics. For more information:
 
-* Configure delayed deletion for Mount Pods to reduce startup overhead in short application pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
+* Configure delayed deletion for Mount Pods to reduce startup overhead in short application Pod lifecycles. read [delayed deletion](./resource-optimization.md#delayed-mount-pod-deletion).
 * Clean cache upon Mount Pod exit. See [cache cleanup](./resource-optimization.md#clean-cache-when-mount-pod-exits).
 
 ## Format options / auth options {#format-options}
@@ -417,7 +413,7 @@ Format options / auth options are options used in `juicefs [format|auth]` comman
 Considering the similarities between the two commands, options all go to the `format-options` field, as follows.
 
 :::tip
-Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application pods, or re-create PVC for the changes to take effect.
+Changing `format-options` does not affect existing mount clients, even if Mount Pods are restarted. You need to rolling update / re-create the application Pods, or re-create PVC for the changes to take effect.
 :::
 
 JuiceFS Community Edition:
@@ -549,7 +545,7 @@ Special options can be added to run CSI Controller as a webhook, so that more ad
 
 If [sidecar mount mode](../introduction.md#sidecar) is used, then Controller also runs as a mutating webhook, and its args will contain [`--webhook`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/templates/controller.yaml#L76), you can use this argument to verify if sidecar mode is enabled.
 
-A murating webhook mutates Kubernetes resources, in our case all pod creation under the specified namespace will go through our webhook, and if JuiceFS PV is used, webhook will inject the corresponding sidecar container.
+A murating webhook mutates Kubernetes resources, in our case all Pod creation under the specified namespace will go through our webhook, and if JuiceFS PV is used, webhook will inject the corresponding sidecar container.
 
 ### Validating webhook
 
@@ -570,8 +566,8 @@ validatingWebhook:
 
 CSI Driver provides 2 types of PV provisioning:
 
-* Using standard [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner), which is the default mode for older versions of CSI Driver. When running in this mode, juicefs-csi-controller pod includes 4 containers
-* (Recommended) Move away from the standard CSI provisioner and use our own in-house controller as provisioner. Since v0.23.4, if CSI Driver is installed via Helm, then this feature is already enabled, and juicefs-csi-controller pod will only have 3 containers
+* Using standard [Kubernetes CSI provisioner](https://github.com/kubernetes-csi/external-provisioner), which is the default mode for older versions of CSI Driver. When running in this mode, juicefs-csi-controller Pod includes 4 containers
+* (Recommended) Move away from the standard CSI provisioner and use our own in-house controller as provisioner. Since v0.23.4, if CSI Driver is installed via Helm, then this feature is already enabled, and juicefs-csi-controller Pod will only have 3 containers
 
 Our in-house provisioner is favored because it opens up a series of new functionalities:
 
@@ -724,7 +720,7 @@ pvc-76d2afa7-d1c1-419a-b971-b99da0b2b89c  pvc-a8c59d73-0c27-48ac-ba2c-53de34d319
 ...
 ```
 
-From 0.13.3 and above, JuiceFS CSI Driver supports defining path pattern for the PV directory created in JuiceFS, making them easier to reason about:
+JuiceFS CSI Driver supports defining a path pattern for PV directories created in JuiceFS, making directory names easier to read and locate:
 
 ```shell
 $ ls /jfs
@@ -732,7 +728,10 @@ default-dummy-juicefs-pvc  default-example-juicefs-pvc ...
 ```
 
 :::tip
-Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple & straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications), use this if the situation allows.
+
+* For a StorageClass that is in use, if you change it midway and add `pathPattern`, all subsequent PV directories will employ a new name format, different from the original `pvc-xxx-xxx...` UUID format, where all existing data resides. If you find the new mount directories empty, simply move the data to the new directories.
+* Under dynamic provisioning, if you need to use a single shared directory across multiple applications, you can configure `pathPattern` so that multiple PVs can write to the same JuiceFS sub-directory. However, [static provisioning](#share-directory) is a more simple and straightforward way to achieve shared storage across multiple applications (just use a single PVC among multiple applications). If possible, consider using static provisioning for easier setup.
+
 :::
 
 Define `pathPattern` in StorageClass:
@@ -771,19 +770,15 @@ In earlier versions (>=0.13.3) only `pathPattern` supports injection, and only s
 
 ## Common PV settings {#common-pv-settings}
 
-### Automatic mount point recovery (no longer recommended) {#automatic-mount-point-recovery}
+### Automatic mount point recovery {#automatic-mount-point-recovery}
 
-:::tip
-The JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade) starting from version 0.25.0, so it is no longer necessary to use the following method to automatically recovery the mount point.
-:::
+Since v0.25.0, JuiceFS CSI Driver supports [smooth upgrade of Mount Pods](../administration/upgrade-juicefs-client.md#smooth-upgrade), leveraging the JuiceFS Client's zero-downtime restart capability (learn more in the [Community Edition](https://juicefs.com/docs/community/administration/upgrade) and [Enterprise Edition](https://juicefs.com/docs/cloud/getting_started#upgrade-juicefs) documentation). If a Mount Pod restarts or encounters a crash, CSI Node will hold all open file descriptors, making existing FUSE requests hang until Mount Pod recovers. This is usually fast and there will not be any timeout or other exceptions. Hence, for v0.25.0 and newer versions, practices introduced in this section are **no longer necessary but still recommended**: CSI Node guarantees smooth recovery. However, it is still recommended to configure `mountPropagation` as a safeguard. In rare cases where CSI Node might encounter issues, `mountPropagation` will ensure the mount point automatically recovers, even if the smooth restart mechanism fails.
 
-JuiceFS CSI Driver supports automatic mount point recovery since v0.10.7, when Mount Pod run into problems, a simple restart (or re-creation) can bring back JuiceFS mount point, and application pods can continue to work.
+For CSI Driver versions prior to v0.25.0, if a Mount Pod crashes (for example, due to OOM) and restarts, despite that the mount point within the Mount Pod can recover normally, the mount point inside the application Pod will not recover since it relies on an external binding from CSI Node (`mount --bind`). So by default, upon a Mount Pod restart, mount point within the application Pod is lost permanently, and any access will result in a `Transport endpoint is not connected` error.
 
-:::note
-Upon mount point recovery, application pods will not be able to access files previously opened. Please retry in the application and reopen the files to avoid exceptions.
-:::
+To prevent such issues, we recommend enabling mount propagation in all application Pods. This approach allows the recovered mount point to be bound back. However, note that the process is not completely smooth. Although the mount point can be recovered, any existing file handlers are rendered unusable by the Mount Pod restart. Application must be able to handle bad file descriptors and re-open them to avoid further exceptions.
 
-To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in pod `volumeMounts`. In this way, host mount is propagated to the pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
+To enable automatic mount point recovery, applications need to [set `mountPropagation` to `HostToContainer` or `Bidirectional`](https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation) in Pod `volumeMounts`. In this way, host mount is propagated to the Pod, so when Mount Pod restarts by accident, CSI Driver will bind mount once again when host mount point recovers.
 
 ```yaml {12-18}
 apiVersion: apps/v1
@@ -851,7 +846,7 @@ resources:
     storage: 100Gi
 ```
 
-After PV is created and mounted, verify by executing `df -h` command within the application pod:
+After PV is created and mounted, verify by executing `df -h` command within the application Pod:
 
 ```bash
 $ df -h
@@ -961,7 +956,7 @@ parameters:
 
 #### Advanced usage
 
-Mount the `/etc/hosts` file into the pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) is usually the better approach).
+Mount the `/etc/hosts` file into the Pod. In some cases, you might need to directly use the node `/etc/hosts` file inside the container (however, [`HostAliases`](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) is usually the better approach).
 
 ```yaml
 juicefs/host-path: "/etc/hosts"

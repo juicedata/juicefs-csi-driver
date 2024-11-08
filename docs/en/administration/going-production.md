@@ -7,6 +7,7 @@ Best practices and recommended settings when going production.
 
 ## Mount Pod settings {#mount-pod-settings}
 
+* Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery);
 * To support [smooth upgrade of Mount Pods](./upgrade-juicefs-client.md#smooth-upgrade), please configure the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
 * For dynamic PV scenarios, it is recommended to [configure a more readable PV directory name](../guide/configurations.md#using-path-pattern);
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
@@ -184,7 +185,7 @@ Once metrics data is collected, refer to the following documents to set up Grafa
 
 ## Collect Mount Pod logs using EFK {#collect-mount-pod-logs}
 
-Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking Mount Pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
+Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking Mount Pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect Pod logs for query. Taking EFK for example:
 
 - Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
 - Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, refer to the [official documentation](https://docs.fluentd.org/installation).
@@ -273,7 +274,7 @@ spec:
 
 ## Enable kubelet authentication {#kubelet-authn-authz}
 
-Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
+Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing Pods (this is however, a issue fixed in newer versions, continue reading for more):
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
@@ -334,9 +335,9 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 ## Large scale clusters {#large-scale}
 
-"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
+"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or Pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
 
-* Enable `ListPod` cache: CSI Driver needs to obtain the pod list, when faced with a large number of pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
+* Enable `ListPod` cache: CSI Driver needs to obtain the Pod list, when faced with a large number of Pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
 
   ```yaml title="values-mycluster.yaml"
   controller:
@@ -383,7 +384,7 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
 
 * Configure cache persistence to ensure that the cache directory will not be lost when the container is destroyed. For specific configuration methods, read [Cache settings](../guide/cache.md#cache-settings);
 * Choose one of the following methods (you can also adopt both) to ensure that the JuiceFS client has enough time to complete the data upload when the application container exits:
-  * Enable [Delayed Mount Pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the Mount Pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
+  * Enable [Delayed Mount Pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application Pod exits, the Mount Pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the Mount Pod, so you can modify `terminationGracePeriodSeconds`. By using [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks), you can ensure that the Mount Pod waits for data uploads to finish before exiting, as demonstrated below:
 
     :::warning

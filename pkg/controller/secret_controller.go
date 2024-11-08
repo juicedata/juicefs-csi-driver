@@ -160,26 +160,14 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			secret := event.Object.(*corev1.Secret)
+	return c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}, &handler.TypedEnqueueRequestForObject[*corev1.Secret]{}, predicate.TypedFuncs[*corev1.Secret]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Secret]) bool {
+			secret := event.Object
 			secretCtrlLog.V(1).Info("watch secret created", "name", secret.GetName())
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			secretNew, ok := updateEvent.ObjectNew.(*corev1.Secret)
-			if !ok {
-				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip object", "object", updateEvent.ObjectNew)
-				return false
-			}
-			secretCtrlLog.V(1).Info("watch secret updated", "name", secretNew.GetName())
-
-			secretOld, ok := updateEvent.ObjectOld.(*corev1.Secret)
-			if !ok {
-				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip object", "object", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Secret]) bool {
+			secretNew, secretOld := updateEvent.ObjectNew, updateEvent.ObjectOld
 			if secretNew.GetResourceVersion() == secretOld.GetResourceVersion() {
 				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
@@ -187,10 +175,10 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			secret := deleteEvent.Object.(*corev1.Secret)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
+			secret := deleteEvent.Object
 			secretCtrlLog.V(1).Info("watch secret deleted", "name", secret.GetName())
 			return false
 		},
-	})
+	}))
 }

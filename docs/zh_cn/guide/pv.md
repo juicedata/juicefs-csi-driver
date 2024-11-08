@@ -391,7 +391,7 @@ storageClasses:
     # 设置 Mount Pod 时区，默认为 UTC。
     # envs: "{TZ: Asia/Shanghai}"
   mountPod:
-    resources:                    # Mount pod 的资源配置
+    resources:                    # Mount Pod 的资源配置
       requests:
         cpu: "1"
         memory: "1Gi"
@@ -439,7 +439,7 @@ spec:
     volumeMounts:
     - mountPath: /data
       name: juicefs-pv
-      # 必须配置好传播，以防 mount pod 异常以后，挂载点无法自动恢复
+      # 必须配置好传播，以防 Mount Pod 异常以后，挂载点无法自动恢复
       mountPropagation: HostToContainer
   volumes:
   - name: juicefs-pv

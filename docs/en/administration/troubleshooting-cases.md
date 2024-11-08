@@ -21,33 +21,33 @@ If you used `mount pod` mode, follow these steps to troubleshoot:
 * Run `kubectl get csidrivers.storage.k8s.io` and check if `csi.juicefs.com` actually missing, if that is indeed the case, CSI Driver isn't installed at all, head to [Installation](../getting_started.md).
 * If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node, check its status:
   * Before troubleshooting, navigate to [check CSI Node](./troubleshooting.md#check-csi-node) to see a list of helpful commands;
-  * A CSI Node pod is expected on the node where the application pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
+  * A CSI Node Pod is expected on the node where the application Pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
   * If CSI Node is actually running, look for error in its logs:
 
   ```shell
-  # juicefs-plugin container handls actual CSI Driver work, if it cannot access Kubernetes API, mount pod cannot be created
+  # juicefs-plugin container handls actual CSI Driver work, if it cannot access Kubernetes API, Mount Pod cannot be created
   kubectl logs -n kube-system juicefs-csi-node-xxx juicefs-plugin --tail 100
 
   # node-driver-registrar container is in charge of registering csidriver, if there's been an error, it'll show in logs
   kubectl logs -n kube-system juicefs-csi-node-xxx node-driver-registrar --tail 100
   ```
 
-If you used `sidecar` mode, check if the namespace which application pod running has `juicefs.com/enable-injection=true` label:
+If you used `sidecar` mode, check if the namespace which application Pod running has `juicefs.com/enable-injection=true` label:
 
 ```shell
-# Change to the namespace where the application pod is located
+# Change to the namespace where the application Pod is located
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod failure {#csi-node-pod-failure}
+## CSI Node Pod failure {#csi-node-pod-failure}
 
-If CSI Node pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application pod events:
+If CSI Node Pod is not properly running, and the socket file used to communicate with kubelet is gone, you'll observe the following error in application Pod events:
 
 ```
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
 ```
 
-[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot. A commonly encountered problem is kubelet being started without authentication webhook, which results in error when getting pod list:
+[Check CSI Node](./troubleshooting.md#check-csi-node) to debug and troubleshoot. A commonly encountered problem is kubelet being started without authentication webhook, which results in error when getting Pod list:
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
@@ -61,14 +61,14 @@ Read our docs on [enabling kubelet authentication](../administration/going-produ
 The JuiceFS client operates within the Mount Pod, and errors can arise from various causes. This section covers some of the most common issues.
 
 <details>
-<summary>**Mount Pod stuck at `Pending` state, causing application pod to be stuck as well at `ContainerCreating` state**</summary>
+<summary>**Mount Pod stuck at `Pending` state, causing application Pod to be stuck as well at `ContainerCreating` state**</summary>
 
 When this happens, [Check Mount Pod events](./troubleshooting.md#check-mount-pod) to debug. Note that `Pending` state usually indicates problem with resource allocation.
 
-In addition, when kubelet enables the preemption, the Mount Pod may preempt application resources after startup, resulting in repeated creation and destruction of both the Mount Pod and the application pod, with the Mount Pod event saying:
+In addition, when kubelet enables the preemption, the Mount Pod may preempt application resources after startup, resulting in repeated creation and destruction of both the Mount Pod and the application Pod, with the Mount Pod event saying:
 
 ```
-Preempted in order to admit critical pod
+Preempted in order to admit critical Pod
 ```
 
 Default resource requests for Mount Pod is 1 CPU, 1GiB memory, Mount Pod will refuse to start or preempt application when allocatable resources is low, consider [adjusting resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), or upgrade the worker node to work with more resources.
@@ -78,9 +78,9 @@ Insufficient cluster IPs may also cause the Mount Pod to remain in a `Pending` s
 </details>
 
 <details>
-<summary>**After Mount Pod is restarted or recreated, application pods cannot access JuiceFS**</summary>
+<summary>**After Mount Pod is restarted or recreated, application Pods cannot access JuiceFS**</summary>
 
-If Mount Pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application pod will result in this error, indicating that the mount point is gone:
+If Mount Pod crashes and restarts, or manually deleted and recreated, accessing JuiceFS (e.g. running `df`) inside the application Pod will result in this error, indicating that the mount point is gone:
 
 ```
 Transport endpoint is not connected
@@ -88,14 +88,14 @@ Transport endpoint is not connected
 df: /jfs: Socket not connected
 ```
 
-In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application pod, as long as the Mount Pod can continue to run after failure, application will be able to use JuiceFS inside container.
+In this case, you'll need to enable [automatic mount point recovery](../guide/configurations.md#automatic-mount-point-recovery), so that mount point is propagated to the application Pod, as long as the Mount Pod can continue to run after failure, application will be able to use JuiceFS inside container.
 
 </details>
 
 <details>
-<summary>**Mount Pod exits normally (exit code 0), causing application pod to be stuck at `ContainerCreateError` state**</summary>
+<summary>**Mount Pod exits normally (exit code 0), causing application Pod to be stuck at `ContainerCreateError` state**</summary>
 
-Mount Pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application pod will be show error events like this:
+Mount Pod should always be up and running, if it exits and becomes `Completed` state, even if the exit code is 0, PV will not work correctly. Since mount point doesn't exist anymore, application Pod will be show error events like this:
 
 ```shell {4}
 $ kubectl describe pod juicefs-app
@@ -104,16 +104,16 @@ $ kubectl describe pod juicefs-app
   Warning  Failed     8m59s                 kubelet            Error: failed to generate container "d51d4373740596659be95e1ca02375bf41cf01d3549dc7944e0bfeaea22cc8de" spec: failed to generate spec: failed to stat "/var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount": stat /var/lib/kubelet/pods/dc0e8b63-549b-43e5-8be1-f84b25143fcd/volumes/kubernetes.io~csi/pvc-bc9b54c9-9efb-4cb5-9e1d-7166797d6d6f/mount: transport endpoint is not connected
 ```
 
-The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application pod cannot be created. You should inspect the Mount Pod start-up command to identify the cause for this (the following commands are from the ["Check Mount Pod"](./troubleshooting.md#check-mount-pod) documentation):
+The `transport endpoint is not connected` error in above logs means JuiceFS mount point is missing, and application Pod cannot be created. You should inspect the Mount Pod start-up command to identify the cause for this (the following commands are from the ["Check Mount Pod"](./troubleshooting.md#check-mount-pod) documentation):
 
 ```shell
-APP_NS=default  # application pod namespace
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
-# Obtain mount pod name
+# Obtain Mount Pod name
 MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}'))
 
-# Obtain mount pod start-up command
+# Obtain Mount Pod start-up command
 # Should look like ["sh","-c","/sbin/mount.juicefs myjfs /jfs/pvc-48a083ec-eec9-45fb-a4fe-0f43e946f4aa -o foreground"]
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 ```
@@ -125,17 +125,17 @@ Check the Mount Pod start-up command carefully. In the above example, the option
 <details>
 <summary>**Mount Pod not created**</summary>
 
-Use `kubectl describe <app-pod-name>` to view the events of the current application pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
+Use `kubectl describe <app-pod-name>` to view the events of the current application Pod, and confirm that it has entered the mounting process, and is not a scheduling failure or other errors unrelated to mounting JuiceFS.
 
-If the application pod's event is:
+If the application Pod's event is:
 
 - `driver name csi.juicefs.com not found` or `csi.sock no such file`
 
-  Check whether the CSI Node pod on the corresponding node is running normally. For details, see [documentation](#csi-node-pod-failure).
+  Check whether the CSI Node Pod on the corresponding node is running normally. For details, see [documentation](#csi-node-pod-failure).
 
 - `Unable to attach or mount volumes: xxx`
 
-  Check the logs of the CSI Node pod on the corresponding node and filter out the relevant logs of the corresponding PV. If you cannot find logs similar to `NodePublishVolume: volume_id is <pv name>`, and the Kubernetes version is below 1.26.0, 1.25.1, 1.24.5, 1.23.11, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
+  Check the logs of the CSI Node Pod on the corresponding node and filter out the relevant logs of the corresponding PV. If you cannot find logs similar to `NodePublishVolume: volume_id is <pv name>`, and the Kubernetes version is below 1.26.0, 1.25.1, 1.24.5, 1.23.11, it may be due to a bug in kubelet that prevents the triggering of the volume publish request. For more details, see [#109047](https://github.com/kubernetes/kubernetes/issues/109047).
 
   At this point, you can try:
 
@@ -169,7 +169,7 @@ Events:
 <details>
 <summary>**PVC creation failures due to `volumeHandle` conflicts**</summary>
 
-This happens when an application pod try to use multiple PVCs, but referenced PV uses a same `volumeHandle`, you'll see errors like:
+This happens when an application Pod try to use multiple PVCs, but referenced PV uses a same `volumeHandle`, you'll see errors like:
 
 ```shell {6}
 $ kubectl describe pvc jfs-static
@@ -180,7 +180,7 @@ Events:
   Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
 ```
 
-In addition, the application pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application pod, and an error will be reported in event that one of the volumes is not mounted:
+In addition, the application Pod will also be accompanied by the following events. There are volumes (spec.volumes) named `data1` and `data2` in the application Pod, and an error will be reported in event that one of the volumes is not mounted:
 
 ```shell
 Events:
@@ -211,7 +211,7 @@ spec:
 
 ## File system creation failure (Community Edition) {#file-system-creation-failure-community-edition}
 
-When you choose to dynamically create file system inside Mount Pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node pod:
+When you choose to dynamically create file system inside Mount Pod, i.e. running the `juicefs format` command, when this process fails, you'll see error logs in the CSI Node Pod:
 
 ```
 format: ERR illegal address: xxxx
@@ -270,13 +270,13 @@ Read performance really depends on cache, so when read performance isn't ideal, 
 Similar to what we'll do on a host, let's first check the Mount Pod's resource usage, make sure there's enough memory for page cache. Use below commands to locate the Docker container for our Mount Pod, and see its stats:
 
 ```shell
-# change $APP_POD_NAME to actual application pod name
+# change $APP_POD_NAME to actual application Pod name
 $ docker stats $(docker ps | grep $APP_POD_NAME | grep -v "pause" | awk '{print $1}')
 CONTAINER ID   NAME          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O   BLOCK I/O   PIDS
 90651c348bc6   k8s_POD_xxx   45.1%     1.5GiB / 2GiB       75.00%    0B / 0B   0B / 0B     1
 ```
 
-Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application pod, and then try again.
+Note that the memory limit is 2GiB, while the fio test is trying to read 2.5G of data, which is more than the Pod memory limit. Even though memory usage indicated by `docker stats` isn't close to the 2GiB limit, kernel is already unable to build more page cache, because page cache size is a part of cgroup memory limit. In this case, we'll [adjust resources for Mount Pod](../guide/resource-optimization.md#mount-pod-resources), increase memory limit, re-create PVC / application Pod, and then try again.
 
 :::note
 `docker stats` counts memory usage differently under cgroup v1/v2, v1 does not include kernel page cache while v2 does, the case described here is carried out under cgroup v1, but it doesn't affect the troubleshooting thought process and conclusion.
@@ -307,9 +307,9 @@ Conclusion: **When using JuiceFS inside containers, memory limit should be large
 
 * **Slow write speed for intensive small writes (like untar, unzip)**
 
-  For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+  For scenario that does intensive small writes, we usually recommend users to temporarily enable client write cache (read [JuiceFS Community Edition](https://juicefs.com/docs/community/cache_management#writeback), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache#client-write-cache) to learn more), but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
-  If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
+  If you need to write a large amount of small files into JuiceFS, it's recommended that you find a host mount point, and temporarily enable `--writeback` for such operation. If you absolutely have to use `--writeback` in CSI Driver, try to improve Pod stability (for example, [increase resource usage](../guide/resource-optimization.md#mount-pod-resources)).
 
 ## Umount error (Mount Pod hangs) {#umount-error}
 

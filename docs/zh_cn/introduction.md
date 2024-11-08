@@ -30,7 +30,7 @@ CSI 默认采用容器挂载（Mount Pod）模式，也就是让 JuiceFS 客户�
 
 在同一个节点上，一个 PVC 会对应一个 Mount Pod。而使用了相同 PV 的 Pod，则可以共享一个 Mount Pod。PVC、PV、Mount Pod 之间的关系如下图所示：
 
-![mount-pod-architecture](./images/mount-pod-architecture.svg)
+![mount-Pod-architecture](./images/mount-pod-architecture.svg)
 
 如果该模式不适用于你的场景，CSI 驱动还提供其他机制，详见[「其他运行模式」](#other-mount-modes)。
 

@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 func init() {
@@ -203,15 +204,16 @@ func getLocalConfig() (*rest.Config, error) {
 
 func newManager(conf *rest.Config) (ctrl.Manager, error) {
 	return ctrl.NewManager(conf, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    9442,
-		MetricsBindAddress:      "0.0.0.0:8082",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8082",
+		},
 		LeaderElection:          leaderElection,
 		LeaderElectionID:        "dashboard.juicefs.com",
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Cache: cache.Options{
 			Scheme: scheme,
-		}),
+		},
 	})
 }
