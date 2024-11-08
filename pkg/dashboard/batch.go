@@ -154,7 +154,6 @@ func (api *API) upgradePods() gin.HandlerFunc {
 		c.IndentedJSON(200, map[string]string{
 			"jobName": jobName,
 		})
-		return
 	}
 }
 
@@ -171,7 +170,6 @@ func (api *API) getUpgradeStatus() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, job)
-		return
 	}
 }
 
@@ -220,48 +218,46 @@ func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 
 func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobName := c.Query("job")
-		var (
-			job     *batchv1.Job
-			jobPod  *corev1.Pod
-			podList *corev1.PodList
-			err     error
-			t       = time.NewTicker(1 * time.Second)
-		)
-		ctx, cancel := context.WithTimeout(c, 2*time.Minute)
-		defer cancel()
-		for {
-			job, err = api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
-			if err != nil || job.DeletionTimestamp != nil {
-				continue
-			}
-			s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					common.JfsUpgradeJobLabelKey:   common.JfsUpgradeJobLabelValue,
-					"batch.kubernetes.io/job-name": jobName,
-				},
-			})
-			t = time.NewTicker(1 * time.Second)
-			podList, err = api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
-			if err == nil && len(podList.Items) != 0 {
-				batchLog.V(1).Info("get pod status", "pod", podList.Items[0].Name, "status", podList.Items[0].Status.Phase)
-				if podList.Items[0].Status.Phase != corev1.PodPending {
-					jobPod = &podList.Items[0]
+		websocket.Handler(func(ws *websocket.Conn) {
+			jobName := c.Query("job")
+			var (
+				job     *batchv1.Job
+				jobPod  *corev1.Pod
+				podList *corev1.PodList
+				err     error
+				t       = time.NewTicker(2 * time.Second)
+			)
+			ctx, cancel := context.WithTimeout(c, 2*time.Minute)
+			defer cancel()
+			for {
+				job, err = api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+				if err == nil && job.DeletionTimestamp == nil {
+					s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							common.JfsUpgradeJobLabelKey:   common.JfsUpgradeJobLabelValue,
+							"batch.kubernetes.io/job-name": jobName,
+						},
+					})
+					podList, err = api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
+					if err == nil && len(podList.Items) != 0 {
+						batchLog.V(1).Info("get pod status", "pod", podList.Items[0].Name, "status", podList.Items[0].Status.Phase)
+						if podList.Items[0].Status.Phase != corev1.PodPending {
+							jobPod = &podList.Items[0]
+							t.Stop()
+							break
+						}
+					}
+				}
+				select {
+				case <-ctx.Done():
+					c.String(500, "get job or list pod timeout")
+					batchLog.Info("get job or list pod timeout", "job", jobName)
 					t.Stop()
+					return
+				case <-t.C:
 					break
 				}
 			}
-			select {
-			case <-ctx.Done():
-				c.String(500, "get job or list pod timeout")
-				batchLog.Info("get job or list pod timeout", "job", jobName)
-				t.Stop()
-				return
-			case <-t.C:
-				break
-			}
-		}
-		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
 			req := api.client.CoreV1().Pods(jobPod.Namespace).GetLogs(jobPod.Name, &corev1.PodLogOptions{
 				Container: jobPod.Spec.Containers[0].Name,

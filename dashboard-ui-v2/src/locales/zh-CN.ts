@@ -96,6 +96,7 @@ export default {
   batchUpgrade: '批量升级',
   upgrading: '升级中',
   recreate: '是否重建',
+  start: '开始',
   upgrade: '升级',
   reset: '重置',
   action: '操作',

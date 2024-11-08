@@ -32,6 +32,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type BatchUpgrade struct {
@@ -62,7 +63,7 @@ func InitBatchUpgrade(client *k8s.K8sClient) {
 	}
 }
 
-func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
+func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		common.PodTypeKey: common.PodTypeValue,
 	}}
@@ -75,23 +76,18 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 	u.podsToUpgrade = []*PodUpgrade{}
 	for _, pod := range podLists {
 		po := pod
-		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
-		hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-		if hashVal == "" {
-			log.Info("pod has no hash label")
+		if ok := resource.CanUpgrade(po, u.recreate); !ok {
+			log.Info("pod can not upgrade, ignore", "pod", pod.Name)
+			sendMessage(conn, fmt.Sprintf("POD-SKIP pod [%s] can not upgrade, ignore it.", po.Name))
 			continue
 		}
-		// todo: filter pod do not need to upgrade
+		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
 		pu := &PodUpgrade{
 			client:   u.client,
 			pod:      &po,
 			recreate: u.recreate,
 			ce:       ce,
-			hashVal:  hashVal,
-		}
-		if ok := pu.canUpgrade(); !ok {
-			log.Info("pod can not upgrade, ignore", "pod", pod.Name)
-			continue
+			hashVal:  pod.Labels[common.PodJuiceHashLabelKey],
 		}
 		u.podsToUpgrade = append(u.podsToUpgrade, pu)
 	}
@@ -122,7 +118,7 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 		u.status = batchUpgradeWaiting
 		defer u.lock.Unlock()
 	}()
-	if err := u.fetchPods(ctx); err != nil {
+	if err := u.fetchPods(ctx, conn); err != nil {
 		return
 	}
 	var (

@@ -154,18 +154,19 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   })
 }
 
-export function usePodsToUpgrade(recreate: boolean, nodeName?: string) {
+export function usePodsToUpgrade(toCall: boolean, recreate: boolean, nodeName?: string) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
   return useSWR<PodToUpgrade[]>(
-    recreate ?
-      `/api/v1/batch/pods?nodeName=${nodeName}&recreate=true`
-      : `/api/v1/batch/pods?nodeName=${nodeName}`,
+    toCall ?
+      recreate ?
+        `/api/v1/batch/pods?nodeName=${node}&recreate=true`
+        : `/api/v1/batch/pods?nodeName=${node}`
+      : ``,
   )
 }
 
-export function useNodes() {
-  return useSWR<Node[]>(
-    `/api/v1/nodes`,
-  )
+export function useNodes(toCall: boolean) {
+  return useSWR<Node[]>(toCall ? '/api/v1/nodes' : '')
 }
 
 export function useUpgradePods() {
@@ -176,7 +177,7 @@ export function useUpgradePods() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        nodeName: nodeName,
+        nodeName: nodeName === 'All Nodes' ? '' : nodeName,
         recreate: recreate,
       }),
     })
@@ -187,6 +188,6 @@ export function useUpgradePods() {
   })
 }
 
-export function useUpgradeStatus() {
-  return useSWR<Job>(`/api/v1/batch/job`)
+export function useUpgradeStatus(toCall: boolean) {
+  return useSWR<Job>(toCall ? `/api/v1/batch/job` : '')
 }

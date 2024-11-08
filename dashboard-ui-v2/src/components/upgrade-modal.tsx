@@ -116,7 +116,7 @@ const UpgradeModal: React.FC<{
                     disabled={start}
                     type="primary"
                   >
-                    <FormattedMessage id="upgrade" />
+                    <FormattedMessage id="start" />
                   </Button>
                 </Space>
               </Space>

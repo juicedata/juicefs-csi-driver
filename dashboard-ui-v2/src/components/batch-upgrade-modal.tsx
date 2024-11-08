@@ -20,15 +20,15 @@ import { Button, Modal, Space, Progress, Dropdown, MenuProps, Checkbox, Spin } f
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
 import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
-import { Pod } from 'kubernetes-types/core/v1'
+import { Pod, Node } from 'kubernetes-types/core/v1'
 import { PodToUpgrade } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
 
 
-const helpMessage = `Click Start to upgrade mount pod by batch.
+const helpMessage = `Click Start to perform a batch upgrade.
 
-- node: select a node to upgrade all Mount Pods on it, not select means all nodes. 
-- recreate: upgrade Mount Pod with recreating it or not.
+- node: Select a node to upgrade all Mount Pods on it.
+- recreate: Upgrade a Mount Pod, with or without recreating it.
 
 ---
 `
@@ -42,9 +42,10 @@ const BatchUpgradeModal: React.FC<{
   const [data, setData] = useState<string>(helpMessage)
   const [percent, setPercent] = useState(Number)
   const [selectedNode, setSelectedNode] = useState('')
-  const { data: podsToUpgrade } = usePodsToUpgrade(true, selectedNode)
-  const { data: allNodes } = useNodes()
-  const { data: job } = useUpgradeStatus()
+  const { data: podsToUpgrade } = usePodsToUpgrade(isBatchModalOpen, true, selectedNode)
+  const { data: nodes } = useNodes(isBatchModalOpen)
+  const [allNodes, setAllNodes] = useState([``])
+  const { data: job } = useUpgradeStatus(isBatchModalOpen)
   const [, actions] = useUpgradePods()
   const [jobName, setJobName] = useState('')
   const [recreate, setRecreate] = useState(false)
@@ -64,12 +65,18 @@ const BatchUpgradeModal: React.FC<{
   }
 
   useEffect(() => {
+    setAllNodes(getAllNodes(nodes || []))
+  }, [nodes])
+
+  useEffect(() => {
     if (job && (job.metadata?.name || '') !== '') {
       setJobName(job.metadata?.name || '')
-      setStart(true)
       if (job.metadata?.labels) {
         setSelectedNode(job.metadata.labels['juicefs-upgrade-node'] || '')
         setRecreate(job.metadata.labels['juicefs-upgrade-recreate'] === 'true')
+      }
+      if (job.status?.active && job.status?.active !== 0) {
+        setStart(true)
       }
     } else {
       setData(helpMessage)
@@ -115,7 +122,7 @@ const BatchUpgradeModal: React.FC<{
 
   const nodeItems = allNodes?.map((item, index) => ({
     key: index.toString(),
-    label: item.metadata?.name,
+    label: item,
   }))
 
   const handleNodeSelected: MenuProps['onClick'] = (e) => {
@@ -139,42 +146,40 @@ const BatchUpgradeModal: React.FC<{
           open={isBatchModalOpen}
           footer={() => (
             <div style={{ textAlign: 'start' }}>
-              <Space>
-                <Space style={{ textAlign: 'end' }}>
-                  <Dropdown menu={menuProps}>
-                    <Button>
-                      <Space>
-                        {selectedNode || 'select a node'}
-                        <DownOutlined />
-                      </Space>
-                    </Button>
-                  </Dropdown>
-
-                  <Checkbox
-                    checked={recreate}
-                    onChange={(value) => value && setRecreate(value.target.checked)}
-                  >
-                    <FormattedMessage id="recreate" />
-                  </Checkbox>
-
-                  <Button
-                    disabled={start}
-                    type="primary"
-                    onClick={() => {
-                      setData(helpMessage)
-                      actions.execute({
-                        nodeName: selectedNode,
-                        recreate: recreate,
-                      }).then(response => {
-                        setJobName(response.jobName)
-                      })
-                      setStart(true)
-                      setPercent(0)
-                    }}
-                  >
-                    <FormattedMessage id="batchUpgrade" />
+              <Space style={{ textAlign: 'end' }}>
+                <Dropdown menu={menuProps}>
+                  <Button>
+                    <Space>
+                      {selectedNode || 'All Nodes'}
+                      <DownOutlined />
+                    </Space>
                   </Button>
-                </Space>
+                </Dropdown>
+
+                <Checkbox
+                  checked={recreate}
+                  onChange={(value) => value && setRecreate(value.target.checked)}
+                >
+                  <FormattedMessage id="recreate" />
+                </Checkbox>
+
+                <Button
+                  disabled={start}
+                  type="primary"
+                  onClick={() => {
+                    setData(helpMessage)
+                    actions.execute({
+                      nodeName: selectedNode,
+                      recreate: recreate,
+                    }).then(response => {
+                      setJobName(response.jobName)
+                    })
+                    setStart(true)
+                    setPercent(0)
+                  }}
+                >
+                  <FormattedMessage id="start" />
+                </Button>
               </Space>
             </div>
           )}
@@ -182,30 +187,26 @@ const BatchUpgradeModal: React.FC<{
           onCancel={handleCancel}
         >
 
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {jobName !== '' ? (
-              <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                {start && <Spin style={{ marginRight: 16 }} />}
-                {fail ?
-                  <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
-                  <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
-                }
-                <div style={{ height: '20px' }}></div>
-              </div>
-            ) : null}
-            <div style={{ flexGrow: 1 }}>
-              <Editor
-                language="shell"
-                options={{
-                  wordWrap: 'on',
-                  readOnly: true,
-                  theme: 'vs-light', // TODO dark mode
-                  scrollBeyondLastLine: false,
-                }}
-                value={data}
-              />
+          {jobName !== '' ? (
+            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              {start && <Spin style={{ marginRight: 16 }} />}
+              {fail ?
+                <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
+                <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
+              }
             </div>
-          </div>
+          ) : null}
+          <Editor
+            height="calc(100% - 20px)"
+            language="shell"
+            options={{
+              wordWrap: 'on',
+              readOnly: true,
+              theme: 'vs-light', // TODO dark mode
+              scrollBeyondLastLine: false,
+            }}
+            value={data}
+          />
 
         </Modal>
       ) : null}
@@ -217,12 +218,20 @@ export default BatchUpgradeModal
 
 function getPodsUpgradeOfNode(node: string, podsForNode?: PodToUpgrade[]): Pod[] {
   const pods: Pod[] = []
-  if (podsForNode) {
-    podsForNode.forEach((v) => {
-      if (v.node === node || node === '') {
-        pods.push(...v.pods)
-      }
-    })
-  }
+  podsForNode?.forEach((v) => {
+    if (v.node === node || node === 'All Nodes') {
+      pods.push(...v.pods)
+    }
+  })
   return pods
+}
+
+function getAllNodes(nodes: Node[]): string[] {
+  const allNodes = ['All Nodes']
+  nodes?.forEach((v) => {
+    if (v.metadata?.name) {
+      allNodes.push(v.metadata?.name)
+    }
+  })
+  return allNodes
 }

@@ -51,7 +51,7 @@ var upgradeCmd = &cobra.Command{
 			sysNamespace = "kube-system"
 		}
 		if devMode {
-			config, err = getLocalConfig()
+			config, _ = getLocalConfig()
 		} else {
 			gin.SetMode(gin.ReleaseMode)
 			config = ctrl.GetConfigOrDie()

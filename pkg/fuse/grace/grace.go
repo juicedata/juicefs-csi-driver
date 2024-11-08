@@ -126,11 +126,11 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 		return
 	}
 
-	if ok := pu.canUpgrade(); !ok {
+	if ok := resource.CanUpgrade(*pu.pod, pu.recreate); !ok {
 		if !recreate {
-			sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support binary upgrade, image: %s", pu.pod.Spec.Containers[0].Image))
+			sendMessage(conn, fmt.Sprintf("FAIL mount pod now can not binary upgrade, image: %s", pu.pod.Spec.Containers[0].Image))
 		} else {
-			sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support recreate upgrade, image: %s", pu.pod.Spec.Containers[0].Image))
+			sendMessage(conn, fmt.Sprintf("FAIL mount pod now can not recreate upgrade, image: %s", pu.pod.Spec.Containers[0].Image))
 		}
 		return
 	}
@@ -183,20 +183,6 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 		hashVal:  hashVal,
 	}
 	return pu, nil
-}
-
-func (p *PodUpgrade) canUpgrade() bool {
-	// check mount pod now support upgrade or not
-	if !p.recreate && !util.ImageSupportBinary(p.pod.Spec.Containers[0].Image) {
-		log.Info("mount pod now do not support smooth binary upgrade")
-		return false
-	}
-	if p.recreate && !util.SupportFusePass(p.pod.Spec.Containers[0].Image) {
-		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false
-	}
-
-	return true
 }
 
 func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
