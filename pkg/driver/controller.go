@@ -38,6 +38,7 @@ var (
 )
 
 type controllerService struct {
+	csi.UnimplementedControllerServer
 	juicefs  juicefs.Interface
 	vols     map[string]int64
 	volLocks *resource.VolumeLocks
@@ -233,8 +234,8 @@ func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 		default:
 			return false
 		}
-		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
+		for i := range volumeCaps {
+			if volumeCaps[i].GetMode() == cap.AccessMode.GetMode() {
 				return true
 			}
 		}
@@ -286,17 +287,16 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if maxVolSize > 0 && maxVolSize < newSize {
 		return nil, status.Error(codes.InvalidArgument, "After round-up, volume size exceeds the limit specified")
 	}
+	options := []string{}
 
 	// get mount options
 	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	log.Info("volume capability", "volCap", volCap)
-	options := []string{}
-	if m := volCap.GetMount(); m != nil {
-		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
-		options = append(options, m.MountFlags...)
+	if volCap != nil {
+		log.Info("volume capability", "volCap", volCap)
+		if m := volCap.GetMount(); m != nil {
+			// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
+			options = append(options, m.MountFlags...)
+		}
 	}
 
 	capacity, err := strconv.ParseInt(strconv.FormatInt(newSize, 10), 10, 64)
@@ -346,5 +346,9 @@ func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *
 }
 
 func (d *controllerService) ControllerGetVolume(ctx context.Context, request *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (d *Driver) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }

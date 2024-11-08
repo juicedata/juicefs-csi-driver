@@ -30,6 +30,8 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -61,16 +63,18 @@ func NewMountManager(
 		return nil, err
 	}
 	mgr, err := ctrl.NewManager(conf, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    9443,
-		MetricsBindAddress:      "0.0.0.0:8083",
-		LeaderElection:          leaderElection,
-		LeaderElectionNamespace: leaderElectionNamespace,
-		LeaderElectionID:        "mount.juicefs.com",
-		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8083",
+		},
+		LeaderElection:             leaderElection,
+		LeaderElectionNamespace:    leaderElectionNamespace,
+		LeaderElectionResourceLock: "leases",
+		LeaderElectionID:           "mount.juicefs.com",
+		LeaseDuration:              &leaderElectionLeaseDuration,
+		Cache: cache.Options{
 			Scheme: scheme,
-			SelectorsByObject: cache.SelectorsByObject{
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
 				},
@@ -78,7 +82,7 @@ func NewMountManager(
 					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.JobTypeValue}),
 				},
 			},
-		}),
+		},
 	})
 	if err != nil {
 		log.Error(err, "New mount controller error")

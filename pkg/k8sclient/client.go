@@ -494,17 +494,17 @@ func (k *K8sClient) ExecuteInContainer(ctx context.Context, podName, namespace, 
 		return "", "", err
 	}
 	config.Timeout = timeout
-	err = execute("POST", req.URL(), config, nil, &sout, &serr, tty)
+	err = execute(ctx, "POST", req.URL(), config, nil, &sout, &serr, tty)
 
 	return strings.TrimSpace(sout.String()), strings.TrimSpace(serr.String()), err
 }
 
-func execute(method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
+func execute(ctx context.Context, method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,

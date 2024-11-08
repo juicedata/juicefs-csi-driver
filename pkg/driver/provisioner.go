@@ -30,7 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v6/controller"
+	provisioncontroller "sigs.k8s.io/sig-storage-lib-external-provisioner/v10/controller"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -90,15 +90,11 @@ func (j *provisionerService) Run(ctx context.Context) {
 		provisionerLog.Info("K8sClient is nil")
 		os.Exit(1)
 	}
-	serverVersion, err := j.K8sClient.Discovery().ServerVersion()
-	if err != nil {
-		provisionerLog.Error(err, "Error getting server version")
-		os.Exit(1)
-	}
-	pc := provisioncontroller.NewProvisionController(j.K8sClient,
+	pc := provisioncontroller.NewProvisionController(
+		provisionerLog,
+		j.K8sClient,
 		config.DriverName,
 		j,
-		serverVersion.GitVersion,
 		provisioncontroller.LeaderElection(j.leaderElection),
 		provisioncontroller.LeaseDuration(j.leaderElectionLeaseDuration),
 		provisioncontroller.LeaderElectionNamespace(j.leaderElectionNamespace),
