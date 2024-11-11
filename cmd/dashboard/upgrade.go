@@ -88,7 +88,7 @@ var upgradeCmd = &cobra.Command{
 
 		for _, csiNode := range csiNodes {
 			log.Info(fmt.Sprintf("Start to upgrade mount pods on node %s", csiNode.Spec.NodeName))
-			if err = triggerUpgradeInNode(clientset, config, csiNode); err != nil {
+			if err = triggerUpgradeInNode(context.TODO(), clientset, config, csiNode); err != nil {
 				log.Error(err, "Failed to upgrade mount pods", "node", node)
 				os.Exit(1)
 			}
@@ -101,7 +101,7 @@ func init() {
 	upgradeCmd.Flags().BoolVar(&recreate, "recreate", false, "upgrade the mount pod with recreate")
 }
 
-func triggerUpgradeInNode(client kubernetes.Interface, cfg *rest.Config, csiNode corev1.Pod) error {
+func triggerUpgradeInNode(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, csiNode corev1.Pod) error {
 	cmds := []string{"juicefs-csi-driver", "upgrade", "BATCH"}
 	if recreate {
 		cmds = append(cmds, "--recreate")
@@ -124,7 +124,7 @@ func triggerUpgradeInNode(client kubernetes.Interface, cfg *rest.Config, csiNode
 		log.Error(err, "Failed to create SPDY executor")
 		return err
 	}
-	if err := executor.Stream(remotecommand.StreamOptions{
+	if err := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Tty:    true,
