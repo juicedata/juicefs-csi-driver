@@ -22,6 +22,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 import { Layout, ResourceDetail, ResourceList } from '@/components'
+import ConfigDetail from '@/pages/config-detail'
 import { getBasePath, getHost } from '@/utils'
 
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
@@ -69,6 +70,7 @@ const App = () => (
               element={<ResourceDetail />}
             />
             <Route path="/:resources/:name" element={<ResourceDetail />} />
+            <Route path="/config" element={<ConfigDetail />} />
           </Routes>
         </Layout>
       </BrowserRouter>

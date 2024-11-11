@@ -109,4 +109,7 @@ export default {
   upgrade: 'Upgrade',
   reset: 'Reset',
   image: 'Image',
+  resources: 'Resources',
+  setting: 'Setting',
+  tool: 'Tools',
 }
