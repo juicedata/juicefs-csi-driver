@@ -17,7 +17,6 @@
 import { ReactNode, useEffect, useState } from 'react'
 import {
   GithubOutlined,
-  MailOutlined,
   QuestionCircleOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -43,6 +42,7 @@ import {
   PODIcon,
   PVCIcon,
   PVIcon,
+  ResourcesIcon,
   SCIcon,
   UpgradeIcon,
 } from '@/icons'
@@ -55,8 +55,7 @@ const items: MenuProps['items'] = [
   {
     key: 'resources',
     label: <FormattedMessage id="resources" />,
-    icon: <MailOutlined />,
-
+    icon: <ResourcesIcon />,
     children: [
       {
         icon: <PODIcon />,
