@@ -324,6 +324,9 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 	var podName string
 	for _, pod := range pods {
 		po := pod
+		if pod.Spec.NodeName != jfsConfig.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != jfsConfig.NodeName {
+			continue
+		}
 		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal {
 			for k, v := range pod.Annotations {
 				if v == jfsSetting.TargetPath {
@@ -335,12 +338,10 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 			}
 			continue
 		}
-		if pod.DeletionTimestamp != nil || resource.IsPodComplete(&pod) {
+		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
 			continue
 		}
-		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {
-			podName = pod.Name
-		}
+		podName = pod.Name
 	}
 	if podName != "" {
 		return podName, nil
