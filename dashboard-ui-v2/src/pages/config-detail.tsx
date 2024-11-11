@@ -43,7 +43,7 @@ const ConfigDetail = () => {
     <PageContainer
       fixedHeader
       header={{
-        title: '配置',
+        title: <FormattedMessage id="config" />,
         ghost: true,
       }}
       extra={[

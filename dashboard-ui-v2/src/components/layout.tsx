@@ -18,7 +18,6 @@ import { ReactNode, useEffect, useState } from 'react'
 import {
   GithubOutlined,
   QuestionCircleOutlined,
-  SettingOutlined,
   ToolOutlined,
 } from '@ant-design/icons'
 import {
@@ -36,16 +35,7 @@ import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
 import BatchUpgradeModal from '@/components/batch-upgrade-modal.tsx'
-import {
-  DSIcon,
-  LocaleIcon,
-  PODIcon,
-  PVCIcon,
-  PVIcon,
-  ResourcesIcon,
-  SCIcon,
-  UpgradeIcon,
-} from '@/icons'
+import { LocaleIcon, ResourcesIcon, UpgradeIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
@@ -58,7 +48,6 @@ const items: MenuProps['items'] = [
     icon: <ResourcesIcon />,
     children: [
       {
-        icon: <PODIcon />,
         label: (
           <Link to="/pods">
             <FormattedMessage id="appPodTable" />
@@ -67,7 +56,6 @@ const items: MenuProps['items'] = [
         key: '/pods',
       },
       {
-        icon: <DSIcon />,
         label: (
           <Link to="/syspods">
             <FormattedMessage id="sysPodTable" />
@@ -76,17 +64,14 @@ const items: MenuProps['items'] = [
         key: '/syspods',
       },
       {
-        icon: <PVIcon />,
         label: <Link to="/pvs">PV</Link>,
         key: '/pvs',
       },
       {
-        icon: <PVCIcon />,
         label: <Link to="/pvcs">PVC</Link>,
         key: '/pvcs',
       },
       {
-        icon: <SCIcon />,
         label: <Link to="/storageclass">Storage Class</Link>,
         key: '/storageclass',
       },
@@ -98,7 +83,6 @@ const items: MenuProps['items'] = [
     icon: <ToolOutlined />,
     children: [
       {
-        icon: <SettingOutlined />,
         label: (
           <Link to="/config">
             <FormattedMessage id="setting" />
