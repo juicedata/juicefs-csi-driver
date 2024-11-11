@@ -20,8 +20,10 @@ import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { Pod } from '@/types/k8s'
+import { Pod, PodToUpgrade } from '@/types/k8s'
+import { Node } from 'kubernetes-types/core/v1'
 import { getBasePath, getHost } from '@/utils'
+import { Job } from 'kubernetes-types/batch/v1'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -150,4 +152,42 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
         window.URL.revokeObjectURL(url)
       })
   })
+}
+
+export function usePodsToUpgrade(toCall: boolean, recreate: boolean, nodeName?: string) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
+  return useSWR<PodToUpgrade[]>(
+    toCall ?
+      recreate ?
+        `/api/v1/batch/pods?nodeName=${node}&recreate=true`
+        : `/api/v1/batch/pods?nodeName=${node}`
+      : ``,
+  )
+}
+
+export function useNodes(toCall: boolean) {
+  return useSWR<Node[]>(toCall ? '/api/v1/nodes' : '')
+}
+
+export function useUpgradePods() {
+  return useAsync(async ({ nodeName, recreate }) => {
+    const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nodeName: nodeName === 'All Nodes' ? '' : nodeName,
+        recreate: recreate,
+      }),
+    })
+    const result: {
+      jobName: string,
+    } = await response.json()
+    return result
+  })
+}
+
+export function useUpgradeStatus(toCall: boolean) {
+  return useSWR<Job>(toCall ? `/api/v1/batch/job` : '')
 }

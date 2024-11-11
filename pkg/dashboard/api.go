@@ -76,6 +76,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
+	group.GET("/nodes", api.getNodes())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/latestimage", api.getPodLatestImage())
@@ -99,8 +100,14 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())
+	batchGroup := group.Group("/batch")
+	batchGroup.GET("/pods", api.getPodsToUpgrade())
+	batchGroup.GET("/job", api.getUpgradeStatus())
+	batchGroup.POST("/upgrade", api.upgradePods())
+	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
 
 	websocketAPI := group.Group("/ws")
+	websocketAPI.GET("/batch/upgrade/logs", api.watchUpgradeJobLog())
 	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
 	// only for mountpod
 	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())

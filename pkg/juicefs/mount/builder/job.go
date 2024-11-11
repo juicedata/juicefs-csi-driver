@@ -260,13 +260,13 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 			mounts = append(mounts, c)
 		}
 	}
-	cmd := "juicefs version > /tmp/version"
+	cmd := ""
 	if !restart {
 		ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
 		if ce {
-			cmd = fmt.Sprintf("%s && cp /usr/local/bin/juicefs /tmp/juicefs", cmd)
+			cmd = "cp /usr/local/bin/juicefs /tmp/juicefs"
 		} else {
-			cmd = fmt.Sprintf("%s && cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount", cmd)
+			cmd = "cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount"
 		}
 	}
 	ttl := DefaultJobTTLSecond

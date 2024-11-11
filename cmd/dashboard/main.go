@@ -82,6 +82,8 @@ func main() {
 		},
 	}
 
+	cmd.AddCommand(upgradeCmd)
+
 	if v := os.Getenv("USERNAME"); v != "" {
 		USERNAME = v
 	}

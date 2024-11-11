@@ -1044,7 +1044,7 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 			podLog.Info("Start to upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
 			cmds := []string{"juicefs-csi-driver", "upgrade", mountpod.Name}
 			if recreate == "true" {
-				cmds = append(cmds, "--restart")
+				cmds = append(cmds, "--recreate")
 			}
 			podLog.Info("cmds", "cmds", cmds)
 

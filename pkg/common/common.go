@@ -82,7 +82,15 @@ const (
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 
 	// smooth upgrade
-	JfsFuseFsPathInPod  = "/tmp"
-	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
-	JfsCommEnv          = "JFS_SUPER_COMM"
+	JfsFuseFsPathInPod      = "/tmp"
+	JfsFuseFsPathInHost     = "/var/run/juicefs-csi"
+	JfsCommEnv              = "JFS_SUPER_COMM"
+	JfsUpgradeJobLabelKey   = "app.kubernetes.io/name"
+	JfsUpgradeJobLabelValue = "juicefs-upgrade"
+	JfsUpgradeNodeName      = "juicefs-upgrade-node"
+	JfsUpgradeRecreateName  = "juicefs-upgrade-recreate"
 )
+
+func GenUpgradeJobName() string {
+	return "juicefs-upgrade-job"
+}

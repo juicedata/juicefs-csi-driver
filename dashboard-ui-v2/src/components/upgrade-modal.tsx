@@ -19,13 +19,14 @@ import Editor from '@monaco-editor/react'
 import { Button, Modal, Space } from 'antd'
 
 import { useMountPodImage, useWebsocket } from '@/hooks/use-api'
+import { FormattedMessage } from 'react-intl'
 
-const upgradeHelpMessage = `Click Start to upgrade mount pod
+const upgradeHelpMessage = `Click Start to upgrade Mount Pod
 
 ---
 `
 
-const binaryHelpMessage = `Click Start to upgrade binary in mount pod
+const binaryHelpMessage = `Click Start to upgrade binary in Mount Pod
 
 ---
 `
@@ -79,9 +80,9 @@ const UpgradeModal: React.FC<{
   useEffect(() => {
     if (isModalOpen) {
       if (recreate) {
-        setData(`Smoothly upgrade mount pod to ${newImage}\n\n` + upgradeHelpMessage)
+        setData(`Smoothly upgrade Mount Pod to ${newImage}\n\n` + upgradeHelpMessage)
       } else {
-        setData(`Smoothly upgrade mount pod to ${newImage}\n\n` + binaryHelpMessage)
+        setData(`Smoothly upgrade Mount Pod to ${newImage}\n\n` + binaryHelpMessage)
       }
     }
   }, [recreate, isModalOpen, newImage])
@@ -115,7 +116,7 @@ const UpgradeModal: React.FC<{
                     disabled={start}
                     type="primary"
                   >
-                    Upgrade
+                    <FormattedMessage id="start" />
                   </Button>
                 </Space>
               </Space>

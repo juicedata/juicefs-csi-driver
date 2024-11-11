@@ -102,6 +102,11 @@ export default {
   docs: 'Documents',
   save: 'Save',
   config: 'Configs',
+  batchUpgrade: 'Batch Upgrade',
+  upgrading: 'Upgrading',
+  start: 'Start',
+  recreate: 'Recreate',
+  upgrade: 'Upgrade',
   reset: 'Reset',
   image: 'Image',
 }

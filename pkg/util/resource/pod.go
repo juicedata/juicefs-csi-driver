@@ -483,3 +483,41 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 	}
 	return filteredVars
 }
+
+func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
+	var pods = []corev1.Pod{}
+	for _, pod := range podLists.Items {
+		if CanUpgrade(pod, recreate) {
+			pods = append(pods, pod)
+		}
+	}
+	return pods
+}
+
+// CanUpgrade if the pod can be upgraded
+// 1. pod has hash label
+// 2. pod image support upgrade
+// 3. pod is ready
+func CanUpgrade(pod corev1.Pod, recreate bool) bool {
+	// todo: if pod has config update?
+	if len(pod.Spec.Containers) == 0 {
+		return false
+	}
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		log.Info("pod has no hash label")
+		return false
+	}
+	// check mount pod now support upgrade or not
+	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
+		log.Info("mount pod now do not support smooth binary upgrade")
+		return false
+	}
+	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		log.Info("mount pod now do not support recreate smooth upgrade")
+		return false
+	}
+
+	// check status
+	return IsPodReady(&pod)
+}

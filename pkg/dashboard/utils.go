@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"context"
+	"os"
 	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,4 +118,12 @@ func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
 	}
 	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
 	return labelMap
+}
+
+func getSysNamespace() string {
+	namespace := "kube-system"
+	if os.Getenv("SYS_NAMESPACE") != "" {
+		namespace = os.Getenv("SYS_NAMESPACE")
+	}
+	return namespace
 }
