@@ -47,12 +47,21 @@ var log = klog.NewKlogr().WithName("grace")
 const (
 	batch                = "BATCH"
 	recreate             = "RECREATE"
+	noRecreate           = "NORECREATE"
 	singleUpgradeTimeout = 30 * time.Minute
 	batchUpgradeTimeout  = 120 * time.Minute
 )
 
 func ServeGfShutdown(addr string) error {
-	_ = os.RemoveAll(addr)
+	err := util.DoWithTimeout(context.TODO(), 2*time.Second, func() error {
+		if util.Exists(addr) {
+			return os.Remove(addr)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
 	listener, err := net.Listen("unix", addr)
 	if err != nil {
@@ -78,6 +87,52 @@ func ServeGfShutdown(addr string) error {
 	return nil
 }
 
+type upgradeRequest struct {
+	action      string
+	name        string
+	worker      int
+	ignoreError bool
+}
+
+// parseRequest parse request from message
+// message format: <pod-name/BATCH> [recreate/noRecreate] [options]
+// options: worker=<int>,ignoreError=true/false
+func parseRequest(message string) upgradeRequest {
+	req := upgradeRequest{
+		worker:      1,
+		action:      noRecreate,
+		ignoreError: false,
+	}
+
+	ss := strings.Split(message, " ")
+	req.name = ss[0]
+	if len(ss) < 2 {
+		return req
+	}
+	req.action = ss[1]
+	if len(ss) == 3 {
+		options := strings.Split(ss[2], ",")
+		for _, option := range options {
+			ops := strings.Split(option, "=")
+			if len(ops) < 2 {
+				continue
+			}
+			if ops[0] == "worker" {
+				w, err := strconv.Atoi(ops[1])
+				if err != nil {
+					log.Error(err, "failed to parse options", "option", option)
+					continue
+				}
+				req.worker = w
+			}
+			if ops[0] == "ignoreError" {
+				req.ignoreError = ops[1] == "true"
+			}
+		}
+	}
+	return req
+}
+
 func handleShutdown(conn net.Conn) {
 	defer conn.Close()
 
@@ -89,20 +144,14 @@ func handleShutdown(conn net.Conn) {
 	}
 
 	message := string(buf[:n])
-
-	var action string
-	ss := strings.Split(message, " ")
-	name := ss[0]
-	if len(ss) == 2 {
-		action = ss[1]
-	}
+	req := parseRequest(message)
 
 	log.V(1).Info("Received shutdown message", "message", message)
 
-	if name == batch {
+	if req.name == batch {
 		ctx, cancel := context.WithTimeout(context.TODO(), batchUpgradeTimeout)
 		defer cancel()
-		globalBatchUpgrade.BatchUpgrade(ctx, conn, action == recreate)
+		globalBatchUpgrade.BatchUpgrade(ctx, conn, req.action == recreate, req.worker, req.ignoreError)
 		return
 	}
 	client, err := k8s.NewClient()
@@ -112,7 +161,7 @@ func handleShutdown(conn net.Conn) {
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), singleUpgradeTimeout)
 	defer cancel()
-	SinglePodUpgrade(ctx, client, name, action == recreate, conn)
+	SinglePodUpgrade(ctx, client, req.name, req.action == recreate, conn)
 }
 
 func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) {
@@ -423,9 +472,11 @@ func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 	}
 	defer conn.Close()
 
-	message := name
+	var message string
 	if recreateFlag {
 		message = fmt.Sprintf("%s %s", name, recreate)
+	} else {
+		message = fmt.Sprintf("%s %s", name, noRecreate)
 	}
 
 	_, err = conn.Write([]byte(message))

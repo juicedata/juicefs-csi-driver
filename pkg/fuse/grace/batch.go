@@ -19,6 +19,7 @@ package grace
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -101,17 +102,17 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 	return nil
 }
 
-func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn, recreate bool) {
+func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn, recreate bool, worker int, ignoreErr bool) {
 	if u.status == batchUpgradeRunning {
 		log.Info("upgrade is running")
 		sendMessage(conn, "upgrade is still running")
 		u.syncStatus(ctx, conn)
 		return
 	}
-	u.batchUpgrade(ctx, conn, recreate)
+	u.batchUpgrade(ctx, conn, recreate, worker, ignoreErr)
 }
 
-func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate bool) {
+func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate bool, worker int, ignoreErr bool) {
 	u.lock.Lock()
 	u.status = batchUpgradeRunning
 	defer func() {
@@ -122,49 +123,76 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 		return
 	}
 	var (
-		success = true
+		limiter  = make(chan struct{}, worker)
+		resultCh = make(chan error)
+		err      error
+		wg       sync.WaitGroup
 	)
-	// todo: deploy canary job before batch upgrade
-	for _, pu := range u.podsToUpgrade {
-		p := pu
-		p.recreate = recreate
-		errCh := make(chan error, 1)
-		go func() {
-			sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
-			if err := p.gracefulShutdown(ctx, conn); err != nil {
-				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
-				sendMessage(conn, fmt.Sprintf("POD-FAIL upgrade pod [%s] error", p.pod.Name))
-				success = false
-				errCh <- err
-				return
-			}
-			if p.status == podUpgradeSuccess {
-				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", p.pod.Name))
-			} else {
-				sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", p.pod.Name))
-				success = false
-			}
-			errCh <- nil
+
+	ctx, canF := context.WithCancel(ctx)
+	defer canF()
+
+	go func() {
+		defer func() {
+			wg.Wait()
+			close(resultCh)
+			close(limiter)
 		}()
-		select {
-		case <-ctx.Done():
-			sendMessage(conn, fmt.Sprintf("BATCH-FAIL upgrade timeout in node %s", config.NodeName))
-			return
-		case err := <-errCh:
-			if err != nil {
+		for i := range u.podsToUpgrade {
+			select {
+			case <-ctx.Done():
+				return
+			case limiter <- struct{}{}:
+			}
+
+			wg.Add(1)
+			go func(num int) {
+				defer func() {
+					wg.Done()
+					<-limiter
+				}()
+				p := u.podsToUpgrade[num]
+				p.recreate = recreate
+				sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
+				if err := p.gracefulShutdown(ctx, conn); err != nil {
+					log.Error(err, "upgrade pod error", "pod", p.pod.Name)
+					sendMessage(conn, fmt.Sprintf("POD-FAIL upgrade pod [%s] error", p.pod.Name))
+					resultCh <- err
+					return
+				}
+				if p.status == podUpgradeSuccess {
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", p.pod.Name))
+				} else {
+					sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", p.pod.Name))
+					resultCh <- fmt.Errorf("pod [%s] upgraded failed", p.pod.Name)
+				}
+			}(i)
+		}
+	}()
+
+	for oneErr := range resultCh {
+		if oneErr != nil {
+			err = oneErr
+			if !ignoreErr {
+				canF()
 				sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
 				return
 			}
 		}
-		if !success {
-			sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
-			return
-		}
 	}
 
-	if success {
-		sendMessage(conn, fmt.Sprintf("BATCH-SUCCESS all pods upgrade success in node %s", config.NodeName))
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		log.Error(ctx.Err(), "upgrade timeout")
+		sendMessage(conn, "BATCH-FAIL upgrade timeout")
+		return
 	}
+
+	if err != nil {
+		sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
+		return
+	}
+
+	sendMessage(conn, fmt.Sprintf("BATCH-SUCCESS all pods upgrade success in node %s", config.NodeName))
 }
 
 func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
@@ -207,16 +235,19 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func TriggerBatchUpgrade(socketPath string, recreate bool) error {
+func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignoreError bool) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
 		return err
 	}
-	message := "BATCH"
-	if recreate {
-		message = "BATCH RECREATE"
+	var message string
+	if recreateFlag {
+		message = fmt.Sprintf("BATCH %s", recreate)
+	} else {
+		message = fmt.Sprintf("BATCH %s", noRecreate)
 	}
+	message = fmt.Sprintf("%s worker=%d,ignoreError=%t", message, worker, ignoreError)
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {
