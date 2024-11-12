@@ -101,4 +101,7 @@ export default {
   reset: '重置',
   action: '操作',
   image: '镜像',
+  resources: '资源',
+  setting: '设置',
+  tool: '工具',
 }

@@ -70,14 +70,13 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	var err error
 
 	if err = func() error {
-		lock := jfsConfig.GetPodLock(hashVal)
-		lock.Lock()
-		defer lock.Unlock()
-
 		podName, err = p.genMountPodName(ctx, jfsSetting)
 		if err != nil {
 			return err
 		}
+		lock := jfsConfig.GetPodLock(hashVal)
+		lock.Lock()
+		defer lock.Unlock()
 
 		// set mount pod name in app pod
 		if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
@@ -314,22 +313,38 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	log := util.GenLog(ctx, p.log, "genMountPodName")
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:           common.PodTypeValue,
-		common.PodUniqueIdLabelKey:  jfsSetting.UniqueId,
-		common.PodJuiceHashLabelKey: jfsSetting.HashVal,
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: jfsSetting.UniqueId,
 	}}
 	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
 		log.Error(err, "List pods of uniqueId", "uniqueId", jfsSetting.UniqueId, "hashVal", jfsSetting.HashVal)
 		return "", err
 	}
+	var podName string
 	for _, pod := range pods {
-		if pod.DeletionTimestamp != nil || resource.IsPodComplete(&pod) {
+		po := pod
+		if pod.Spec.NodeName != jfsConfig.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != jfsConfig.NodeName {
 			continue
 		}
-		if pod.Spec.NodeName == jfsConfig.NodeName || pod.Spec.NodeSelector["kubernetes.io/hostname"] == jfsConfig.NodeName {
-			return pod.Name, nil
+		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal {
+			for k, v := range pod.Annotations {
+				if v == jfsSetting.TargetPath {
+					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
+					if err := resource.DelPodAnnotation(ctx, p.K8sClient, &po, []string{k}); err != nil {
+						return "", err
+					}
+				}
+			}
+			continue
 		}
+		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
+			continue
+		}
+		podName = pod.Name
+	}
+	if podName != "" {
+		return podName, nil
 	}
 	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }

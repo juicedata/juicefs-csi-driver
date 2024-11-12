@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import ConfigModal from '@/components/config-modal'
 import Containers from '@/components/containers'
 import DebugModal from '@/components/debug-modal'
 import EventTable from '@/components/event-table'
@@ -28,7 +27,6 @@ import ResourceList from '@/components/resource-list'
 import YamlModal from '@/components/yaml-modal'
 
 export {
-  ConfigModal,
   Containers,
   EventTable,
   Layout,
