@@ -791,8 +791,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	}
 	attr := setting.Attr
 	// update pod spec
-	pod.Labels = attr.Labels
-	pod.Annotations = attr.Annotations
+	pod.Labels, pod.Annotations = builder.GenMetadata(setting)
 	pod.Spec.HostAliases = attr.HostAliases
 	pod.Spec.HostNetwork = attr.HostNetwork
 	pod.Spec.HostPID = attr.HostPID

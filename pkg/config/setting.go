@@ -559,12 +559,15 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	}
 
 	setting := &JfsSetting{
-		IsCe:      IsCEMountPod(mountPod),
-		PV:        pv,
-		PVC:       pvc,
-		Name:      mountPod.Annotations[common.JuiceFSUUID],
-		VolumeId:  mountPod.Annotations[common.UniqueId],
-		Options:   pv.Spec.MountOptions,
+		IsCe:     IsCEMountPod(mountPod),
+		PV:       pv,
+		PVC:      pvc,
+		Name:     mountPod.Annotations[common.JuiceFSUUID],
+		VolumeId: mountPod.Annotations[common.UniqueId],
+		Options:  pv.Spec.MountOptions,
+		UUID:     mountPod.Annotations[common.JuiceFSUUID],
+		UniqueId: mountPod.Annotations[common.UniqueId],
+
 		MountPath: mntPath,
 	}
 	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
@@ -815,6 +818,19 @@ func applyConfigPatch(setting *JfsSetting) {
 		}
 	}
 	setting.Options = newOptions
+
+	if delay, ok := attr.Annotations[common.DeleteDelayTimeKey]; ok {
+		if _, err := time.ParseDuration(delay); err != nil {
+			log.Error(err, "can't parse delay time", "delay", delay)
+		} else {
+			setting.DeletedDelay = attr.Annotations[common.DeleteDelayTimeKey]
+		}
+		delete(attr.Annotations, common.DeleteDelayTimeKey)
+	}
+	if v, ok := attr.Annotations[common.CleanCacheKey]; ok {
+		setting.CleanCache = v == "true"
+		delete(attr.Annotations, common.CleanCacheKey)
+	}
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE
