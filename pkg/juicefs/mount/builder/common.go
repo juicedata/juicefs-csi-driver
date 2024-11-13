@@ -261,29 +261,32 @@ func (r *BaseBuilder) genMetricsPort() int32 {
 	return int32(port)
 }
 
-// _genMetadata generates labels & annotations
-func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
-	labels = map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
-	}
+func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annotations map[string]string) {
+	labels = map[string]string{}
 	annotations = map[string]string{}
-
-	for k, v := range r.jfsSetting.Attr.Labels {
-		labels[k] = v
+	if jfsSetting.DeletedDelay != "" {
+		annotations[common.DeleteDelayTimeKey] = jfsSetting.DeletedDelay
 	}
-	for k, v := range r.jfsSetting.Attr.Annotations {
-		annotations[k] = v
-	}
-	if r.jfsSetting.DeletedDelay != "" {
-		annotations[common.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
-	}
-	annotations[common.JuiceFSUUID] = r.jfsSetting.UUID
-	annotations[common.UniqueId] = r.jfsSetting.UniqueId
-	if r.jfsSetting.CleanCache {
+	if jfsSetting.CleanCache {
 		annotations[common.CleanCache] = "true"
 	}
+	for k, v := range jfsSetting.Attr.Labels {
+		labels[k] = v
+	}
+	for k, v := range jfsSetting.Attr.Annotations {
+		annotations[k] = v
+	}
+	// inter labels & annotations
+	annotations[common.JuiceFSUUID] = jfsSetting.UUID
+	annotations[common.UniqueId] = jfsSetting.UniqueId
+	labels[common.PodTypeKey] = common.PodTypeValue
+	labels[common.PodUniqueIdLabelKey] = jfsSetting.UniqueId
 	return
+}
+
+// _genMetadata generates labels & annotations
+func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
+	return GenMetadata(r.jfsSetting)
 }
 
 // _genJuiceVolumes generates volumes & volumeMounts
