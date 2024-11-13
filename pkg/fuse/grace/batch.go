@@ -126,6 +126,10 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 		log.Info("worker number is too large, set to default", "worker", worker, "default", common.MaxParallelUpgradeNum)
 		worker = common.MaxParallelUpgradeNum
 	}
+	if worker < 0 {
+		log.Info("worker number is less than 0, set to 1", "worker", worker)
+		worker = 1
+	}
 	var (
 		limiter  = make(chan struct{}, worker)
 		resultCh = make(chan error)
