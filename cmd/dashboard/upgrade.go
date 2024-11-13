@@ -34,8 +34,10 @@ import (
 )
 
 var (
-	node     string
-	recreate = false
+	node        string
+	recreate    = false
+	worker      = 1
+	ignoreError = false
 )
 
 var upgradeCmd = &cobra.Command{
@@ -99,12 +101,20 @@ var upgradeCmd = &cobra.Command{
 func init() {
 	upgradeCmd.Flags().StringVar(&node, "node", "", "upgrade all the mount pods on node")
 	upgradeCmd.Flags().BoolVar(&recreate, "recreate", false, "upgrade the mount pod with recreate")
+	upgradeCmd.Flags().BoolVar(&ignoreError, "ignoreError", false, "ignore error and upgrade the rest mount pods")
+	upgradeCmd.Flags().IntVar(&worker, "worker", 1, "worker number for batch upgrade")
 }
 
 func triggerUpgradeInNode(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, csiNode corev1.Pod) error {
 	cmds := []string{"juicefs-csi-driver", "upgrade", "BATCH"}
 	if recreate {
 		cmds = append(cmds, "--recreate")
+	}
+	if ignoreError {
+		cmds = append(cmds, "--ignoreError")
+	}
+	if worker > 1 {
+		cmds = append(cmds, fmt.Sprintf("--worker=%d", worker))
 	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").

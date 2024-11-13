@@ -98,6 +98,8 @@ export default {
   recreate: '是否重建',
   start: '开始',
   upgrade: '升级',
+  parallelNum: '并发数',
+  ignoreError: '是否跳过失败任务',
   reset: '重置',
   action: '操作',
   image: '镜像',

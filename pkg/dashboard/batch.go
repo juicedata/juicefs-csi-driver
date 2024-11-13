@@ -105,8 +105,10 @@ func (api *API) getPodsToUpgrade() gin.HandlerFunc {
 func (api *API) upgradePods() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		body := &struct {
-			NodeName string `json:"nodeName"`
-			ReCreate bool   `json:"recreate,omitempty"`
+			NodeName    string `json:"nodeName"`
+			ReCreate    bool   `json:"recreate,omitempty"`
+			Worker      int    `json:"worker,omitempty"`
+			IgnoreError bool   `json:"ignoreError,omitempty"`
 		}{}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
@@ -147,7 +149,7 @@ func (api *API) upgradePods() gin.HandlerFunc {
 			}
 		}
 		if needCreate {
-			newJob := newUpgradeJob(nodeName, recreate)
+			newJob := newUpgradeJob(nodeName, recreate, body.Worker, body.IgnoreError)
 			if _, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{}); err != nil {
 				batchLog.Error(err, "create job error")
 			}
@@ -278,7 +280,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	}
 }
 
-func newUpgradeJob(nodeName string, recreate bool) *batchv1.Job {
+func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool) *batchv1.Job {
 	sysNamespace := getSysNamespace()
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	if nodeName != "" {
@@ -286,6 +288,12 @@ func newUpgradeJob(nodeName string, recreate bool) *batchv1.Job {
 	}
 	if recreate {
 		cmds = append(cmds, "--recreate")
+	}
+	if worker > 0 {
+		cmds = append(cmds, fmt.Sprintf("--worker=%d", worker))
+	}
+	if ignoreError {
+		cmds = append(cmds, "--ignoreError")
 	}
 	ttl := int32(300)
 	sa := "juicefs-csi-dashboard-sa"

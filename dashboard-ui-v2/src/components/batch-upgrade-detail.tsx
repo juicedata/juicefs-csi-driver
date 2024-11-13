@@ -15,14 +15,15 @@
  */
 
 
-import React, { memo, ReactNode, useEffect, useState } from 'react'
-import { Button, Modal, Space, Progress, Dropdown, MenuProps, Checkbox, Spin } from 'antd'
+import { useEffect, useState } from 'react'
+import { Button, Space, Progress, Dropdown, MenuProps, Checkbox, Spin, InputNumber } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
 import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
 import { Pod, Node } from 'kubernetes-types/core/v1'
 import { PodToUpgrade } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
+import { PageContainer } from '@ant-design/pro-components'
 
 
 const helpMessage = `Click Start to perform a batch upgrade.
@@ -33,36 +34,21 @@ const helpMessage = `Click Start to perform a batch upgrade.
 ---
 `
 
-const BatchUpgradeModal: React.FC<{
-  children: ({ onClick }: { onClick: () => void }) => ReactNode
-}> = memo(({ children }) => {
-  const [isBatchModalOpen, setIsBatchModelOpen] = useState(false)
+const BatchUpgradeDetail = () => {
   const [start, setStart] = useState(false)
   const [fail, setFail] = useState(false)
   const [data, setData] = useState<string>(helpMessage)
   const [percent, setPercent] = useState(Number)
   const [selectedNode, setSelectedNode] = useState('')
-  const { data: podsToUpgrade } = usePodsToUpgrade(isBatchModalOpen, true, selectedNode)
-  const { data: nodes } = useNodes(isBatchModalOpen)
+  const [recreate, setRecreate] = useState(false)
+  const { data: podsToUpgrade } = usePodsToUpgrade(recreate, selectedNode)
+  const { data: nodes } = useNodes()
   const [allNodes, setAllNodes] = useState([``])
-  const { data: job } = useUpgradeStatus(isBatchModalOpen)
+  const { data: job } = useUpgradeStatus()
   const [, actions] = useUpgradePods()
   const [jobName, setJobName] = useState('')
-  const [recreate, setRecreate] = useState(false)
-
-  const showModal = () => {
-    setIsBatchModelOpen(true)
-  }
-  const handleOk = () => {
-    setIsBatchModelOpen(false)
-  }
-  const handleCancel = () => {
-    setIsBatchModelOpen(false)
-    setData(helpMessage)
-    setJobName('')
-    setPercent(0)
-    setFail(false)
-  }
+  const [worker, setWorker] = useState(1)
+  const [ignoreError, setIgnoreError] = useState(false)
 
   useEffect(() => {
     setAllNodes(getAllNodes(nodes || []))
@@ -83,7 +69,7 @@ const BatchUpgradeModal: React.FC<{
       setJobName('')
       setStart(false)
     }
-  }, [job, isBatchModalOpen])
+  }, [job])
 
   useWebsocket(
     `/api/v1/ws/batch/upgrade/logs`,
@@ -117,7 +103,7 @@ const BatchUpgradeModal: React.FC<{
         }
       },
     },
-    isBatchModalOpen && start && jobName !== '',
+    start && jobName !== '',
   )
 
   const nodeItems = allNodes?.map((item, index) => ({
@@ -138,83 +124,92 @@ const BatchUpgradeModal: React.FC<{
   }
 
   return (
-    <>
-      {children({ onClick: showModal })}
-      {isBatchModalOpen ? (
-        <Modal
-          title={<FormattedMessage id={start ? 'upgrading' : 'batchUpgrade'} />}
-          open={isBatchModalOpen}
-          footer={() => (
-            <div style={{ textAlign: 'start' }}>
-              <Space style={{ textAlign: 'end' }}>
-                <Dropdown menu={menuProps}>
-                  <Button>
-                    <Space>
-                      {selectedNode || 'All Nodes'}
-                      <DownOutlined />
-                    </Space>
-                  </Button>
-                </Dropdown>
-
-                <Checkbox
-                  checked={recreate}
-                  onChange={(value) => value && setRecreate(value.target.checked)}
-                >
-                  <FormattedMessage id="recreate" />
-                </Checkbox>
-
-                <Button
-                  disabled={start}
-                  type="primary"
-                  onClick={() => {
-                    setData(helpMessage)
-                    actions.execute({
-                      nodeName: selectedNode,
-                      recreate: recreate,
-                    }).then(response => {
-                      setJobName(response.jobName)
-                    })
-                    setStart(true)
-                    setPercent(0)
-                  }}
-                >
-                  <FormattedMessage id="start" />
-                </Button>
-              </Space>
-            </div>
-          )}
-          onOk={handleOk}
-          onCancel={handleCancel}
+    <PageContainer
+      fixedHeader
+      header={{
+        title: <FormattedMessage id="upgrade" />,
+        ghost: true,
+      }}
+      extra={[
+        <Dropdown menu={menuProps}>
+          <Button>
+            <Space>
+              {selectedNode || 'All Nodes'}
+              <DownOutlined />
+            </Space>
+          </Button>
+        </Dropdown>,
+        <Checkbox
+          checked={recreate}
+          onChange={(value) => value && setRecreate(value.target.checked)}
         >
-
-          {jobName !== '' ? (
-            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              {start && <Spin style={{ marginRight: 16 }} />}
-              {fail ?
-                <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
-                <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
-              }
-            </div>
-          ) : null}
-          <Editor
-            height="calc(100% - 20px)"
-            language="shell"
-            options={{
-              wordWrap: 'on',
-              readOnly: true,
-              theme: 'vs-light', // TODO dark mode
-              scrollBeyondLastLine: false,
-            }}
-            value={data}
-          />
-
-        </Modal>
+          <FormattedMessage id="recreate" />
+        </Checkbox>,
+        <Checkbox
+          checked={ignoreError}
+          onChange={(value) => value && setIgnoreError(value.target.checked)}
+        >
+          <FormattedMessage id="ignoreError" />
+        </Checkbox>,
+        <InputNumber
+          style={{ width: '180px' }}
+          min={1}
+          defaultValue={1}
+          addonBefore={<FormattedMessage id="parallelNum" />}
+          keyboard={true}
+          changeOnWheel
+          onChange={(v) => {
+            setWorker(v || 1)
+          }}
+        >
+        </InputNumber>,
+        <Button
+          disabled={start}
+          type="primary"
+          onClick={() => {
+            setData(helpMessage)
+            actions.execute({
+              nodeName: selectedNode,
+              recreate: recreate,
+              worker: worker,
+              ignoreError: ignoreError,
+            }).then(response => {
+              setJobName(response.jobName)
+            })
+            setStart(true)
+            setPercent(0)
+          }}
+        >
+          <FormattedMessage id="start" />
+        </Button>,
+      ]}
+    >
+      {jobName !== '' ? (
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          {start && <Spin style={{ marginRight: 16 }} />}
+          {fail ?
+            <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
+            <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
+          }
+        </div>
       ) : null}
-    </>
+      <Editor
+        height="calc(100vh - 200px)"
+        language="shell"
+        options={{
+          wordWrap: 'on',
+          readOnly: true,
+          theme: 'vs-light', // TODO dark mode
+          scrollBeyondLastLine: false,
+        }}
+        value={data}
+      />
+    </PageContainer>
   )
-})
+}
 
-export default BatchUpgradeModal
+
+export default BatchUpgradeDetail
 
 function getPodsUpgradeOfNode(node: string, podsForNode?: PodToUpgrade[]): Pod[] {
   const pods: Pod[] = []
