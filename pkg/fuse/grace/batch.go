@@ -122,6 +122,10 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 	if err := u.fetchPods(ctx, conn); err != nil {
 		return
 	}
+	if worker > common.MaxParallelUpgradeNum {
+		log.Info("worker number is too large, set to default", "worker", worker, "default", common.MaxParallelUpgradeNum)
+		worker = common.MaxParallelUpgradeNum
+	}
 	var (
 		limiter  = make(chan struct{}, worker)
 		resultCh = make(chan error)

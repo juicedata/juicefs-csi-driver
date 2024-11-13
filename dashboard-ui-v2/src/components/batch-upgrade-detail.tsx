@@ -154,6 +154,7 @@ const BatchUpgradeDetail = () => {
         <InputNumber
           style={{ width: '180px' }}
           min={1}
+          max={50}
           defaultValue={1}
           addonBefore={<FormattedMessage id="parallelNum" />}
           keyboard={true}
