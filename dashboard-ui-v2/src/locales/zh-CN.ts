@@ -101,6 +101,7 @@ export default {
   parallelNum: '并发数',
   ignoreError: '是否跳过失败任务',
   reset: '重置',
+  apply: '立即生效',
   action: '操作',
   image: '镜像',
   resources: '资源',

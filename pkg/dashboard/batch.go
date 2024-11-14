@@ -237,8 +237,8 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				if err == nil && job.DeletionTimestamp == nil {
 					s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							common.JfsUpgradeJobLabelKey:   common.JfsUpgradeJobLabelValue,
-							"batch.kubernetes.io/job-name": jobName,
+							common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
+							common.JfsUpgradePodLabelKey: jobName,
 						},
 					})
 					podList, err = api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
@@ -304,9 +304,10 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool)
 	if recreate {
 		recreateLabel = "true"
 	}
+	jobName := common.GenUpgradeJobName()
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.GenUpgradeJobName(),
+			Name:      jobName,
 			Namespace: sysNamespace,
 			Labels: map[string]string{
 				common.JfsUpgradeJobLabelKey:  common.JfsUpgradeJobLabelValue,
@@ -324,6 +325,7 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool)
 						common.JfsUpgradeJobLabelKey:  common.JfsUpgradeJobLabelValue,
 						common.JfsUpgradeNodeName:     nodeName,
 						common.JfsUpgradeRecreateName: recreateLabel,
+						common.JfsUpgradePodLabelKey:  jobName,
 					},
 				},
 				Spec: corev1.PodSpec{

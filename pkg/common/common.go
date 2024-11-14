@@ -90,6 +90,7 @@ const (
 	JfsUpgradeJobLabelValue = "juicefs-upgrade"
 	JfsUpgradeNodeName      = "juicefs-upgrade-node"
 	JfsUpgradeRecreateName  = "juicefs-upgrade-recreate"
+	JfsUpgradePodLabelKey   = "juicefs-job-name"
 )
 
 func GenUpgradeJobName() string {

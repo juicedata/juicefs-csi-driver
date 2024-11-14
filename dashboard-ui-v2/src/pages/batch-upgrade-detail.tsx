@@ -23,7 +23,7 @@ import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsoc
 import { Pod, Node } from 'kubernetes-types/core/v1'
 import { PodToUpgrade } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
-import { PageContainer } from '@ant-design/pro-components'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
 
 
 const helpMessage = `Click Start to perform a batch upgrade.
@@ -39,7 +39,7 @@ const BatchUpgradeDetail = () => {
   const [fail, setFail] = useState(false)
   const [data, setData] = useState<string>(helpMessage)
   const [percent, setPercent] = useState(Number)
-  const [selectedNode, setSelectedNode] = useState('')
+  const [selectedNode, setSelectedNode] = useState('All Nodes')
   const [recreate, setRecreate] = useState(false)
   const { data: podsToUpgrade } = usePodsToUpgrade(recreate, selectedNode)
   const { data: nodes } = useNodes()
@@ -53,6 +53,11 @@ const BatchUpgradeDetail = () => {
   useEffect(() => {
     setAllNodes(getAllNodes(nodes || []))
   }, [nodes])
+
+  useEffect(() => {
+    console.log('start: ', start)
+    console.log('jobName: ', jobName)
+  }, [start, jobName])
 
   useEffect(() => {
     if (job && (job.metadata?.name || '') !== '') {
@@ -103,7 +108,7 @@ const BatchUpgradeDetail = () => {
         }
       },
     },
-    start && jobName !== '',
+    jobName !== '',
   )
 
   const nodeItems = allNodes?.map((item, index) => ({
@@ -186,25 +191,29 @@ const BatchUpgradeDetail = () => {
       ]}
     >
       {jobName !== '' ? (
-        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          {start && <Spin style={{ marginRight: 16 }} />}
-          {fail ?
-            <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
-            <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
-          }
-        </div>
+        <ProCard>
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            {start && <Spin style={{ marginRight: 16 }} />}
+            {fail ?
+              <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
+              <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
+            }
+          </div>
+        </ProCard>
       ) : null}
-      <Editor
-        height="calc(100vh - 200px)"
-        language="shell"
-        options={{
-          wordWrap: 'on',
-          readOnly: true,
-          theme: 'vs-light', // TODO dark mode
-          scrollBeyondLastLine: false,
-        }}
-        value={data}
-      />
+      <ProCard>
+        <Editor
+          height="calc(100vh - 200px)"
+          language="shell"
+          options={{
+            wordWrap: 'on',
+            readOnly: true,
+            theme: 'vs-light', // TODO dark mode
+            scrollBeyondLastLine: false,
+          }}
+          value={data}
+        />
+      </ProCard>
     </PageContainer>
   )
 }
@@ -215,7 +224,7 @@ export default BatchUpgradeDetail
 function getPodsUpgradeOfNode(node: string, podsForNode?: PodToUpgrade[]): Pod[] {
   const pods: Pod[] = []
   podsForNode?.forEach((v) => {
-    if (v.node === node || node === 'All Nodes') {
+    if (v.node === node || node === 'All Nodes' || node === '') {
       pods.push(...v.pods)
     }
   })

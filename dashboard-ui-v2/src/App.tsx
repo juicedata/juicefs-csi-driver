@@ -24,7 +24,7 @@ import { SWRConfig } from 'swr'
 import { Layout, ResourceDetail, ResourceList } from '@/components'
 import ConfigDetail from '@/pages/config-detail'
 import { getBasePath, getHost } from '@/utils'
-import BatchUpgradeDetail from '@/components/batch-upgrade-detail.tsx'
+import BatchUpgradeDetail from '@/pages/batch-upgrade-detail.tsx'
 
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getHost()}${getBasePath()}${url}`, init)

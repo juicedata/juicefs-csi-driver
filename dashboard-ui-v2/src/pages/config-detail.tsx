@@ -92,6 +92,15 @@ const ConfigDetail = () => {
         >
           <FormattedMessage id="save" />
         </Button>,
+        <Button
+          type="primary"
+          disabled={!updated}
+          onClick={()=>{
+              window.location.href = `upgrade`
+          }}
+        >
+          <FormattedMessage id="apply"/>
+        </Button>
       ]}
     >
       <Editor

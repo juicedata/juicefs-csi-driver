@@ -110,6 +110,7 @@ export default {
   parallelNum: 'parallel Number',
   ignoreError: 'Ignore Error',
   reset: 'Reset',
+  apply: 'Apply',
   image: 'Image',
   resources: 'Resources',
   setting: 'Setting',
