@@ -1018,28 +1018,36 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 
 func (api *API) smoothUpgrade() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-
-		mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
-		if err != nil {
-			klog.Error("Failed to get mount pod: ", err)
-			return
-		}
-		recreate := c.Query("recreate")
-		podLog.Info("upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
-
-		csiNode, err := api.getCSINode(c, mountpod.Spec.NodeName)
-		if err != nil {
-			podLog.Error(err, "get csi node error", "node", mountpod.Spec.NodeName)
-			c.String(500, "get csi node error %v", err)
-			return
-		}
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
 			ctx, cancel := context.WithCancel(c.Request.Context())
 			defer cancel()
 			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+
+			namespace := c.Param("namespace")
+			name := c.Param("name")
+
+			mountpod, err := api.client.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+			if err != nil {
+				klog.Error("Failed to get mount pod: ", err)
+				_, _ = ws.Write([]byte("Failed to get mount pod: " + err.Error()))
+				return
+			}
+			recreate := c.Query("recreate")
+			podLog.Info("upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
+
+			csiNode, err := api.getCSINode(c, mountpod.Spec.NodeName)
+			if err != nil {
+				podLog.Error(err, "get csi node error", "node", mountpod.Spec.NodeName)
+				_, _ = ws.Write([]byte("get csi node error: " + err.Error()))
+				c.String(500, "get csi node error %v", err)
+				return
+			}
+			if csiNode == nil {
+				_, _ = ws.Write([]byte("csi node not found"))
+				c.String(404, "csi node not found")
+				return
+			}
 
 			podLog.Info("Start to upgrade juicefs-csi-driver", "pod", mountpod.Name, "recreate", recreate)
 			cmds := []string{"juicefs-csi-driver", "upgrade", mountpod.Name}
