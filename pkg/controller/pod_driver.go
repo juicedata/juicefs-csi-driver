@@ -791,8 +791,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	}
 	attr := setting.Attr
 	// update pod spec
-	pod.Labels = attr.Labels
-	pod.Annotations = attr.Annotations
+	pod.Labels, pod.Annotations = builder.GenMetadata(setting)
 	pod.Spec.HostAliases = attr.HostAliases
 	pod.Spec.HostNetwork = attr.HostNetwork
 	pod.Spec.HostPID = attr.HostPID
@@ -1048,6 +1047,33 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 			log.Error(err, "serve fuse fd error")
 		}
 	}
+
+	// exclude token volume
+	// sa token is bound by secret volume (<saName>-token-<random-suffix>) before k8s 1.22
+	// sa token will be bound by projected volume since k8s 1.22: https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-token-volume
+	newPod.Spec.Volumes = resource.FilterVars(
+		newPod.Spec.Volumes,
+		newPod.Spec.ServiceAccountName,
+		func(volume corev1.Volume) string {
+			saTokenPrefix := fmt.Sprintf("%s-token", newPod.Spec.ServiceAccountName)
+			if strings.HasPrefix(volume.Name, saTokenPrefix) {
+				return newPod.Spec.ServiceAccountName
+			}
+			return volume.Name
+		},
+	)
+	newPod.Spec.Containers[0].VolumeMounts = resource.FilterVars(
+		newPod.Spec.Containers[0].VolumeMounts,
+		newPod.Spec.ServiceAccountName,
+		func(volumeMount corev1.VolumeMount) string {
+			saTokenPrefix := fmt.Sprintf("%s-token", newPod.Spec.ServiceAccountName)
+			if strings.HasPrefix(volumeMount.Name, saTokenPrefix) {
+				return newPod.Spec.ServiceAccountName
+			}
+			return volumeMount.Name
+		},
+	)
+
 	err = mkrMp(ctx, *newPod)
 	if err != nil {
 		log.Error(err, "mkdir mount point of pod")

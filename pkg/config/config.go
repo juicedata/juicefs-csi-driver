@@ -218,8 +218,11 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
 	if mpp.PVCSelector.MatchName != "" && mpp.PVCSelector.MatchName != pvc.Name {
 		return false
 	}
-	if mpp.PVCSelector.MatchStorageClassName != "" && pvc.Spec.StorageClassName != nil && mpp.PVCSelector.MatchStorageClassName != *pvc.Spec.StorageClassName {
-		return false
+	if mpp.PVCSelector.MatchStorageClassName != "" {
+		if pvc.Spec.StorageClassName == nil {
+			return false
+		}
+		return *pvc.Spec.StorageClassName == mpp.PVCSelector.MatchStorageClassName
 	}
 	selector, err := metav1.LabelSelectorAsSelector(&mpp.PVCSelector.LabelSelector)
 	if err != nil {

@@ -534,25 +534,38 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 			}
 		}
 	}
-	pv, err := client.GetPersistentVolume(ctx, pvName)
+	var (
+		pv      *corev1.PersistentVolume
+		pvc     *corev1.PersistentVolumeClaim
+		options []string
+		subPath string
+		err     error
+	)
+	pv, err = client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
 		log.Error(err, "Get pv error", "pv", pvName)
-		return nil, err
 	}
-	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
-	if err != nil {
-		log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
-		return nil, err
+	if pv != nil {
+		options = pv.Spec.MountOptions
+		if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
+			subPath = v
+		}
+		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+		if err != nil {
+			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
+		}
+		if pvc != nil {
+			cpuLimit := pvc.Annotations[common.MountPodCpuLimitKey]
+			memoryLimit := pvc.Annotations[common.MountPodMemLimitKey]
+			cpuRequest := pvc.Annotations[common.MountPodCpuRequestKey]
+			memoryRequest := pvc.Annotations[common.MountPodMemRequestKey]
+			resources, err := ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
+			if err != nil {
+				return nil, fmt.Errorf("parse pvc resources error: %v", err)
+			}
+			attr.Resources = resources
+		}
 	}
-	cpuLimit := pvc.Annotations[common.MountPodCpuLimitKey]
-	memoryLimit := pvc.Annotations[common.MountPodMemLimitKey]
-	cpuRequest := pvc.Annotations[common.MountPodCpuRequestKey]
-	memoryRequest := pvc.Annotations[common.MountPodMemRequestKey]
-	resources, err := ParsePodResources(cpuLimit, memoryLimit, cpuRequest, memoryRequest)
-	if err != nil {
-		return nil, fmt.Errorf("parse pvc resources error: %v", err)
-	}
-	attr.Resources = resources
 	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {
 		return nil, err
@@ -564,11 +577,11 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		PVC:       pvc,
 		Name:      mountPod.Annotations[common.JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[common.UniqueId],
-		Options:   pv.Spec.MountOptions,
+		Options:   options,
+		UUID:      mountPod.Annotations[common.JuiceFSUUID],
+		UniqueId:  mountPod.Annotations[common.UniqueId],
 		MountPath: mntPath,
-	}
-	if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
-		setting.SubPath = v
+		SubPath:   subPath,
 	}
 	setting.Attr = attr
 	// apply config patch
@@ -815,6 +828,19 @@ func applyConfigPatch(setting *JfsSetting) {
 		}
 	}
 	setting.Options = newOptions
+
+	if delay, ok := attr.Annotations[common.DeleteDelayTimeKey]; ok {
+		if _, err := time.ParseDuration(delay); err != nil {
+			log.Error(err, "can't parse delay time", "delay", delay)
+		} else {
+			setting.DeletedDelay = attr.Annotations[common.DeleteDelayTimeKey]
+		}
+		delete(attr.Annotations, common.DeleteDelayTimeKey)
+	}
+	if v, ok := attr.Annotations[common.CleanCacheKey]; ok {
+		setting.CleanCache = v == "true"
+		delete(attr.Annotations, common.CleanCacheKey)
+	}
 }
 
 // IsCEMountPod check if the pod is a mount pod of CE

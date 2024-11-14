@@ -595,6 +595,37 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "Mismatch Storage Class Name with pvc nil sc",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "wrong-sc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Mismatch Storage Class Name with pvc empty sc",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "wrong-sc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: toPtr(""),
+				},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range testCases {
