@@ -26,7 +26,7 @@ ENV JFSCHAN=${JFSCHAN}
 
 RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then apt update && apt install -y software-properties-common wget gnupg gnupg2 && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-19.2.0/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    echo deb https://download.ceph.com/debian-16.2.15/dists/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client && \

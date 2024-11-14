@@ -26,7 +26,7 @@ RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && 
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-19.2.0/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    echo deb https://download.ceph.com/debian-16.2.15/dists/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
 WORKDIR /workspace
@@ -49,7 +49,7 @@ RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && 
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-19.2.0/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    echo deb https://download.ceph.com/debian-16.2.15/dists/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 RUN mkdir /var/run/sshd
 
