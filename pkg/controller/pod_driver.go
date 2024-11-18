@@ -791,7 +791,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		log.Error(err, "gen setting error")
 		return err
 	}
-	if setting.Name != "" {
+	if setting.Source != "" {
 		// regenerate pod spec
 		podBuilder := builder.NewPodBuilder(setting, 0)
 		newPod, err := podBuilder.NewMountPod(pod.Name)
@@ -830,10 +830,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	pod.Spec.Containers[0].Image = attr.Image
 	pod.Spec.Containers[0].Resources = attr.Resources
 
-	if len(setting.Attr.CacheDirs) > 0 {
-		if err := config.GenCacheDirs(setting, nil); err != nil {
-			return err
-		}
+	if err := config.GenCacheDirs(setting, nil); err != nil {
+		return err
 	}
 	resource.MergeEnvs(pod, attr.Env)
 	resource.MergeMountOptions(pod, setting)
