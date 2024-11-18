@@ -126,11 +126,13 @@ func TestGenMetadata(t *testing.T) {
 				},
 				UUID:     "uuid1",
 				UniqueId: "unique1",
+				HashVal:  "hash1",
 			},
 			wantLabels: map[string]string{
-				"label1":                   "value1",
-				common.PodTypeKey:          common.PodTypeValue,
-				common.PodUniqueIdLabelKey: "unique1",
+				"label1":                    "value1",
+				common.PodTypeKey:           common.PodTypeValue,
+				common.PodUniqueIdLabelKey:  "unique1",
+				common.PodJuiceHashLabelKey: "hash1",
 			},
 			wantAnnotations: map[string]string{
 				"annotation1":             "value1",
@@ -150,10 +152,12 @@ func TestGenMetadata(t *testing.T) {
 				},
 				UUID:     "uuid3",
 				UniqueId: "unique3",
+				HashVal:  "hash1",
 			},
 			wantLabels: map[string]string{
-				common.PodTypeKey:          common.PodTypeValue,
-				common.PodUniqueIdLabelKey: "unique3",
+				common.PodTypeKey:           common.PodTypeValue,
+				common.PodUniqueIdLabelKey:  "unique3",
+				common.PodJuiceHashLabelKey: "hash1",
 			},
 			wantAnnotations: map[string]string{
 				common.JuiceFSUUID: "uuid3",

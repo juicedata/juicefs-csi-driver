@@ -18,6 +18,8 @@ package config
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -29,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -82,6 +85,15 @@ type JfsSetting struct {
 
 	PV  *corev1.PersistentVolume      `json:"-"`
 	PVC *corev1.PersistentVolumeClaim `json:"-"`
+}
+
+func (s *JfsSetting) String() string {
+	data, _ := json.Marshal(s)
+	return string(data)
+}
+
+func (s *JfsSetting) Load(str string) error {
+	return json.Unmarshal([]byte(str), s)
 }
 
 type PodAttr struct {
@@ -492,6 +504,27 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 // 2. pvc annotations
 // 3. global config
 func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) (*JfsSetting, error) {
+	secretName := fmt.Sprintf("juicefs-%s-secret", mountPod.Labels[common.PodUniqueIdLabelKey])
+	secret, err := client.GetSecret(ctx, secretName, mountPod.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	secretsMap := make(map[string]string)
+	for k, v := range secret.Data {
+		secretsMap[k] = string(v[:])
+	}
+	if secretsMap["jfsSettings"] != "" {
+		setting := &JfsSetting{}
+		if err = setting.Load(secretsMap["jfsSettings"]); err != nil {
+			return nil, err
+		}
+		// apply config patch
+		applyConfigPatch(setting)
+		setting.ClientConfPath = DefaultClientConfPath
+		setting.HashVal = GenHashOfSetting(log, *setting)
+		return setting, nil
+	}
+
 	attr := &PodAttr{
 		Namespace:            mountPod.Namespace,
 		MountPointPath:       MountPointPath,
@@ -539,7 +572,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		pvc     *corev1.PersistentVolumeClaim
 		options []string
 		subPath string
-		err     error
 	)
 	pv, err = client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
@@ -866,4 +898,17 @@ func getPVNameFromTarget(target string) string {
 		return ""
 	}
 	return pvName[:index]
+}
+
+func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
+	// target path should not affect hash val
+	setting.TargetPath = ""
+	setting.VolumeId = ""
+	setting.SubPath = ""
+	settingStr, _ := json.Marshal(setting)
+	h := sha256.New()
+	h.Write(settingStr)
+	val := hex.EncodeToString(h.Sum(nil))[:63]
+	log.V(1).Info("get jfsSetting hash", "hashVal", val)
+	return val
 }

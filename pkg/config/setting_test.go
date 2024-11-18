@@ -24,9 +24,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -1274,6 +1276,36 @@ func Test_applyConfigPatch(t *testing.T) {
 			GlobalConfig.MountPodPatch = []MountPodPatch{tt.args.patch}
 			applyConfigPatch(tt.args.setting)
 			assert.Equal(t, tt.want, tt.args.setting)
+		})
+	}
+}
+func TestGenHashOfSetting(t *testing.T) {
+	type args struct {
+		setting JfsSetting
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				setting: JfsSetting{
+					Name: "test",
+				},
+			},
+			want:    "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GenHashOfSetting(klog.NewKlogr(), tt.args.setting)
+			if got != tt.want {
+				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

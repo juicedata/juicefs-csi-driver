@@ -66,6 +66,7 @@ fi
 
 func (r *BaseBuilder) NewSecret() corev1.Secret {
 	data := make(map[string]string)
+	data["jfsSettings"] = r.jfsSetting.String()
 	if r.jfsSetting.MetaUrl != "" {
 		data["metaurl"] = r.jfsSetting.MetaUrl
 	}
@@ -110,6 +111,33 @@ func (r *BaseBuilder) NewSecret() corev1.Secret {
 		StringData: data,
 	}
 	return secret
+}
+
+func (r *BaseBuilder) GetEnvKey() []string {
+	keys := []string{}
+	if r.jfsSetting.MetaUrl != "" {
+		keys = append(keys, "metaurl")
+	}
+	if r.jfsSetting.SecretKey != "" {
+		keys = append(keys, "secretkey")
+	}
+	if r.jfsSetting.SecretKey2 != "" {
+		keys = append(keys, "secretkey2")
+	}
+	if r.jfsSetting.Token != "" {
+		keys = append(keys, "token")
+	}
+	if r.jfsSetting.Passphrase != "" {
+		keys = append(keys, "passphrase")
+	}
+	if strings.Contains(r.jfsSetting.FormatOptions, "session-token") {
+		keys = append(keys, "session-token")
+	}
+
+	for k := range r.jfsSetting.Envs {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func SetPodAsOwner(secret *corev1.Secret, owner corev1.Pod) {

@@ -18,9 +18,6 @@ package mount
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -64,7 +61,7 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
 	p.log = util.GenLog(ctx, p.log, "JMount")
-	hashVal := GenHashOfSetting(p.log, *jfsSetting)
+	hashVal := jfsConfig.GenHashOfSetting(p.log, *jfsSetting)
 	jfsSetting.HashVal = hashVal
 	var podName string
 	var err error
@@ -227,7 +224,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				passfd.GlobalFds.StopFd(ctx, po.Labels[common.PodJuiceHashLabelKey])
+				passfd.GlobalFds.StopFd(ctx, po)
 			}
 
 			// delete related secret
@@ -390,7 +387,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					return err
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				newPod.Labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
 					nodeSelector := map[string]string{
 						"kubernetes.io/hostname": newPod.Spec.NodeName,
@@ -415,7 +411,8 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
+					newPod.Labels[common.PodUpgradeHashLabelKey] = jfsSetting.HashVal
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
 				}
@@ -455,11 +452,15 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	if err == nil {
 		return nil
 	}
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
+	if err != nil {
+		return err
+	}
 	if util.SupportFusePass(jfsSetting.Attr.Image) {
 		logger.Error(err, "pod is not ready within 60s")
 		// mount pod hang probably, close fd
 		logger.Info("close fuse fd")
-		passfd.GlobalFds.CloseFd(jfsSetting.HashVal)
+		passfd.GlobalFds.CloseFd(pod)
 		// umount it
 		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
 			util.UmountPath(ctx, jfsSetting.MountPath)
@@ -742,17 +743,4 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 		return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
 	}
 	return fmt.Sprintf("juicefs-%s-%s-%s", jfsConfig.NodeName, uniqueId, util.RandStringRunes(6))
-}
-
-func GenHashOfSetting(log klog.Logger, setting jfsConfig.JfsSetting) string {
-	// target path should not affect hash val
-	setting.TargetPath = ""
-	setting.VolumeId = ""
-	setting.SubPath = ""
-	settingStr, _ := json.Marshal(setting)
-	h := sha256.New()
-	h.Write(settingStr)
-	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val)
-	return val
 }

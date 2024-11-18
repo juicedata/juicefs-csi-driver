@@ -521,3 +521,13 @@ func CanUpgrade(pod corev1.Pod, recreate bool) bool {
 	// check status
 	return IsPodReady(&pod)
 }
+
+func GetUpgradeHash(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	if pod.Labels[common.PodUpgradeHashLabelKey] != "" {
+		return pod.Labels[common.PodUpgradeHashLabelKey]
+	}
+	return pod.Labels[common.PodJuiceHashLabelKey]
+}

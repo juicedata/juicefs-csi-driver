@@ -142,12 +142,13 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 }
 
 type PodUpgrade struct {
-	client   *k8s.K8sClient
-	pod      *corev1.Pod
-	recreate bool
-	ce       bool
-	hashVal  string
-	status   podUpgradeStatus
+	client      *k8s.K8sClient
+	pod         *corev1.Pod
+	recreate    bool
+	ce          bool
+	hashVal     string
+	upgradeHash string
+	status      podUpgradeStatus
 }
 
 type podUpgradeStatus string
@@ -176,11 +177,12 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 	}
 	log.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
 	pu := &PodUpgrade{
-		client:   client,
-		pod:      mountPod,
-		recreate: recreate,
-		ce:       ce,
-		hashVal:  hashVal,
+		client:      client,
+		pod:         mountPod,
+		recreate:    recreate,
+		ce:          ce,
+		hashVal:     hashVal,
+		upgradeHash: resource.GetUpgradeHash(mountPod),
 	}
 	return pu, nil
 }
@@ -252,8 +254,6 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, err
 	}
 
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-
 	// get pid and sid from <mountpoint>/.config
 	msg := "get pid from config"
 	sendMessage(conn, msg)
@@ -293,7 +293,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 
 		// update sid
 		if p.ce {
-			passfd.GlobalFds.UpdateSid(hashVal, jfsConf.Meta.Sid)
+			passfd.GlobalFds.UpdateSid(p.pod, jfsConf.Meta.Sid)
 			log.V(1).Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
 			sendMessage(conn, fmt.Sprintf("sid in mount pod: %d", jfsConf.Meta.Sid))
 		}

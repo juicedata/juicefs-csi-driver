@@ -251,7 +251,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 			return Result{}, err
 		}
 		// get sid
-		sid := passfd.GlobalFds.GetSid(hashVal)
+		sid := passfd.GlobalFds.GetSid(pod)
 		if sid != 0 {
 			env := []corev1.EnvVar{}
 			oldEnv := newPod.Spec.Containers[0].Env
@@ -431,7 +431,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
 		// stop fuse fd and clean up socket
-		go passfd.GlobalFds.StopFd(context.TODO(), hashVal)
+		go passfd.GlobalFds.StopFd(context.TODO(), pod)
 	}
 
 	// create
@@ -446,6 +446,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		})
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err == nil {
+			log.Info("Create new pod", "resource", newPod.Spec.Containers[0].Resources)
 			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				log.Error(err, "Create pod")
@@ -558,7 +559,6 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	}
 
 	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
-	podHashVal := pod.Labels[common.PodJuiceHashLabelKey]
 
 	lock := config.GetPodLock(config.GetPodLockKey(pod))
 	lock.Lock()
@@ -570,7 +570,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			log.Error(err, "pod is not ready within 60s")
 			// mount pod hang probably, close fd and delete it
 			log.Info("close fd and delete pod")
-			passfd.GlobalFds.CloseFd(podHashVal)
+			passfd.GlobalFds.CloseFd(pod)
 			// umount it
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
 				util.UmountPath(ctx, mntPath)
@@ -785,9 +785,32 @@ func (p *PodDriver) CleanUpCache(ctx context.Context, pod *corev1.Pod) {
 }
 
 func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error {
+	log := util.GenLog(ctx, podDriverLog, "applyConfigPatch")
 	setting, err := config.GenSettingAttrWithMountPod(ctx, p.Client, pod)
 	if err != nil {
+		log.Error(err, "gen setting error")
 		return err
+	}
+	if setting.Name != "" {
+		// regenerate pod spec
+		podBuilder := builder.NewPodBuilder(setting, 0)
+		newPod, err := podBuilder.NewMountPod(pod.Name)
+		if err != nil {
+			return err
+		}
+		for k, v := range pod.Annotations {
+			if k == util.GetReferenceKey(v) {
+				newPod.Annotations[k] = v
+			}
+		}
+		newPod.Labels[common.PodUpgradeHashLabelKey] = resource.GetUpgradeHash(pod)
+		newPod.Spec.Affinity = pod.Spec.Affinity
+		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
+		newPod.Spec.Tolerations = pod.Spec.Tolerations
+		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
+		pod.Spec = newPod.Spec
+		pod.ObjectMeta = newPod.ObjectMeta
+		return nil
 	}
 	attr := setting.Attr
 	// update pod spec
@@ -982,7 +1005,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi
-			passfd.GlobalFds.StopFd(ctx, hashVal)
+			passfd.GlobalFds.StopFd(ctx, pod)
 		}
 		// umount mount point before recreate mount pod
 		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
@@ -1043,7 +1066,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		)
 
 		// start fd in csi
-		if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
+		if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 			log.Error(err, "serve fuse fd error")
 		}
 	}

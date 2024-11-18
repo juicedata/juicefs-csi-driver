@@ -669,7 +669,7 @@ func TestWaitUntilMount(t *testing.T) {
 				K8sClient:          &k8sclient.K8sClient{Interface: fakeClientSet},
 			}
 			if tt.pod != nil {
-				hashVal := GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
+				hashVal := jfsConfig.GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
 				tt.args.jfsSetting.HashVal = hashVal
 				tt.pod.Labels = map[string]string{
 					common.PodTypeKey:           common.PodTypeValue,
@@ -854,37 +854,6 @@ func TestGetRef(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetRef(tt.args.pod); got != tt.want {
 				t.Errorf("HasRef() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGenHashOfSetting(t *testing.T) {
-	type args struct {
-		setting jfsConfig.JfsSetting
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "test",
-			args: args{
-				setting: jfsConfig.JfsSetting{
-					Name: "test",
-				},
-			},
-			want:    "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GenHashOfSetting(klog.NewKlogr(), tt.args.setting)
-			if got != tt.want {
-				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
