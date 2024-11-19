@@ -40,9 +40,10 @@ import (
 )
 
 type JfsSetting struct {
-	HashVal string `json:"-"`
-	IsCe    bool
-	UsePod  bool
+	HashVal        string `json:"-"`
+	UpgradeHashVal string `json:"-"`
+	IsCe           bool
+	UsePod         bool
 
 	UUID               string
 	Name               string               `json:"name"`
@@ -504,6 +505,38 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 // 2. pvc annotations
 // 3. global config
 func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) (*JfsSetting, error) {
+	pvName := mountPod.Annotations[common.UniqueId]
+
+	// in `STORAGE_CLASS_SHARE_MOUNT` mode, the uniqueId is the storageClass name
+	// parse mountpod ref annotation to get the real pv name
+	// maybe has multiple pv, we need to get the first one
+	if StorageClassShareMount {
+		for _, target := range mountPod.Annotations {
+			if v := getPVNameFromTarget(target); v != "" {
+				pvName = v
+				break
+			}
+		}
+	}
+	var (
+		pv      *corev1.PersistentVolume
+		pvc     *corev1.PersistentVolumeClaim
+		options []string
+		subPath string
+		err     error
+	)
+	pv, err = client.GetPersistentVolume(ctx, pvName)
+	if err != nil {
+		log.Error(err, "Get pv error", "pv", pvName)
+	}
+	if pv != nil {
+		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
+		if err != nil {
+			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
+		}
+	}
+
+	// get settings from secret
 	secretName := fmt.Sprintf("juicefs-%s-secret", mountPod.Labels[common.PodUniqueIdLabelKey])
 	secret, err := client.GetSecret(ctx, secretName, mountPod.Namespace)
 	if err != nil {
@@ -522,6 +555,10 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
 		setting.HashVal = GenHashOfSetting(log, *setting)
+		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
+
+		setting.PV = pv
+		setting.PVC = pvc
 		return setting, nil
 	}
 
@@ -554,37 +591,10 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	for k, v := range mountPod.Annotations {
 		attr.Annotations[k] = v
 	}
-	pvName := mountPod.Annotations[common.UniqueId]
-
-	// in `STORAGE_CLASS_SHARE_MOUNT` mode, the uniqueId is the storageClass name
-	// parse mountpod ref annotation to get the real pv name
-	// maybe has multiple pv, we need to get the first one
-	if StorageClassShareMount {
-		for _, target := range mountPod.Annotations {
-			if v := getPVNameFromTarget(target); v != "" {
-				pvName = v
-				break
-			}
-		}
-	}
-	var (
-		pv      *corev1.PersistentVolume
-		pvc     *corev1.PersistentVolumeClaim
-		options []string
-		subPath string
-	)
-	pv, err = client.GetPersistentVolume(ctx, pvName)
-	if err != nil {
-		log.Error(err, "Get pv error", "pv", pvName)
-	}
 	if pv != nil {
 		options = pv.Spec.MountOptions
 		if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 			subPath = v
-		}
-		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
-		if err != nil {
-			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		}
 		if pvc != nil {
 			cpuLimit := pvc.Annotations[common.MountPodCpuLimitKey]
@@ -614,6 +624,11 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		UniqueId:  mountPod.Annotations[common.UniqueId],
 		MountPath: mntPath,
 		SubPath:   subPath,
+		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
+	}
+	setting.UpgradeHashVal = mountPod.Labels[common.PodJuiceHashLabelKey]
+	if mountPod.Labels[common.PodUpgradeHashLabelKey] != "" {
+		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
 	}
 	setting.Attr = attr
 	// apply config patch

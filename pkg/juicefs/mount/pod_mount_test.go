@@ -715,6 +715,10 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 				return true
 			})
 			defer patch4.Reset()
+			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+				return nil
+			})
+			defer patch.Reset()
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{

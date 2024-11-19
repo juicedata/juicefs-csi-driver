@@ -803,9 +803,6 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 				newPod.Annotations[k] = v
 			}
 		}
-		if util.SupportFusePass(newPod.Spec.Containers[0].Image) {
-			newPod.Labels[common.PodUpgradeHashLabelKey] = resource.GetUpgradeHash(pod)
-		}
 		newPod.Spec.Affinity = pod.Spec.Affinity
 		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
 		newPod.Spec.Tolerations = pod.Spec.Tolerations

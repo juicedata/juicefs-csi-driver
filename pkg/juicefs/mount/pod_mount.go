@@ -63,6 +63,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	p.log = util.GenLog(ctx, p.log, "JMount")
 	hashVal := jfsConfig.GenHashOfSetting(p.log, *jfsSetting)
 	jfsSetting.HashVal = hashVal
+	jfsSetting.UpgradeHashVal = hashVal
 	var podName string
 	var err error
 
@@ -325,7 +326,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 			continue
 		}
 		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal {
-			for k, v := range pod.Annotations {
+			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
 					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
 					if err := resource.DelPodAnnotation(ctx, p.K8sClient, &po, []string{k}); err != nil {
@@ -411,7 +412,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					newPod.Labels[common.PodUpgradeHashLabelKey] = jfsSetting.HashVal
 					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
