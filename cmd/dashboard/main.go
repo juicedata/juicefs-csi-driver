@@ -42,14 +42,19 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	// Initialize a logger for the controller runtime
+	ctrllog.SetLogger(klog.NewKlogr())
+	// To disable controller runtime logging, instead set the null logger:
+	//log.SetLogger(logr.New(log.NullLogSink{}))
 }
 
 const (
