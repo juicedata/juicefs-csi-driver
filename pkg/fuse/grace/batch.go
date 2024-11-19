@@ -84,11 +84,12 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 		}
 		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
 		pu := &PodUpgrade{
-			client:   u.client,
-			pod:      &po,
-			recreate: u.recreate,
-			ce:       ce,
-			hashVal:  pod.Labels[common.PodJuiceHashLabelKey],
+			client:      u.client,
+			pod:         &po,
+			recreate:    u.recreate,
+			ce:          ce,
+			hashVal:     pod.Labels[common.PodJuiceHashLabelKey],
+			upgradeHash: resource.GetUpgradeHash(&po),
 		}
 		u.podsToUpgrade = append(u.podsToUpgrade, pu)
 	}

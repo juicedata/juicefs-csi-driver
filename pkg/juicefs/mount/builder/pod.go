@@ -65,7 +65,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 
 	// inject fuse fd
 	if podName != "" && util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		fdAddress, err := passfd.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.HashVal)
+		fdAddress, err := passfd.GlobalFds.GetFdAddress(context.TODO(), r.jfsSetting.UpgradeHashVal)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +259,7 @@ func (r *PodBuilder) genPodVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 			Name: config.JfsFuseFdPathName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path.Join(common.JfsFuseFsPathInHost, r.jfsSetting.HashVal),
+					Path: path.Join(common.JfsFuseFsPathInHost, r.jfsSetting.UpgradeHashVal),
 					Type: &dir,
 				},
 			},
