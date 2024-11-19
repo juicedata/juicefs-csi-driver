@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -551,14 +552,13 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if err = setting.Load(secretsMap["jfsSettings"]); err != nil {
 			return nil, err
 		}
+		setting.PV = pv
+		setting.PVC = pvc
 		// apply config patch
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
 		setting.HashVal = GenHashOfSetting(log, *setting)
 		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
-
-		setting.PV = pv
-		setting.PVC = pvc
 		return setting, nil
 	}
 
@@ -920,10 +920,12 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	setting.TargetPath = ""
 	setting.VolumeId = ""
 	setting.SubPath = ""
+	// in Publish, setting hash is calculated before mountPath is set correctly. Set it as the same as Publish
+	setting.MountPath = filepath.Join(PodMountBase, setting.UniqueId)
 	settingStr, _ := json.Marshal(setting)
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val)
+	log.V(1).Info("get jfsSetting hash", "hashVal", val, "setting", setting)
 	return val
 }

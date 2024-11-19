@@ -352,17 +352,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	log.V(1).Info("mount pod", "podName", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
-	// mkdir mountpath
-	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
-		if !exist {
-			return os.MkdirAll(jfsSetting.MountPath, 0777)
-		}
-		return nil
-	})
-	if err != nil {
-		return
-	}
 
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
@@ -372,14 +361,28 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer waitCancel()
 	for {
+		var (
+			oldPod *corev1.Pod
+		)
 		// wait for old pod deleted
-		oldPod, err := p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
+		oldPod, err = p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			log.V(1).Info("wait for old mount pod deleted.", "podName", podName)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
+				// mkdir mountpath
+				err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+					exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
+					if !exist {
+						return os.MkdirAll(jfsSetting.MountPath, 0777)
+					}
+					return nil
+				})
+				if err != nil {
+					return
+				}
 				// pod not exist, create
 				log.Info("Need to create pod", "podName", podName)
 				newPod, err := r.NewMountPod(podName)
@@ -433,7 +436,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 			return err
 		}
 		// pod exist, add refs
-		if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+		if err = p.createOrUpdateSecret(ctx, &secret); err != nil {
 			return err
 		}
 		// update mount path
