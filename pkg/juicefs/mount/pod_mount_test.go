@@ -610,6 +610,7 @@ func TestWaitUntilMount(t *testing.T) {
 				cmd: "/local/bin/juicefs.mount test",
 				jfsSetting: &jfsConfig.JfsSetting{
 					VolumeId:   "h",
+					UniqueId:   "h",
 					TargetPath: "/mnt/hhh",
 					MountPath:  "/mnt/hhh",
 					Attr:       &jfsConfig.PodAttr{},
@@ -624,6 +625,7 @@ func TestWaitUntilMount(t *testing.T) {
 			args: args{
 				jfsSetting: &jfsConfig.JfsSetting{
 					VolumeId:   "g",
+					UniqueId:   "g",
 					TargetPath: "/mnt/ggg",
 					MountPath:  "/mnt/ggg",
 					Attr:       &jfsConfig.PodAttr{},
@@ -671,11 +673,9 @@ func TestWaitUntilMount(t *testing.T) {
 			if tt.pod != nil {
 				hashVal := jfsConfig.GenHashOfSetting(klog.NewKlogr(), *tt.args.jfsSetting)
 				tt.args.jfsSetting.HashVal = hashVal
-				tt.pod.Labels = map[string]string{
-					common.PodTypeKey:           common.PodTypeValue,
-					common.PodUniqueIdLabelKey:  tt.args.jfsSetting.UniqueId,
-					common.PodJuiceHashLabelKey: hashVal,
-				}
+				tt.pod.Labels[common.PodTypeKey] = common.PodTypeValue
+				tt.pod.Labels[common.PodUniqueIdLabelKey] = tt.args.jfsSetting.VolumeId
+				tt.pod.Labels[common.PodJuiceHashLabelKey] = hashVal
 				tt.pod.Spec.NodeName = jfsConfig.NodeName
 				_, _ = p.K8sClient.CreatePod(context.TODO(), tt.pod)
 			}
