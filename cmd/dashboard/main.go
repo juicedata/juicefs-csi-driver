@@ -32,9 +32,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
-	zaplogfmt "github.com/sykesm/zap-logfmt"
-	uzap "go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -46,7 +43,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
@@ -56,23 +52,7 @@ func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	// Initialize a logger for the controller runtime
-	leveler := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		// Set the level fairly high since it's so verbose
-		return level >= zapcore.DPanicLevel
-	})
-	stackTraceLeveler := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		// Attempt to suppress the stack traces in the logs since they are so verbose.
-		// The controller runtime seems to ignore this since the stack is still always printed.
-		return false
-	})
-	logfmtEncoder := zaplogfmt.NewEncoder(uzap.NewProductionEncoderConfig())
-	logger := zap.New(
-		zap.Level(leveler),
-		zap.StacktraceLevel(stackTraceLeveler),
-		zap.UseDevMode(false),
-		zap.WriteTo(os.Stdout),
-		zap.Encoder(logfmtEncoder))
-	ctrllog.SetLogger(logger)
+	ctrllog.SetLogger(klog.NewKlogr())
 	// To disable controller runtime logging, instead set the null logger:
 	//log.SetLogger(logr.New(log.NullLogSink{}))
 }
