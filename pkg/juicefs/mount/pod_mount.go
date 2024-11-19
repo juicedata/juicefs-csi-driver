@@ -18,9 +18,6 @@ package mount
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -64,8 +61,9 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
 	p.log = util.GenLog(ctx, p.log, "JMount")
-	hashVal := GenHashOfSetting(p.log, *jfsSetting)
+	hashVal := jfsConfig.GenHashOfSetting(p.log, *jfsSetting)
 	jfsSetting.HashVal = hashVal
+	jfsSetting.UpgradeHashVal = hashVal
 	var podName string
 	var err error
 
@@ -227,7 +225,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 
 			// close socket
 			if util.SupportFusePass(po.Spec.Containers[0].Image) {
-				passfd.GlobalFds.StopFd(ctx, po.Labels[common.PodJuiceHashLabelKey])
+				passfd.GlobalFds.StopFd(ctx, po)
 			}
 
 			// delete related secret
@@ -328,7 +326,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 			continue
 		}
 		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal {
-			for k, v := range pod.Annotations {
+			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
 					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
 					if err := resource.DelPodAnnotation(ctx, p.K8sClient, &po, []string{k}); err != nil {
@@ -354,17 +352,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	log.V(1).Info("mount pod", "podName", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
-	// mkdir mountpath
-	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
-		if !exist {
-			return os.MkdirAll(jfsSetting.MountPath, 0777)
-		}
-		return nil
-	})
-	if err != nil {
-		return
-	}
 
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
@@ -374,14 +361,28 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer waitCancel()
 	for {
+		var (
+			oldPod *corev1.Pod
+		)
 		// wait for old pod deleted
-		oldPod, err := p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
+		oldPod, err = p.K8sClient.GetPod(waitCtx, podName, jfsConfig.Namespace)
 		if err == nil && oldPod.DeletionTimestamp != nil {
 			log.V(1).Info("wait for old mount pod deleted.", "podName", podName)
 			time.Sleep(time.Millisecond * 500)
 			continue
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
+				// mkdir mountpath
+				err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
+					exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
+					if !exist {
+						return os.MkdirAll(jfsSetting.MountPath, 0777)
+					}
+					return nil
+				})
+				if err != nil {
+					return
+				}
 				// pod not exist, create
 				log.Info("Need to create pod", "podName", podName)
 				newPod, err := r.NewMountPod(podName)
@@ -390,7 +391,6 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					return err
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
-				newPod.Labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
 					nodeSelector := map[string]string{
 						"kubernetes.io/hostname": newPod.Spec.NodeName,
@@ -415,7 +415,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod.Labels[common.PodJuiceHashLabelKey]); err != nil {
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 						log.Error(err, "serve fuse fd error")
 					}
 				}
@@ -436,7 +436,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 			return err
 		}
 		// pod exist, add refs
-		if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+		if err = p.createOrUpdateSecret(ctx, &secret); err != nil {
 			return err
 		}
 		// update mount path
@@ -455,11 +455,15 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	if err == nil {
 		return nil
 	}
+	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
+	if err != nil {
+		return err
+	}
 	if util.SupportFusePass(jfsSetting.Attr.Image) {
 		logger.Error(err, "pod is not ready within 60s")
 		// mount pod hang probably, close fd
 		logger.Info("close fuse fd")
-		passfd.GlobalFds.CloseFd(jfsSetting.HashVal)
+		passfd.GlobalFds.CloseFd(pod)
 		// umount it
 		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
 			util.UmountPath(ctx, jfsSetting.MountPath)
@@ -742,17 +746,4 @@ func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {
 		return fmt.Sprintf("juicefs-%s-%s", jfsConfig.NodeName, uniqueId)
 	}
 	return fmt.Sprintf("juicefs-%s-%s-%s", jfsConfig.NodeName, uniqueId, util.RandStringRunes(6))
-}
-
-func GenHashOfSetting(log klog.Logger, setting jfsConfig.JfsSetting) string {
-	// target path should not affect hash val
-	setting.TargetPath = ""
-	setting.VolumeId = ""
-	setting.SubPath = ""
-	settingStr, _ := json.Marshal(setting)
-	h := sha256.New()
-	h.Write(settingStr)
-	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val)
-	return val
 }

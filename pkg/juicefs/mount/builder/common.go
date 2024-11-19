@@ -96,14 +96,22 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	volumes, volumeMounts := r._genJuiceVolumes()
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
-	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
-		SecretRef: &corev1.SecretEnvSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: r.jfsSetting.SecretName,
-			},
-		},
-	}}
 	pod.Spec.Containers[0].Env = r.jfsSetting.Attr.Env
+	// set env key from secret
+	for _, key := range r.GetEnvKey() {
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name: key,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: r.jfsSetting.SecretName,
+					},
+					Key: key,
+				},
+			},
+		})
+	}
+
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
 	// if image support passFd from csi, do not set umount preStop
 	if r.jfsSetting.Attr.Lifecycle == nil {
@@ -279,6 +287,8 @@ func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annot
 	// inter labels & annotations
 	annotations[common.JuiceFSUUID] = jfsSetting.UUID
 	annotations[common.UniqueId] = jfsSetting.UniqueId
+	labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
+	labels[common.PodUpgradeHashLabelKey] = jfsSetting.UpgradeHashVal
 	labels[common.PodTypeKey] = common.PodTypeValue
 	labels[common.PodUniqueIdLabelKey] = jfsSetting.UniqueId
 	return

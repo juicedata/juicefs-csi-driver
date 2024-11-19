@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -47,8 +48,10 @@ var (
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
 			Labels: map[string]string{
-				common.PodTypeKey:          common.PodTypeValue,
-				common.PodUniqueIdLabelKey: "",
+				common.PodTypeKey:             common.PodTypeValue,
+				common.PodUniqueIdLabelKey:    "",
+				common.PodJuiceHashLabelKey:   "test",
+				common.PodUpgradeHashLabelKey: "test",
 			},
 			Annotations: map[string]string{
 				common.JuiceFSUUID: "",
@@ -88,17 +91,23 @@ var (
 				Name:    "jfs-mount",
 				Image:   config.DefaultCEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
-				Env: []corev1.EnvVar{{
-					Name:  "JFS_FOREGROUND",
-					Value: "1",
-				}},
-				EnvFrom: []corev1.EnvFromSource{{
-					SecretRef: &corev1.SecretEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "juicefs-node-test",
+				Env: []corev1.EnvVar{
+					{
+						Name: "metaurl",
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "juicefs-node-test",
+								},
+								Key: "metaurl",
+							},
 						},
 					},
-				}},
+					{
+						Name:  "JFS_FOREGROUND",
+						Value: "1",
+					},
+				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:             JfsDirName,
@@ -231,6 +240,21 @@ func TestNewMountPod(t *testing.T) {
 
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
+	podEnvTest.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "metaurl", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
+				Key:                  "metaurl",
+			},
+		}},
+		{Name: "a", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
+				Key:                  "a",
+			},
+		}},
+		{Name: "JFS_FOREGROUND", Value: "1"},
+	}
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
@@ -357,17 +381,19 @@ func TestNewMountPod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
 			jfsSetting := &config.JfsSetting{
-				IsCe:       true,
-				Name:       tt.args.name,
-				HashVal:    "test",
-				Source:     "redis://127.0.0.1:6379/0",
-				Configs:    tt.args.configs,
-				Envs:       tt.args.env,
-				MountPath:  tt.args.mountPath,
-				VolumeId:   tt.args.name,
-				Options:    tt.args.options,
-				CacheDirs:  tt.args.cacheDirs,
-				SecretName: podName,
+				IsCe:           true,
+				Name:           tt.args.name,
+				HashVal:        "test",
+				UpgradeHashVal: "test",
+				Source:         "redis://127.0.0.1:6379/0",
+				MetaUrl:        "redis://127.0.0.1:6379/0",
+				Configs:        tt.args.configs,
+				Envs:           tt.args.env,
+				MountPath:      tt.args.mountPath,
+				VolumeId:       tt.args.name,
+				Options:        tt.args.options,
+				CacheDirs:      tt.args.cacheDirs,
+				SecretName:     podName,
 				Attr: &config.PodAttr{
 					Labels:             tt.args.labels,
 					Annotations:        tt.args.annotations,
@@ -382,8 +408,8 @@ func TestNewMountPod(t *testing.T) {
 				BaseBuilder: BaseBuilder{jfsSetting, 0},
 			}
 			got, _ := r.NewMountPod(podName)
-			gotStr, _ := json.Marshal(got)
-			wantStr, _ := json.Marshal(tt.want)
+			gotStr, _ := yaml.Marshal(got)
+			wantStr, _ := yaml.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {
 				t.Errorf("NewMountPod() = %v \n want %v", string(gotStr), string(wantStr))
 			}

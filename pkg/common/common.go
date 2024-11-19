@@ -18,19 +18,20 @@ package common
 
 const (
 	// DriverName to be registered
-	CSINodeLabelKey      = "app"
-	CSINodeLabelValue    = "juicefs-csi-node"
-	PodTypeKey           = "app.kubernetes.io/name"
-	PodTypeValue         = "juicefs-mount"
-	PodUniqueIdLabelKey  = "volume-id"
-	PodJuiceHashLabelKey = "juicefs-hash"
-	Finalizer            = "juicefs.com/finalizer"
-	JuiceFSUUID          = "juicefs-uuid"
-	UniqueId             = "juicefs-uniqueid"
-	CleanCache           = "juicefs-clean-cache"
-	MountContainerName   = "jfs-mount"
-	JobTypeValue         = "juicefs-job"
-	JfsInsideContainer   = "JFS_INSIDE_CONTAINER"
+	CSINodeLabelKey        = "app"
+	CSINodeLabelValue      = "juicefs-csi-node"
+	PodTypeKey             = "app.kubernetes.io/name"
+	PodTypeValue           = "juicefs-mount"
+	PodUniqueIdLabelKey    = "volume-id"
+	PodJuiceHashLabelKey   = "juicefs-hash"
+	PodUpgradeHashLabelKey = "juicefs-upgrade-hash"
+	Finalizer              = "juicefs.com/finalizer"
+	JuiceFSUUID            = "juicefs-uuid"
+	UniqueId               = "juicefs-uniqueid"
+	CleanCache             = "juicefs-clean-cache"
+	MountContainerName     = "jfs-mount"
+	JobTypeValue           = "juicefs-job"
+	JfsInsideContainer     = "JFS_INSIDE_CONTAINER"
 
 	// CSI Secret
 	ProvisionerSecretName           = "csi.storage.k8s.io/provisioner-secret-name"
