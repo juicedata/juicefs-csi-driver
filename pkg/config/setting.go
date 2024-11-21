@@ -537,6 +537,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		}
+		options = pv.Spec.MountOptions
 	}
 	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {
@@ -560,6 +561,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		}
 		setting.PV = pv
 		setting.PVC = pvc
+		setting.Options = options
 		// apply config patch
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
@@ -605,7 +607,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		attr.Annotations[k] = v
 	}
 	if pv != nil {
-		options = pv.Spec.MountOptions
 		if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 			subPath = v
 		}
