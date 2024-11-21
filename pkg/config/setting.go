@@ -268,6 +268,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 }
 
 func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
+	jfsSetting.CacheDirs = []string{}
+	jfsSetting.CachePVCs = []CachePVC{}
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -561,6 +563,9 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		// apply config patch
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
+		if err = GenCacheDirs(setting, nil); err != nil {
+			return nil, err
+		}
 		setting.HashVal = GenHashOfSetting(log, *setting)
 		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 		if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
