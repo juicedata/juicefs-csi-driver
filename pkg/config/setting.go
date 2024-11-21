@@ -925,6 +925,47 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	setting.SubPath = ""
 	// in Publish, setting hash is calculated before mountPath is set correctly. Set it as the same as Publish
 	setting.MountPath = filepath.Join(PodMountBase, setting.UniqueId)
+	s := &setting
+	util.SortBy(s.Options, func(i, j int) bool {
+		return strings.Compare(s.Options[i], s.Options[j]) < 0
+	})
+	util.SortBy(s.HostPath, func(i, j int) bool {
+		return strings.Compare(s.HostPath[i], s.HostPath[j]) < 0
+	})
+	util.SortBy(s.CacheDirs, func(i, j int) bool {
+		return strings.Compare(s.CacheDirs[i], s.CacheDirs[j]) < 0
+	})
+	util.SortBy(s.CachePVCs, func(i, j int) bool {
+		return strings.Compare(s.CachePVCs[i].PVCName, s.CachePVCs[j].PVCName) < 0
+	})
+
+	if s.Attr != nil {
+		util.SortBy(s.Attr.Env, func(i, j int) bool {
+			return strings.Compare(s.Attr.Env[i].Name, s.Attr.Env[j].Name) < 0
+		})
+		util.SortBy(s.Attr.CacheDirs, func(i, j int) bool {
+			return strings.Compare(s.Attr.CacheDirs[i].Name, s.Attr.CacheDirs[j].Name) < 0
+		})
+		util.SortBy(s.Attr.VolumeDevices, func(i, j int) bool {
+			return strings.Compare(s.Attr.VolumeDevices[i].Name, s.Attr.VolumeDevices[j].Name) < 0
+		})
+		util.SortBy(s.Attr.Volumes, func(i, j int) bool {
+			return strings.Compare(s.Attr.Volumes[i].Name, s.Attr.Volumes[j].Name) < 0
+		})
+		util.SortBy(s.Attr.VolumeMounts, func(i, j int) bool {
+			return strings.Compare(s.Attr.VolumeMounts[i].Name, s.Attr.VolumeMounts[j].Name) < 0
+		})
+		util.SortBy(s.Attr.Tolerations, func(i, j int) bool {
+			return strings.Compare(s.Attr.Tolerations[i].Key, s.Attr.Tolerations[j].Key) < 0
+		})
+		util.SortBy(s.Attr.ImagePullSecrets, func(i, j int) bool {
+			return strings.Compare(s.Attr.ImagePullSecrets[i].Name, s.Attr.ImagePullSecrets[j].Name) < 0
+		})
+		util.SortBy(s.Attr.HostAliases, func(i, j int) bool {
+			return strings.Compare(s.Attr.HostAliases[i].IP, s.Attr.HostAliases[j].IP) < 0
+		})
+	}
+
 	settingStr, _ := json.Marshal(setting)
 	h := sha256.New()
 	h.Write(settingStr)

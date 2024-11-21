@@ -1299,6 +1299,28 @@ func TestGenHashOfSetting(t *testing.T) {
 			want:    "92672dd79d284e609e2de7f3da2082bf5a6a11f2496f54a452b9ce136155f0f",
 			wantErr: false,
 		},
+		{
+			name: "test-list1",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"f", "a=b", "c=d"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			wantErr: false,
+		},
+		{
+			name: "test-list2",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"c=d", "f", "a=b"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
