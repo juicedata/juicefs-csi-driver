@@ -128,7 +128,10 @@ func IsInterVolume(name string) bool {
 
 var PodLocks [1024]sync.Mutex
 
-func GetPodLockKey(pod *corev1.Pod) string {
+func GetPodLockKey(pod *corev1.Pod, newHash string) string {
+	if newHash != "" {
+		return newHash
+	}
 	if pod == nil {
 		return ""
 	}

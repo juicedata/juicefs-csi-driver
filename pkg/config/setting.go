@@ -41,10 +41,10 @@ import (
 )
 
 type JfsSetting struct {
-	HashVal        string `json:"-"`
-	UpgradeHashVal string `json:"-"`
-	IsCe           bool
-	UsePod         bool
+	HashVal     string `json:"-"`
+	UpgradeUUID string `json:"-"`
+	IsCe        bool
+	UsePod      bool
 
 	UUID               string
 	Name               string               `json:"name"`
@@ -536,6 +536,10 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		}
 	}
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return nil, err
+	}
 
 	// get settings from secret
 	secretName := fmt.Sprintf("juicefs-%s-secret", mountPod.Labels[common.PodUniqueIdLabelKey])
@@ -558,7 +562,11 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
 		setting.HashVal = GenHashOfSetting(log, *setting)
-		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
+		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
+		if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
+			setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
+		}
+		setting.MountPath = mntPath
 		return setting, nil
 	}
 
@@ -608,11 +616,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 			attr.Resources = resources
 		}
 	}
-	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
-	if err != nil {
-		return nil, err
-	}
-
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
 		PV:        pv,
@@ -626,9 +629,9 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		SubPath:   subPath,
 		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
 	}
-	setting.UpgradeHashVal = mountPod.Labels[common.PodJuiceHashLabelKey]
-	if mountPod.Labels[common.PodUpgradeHashLabelKey] != "" {
-		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
+	setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
+	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 	}
 	setting.Attr = attr
 	// apply config patch
