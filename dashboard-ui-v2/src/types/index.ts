@@ -24,6 +24,7 @@ export type Params = {
     | 'pvcs'
     | 'storageclass'
     | 'config'
+    | 'cachegroups'
 }
 
 export type DetailParams = {
