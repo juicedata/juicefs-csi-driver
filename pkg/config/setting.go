@@ -41,10 +41,10 @@ import (
 )
 
 type JfsSetting struct {
-	HashVal        string `json:"-"`
-	UpgradeHashVal string `json:"-"`
-	IsCe           bool
-	UsePod         bool
+	HashVal     string `json:"-"`
+	UpgradeUUID string `json:"-"`
+	IsCe        bool
+	UsePod      bool
 
 	UUID               string
 	Name               string               `json:"name"`
@@ -268,6 +268,8 @@ func ParseSetting(secrets, volCtx map[string]string, options []string, usePod bo
 }
 
 func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
+	jfsSetting.CacheDirs = []string{}
+	jfsSetting.CachePVCs = []CachePVC{}
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -535,6 +537,11 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		}
+		options = pv.Spec.MountOptions
+	}
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return nil, err
 	}
 
 	// get settings from secret
@@ -554,11 +561,19 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		}
 		setting.PV = pv
 		setting.PVC = pvc
+		setting.Options = options
 		// apply config patch
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
+		if err = GenCacheDirs(setting, nil); err != nil {
+			return nil, err
+		}
 		setting.HashVal = GenHashOfSetting(log, *setting)
-		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
+		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
+		if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
+			setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
+		}
+		setting.MountPath = mntPath
 		return setting, nil
 	}
 
@@ -592,7 +607,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		attr.Annotations[k] = v
 	}
 	if pv != nil {
-		options = pv.Spec.MountOptions
 		if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
 			subPath = v
 		}
@@ -608,11 +622,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 			attr.Resources = resources
 		}
 	}
-	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
-	if err != nil {
-		return nil, err
-	}
-
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
 		PV:        pv,
@@ -626,9 +635,9 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		SubPath:   subPath,
 		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
 	}
-	setting.UpgradeHashVal = mountPod.Labels[common.PodJuiceHashLabelKey]
-	if mountPod.Labels[common.PodUpgradeHashLabelKey] != "" {
-		setting.UpgradeHashVal = mountPod.Labels[common.PodUpgradeHashLabelKey]
+	setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
+	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 	}
 	setting.Attr = attr
 	// apply config patch
@@ -922,6 +931,47 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	setting.SubPath = ""
 	// in Publish, setting hash is calculated before mountPath is set correctly. Set it as the same as Publish
 	setting.MountPath = filepath.Join(PodMountBase, setting.UniqueId)
+	s := &setting
+	util.SortBy(s.Options, func(i, j int) bool {
+		return strings.Compare(s.Options[i], s.Options[j]) < 0
+	})
+	util.SortBy(s.HostPath, func(i, j int) bool {
+		return strings.Compare(s.HostPath[i], s.HostPath[j]) < 0
+	})
+	util.SortBy(s.CacheDirs, func(i, j int) bool {
+		return strings.Compare(s.CacheDirs[i], s.CacheDirs[j]) < 0
+	})
+	util.SortBy(s.CachePVCs, func(i, j int) bool {
+		return strings.Compare(s.CachePVCs[i].PVCName, s.CachePVCs[j].PVCName) < 0
+	})
+
+	if s.Attr != nil {
+		util.SortBy(s.Attr.Env, func(i, j int) bool {
+			return strings.Compare(s.Attr.Env[i].Name, s.Attr.Env[j].Name) < 0
+		})
+		util.SortBy(s.Attr.CacheDirs, func(i, j int) bool {
+			return strings.Compare(s.Attr.CacheDirs[i].Name, s.Attr.CacheDirs[j].Name) < 0
+		})
+		util.SortBy(s.Attr.VolumeDevices, func(i, j int) bool {
+			return strings.Compare(s.Attr.VolumeDevices[i].Name, s.Attr.VolumeDevices[j].Name) < 0
+		})
+		util.SortBy(s.Attr.Volumes, func(i, j int) bool {
+			return strings.Compare(s.Attr.Volumes[i].Name, s.Attr.Volumes[j].Name) < 0
+		})
+		util.SortBy(s.Attr.VolumeMounts, func(i, j int) bool {
+			return strings.Compare(s.Attr.VolumeMounts[i].Name, s.Attr.VolumeMounts[j].Name) < 0
+		})
+		util.SortBy(s.Attr.Tolerations, func(i, j int) bool {
+			return strings.Compare(s.Attr.Tolerations[i].Key, s.Attr.Tolerations[j].Key) < 0
+		})
+		util.SortBy(s.Attr.ImagePullSecrets, func(i, j int) bool {
+			return strings.Compare(s.Attr.ImagePullSecrets[i].Name, s.Attr.ImagePullSecrets[j].Name) < 0
+		})
+		util.SortBy(s.Attr.HostAliases, func(i, j int) bool {
+			return strings.Compare(s.Attr.HostAliases[i].IP, s.Attr.HostAliases[j].IP) < 0
+		})
+	}
+
 	settingStr, _ := json.Marshal(setting)
 	h := sha256.New()
 	h.Write(settingStr)

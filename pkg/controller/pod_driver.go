@@ -152,7 +152,7 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -234,16 +234,23 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podCompleteHandler")
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+
+	setting, err := config.GenSettingAttrWithMountPod(ctx, p.Client, pod)
+	if err != nil {
+		log.Error(err, "gen setting error")
+		return Result{}, err
+	}
+	hashVal := setting.HashVal
+
+	lock := config.GetPodLock(config.GetPodLockKey(pod, hashVal))
 	lock.Lock()
 	defer lock.Unlock()
 
-	hasAvailable, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
+	availPod, err := p.getAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
 	if err != nil {
 		return Result{}, err
 	}
-	if !hasAvailable {
+	if availPod == nil {
 		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("need to create a new one", "newPodName", newPodName)
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
@@ -286,7 +293,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -382,13 +389,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 
-	// get mount point
-	sourcePath, _, err := util.GetMountPathOfPod(*pod)
-	if err != nil {
-		log.Error(err, "get mount point error")
-		return Result{}, err
-	}
-
 	// check if it needs to create new one
 	log.V(1).Info("Get pod annotations", "annotations", pod.Annotations)
 	if pod.Annotations == nil {
@@ -396,9 +396,14 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	}
 	existTargets := make(map[string]string)
 
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	setting, err := config.GenSettingAttrWithMountPod(ctx, p.Client, pod)
+	if err != nil {
+		log.Error(err, "gen setting error")
+		return Result{}, err
+	}
+	hashVal := setting.HashVal
 
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+	lock := config.GetPodLock(config.GetPodLockKey(pod, hashVal))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -409,33 +414,20 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 	}
 
-	hasAvailPod, err := p.hasAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], hashVal)
+	availPod, err := p.getAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
 	if err != nil {
 		return Result{}, err
 	}
 
-	if len(existTargets) == 0 && !hasAvailPod {
-		// do not need to create new one, umount
-		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-			util.UmountPath(ctx, sourcePath)
-			return nil
-		})
-		// clean mount point
-		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-			log.Info("Clean mount point", "mountPath", sourcePath)
-			return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
-		})
-		if err != nil {
-			log.Error(err, "Clean mount point error", "mountPath", sourcePath)
+	// if no reference, clean up
+	if len(existTargets) == 0 && availPod == nil {
+		if res, err := p.cleanBeforeDeleted(ctx, pod); err != nil {
+			return res, err
 		}
-		// cleanup cache should always complete, don't set timeout
-		go p.CleanUpCache(context.TODO(), pod)
-		// stop fuse fd and clean up socket
-		go passfd.GlobalFds.StopFd(context.TODO(), pod)
 	}
 
 	// create
-	if len(existTargets) != 0 && !hasAvailPod {
+	if len(existTargets) != 0 && availPod == nil {
 		// create pod
 		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
@@ -469,13 +461,52 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	return Result{}, nil
 }
 
+func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Result, error) {
+	log := util.GenLog(ctx, podDriverLog, "")
+
+	// get mount point
+	sourcePath, _, err := util.GetMountPathOfPod(*pod)
+	if err != nil {
+		log.Error(err, "get mount point error")
+		return Result{}, err
+	}
+
+	// do not need to create new one or available pod has different mount path, umount
+	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		util.UmountPath(ctx, sourcePath)
+		return nil
+	})
+	// clean mount point
+	err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		log.Info("Clean mount point", "mountPath", sourcePath)
+		return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
+	})
+	if err != nil {
+		log.Error(err, "Clean mount point error", "mountPath", sourcePath)
+	}
+
+	// only clean cache when there is no available pod
+	uniquePod, err := p.getUniqueMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey])
+	if err != nil {
+		return Result{}, err
+	}
+	if uniquePod == nil {
+		// cleanup cache should always complete, don't set timeout
+		go p.CleanUpCache(context.TODO(), pod)
+	}
+
+	// stop fuse fd and clean up socket
+	go passfd.GlobalFds.StopFd(context.TODO(), pod)
+	return Result{}, nil
+}
+
 // podPendingHandler handles mount pod that is pending
 func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	if pod == nil {
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -560,7 +591,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
 
-	lock := config.GetPodLock(config.GetPodLockKey(pod))
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -953,31 +984,52 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	return nil
 }
 
-func (p *PodDriver) hasAvailableMountPod(ctx context.Context, uniqueId, hashVal string) (bool, error) {
-	log := util.GenLog(ctx, podDriverLog, "hasAvailableMountPod")
+func (p *PodDriver) getAvailableMountPod(ctx context.Context, uniqueId, upgradeUUID string) (*corev1.Pod, error) {
+	log := util.GenLog(ctx, podDriverLog, "getAvailableMountPod")
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:           common.PodTypeValue,
-		common.PodUniqueIdLabelKey:  uniqueId,
-		common.PodJuiceHashLabelKey: hashVal,
+		common.PodTypeKey:             common.PodTypeValue,
+		common.PodUniqueIdLabelKey:    uniqueId,
+		common.PodUpgradeUUIDLabelKey: upgradeUUID,
 	}}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	pods, err := p.Client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
 	if err != nil {
 		log.Error(err, "List pod error")
-		return false, err
+		return nil, err
 	}
-	noPod := true
 	for _, po := range pods {
-		if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) {
-			noPod = false
+		po2 := po
+		if po2.DeletionTimestamp == nil && !resource.IsPodComplete(&po2) {
+			return &po2, nil
 		}
 	}
-	return !noPod, nil
+	return nil, nil
+}
+
+func (p *PodDriver) getUniqueMountPod(ctx context.Context, uniqueId string) (*corev1.Pod, error) {
+	log := util.GenLog(ctx, podDriverLog, "getUniqueMountPod")
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: uniqueId,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := p.Client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		log.Error(err, "List pod error")
+		return nil, err
+	}
+	for _, po := range pods {
+		po2 := po
+		if po2.DeletionTimestamp == nil && !resource.IsPodComplete(&po2) {
+			return &po2, nil
+		}
+	}
+	return nil, nil
 }
 
 func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName string) (*corev1.Pod, error) {
 	log := util.GenLog(ctx, podDriverLog, "newMountPod")
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	upgradeUUID := resource.GetUpgradeUUID(pod)
 	// get mount point
 	sourcePath, _, err := util.GetMountPathOfPod(*pod)
 	if err != nil {
@@ -1023,7 +1075,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	// new image support fuse pass and old image do not support
 	if !oldSupportFusePass && newSupportFusePass {
 		// add fd address to env
-		fdAddress, err := passfd.GlobalFds.GetFdAddress(ctx, hashVal)
+		fdAddress, err := passfd.GlobalFds.GetFdAddress(ctx, upgradeUUID)
 		if err != nil {
 			return nil, err
 		}
@@ -1055,7 +1107,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 				Name: config.JfsFuseFdPathName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: path.Join(common.JfsFuseFsPathInHost, hashVal),
+						Path: path.Join(common.JfsFuseFsPathInHost, upgradeUUID),
 						Type: &dir,
 					},
 				},

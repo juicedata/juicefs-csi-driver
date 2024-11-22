@@ -288,7 +288,7 @@ func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annot
 	annotations[common.JuiceFSUUID] = jfsSetting.UUID
 	annotations[common.UniqueId] = jfsSetting.UniqueId
 	labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
-	labels[common.PodUpgradeHashLabelKey] = jfsSetting.UpgradeHashVal
+	labels[common.PodUpgradeUUIDLabelKey] = jfsSetting.UpgradeUUID
 	labels[common.PodTypeKey] = common.PodTypeValue
 	labels[common.PodUniqueIdLabelKey] = jfsSetting.UniqueId
 	return

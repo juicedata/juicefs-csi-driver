@@ -345,11 +345,11 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 }
 
 func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
+	upgradeUUID := GetUpgradeUUID(&pod)
+	if upgradeUUID == "" {
 		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
-	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
+	return path.Join(basePath, upgradeUUID, "fuse_fd_comm.1"), nil
 }
 
 func GetUniqueId(pod corev1.Pod) string {
@@ -522,12 +522,12 @@ func CanUpgrade(pod corev1.Pod, recreate bool) bool {
 	return IsPodReady(&pod)
 }
 
-func GetUpgradeHash(pod *corev1.Pod) string {
+func GetUpgradeUUID(pod *corev1.Pod) string {
 	if pod == nil {
 		return ""
 	}
-	if pod.Labels[common.PodUpgradeHashLabelKey] != "" {
-		return pod.Labels[common.PodUpgradeHashLabelKey]
+	if pod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		return pod.Labels[common.PodUpgradeUUIDLabelKey]
 	}
 	return pod.Labels[common.PodJuiceHashLabelKey]
 }

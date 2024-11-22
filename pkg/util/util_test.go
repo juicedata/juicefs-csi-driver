@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -1083,5 +1084,33 @@ func TestGetMountOptionsOfPod(t *testing.T) {
 				t.Errorf("GetMountOptionsOfPod() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSortBy(t *testing.T) {
+	ss := []string{"a", "b", "d", "e", "c"}
+	wantSS := []string{"a", "b", "c", "d", "e"}
+	SortBy(ss, func(i, j int) bool {
+		return strings.Compare(ss[i], ss[j]) < 0
+	})
+	if !reflect.DeepEqual(ss, wantSS) {
+		t.Errorf("SortBy() = %v, want %v", ss, wantSS)
+	}
+
+	sc := []corev1.EnvVar{
+		{Name: "d", Value: "4"},
+		{Name: "a", Value: "1"},
+		{Name: "b", Value: "2"},
+	}
+	wantSC := []corev1.EnvVar{
+		{Name: "a", Value: "1"},
+		{Name: "b", Value: "2"},
+		{Name: "d", Value: "4"},
+	}
+	SortBy(sc, func(i, j int) bool {
+		return strings.Compare(sc[i].Name, sc[j].Name) < 0
+	})
+	if !reflect.DeepEqual(sc, wantSC) {
+		t.Errorf("SortBy() = %v, want %v", sc, wantSC)
 	}
 }
