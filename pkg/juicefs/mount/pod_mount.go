@@ -69,13 +69,14 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	var err error
 
 	if err = func() error {
+		lock := jfsConfig.GetPodLock(hashVal)
+		lock.Lock()
+		defer lock.Unlock()
+
 		podName, err = p.genMountPodName(ctx, jfsSetting)
 		if err != nil {
 			return err
 		}
-		lock := jfsConfig.GetPodLock(hashVal)
-		lock.Lock()
-		defer lock.Unlock()
 
 		// set mount pod name in app pod
 		if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
