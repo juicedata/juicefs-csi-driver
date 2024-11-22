@@ -24,7 +24,7 @@ const (
 	PodTypeValue           = "juicefs-mount"
 	PodUniqueIdLabelKey    = "volume-id"
 	PodJuiceHashLabelKey   = "juicefs-hash"
-	PodUpgradeHashLabelKey = "juicefs-upgrade-hash"
+	PodUpgradeUUIDLabelKey = "juicefs-upgrade-uuid"
 	Finalizer              = "juicefs.com/finalizer"
 	JuiceFSUUID            = "juicefs-uuid"
 	UniqueId               = "juicefs-uniqueid"

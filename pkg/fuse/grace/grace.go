@@ -196,7 +196,7 @@ type PodUpgrade struct {
 	recreate    bool
 	ce          bool
 	hashVal     string
-	upgradeHash string
+	upgradeUUID string
 	status      podUpgradeStatus
 }
 
@@ -231,7 +231,7 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 		recreate:    recreate,
 		ce:          ce,
 		hashVal:     hashVal,
-		upgradeHash: resource.GetUpgradeHash(mountPod),
+		upgradeUUID: resource.GetUpgradeUUID(mountPod),
 	}
 	return pu, nil
 }
@@ -354,6 +354,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		}
 		msg = "close fuse fd in mount pod"
 		sendMessage(conn, msg)
+		log.V(1).Info(msg, "path", commPath, "pod", p.pod.Name)
 		fuseFd, _ := passfd.GetFuseFd(commPath, true)
 		for i := 0; i < 100 && fuseFd < 0; i++ {
 			time.Sleep(time.Millisecond * 100)
@@ -377,8 +378,8 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 
 func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	sendMessage(conn, "wait for upgrade...")
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
+	upgradeUUID := p.upgradeUUID
+	if upgradeUUID == "" {
 		return
 	}
 	t := time.NewTicker(1 * time.Second)
@@ -404,8 +405,8 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 				reportDeleted = true
 			}
 			labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-				common.PodTypeKey:           common.PodTypeValue,
-				common.PodJuiceHashLabelKey: hashVal,
+				common.PodTypeKey:             common.PodTypeValue,
+				common.PodUpgradeUUIDLabelKey: upgradeUUID,
 			}}
 			fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 			pods, err := p.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)

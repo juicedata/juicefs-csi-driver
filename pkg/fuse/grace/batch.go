@@ -89,7 +89,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 			recreate:    u.recreate,
 			ce:          ce,
 			hashVal:     pod.Labels[common.PodJuiceHashLabelKey],
-			upgradeHash: resource.GetUpgradeHash(&po),
+			upgradeUUID: resource.GetUpgradeUUID(&po),
 		}
 		u.podsToUpgrade = append(u.podsToUpgrade, pu)
 	}

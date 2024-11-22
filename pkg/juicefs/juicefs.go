@@ -544,7 +544,7 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 	if mountPod != nil {
 		podName = mountPod.Name
 	}
-	lock := config.GetPodLock(config.GetPodLockKey(mountPod))
+	lock := config.GetPodLock(config.GetPodLockKey(mountPod, ""))
 	lock.Lock()
 	defer lock.Unlock()
 

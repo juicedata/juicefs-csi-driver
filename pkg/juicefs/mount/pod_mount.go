@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sMount "k8s.io/utils/mount"
@@ -63,18 +64,19 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	p.log = util.GenLog(ctx, p.log, "JMount")
 	hashVal := jfsConfig.GenHashOfSetting(p.log, *jfsSetting)
 	jfsSetting.HashVal = hashVal
-	jfsSetting.UpgradeHashVal = hashVal
+	jfsSetting.UpgradeUUID = string(uuid.NewUUID())
 	var podName string
 	var err error
 
 	if err = func() error {
+		lock := jfsConfig.GetPodLock(hashVal)
+		lock.Lock()
+		defer lock.Unlock()
+
 		podName, err = p.genMountPodName(ctx, jfsSetting)
 		if err != nil {
 			return err
 		}
-		lock := jfsConfig.GetPodLock(hashVal)
-		lock.Lock()
-		defer lock.Unlock()
 
 		// set mount pod name in app pod
 		if appInfo != nil && appInfo.Name != "" && appInfo.Namespace != "" {
