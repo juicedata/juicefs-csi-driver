@@ -141,7 +141,6 @@ func (api *API) addWorker() gin.HandlerFunc {
 		}
 
 		c.JSON(200, gin.H{"message": "succeed"})
-		return
 	}
 }
 
@@ -196,6 +195,5 @@ func (api *API) removeWorker() gin.HandlerFunc {
 		}
 
 		c.JSON(200, gin.H{"message": "succeed"})
-		return
 	}
 }

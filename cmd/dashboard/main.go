@@ -116,7 +116,9 @@ func run() {
 	var config *rest.Config
 	var err error
 	sysNamespace := "kube-system"
-	sysNamespace = os.Getenv(SysNamespaceKey)
+	if v := os.Getenv(SysNamespaceKey); v != "" {
+		sysNamespace = v
+	}
 	if devMode {
 		config, err = getLocalConfig()
 	} else {
