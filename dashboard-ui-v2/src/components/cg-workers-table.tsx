@@ -42,6 +42,7 @@ const CgWorkersTable: React.FC<{
 }> = ({ namespace, name }) => {
   const [refreshInterval, setRefreshInterval] = React.useState<number>(0)
   const { data } = useCacheGroupWorkers(namespace, name, refreshInterval)
+  const [sortedData, setSortedData] = React.useState(data)
   const { data: nodes } = useNodes(true)
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
@@ -52,6 +53,9 @@ const CgWorkersTable: React.FC<{
     if (data) {
       const nodes = data.map((v) => v.spec!.nodeName!)
       setExistNodes(nodes)
+      setSortedData(
+        data.sort((a, b) => a.metadata!.name!.localeCompare(b.metadata!.name!)),
+      )
     }
   }, [data])
 
@@ -60,7 +64,7 @@ const CgWorkersTable: React.FC<{
   }
 
   return (
-    <ProCard title="Workers" style={{ marginTop: '100px' }}>
+    <ProCard title="workers">
       <ProTable
         toolbar={{
           actions: [
@@ -104,6 +108,7 @@ const CgWorkersTable: React.FC<{
             </ModalForm>,
           ],
         }}
+        search={false}
         columns={[
           {
             title: <FormattedMessage id="name" />,
@@ -127,6 +132,16 @@ const CgWorkersTable: React.FC<{
             title: <FormattedMessage id="status" />,
             key: 'status',
             render: (_, pod) => {
+              if (
+                pod.metadata.annotations?.['juicefs.io/waiting-delete-worker']
+              ) {
+                return 'Waiting Delete'
+              }
+
+              if (pod.metadata.annotations?.['juicefs.io/backup-worker']) {
+                return 'Backup Worker'
+              }
+
               const finalStatus = podStatus(pod)
               return (
                 <Badge
@@ -173,7 +188,7 @@ const CgWorkersTable: React.FC<{
             ),
           },
         ]}
-        dataSource={data}
+        dataSource={sortedData}
         rowKey={(c) => c.metadata?.uid || ''}
         pagination={false}
       />

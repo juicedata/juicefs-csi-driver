@@ -14,16 +14,30 @@
  * limitations under the License.
  */
 
-
 import React, { memo, ReactNode, useEffect, useState } from 'react'
-import { Button, Modal, Space, Progress, Dropdown, MenuProps, Checkbox, Spin } from 'antd'
-import { FormattedMessage } from 'react-intl'
-import Editor from '@monaco-editor/react'
-import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
-import { Pod, Node } from 'kubernetes-types/core/v1'
-import { PodToUpgrade } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
+import Editor from '@monaco-editor/react'
+import {
+  Button,
+  Checkbox,
+  Dropdown,
+  MenuProps,
+  Modal,
+  Progress,
+  Space,
+  Spin,
+} from 'antd'
+import { Node, Pod } from 'kubernetes-types/core/v1'
+import { FormattedMessage } from 'react-intl'
 
+import {
+  useNodes,
+  usePodsToUpgrade,
+  useUpgradePods,
+  useUpgradeStatus,
+  useWebsocket,
+} from '@/hooks/use-api.ts'
+import { PodToUpgrade } from '@/types/k8s.ts'
 
 const helpMessage = `Click Start to perform a batch upgrade.
 
@@ -42,7 +56,11 @@ const BatchUpgradeModal: React.FC<{
   const [data, setData] = useState<string>(helpMessage)
   const [percent, setPercent] = useState(Number)
   const [selectedNode, setSelectedNode] = useState('')
-  const { data: podsToUpgrade } = usePodsToUpgrade(isBatchModalOpen, true, selectedNode)
+  const { data: podsToUpgrade } = usePodsToUpgrade(
+    isBatchModalOpen,
+    true,
+    selectedNode,
+  )
   const { data: nodes } = useNodes(isBatchModalOpen)
   const [allNodes, setAllNodes] = useState([``])
   const { data: job } = useUpgradeStatus(isBatchModalOpen)
@@ -100,7 +118,10 @@ const BatchUpgradeModal: React.FC<{
         const matchRegex = new RegExp('POD-', 'g')
         const matches = msg.data.match(matchRegex)
 
-        const totalPods = getPodsUpgradeOfNode(selectedNode, podsToUpgrade).length
+        const totalPods = getPodsUpgradeOfNode(
+          selectedNode,
+          podsToUpgrade,
+        ).length
         if (totalPods !== 0 && matches) {
           setPercent((prevPercent) => {
             const newPercent = prevPercent + (matches.length / totalPods) * 100
@@ -126,7 +147,7 @@ const BatchUpgradeModal: React.FC<{
   }))
 
   const handleNodeSelected: MenuProps['onClick'] = (e) => {
-    const selectedItem = nodeItems?.find(item => item.key === e.key)
+    const selectedItem = nodeItems?.find((item) => item.key === e.key)
     if (selectedItem) {
       setSelectedNode(selectedItem.label || '')
     }
@@ -158,7 +179,9 @@ const BatchUpgradeModal: React.FC<{
 
                 <Checkbox
                   checked={recreate}
-                  onChange={(value) => value && setRecreate(value.target.checked)}
+                  onChange={(value) =>
+                    value && setRecreate(value.target.checked)
+                  }
                 >
                   <FormattedMessage id="recreate" />
                 </Checkbox>
@@ -168,12 +191,14 @@ const BatchUpgradeModal: React.FC<{
                   type="primary"
                   onClick={() => {
                     setData(helpMessage)
-                    actions.execute({
-                      nodeName: selectedNode,
-                      recreate: recreate,
-                    }).then(response => {
-                      setJobName(response.jobName)
-                    })
+                    actions
+                      .execute({
+                        nodeName: selectedNode,
+                        recreate: recreate,
+                      })
+                      .then((response) => {
+                        setJobName(response.jobName)
+                      })
                     setStart(true)
                     setPercent(0)
                   }}
@@ -186,14 +211,23 @@ const BatchUpgradeModal: React.FC<{
           onOk={handleOk}
           onCancel={handleCancel}
         >
-
           {jobName !== '' ? (
-            <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+            >
               {start && <Spin style={{ marginRight: 16 }} />}
-              {fail ?
-                <Progress percent={percent} status="exception" format={percent => `${Math.round(percent || 0)}%`} /> :
-                <Progress percent={percent} format={percent => `${Math.round(percent || 0)}%`} />
-              }
+              {fail ? (
+                <Progress
+                  percent={percent}
+                  status="exception"
+                  format={(percent) => `${Math.round(percent || 0)}%`}
+                />
+              ) : (
+                <Progress
+                  percent={percent}
+                  format={(percent) => `${Math.round(percent || 0)}%`}
+                />
+              )}
             </div>
           ) : null}
           <Editor
@@ -207,7 +241,6 @@ const BatchUpgradeModal: React.FC<{
             }}
             value={data}
           />
-
         </Modal>
       ) : null}
     </>
@@ -216,7 +249,10 @@ const BatchUpgradeModal: React.FC<{
 
 export default BatchUpgradeModal
 
-function getPodsUpgradeOfNode(node: string, podsForNode?: PodToUpgrade[]): Pod[] {
+function getPodsUpgradeOfNode(
+  node: string,
+  podsForNode?: PodToUpgrade[],
+): Pod[] {
   const pods: Pod[] = []
   podsForNode?.forEach((v) => {
     if (v.node === node || node === 'All Nodes') {

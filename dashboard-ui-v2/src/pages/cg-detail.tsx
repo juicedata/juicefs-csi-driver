@@ -15,8 +15,11 @@
  */
 
 import { memo } from 'react'
-import { PageContainer } from '@ant-design/pro-components'
-import { Descriptions } from 'antd'
+import {
+  PageContainer,
+  ProCard,
+  ProDescriptions,
+} from '@ant-design/pro-components'
 import { FormattedMessage } from 'react-intl'
 
 import CgWorkersTable from '@/components/cg-workers-table'
@@ -46,19 +49,35 @@ const CgDetail: React.FC<{
         title: name,
         subTitle: namespace,
       }}
-      content={
-        <Descriptions column={1}>
-          <Descriptions.Item label="缓存组">
-            {data.status?.cacheGroup || ''}
-          </Descriptions.Item>
-          <Descriptions.Item label="创建时间">
-            {new Date(
-              data.metadata?.creationTimestamp as string,
-            ).toLocaleString()}
-          </Descriptions.Item>
-        </Descriptions>
-      }
     >
+      <ProCard title={<FormattedMessage id="basic" />}>
+        <ProDescriptions
+          column={2}
+          dataSource={data}
+          columns={[
+            {
+              title: <FormattedMessage id="namespace" />,
+              dataIndex: ['metadata', 'namespace'],
+            },
+            {
+              title: <FormattedMessage id="status" />,
+              dataIndex: ['status', 'phase'],
+            },
+            {
+              title: <FormattedMessage id="readyWorker" />,
+              dataIndex: ['status', 'readyWorker'],
+            },
+            {
+              title: <FormattedMessage id="expectWorker" />,
+              dataIndex: ['status', 'expectWorker'],
+            },
+            {
+              title: <FormattedMessage id="cacheGroupName" />,
+              dataIndex: ['status', 'cacheGroup'],
+            },
+          ]}
+        />
+      </ProCard>
       <CgWorkersTable name={name} namespace={namespace} />
     </PageContainer>
   )
