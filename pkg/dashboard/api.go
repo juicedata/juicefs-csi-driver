@@ -109,6 +109,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
 	cgGroup.GET("/workers", api.listCacheGroupWorkers())
+	cgGroup.GET("/workers/:workerName/cacheBytes", api.getCacheWorkerBytes())
 	cgGroup.POST("/addWorker", api.addWorker())
 	cgGroup.POST("/removeWorker", api.removeWorker())
 

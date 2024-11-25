@@ -168,15 +168,16 @@ const BatchUpgradeModal: React.FC<{
           footer={() => (
             <div style={{ textAlign: 'start' }}>
               <Space style={{ textAlign: 'end' }}>
-                <Dropdown menu={menuProps}>
-                  <Button>
-                    <Space>
-                      {selectedNode || 'All Nodes'}
-                      <DownOutlined />
-                    </Space>
-                  </Button>
-                </Dropdown>
-
+                <>
+                  <Dropdown menu={menuProps}>
+                    <Button>
+                      <Space>
+                        {selectedNode || 'All Nodes'}
+                        <DownOutlined />
+                      </Space>
+                    </Button>
+                  </Dropdown>
+                </>
                 <Checkbox
                   checked={recreate}
                   onChange={(value) =>

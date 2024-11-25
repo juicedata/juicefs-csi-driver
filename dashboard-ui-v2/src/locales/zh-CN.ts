@@ -106,4 +106,5 @@ export default {
   tool: '工具',
   removeWorkerDescription:
     '确定下线节点吗?\n 确认后节点不会被立马移除，会等待节点上的数据迁移至其他节点后完成后移除。',
+  cacheBytes: '缓存大小',
 }

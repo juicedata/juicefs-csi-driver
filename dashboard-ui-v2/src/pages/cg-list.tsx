@@ -67,6 +67,7 @@ const CgList: React.FC<unknown> = () => {
         loading={isLoading}
         dataSource={data}
         columns={columns}
+        search={false}
       />
     </PageContainer>
   )

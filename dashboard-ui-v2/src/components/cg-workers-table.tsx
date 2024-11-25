@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   ModalForm,
@@ -23,11 +23,21 @@ import {
   ProFormSelect,
   ProTable,
 } from '@ant-design/pro-components'
-import { Button, Form, message, Popconfirm, Space, Tooltip } from 'antd'
+import {
+  Button,
+  Form,
+  message,
+  Popconfirm,
+  Space,
+  TablePaginationConfig,
+  TableProps,
+  Tooltip,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
+import WorkerCacheBytes from './cache-bytes'
 import {
   useAddWorker,
   useCacheGroupWorkers,
@@ -48,6 +58,16 @@ const CgWorkersTable: React.FC<{
   const [, addWorker] = useAddWorker(namespace, name)
   const [form] = Form.useForm<{ nodeName: string }>()
 
+  const [pagination, setPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  })
+
+  const handleTableChange: TableProps['onChange'] = (pagination) => {
+    setPagination(pagination)
+  }
+
   const [existNodes, setExistNodes] = React.useState<string[]>([])
   useEffect(() => {
     if (data) {
@@ -58,10 +78,6 @@ const CgWorkersTable: React.FC<{
       )
     }
   }, [data])
-
-  if (!data || data.length === 0) {
-    return null
-  }
 
   return (
     <ProCard title="workers">
@@ -129,6 +145,17 @@ const CgWorkersTable: React.FC<{
             dataIndex: ['spec', 'nodeName'],
           },
           {
+            title: <FormattedMessage id="cacheBytes" />,
+            dataIndex: ['metadata', 'uid'],
+            render: (_, row) => (
+              <WorkerCacheBytes
+                name={name}
+                namespace={namespace}
+                workerName={row.metadata?.name}
+              />
+            ),
+          },
+          {
             title: <FormattedMessage id="status" />,
             key: 'status',
             render: (_, pod) => {
@@ -162,7 +189,7 @@ const CgWorkersTable: React.FC<{
             key: 'action',
             render: (_, record) => (
               <Space>
-                <Tooltip title="scale down worker">
+                <Tooltip title="remove worker">
                   <Popconfirm
                     title="Remove this worker?"
                     description={
@@ -170,7 +197,7 @@ const CgWorkersTable: React.FC<{
                     }
                     onConfirm={async () => {
                       await removeWorker.execute({
-                        nodeName: record.spec!.nodeName!,
+                        nodeName: record.spec?.nodeName ?? '',
                       })
                       message.success('提交成功')
                       setRefreshInterval(1000)
@@ -190,7 +217,8 @@ const CgWorkersTable: React.FC<{
         ]}
         dataSource={sortedData}
         rowKey={(c) => c.metadata?.uid || ''}
-        pagination={false}
+        pagination={pagination}
+        onChange={handleTableChange}
       />
     </ProCard>
   )

@@ -112,4 +112,5 @@ export default {
   resources: 'Resources',
   setting: 'Setting',
   tool: 'Tools',
+  cacheBytes: 'Cache Size',
 }

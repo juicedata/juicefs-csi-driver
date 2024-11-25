@@ -14,23 +14,39 @@
  * limitations under the License.
  */
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import {
   PageContainer,
   ProCard,
   ProDescriptions,
 } from '@ant-design/pro-components'
+import { Button, Space, Tooltip } from 'antd'
+import { omit } from 'lodash'
 import { FormattedMessage } from 'react-intl'
+import YAML from 'yaml'
 
+import { YamlModal } from '@/components'
 import CgWorkersTable from '@/components/cg-workers-table'
 import { useCacheGroup } from '@/hooks/cg-api'
+import { YamlIcon } from '@/icons'
 
 const CgDetail: React.FC<{
   name?: string
   namespace?: string
 }> = memo((props) => {
   const { name, namespace } = props
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   const { data, isLoading } = useCacheGroup(namespace, name)
+
+  const showModal = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleCancel = () => {
+    setIsModalOpen(false)
+  }
+
   if (namespace === '' || name === '' || !data) {
     return (
       <PageContainer
@@ -50,7 +66,27 @@ const CgDetail: React.FC<{
         subTitle: namespace,
       }}
     >
-      <ProCard title={<FormattedMessage id="basic" />}>
+      <ProCard
+        title={<FormattedMessage id="basic" />}
+        extra={
+          <Space>
+            <Tooltip title="Show Yaml">
+              <Button
+                className="action-button"
+                onClick={showModal}
+                icon={<YamlIcon />}
+              >
+                Yaml
+              </Button>
+              <YamlModal
+                isOpen={isModalOpen}
+                onClose={handleCancel}
+                content={YAML.stringify(omit(data, ['metadata.managedFields']))}
+              />
+            </Tooltip>
+          </Space>
+        }
+      >
         <ProDescriptions
           column={2}
           dataSource={data}

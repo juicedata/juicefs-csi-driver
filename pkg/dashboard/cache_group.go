@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
 	operatorcommon "github.com/juicedata/juicefs-cache-group-operator/pkg/common"
+	operatorutils "github.com/juicedata/juicefs-cache-group-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -195,5 +196,28 @@ func (api *API) removeWorker() gin.HandlerFunc {
 		}
 
 		c.JSON(200, gin.H{"message": "succeed"})
+	}
+}
+
+func (api *API) getCacheWorkerBytes() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		workerName := c.Param("workerName")
+
+		worker := corev1.Pod{}
+		if err := api.cachedReader.Get(c, types.NamespacedName{
+			Namespace: namespace,
+			Name:      workerName,
+		}, &worker); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		result, err := operatorutils.GetWorkerCacheBlocksBytes(c, worker, "/mnt/jfs")
+		if err != nil {
+			c.JSON(200, gin.H{"result": 0})
+			return
+		}
+		c.JSON(200, gin.H{"result": result})
 	}
 }

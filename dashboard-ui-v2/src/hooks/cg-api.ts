@@ -13,6 +13,19 @@ export function useCacheGroup(namespace?: string, name?: string) {
   return useSWR<CacheGroup>(`/api/v1/cachegroup/${namespace}/${name}/`)
 }
 
+export function useWorkerCacheBytes(
+  namespace?: string,
+  name?: string,
+  worker?: string,
+  refreshInterval = 0,
+) {
+  return useSWR<{ result: number }>(
+    `/api/v1/cachegroup/${namespace}/${name}/workers/${worker}/cacheBytes`,
+    null,
+    { refreshInterval },
+  )
+}
+
 export function useCacheGroupWorkers(
   namespace?: string,
   name?: string,
