@@ -215,7 +215,7 @@ func (api *API) getCacheWorkerBytes() gin.HandlerFunc {
 
 		result, err := operatorutils.GetWorkerCacheBlocksBytes(c, worker, "/mnt/jfs")
 		if err != nil {
-			c.JSON(200, gin.H{"result": 0})
+			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(200, gin.H{"result": result})

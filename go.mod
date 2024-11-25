@@ -8,7 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-logr/logr v1.4.2
 	github.com/golang/mock v1.6.0
-	github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241121023822-7cc71f30fc5d
+	github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241125095025-1758eadbd431
 	github.com/kubernetes-csi/csi-test/v5 v5.3.1
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.1

@@ -36,7 +36,7 @@ const WorkerCacheBytes: React.FC<{
   // bytes to human readable format
   const humanReadable = (bytes: number) => {
     if (bytes == 0) {
-      return '-'
+      return 0
     }
     const i = Math.floor(Math.log(bytes) / Math.log(1024))
     return (
