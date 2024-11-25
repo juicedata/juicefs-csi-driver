@@ -79,6 +79,8 @@ const CgWorkersTable: React.FC<{
     }
   }, [data])
 
+  // TODO: search & pagination
+
   return (
     <ProCard title="workers">
       <ProTable
@@ -124,7 +126,6 @@ const CgWorkersTable: React.FC<{
             </ModalForm>,
           ],
         }}
-        search={false}
         columns={[
           {
             title: <FormattedMessage id="name" />,

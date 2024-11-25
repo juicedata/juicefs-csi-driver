@@ -34,6 +34,7 @@ const CgDetail: React.FC<{
   name?: string
   namespace?: string
 }> = memo((props) => {
+  // TODO: CRUD operations for cache group
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -100,12 +101,12 @@ const CgDetail: React.FC<{
               dataIndex: ['status', 'phase'],
             },
             {
-              title: <FormattedMessage id="readyWorker" />,
-              dataIndex: ['status', 'readyWorker'],
-            },
-            {
               title: <FormattedMessage id="expectWorker" />,
               dataIndex: ['status', 'expectWorker'],
+            },
+            {
+              title: <FormattedMessage id="readyWorker" />,
+              dataIndex: ['status', 'readyWorker'],
             },
             {
               title: <FormattedMessage id="cacheGroupName" />,

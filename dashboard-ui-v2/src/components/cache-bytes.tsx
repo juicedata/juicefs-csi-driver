@@ -22,13 +22,12 @@ const WorkerCacheBytes: React.FC<{
   namespace?: string
   name?: string
   workerName?: string
-  waittingDelete?: boolean
-}> = ({ namespace, name, workerName, waittingDelete }) => {
+}> = ({ namespace, name, workerName }) => {
   const { data, isLoading } = useWorkerCacheBytes(
     namespace,
     name,
     workerName,
-    waittingDelete ? 1000 : 0,
+    5000,
   )
   if (isLoading) {
     return <Spin />

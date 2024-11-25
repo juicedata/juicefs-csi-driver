@@ -113,4 +113,7 @@ export default {
   setting: 'Setting',
   tool: 'Tools',
   cacheBytes: 'Cache Size',
+  expectWorker: 'Expected Worker',
+  readyWorker: 'Ready Worker',
+  cacheGroupName: 'Cache Group Name',
 }
