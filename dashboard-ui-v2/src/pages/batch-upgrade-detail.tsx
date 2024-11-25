@@ -303,7 +303,7 @@ function getAllNodes(nodes: Node[]): string[] {
   return allNodes
 }
 
-export const getUpgradeStatusBadge = (finalStatus: string) => {
+const getUpgradeStatusBadge = (finalStatus: string) => {
   switch (finalStatus) {
     case 'pending':
       return 'grey'

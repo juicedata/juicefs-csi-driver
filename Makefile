@@ -51,6 +51,10 @@ test-sanity:
 dashboard-dist:
 	cd dashboard-ui-v2 && pnpm run build
 
+.PHONY: dashboard-lint
+dashboard-lint:
+	cd dashboard-ui-v2 && pnpm run lint
+
 .PHONY: dashboard
 dashboard:
 	mkdir -p bin
