@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -80,7 +81,13 @@ func (api *API) getPodsToUpgrade() gin.HandlerFunc {
 			return
 		}
 
-		podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
+		// gen k8s client
+		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
+		if err != nil {
+			c.String(500, "Could not create k8s client: %v", err)
+			return
+		}
+		podsToUpgrade := resource.FilterPodsToUpgrade(c, k8sClient, pods, recreate)
 		podsByNode := make(map[string][]corev1.Pod)
 		for _, pod := range podsToUpgrade {
 			podsByNode[pod.Spec.NodeName] = append(podsByNode[pod.Spec.NodeName], pod)

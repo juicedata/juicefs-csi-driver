@@ -16,7 +16,7 @@
 
 
 import { useEffect, useState } from 'react'
-import { Button, Space, Progress, Dropdown, MenuProps, Checkbox, Spin, InputNumber } from 'antd'
+import { Button, Space, Progress, Dropdown, MenuProps, Checkbox, Spin, InputNumber, Empty, Collapse } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
 import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
@@ -24,24 +24,18 @@ import { Pod, Node } from 'kubernetes-types/core/v1'
 import { PodToUpgrade } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
+import { useConfigDiff } from '@/hooks/cm-api.ts'
+import { Badge } from 'antd/lib'
+import { Link } from 'react-router-dom'
 
-
-const helpMessage = `Click Start to perform a batch upgrade.
-
-- node: Select a node to upgrade all Mount Pods on it.
-- recreate: Upgrade a Mount Pod, with or without recreating it.
-
----
-`
 
 const BatchUpgradeDetail = () => {
   const [start, setStart] = useState(false)
   const [fail, setFail] = useState(false)
-  const [data, setData] = useState<string>(helpMessage)
+  const [data, setData] = useState<string>('')
   const [percent, setPercent] = useState(Number)
   const [selectedNode, setSelectedNode] = useState('All Nodes')
-  const [recreate, setRecreate] = useState(false)
-  const { data: podsToUpgrade } = usePodsToUpgrade(recreate, selectedNode)
+  const { data: podsToUpgrade } = usePodsToUpgrade(true, selectedNode)
   const { data: nodes } = useNodes()
   const [allNodes, setAllNodes] = useState([``])
   const { data: job } = useUpgradeStatus()
@@ -49,28 +43,40 @@ const BatchUpgradeDetail = () => {
   const [jobName, setJobName] = useState('')
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
+  const { data: diffPods } = useConfigDiff(selectedNode)
+  const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    setDiffStatus((prevStatus) => {
+      const newStatus = new Map(prevStatus)
+      diffPods?.forEach((pod) => {
+        const podName = pod?.metadata?.name
+        if (podName && !newStatus.has(podName)) {
+          newStatus.set(podName, 'pending')
+        }
+      })
+      return newStatus
+    })
+  }, [diffPods])
+
 
   useEffect(() => {
     setAllNodes(getAllNodes(nodes || []))
   }, [nodes])
 
   useEffect(() => {
-    console.log('start: ', start)
-    console.log('jobName: ', jobName)
-  }, [start, jobName])
-
-  useEffect(() => {
     if (job && (job.metadata?.name || '') !== '') {
       setJobName(job.metadata?.name || '')
       if (job.metadata?.labels) {
         setSelectedNode(job.metadata.labels['juicefs-upgrade-node'] || '')
-        setRecreate(job.metadata.labels['juicefs-upgrade-recreate'] === 'true')
+        // setRecreate(job.metadata.labels['juicefs-upgrade-recreate'] === 'true')
       }
       if (job.status?.active && job.status?.active !== 0) {
         setStart(true)
       }
     } else {
-      setData(helpMessage)
+      setData('')
+      setDiffStatus(new Map())
       setJobName('')
       setStart(false)
     }
@@ -88,15 +94,43 @@ const BatchUpgradeDetail = () => {
       onMessage: async (msg) => {
         setData((prev) => prev + msg.data)
 
-        const matchRegex = new RegExp('POD-', 'g')
-        const matches = msg.data.match(matchRegex)
+        if (msg.data.includes('POD-')) {
+          const successRegex = /POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g
+          const successMatches = msg.data.matchAll(successRegex)
+          for (const successMatch of successMatches) {
+            if (successMatch && successMatch[1]) {
+              const pod = successMatch[1]
+              setDiffStatus((prevState) => {
+                const newStatus = new Map(prevState)
+                newStatus.set(pod, 'succeed')
+                return newStatus
+              })
+            }
+          }
 
-        const totalPods = getPodsUpgradeOfNode(selectedNode, podsToUpgrade).length
-        if (totalPods !== 0 && matches) {
-          setPercent((prevPercent) => {
-            const newPercent = prevPercent + (matches.length / totalPods) * 100
-            return Math.min(Math.ceil(newPercent), 100)
-          })
+          const failRegex = /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g
+          const failMatches = msg.data.matchAll(failRegex)
+          for (const failMatch of failMatches) {
+            if (failMatch && failMatch[1]) {
+              const pod = failMatch[1]
+              setDiffStatus((prevState) => {
+                const newStatus = new Map(prevState)
+                newStatus.set(pod, 'fail')
+                return newStatus
+              })
+            }
+          }
+
+          const matchRegex = new RegExp('POD-', 'g')
+          const matches = msg.data.match(matchRegex)
+
+          const totalPods = getPodsUpgradeOfNode(selectedNode, podsToUpgrade).length
+          if (totalPods !== 0 && matches) {
+            setPercent((prevPercent) => {
+              const newPercent = prevPercent + (matches.length / totalPods) * 100
+              return Math.min(Math.ceil(newPercent), 100)
+            })
+          }
         }
 
         if (msg.data.includes('FAIL')) {
@@ -111,8 +145,8 @@ const BatchUpgradeDetail = () => {
     jobName !== '',
   )
 
-  const nodeItems = allNodes?.map((item, index) => ({
-    key: index.toString(),
+  const nodeItems = allNodes?.map((item) => ({
+    key: item,
     label: item,
   }))
 
@@ -136,7 +170,7 @@ const BatchUpgradeDetail = () => {
         ghost: true,
       }}
       extra={[
-        <Dropdown menu={menuProps}>
+        <Dropdown key="select node" menu={menuProps}>
           <Button>
             <Space>
               {selectedNode || 'All Nodes'}
@@ -145,18 +179,14 @@ const BatchUpgradeDetail = () => {
           </Button>
         </Dropdown>,
         <Checkbox
-          checked={recreate}
-          onChange={(value) => value && setRecreate(value.target.checked)}
-        >
-          <FormattedMessage id="recreate" />
-        </Checkbox>,
-        <Checkbox
+          key="ignore error"
           checked={ignoreError}
           onChange={(value) => value && setIgnoreError(value.target.checked)}
         >
           <FormattedMessage id="ignoreError" />
         </Checkbox>,
         <InputNumber
+          key="parallem num"
           style={{ width: '180px' }}
           min={1}
           max={50}
@@ -172,11 +202,12 @@ const BatchUpgradeDetail = () => {
         <Button
           disabled={start}
           type="primary"
+          key="start"
           onClick={() => {
-            setData(helpMessage)
+            setData('')
             actions.execute({
               nodeName: selectedNode,
-              recreate: recreate,
+              recreate: true,
               worker: worker,
               ignoreError: ignoreError,
             }).then(response => {
@@ -201,19 +232,50 @@ const BatchUpgradeDetail = () => {
           </div>
         </ProCard>
       ) : null}
-      <ProCard>
-        <Editor
-          height="calc(100vh - 200px)"
-          language="shell"
-          options={{
-            wordWrap: 'on',
-            readOnly: true,
-            theme: 'vs-light', // TODO dark mode
-            scrollBeyondLastLine: false,
-          }}
-          value={data}
-        />
-      </ProCard>
+
+      {diffPods?.length || 0 > 0 ? (
+        <ProCard
+          title={<FormattedMessage id="diffPods" />}
+          key="diffPods"
+        >
+          {diffPods?.map(pod =>
+            <ProCard key={pod.metadata?.uid || ''}>
+              <Badge color={getUpgradeStatusBadge(diffStatus.get(pod?.metadata?.name || '') || '')}
+                     text={
+                       <Link to={`/syspods/${pod?.metadata?.namespace}/${pod?.metadata?.name}/`}>
+                         {pod?.metadata?.name}
+                       </Link>
+                     }
+              />
+            </ProCard>,
+          )}
+        </ProCard>
+      ) : null}
+
+      {data !== '' ? (
+        <ProCard key="upgrade log">
+          <Collapse
+            items={[{
+              key: '1', label: <FormattedMessage id="clickToViewDetail" />, children:
+                <Editor
+                  height="calc(100vh - 200px)"
+                  language="shell"
+                  options={{
+                    wordWrap: 'on',
+                    readOnly: true,
+                    theme: 'vs-light', // TODO dark mode
+                    scrollBeyondLastLine: false,
+                  }}
+                  value={data}
+                />,
+            }]}
+          />
+        </ProCard>
+      ) : null}
+
+      {(data === '' && ((diffPods?.length || 0) <= 0)) ? (
+        <Empty description={<FormattedMessage id="noDiff" />} />
+      ) : null}
     </PageContainer>
   )
 }
@@ -239,4 +301,19 @@ function getAllNodes(nodes: Node[]): string[] {
     }
   })
   return allNodes
+}
+
+export const getUpgradeStatusBadge = (finalStatus: string) => {
+  switch (finalStatus) {
+    case 'pending':
+      return 'grey'
+    case 'running':
+      return 'blue'
+    case 'succeed':
+      return 'green'
+    case 'failed':
+      return 'red'
+    default:
+      return 'grey'
+  }
 }

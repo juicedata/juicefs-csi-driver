@@ -15,13 +15,13 @@
  */
 
 import { useEffect, useState } from 'react'
-import { PageContainer } from '@ant-design/pro-components'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
-import { Button } from 'antd'
+import { Button, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML, { YAMLParseError } from 'yaml'
 
-import { useConfig, useUpdateConfig } from '@/hooks/cm-api'
+import { useConfig, useConfigDiff, useUpdateConfig } from '@/hooks/cm-api'
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)
@@ -29,6 +29,15 @@ const ConfigDetail = () => {
   const { data, isLoading, mutate } = useConfig()
   const [state, actions] = useUpdateConfig()
   const [config, setConfig] = useState('')
+  const { data: diffPods } = useConfigDiff('')
+  const [diff, setDiff] = useState(false)
+
+  useEffect(() => {
+    if (diffPods && diffPods.length > 0) {
+      setDiff(true)
+    }
+  }, [diffPods])
+
   useEffect(() => {
     if (data?.data) {
       try {
@@ -48,6 +57,7 @@ const ConfigDetail = () => {
       }}
       extra={[
         <Button
+          key="docs"
           onClick={() => {
             window.open(
               'https://juicefs.com/docs/zh/csi/guide/configurations',
@@ -58,6 +68,7 @@ const ConfigDetail = () => {
           <FormattedMessage id="docs" />
         </Button>,
         <Button
+          key="reset docs"
           loading={isLoading}
           disabled={!updated}
           onClick={() => {
@@ -77,6 +88,7 @@ const ConfigDetail = () => {
           <FormattedMessage id="reset" />
         </Button>,
         <Button
+          key="update docs"
           type="primary"
           disabled={!updated}
           loading={state.status === 'loading'}
@@ -88,37 +100,55 @@ const ConfigDetail = () => {
               },
             })
             setUpdated(false)
+            setDiff(true)
           }}
         >
           <FormattedMessage id="save" />
         </Button>,
-        <Button
-          type="primary"
-          disabled={!updated}
-          onClick={()=>{
-              window.location.href = `upgrade`
-          }}
-        >
-          <FormattedMessage id="apply"/>
-        </Button>
+
+        diff ? <Popover
+            key="diff pods"
+            placement="bottomRight"
+            title={<FormattedMessage id="diffPods" />}
+            content={(
+              <div> {diffPods?.map(pod => <p key={pod.metadata?.uid || ''}>{pod.metadata?.name}</p>)} </div>
+            )}
+          >
+            <Button
+              key="apply"
+              type="primary"
+              disabled={!diff}
+              onClick={() => {
+                window.location.href = `upgrade`
+              }}
+            >
+              <FormattedMessage id="apply" />
+            </Button>
+          </Popover>
+          :
+          <Button key="apply" type="primary" disabled={true}>
+            <FormattedMessage id="apply" />
+          </Button>,
       ]}
     >
-      <Editor
-        defaultLanguage="yaml"
-        height="calc(100vh - 200px)"
-        options={{
-          wordWrap: 'on',
-          theme: 'vs-light', // TODO dark mode
-          scrollBeyondLastLine: false,
-        }}
-        value={config}
-        onChange={(v) => {
-          if (v) {
-            setConfig(v)
-            setUpdated(true)
-          }
-        }}
-      />
+      <ProCard>
+        <Editor
+          defaultLanguage="yaml"
+          height="calc(100vh - 200px)"
+          options={{
+            wordWrap: 'on',
+            theme: 'vs-light', // TODO dark mode
+            scrollBeyondLastLine: false,
+          }}
+          value={config}
+          onChange={(v) => {
+            if (v) {
+              setConfig(v)
+              setUpdated(true)
+            }
+          }}
+        />
+      </ProCard>
     </PageContainer>
   )
 }

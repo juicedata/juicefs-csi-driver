@@ -484,10 +484,15 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 	return filteredVars
 }
 
-func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
+func FilterPodsToUpgrade(ctx context.Context, client *k8sclient.K8sClient, podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
-		if CanUpgrade(pod, recreate) {
+		canUpgrade, err := CanUpgrade(ctx, client, pod, recreate)
+		if err != nil {
+			log.Error(err, "check pod upgrade error", "pod", pod.Name)
+			continue
+		}
+		if canUpgrade {
 			pods = append(pods, pod)
 		}
 	}
@@ -497,29 +502,37 @@ func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 // CanUpgrade if the pod can be upgraded
 // 1. pod has hash label
 // 2. pod image support upgrade
-// 3. pod is ready
-func CanUpgrade(pod corev1.Pod, recreate bool) bool {
-	// todo: if pod has config update?
+// 3. config update
+// 4. pod is ready
+func CanUpgrade(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
 	if len(pod.Spec.Containers) == 0 {
-		return false
+		return false, nil
 	}
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
-		return false
+		return false, nil
 	}
 	// check mount pod now support upgrade or not
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support smooth binary upgrade")
-		return false
+		return false, nil
 	}
 	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false
+		return false, nil
 	}
 
+	// check config update
+	setting, err := config.GenSettingAttrWithMountPod(ctx, client, &pod)
+	if err != nil {
+		return false, err
+	}
+	if setting.HashVal == pod.Labels[common.PodJuiceHashLabelKey] {
+		return false, err
+	}
 	// check status
-	return IsPodReady(&pod)
+	return IsPodReady(&pod), nil
 }
 
 func GetUpgradeUUID(pod *corev1.Pod) string {

@@ -438,7 +438,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		})
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err == nil {
-			log.Info("Create new pod", "resource", newPod.Spec.Containers[0].Resources)
 			_, err = p.Client.CreatePod(ctx, newPod)
 			if err != nil {
 				log.Error(err, "Create pod")
@@ -1075,7 +1074,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	// new image support fuse pass and old image do not support
 	if !oldSupportFusePass && newSupportFusePass {
 		// add fd address to env
-		fdAddress, err := passfd.GlobalFds.GetFdAddress(ctx, upgradeUUID)
+		fdAddress, err := passfd.GetFdAddress(ctx, upgradeUUID)
 		if err != nil {
 			return nil, err
 		}

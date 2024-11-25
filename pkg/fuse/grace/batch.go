@@ -77,9 +77,9 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 	u.podsToUpgrade = []*PodUpgrade{}
 	for _, pod := range podLists {
 		po := pod
-		if ok := resource.CanUpgrade(po, u.recreate); !ok {
-			log.Info("pod can not upgrade, ignore", "pod", pod.Name)
-			sendMessage(conn, fmt.Sprintf("POD-SKIP pod [%s] can not upgrade, ignore it.", po.Name))
+		canUpgrade, err := resource.CanUpgrade(ctx, u.client, po, u.recreate)
+		if err != nil || !canUpgrade {
+			log.Info("pod can not upgrade, ignore", "pod", pod.Name, "err", err)
 			continue
 		}
 		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
@@ -165,14 +165,10 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 				sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
 				if err := p.gracefulShutdown(ctx, conn); err != nil {
 					log.Error(err, "upgrade pod error", "pod", p.pod.Name)
-					sendMessage(conn, fmt.Sprintf("POD-FAIL upgrade pod [%s] error", p.pod.Name))
 					resultCh <- err
 					return
 				}
-				if p.status == podUpgradeSuccess {
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", p.pod.Name))
-				} else {
-					sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", p.pod.Name))
+				if p.status != podUpgradeSuccess {
 					resultCh <- fmt.Errorf("pod [%s] upgraded failed", p.pod.Name)
 				}
 			}(i)
@@ -216,12 +212,10 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 		sendMessage(conn, "waiting for upgrade...")
 		for _, pu := range u.podsToUpgrade {
 			if pu.status == podUpgradeSuccess && !util.ContainsString(finishPod, pu.pod.Name) {
-				sendMessage(conn, fmt.Sprintf("POD-SUCCESS pod [%s] upgraded success", pu.pod.Name))
 				finishPod = append(finishPod, pu.pod.Name)
 			}
 			if pu.status == podUpgradeFail && !util.ContainsString(finishPod, pu.pod.Name) {
 				success = false
-				sendMessage(conn, fmt.Sprintf("POD-FAIL pod [%s] upgraded failed", pu.pod.Name))
 				finishPod = append(finishPod, pu.pod.Name)
 			}
 		}

@@ -1,5 +1,5 @@
 import { useAsync } from '@react-hookz/web'
-import { ConfigMap } from 'kubernetes-types/core/v1'
+import { ConfigMap, Pod } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
 import { getHost } from '@/utils'
@@ -18,4 +18,9 @@ export function useUpdateConfig() {
       body: JSON.stringify(config),
     })
   })
+}
+
+export function useConfigDiff(nodeName: string) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
+  return useSWR<[Pod]>(`/api/v1/config/diff?nodeName=${node}`)
 }

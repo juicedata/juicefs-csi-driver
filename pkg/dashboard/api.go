@@ -76,6 +76,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
+	group.GET("/config/diff", api.getCSIConfigDiff())
 	group.GET("/nodes", api.getNodes())
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())

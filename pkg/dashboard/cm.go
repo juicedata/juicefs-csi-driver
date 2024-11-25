@@ -17,11 +17,18 @@
 package dashboard
 
 import (
+	"context"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func (api *API) getCSIConfig() gin.HandlerFunc {
@@ -84,4 +91,64 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 		}
 		c.JSON(200, cm)
 	}
+}
+
+func (api *API) getCSIConfigDiff() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		nodeName := c.Query("nodeName")
+		// gen k8s client
+		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
+		if err != nil {
+			c.String(500, "Could not create k8s client: %v", err)
+			return
+		}
+		// get all mount pods
+		var pods corev1.PodList
+		s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app.kubernetes.io/name": "juicefs-mount",
+			},
+		})
+		listOptions := client.ListOptions{
+			LabelSelector: s,
+		}
+		if nodeName != "" {
+			fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
+			listOptions.FieldSelector = fieldSelector
+		}
+		err = api.cachedReader.List(c, &pods, &listOptions)
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+
+		// load config
+		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
+			c.String(500, "Load config from configmap error: %v", err)
+			return
+		}
+
+		var needUpdatePods []corev1.Pod
+		for _, pod := range pods.Items {
+			po := pod
+			diff, err := DiffConfig(c, k8sClient, &po)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			if diff {
+				needUpdatePods = append(needUpdatePods, po)
+			}
+		}
+
+		c.JSON(200, needUpdatePods)
+	}
+}
+
+func DiffConfig(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (bool, error) {
+	setting, err := config.GenSettingAttrWithMountPod(ctx, client, pod)
+	if err != nil {
+		return false, err
+	}
+	return setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey], nil
 }
