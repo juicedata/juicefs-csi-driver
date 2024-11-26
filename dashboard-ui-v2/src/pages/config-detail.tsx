@@ -29,7 +29,7 @@ const ConfigDetail = () => {
   const { data, isLoading, mutate } = useConfig()
   const [state, actions] = useUpdateConfig()
   const [config, setConfig] = useState('')
-  const { data: diffPods } = useConfigDiff('')
+  const { data: diffPods } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
 
   useEffect(() => {

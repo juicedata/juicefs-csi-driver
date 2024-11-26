@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -96,6 +97,10 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
+		uniqueIdsStr := c.Query("uniqueIds")
+		uniqueIds := strings.FieldsFunc(uniqueIdsStr, func(r rune) bool {
+			return r == '/'
+		})
 		// gen k8s client
 		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
 		if err != nil {
@@ -104,11 +109,19 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 		}
 		// get all mount pods
 		var pods corev1.PodList
-		s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		ls := &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"app.kubernetes.io/name": "juicefs-mount",
 			},
-		})
+		}
+		if len(uniqueIds) != 0 {
+			ls.MatchExpressions = []metav1.LabelSelectorRequirement{{
+				Key:      common.PodUniqueIdLabelKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   uniqueIds,
+			}}
+		}
+		s, _ := metav1.LabelSelectorAsSelector(ls)
 		listOptions := client.ListOptions{
 			LabelSelector: s,
 		}

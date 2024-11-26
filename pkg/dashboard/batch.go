@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -57,17 +58,25 @@ func (api *API) getPodsToUpgrade() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
 		recreate := c.Query("recreate") == "true"
+		uniqueIdsStr := c.Query("uniqueIds")
+		uniqueIds := strings.FieldsFunc(uniqueIdsStr, func(r rune) bool {
+			return r == '/'
+		})
 
 		var pods corev1.PodList
-		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		ls := &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"app.kubernetes.io/name": "juicefs-mount",
 			},
-		})
-		if err != nil {
-			c.String(500, "parse label selector error %v", err)
-			return
 		}
+		if len(uniqueIds) != 0 {
+			ls.MatchExpressions = []metav1.LabelSelectorRequirement{{
+				Key:      common.PodUniqueIdLabelKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   uniqueIds,
+			}}
+		}
+		s, _ := metav1.LabelSelectorAsSelector(ls)
 		listOptions := client.ListOptions{
 			LabelSelector: s,
 		}
@@ -75,7 +84,7 @@ func (api *API) getPodsToUpgrade() gin.HandlerFunc {
 			fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
 			listOptions.FieldSelector = fieldSelector
 		}
-		err = api.cachedReader.List(c, &pods, &listOptions)
+		err := api.cachedReader.List(c, &pods, &listOptions)
 		if err != nil {
 			c.String(500, "list pods error %v", err)
 			return
@@ -112,10 +121,11 @@ func (api *API) getPodsToUpgrade() gin.HandlerFunc {
 func (api *API) upgradePods() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		body := &struct {
-			NodeName    string `json:"nodeName"`
-			ReCreate    bool   `json:"recreate,omitempty"`
-			Worker      int    `json:"worker,omitempty"`
-			IgnoreError bool   `json:"ignoreError,omitempty"`
+			NodeName    string   `json:"nodeName"`
+			ReCreate    bool     `json:"recreate,omitempty"`
+			Worker      int      `json:"worker,omitempty"`
+			IgnoreError bool     `json:"ignoreError,omitempty"`
+			UniqueIds   []string `json:"uniqueIds,omitempty"`
 		}{}
 		if err := c.ShouldBindJSON(&body); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
@@ -156,7 +166,7 @@ func (api *API) upgradePods() gin.HandlerFunc {
 			}
 		}
 		if needCreate {
-			newJob := newUpgradeJob(nodeName, recreate, body.Worker, body.IgnoreError)
+			newJob := newUpgradeJob(nodeName, recreate, body.Worker, body.IgnoreError, body.UniqueIds)
 			if _, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{}); err != nil {
 				batchLog.Error(err, "create job error")
 			}
@@ -287,7 +297,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	}
 }
 
-func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool) *batchv1.Job {
+func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool, uniqueIds []string) *batchv1.Job {
 	sysNamespace := getSysNamespace()
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	if nodeName != "" {
@@ -301,6 +311,9 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool)
 	}
 	if ignoreError {
 		cmds = append(cmds, "--ignoreError")
+	}
+	if len(uniqueIds) > 0 {
+		cmds = append(cmds, fmt.Sprintf("--uniqueIds=%s", strings.Join(uniqueIds, "/")))
 	}
 	ttl := int32(300)
 	sa := "juicefs-csi-dashboard-sa"
@@ -317,9 +330,12 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool)
 			Name:      jobName,
 			Namespace: sysNamespace,
 			Labels: map[string]string{
-				common.JfsUpgradeJobLabelKey:  common.JfsUpgradeJobLabelValue,
+				common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
+			},
+			Annotations: map[string]string{
 				common.JfsUpgradeNodeName:     nodeName,
 				common.JfsUpgradeRecreateName: recreateLabel,
+				common.JfsUpgradeUniqueIds:    strings.Join(uniqueIds, "/"),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -329,10 +345,13 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool)
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						common.JfsUpgradeJobLabelKey:  common.JfsUpgradeJobLabelValue,
+						common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
+						common.JfsUpgradePodLabelKey: jobName,
+					},
+					Annotations: map[string]string{
 						common.JfsUpgradeNodeName:     nodeName,
 						common.JfsUpgradeRecreateName: recreateLabel,
-						common.JfsUpgradePodLabelKey:  jobName,
+						common.JfsUpgradeUniqueIds:    strings.Join(uniqueIds, "/"),
 					},
 				},
 				Spec: corev1.PodSpec{

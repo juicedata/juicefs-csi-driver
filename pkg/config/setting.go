@@ -856,11 +856,11 @@ func applyConfigPatch(setting *JfsSetting) {
 	if patch.Resources != nil {
 		attr.Resources = *patch.Resources
 	}
-	util.CpNotNil(patch.Lifecycle, attr.Lifecycle)
-	util.CpNotNil(patch.LivenessProbe, attr.LivenessProbe)
-	util.CpNotNil(patch.ReadinessProbe, attr.ReadinessProbe)
-	util.CpNotNil(patch.StartupProbe, attr.StartupProbe)
-	util.CpNotNil(patch.TerminationGracePeriodSeconds, attr.TerminationGracePeriodSeconds)
+	attr.Lifecycle = util.CpNotNil(patch.Lifecycle, attr.Lifecycle)
+	attr.LivenessProbe = util.CpNotNil(patch.LivenessProbe, attr.LivenessProbe)
+	attr.ReadinessProbe = util.CpNotNil(patch.ReadinessProbe, attr.ReadinessProbe)
+	attr.StartupProbe = util.CpNotNil(patch.StartupProbe, attr.StartupProbe)
+	attr.TerminationGracePeriodSeconds = util.CpNotNil(patch.TerminationGracePeriodSeconds, attr.TerminationGracePeriodSeconds)
 	attr.VolumeDevices = patch.VolumeDevices
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes

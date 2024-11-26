@@ -38,6 +38,7 @@ var (
 	recreate    = false
 	worker      = 1
 	ignoreError = false
+	uniqueIds   = ""
 )
 
 var upgradeCmd = &cobra.Command{
@@ -103,6 +104,7 @@ func init() {
 	upgradeCmd.Flags().BoolVar(&recreate, "recreate", false, "upgrade the mount pod with recreate")
 	upgradeCmd.Flags().BoolVar(&ignoreError, "ignoreError", false, "ignore error and upgrade the rest mount pods")
 	upgradeCmd.Flags().IntVar(&worker, "worker", 1, "worker number for batch upgrade")
+	upgradeCmd.Flags().StringVar(&uniqueIds, "uniqueIds", "", "unique ids for batch upgrade")
 }
 
 func triggerUpgradeInNode(ctx context.Context, client kubernetes.Interface, cfg *rest.Config, csiNode corev1.Pod) error {
@@ -115,6 +117,9 @@ func triggerUpgradeInNode(ctx context.Context, client kubernetes.Interface, cfg 
 	}
 	if worker > 1 {
 		cmds = append(cmds, fmt.Sprintf("--worker=%d", worker))
+	}
+	if uniqueIds != "" {
+		cmds = append(cmds, fmt.Sprintf("--uniqueIds=%s", uniqueIds))
 	}
 	req := client.CoreV1().RESTClient().Post().
 		Resource("pods").

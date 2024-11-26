@@ -154,11 +154,12 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   })
 }
 
-export function usePodsToUpgrade(recreate: boolean, nodeName?: string) {
+export function usePodsToUpgrade(recreate: boolean, nodeName?: string, uniqueId?: string) {
   const node = nodeName === 'All Nodes' ? '' : nodeName
   const recreateFlag = recreate ? 'true' : 'false'
+  const uniqueIdStr = uniqueId !== undefined ? uniqueId : ''
   return useSWR<PodToUpgrade[]>(
-    `/api/v1/batch/pods?nodeName=${node}&recreate=${recreateFlag}`,
+    `/api/v1/batch/pods?nodeName=${node}&recreate=${recreateFlag}&uniqueIds=${uniqueIdStr}`,
   )
 }
 
@@ -167,7 +168,7 @@ export function useNodes() {
 }
 
 export function useUpgradePods() {
-  return useAsync(async ({ nodeName, recreate, worker, ignoreError }) => {
+  return useAsync(async ({ nodeName, recreate, worker, ignoreError, uniqueId }) => {
     const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
       method: 'POST',
       headers: {
@@ -178,6 +179,7 @@ export function useUpgradePods() {
         recreate: recreate,
         worker: worker,
         ignoreError: ignoreError,
+        uniqueIds: [uniqueId],
       }),
     })
     const result: {

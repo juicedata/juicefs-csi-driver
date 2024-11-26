@@ -732,10 +732,11 @@ func ToPtr[T any](v T) *T {
 	return &v
 }
 
-func CpNotNil[T any](s, d *T) {
+func CpNotNil[T any](s, d *T) *T {
 	if s != nil {
-		d = s
+		return s
 	}
+	return d
 }
 
 func SortBy[T any](slice []T, less func(i, j int) bool) {

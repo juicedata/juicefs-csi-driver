@@ -64,10 +64,19 @@ func InitBatchUpgrade(client *k8s.K8sClient) {
 	}
 }
 
-func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
-	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey: common.PodTypeValue,
-	}}
+func (u *BatchUpgrade) fetchPods(ctx context.Context, uniqueIds []string) error {
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.PodTypeValue,
+		},
+	}
+	if len(uniqueIds) != 0 {
+		labelSelector.MatchExpressions = []metav1.LabelSelectorRequirement{{
+			Key:      common.PodUniqueIdLabelKey,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   uniqueIds,
+		}}
+	}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	podLists, err := u.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
 	if err != nil {
@@ -103,36 +112,36 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 	return nil
 }
 
-func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn, recreate bool, worker int, ignoreErr bool) {
+func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn, req upgradeRequest) {
 	if u.status == batchUpgradeRunning {
 		log.Info("upgrade is running")
 		sendMessage(conn, "upgrade is still running")
 		u.syncStatus(ctx, conn)
 		return
 	}
-	u.batchUpgrade(ctx, conn, recreate, worker, ignoreErr)
+	u.batchUpgrade(ctx, conn, req)
 }
 
-func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate bool, worker int, ignoreErr bool) {
+func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, req upgradeRequest) {
 	u.lock.Lock()
 	u.status = batchUpgradeRunning
 	defer func() {
 		u.status = batchUpgradeWaiting
 		defer u.lock.Unlock()
 	}()
-	if err := u.fetchPods(ctx, conn); err != nil {
+	if err := u.fetchPods(ctx, req.uniqueIds); err != nil {
 		return
 	}
-	if worker > common.MaxParallelUpgradeNum {
-		log.Info("worker number is too large, set to default", "worker", worker, "default", common.MaxParallelUpgradeNum)
-		worker = common.MaxParallelUpgradeNum
+	if req.worker > common.MaxParallelUpgradeNum {
+		log.Info("worker number is too large, set to default", "worker", req.worker, "default", common.MaxParallelUpgradeNum)
+		req.worker = common.MaxParallelUpgradeNum
 	}
-	if worker < 0 {
-		log.Info("worker number is less than 0, set to 1", "worker", worker)
-		worker = 1
+	if req.worker < 0 {
+		log.Info("worker number is less than 0, set to 1", "worker", req.worker)
+		req.worker = 1
 	}
 	var (
-		limiter  = make(chan struct{}, worker)
+		limiter  = make(chan struct{}, req.worker)
 		resultCh = make(chan error)
 		err      error
 		wg       sync.WaitGroup
@@ -161,7 +170,7 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 					<-limiter
 				}()
 				p := u.podsToUpgrade[num]
-				p.recreate = recreate
+				p.recreate = req.action == recreate
 				sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
 				if err := p.gracefulShutdown(ctx, conn); err != nil {
 					log.Error(err, "upgrade pod error", "pod", p.pod.Name)
@@ -178,7 +187,7 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, recreate
 	for oneErr := range resultCh {
 		if oneErr != nil {
 			err = oneErr
-			if !ignoreErr {
+			if !req.ignoreError {
 				canF()
 				sendMessage(conn, fmt.Sprintf("BATCH-FAIL some pods upgrade failed in node %s", config.NodeName))
 				return
@@ -238,7 +247,7 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignoreError bool) error {
+func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignoreError bool, uniqueIds string) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
@@ -250,7 +259,7 @@ func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignor
 	} else {
 		message = fmt.Sprintf("BATCH %s", noRecreate)
 	}
-	message = fmt.Sprintf("%s worker=%d,ignoreError=%t", message, worker, ignoreError)
+	message = fmt.Sprintf("%s worker=%d,ignoreError=%t,uniqueIds=%s", message, worker, ignoreError, uniqueIds)
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {

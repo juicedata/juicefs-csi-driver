@@ -127,3 +127,16 @@ func getSysNamespace() string {
 	}
 	return namespace
 }
+
+func isShareMount(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	for _, env := range pod.Spec.Containers[0].Env {
+		if env.Name == "STORAGE_CLASS_SHARE_MOUNT" && env.Value == "true" {
+			return true
+		}
+	}
+
+	return false
+}

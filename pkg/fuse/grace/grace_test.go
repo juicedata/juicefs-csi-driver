@@ -66,6 +66,19 @@ func Test_parseRequest(t *testing.T) {
 				ignoreError: true,
 			},
 		},
+		{
+			name: "uniqueIds",
+			args: args{
+				message: "BATCH NORECREATE worker=3,ignoreError=true,uniqueIds=1/2",
+			},
+			want: upgradeRequest{
+				action:      noRecreate,
+				name:        "BATCH",
+				worker:      3,
+				ignoreError: true,
+				uniqueIds:   []string{"1", "2"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

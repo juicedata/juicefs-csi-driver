@@ -16,17 +16,30 @@
 
 
 import { useEffect, useState } from 'react'
-import { Button, Space, Progress, Dropdown, MenuProps, Checkbox, Spin, InputNumber, Empty, Collapse } from 'antd'
+import {
+  Button,
+  Space,
+  Progress,
+  Dropdown,
+  MenuProps,
+  Checkbox,
+  Spin,
+  InputNumber,
+  Empty,
+  Collapse,
+  AutoComplete,
+} from 'antd'
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
 import { useNodes, usePodsToUpgrade, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
 import { Pod, Node } from 'kubernetes-types/core/v1'
-import { PodToUpgrade } from '@/types/k8s.ts'
+import { PodToUpgrade, PVC } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import { useConfigDiff } from '@/hooks/cm-api.ts'
 import { Badge } from 'antd/lib'
 import { Link } from 'react-router-dom'
+import { usePVCs, usePVCWithUniqueId } from '@/hooks/pv-api.ts'
 
 
 const BatchUpgradeDetail = () => {
@@ -34,8 +47,15 @@ const BatchUpgradeDetail = () => {
   const [fail, setFail] = useState(false)
   const [data, setData] = useState<string>('')
   const [percent, setPercent] = useState(Number)
+  const [selectedPVCName, setSelectedPVCName] = useState('')
+  const [pvcNamespace, setPVCNamespace] = useState('')
+  const [pvcName, setPVCName] = useState('')
+  const { data: selectedPVC } = usePVCWithUniqueId(pvcNamespace, pvcName)
+  const [uniqueId, setUniqueId] = useState('')
+  const [allPVCs, setAllPVCs] = useState<{ key: string, value: string, pvc: PVC }[]>([])
+  const { data: pvcs } = usePVCs({ name: '' })
   const [selectedNode, setSelectedNode] = useState('All Nodes')
-  const { data: podsToUpgrade } = usePodsToUpgrade(true, selectedNode)
+  const { data: podsToUpgrade } = usePodsToUpgrade(true, selectedNode, uniqueId)
   const { data: nodes } = useNodes()
   const [allNodes, setAllNodes] = useState([``])
   const { data: job } = useUpgradeStatus()
@@ -43,8 +63,28 @@ const BatchUpgradeDetail = () => {
   const [jobName, setJobName] = useState('')
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
-  const { data: diffPods } = useConfigDiff(selectedNode)
+  const { data: diffPods } = useConfigDiff(selectedNode, uniqueId)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    setAllPVCs(() => {
+      return getAllPVCs(pvcs?.pvcs || [])
+    })
+  }, [pvcs])
+
+  useEffect(() => {
+    if (selectedPVC) {
+      setUniqueId(selectedPVC.UniqueId)
+    }
+  }, [selectedPVC])
+
+  useEffect(() => {
+    const s = selectedPVCName.split('/')
+    if (s.length == 2) {
+      setPVCNamespace(s[0])
+      setPVCName(s[1])
+    }
+  }, [selectedPVCName])
 
   useEffect(() => {
     setDiffStatus((prevStatus) => {
@@ -59,7 +99,6 @@ const BatchUpgradeDetail = () => {
     })
   }, [diffPods])
 
-
   useEffect(() => {
     setAllNodes(getAllNodes(nodes || []))
   }, [nodes])
@@ -67,8 +106,9 @@ const BatchUpgradeDetail = () => {
   useEffect(() => {
     if (job && (job.metadata?.name || '') !== '') {
       setJobName(job.metadata?.name || '')
-      if (job.metadata?.labels) {
-        setSelectedNode(job.metadata.labels['juicefs-upgrade-node'] || '')
+      if (job.metadata?.annotations) {
+        setSelectedNode(job.metadata.annotations['juicefs-upgrade-node'] || '')
+        setUniqueId(job.metadata.annotations['juicefs-upgrade-uniqueids'] || '') // only one uniqueid
         // setRecreate(job.metadata.labels['juicefs-upgrade-recreate'] === 'true')
       }
       if (job.status?.active && job.status?.active !== 0) {
@@ -125,6 +165,11 @@ const BatchUpgradeDetail = () => {
           const matches = msg.data.match(matchRegex)
 
           const totalPods = getPodsUpgradeOfNode(selectedNode, podsToUpgrade).length
+          if (totalPods === 0) {
+            setPercent(() => {
+              return 100
+            })
+          }
           if (totalPods !== 0 && matches) {
             setPercent((prevPercent) => {
               const newPercent = prevPercent + (matches.length / totalPods) * 100
@@ -178,6 +223,19 @@ const BatchUpgradeDetail = () => {
             </Space>
           </Button>
         </Dropdown>,
+        <AutoComplete
+          key="select pvc"
+          style={{ width: 200 }}
+          options={allPVCs}
+          filterOption={(inputValue, option) =>
+            option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+          }
+          placeholder={<FormattedMessage id="selectPVC" />}
+          onSelect={(value: string) => {
+            setSelectedPVCName(value)
+          }}
+        >
+        </AutoComplete>,
         <Checkbox
           key="ignore error"
           checked={ignoreError}
@@ -210,6 +268,7 @@ const BatchUpgradeDetail = () => {
               recreate: true,
               worker: worker,
               ignoreError: ignoreError,
+              uniqueId: selectedPVC?.UniqueId,
             }).then(response => {
               setJobName(response.jobName)
             })
@@ -237,9 +296,12 @@ const BatchUpgradeDetail = () => {
         <ProCard
           title={<FormattedMessage id="diffPods" />}
           key="diffPods"
+          style={{ marginBlockStart: 4 }}
+          gutter={4}
+          wrap
         >
           {diffPods?.map(pod =>
-            <ProCard key={pod.metadata?.uid || ''}>
+            <ProCard key={pod.metadata?.uid || ''} colSpan={6}>
               <Badge color={getUpgradeStatusBadge(diffStatus.get(pod?.metadata?.name || '') || '')}
                      text={
                        <Link to={`/syspods/${pod?.metadata?.namespace}/${pod?.metadata?.name}/`}>
@@ -301,6 +363,24 @@ function getAllNodes(nodes: Node[]): string[] {
     }
   })
   return allNodes
+}
+
+function getAllPVCs(pvcs: PVC[]) {
+  const allPVCs: {
+    key: string
+    value: string
+    pvc: PVC
+  }[] = []
+  pvcs.forEach((v) => {
+    if (v.metadata?.name && v.metadata.uid) {
+      allPVCs.push({
+        key: v.metadata?.uid,
+        value: v.metadata.namespace + '/' + v.metadata?.name,
+        pvc: v,
+      })
+    }
+  })
+  return allPVCs
 }
 
 const getUpgradeStatusBadge = (finalStatus: string) => {

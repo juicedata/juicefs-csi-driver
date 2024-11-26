@@ -104,6 +104,7 @@ export default {
   apply: '立即生效',
   diffPods: '配置需要变更的 Mount Pod',
   noDiff: '暂无配置需要变更的 Mount Pod',
+  selectPVC: '请选择 PVC',
   action: '操作',
   image: '镜像',
   resources: '资源',

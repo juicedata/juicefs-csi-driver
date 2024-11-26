@@ -90,6 +90,7 @@ const (
 	JfsUpgradeJobLabelKey   = "app.kubernetes.io/name"
 	JfsUpgradeJobLabelValue = "juicefs-upgrade"
 	JfsUpgradeNodeName      = "juicefs-upgrade-node"
+	JfsUpgradeUniqueIds     = "juicefs-upgrade-uniqueids"
 	JfsUpgradeRecreateName  = "juicefs-upgrade-recreate"
 	JfsUpgradePodLabelKey   = "juicefs-job-name"
 )

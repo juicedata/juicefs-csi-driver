@@ -92,6 +92,7 @@ type upgradeRequest struct {
 	name        string
 	worker      int
 	ignoreError bool
+	uniqueIds   []string
 }
 
 // parseRequest parse request from message
@@ -128,6 +129,11 @@ func parseRequest(message string) upgradeRequest {
 			if ops[0] == "ignoreError" {
 				req.ignoreError = ops[1] == "true"
 			}
+			if ops[0] == "uniqueIds" {
+				req.uniqueIds = strings.FieldsFunc(ops[1], func(r rune) bool {
+					return r == '/'
+				})
+			}
 		}
 	}
 	return req
@@ -151,7 +157,7 @@ func handleShutdown(conn net.Conn) {
 	if req.name == batch {
 		ctx, cancel := context.WithTimeout(context.TODO(), batchUpgradeTimeout)
 		defer cancel()
-		globalBatchUpgrade.BatchUpgrade(ctx, conn, req.action == recreate, req.worker, req.ignoreError)
+		globalBatchUpgrade.BatchUpgrade(ctx, conn, req)
 		return
 	}
 	client, err := k8s.NewClient()

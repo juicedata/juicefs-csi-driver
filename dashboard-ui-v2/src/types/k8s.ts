@@ -43,6 +43,12 @@ export type PVC = PersistentVolumeClaim & {
   }
 }
 
+export type PVCWithUniqueId = {
+  PVC: PersistentVolumeClaim
+  PV: PersistentVolume
+  UniqueId: string
+}
+
 export const accessModeMap: { [key: string]: string } = {
   ReadWriteOnce: 'RWO',
   ReadWriteMany: 'RWX',

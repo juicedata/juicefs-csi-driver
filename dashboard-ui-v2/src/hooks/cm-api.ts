@@ -20,7 +20,7 @@ export function useUpdateConfig() {
   })
 }
 
-export function useConfigDiff(nodeName: string) {
+export function useConfigDiff(nodeName: string, uniqueId: string) {
   const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<[Pod]>(`/api/v1/config/diff?nodeName=${node}`)
+  return useSWR<[Pod]>(`/api/v1/config/diff?nodeName=${node}&uniqueIds=${uniqueId}`)
 }
