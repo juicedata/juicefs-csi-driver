@@ -32,6 +32,7 @@ type API struct {
 	sysNamespace string
 	// for cached resources
 	cachedReader client.Reader
+	mgrClient    client.Client
 	// for logs and events
 	client kubernetes.Interface
 
@@ -47,10 +48,11 @@ type API struct {
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
+func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
-		cachedReader: cachedReader,
+		cachedReader: client,
+		mgrClient:    client,
 		client:       kubernetes.NewForConfigOrDie(config),
 		csiNodeIndex: make(map[string]types.NamespacedName),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
@@ -108,6 +110,9 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
+	cgGroup.POST("/create", api.createCacheGroup())
+	cgGroup.POST("/update", api.updateCacheGroup())
+	cgGroup.POST("/delete", api.deleteCacheGroup())
 	cgGroup.GET("/workers", api.listCacheGroupWorkers())
 	cgGroup.GET("/workers/:workerName/cacheBytes", api.getCacheWorkerBytes())
 	cgGroup.POST("/addWorker", api.addWorker())

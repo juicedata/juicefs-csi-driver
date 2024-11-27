@@ -14,13 +14,45 @@
  * limitations under the License.
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
+import { Button, message } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
+import YAML from 'yaml'
 
-import { useCacheGroups } from '@/hooks/cg-api'
+import { YamlModal } from '@/components'
+import { useCacheGroups, useCreateCacheGroup } from '@/hooks/cg-api'
 import { CacheGroup } from '@/types/k8s'
+
+const defaultCreateCgTemplate = `
+## This is a default template for creating a cache group
+## You can modify it to fit your needs
+## For more information, please refer to the official documentation
+
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-demo
+  namespace: default
+spec:
+  secretRef:
+    name: juicefs-secret
+  worker:
+    template:
+      nodeSelector:
+        juicefs.io/cg-worker: "true"
+      image: juicedata/mount:ee-5.1.2-59d9736
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 1
+          memory: 1Gi
+`
 
 const columns: ProColumns<CacheGroup>[] = [
   {
@@ -55,7 +87,19 @@ const columns: ProColumns<CacheGroup>[] = [
 ]
 
 const CgList: React.FC<unknown> = () => {
-  const { data, isLoading } = useCacheGroups()
+  const { data, isLoading, mutate } = useCacheGroups()
+  const [, createCg] = useCreateCacheGroup()
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const showModal = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleCancel = () => {
+    setIsModalOpen(false)
+  }
+
   return (
     <PageContainer
       header={{
@@ -68,6 +112,35 @@ const CgList: React.FC<unknown> = () => {
         dataSource={data}
         columns={columns}
         search={false}
+        toolbar={{
+          actions: [
+            <>
+              <Button key="create" type="primary" onClick={showModal}>
+                Create
+              </Button>
+              <YamlModal
+                isOpen={isModalOpen}
+                onClose={handleCancel}
+                content={defaultCreateCgTemplate}
+                editable
+                onSave={async (data) => {
+                  const resp = await createCg.execute({
+                    body: YAML.parse(data),
+                  })
+                  if (resp.status !== 200) {
+                    message.error('error: ' + (await resp.json()).error)
+                    return
+                  }
+                  mutate()
+                  handleCancel()
+                  message.success('success')
+                }}
+                saveButtonText="Create"
+              />
+            </>,
+          ],
+          settings: undefined,
+        }}
       />
     </PageContainer>
   )

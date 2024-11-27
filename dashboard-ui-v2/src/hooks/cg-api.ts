@@ -77,3 +77,47 @@ export function useAddWorker(namespace?: string, name?: string) {
     )
   })
 }
+
+export function useCreateCacheGroup() {
+  return useAsync(async ({ body }: { body: CacheGroup }) => {
+    return await fetch(
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/create`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    )
+  })
+}
+
+export function useUpdateCacheGroup() {
+  return useAsync(async ({ body }: { body: CacheGroup }) => {
+    return await fetch(
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/update`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    )
+  })
+}
+
+export function useDeleteCacheGroup() {
+  return useAsync(async ({ body }: { body: CacheGroup }) => {
+    return await fetch(
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/delete`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+  })
+}

@@ -85,6 +85,7 @@ const CgWorkersTable: React.FC<{
     <ProCard title="workers">
       <ProTable
         toolbar={{
+          settings: undefined,
           actions: [
             <ModalForm
               trigger={

@@ -20,25 +20,32 @@ import {
   ProCard,
   ProDescriptions,
 } from '@ant-design/pro-components'
-import { Button, Space, Tooltip } from 'antd'
+import { Button, message, Popconfirm, Space, Tooltip } from 'antd'
 import { omit } from 'lodash'
 import { FormattedMessage } from 'react-intl'
+import { useNavigate } from 'react-router-dom'
 import YAML from 'yaml'
 
 import { YamlModal } from '@/components'
 import CgWorkersTable from '@/components/cg-workers-table'
-import { useCacheGroup } from '@/hooks/cg-api'
+import {
+  useCacheGroup,
+  useDeleteCacheGroup,
+  useUpdateCacheGroup,
+} from '@/hooks/cg-api'
 import { YamlIcon } from '@/icons'
 
 const CgDetail: React.FC<{
   name?: string
   namespace?: string
 }> = memo((props) => {
-  // TODO: CRUD operations for cache group
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const redirect = useNavigate()
 
-  const { data, isLoading } = useCacheGroup(namespace, name)
+  const { data, isLoading, mutate } = useCacheGroup(namespace, name)
+  const [, updateCg] = useUpdateCacheGroup()
+  const [, deleteCg] = useDeleteCacheGroup()
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -83,8 +90,40 @@ const CgDetail: React.FC<{
                 isOpen={isModalOpen}
                 onClose={handleCancel}
                 content={YAML.stringify(omit(data, ['metadata.managedFields']))}
+                editable
+                onSave={async (data) => {
+                  const resp = await updateCg.execute({
+                    body: YAML.parse(data),
+                  })
+                  if (resp.status !== 200) {
+                    message.error('error: ' + (await resp.json()).error)
+                    return
+                  }
+                  message.success('success')
+                  handleCancel()
+                  mutate()
+                }}
               />
             </Tooltip>
+            <Popconfirm
+              title="Delete this CacheGroup"
+              description={
+                <FormattedMessage id="deleteCacheGroupDescription" />
+              }
+              onConfirm={async () => {
+                await deleteCg.execute({
+                  body: data,
+                })
+                message.success('success')
+                redirect('/cachegroups')
+              }}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="primary" danger>
+                Delete
+              </Button>
+            </Popconfirm>
           </Space>
         }
       >

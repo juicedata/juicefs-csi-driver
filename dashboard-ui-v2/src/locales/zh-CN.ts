@@ -110,4 +110,7 @@ export default {
   expectWorker: '期望节点数',
   readyWorker: '已就绪节点数',
   cacheGroupName: '缓存组名称',
+  deleteCacheGroupDescription: '确定删除该缓存组吗?',
+  ready: '就绪',
+  phase: '阶段',
 }

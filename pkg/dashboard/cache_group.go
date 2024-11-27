@@ -17,6 +17,9 @@
 package dashboard
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
 	operatorcommon "github.com/juicedata/juicefs-cache-group-operator/pkg/common"
@@ -35,6 +38,98 @@ func (api *API) listCacheGroups() gin.HandlerFunc {
 			return
 		}
 		c.JSON(200, cgs.Items)
+	}
+}
+
+func validateCg(ctx context.Context, client client.Client, cg juicefsiov1.CacheGroup) error {
+	if cg.Spec.SecretRef == nil {
+		return fmt.Errorf("secretRef is required")
+	}
+	secret := cg.Spec.SecretRef.Name
+	if secret == "" {
+		return fmt.Errorf("secretRef name is required")
+	}
+	if err := client.Get(ctx, types.NamespacedName{
+		Namespace: cg.Namespace,
+		Name:      secret,
+	}, &corev1.Secret{}); err != nil {
+		if operatorutils.IsNotFound(err) {
+			return fmt.Errorf("secret %s not found", secret)
+		}
+	}
+	if cg.Spec.Worker.Template.NodeSelector == nil {
+		return fmt.Errorf("worker node selector is required")
+	}
+
+	return nil
+}
+
+func (api *API) createCacheGroup() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var cg juicefsiov1.CacheGroup
+		if err := c.BindJSON(&cg); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if err := validateCg(c, api.mgrClient, cg); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if err := api.mgrClient.Create(c, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, cg)
+	}
+}
+
+func (api *API) deleteCacheGroup() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		namespace := c.Param("namespace")
+		cg := juicefsiov1.CacheGroup{}
+		if err := api.cachedReader.Get(c, types.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		}, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		if err := api.mgrClient.Delete(c, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"message": "succeed"})
+	}
+}
+
+func (api *API) updateCacheGroup() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		name := c.Param("name")
+		namespace := c.Param("namespace")
+		cg := juicefsiov1.CacheGroup{}
+		if err := api.cachedReader.Get(c, types.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		}, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		var body juicefsiov1.CacheGroup
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if err := validateCg(c, api.mgrClient, cg); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		if err := api.mgrClient.Update(c, &body); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, cg)
 	}
 }
 
