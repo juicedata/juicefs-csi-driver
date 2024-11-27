@@ -105,8 +105,6 @@ const CgWorkersTable: React.FC<{
               modalProps={{
                 destroyOnClose: true,
                 className: 'add-worker-modal',
-                style: { width: '400px' },
-                onCancel: () => console.log('run'),
               }}
               submitTimeout={2000}
               onFinish={async (values) => {
