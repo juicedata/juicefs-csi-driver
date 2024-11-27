@@ -562,6 +562,12 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		setting.PV = pv
 		setting.PVC = pvc
 		setting.Options = options
+		if setting.Attr.Labels == nil {
+			setting.Attr.Labels = make(map[string]string)
+		}
+		if setting.Attr.Annotations == nil {
+			setting.Attr.Annotations = make(map[string]string)
+		}
 		// apply config patch
 		applyConfigPatch(setting)
 		setting.ClientConfPath = DefaultClientConfPath
