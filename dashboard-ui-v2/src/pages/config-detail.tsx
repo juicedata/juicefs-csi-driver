@@ -29,7 +29,7 @@ const ConfigDetail = () => {
   const { data, isLoading, mutate } = useConfig()
   const [state, actions] = useUpdateConfig()
   const [config, setConfig] = useState('')
-  const { data: diffPods } = useConfigDiff('', '')
+  const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
 
   useEffect(() => {
@@ -100,7 +100,7 @@ const ConfigDetail = () => {
               },
             })
             setUpdated(false)
-            setDiff(true)
+            diffMutate()
           }}
         >
           <FormattedMessage id="save" />

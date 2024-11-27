@@ -132,16 +132,17 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, req upgr
 	if err := u.fetchPods(ctx, req.uniqueIds); err != nil {
 		return
 	}
-	if req.worker > common.MaxParallelUpgradeNum {
+	worker := req.worker
+	if worker > common.MaxParallelUpgradeNum {
 		log.Info("worker number is too large, set to default", "worker", req.worker, "default", common.MaxParallelUpgradeNum)
-		req.worker = common.MaxParallelUpgradeNum
+		worker = common.MaxParallelUpgradeNum
 	}
-	if req.worker < 0 {
+	if worker < 0 {
 		log.Info("worker number is less than 0, set to 1", "worker", req.worker)
-		req.worker = 1
+		worker = 1
 	}
 	var (
-		limiter  = make(chan struct{}, req.worker)
+		limiter  = make(chan struct{}, worker)
 		resultCh = make(chan error)
 		err      error
 		wg       sync.WaitGroup
