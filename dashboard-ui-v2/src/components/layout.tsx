@@ -76,7 +76,12 @@ const items: MenuProps['items'] = [
         key: '/storageclass',
       },
       {
-        label: <Link to="/cachegroups">Cache Group</Link>,
+        label: (
+          <Link to="/cachegroups">
+            {' '}
+            <FormattedMessage id="cacheGroup" />
+          </Link>
+        ),
         key: '/cachegroups',
       },
     ],

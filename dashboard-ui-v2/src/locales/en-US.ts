@@ -116,4 +116,5 @@ export default {
   expectWorker: 'Expected Worker',
   readyWorker: 'Ready Worker',
   cacheGroupName: 'Cache Group Name',
+  cacheGroup: 'Cache Group',
 }

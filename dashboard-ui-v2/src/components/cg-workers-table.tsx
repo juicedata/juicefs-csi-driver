@@ -51,8 +51,6 @@ const CgWorkersTable: React.FC<{
   namespace?: string
 }> = ({ namespace, name }) => {
   const [refreshInterval, setRefreshInterval] = React.useState<number>(0)
-  const { data } = useCacheGroupWorkers(namespace, name, refreshInterval)
-  const [sortedData, setSortedData] = React.useState(data)
   const { data: nodes } = useNodes(true)
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
@@ -60,9 +58,21 @@ const CgWorkersTable: React.FC<{
 
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 20,
+    pageSize: 10,
     total: 0,
   })
+  const [filter, setFilter] = useState<{
+    name?: string
+    node?: string
+  }>()
+
+  const { data } = useCacheGroupWorkers(namespace, name, refreshInterval, {
+    ...pagination,
+    ...filter,
+  })
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
+  }, [data?.total])
 
   const handleTableChange: TableProps['onChange'] = (pagination) => {
     setPagination(pagination)
@@ -70,16 +80,11 @@ const CgWorkersTable: React.FC<{
 
   const [existNodes, setExistNodes] = React.useState<string[]>([])
   useEffect(() => {
-    if (data) {
-      const nodes = data.map((v) => v.spec!.nodeName!)
+    if (data?.items) {
+      const nodes = data.items.map((v) => v.spec!.nodeName!)
       setExistNodes(nodes)
-      setSortedData(
-        data.sort((a, b) => a.metadata!.name!.localeCompare(b.metadata!.name!)),
-      )
     }
   }, [data])
-
-  // TODO: search & pagination
 
   return (
     <ProCard title="workers">
@@ -88,6 +93,7 @@ const CgWorkersTable: React.FC<{
           settings: undefined,
           actions: [
             <ModalForm
+              title="Select Node to add worker"
               trigger={
                 <Button type="primary">
                   <PlusOutlined />
@@ -98,6 +104,8 @@ const CgWorkersTable: React.FC<{
               autoFocusFirstInput
               modalProps={{
                 destroyOnClose: true,
+                className: 'add-worker-modal',
+                style: { width: '400px' },
                 onCancel: () => console.log('run'),
               }}
               submitTimeout={2000}
@@ -120,7 +128,10 @@ const CgWorkersTable: React.FC<{
                         disabled: true,
                       }
                     }
-                    return { label: v.metadata!.name, value: v.metadata!.name }
+                    return {
+                      label: v.metadata!.name,
+                      value: v.metadata!.name,
+                    }
                   })}
                 />
               </ProForm.Group>
@@ -217,10 +228,21 @@ const CgWorkersTable: React.FC<{
             ),
           },
         ]}
-        dataSource={sortedData}
+        dataSource={data?.items ?? []}
         rowKey={(c) => c.metadata?.uid || ''}
         pagination={pagination}
         onChange={handleTableChange}
+        form={{
+          onValuesChange: (_, values) => {
+            if (values) {
+              setFilter((prev) => ({
+                ...prev,
+                ...values,
+                ...values.metadata,
+              }))
+            }
+          },
+        }}
       />
     </ProCard>
   )

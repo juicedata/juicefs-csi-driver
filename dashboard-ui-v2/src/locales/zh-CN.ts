@@ -113,4 +113,5 @@ export default {
   deleteCacheGroupDescription: '确定删除该缓存组吗?',
   ready: '就绪',
   phase: '阶段',
+  cacheGroup: '缓存组',
 }

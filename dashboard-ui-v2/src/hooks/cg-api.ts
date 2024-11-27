@@ -2,6 +2,7 @@ import { useAsync } from '@react-hookz/web'
 import { Pod as NativePod, Node } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
+import { CgWorkerPagingListArgs } from '@/types'
 import { CacheGroup } from '@/types/k8s'
 import { getHost } from '@/utils'
 
@@ -30,9 +31,10 @@ export function useCacheGroupWorkers(
   namespace?: string,
   name?: string,
   refreshInterval = 0,
+  pagination?: CgWorkerPagingListArgs,
 ) {
-  return useSWR<NativePod[]>(
-    `/api/v1/cachegroup/${namespace}/${name}/workers`,
+  return useSWR<{ items: NativePod[]; total: number }>(
+    `/api/v1/cachegroup/${namespace}/${name}/workers?pageSize=${pagination?.pageSize}&current=${pagination?.current}&name=${pagination?.name ?? ''}&node=${pagination?.node ?? ''}`,
     null,
     {
       refreshInterval,

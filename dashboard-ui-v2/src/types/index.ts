@@ -81,3 +81,10 @@ export interface PVCPagingListArgs {
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
 }
+
+export interface CgWorkerPagingListArgs {
+  pageSize?: number
+  current?: number
+  name?: string
+  node?: string
+}

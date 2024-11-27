@@ -19,6 +19,9 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
@@ -153,6 +156,18 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		namespace := c.Param("namespace")
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		nameFilter := c.Query("name")
+		nodeFilter := c.Query("node")
 		cg := juicefsiov1.CacheGroup{}
 		if err := api.cachedReader.Get(c, types.NamespacedName{
 			Namespace: namespace,
@@ -180,7 +195,31 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(200, workers.Items)
+		sort.Slice(workers.Items, func(i, j int) bool {
+			return workers.Items[i].CreationTimestamp.Before(&workers.Items[j].CreationTimestamp)
+		})
+
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(workers.Items)) {
+			c.JSON(200, gin.H{"items": []corev1.Pod{}, "total": 0})
+			return
+		}
+
+		filterItems := make([]corev1.Pod, 0)
+		for _, worker := range workers.Items[startIndex:] {
+			if nameFilter != "" && !strings.Contains(worker.Name, nameFilter) {
+				continue
+			}
+			if nodeFilter != "" && !strings.Contains(worker.Spec.NodeName, nodeFilter) {
+				continue
+			}
+			filterItems = append(filterItems, worker)
+			if uint64(len(filterItems)) >= pageSize {
+				break
+			}
+		}
+
+		c.JSON(200, gin.H{"items": filterItems, "total": len(workers.Items)})
 	}
 }
 
