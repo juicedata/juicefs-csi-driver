@@ -85,7 +85,14 @@ export function usePVC(namespace?: string, name?: string) {
     name ? `/api/v1/pvc/${namespace}/${name}/` : ``)
 }
 
-export function usePVCWithUniqueId(namespace?: string, name?: string) {
+export function usePVCWithUniqueId(namespacedName?: string) {
+  const s = namespacedName?.split("/")
+  let name = ""
+  let namespace = ""
+  if (s?.length == 2) {
+    namespace = s[0]
+    name = s[1]
+  }
   return useSWR<PVCWithUniqueId>(
     name ? `/api/v1/pvc/${namespace}/${name}/uniqueid` : ``)
 }

@@ -20,7 +20,7 @@ import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { Pod, PodToUpgrade } from '@/types/k8s'
+import { Pod } from '@/types/k8s'
 import { Node } from 'kubernetes-types/core/v1'
 import { getBasePath, getHost } from '@/utils'
 import { Job } from 'kubernetes-types/batch/v1'
@@ -154,15 +154,6 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   })
 }
 
-export function usePodsToUpgrade(recreate: boolean, nodeName?: string, uniqueId?: string) {
-  const node = nodeName === 'All Nodes' ? '' : nodeName
-  const recreateFlag = recreate ? 'true' : 'false'
-  const uniqueIdStr = uniqueId !== undefined ? uniqueId : ''
-  return useSWR<PodToUpgrade[]>(
-    `/api/v1/batch/pods?nodeName=${node}&recreate=${recreateFlag}&uniqueIds=${uniqueIdStr}`,
-  )
-}
-
 export function useNodes() {
   return useSWR<Node[]>('/api/v1/nodes')
 }
@@ -179,7 +170,7 @@ export function useUpgradePods() {
         recreate: recreate,
         worker: worker,
         ignoreError: ignoreError,
-        uniqueIds: [uniqueId],
+        uniqueIds: uniqueId === '' ? [] : [uniqueId],
       }),
     })
     const result: {
@@ -191,4 +182,16 @@ export function useUpgradePods() {
 
 export function useUpgradeStatus() {
   return useSWR<Job>(`/api/v1/batch/job`)
+}
+
+export function useClearUpgradeStatus() {
+  return useAsync(async () => {
+    await fetch(`${getHost()}/api/v1/batch/job`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return
+  })
 }

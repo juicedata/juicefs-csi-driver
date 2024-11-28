@@ -193,6 +193,20 @@ func (api *API) getUpgradeStatus() gin.HandlerFunc {
 	}
 }
 
+func (api *API) clearUpgradeStatus() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		jobName := common.GenUpgradeJobName()
+		err := api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
+			PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
+		})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			c.String(500, "delete job error %v", err)
+			return
+		}
+		return
+	}
+}
+
 func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Query("job")
@@ -313,7 +327,13 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool,
 		cmds = append(cmds, "--ignoreError")
 	}
 	if len(uniqueIds) > 0 {
-		cmds = append(cmds, fmt.Sprintf("--uniqueIds=%s", strings.Join(uniqueIds, "/")))
+		ids := []string{}
+		for _, id := range uniqueIds {
+			if strings.TrimSpace(id) != "" {
+				ids = append(ids, id)
+			}
+		}
+		cmds = append(cmds, fmt.Sprintf("--uniqueIds=%s", strings.Join(ids, "/")))
 	}
 	ttl := int32(300)
 	sa := "juicefs-csi-dashboard-sa"

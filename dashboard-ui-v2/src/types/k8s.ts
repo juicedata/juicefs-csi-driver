@@ -55,8 +55,3 @@ export const accessModeMap: { [key: string]: string } = {
   ReadOnlyMany: 'ROX',
   ReadWriteOncePod: 'RWOP',
 }
-
-export type PodToUpgrade = {
-  node: string,
-  pods: NativePod[],
-}

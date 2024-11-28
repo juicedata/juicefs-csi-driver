@@ -114,6 +114,7 @@ export default {
   diffPods: 'Mount Pods config to be changed',
   noDiff: 'There are no Mount Pods config to be changed.',
   selectPVC: 'Please select PVC',
+  complete: 'Complete',
   image: 'Image',
   resources: 'Resources',
   setting: 'Setting',

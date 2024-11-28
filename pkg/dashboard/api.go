@@ -105,6 +105,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	batchGroup := group.Group("/batch")
 	batchGroup.GET("/pods", api.getPodsToUpgrade())
 	batchGroup.GET("/job", api.getUpgradeStatus())
+	batchGroup.DELETE("/job", api.clearUpgradeStatus())
 	batchGroup.POST("/upgrade", api.upgradePods())
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
 

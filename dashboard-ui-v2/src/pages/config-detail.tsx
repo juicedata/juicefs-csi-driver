@@ -39,6 +39,12 @@ const ConfigDetail = () => {
   }, [diffPods])
 
   useEffect(() => {
+    if (!updated) {
+      diffMutate()
+    }
+  }, [diffMutate, updated])
+
+  useEffect(() => {
     if (data?.data) {
       try {
         setConfig(YAML.stringify(YAML.parse(data?.data?.['config.yaml'])))
@@ -100,7 +106,6 @@ const ConfigDetail = () => {
               },
             })
             setUpdated(false)
-            diffMutate()
           }}
         >
           <FormattedMessage id="save" />
