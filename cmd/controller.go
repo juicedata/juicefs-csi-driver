@@ -114,12 +114,23 @@ func parseControllerConfig() {
 			CSINodeDsName = name
 		}
 		ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
+		ads, err2 := k8sclient.GetADaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
 		if err != nil {
-			log.Error(err, "Can't get DaemonSet", "ds", CSINodeDsName)
-			os.Exit(1)
+			log.Error(err, "Can't get DaemonSet, try get ads", "ds", CSINodeDsName)
 		}
-		config.CSIPod = corev1.Pod{
-			Spec: ds.Spec.Template.Spec,
+
+		if ds != nil {
+			config.CSIPod = corev1.Pod{
+				Spec: ds.Spec.Template.Spec,
+			}
+		} else if ads != nil {
+			config.CSIPod = corev1.Pod{
+				Spec: ads.Spec.Template.Spec,
+			}
+			log.Info("get ads successful", "ds", CSINodeDsName)
+		} else {
+			log.Error(err2, "Can't get ds or ads", "ds", CSINodeDsName)
+			os.Exit(1)
 		}
 	}
 }

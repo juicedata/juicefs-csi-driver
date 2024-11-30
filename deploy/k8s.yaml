@@ -340,6 +340,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - apps.kruise.io
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -650,6 +657,7 @@ spec:
         name: juicefs-config
   volumeClaimTemplates: []
 ---
+#apiVersion: apps.kruise.io/v1alpha1
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
