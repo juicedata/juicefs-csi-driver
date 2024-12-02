@@ -482,12 +482,12 @@ func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 		log.Error(err, "error sending message")
 		return err
 	}
-	log.Info("trigger gracefully shutdown successfully", "name", name)
+	fmt.Printf("%s trigger gracefully shutdown successfully\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		message = scanner.Text()
-		log.Info(message)
+		fmt.Printf("%s %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
 		if strings.HasPrefix(message, "POD-SUCCESS") || strings.HasPrefix(message, "POD-FAIL") {
 			break
 		}

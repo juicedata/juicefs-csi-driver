@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -51,70 +51,6 @@ func (api *API) getNodes() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, nodeList.Items)
-	}
-}
-
-func (api *API) getPodsToUpgrade() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		nodeName := c.Query("nodeName")
-		recreate := c.Query("recreate") == "true"
-		uniqueIdsStr := c.Query("uniqueIds")
-		uniqueIds := strings.FieldsFunc(uniqueIdsStr, func(r rune) bool {
-			return r == '/'
-		})
-
-		var pods corev1.PodList
-		ls := &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app.kubernetes.io/name": "juicefs-mount",
-			},
-		}
-		if len(uniqueIds) != 0 {
-			ls.MatchExpressions = []metav1.LabelSelectorRequirement{{
-				Key:      common.PodUniqueIdLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   uniqueIds,
-			}}
-		}
-		s, _ := metav1.LabelSelectorAsSelector(ls)
-		listOptions := client.ListOptions{
-			LabelSelector: s,
-		}
-		if nodeName != "" {
-			fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
-			listOptions.FieldSelector = fieldSelector
-		}
-		err := api.cachedReader.List(c, &pods, &listOptions)
-		if err != nil {
-			c.String(500, "list pods error %v", err)
-			return
-		}
-
-		// gen k8s client
-		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
-		if err != nil {
-			c.String(500, "Could not create k8s client: %v", err)
-			return
-		}
-		podsToUpgrade := resource.FilterPodsToUpgrade(c, k8sClient, pods, recreate)
-		podsByNode := make(map[string][]corev1.Pod)
-		for _, pod := range podsToUpgrade {
-			podsByNode[pod.Spec.NodeName] = append(podsByNode[pod.Spec.NodeName], pod)
-		}
-
-		type PodToUpgrade struct {
-			Node string       `json:"node"`
-			Pods []corev1.Pod `json:"pods"`
-		}
-		results := make([]PodToUpgrade, 0)
-		for k, v := range podsByNode {
-			results = append(results, PodToUpgrade{
-				k,
-				v,
-			})
-		}
-
-		c.IndentedJSON(200, results)
 	}
 }
 
@@ -166,9 +102,46 @@ func (api *API) upgradePods() gin.HandlerFunc {
 			}
 		}
 		if needCreate {
-			newJob := newUpgradeJob(nodeName, recreate, body.Worker, body.IgnoreError, body.UniqueIds)
-			if _, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{}); err != nil {
+			var csis corev1.PodList
+			s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/name": "juicefs-csi-driver",
+					"app":                    "juicefs-csi-node",
+				},
+			})
+			err = api.cachedReader.List(c, &csis, &client.ListOptions{LabelSelector: s})
+			if err != nil {
+				c.String(500, "list pods error %v", err)
+				return
+			}
+			pods, err := api.getUpgradePods(c, body.UniqueIds, body.NodeName, body.ReCreate)
+			if err != nil {
+				c.String(500, "get upgrade pods error %v", err)
+				return
+			}
+			batchConfig := config.NewBatchConfig(pods, body.Worker, body.IgnoreError, body.ReCreate, body.NodeName, body.UniqueIds, csis.Items)
+			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, config.UpgradeConfigMapName, batchConfig)
+			if err != nil {
+				c.String(500, "save upgrade config error %v", err)
+				return
+			}
+
+			newJob := newUpgradeJob(nodeName, recreate, body.UniqueIds)
+			job, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
+			if err != nil {
 				batchLog.Error(err, "create job error")
+				c.String(500, "create job error %v", err)
+				return
+			}
+			if cfg, err = api.client.CoreV1().ConfigMaps(cfg.Namespace).Get(c, cfg.Name, metav1.GetOptions{}); err != nil {
+				c.String(500, "get configmap error %v", err)
+				return
+			}
+			SetJobAsConfigMapOwner(cfg, job)
+			if _, err := api.client.CoreV1().ConfigMaps(cfg.Namespace).Update(c, cfg, metav1.UpdateOptions{}); err != nil {
+				batchLog.Error(err, "update configmap error")
+				c.String(500, "update configmap error %v", err)
+				return
 			}
 		}
 		c.IndentedJSON(200, map[string]string{
@@ -311,30 +284,9 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	}
 }
 
-func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool, uniqueIds []string) *batchv1.Job {
+func newUpgradeJob(nodeName string, recreate bool, uniqueIds []string) *batchv1.Job {
 	sysNamespace := getSysNamespace()
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
-	if nodeName != "" {
-		cmds = append(cmds, "--node", nodeName)
-	}
-	if recreate {
-		cmds = append(cmds, "--recreate")
-	}
-	if worker > 0 {
-		cmds = append(cmds, fmt.Sprintf("--worker=%d", worker))
-	}
-	if ignoreError {
-		cmds = append(cmds, "--ignoreError")
-	}
-	if len(uniqueIds) > 0 {
-		ids := []string{}
-		for _, id := range uniqueIds {
-			if strings.TrimSpace(id) != "" {
-				ids = append(ids, id)
-			}
-		}
-		cmds = append(cmds, fmt.Sprintf("--uniqueIds=%s", strings.Join(ids, "/")))
-	}
 	ttl := int32(300)
 	sa := "juicefs-csi-dashboard-sa"
 	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
@@ -388,4 +340,52 @@ func newUpgradeJob(nodeName string, recreate bool, worker int, ignoreError bool,
 			TTLSecondsAfterFinished: &ttl,
 		},
 	}
+}
+
+func (api *API) getUpgradePods(ctx context.Context, uniqueIds []string, nodeName string, recreate bool) ([]corev1.Pod, error) {
+	var pods corev1.PodList
+	ls := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app.kubernetes.io/name": "juicefs-mount",
+		},
+	}
+	if len(uniqueIds) != 0 {
+		ls.MatchExpressions = []metav1.LabelSelectorRequirement{{
+			Key:      common.PodUniqueIdLabelKey,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   uniqueIds,
+		}}
+	}
+	s, _ := metav1.LabelSelectorAsSelector(ls)
+	listOptions := client.ListOptions{
+		LabelSelector: s,
+	}
+	if nodeName != "" {
+		fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
+		listOptions.FieldSelector = fieldSelector
+	}
+	err := api.cachedReader.List(ctx, &pods, &listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	podsToUpgrade := resource.FilterPodsToUpgrade(ctx, api.k8sclient, pods, recreate)
+
+	// load config
+	if err := config.LoadFromConfigMap(ctx, api.k8sclient); err != nil {
+		return nil, err
+	}
+
+	var needUpdatePods []corev1.Pod
+	for _, pod := range podsToUpgrade {
+		po := pod
+		diff, err := DiffConfig(ctx, api.k8sclient, &po)
+		if err != nil {
+			return nil, err
+		}
+		if diff {
+			needUpdatePods = append(needUpdatePods, po)
+		}
+	}
+	return needUpdatePods, nil
 }
