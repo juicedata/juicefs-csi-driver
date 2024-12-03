@@ -104,6 +104,8 @@ github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241121023822-7cc71f
 github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241121023822-7cc71f30fc5d/go.mod h1:OHDwNeXbnOJqIIvpTdMBNoUSDW5q/uyw+QXWPslrPx4=
 github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241125095025-1758eadbd431 h1:9dlv2KRi7FOeCWGF4M1fph/hOFFSORh+HrDjUNbCww8=
 github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241125095025-1758eadbd431/go.mod h1:OHDwNeXbnOJqIIvpTdMBNoUSDW5q/uyw+QXWPslrPx4=
+github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241203030451-4231534cf5fc h1:Ave7Y7gxYZO7hvlgQrvkMblISBJunH4b2YulMLaAXn8=
+github.com/juicedata/juicefs-cache-group-operator v0.1.1-0.20241203030451-4231534cf5fc/go.mod h1:OHDwNeXbnOJqIIvpTdMBNoUSDW5q/uyw+QXWPslrPx4=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=

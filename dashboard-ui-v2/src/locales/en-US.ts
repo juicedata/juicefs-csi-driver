@@ -121,4 +121,7 @@ export default {
     'Are you sure you want to offline the node?\nAfter confirmation, the node will not be removed immediately, and will wait for the data on the node to be migrated to other nodes before being removed.',
   deleteCacheGroupDescription:
     'Are you sure you want to delete this cache group?',
+  fileSystem: 'File System',
+  dataMigration: 'Waiting for data migration',
+  warmingUp: 'Warming up',
 }

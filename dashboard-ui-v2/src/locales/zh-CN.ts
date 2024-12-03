@@ -114,4 +114,7 @@ export default {
   ready: '就绪',
   phase: '阶段',
   cacheGroup: '缓存组',
+  fileSystem: '文件系统',
+  dataMigration: '等待数据迁移',
+  warmingUp: '预热中',
 }

@@ -65,8 +65,8 @@ const columns: ProColumns<CacheGroup>[] = [
     ),
   },
   {
-    title: <FormattedMessage id="namespace" />,
-    dataIndex: ['metadata', 'namespace'],
+    title: <FormattedMessage id="fileSystem" />,
+    dataIndex: ['status', 'fileSystem'],
   },
   {
     title: <FormattedMessage id="phase" />,

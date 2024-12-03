@@ -173,11 +173,11 @@ const CgWorkersTable: React.FC<{
               if (
                 pod.metadata.annotations?.['juicefs.io/waiting-delete-worker']
               ) {
-                return 'Waiting Delete'
+                return <FormattedMessage id="dataMigration" />
               }
 
               if (pod.metadata.annotations?.['juicefs.io/backup-worker']) {
-                return 'Backup Worker'
+                return <FormattedMessage id="warmingUp" />
               }
 
               const finalStatus = podStatus(pod)
