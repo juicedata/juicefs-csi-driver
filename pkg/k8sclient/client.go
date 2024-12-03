@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/openkruise/kruise-api/apps/v1alpha1"
 	"io"
 	"net/url"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	kruiseclientset "github.com/openkruise/kruise-api/client/clientset/versioned"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
@@ -78,6 +80,7 @@ type PatchDelValue struct {
 
 type K8sClient struct {
 	enableAPIServerListCache bool
+	kruiseClient             kruiseclientset.Interface
 	kubernetes.Interface
 }
 
@@ -122,7 +125,11 @@ func newClient(config *rest.Config) (*K8sClient, error) {
 	if os.Getenv("ENABLE_APISERVER_LIST_CACHE") == "true" {
 		enableAPIServerListCache = true
 	}
-	return &K8sClient{enableAPIServerListCache, client}, nil
+	kruiseClient, err2 := kruiseclientset.NewForConfig(config)
+	if err2 != nil {
+		return nil, err2
+	}
+	return &K8sClient{enableAPIServerListCache, kruiseClient, client}, nil
 }
 
 func (k *K8sClient) CreatePod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
@@ -455,6 +462,17 @@ func (k *K8sClient) GetStorageClass(ctx context.Context, scName string) (*storag
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) GetADaemonSet(ctx context.Context, dsName, namespace string) (*v1alpha1.DaemonSet, error) {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Get ads", "name", dsName)
+	ads, err := k.kruiseClient.AppsV1alpha1().DaemonSets(namespace).Get(ctx, dsName, metav1.GetOptions{})
+	if err != nil {
+		log.Info("Can't get ADaemonSet", "ds", dsName)
+		return nil, err
+	}
+	return ads, nil
 }
 
 func (k *K8sClient) GetDaemonSet(ctx context.Context, dsName, namespace string) (*appsv1.DaemonSet, error) {
