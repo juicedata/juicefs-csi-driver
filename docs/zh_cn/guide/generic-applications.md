@@ -94,9 +94,74 @@ spec:
 
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，在集群内指定的节点挂载 JuiceFS 客户端，形成一个稳定的缓存组。
 
-下方介绍两种部署方式，分别是 StatefulSet 和 DaemonSet。功能上并无区别，但是在升级或修改配置的时候，StatefulSet 默认会按照从低到高位依次重启，这种方式对缓存组消费端的服务冲击更小。而 DaemonSet 方式则会根据其 `updateStrategy` 设置来执行更新，如果规模巨大，需要仔细设置更新策略，避免冲击服务。
+下方介绍几种部署方式，分别是 Operator、StatefulSet 和 DaemonSet。功能上并无区别，但是在升级或修改配置的时候，StatefulSet 默认会按照从低到高位依次重启，这种方式对缓存组消费端的服务冲击更小。而 DaemonSet 方式则会根据其 `updateStrategy` 设置来执行更新，如果规模巨大，需要仔细设置更新策略，避免冲击服务。
 
 除此之外，两种部署方式没有显著不同，根据喜好选择即可。如果需要更加灵活和精准的中心化配置调节，比如覆盖某个节点的权重设置等，可以引入额外的 ConfigMap 和启动脚本来实现。
+
+### Operator 方式
+
+#### 安装 operator
+
+```sh
+helm repo add juicefs https://juicedata.github.io/charts/
+helm repo update
+
+helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace
+```
+
+您可以使用 kubectl wait 等待 Operator 准备就绪：
+
+```sh
+kubectl wait -n juicefs-cache-group --for=condition=Available=true --timeout=120s deployment/juicefs-cache-group-operator
+```
+
+#### 创建一个缓存组集群
+
+支持的配置项，可以在[这里](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml)找到示范。
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: juicefs-cache-group
+type: Opaque
+stringData:
+  name: juicefs-xx
+  token: xx
+  access-key: xx
+  secret-key: xx
+---
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+spec:
+  secretRef:
+    name: juicefs-secret
+  worker:
+    template:
+      nodeSelector:
+        juicefs.io/cg-worker: "true"
+      image: juicedata/mount:ee-5.1.1-1faf43b
+      opts:
+        - group-weight=100
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 1
+          memory: 1Gi
+```
+
+#### 获取缓存组状态
+
+```sh
+➜  kubectl get cachegroups
+NAME                CACHE GROUP NAME                        PHASE   READY   AGE
+cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
+```
 
 ### DaemonSet 方式
 
