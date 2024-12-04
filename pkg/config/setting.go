@@ -649,6 +649,12 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 	if pv != nil {
 		setting.Options = pv.Spec.MountOptions
 	}
+	if setting.Attr.Labels == nil {
+		setting.Attr.Labels = make(map[string]string)
+	}
+	if setting.Attr.Annotations == nil {
+		setting.Attr.Annotations = make(map[string]string)
+	}
 	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {
 		return err

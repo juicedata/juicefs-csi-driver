@@ -939,7 +939,9 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
-	formatCmd := j.Exec.CommandContext(cmdCtx, config.CeCliPath, args...)
+
+	shArgs := append([]string{config.CeCliPath}, args...)
+	formatCmd := j.Exec.CommandContext(cmdCtx, "/bin/bash", "-c", strings.Join(shArgs, " "))
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
