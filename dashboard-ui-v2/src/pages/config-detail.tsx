@@ -41,8 +41,9 @@ const ConfigDetail = () => {
   useEffect(() => {
     if (!updated) {
       diffMutate()
+      mutate()
     }
-  }, [diffMutate, updated])
+  }, [diffMutate, mutate, updated])
 
   useEffect(() => {
     if (data?.data) {
@@ -106,7 +107,6 @@ const ConfigDetail = () => {
               },
             })
             setUpdated(false)
-            mutate()
           }}
         >
           <FormattedMessage id="save" />
