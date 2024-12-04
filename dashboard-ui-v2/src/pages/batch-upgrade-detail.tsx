@@ -70,7 +70,7 @@ const BatchUpgradeDetail = () => {
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
-  const { data: batchConfig } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
+  const { data: batchConfig, mutate: planMutate } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
   const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
 
@@ -78,6 +78,7 @@ const BatchUpgradeDetail = () => {
     setData('')
     setDiffStatus(new Map())
     setJobStatus('diff')
+    planMutate()
   }
 
   useEffect(() => {
@@ -164,11 +165,13 @@ const BatchUpgradeDetail = () => {
       }
     }
 
+    updateStatus(/POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'running')
     updateStatus(/POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'success')
     updateStatus(/POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'fail')
 
-    const matches = message.match(/POD-/g) || []
-    setPercent(prev => Math.min(Math.ceil(prev + (matches.length / total) * 100), 100))
+    const successMatches = message.match(/POD-SUCCESS/g) || []
+    const failMatches = message.match(/POD-FAIL/g) || []
+    setPercent(prev => Math.min(Math.ceil(prev + ((successMatches.length + failMatches.length) / total) * 100), 100))
   }
 
   useWebsocket(
@@ -293,7 +296,7 @@ const BatchUpgradeDetail = () => {
         </ProCard>
       )}
 
-      {total && <PodDiff diffPods={diffPods} batchConfig={batchConfig} diffStatus={diffStatus} />}
+      {total !== 0 && <PodDiff diffPods={diffPods} batchConfig={batchConfig} diffStatus={diffStatus} />}
 
       {data && (
         <ProCard key="upgrade log">

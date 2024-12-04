@@ -150,7 +150,6 @@ func (api *API) clearUpgradeStatus() gin.HandlerFunc {
 			c.String(500, "delete job error %v", err)
 			return
 		}
-		return
 	}
 }
 

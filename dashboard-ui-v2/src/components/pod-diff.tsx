@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom'
 import { FormattedMessage } from 'react-intl'
 import { BatchConfig, MountPodUpgrade } from '@/types/k8s.ts'
 import { useEffect, useState } from 'react'
-import { Collapse } from 'antd'
+import { Collapse, Table, TableProps } from 'antd'
 
 const PodDiff: React.FC<{
   batchConfig?: BatchConfig,
@@ -31,6 +31,18 @@ const PodDiff: React.FC<{
 }> = (props) => {
   const { diffPods, batchConfig, diffStatus } = props
   const [podMap, setPodMap] = useState<Map<string, Pod>>()
+  const [activeStage, setActiveStage] = useState(0)
+
+  useEffect(() => {
+    batchConfig?.batches?.forEach((batch, i) => {
+      batch?.map((podUpgrade) => {
+        const status = diffStatus.get(podUpgrade.name)
+        if (status === 'running') {
+          setActiveStage(i)
+        }
+      })
+    })
+  }, [diffStatus, batchConfig])
 
   useEffect(() => {
     const newMap = new Map()
@@ -41,30 +53,51 @@ const PodDiff: React.FC<{
     setPodMap(newMap)
   }, [diffPods])
 
+  interface UpgradeType {
+    key: string
+    name: string
+    status: string
+  }
+
+  const podUpgradeData = (podUpgrades: MountPodUpgrade[]) => {
+    return podUpgrades.map((podUpgrade) => {
+      return {
+        key: podUpgrade.name,
+        name: podUpgrade.name,
+        status: diffStatus.get(podUpgrade.name) || '',
+      }
+    })
+  }
+
+  const upgradeColumn: TableProps<UpgradeType>['columns'] = [
+    {
+      title: <FormattedMessage id="podName" />,
+      key: 'name',
+      render: (podUpgrade) => <>{
+        (podMap?.get(podUpgrade.name)?.metadata?.namespace || '') ?
+          <Link
+            to={`/syspods/${podMap?.get(podUpgrade.name)?.metadata?.namespace || ''}/${podUpgrade.name}/`}>
+            {podUpgrade.name}
+          </Link> : `${podUpgrade.name}`
+      }</>,
+    },
+    {
+      title: <FormattedMessage id="upgradeStatus" />,
+      key: 'status',
+      render: (podUpgrade) => <Badge
+        status={getUpgradeStatusBadge(diffStatus.get(podUpgrade.name) || '')}
+        text={`${diffStatus.get(podUpgrade.name) || 'pending'}`}
+      />,
+    },
+  ]
+
   const stageItems = batchConfig?.batches?.map((podUpgrades, i) => ({
     key: i.toString(),
     label: (<> <FormattedMessage id="stage" /> {i + 1} </>),
     children: <ProCard colSpan={6}>
-      {podUpgrades.map(getUpgradeCard)}
+      <Table<UpgradeType> pagination={false} columns={upgradeColumn} dataSource={podUpgradeData(podUpgrades) || []} />
     </ProCard>,
   })) || []
-
-  function getUpgradeCard(podUpgrade: MountPodUpgrade) {
-    const name = podUpgrade.name
-    const namespace = podMap?.get(podUpgrade.name)?.metadata?.namespace || ''
-    const uid = podMap?.get(podUpgrade.name)?.metadata?.uid || name
-    return <ProCard key={uid} colSpan={6}>
-      <Badge
-        status={getUpgradeStatusBadge(diffStatus.get(name) || '')}
-        text={namespace ?
-          <Link
-            to={`/syspods/${namespace}/${name}/`}>
-            {name}
-          </Link> : `${name}`
-        }
-      />
-    </ProCard>
-  }
 
   return (
     <ProCard
@@ -74,7 +107,7 @@ const PodDiff: React.FC<{
       gutter={4}
       wrap
     >
-      <Collapse items={stageItems} defaultActiveKey={['0']} />
+      <Collapse items={stageItems} activeKey={[activeStage]} />
     </ProCard>
   )
 }
@@ -96,4 +129,3 @@ const getUpgradeStatusBadge = (finalStatus: string) => {
       return 'default'
   }
 }
-

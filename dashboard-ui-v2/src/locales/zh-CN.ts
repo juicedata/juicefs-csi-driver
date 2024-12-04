@@ -112,4 +112,6 @@ export default {
   resources: '资源',
   setting: '设置',
   tool: '工具',
+  podName: 'Pod 名称',
+  upgradeStatus: '升级状态',
 }

@@ -169,7 +169,7 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, req upgr
 				}()
 				p := u.podsToUpgrade[num]
 				p.recreate = req.action == recreate
-				sendMessage(conn, fmt.Sprintf("Start to upgrade pod %s", p.pod.Name))
+				sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", p.pod.Name))
 				if err := p.gracefulShutdown(ctx, conn); err != nil {
 					log.Error(err, "upgrade pod error", "pod", p.pod.Name)
 					resultCh <- err

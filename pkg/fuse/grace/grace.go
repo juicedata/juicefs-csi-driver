@@ -169,6 +169,7 @@ func handleShutdown(conn net.Conn) {
 }
 
 func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) {
+	sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", name))
 	pu, err := NewPodUpgrade(ctx, client, name, recreate, conn)
 	if err != nil {
 		log.Error(err, "failed to create pod upgrade")
@@ -480,7 +481,6 @@ func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 		log.Error(err, "error sending message")
 		return err
 	}
-	fmt.Printf("%s trigger gracefully shutdown successfully\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
