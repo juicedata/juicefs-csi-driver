@@ -60,19 +60,19 @@ var upgradeCmd = &cobra.Command{
 		}
 		clientset, err := kubernetes.NewForConfig(k8sconfig)
 		if err != nil {
-			log.Error(err, "Failed to create kubernetes clientset")
+			fmt.Printf("%s BATCH-FAIL failed to create kubernetes clientset\n", time.Now().Format(time.DateTime))
 			os.Exit(1)
 		}
 
 		k8sClient, err := k8sclient.NewClientWithConfig(*k8sconfig)
 		if err != nil {
-			log.Error(err, "Could not create k8s client")
+			fmt.Printf("%s BATCH-FAIL could not create k8s client\n", time.Now().Format(time.DateTime))
 			os.Exit(1)
 		}
 
 		conf, err := config.LoadUpgradeConfig(context.Background(), k8sClient, batchConfigName)
 		if err != nil {
-			log.Error(err, "Failed to load upgrade config")
+			fmt.Printf("%s BATCH-FAIL failed to load upgrade config\n", time.Now().Format(time.DateTime))
 			os.Exit(1)
 		}
 
@@ -111,6 +111,10 @@ type BatchUpgrade struct {
 }
 
 func (u *BatchUpgrade) Run(ctx context.Context) {
+	if u.conf.Parallel > 50 {
+		fmt.Printf("%s BATCH-FAIL parallel should not exceed 50\n", time.Now().Format(time.DateTime))
+		os.Exit(1)
+	}
 	for _, batch := range u.conf.Batches {
 		var (
 			limiter  = make(chan struct{}, u.conf.Parallel)
@@ -145,7 +149,7 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 		for oneErr := range resultCh {
 			if oneErr != nil {
 				if !u.conf.IgnoreError {
-					fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format("2006-01-02 15:04:05"))
+					fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
 					return
 				}
 			}
@@ -153,24 +157,24 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			log.Error(ctx.Err(), "upgrade timeout")
-			fmt.Printf("%s BATCH-FAIL upgrade timeout\n", time.Now().Format("2006-01-02 15:04:05"))
+			fmt.Printf("%s BATCH-FAIL upgrade timeout\n", time.Now().Format(time.DateTime))
 			return
 		}
 
 		for _, status := range u.podsStatus {
 			if status == config.Fail && !u.conf.IgnoreError {
-				fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format("2006-01-02 15:04:05"))
+				fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
 				return
 			}
 		}
 	}
 	for _, status := range u.podsStatus {
 		if status == config.Fail && !u.conf.IgnoreError {
-			fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format("2006-01-02 15:04:05"))
+			fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
 			return
 		}
 	}
-	fmt.Printf("%s BATCH-SUCCESS all pods upgraded successfully\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf("%s BATCH-SUCCESS all pods upgraded successfully\n", time.Now().Format(time.DateTime))
 }
 
 func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUpgrade) error {
