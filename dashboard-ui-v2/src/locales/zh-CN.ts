@@ -104,7 +104,7 @@ export default {
   apply: '立即生效',
   diffPods: '配置需要变更的 Mount Pod',
   noDiff: '暂无配置需要变更的 Mount Pod',
-  stage: '阶段',
+  stage: '批次',
   selectPVC: '请选择 PVC',
   complete: '完成',
   action: '操作',

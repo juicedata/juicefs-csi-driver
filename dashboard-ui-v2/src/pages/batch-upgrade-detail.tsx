@@ -15,7 +15,7 @@
  */
 
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   Space,
@@ -70,16 +70,24 @@ const BatchUpgradeDetail = () => {
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
+  // const { data: batchConfig, } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
   const { data: batchConfig, mutate: planMutate } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
   const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
 
-  const resetState = () => {
+  // const resetState = () => {
+  //   setData('')
+  //   setDiffStatus(new Map())
+  //   setJobStatus('diff')
+  //   planMutate()
+  // }
+
+  const resetState = useCallback(() => {
     setData('')
     setDiffStatus(new Map())
     setJobStatus('diff')
     planMutate()
-  }
+  }, [planMutate])
 
   useEffect(() => {
     if (jobStatus === 'start') {
@@ -123,9 +131,8 @@ const BatchUpgradeDetail = () => {
         setJobStatus('diff')
       }
     } else {
-      const { annotations } = job.metadata || {}
-      setSelectedNode(annotations?.['juicefs-upgrade-node'] || '')
-      setUniqueId(annotations?.['juicefs-upgrade-uniqueids'] || '')
+      setSelectedNode(batchConfig?.node || '')
+      setUniqueId(batchConfig?.uniqueId || '')
       if ((job.status?.failed || 0) > 0) {
         setJobStatus('fail')
       } else if ((job.status?.succeeded || 0) > 0) {
@@ -139,7 +146,7 @@ const BatchUpgradeDetail = () => {
         })
       }
     }
-  }, [job, batchConfig])
+  }, [job, batchConfig, resetState])
 
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData(prev => prev + msg.data)

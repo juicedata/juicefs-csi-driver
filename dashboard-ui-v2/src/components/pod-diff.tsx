@@ -93,7 +93,7 @@ const PodDiff: React.FC<{
 
   const stageItems = batchConfig?.batches?.map((podUpgrades, i) => ({
     key: i.toString(),
-    label: (<> <FormattedMessage id="stage" /> {i + 1} </>),
+    label: (<> <FormattedMessage id="batch" /> {i + 1} </>),
     children: <ProCard colSpan={6}>
       <Table<UpgradeType> pagination={false} columns={upgradeColumn} dataSource={podUpgradeData(podUpgrades) || []} />
     </ProCard>,
@@ -107,7 +107,7 @@ const PodDiff: React.FC<{
       gutter={4}
       wrap
     >
-      <Collapse items={stageItems} activeKey={[activeStage]} />
+      <Collapse items={stageItems} defaultActiveKey={[activeStage]} />
     </ProCard>
   )
 }
