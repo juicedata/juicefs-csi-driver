@@ -565,8 +565,8 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 			if err := ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
 				return nil, err
 			}
+			return setting, nil
 		}
-		return setting, nil
 	}
 	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
 	if err != nil {

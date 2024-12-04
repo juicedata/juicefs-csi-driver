@@ -130,8 +130,9 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, req upgr
 	}
 	worker := req.worker
 	if worker > common.MaxParallelUpgradeNum {
-		log.Info("worker number is too large, set to default", "worker", req.worker, "default", common.MaxParallelUpgradeNum)
-		worker = common.MaxParallelUpgradeNum
+		log.Info("worker number is too large", "worker", req.worker)
+		sendMessage(conn, fmt.Sprintf("BATCH-FAIL worker number is too large, max worker number is %d", common.MaxParallelUpgradeNum))
+		return
 	}
 	if worker < 0 {
 		log.Info("worker number is less than 0, set to 1", "worker", req.worker)
