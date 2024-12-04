@@ -112,6 +112,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup.GET("/pvs", api.getPVOfSC())
 	batchGroup := group.Group("/batch")
 	batchGroup.GET("/job", api.getUpgradeStatus())
+	batchGroup.GET("/plan", api.getBatchPlan())
 	batchGroup.DELETE("/job", api.clearUpgradeStatus())
 	batchGroup.POST("/upgrade", api.upgradePods())
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())

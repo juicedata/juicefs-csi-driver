@@ -67,16 +67,16 @@ func Test_parseRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "uniqueIds",
+			name: "uniqueId",
 			args: args{
-				message: "BATCH NORECREATE worker=3,ignoreError=true,uniqueIds=1/2",
+				message: "BATCH NORECREATE worker=3,ignoreError=true,uniqueId=1",
 			},
 			want: upgradeRequest{
 				action:      noRecreate,
 				name:        "BATCH",
 				worker:      3,
 				ignoreError: true,
-				uniqueIds:   []string{"1", "2"},
+				uniqueId:    "1",
 			},
 		},
 	}

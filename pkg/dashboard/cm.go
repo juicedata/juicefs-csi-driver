@@ -17,9 +17,7 @@
 package dashboard
 
 import (
-	"context"
 	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +25,6 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func (api *API) getCSIConfig() gin.HandlerFunc {
@@ -95,11 +92,8 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
-		uniqueIdsStr := c.Query("uniqueIds")
-		uniqueIds := strings.FieldsFunc(uniqueIdsStr, func(r rune) bool {
-			return r == '/'
-		})
-		needUpdatePods, err := api.getUpgradePods(c, uniqueIds, nodeName, true)
+		uniqueId := c.Query("uniqueId")
+		needUpdatePods, err := api.getUpgradePods(c, uniqueId, nodeName, true)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
@@ -109,8 +103,12 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	}
 }
 
-func DiffConfig(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (bool, error) {
-	setting, err := config.GenSettingAttrWithMountPod(ctx, client, pod)
+func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret *corev1.Secret) (bool, error) {
+	secretsMap := make(map[string]string)
+	for k, v := range secret.Data {
+		secretsMap[k] = string(v[:])
+	}
+	setting, err := config.GenSetting(pod, pvc, pv, secret)
 	if err != nil {
 		return false, err
 	}

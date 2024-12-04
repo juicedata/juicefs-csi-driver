@@ -37,7 +37,7 @@ type BatchConfig struct {
 	IgnoreError bool                `json:"ignoreError"`
 	NoRecreate  bool                `json:"norecreate,omitempty"`
 	Node        string              `json:"node,omitempty"`
-	UniqueIds   []string            `json:"uniqueIds,omitempty"`
+	UniqueId    string              `json:"uniqueId,omitempty"`
 	Batches     [][]MountPodUpgrade `json:"batches"`
 	Status      UpgradeStatus       `json:"status"`
 }
@@ -58,13 +58,13 @@ const (
 	Fail    UpgradeStatus = "fail"
 )
 
-func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate bool, nodeName string, uniqueIds []string, csiNodes []corev1.Pod) *BatchConfig {
+func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate bool, nodeName string, uniqueId string, csiNodes []corev1.Pod) *BatchConfig {
 	batchConf := &BatchConfig{
 		Parallel:    parallel,
 		IgnoreError: ignoreError,
 		NoRecreate:  !recreate,
 		Node:        nodeName,
-		UniqueIds:   uniqueIds,
+		UniqueId:    uniqueId,
 	}
 
 	csiNodesMap := make(map[string]corev1.Pod)

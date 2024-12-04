@@ -31,7 +31,14 @@ import {
 } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import Editor from '@monaco-editor/react'
-import { useClearUpgradeStatus, useNodes, useUpgradePods, useUpgradeStatus, useWebsocket } from '@/hooks/use-api.ts'
+import {
+  useBatchPlan,
+  useClearUpgradeStatus,
+  useNodes,
+  useUpgradePods,
+  useUpgradeStatus,
+  useWebsocket,
+} from '@/hooks/use-api.ts'
 import { PVC } from '@/types/k8s.ts'
 import { DownOutlined } from '@ant-design/icons'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
@@ -63,6 +70,8 @@ const BatchUpgradeDetail = () => {
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
+  const { data: batchConfig } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
+  const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
 
   const resetState = () => {
@@ -84,31 +93,34 @@ const BatchUpgradeDetail = () => {
   useEffect(() => {
     setDiffStatus((prevStatus) => {
       const newStatus = new Map(prevStatus)
-      diffPods?.forEach((pod) => {
-        const podName = pod?.metadata?.name
-        if (podName && !newStatus.has(podName)) {
-          newStatus.set(podName, 'pending')
-        }
+      batchConfig?.batches?.forEach((podUpgrades) => {
+        podUpgrades?.forEach((podUpgrade) => {
+          newStatus.set(podUpgrade.name, 'pending')
+        })
       })
       return newStatus
     })
-  }, [diffPods])
+  }, [batchConfig])
 
   useEffect(() => {
     setAllNodes(['All Nodes', ...(nodes?.map(node => node.metadata?.name || '') || [])])
   }, [nodes])
 
   useEffect(() => {
-    const totalPods = diffPods?.length || 0
+    let totalPods = 0
+    batchConfig?.batches?.forEach((podUpgrades) => {
+      totalPods += podUpgrades?.length || 0
+    })
+    setTotal(totalPods)
     setJobName(job?.metadata?.name || '')
     if (!job || !job.metadata?.name) {
+      resetState()
       if (totalPods <= 0) {
         setJobStatus('nodiff')
       }
       if (totalPods > 0) {
         setJobStatus('diff')
       }
-      resetState()
     } else {
       const { annotations } = job.metadata || {}
       setSelectedNode(annotations?.['juicefs-upgrade-node'] || '')
@@ -126,7 +138,7 @@ const BatchUpgradeDetail = () => {
         })
       }
     }
-  }, [job, diffPods])
+  }, [job, batchConfig])
 
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData(prev => prev + msg.data)
@@ -155,9 +167,8 @@ const BatchUpgradeDetail = () => {
     updateStatus(/POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'success')
     updateStatus(/POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'fail')
 
-    const totalPods = diffPods?.length || 0
     const matches = message.match(/POD-/g) || []
-    setPercent(prev => Math.min(Math.ceil(prev + (matches.length / totalPods) * 100), 100))
+    setPercent(prev => Math.min(Math.ceil(prev + (matches.length / total) * 100), 100))
   }
 
   useWebsocket(
@@ -184,22 +195,17 @@ const BatchUpgradeDetail = () => {
 
   const handleStartClick = () => {
     setData('')
-    actions.execute({
-      nodeName: selectedNode,
-      recreate: true,
-      worker: worker,
-      ignoreError: ignoreError,
-      uniqueId: selectedPVC?.UniqueId || '',
-    }).then((response) => {
+    actions.execute(batchConfig).then((response) => {
       setJobName(response.jobName)
     })
     setJobStatus('start')
     setPercent(0)
     setDiffStatus((prevStatus) => {
       const newStatus = new Map(prevStatus)
-      diffPods?.forEach((pod) => {
-        const podName = pod?.metadata?.name || ''
-        newStatus.set(podName, 'start')
+      batchConfig?.batches?.forEach((podUpgrades) => {
+        podUpgrades?.forEach((podUpgrade) => {
+          newStatus.set(podUpgrade.name, 'pending')
+        })
       })
       return newStatus
     })
@@ -279,7 +285,7 @@ const BatchUpgradeDetail = () => {
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             {jobStatus === 'start' && <Spin style={{ marginRight: 16 }} />}
             <Progress
-              percent={(diffPods?.length || 0) > 0 ? percent : 100}
+              percent={total > 0 ? percent : 100}
               status={jobStatus === 'fail' ? 'exception' : undefined}
               format={percent => `${Math.round(percent || 0)}%`}
             />
@@ -287,7 +293,7 @@ const BatchUpgradeDetail = () => {
         </ProCard>
       )}
 
-      {diffPods && <PodDiff diffPods={diffPods} diffStatus={diffStatus} />}
+      {total && <PodDiff diffPods={diffPods} batchConfig={batchConfig} diffStatus={diffStatus} />}
 
       {data && (
         <ProCard key="upgrade log">
@@ -310,7 +316,7 @@ const BatchUpgradeDetail = () => {
         </ProCard>
       )}
 
-      {(data === '' && ((diffPods?.length || 0) === 0)) && (
+      {(data === '' && (total === 0)) && (
         <Empty description={<FormattedMessage id="noDiff" />} />
       )}
     </PageContainer>

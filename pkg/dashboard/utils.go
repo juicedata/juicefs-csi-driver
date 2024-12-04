@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 	"os"
+	"regexp"
 	"sort"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -150,4 +151,13 @@ func SetJobAsConfigMapOwner(cm *corev1.ConfigMap, owner *batchv1.Job) {
 		UID:        owner.UID,
 		Controller: &controller,
 	}})
+}
+
+func getUniqueIdFromSecretName(secretName string) string {
+	re := regexp.MustCompile(`juicefs-(.*?)-secret`)
+	match := re.FindStringSubmatch(secretName)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return ""
 }

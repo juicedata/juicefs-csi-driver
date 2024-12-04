@@ -20,12 +20,51 @@ import { ProCard } from '@ant-design/pro-components'
 import { Badge } from 'antd/lib'
 import { Link } from 'react-router-dom'
 import { FormattedMessage } from 'react-intl'
+import { BatchConfig, MountPodUpgrade } from '@/types/k8s.ts'
+import { useEffect, useState } from 'react'
+import { Collapse } from 'antd'
 
 const PodDiff: React.FC<{
-  diffPods: [Pod],
+  batchConfig?: BatchConfig,
+  diffPods?: [Pod],
   diffStatus: Map<string, string>
 }> = (props) => {
-  const { diffPods, diffStatus } = props
+  const { diffPods, batchConfig, diffStatus } = props
+  const [podMap, setPodMap] = useState<Map<string, Pod>>()
+
+  useEffect(() => {
+    const newMap = new Map()
+    diffPods?.forEach((pod) => {
+      const podName = pod?.metadata?.name || ''
+      newMap.set(podName, pod)
+    })
+    setPodMap(newMap)
+  }, [diffPods])
+
+  const stageItems = batchConfig?.batches?.map((podUpgrades, i) => ({
+    key: i.toString(),
+    label: (<> <FormattedMessage id="stage" /> {i + 1} </>),
+    children: <ProCard colSpan={6}>
+      {podUpgrades.map(getUpgradeCard)}
+    </ProCard>,
+  })) || []
+
+  function getUpgradeCard(podUpgrade: MountPodUpgrade) {
+    const name = podUpgrade.name
+    const namespace = podMap?.get(podUpgrade.name)?.metadata?.namespace || ''
+    const uid = podMap?.get(podUpgrade.name)?.metadata?.uid || name
+    return <ProCard key={uid} colSpan={6}>
+      <Badge
+        status={getUpgradeStatusBadge(diffStatus.get(name) || '')}
+        text={namespace ?
+          <Link
+            to={`/syspods/${namespace}/${name}/`}>
+            {name}
+          </Link> : `${name}`
+        }
+      />
+    </ProCard>
+  }
 
   return (
     <ProCard
@@ -35,22 +74,13 @@ const PodDiff: React.FC<{
       gutter={4}
       wrap
     >
-      {diffPods?.map(pod =>
-        <ProCard key={pod.metadata?.uid || ''} colSpan={6}>
-          <Badge status={getUpgradeStatusBadge(diffStatus.get(pod?.metadata?.name || '') || '')}
-                 text={
-                   <Link to={`/syspods/${pod?.metadata?.namespace}/${pod?.metadata?.name}/`}>
-                     {pod?.metadata?.name}
-                   </Link>
-                 }
-          />
-        </ProCard>,
-      )}
+      <Collapse items={stageItems} defaultActiveKey={['0']} />
     </ProCard>
   )
 }
 
 export default PodDiff
+
 const getUpgradeStatusBadge = (finalStatus: string) => {
   switch (finalStatus) {
     case 'pending':
@@ -66,3 +96,4 @@ const getUpgradeStatusBadge = (finalStatus: string) => {
       return 'default'
   }
 }
+

@@ -484,10 +484,10 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 	return filteredVars
 }
 
-func FilterPodsToUpgrade(ctx context.Context, client *k8sclient.K8sClient, podLists corev1.PodList, recreate bool) []corev1.Pod {
+func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
-		canUpgrade, err := CanUpgrade(ctx, client, pod, recreate)
+		canUpgrade, err := CanUpgrade(pod, recreate)
 		if err != nil {
 			log.Error(err, "check pod upgrade error", "pod", pod.Name)
 			continue
@@ -502,9 +502,8 @@ func FilterPodsToUpgrade(ctx context.Context, client *k8sclient.K8sClient, podLi
 // CanUpgrade if the pod can be upgraded
 // 1. pod has hash label
 // 2. pod image support upgrade
-// 3. config update
-// 4. pod is ready
-func CanUpgrade(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
+// 3. pod is ready
+func CanUpgrade(pod corev1.Pod, recreate bool) (bool, error) {
 	if len(pod.Spec.Containers) == 0 {
 		return false, nil
 	}
@@ -523,6 +522,11 @@ func CanUpgrade(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod
 		return false, nil
 	}
 
+	// check status
+	return IsPodReady(&pod), nil
+}
+
+func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
 	// check config update
 	setting, err := config.GenSettingAttrWithMountPod(ctx, client, &pod)
 	if err != nil {
@@ -531,8 +535,7 @@ func CanUpgrade(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod
 	if setting.HashVal == pod.Labels[common.PodJuiceHashLabelKey] {
 		return false, err
 	}
-	// check status
-	return IsPodReady(&pod), nil
+	return CanUpgrade(pod, recreate)
 }
 
 func GetUpgradeUUID(pod *corev1.Pod) string {

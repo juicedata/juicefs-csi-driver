@@ -20,7 +20,7 @@ import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { Pod } from '@/types/k8s'
+import { BatchConfig, Pod } from '@/types/k8s'
 import { Node } from 'kubernetes-types/core/v1'
 import { getBasePath, getHost } from '@/utils'
 import { Job } from 'kubernetes-types/batch/v1'
@@ -159,19 +159,13 @@ export function useNodes() {
 }
 
 export function useUpgradePods() {
-  return useAsync(async ({ nodeName, recreate, worker, ignoreError, uniqueId }) => {
+  return useAsync(async (batchConfig?: BatchConfig) => {
     const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        nodeName: nodeName === 'All Nodes' ? '' : nodeName,
-        recreate: recreate,
-        worker: worker,
-        ignoreError: ignoreError,
-        uniqueIds: uniqueId === '' ? [] : [uniqueId],
-      }),
+      body: JSON.stringify(batchConfig),
     })
     const result: {
       jobName: string,
@@ -194,4 +188,9 @@ export function useClearUpgradeStatus() {
     })
     return
   })
+}
+
+export function useBatchPlan(nodeName: string, uniqueId: string, worker: number, ignoreError: boolean, recreate: boolean) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
+  return useSWR<BatchConfig>(`/api/v1/batch/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`)
 }

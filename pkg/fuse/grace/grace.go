@@ -92,7 +92,7 @@ type upgradeRequest struct {
 	name        string
 	worker      int
 	ignoreError bool
-	uniqueIds   []string
+	uniqueId    string
 }
 
 // parseRequest parse request from message
@@ -129,10 +129,8 @@ func parseRequest(message string) upgradeRequest {
 			if ops[0] == "ignoreError" {
 				req.ignoreError = ops[1] == "true"
 			}
-			if ops[0] == "uniqueIds" {
-				req.uniqueIds = strings.FieldsFunc(ops[1], func(r rune) bool {
-					return r == '/'
-				})
+			if ops[0] == "uniqueId" {
+				req.uniqueId = ops[1]
 			}
 		}
 	}
@@ -181,7 +179,7 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 		return
 	}
 
-	canUpgrade, err := resource.CanUpgrade(ctx, client, *pu.pod, pu.recreate)
+	canUpgrade, err := resource.CanUpgradeWithHash(ctx, client, *pu.pod, pu.recreate)
 	if err != nil || !canUpgrade {
 		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade", pu.pod.Name))
 		return

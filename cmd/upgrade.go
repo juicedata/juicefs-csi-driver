@@ -30,7 +30,7 @@ var (
 	recreate    = false
 	worker      = 1
 	ignoreError = false
-	uniqueIds   = ""
+	uniqueId    = ""
 )
 
 var upgradeCmd = &cobra.Command{
@@ -43,7 +43,7 @@ var upgradeCmd = &cobra.Command{
 		}
 		name := args[0]
 		if strings.ToLower(name) == "batch" {
-			if err := grace.TriggerBatchUpgrade(config.ShutdownSockPath, recreate, worker, ignoreError, uniqueIds); err != nil {
+			if err := grace.TriggerBatchUpgrade(config.ShutdownSockPath, recreate, worker, ignoreError, uniqueId); err != nil {
 				log.Error(err, "failed to upgrade mount pod")
 				os.Exit(1)
 			}
@@ -60,5 +60,5 @@ func init() {
 	upgradeCmd.Flags().BoolVar(&recreate, "recreate", false, "smoothly upgrade the mount pod with recreate")
 	upgradeCmd.Flags().BoolVar(&ignoreError, "ignoreError", false, "ignore error and upgrade the rest mount pods")
 	upgradeCmd.Flags().IntVar(&worker, "worker", 1, "worker number for batch upgrade")
-	upgradeCmd.Flags().StringVar(&uniqueIds, "uniqueIds", "", "unique ids for batch upgrade")
+	upgradeCmd.Flags().StringVar(&uniqueId, "uniqueId", "", "unique id for batch upgrade")
 }
