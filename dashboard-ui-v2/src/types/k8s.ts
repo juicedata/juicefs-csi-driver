@@ -55,3 +55,20 @@ export const accessModeMap: { [key: string]: string } = {
   ReadOnlyMany: 'ROX',
   ReadWriteOncePod: 'RWOP',
 }
+
+export type BatchConfig = {
+  parallel: number
+  ignoreError: boolean
+  noRecreate: boolean
+  node: string
+  uniqueId: string
+  batches: MountPodUpgrade[][]
+  status: string
+}
+
+export type MountPodUpgrade = {
+  name: string
+  node: string
+  csiNodePod: string
+  status: string
+}

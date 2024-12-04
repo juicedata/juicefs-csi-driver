@@ -113,6 +113,7 @@ export default {
   apply: 'Apply',
   diffPods: 'Mount Pods config to be changed',
   noDiff: 'There are no Mount Pods config to be changed.',
+  stage: 'Stage',
   selectPVC: 'Please select PVC',
   complete: 'Complete',
   image: 'Image',

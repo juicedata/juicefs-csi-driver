@@ -26,6 +26,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 type API struct {
@@ -33,8 +35,8 @@ type API struct {
 	// for cached resources
 	cachedReader client.Reader
 	// for logs and events
-	client kubernetes.Interface
-
+	client     kubernetes.Interface
+	k8sclient  *k8sclient.K8sClient
 	kubeconfig *rest.Config
 
 	csiNodeLock  sync.RWMutex
@@ -48,10 +50,16 @@ type API struct {
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
+	// gen k8s client
+	k8sClient, err := k8sclient.NewClientWithConfig(config)
+	if err != nil {
+		return nil
+	}
 	api := &API{
 		sysNamespace: sysNamespace,
 		cachedReader: cachedReader,
 		client:       kubernetes.NewForConfigOrDie(config),
+		k8sclient:    k8sClient,
 		csiNodeIndex: make(map[string]types.NamespacedName),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
 		appIndexes:   newTimeIndexes[corev1.Pod](),
@@ -103,8 +111,8 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())
 	batchGroup := group.Group("/batch")
-	batchGroup.GET("/pods", api.getPodsToUpgrade())
 	batchGroup.GET("/job", api.getUpgradeStatus())
+	batchGroup.GET("/plan", api.getBatchPlan())
 	batchGroup.DELETE("/job", api.clearUpgradeStatus())
 	batchGroup.POST("/upgrade", api.upgradePods())
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())

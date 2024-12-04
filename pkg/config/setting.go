@@ -522,11 +522,9 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		}
 	}
 	var (
-		pv      *corev1.PersistentVolume
-		pvc     *corev1.PersistentVolumeClaim
-		options []string
-		subPath string
-		err     error
+		pv  *corev1.PersistentVolume
+		pvc *corev1.PersistentVolumeClaim
+		err error
 	)
 	pv, err = client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
@@ -537,11 +535,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
 		}
-		options = pv.Spec.MountOptions
-	}
-	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
-	if err != nil {
-		return nil, err
 	}
 
 	// get settings from secret
@@ -550,31 +543,34 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		return nil, err
 	}
-	secretsMap := make(map[string]string)
-	for k, v := range secret.Data {
-		secretsMap[k] = string(v[:])
-	}
-	if secretsMap["jfsSettings"] != "" {
+	return GenSetting(mountPod, pvc, pv, secret)
+}
+
+func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (*JfsSetting, error) {
+	var (
+		options []string
+		subPath string
+		err     error
+	)
+	if secret != nil {
+		secretsMap := make(map[string]string)
+		for k, v := range secret.Data {
+			secretsMap[k] = string(v[:])
+		}
 		setting := &JfsSetting{}
-		if err = setting.Load(secretsMap["jfsSettings"]); err != nil {
-			return nil, err
+		if secretsMap["jfsSettings"] != "" {
+			if err := setting.Load(secretsMap["jfsSettings"]); err != nil {
+				return nil, err
+			}
+			if err := ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
+				return nil, err
+			}
 		}
-		setting.PV = pv
-		setting.PVC = pvc
-		setting.Options = options
-		// apply config patch
-		applyConfigPatch(setting)
-		setting.ClientConfPath = DefaultClientConfPath
-		if err = GenCacheDirs(setting, nil); err != nil {
-			return nil, err
-		}
-		setting.HashVal = GenHashOfSetting(log, *setting)
-		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
-		if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
-			setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
-		}
-		setting.MountPath = mntPath
 		return setting, nil
+	}
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return nil, err
 	}
 
 	attr := &PodAttr{
@@ -622,6 +618,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 			}
 			attr.Resources = resources
 		}
+		options = pv.Spec.MountOptions
 	}
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
@@ -636,14 +633,39 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		SubPath:   subPath,
 		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
 	}
-	setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
-	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
-		setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
-	}
 	setting.Attr = attr
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
+		return nil, err
+	}
+	return setting, nil
+}
+
+func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, setting *JfsSetting) error {
+	if setting == nil {
+		return nil
+	}
+	setting.PV = pv
+	setting.PVC = pvc
+	if pv != nil {
+		setting.Options = pv.Spec.MountOptions
+	}
+	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
+	if err != nil {
+		return err
+	}
 	// apply config patch
 	applyConfigPatch(setting)
-	return setting, nil
+	setting.ClientConfPath = DefaultClientConfPath
+	if err := GenCacheDirs(setting, nil); err != nil {
+		return err
+	}
+	setting.HashVal = GenHashOfSetting(log, *setting)
+	setting.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
+	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
+		setting.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
+	}
+	setting.MountPath = mntPath
+	return nil
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {

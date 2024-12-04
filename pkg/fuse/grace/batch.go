@@ -64,18 +64,14 @@ func InitBatchUpgrade(client *k8s.K8sClient) {
 	}
 }
 
-func (u *BatchUpgrade) fetchPods(ctx context.Context, uniqueIds []string) error {
+func (u *BatchUpgrade) fetchPods(ctx context.Context, uniqueId string) error {
 	labelSelector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			common.PodTypeKey: common.PodTypeValue,
 		},
 	}
-	if len(uniqueIds) != 0 {
-		labelSelector.MatchExpressions = []metav1.LabelSelectorRequirement{{
-			Key:      common.PodUniqueIdLabelKey,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   uniqueIds,
-		}}
+	if uniqueId != "" {
+		labelSelector.MatchLabels[common.PodUniqueIdLabelKey] = uniqueId
 	}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
 	podLists, err := u.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
@@ -86,7 +82,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, uniqueIds []string) error 
 	u.podsToUpgrade = []*PodUpgrade{}
 	for _, pod := range podLists {
 		po := pod
-		canUpgrade, err := resource.CanUpgrade(ctx, u.client, po, u.recreate)
+		canUpgrade, err := resource.CanUpgradeWithHash(ctx, u.client, po, u.recreate)
 		if err != nil || !canUpgrade {
 			log.Info("pod can not upgrade, ignore", "pod", pod.Name, "err", err)
 			continue
@@ -129,7 +125,7 @@ func (u *BatchUpgrade) batchUpgrade(ctx context.Context, conn net.Conn, req upgr
 		u.status = batchUpgradeWaiting
 		defer u.lock.Unlock()
 	}()
-	if err := u.fetchPods(ctx, req.uniqueIds); err != nil {
+	if err := u.fetchPods(ctx, req.uniqueId); err != nil {
 		return
 	}
 	worker := req.worker
@@ -248,7 +244,7 @@ func (u *BatchUpgrade) syncStatus(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignoreError bool, uniqueIds string) error {
+func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignoreError bool, uniqueId string) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
@@ -260,7 +256,7 @@ func TriggerBatchUpgrade(socketPath string, recreateFlag bool, worker int, ignor
 	} else {
 		message = fmt.Sprintf("BATCH %s", noRecreate)
 	}
-	message = fmt.Sprintf("%s worker=%d,ignoreError=%t,uniqueIds=%s", message, worker, ignoreError, uniqueIds)
+	message = fmt.Sprintf("%s worker=%d,ignoreError=%t,uniqueId=%s", message, worker, ignoreError, uniqueId)
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {

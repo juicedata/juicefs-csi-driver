@@ -17,19 +17,14 @@
 package dashboard
 
 import (
-	"context"
 	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 func (api *API) getCSIConfig() gin.HandlerFunc {
@@ -97,69 +92,23 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
-		uniqueIdsStr := c.Query("uniqueIds")
-		uniqueIds := strings.FieldsFunc(uniqueIdsStr, func(r rune) bool {
-			return r == '/'
-		})
-		// gen k8s client
-		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
+		uniqueId := c.Query("uniqueId")
+		needUpdatePods, err := api.getUpgradePods(c, uniqueId, nodeName, true)
 		if err != nil {
-			c.String(500, "Could not create k8s client: %v", err)
+			c.String(500, "get upgrade pods error %v", err)
 			return
-		}
-		// get all mount pods
-		var pods corev1.PodList
-		ls := &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app.kubernetes.io/name": "juicefs-mount",
-			},
-		}
-		if len(uniqueIds) != 0 {
-			ls.MatchExpressions = []metav1.LabelSelectorRequirement{{
-				Key:      common.PodUniqueIdLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   uniqueIds,
-			}}
-		}
-		s, _ := metav1.LabelSelectorAsSelector(ls)
-		listOptions := client.ListOptions{
-			LabelSelector: s,
-		}
-		if nodeName != "" {
-			fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
-			listOptions.FieldSelector = fieldSelector
-		}
-		err = api.cachedReader.List(c, &pods, &listOptions)
-		if err != nil {
-			c.String(500, "list pods error %v", err)
-			return
-		}
-
-		// load config
-		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
-			c.String(500, "Load config from configmap error: %v", err)
-			return
-		}
-
-		var needUpdatePods []corev1.Pod
-		for _, pod := range pods.Items {
-			po := pod
-			diff, err := DiffConfig(c, k8sClient, &po)
-			if err != nil {
-				c.JSON(500, gin.H{"error": err.Error()})
-				return
-			}
-			if diff {
-				needUpdatePods = append(needUpdatePods, po)
-			}
 		}
 
 		c.JSON(200, needUpdatePods)
 	}
 }
 
-func DiffConfig(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (bool, error) {
-	setting, err := config.GenSettingAttrWithMountPod(ctx, client, pod)
+func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret *corev1.Secret) (bool, error) {
+	secretsMap := make(map[string]string)
+	for k, v := range secret.Data {
+		secretsMap[k] = string(v[:])
+	}
+	setting, err := config.GenSetting(pod, pvc, pv, secret)
 	if err != nil {
 		return false, err
 	}

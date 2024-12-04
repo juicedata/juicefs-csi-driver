@@ -523,6 +523,28 @@ func (k *K8sClient) GetConfigMap(ctx context.Context, cmName, namespace string) 
 	return cm, nil
 }
 
+func (k *K8sClient) CreateConfigMap(ctx context.Context, cfg *corev1.ConfigMap) error {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Create configmap", "name", cfg.Name)
+	_, err := k.CoreV1().ConfigMaps(cfg.Namespace).Create(ctx, cfg, metav1.CreateOptions{})
+	if err != nil {
+		log.V(1).Info("Can't create configMap", "name", cfg.Name, "error", err)
+		return err
+	}
+	return nil
+}
+
+func (k *K8sClient) UpdateConfigMap(ctx context.Context, cfg *corev1.ConfigMap) error {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Update configmap", "name", cfg.Name)
+	_, err := k.CoreV1().ConfigMaps(cfg.Namespace).Update(ctx, cfg, metav1.UpdateOptions{})
+	if err != nil {
+		log.V(1).Info("Can't update configMap", "name", cfg.Name, "error", err)
+		return err
+	}
+	return nil
+}
+
 func (k *K8sClient) CreateEvent(ctx context.Context, pod corev1.Pod, evtType, reason, message string) error {
 	log := util.GenLog(ctx, clientLog, "")
 	log.V(1).Info("Create event", "name", pod.Name)
