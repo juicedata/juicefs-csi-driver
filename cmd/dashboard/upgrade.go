@@ -64,7 +64,7 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		k8sClient, err := k8sclient.NewClientWithConfig(k8sconfig)
+		k8sClient, err := k8sclient.NewClientWithConfig(*k8sconfig)
 		if err != nil {
 			log.Error(err, "Could not create k8s client")
 			os.Exit(1)

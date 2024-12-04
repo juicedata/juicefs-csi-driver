@@ -106,6 +106,7 @@ const ConfigDetail = () => {
               },
             })
             setUpdated(false)
+            mutate()
           }}
         >
           <FormattedMessage id="save" />

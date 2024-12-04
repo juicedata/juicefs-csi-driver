@@ -51,7 +51,7 @@ type API struct {
 
 func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
 	// gen k8s client
-	k8sClient, err := k8sclient.NewClientWithConfig(config)
+	k8sClient, err := k8sclient.NewClientWithConfig(*config)
 	if err != nil {
 		return nil
 	}
