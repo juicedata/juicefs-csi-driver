@@ -34,7 +34,7 @@ export function useCacheGroupWorkers(
   pagination?: CgWorkerPagingListArgs,
 ) {
   return useSWR<{ items: NativePod[]; total: number }>(
-    `/api/v1/cachegroup/${namespace}/${name}/workers?pageSize=${pagination?.pageSize}&current=${pagination?.current}&name=${pagination?.name ?? ''}&node=${pagination?.node ?? ''}`,
+    `/api/v1/cachegroup/${namespace}/${name}/workers/?pageSize=${pagination?.pageSize}&current=${pagination?.current}&name=${pagination?.name ?? ''}&node=${pagination?.node ?? ''}`,
     null,
     {
       refreshInterval,
@@ -49,9 +49,9 @@ export function useNodes(namespace?: string, name?: string) {
 export function useRemoveWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
     return await fetch(
-      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/removeWorker`,
+      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/workers/`,
       {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -66,7 +66,7 @@ export function useRemoveWorker(namespace?: string, name?: string) {
 export function useAddWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
     return await fetch(
-      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/addWorker`,
+      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/workers/`,
       {
         method: 'POST',
         headers: {
@@ -83,7 +83,7 @@ export function useAddWorker(namespace?: string, name?: string) {
 export function useCreateCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
     return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/create`,
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
         method: 'POST',
         headers: {
@@ -98,9 +98,9 @@ export function useCreateCacheGroup() {
 export function useUpdateCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
     return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/update`,
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -113,9 +113,9 @@ export function useUpdateCacheGroup() {
 export function useDeleteCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
     return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/delete`,
+      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
