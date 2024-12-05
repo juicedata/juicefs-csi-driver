@@ -15,17 +15,17 @@
  */
 
 import {
+  EnvVar,
+  Lifecycle,
   Pod as NativePod,
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
-  Lifecycle,
   Probe,
   ResourceRequirements,
   Volume,
-  VolumeMount,
   VolumeDevice,
-  EnvVar,
+  VolumeMount,
 } from 'kubernetes-types/core/v1'
 
 export type Pod = {

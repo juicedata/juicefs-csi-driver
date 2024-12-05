@@ -406,8 +406,7 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
 	for _, pv := range pvs {
-		pv2 := pv
-		pvMap[pv.Name] = pv2
+		pvMap[pv.Name] = pv
 	}
 	for _, pvc := range pvcs {
 		pvc2 := pvc
@@ -434,7 +433,7 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 			if err != nil {
 				return nil, nil, err
 			}
-			podsToUpgrade = append(podsToUpgrade, po)
+			needUpdatePods = append(needUpdatePods, po)
 			podDiffs = append(podDiffs, PodDiff{
 				Pod:       po,
 				OldConfig: *oldConfig,

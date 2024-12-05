@@ -115,4 +115,6 @@ export default {
   podName: 'Pod 名称',
   upgradeStatus: '升级状态',
   updateConfigError: '更新配置错误',
+  diff: '配置变更',
+  view: '查看',
 }

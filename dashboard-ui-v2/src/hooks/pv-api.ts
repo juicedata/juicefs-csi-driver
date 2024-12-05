@@ -81,20 +81,20 @@ export function usePV(name?: string) {
 }
 
 export function usePVC(namespace?: string, name?: string) {
-  return useSWR<PVC>(
-    name ? `/api/v1/pvc/${namespace}/${name}/` : ``)
+  return useSWR<PVC>(name ? `/api/v1/pvc/${namespace}/${name}/` : ``)
 }
 
 export function usePVCWithUniqueId(namespacedName?: string) {
-  const s = namespacedName?.split("/")
-  let name = ""
-  let namespace = ""
+  const s = namespacedName?.split('/')
+  let name = ''
+  let namespace = ''
   if (s?.length == 2) {
     namespace = s[0]
     name = s[1]
   }
   return useSWR<PVCWithUniqueId>(
-    name ? `/api/v1/pvc/${namespace}/${name}/uniqueid` : ``)
+    name ? `/api/v1/pvc/${namespace}/${name}/uniqueid` : ``,
+  )
 }
 
 export function usePVEvents(pvName?: string) {

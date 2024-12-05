@@ -15,15 +15,14 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Event } from 'kubernetes-types/core/v1'
+import { Job } from 'kubernetes-types/batch/v1'
+import { Event, Node } from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { BatchConfig, Pod } from '@/types/k8s'
-import { Node } from 'kubernetes-types/core/v1'
 import { getBasePath, getHost } from '@/utils'
-import { Job } from 'kubernetes-types/batch/v1'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -59,8 +58,14 @@ export function useSysAppPods(args: SysPagingListArgs) {
   )
 }
 
-export function useMountPodImage(isMountPod: boolean, namespace?: string, name?: string) {
-  return useSWR<string>(isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '')
+export function useMountPodImage(
+  isMountPod: boolean,
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<string>(
+    isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '',
+  )
 }
 
 export function useAppPod(namespace?: string, name?: string) {
@@ -168,7 +173,7 @@ export function useUpgradePods() {
       body: JSON.stringify(batchConfig),
     })
     const result: {
-      jobName: string,
+      jobName: string
     } = await response.json()
     return result
   })
@@ -190,7 +195,15 @@ export function useClearUpgradeStatus() {
   })
 }
 
-export function useBatchPlan(nodeName: string, uniqueId: string, worker: number, ignoreError: boolean, recreate: boolean) {
+export function useBatchPlan(
+  nodeName: string,
+  uniqueId: string,
+  worker: number,
+  ignoreError: boolean,
+  recreate: boolean,
+) {
   const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<BatchConfig>(`/api/v1/batch/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`)
+  return useSWR<BatchConfig>(
+    `/api/v1/batch/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`,
+  )
 }

@@ -101,12 +101,13 @@ const ConfigDetail = () => {
           disabled={!updated}
           loading={state.status === 'loading'}
           onClick={() => {
-            actions.execute({
-              ...data,
-              data: {
-                'config.yaml': config,
-              },
-            })
+            actions
+              .execute({
+                ...data,
+                data: {
+                  'config.yaml': config,
+                },
+              })
               .catch((error) => {
                 setError(error.toString())
               })
@@ -116,14 +117,21 @@ const ConfigDetail = () => {
           <FormattedMessage id="save" />
         </Button>,
 
-        diff ? <Popover
+        diff ? (
+          <Popover
             key="diff pods"
             placement="bottomRight"
             title={<FormattedMessage id="diffPods" />}
-            content={(
-              <div> {diffPods?.map(poddiff =>
-                <p key={poddiff?.pod.metadata?.uid || ''}>{poddiff?.pod.metadata?.name}</p>)} </div>
-            )}
+            content={
+              <div>
+                {' '}
+                {diffPods?.map((poddiff) => (
+                  <p key={poddiff?.pod.metadata?.uid || ''}>
+                    {poddiff?.pod.metadata?.name}
+                  </p>
+                ))}{' '}
+              </div>
+            }
           >
             <Button
               key="apply"
@@ -136,10 +144,11 @@ const ConfigDetail = () => {
               <FormattedMessage id="apply" />
             </Button>
           </Popover>
-          :
+        ) : (
           <Button key="apply" type="primary" disabled={true}>
             <FormattedMessage id="apply" />
-          </Button>,
+          </Button>
+        ),
       ]}
     >
       <ProCard>
@@ -167,7 +176,7 @@ const ConfigDetail = () => {
             if (v) {
               setConfig(v)
               setUpdated(true)
-              setError("")
+              setError('')
             }
           }}
         />

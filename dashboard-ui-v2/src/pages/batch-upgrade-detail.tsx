@@ -14,23 +14,28 @@
  * limitations under the License.
  */
 
-
 import { useCallback, useEffect, useState } from 'react'
+import { DownOutlined } from '@ant-design/icons'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
+import Editor from '@monaco-editor/react'
 import {
-  Button,
-  Space,
-  Progress,
-  Dropdown,
-  MenuProps,
-  Checkbox,
-  Spin,
-  InputNumber,
-  Empty,
-  Collapse,
   AutoComplete,
+  Button,
+  Checkbox,
+  Collapse,
+  Dropdown,
+  Empty,
+  InputNumber,
+  MenuProps,
+  Progress,
+  Space,
+  Spin,
 } from 'antd'
 import { FormattedMessage } from 'react-intl'
-import Editor from '@monaco-editor/react'
+
+import PodUpgradeTable from '@/components/pod-upgrade-table.tsx'
+import { useConfigDiff } from '@/hooks/cm-api.ts'
+import { usePVCs, usePVCWithUniqueId } from '@/hooks/pv-api.ts'
 import {
   useBatchPlan,
   useClearUpgradeStatus,
@@ -40,12 +45,6 @@ import {
   useWebsocket,
 } from '@/hooks/use-api.ts'
 import { PVC } from '@/types/k8s.ts'
-import { DownOutlined } from '@ant-design/icons'
-import { PageContainer, ProCard } from '@ant-design/pro-components'
-import { useConfigDiff } from '@/hooks/cm-api.ts'
-import { usePVCs, usePVCWithUniqueId } from '@/hooks/pv-api.ts'
-import PodDiff from '@/components/pod-diff.tsx'
-
 
 const BatchUpgradeDetail = () => {
   const [jobStatus, setJobStatus] = useState<string>('diff')
@@ -70,7 +69,13 @@ const BatchUpgradeDetail = () => {
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
-  const { data: batchConfig, mutate: planMutate } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
+  const { data: batchConfig, mutate: planMutate } = useBatchPlan(
+    selectedNode,
+    uniqueId,
+    worker,
+    ignoreError,
+    true,
+  )
   const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
 
@@ -104,7 +109,10 @@ const BatchUpgradeDetail = () => {
   }, [batchConfig])
 
   useEffect(() => {
-    setAllNodes(['All Nodes', ...(nodes?.map(node => node.metadata?.name || '') || [])])
+    setAllNodes([
+      'All Nodes',
+      ...(nodes?.map((node) => node.metadata?.name || '') || []),
+    ])
   }, [nodes])
 
   useEffect(() => {
@@ -133,14 +141,18 @@ const BatchUpgradeDetail = () => {
           if ((job.status?.succeeded || 0) > 0) {
             return prevState
           }
-          return prevState !== 'fail' && prevState !== 'batch-fail' && prevState !== 'success' ? 'start' : prevState
+          return prevState !== 'fail' &&
+            prevState !== 'batch-fail' &&
+            prevState !== 'success'
+            ? 'start'
+            : prevState
         })
       }
     }
   }, [job, batchConfig, resetState])
 
   const handleWebSocketMessage = (msg: MessageEvent) => {
-    setData(prev => prev + msg.data)
+    setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
       updatePodStatus(msg.data)
     }
@@ -162,16 +174,27 @@ const BatchUpgradeDetail = () => {
     const updateStatus = (regex: RegExp, status: string) => {
       for (const match of message.matchAll(regex)) {
         const podName = match[1]
-        setDiffStatus(prev => new Map(prev).set(podName, status))
+        setDiffStatus((prev) => new Map(prev).set(podName, status))
       }
     }
 
-    updateStatus(/POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'running')
-    updateStatus(/POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'success')
-    updateStatus(/POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'fail')
+    updateStatus(
+      /POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      'running',
+    )
+    updateStatus(
+      /POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      'success',
+    )
+    updateStatus(
+      /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      'fail',
+    )
 
     const successMatches = message.match(/POD-SUCCESS/g) || []
-    setPercent(prev => Math.min(Math.ceil(prev + ((successMatches.length) / total) * 100), 100))
+    setPercent((prev) =>
+      Math.min(Math.ceil(prev + (successMatches.length / total) * 100), 100),
+    )
   }
 
   useWebsocket(
@@ -184,10 +207,10 @@ const BatchUpgradeDetail = () => {
     jobName !== '',
   )
 
-  const nodeItems = allNodes.map(item => ({ key: item, label: item }))
+  const nodeItems = allNodes.map((item) => ({ key: item, label: item }))
 
   const handleNodeSelected: MenuProps['onClick'] = (e) => {
-    const selectedItem = nodeItems.find(item => item.key === e.key)
+    const selectedItem = nodeItems.find((item) => item.key === e.key)
     setSelectedNode(selectedItem?.label || '')
   }
 
@@ -243,7 +266,7 @@ const BatchUpgradeDetail = () => {
         <Checkbox
           key="ignore error"
           checked={ignoreError}
-          onChange={e => setIgnoreError(e.target.checked)}
+          onChange={(e) => setIgnoreError(e.target.checked)}
         >
           <FormattedMessage id="ignoreError" />
         </Checkbox>,
@@ -257,9 +280,8 @@ const BatchUpgradeDetail = () => {
           onChange={(v) => {
             setWorker(v || 1)
           }}
-        >
-        </InputNumber>,
-        (jobStatus === 'batch-fail' || jobStatus === 'success') ?
+        ></InputNumber>,
+        jobStatus === 'batch-fail' || jobStatus === 'success' ? (
           <Button
             type="primary"
             key="complete"
@@ -272,54 +294,72 @@ const BatchUpgradeDetail = () => {
           >
             <FormattedMessage id="complete" />
           </Button>
-          :
+        ) : (
           <Button
-            disabled={jobStatus === 'start' || jobStatus === 'fail' || jobStatus === 'nodiff'}
+            disabled={
+              jobStatus === 'start' ||
+              jobStatus === 'fail' ||
+              jobStatus === 'nodiff'
+            }
             type="primary"
             key="start"
             onClick={handleStartClick}
           >
             <FormattedMessage id="start" />
-          </Button>,
+          </Button>
+        ),
       ]}
     >
       {jobStatus !== 'diff' && jobStatus !== 'nodiff' && (
         <ProCard>
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {(jobStatus !== 'batch-fail' && jobStatus !== 'success') && <Spin style={{ marginRight: 16 }} />}
+            {jobStatus !== 'batch-fail' && jobStatus !== 'success' && (
+              <Spin style={{ marginRight: 16 }} />
+            )}
             <Progress
               percent={total > 0 ? percent : 100}
               status={jobStatus.includes('fail') ? 'exception' : undefined}
-              format={percent => `${Math.round(percent || 0)}%`}
+              format={(percent) => `${Math.round(percent || 0)}%`}
             />
           </div>
         </ProCard>
       )}
 
-      {total !== 0 && <PodDiff diffPods={diffPods} batchConfig={batchConfig} diffStatus={diffStatus} />}
+      {total !== 0 && (
+        <PodUpgradeTable
+          diffPods={diffPods}
+          batchConfig={batchConfig}
+          diffStatus={diffStatus}
+        />
+      )}
 
       {data && (
         <ProCard key="upgrade log">
           <Collapse
-            items={[{
-              key: '1', label: <FormattedMessage id="clickToViewDetail" />, children:
-                <Editor
-                  height="calc(100vh - 200px)"
-                  language="shell"
-                  options={{
-                    wordWrap: 'on',
-                    readOnly: true,
-                    theme: 'vs-light', // TODO dark mode
-                    scrollBeyondLastLine: false,
-                  }}
-                  value={data}
-                />,
-            }]}
+            items={[
+              {
+                key: '1',
+                label: <FormattedMessage id="clickToViewDetail" />,
+                children: (
+                  <Editor
+                    height="calc(100vh - 200px)"
+                    language="shell"
+                    options={{
+                      wordWrap: 'on',
+                      readOnly: true,
+                      theme: 'vs-light', // TODO dark mode
+                      scrollBeyondLastLine: false,
+                    }}
+                    value={data}
+                  />
+                ),
+              },
+            ]}
           />
         </ProCard>
       )}
 
-      {(data === '' && (total === 0)) && (
+      {data === '' && total === 0 && (
         <Empty description={<FormattedMessage id="noDiff" />} />
       )}
     </PageContainer>
@@ -329,7 +369,7 @@ const BatchUpgradeDetail = () => {
 export default BatchUpgradeDetail
 
 function getAllPVCs(pvcs: PVC[]) {
-  return pvcs.map(v => ({
+  return pvcs.map((v) => ({
     key: v.metadata?.uid,
     value: `${v.metadata?.namespace}/${v.metadata?.name}`,
     pvc: v,

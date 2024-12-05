@@ -182,16 +182,19 @@ func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1
 	if err != nil {
 		return
 	}
-	old = genPathFromSetting(*oldSetting)
-	newSetting = oldSetting
+	old = genPatchFromSetting(*oldSetting)
+	newSetting, err = GenSetting(mountPod, pvc, pv, secret)
+	if err != nil {
+		return
+	}
 	if err = ApplySettingWithMountPod(mountPod, pvc, pv, newSetting); err != nil {
 		return
 	}
-	new = genPathFromSetting(*newSetting)
+	new = genPatchFromSetting(*newSetting)
 	return
 }
 
-func genPathFromSetting(setting JfsSetting) *MountPodPatch {
+func genPatchFromSetting(setting JfsSetting) *MountPodPatch {
 	patch := &MountPodPatch{
 		CacheDirs:                     setting.Attr.CacheDirs,
 		Image:                         setting.Attr.Image,
