@@ -20,13 +20,13 @@ import { ProCard } from '@ant-design/pro-components'
 import { Badge } from 'antd/lib'
 import { Link } from 'react-router-dom'
 import { FormattedMessage } from 'react-intl'
-import { BatchConfig, MountPodUpgrade } from '@/types/k8s.ts'
+import { BatchConfig, MountPodUpgrade, PodDiffConfig } from '@/types/k8s.ts'
 import { useEffect, useState } from 'react'
 import { Collapse, Table, TableProps } from 'antd'
 
 const PodDiff: React.FC<{
   batchConfig?: BatchConfig,
-  diffPods?: [Pod],
+  diffPods?: [PodDiffConfig],
   diffStatus: Map<string, string>
 }> = (props) => {
   const { diffPods, batchConfig, diffStatus } = props
@@ -46,9 +46,9 @@ const PodDiff: React.FC<{
 
   useEffect(() => {
     const newMap = new Map()
-    diffPods?.forEach((pod) => {
-      const podName = pod?.metadata?.name || ''
-      newMap.set(podName, pod)
+    diffPods?.forEach((poddiff) => {
+      const podName = poddiff.pod?.metadata?.name || ''
+      newMap.set(podName, poddiff.pod)
     })
     setPodMap(newMap)
   }, [diffPods])

@@ -172,3 +172,49 @@ func SaveUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 	cfg.Data = map[string]string{"upgrade": string(data)}
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
+
+func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (old *MountPodPatch, new *MountPodPatch, err error) {
+	var (
+		oldSetting *JfsSetting
+		newSetting *JfsSetting
+	)
+	oldSetting, err = GenSetting(mountPod, pvc, pv, secret)
+	if err != nil {
+		return
+	}
+	old = genPathFromSetting(*oldSetting)
+	newSetting = oldSetting
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, newSetting); err != nil {
+		return
+	}
+	new = genPathFromSetting(*newSetting)
+	return
+}
+
+func genPathFromSetting(setting JfsSetting) *MountPodPatch {
+	patch := &MountPodPatch{
+		CacheDirs:                     setting.Attr.CacheDirs,
+		Image:                         setting.Attr.Image,
+		Labels:                        setting.Attr.Labels,
+		Annotations:                   setting.Attr.Annotations,
+		HostNetwork:                   &setting.Attr.HostNetwork,
+		HostPID:                       &setting.Attr.HostPID,
+		LivenessProbe:                 setting.Attr.LivenessProbe,
+		ReadinessProbe:                setting.Attr.ReadinessProbe,
+		StartupProbe:                  setting.Attr.StartupProbe,
+		Lifecycle:                     setting.Attr.Lifecycle,
+		Resources:                     &setting.Attr.Resources,
+		TerminationGracePeriodSeconds: setting.Attr.TerminationGracePeriodSeconds,
+		Volumes:                       setting.Attr.Volumes,
+		VolumeDevices:                 setting.Attr.VolumeDevices,
+		VolumeMounts:                  setting.Attr.VolumeMounts,
+		Env:                           setting.Attr.Env,
+		MountOptions:                  setting.Options,
+	}
+	if setting.IsCe {
+		patch.CEMountImage = setting.Attr.Image
+	} else {
+		patch.EEMountImage = setting.Attr.Image
+	}
+	return patch
+}

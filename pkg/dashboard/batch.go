@@ -294,7 +294,7 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 			c.String(500, "list pods error %v", err)
 			return
 		}
-		pods, err := api.getUpgradePods(c, uniqueId, nodeName, recreate)
+		pods, _, err := api.getUpgradePods(c, uniqueId, nodeName, recreate)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
@@ -346,7 +346,7 @@ func newUpgradeJob() *batchv1.Job {
 	}
 }
 
-func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error) {
+func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, []PodDiff, error) {
 	var pods corev1.PodList
 	ls := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -366,14 +366,14 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 	err := api.cachedReader.List(ctx, &pods, &listOptions)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
 
 	// load config
 	if err := config.LoadFromConfigMap(ctx, api.k8sclient); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// get pvc、pv、secret
@@ -399,7 +399,7 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 	s, _ = metav1.LabelSelectorAsSelector(ls)
 	if err = api.cachedReader.List(ctx, &secretList, &client.ListOptions{LabelSelector: s}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	pvMap := make(map[string]*corev1.PersistentVolume)
@@ -422,15 +422,31 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 
 	var needUpdatePods []corev1.Pod
+	var podDiffs []PodDiff
 	for _, pod := range podsToUpgrade {
 		po := pod
 		diff, err := DiffConfig(&po, pvMap[po.Annotations[common.UniqueId]], pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if diff {
-			needUpdatePods = append(needUpdatePods, po)
+			oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pvMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+			if err != nil {
+				return nil, nil, err
+			}
+			podsToUpgrade = append(podsToUpgrade, po)
+			podDiffs = append(podDiffs, PodDiff{
+				Pod:       po,
+				OldConfig: *oldConfig,
+				NewConfig: *newConfig,
+			})
 		}
 	}
-	return needUpdatePods, nil
+	return needUpdatePods, podDiffs, nil
+}
+
+type PodDiff struct {
+	Pod       corev1.Pod           `json:"pod"`
+	OldConfig config.MountPodPatch `json:"oldConfig"`
+	NewConfig config.MountPodPatch `json:"newConfig"`
 }

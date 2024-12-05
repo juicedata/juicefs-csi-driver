@@ -57,6 +57,14 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": "invalid config map name"})
 			return
 		}
+		// validate global config
+		cfg := &config.Config{}
+		d := cm.Data["config.yaml"]
+		if err := cfg.Unmarshal([]byte(d)); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
 		_, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Update(c, &cm, metav1.UpdateOptions{})
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
@@ -93,13 +101,12 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
 		uniqueId := c.Query("uniqueId")
-		needUpdatePods, err := api.getUpgradePods(c, uniqueId, nodeName, true)
+		_, podDiffs, err := api.getUpgradePods(c, uniqueId, nodeName, true)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
 		}
-
-		c.JSON(200, needUpdatePods)
+		c.JSON(200, podDiffs)
 	}
 }
 

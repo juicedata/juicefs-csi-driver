@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
-import { Button, Popover } from 'antd'
+import { Alert, Button, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML, { YAMLParseError } from 'yaml'
 
@@ -31,6 +31,7 @@ const ConfigDetail = () => {
   const [config, setConfig] = useState('')
   const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (diffPods && diffPods.length > 0) {
@@ -106,6 +107,9 @@ const ConfigDetail = () => {
                 'config.yaml': config,
               },
             })
+              .catch((error) => {
+                setError(error.toString())
+              })
             setUpdated(false)
           }}
         >
@@ -117,7 +121,8 @@ const ConfigDetail = () => {
             placement="bottomRight"
             title={<FormattedMessage id="diffPods" />}
             content={(
-              <div> {diffPods?.map(pod => <p key={pod.metadata?.uid || ''}>{pod.metadata?.name}</p>)} </div>
+              <div> {diffPods?.map(poddiff =>
+                <p key={poddiff?.pod.metadata?.uid || ''}>{poddiff?.pod.metadata?.name}</p>)} </div>
             )}
           >
             <Button
@@ -138,6 +143,17 @@ const ConfigDetail = () => {
       ]}
     >
       <ProCard>
+        {error && (
+          <Alert
+            message={<FormattedMessage id="updateConfigError" />}
+            description={error}
+            type="error"
+            showIcon
+            style={{ marginTop: '10px' }}
+            onClick={() => setError('')}
+          />
+        )}
+
         <Editor
           defaultLanguage="yaml"
           height="calc(100vh - 200px)"
@@ -151,6 +167,7 @@ const ConfigDetail = () => {
             if (v) {
               setConfig(v)
               setUpdated(true)
+              setError("")
             }
           }}
         />

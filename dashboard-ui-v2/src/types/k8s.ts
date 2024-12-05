@@ -19,6 +19,13 @@ import {
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
+  Lifecycle,
+  Probe,
+  ResourceRequirements,
+  Volume,
+  VolumeMount,
+  VolumeDevice,
+  EnvVar,
 } from 'kubernetes-types/core/v1'
 
 export type Pod = {
@@ -71,4 +78,37 @@ export type MountPodUpgrade = {
   node: string
   csiNodePod: string
   status: string
+}
+
+export type PodDiffConfig = {
+  pod: Pod
+  oldConfig: MountPatch
+  newConfig: MountPatch
+}
+
+export type MountPatch = {
+  ceMountImage: string
+  eeMountImage: string
+  cacheDirs: MountPatchCacheDir[]
+  labels: { string: string }
+  annotations: { string: string }
+  hostNetwork: boolean
+  hostPID: boolean
+  livenessProbe: Probe
+  readinessProbe: Probe
+  startupProbe: Probe
+  lifecycle: Lifecycle
+  resources: ResourceRequirements
+  terminationGracePeriodSeconds: number
+  volumes: Volume[]
+  volumeDevices: VolumeDevice[]
+  volumeMounts: VolumeMount[]
+  env: EnvVar[]
+  mountOptions: string[]
+}
+
+export type MountPatchCacheDir = {
+  type: string
+  path: string
+  name: string
 }

@@ -120,4 +120,5 @@ export default {
   resources: 'Resources',
   setting: 'Setting',
   tool: 'Tools',
+  updateConfigError: 'Fail to update Config',
 }

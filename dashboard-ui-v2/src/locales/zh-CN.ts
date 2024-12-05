@@ -114,4 +114,5 @@ export default {
   tool: '工具',
   podName: 'Pod 名称',
   upgradeStatus: '升级状态',
+  updateConfigError: '更新配置错误',
 }
