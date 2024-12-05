@@ -86,11 +86,8 @@ func ServeGfShutdown(addr string) error {
 }
 
 type upgradeRequest struct {
-	action      string
-	name        string
-	worker      int
-	ignoreError bool
-	uniqueId    string
+	action string
+	name   string
 }
 
 // parseRequest parse request from message

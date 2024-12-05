@@ -36,10 +36,8 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx recreate",
 			},
 			want: upgradeRequest{
-				action:      "recreate",
-				name:        "juicefs-xxxx",
-				worker:      1,
-				ignoreError: false,
+				action: "recreate",
+				name:   "juicefs-xxxx",
 			},
 		},
 		{
@@ -48,35 +46,8 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx",
 			},
 			want: upgradeRequest{
-				action:      noRecreate,
-				name:        "juicefs-xxxx",
-				worker:      1,
-				ignoreError: false,
-			},
-		},
-		{
-			name: "batch",
-			args: args{
-				message: "BATCH NORECREATE worker=3,ignoreError=true",
-			},
-			want: upgradeRequest{
-				action:      noRecreate,
-				name:        "BATCH",
-				worker:      3,
-				ignoreError: true,
-			},
-		},
-		{
-			name: "uniqueId",
-			args: args{
-				message: "BATCH NORECREATE worker=3,ignoreError=true,uniqueId=1",
-			},
-			want: upgradeRequest{
-				action:      noRecreate,
-				name:        "BATCH",
-				worker:      3,
-				ignoreError: true,
-				uniqueId:    "1",
+				action: noRecreate,
+				name:   "juicefs-xxxx",
 			},
 		},
 	}
