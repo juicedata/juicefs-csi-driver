@@ -543,7 +543,14 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		return nil, err
 	}
-	return GenSetting(mountPod, pvc, pv, secret)
+	setting, err := GenSetting(mountPod, pvc, pv, secret)
+	if err != nil {
+		return nil, err
+	}
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
+		return nil, err
+	}
+	return setting, nil
 }
 
 func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (*JfsSetting, error) {
@@ -560,9 +567,6 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 		setting := &JfsSetting{}
 		if secretsMap["jfsSettings"] != "" {
 			if err := setting.Load(secretsMap["jfsSettings"]); err != nil {
-				return nil, err
-			}
-			if err := ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
 				return nil, err
 			}
 			return setting, nil
@@ -634,6 +638,14 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
 	}
 	setting.Attr = attr
+	return setting, nil
+}
+
+func GenSettingWithConfig(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (*JfsSetting, error) {
+	setting, err := GenSetting(mountPod, pvc, pv, secret)
+	if err != nil {
+		return nil, err
+	}
 	if err = ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
 		return nil, err
 	}

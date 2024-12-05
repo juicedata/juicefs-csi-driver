@@ -307,7 +307,6 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 func newUpgradeJob() *batchv1.Job {
 	sysNamespace := getSysNamespace()
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
-	ttl := int32(300)
 	sa := "juicefs-csi-dashboard-sa"
 	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
 		sa = os.Getenv("JUICEFS_CSI_DASHBOARD_SA")
@@ -343,7 +342,6 @@ func newUpgradeJob() *batchv1.Job {
 					ServiceAccountName: sa,
 				},
 			},
-			TTLSecondsAfterFinished: &ttl,
 		},
 	}
 }

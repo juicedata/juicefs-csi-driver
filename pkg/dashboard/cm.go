@@ -108,7 +108,7 @@ func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.Persis
 	for k, v := range secret.Data {
 		secretsMap[k] = string(v[:])
 	}
-	setting, err := config.GenSetting(pod, pvc, pv, secret)
+	setting, err := config.GenSettingWithConfig(pod, pvc, pv, secret)
 	if err != nil {
 		return false, err
 	}

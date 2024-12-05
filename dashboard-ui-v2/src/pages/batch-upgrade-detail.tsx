@@ -70,17 +70,9 @@ const BatchUpgradeDetail = () => {
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
-  // const { data: batchConfig, } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
   const { data: batchConfig, mutate: planMutate } = useBatchPlan(selectedNode, uniqueId, worker, ignoreError, true)
   const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
-
-  // const resetState = () => {
-  //   setData('')
-  //   setDiffStatus(new Map())
-  //   setJobStatus('diff')
-  //   planMutate()
-  // }
 
   const resetState = useCallback(() => {
     setData('')
@@ -133,16 +125,15 @@ const BatchUpgradeDetail = () => {
     } else {
       setSelectedNode(batchConfig?.node || '')
       setUniqueId(batchConfig?.uniqueId || '')
+
       if ((job.status?.failed || 0) > 0) {
-        setJobStatus('fail')
-      } else if ((job.status?.succeeded || 0) > 0) {
-        setJobStatus('success')
+        setJobStatus('batch-fail')
       } else {
         setJobStatus((prevState) => {
-          if (prevState !== 'fail' && prevState !== 'success') {
-            return 'start'
+          if ((job.status?.succeeded || 0) > 0) {
+            return prevState
           }
-          return prevState
+          return prevState !== 'fail' && prevState !== 'batch-fail' && prevState !== 'success' ? 'start' : prevState
         })
       }
     }
@@ -158,6 +149,9 @@ const BatchUpgradeDetail = () => {
     }
     if (msg.data.includes('BATCH-SUCCESS')) {
       setJobStatus('success')
+    }
+    if (msg.data.includes('BATCH-FAIL')) {
+      setJobStatus('batch-fail')
     }
     if (msg.data.includes('BATCH-')) {
       return
@@ -177,8 +171,7 @@ const BatchUpgradeDetail = () => {
     updateStatus(/POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g, 'fail')
 
     const successMatches = message.match(/POD-SUCCESS/g) || []
-    const failMatches = message.match(/POD-FAIL/g) || []
-    setPercent(prev => Math.min(Math.ceil(prev + ((successMatches.length + failMatches.length) / total) * 100), 100))
+    setPercent(prev => Math.min(Math.ceil(prev + ((successMatches.length) / total) * 100), 100))
   }
 
   useWebsocket(
@@ -266,7 +259,7 @@ const BatchUpgradeDetail = () => {
           }}
         >
         </InputNumber>,
-        (jobStatus === 'fail' || jobStatus === 'success') ?
+        (jobStatus === 'batch-fail' || jobStatus === 'success') ?
           <Button
             type="primary"
             key="complete"
@@ -281,7 +274,7 @@ const BatchUpgradeDetail = () => {
           </Button>
           :
           <Button
-            disabled={jobStatus === 'start' || jobStatus === 'nodiff'}
+            disabled={jobStatus === 'start' || jobStatus === 'fail' || jobStatus === 'nodiff'}
             type="primary"
             key="start"
             onClick={handleStartClick}
@@ -293,10 +286,10 @@ const BatchUpgradeDetail = () => {
       {jobStatus !== 'diff' && jobStatus !== 'nodiff' && (
         <ProCard>
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {jobStatus === 'start' && <Spin style={{ marginRight: 16 }} />}
+            {(jobStatus !== 'batch-fail' && jobStatus !== 'success') && <Spin style={{ marginRight: 16 }} />}
             <Progress
               percent={total > 0 ? percent : 100}
-              status={jobStatus === 'fail' ? 'exception' : undefined}
+              status={jobStatus.includes('fail') ? 'exception' : undefined}
               format={percent => `${Math.round(percent || 0)}%`}
             />
           </div>

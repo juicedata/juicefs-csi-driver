@@ -61,19 +61,19 @@ var upgradeCmd = &cobra.Command{
 		clientset, err := kubernetes.NewForConfig(k8sconfig)
 		if err != nil {
 			fmt.Printf("%s BATCH-FAIL failed to create kubernetes clientset\n", time.Now().Format(time.DateTime))
-			os.Exit(1)
+			return
 		}
 
 		k8sClient, err := k8sclient.NewClientWithConfig(*k8sconfig)
 		if err != nil {
 			fmt.Printf("%s BATCH-FAIL could not create k8s client\n", time.Now().Format(time.DateTime))
-			os.Exit(1)
+			return
 		}
 
 		conf, err := config.LoadUpgradeConfig(context.Background(), k8sClient, batchConfigName)
 		if err != nil {
 			fmt.Printf("%s BATCH-FAIL failed to load upgrade config\n", time.Now().Format(time.DateTime))
-			os.Exit(1)
+			return
 		}
 
 		podsStatus := make(map[string]config.UpgradeStatus)
@@ -113,7 +113,7 @@ type BatchUpgrade struct {
 func (u *BatchUpgrade) Run(ctx context.Context) {
 	if u.conf.Parallel > 50 {
 		fmt.Printf("%s BATCH-FAIL parallel should not exceed 50\n", time.Now().Format(time.DateTime))
-		os.Exit(1)
+		return
 	}
 	for _, batch := range u.conf.Batches {
 		var (
@@ -169,7 +169,7 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 		}
 	}
 	for _, status := range u.podsStatus {
-		if status == config.Fail && !u.conf.IgnoreError {
+		if status == config.Fail {
 			fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
 			return
 		}
