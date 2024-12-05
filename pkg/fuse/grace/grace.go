@@ -45,11 +45,9 @@ import (
 var log = klog.NewKlogr().WithName("grace")
 
 const (
-	batch                = "BATCH"
 	recreate             = "RECREATE"
 	noRecreate           = "NORECREATE"
 	singleUpgradeTimeout = 30 * time.Minute
-	batchUpgradeTimeout  = 120 * time.Minute
 )
 
 func ServeGfShutdown(addr string) error {
@@ -96,13 +94,10 @@ type upgradeRequest struct {
 }
 
 // parseRequest parse request from message
-// message format: <pod-name/BATCH> [recreate/noRecreate] [options]
-// options: worker=<int>,ignoreError=true/false
+// message format: <pod-name> [recreate/noRecreate]
 func parseRequest(message string) upgradeRequest {
 	req := upgradeRequest{
-		worker:      1,
-		action:      noRecreate,
-		ignoreError: false,
+		action: noRecreate,
 	}
 
 	ss := strings.Split(message, " ")
@@ -111,29 +106,6 @@ func parseRequest(message string) upgradeRequest {
 		return req
 	}
 	req.action = ss[1]
-	if len(ss) == 3 {
-		options := strings.Split(ss[2], ",")
-		for _, option := range options {
-			ops := strings.Split(option, "=")
-			if len(ops) < 2 {
-				continue
-			}
-			if ops[0] == "worker" {
-				w, err := strconv.Atoi(ops[1])
-				if err != nil {
-					log.Error(err, "failed to parse options", "option", option)
-					continue
-				}
-				req.worker = w
-			}
-			if ops[0] == "ignoreError" {
-				req.ignoreError = ops[1] == "true"
-			}
-			if ops[0] == "uniqueId" {
-				req.uniqueId = ops[1]
-			}
-		}
-	}
 	return req
 }
 
@@ -152,12 +124,6 @@ func handleShutdown(conn net.Conn) {
 
 	log.V(1).Info("Received shutdown message", "message", message)
 
-	if req.name == batch {
-		ctx, cancel := context.WithTimeout(context.TODO(), batchUpgradeTimeout)
-		defer cancel()
-		globalBatchUpgrade.BatchUpgrade(ctx, conn, req)
-		return
-	}
 	client, err := k8s.NewClient()
 	if err != nil {
 		log.Error(err, "failed to create k8s client")
@@ -173,10 +139,6 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 	pu, err := NewPodUpgrade(ctx, client, name, recreate, conn)
 	if err != nil {
 		log.Error(err, "failed to create pod upgrade")
-		return
-	}
-	if globalBatchUpgrade.status == batchUpgradeRunning {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] batch upgrade is running, please try again later", pu.pod.Name))
 		return
 	}
 
