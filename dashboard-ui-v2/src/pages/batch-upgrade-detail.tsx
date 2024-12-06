@@ -142,8 +142,8 @@ const BatchUpgradeDetail = () => {
             return prevState
           }
           return prevState !== 'fail' &&
-          prevState !== 'batch-fail' &&
-          prevState !== 'success'
+            prevState !== 'batch-fail' &&
+            prevState !== 'success'
             ? 'start'
             : prevState
         })
@@ -309,9 +309,7 @@ const BatchUpgradeDetail = () => {
       {jobStatus !== 'diff' && jobStatus !== 'nodiff' && (
         <ProCard>
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {!isComplete(jobStatus) && (
-              <Spin style={{ marginRight: 16 }} />
-            )}
+            {!isComplete(jobStatus) && <Spin style={{ marginRight: 16 }} />}
             <Progress
               percent={total > 0 ? percent : 100}
               status={jobStatus.includes('fail') ? 'exception' : undefined}
@@ -377,5 +375,9 @@ const isComplete = (jobStatus: string): boolean => {
 }
 
 const canStart = (jobStatus: string): boolean => {
-  return jobStatus === 'batch-fail' || jobStatus === 'success' || jobStatus === 'diff'
+  return (
+    jobStatus === 'batch-fail' ||
+    jobStatus === 'success' ||
+    jobStatus === 'diff'
+  )
 }

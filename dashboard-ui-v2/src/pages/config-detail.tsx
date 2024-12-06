@@ -111,7 +111,7 @@ const ConfigDetail = () => {
               .catch((error) => {
                 setError(error.toString())
               })
-              .then(()=>{
+              .then(() => {
                 setUpdated(false)
               })
           }}
