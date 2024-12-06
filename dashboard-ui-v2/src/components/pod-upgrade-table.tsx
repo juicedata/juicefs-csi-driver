@@ -16,13 +16,14 @@
 
 import React, { useEffect, useState } from 'react'
 import { ProCard } from '@ant-design/pro-components'
-import { Collapse, Popover, Table, TableProps } from 'antd'
+import { Button, Collapse, Popover, Table, TableProps, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import ReactDiffViewer from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
 
+import { DiffIcon } from '@/icons'
 import {
   BatchConfig,
   MountPatch,
@@ -126,18 +127,19 @@ const PodUpgradeTable: React.FC<{
     {
       title: <FormattedMessage id="diff" />,
       key: 'diff',
-      render: (podDiff) => (
-        <>
-          {
-            <Popover
-              content={diffContent(podDiff)}
-              title={<FormattedMessage id="diff" />}
-            >
-              Details
-            </Popover>
-          }
-        </>
-      ),
+      render: (podDiff) => {
+        return (
+          <Popover
+            content={diffContent(podDiff)}
+            title={<FormattedMessage id="diff" />}
+            trigger="click"
+          >
+            <Tooltip title={<FormattedMessage id="clickToViewDetail" />}>
+              <Button icon={<DiffIcon />} />
+            </Tooltip>
+          </Popover>
+        )
+      },
     },
   ]
 
@@ -172,7 +174,11 @@ const PodUpgradeTable: React.FC<{
       gutter={4}
       wrap
     >
-      <Collapse items={stageItems} bordered={false} defaultActiveKey={[activeStage]} />
+      <Collapse
+        items={stageItems}
+        bordered={false}
+        defaultActiveKey={[activeStage]}
+      />
     </ProCard>
   )
 }

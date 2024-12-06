@@ -44,7 +44,7 @@ export default {
   downloadLog: ' download',
   podNotFound: 'Pod not found',
   basic: 'Basic Information',
-  clickToViewDetail: 'Click to view',
+  clickToViewDetail: 'Click to view details',
   containerList: 'Container List',
   containerName: 'Container Name',
   restartCount: 'Restart Count',
