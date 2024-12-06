@@ -111,7 +111,9 @@ const ConfigDetail = () => {
               .catch((error) => {
                 setError(error.toString())
               })
-            setUpdated(false)
+              .then(()=>{
+                setUpdated(false)
+              })
           }}
         >
           <FormattedMessage id="save" />
@@ -124,12 +126,11 @@ const ConfigDetail = () => {
             title={<FormattedMessage id="diffPods" />}
             content={
               <div>
-                {' '}
                 {diffPods?.map((poddiff) => (
                   <p key={poddiff?.pod.metadata?.uid || ''}>
                     {poddiff?.pod.metadata?.name}
                   </p>
-                ))}{' '}
+                ))}
               </div>
             }
           >

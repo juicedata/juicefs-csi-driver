@@ -142,8 +142,8 @@ const BatchUpgradeDetail = () => {
             return prevState
           }
           return prevState !== 'fail' &&
-            prevState !== 'batch-fail' &&
-            prevState !== 'success'
+          prevState !== 'batch-fail' &&
+          prevState !== 'success'
             ? 'start'
             : prevState
         })
@@ -281,7 +281,7 @@ const BatchUpgradeDetail = () => {
             setWorker(v || 1)
           }}
         ></InputNumber>,
-        jobStatus === 'batch-fail' || jobStatus === 'success' ? (
+        isComplete(jobStatus) ? (
           <Button
             type="primary"
             key="complete"
@@ -296,11 +296,7 @@ const BatchUpgradeDetail = () => {
           </Button>
         ) : (
           <Button
-            disabled={
-              jobStatus === 'start' ||
-              jobStatus === 'fail' ||
-              jobStatus === 'nodiff'
-            }
+            disabled={!canStart(jobStatus)}
             type="primary"
             key="start"
             onClick={handleStartClick}
@@ -313,7 +309,7 @@ const BatchUpgradeDetail = () => {
       {jobStatus !== 'diff' && jobStatus !== 'nodiff' && (
         <ProCard>
           <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            {jobStatus !== 'batch-fail' && jobStatus !== 'success' && (
+            {!isComplete(jobStatus) && (
               <Spin style={{ marginRight: 16 }} />
             )}
             <Progress
@@ -374,4 +370,12 @@ function getAllPVCs(pvcs: PVC[]) {
     value: `${v.metadata?.namespace}/${v.metadata?.name}`,
     pvc: v,
   }))
+}
+
+const isComplete = (jobStatus: string): boolean => {
+  return jobStatus === 'batch-fail' || jobStatus === 'success'
+}
+
+const canStart = (jobStatus: string): boolean => {
+  return jobStatus === 'batch-fail' || jobStatus === 'success' || jobStatus === 'diff'
 }

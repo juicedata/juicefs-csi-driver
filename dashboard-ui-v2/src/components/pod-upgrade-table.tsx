@@ -146,8 +146,7 @@ const PodUpgradeTable: React.FC<{
       key: i.toString(),
       label: (
         <>
-          {' '}
-          <FormattedMessage id="batch" /> {i + 1}{' '}
+          <FormattedMessage id="batch" /> {i + 1}
         </>
       ),
       children: (
