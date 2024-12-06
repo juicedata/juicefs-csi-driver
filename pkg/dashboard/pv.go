@@ -26,8 +26,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
@@ -322,6 +324,50 @@ func (api *API) getPVCHandler() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, pvc)
+	}
+}
+
+func (api *API) getPVCWithPVHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pvc")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pvc := obj.(*corev1.PersistentVolumeClaim)
+		result := make(map[string]interface{})
+		result["PVC"] = pvc
+		if pvc.Spec.VolumeName != "" {
+			pv, err := api.getPV(c, pvc.Spec.VolumeName)
+			if err != nil {
+				c.AbortWithStatus(500)
+				return
+			}
+			if pv != nil {
+				result["PV"] = pv
+				s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app.kubernetes.io/name": "juicefs-csi-driver",
+						"app":                    "juicefs-csi-node",
+					},
+				})
+				var pods corev1.PodList
+				err = api.cachedReader.List(c, &pods, &client.ListOptions{
+					LabelSelector: s,
+				})
+				if err != nil {
+					c.String(500, "list pods error %v", err)
+					return
+				}
+				result["UniqueId"] = pv.Spec.CSI.VolumeHandle
+				if len(pods.Items) > 0 {
+					if isShareMount(&pods.Items[0]) {
+						result["UniqueId"] = pv.Spec.StorageClassName
+					}
+				}
+			}
+		}
+		c.IndentedJSON(200, result)
 	}
 }
 

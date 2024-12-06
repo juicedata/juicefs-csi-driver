@@ -520,9 +520,16 @@ export function getBasePath() {
   const domain = window.location.pathname.split('/')
   let base = ''
   if (
-    !['', 'pods', 'syspods', 'pvcs', 'pvs', 'storageclass', 'config'].includes(
-      domain[1],
-    )
+    ![
+      '',
+      'pods',
+      'syspods',
+      'pvcs',
+      'pvs',
+      'storageclass',
+      'config',
+      'upgrade',
+    ].includes(domain[1])
   ) {
     base = `/${domain[1]}`
   }

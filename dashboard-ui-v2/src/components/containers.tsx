@@ -15,7 +15,7 @@
  */
 
 import { ProCard } from '@ant-design/pro-components'
-import { Button, Space, Table, Tag, Tooltip,} from 'antd'
+import { Button, Space, Table, Tag, Tooltip } from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { useParams } from 'react-router-dom'
@@ -24,17 +24,18 @@ import { DebugModal } from '.'
 import LogModal from './log-modal'
 import WarmupModal from './warmup-modal'
 import XTermModal from './xterm-modal'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
 import {
   AccessLogIcon,
   DebugIcon,
   LogIcon,
-  TerminalIcon, UpgradeIcon,
+  TerminalIcon,
+  UpgradeIcon,
   WarmupIcon,
 } from '@/icons'
 import { DetailParams } from '@/types'
 import { Pod } from '@/types/k8s'
 import { isMountPod, supportBinarySmoothUpgrade, supportDebug } from '@/utils'
-import UpgradeModal from '@/components/upgrade-modal.tsx'
 
 const Containers: React.FC<{
   pod: Pod

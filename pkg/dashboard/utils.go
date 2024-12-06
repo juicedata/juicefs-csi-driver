@@ -19,12 +19,13 @@ package dashboard
 import (
 	"context"
 	"os"
+	"regexp"
 	"sort"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -126,4 +127,37 @@ func getSysNamespace() string {
 		namespace = os.Getenv("SYS_NAMESPACE")
 	}
 	return namespace
+}
+
+func isShareMount(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	for _, env := range pod.Spec.Containers[0].Env {
+		if env.Name == "STORAGE_CLASS_SHARE_MOUNT" && env.Value == "true" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func SetJobAsConfigMapOwner(cm *corev1.ConfigMap, owner *batchv1.Job) {
+	controller := true
+	cm.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: "batch/v1",
+		Kind:       "Job",
+		Name:       owner.Name,
+		UID:        owner.UID,
+		Controller: &controller,
+	}})
+}
+
+func getUniqueIdFromSecretName(secretName string) string {
+	re := regexp.MustCompile(`juicefs-(.*?)-secret`)
+	match := re.FindStringSubmatch(secretName)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return ""
 }

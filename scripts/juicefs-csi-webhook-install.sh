@@ -191,6 +191,14 @@ rules:
   - delete
   - update
   - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list
+  - get
 - apiGroups:
   - ""
   resources:
@@ -946,6 +954,14 @@ rules:
   - delete
   - update
   - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list
+  - get
 - apiGroups:
   - ""
   resources:

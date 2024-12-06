@@ -105,7 +105,14 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 	return nil
 }
 
-func (fs *Fds) GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
+func GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
+	if GlobalFds != nil {
+		return GlobalFds.getFdAddress(ctx, upgradeUUID)
+	}
+	return path.Join("/tmp", "fuse_fd_csi_comm.sock"), nil
+}
+
+func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
 	if f, ok := fs.fds[upgradeUUID]; ok {
 		return f.serverAddressInPod, nil
 	}

@@ -15,10 +15,17 @@
  */
 
 import {
+  EnvVar,
+  Lifecycle,
   Pod as NativePod,
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
+  Probe,
+  ResourceRequirements,
+  Volume,
+  VolumeDevice,
+  VolumeMount,
 } from 'kubernetes-types/core/v1'
 
 export type Pod = {
@@ -43,6 +50,12 @@ export type PVC = PersistentVolumeClaim & {
   }
 }
 
+export type PVCWithUniqueId = {
+  PVC: PersistentVolumeClaim
+  PV: PersistentVolume
+  UniqueId: string
+}
+
 export const accessModeMap: { [key: string]: string } = {
   ReadWriteOnce: 'RWO',
   ReadWriteMany: 'RWX',
@@ -50,7 +63,52 @@ export const accessModeMap: { [key: string]: string } = {
   ReadWriteOncePod: 'RWOP',
 }
 
-export type PodToUpgrade = {
-  node: string,
-  pods: NativePod[],
+export type BatchConfig = {
+  parallel: number
+  ignoreError: boolean
+  noRecreate: boolean
+  node: string
+  uniqueId: string
+  batches: MountPodUpgrade[][]
+  status: string
+}
+
+export type MountPodUpgrade = {
+  name: string
+  node: string
+  csiNodePod: string
+  status: string
+}
+
+export type PodDiffConfig = {
+  pod: Pod
+  oldConfig: MountPatch
+  newConfig: MountPatch
+}
+
+export type MountPatch = {
+  ceMountImage: string
+  eeMountImage: string
+  cacheDirs: MountPatchCacheDir[]
+  labels: { string: string }
+  annotations: { string: string }
+  hostNetwork: boolean
+  hostPID: boolean
+  livenessProbe: Probe
+  readinessProbe: Probe
+  startupProbe: Probe
+  lifecycle: Lifecycle
+  resources: ResourceRequirements
+  terminationGracePeriodSeconds: number
+  volumes: Volume[]
+  volumeDevices: VolumeDevice[]
+  volumeMounts: VolumeMount[]
+  env: EnvVar[]
+  mountOptions: string[]
+}
+
+export type MountPatchCacheDir = {
+  type: string
+  path: string
+  name: string
 }

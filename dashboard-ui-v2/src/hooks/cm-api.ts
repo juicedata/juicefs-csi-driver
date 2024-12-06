@@ -2,6 +2,7 @@ import { useAsync } from '@react-hookz/web'
 import { ConfigMap } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
+import { PodDiffConfig } from '@/types/k8s.ts'
 import { getHost } from '@/utils'
 
 export function useConfig() {
@@ -10,12 +11,24 @@ export function useConfig() {
 
 export function useUpdateConfig() {
   return useAsync(async (config: ConfigMap) => {
-    await fetch(`${getHost()}/api/v1/config`, {
+    const response = await fetch(`${getHost()}/api/v1/config`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(config),
     })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`${errorText}`)
+    }
   })
+}
+
+export function useConfigDiff(nodeName: string, uniqueId: string) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
+  return useSWR<[PodDiffConfig]>(
+    `/api/v1/config/diff?nodeName=${node}&uniqueIds=${uniqueId}`,
+  )
 }
