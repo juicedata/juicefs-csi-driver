@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -839,6 +840,26 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		pod.Spec = newPod.Spec
 		pod.ObjectMeta = newPod.ObjectMeta
+		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
+			// update secret
+			secretName := resource.GetSecretNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey])
+			secret, err := p.Client.GetSecret(ctx, secretName, pod.Namespace)
+			if err != nil {
+				return err
+			}
+			secretsMap := make(map[string]string)
+			for k, v := range secret.Data {
+				secretsMap[k] = string(v[:])
+			}
+			sr, _ := json.Marshal(setting)
+			secretsMap["jfsSettings"] = string(sr)
+			secret.Data = nil
+			secret.StringData = secretsMap
+			err = resource.CreateOrUpdateSecret(ctx, p.Client, secret)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	attr := setting.Attr
