@@ -41,6 +41,7 @@ const CgDetail: React.FC<{
 }> = memo((props) => {
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [autoRefreshWorkers, setAutoRefreshWorkers] = useState(false)
   const redirect = useNavigate()
 
   const { data, isLoading, mutate } = useCacheGroup(namespace, name)
@@ -102,6 +103,7 @@ const CgDetail: React.FC<{
                   message.success('success')
                   handleCancel()
                   mutate()
+                  setAutoRefreshWorkers(true)
                 }}
               />
             </Tooltip>
@@ -154,7 +156,11 @@ const CgDetail: React.FC<{
           ]}
         />
       </ProCard>
-      <CgWorkersTable name={name} namespace={namespace} />
+      <CgWorkersTable
+        name={name}
+        namespace={namespace}
+        autoRefresh={autoRefreshWorkers}
+      />
     </PageContainer>
   )
 })

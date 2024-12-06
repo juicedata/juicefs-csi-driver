@@ -49,7 +49,8 @@ import { getPodStatusBadge, podStatus } from '@/utils'
 const CgWorkersTable: React.FC<{
   name?: string
   namespace?: string
-}> = ({ namespace, name }) => {
+  autoRefresh?: boolean
+}> = ({ namespace, name, autoRefresh }) => {
   const [refreshInterval, setRefreshInterval] = React.useState<number>(0)
   const { data: nodes } = useNodes(true)
   const [, removeWorker] = useRemoveWorker(namespace, name)
@@ -85,6 +86,10 @@ const CgWorkersTable: React.FC<{
       setExistNodes(nodes)
     }
   }, [data])
+
+  useEffect(() => {
+    autoRefresh && setRefreshInterval(1000)
+  }, [autoRefresh])
 
   return (
     <ProCard title="workers">

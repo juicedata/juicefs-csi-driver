@@ -179,6 +179,7 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				operatorcommon.LabelCacheGroup: cg.Name,
+				operatorcommon.LabelWorker:     operatorcommon.LabelWorkerValue,
 			},
 		})
 		if err != nil {
