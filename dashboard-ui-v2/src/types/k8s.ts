@@ -15,11 +15,14 @@
  */
 
 import {
+  Container,
   Pod as NativePod,
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
+  PodSpec,
 } from 'kubernetes-types/core/v1'
+import { ObjectMeta } from 'kubernetes-types/meta/v1'
 
 export type Pod = {
   mountPods?: NativePod[]
@@ -51,6 +54,37 @@ export const accessModeMap: { [key: string]: string } = {
 }
 
 export type PodToUpgrade = {
-  node: string,
-  pods: NativePod[],
+  node: string
+  pods: NativePod[]
+}
+
+export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
+  Omit<Container, 'name'> & {
+    opts?: string[]
+  }
+
+export type CacheGroup = {
+  metadata?: ObjectMeta
+  spec: {
+    updateStrategy: {
+      type: 'RollingUpdate' | 'OnDelete'
+      rollingUpdate: {
+        maxUnavailable: number
+      }
+    }
+    secretRef: {
+      name: string
+    }
+    worker: {
+      template: CacheGroupTemplate
+      overwrite: (CacheGroupTemplate & { nodes: string[] })[]
+    }
+  }
+  status?: {
+    phase: string
+    readyWorker?: number
+    expectWorker?: number
+    readyStr?: string
+    cacheGroup?: string
+  }
 }

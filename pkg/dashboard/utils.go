@@ -80,7 +80,7 @@ func (api *API) isAppPodShouldList(ctx context.Context, pod *corev1.Pod) bool {
 
 func isSysPod(pod *corev1.Pod) bool {
 	if pod.Labels != nil {
-		return pod.Labels["app.kubernetes.io/name"] == "juicefs-mount" || pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver"
+		return pod.Labels["app.kubernetes.io/name"] == "juicefs-mount" || pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" || pod.Labels["app.kubernetes.io/name"] == "juicefs-cache-group-worker"
 	}
 	return false
 }

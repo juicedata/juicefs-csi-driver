@@ -32,6 +32,7 @@ type API struct {
 	sysNamespace string
 	// for cached resources
 	cachedReader client.Reader
+	mgrClient    client.Client
 	// for logs and events
 	client kubernetes.Interface
 
@@ -47,10 +48,11 @@ type API struct {
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
+func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config) *API {
 	api := &API{
 		sysNamespace: sysNamespace,
-		cachedReader: cachedReader,
+		cachedReader: client,
+		mgrClient:    client,
 		client:       kubernetes.NewForConfigOrDie(config),
 		csiNodeIndex: make(map[string]types.NamespacedName),
 		sysIndexes:   newTimeIndexes[corev1.Pod](),
@@ -73,6 +75,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pvs", api.listPVsHandler())
 	group.GET("/pvcs", api.listPVCsHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
+	group.GET("/cachegroups", api.listCacheGroups())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
@@ -105,6 +108,16 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	batchGroup.GET("/job", api.getUpgradeStatus())
 	batchGroup.POST("/upgrade", api.upgradePods())
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
+	cgGroup := group.Group("/cachegroup/:namespace/:name")
+	cgGroup.GET("/", api.getCacheGroup())
+	cgGroup.POST("/", api.createCacheGroup())
+	cgGroup.PUT("/", api.updateCacheGroup())
+	cgGroup.DELETE("/", api.deleteCacheGroup())
+	cgWorkersGroup := group.Group("/cachegroup/:namespace/:name/workers")
+	cgWorkersGroup.GET("/", api.listCacheGroupWorkers())
+	cgWorkersGroup.POST("/", api.addWorker())
+	cgWorkersGroup.DELETE("/", api.removeWorker())
+	cgWorkersGroup.GET("/:workerName/cacheBytes", api.getCacheWorkerBytes())
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/batch/upgrade/logs", api.watchUpgradeJobLog())

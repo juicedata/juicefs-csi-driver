@@ -52,6 +52,20 @@ body {
   height: calc(100vh - 110px);
 }
 
+.add-worker-modal {
+  width: unset !important;
+}
+
+.add-worker-modal .ant-modal,
+.add-worker-modal .ant-modal-content,
+.add-worker-modal .ant-modal-body {
+  height: unset;
+  top: 100px;
+  margin: unset;
+  max-width: fit-content;
+  margin: auto;
+}
+
 .xterm-screen {
   width: 100% !important;
   height: calc(100vh - 110px) !important;
