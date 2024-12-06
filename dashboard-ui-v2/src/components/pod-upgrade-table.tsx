@@ -146,7 +146,11 @@ const PodUpgradeTable: React.FC<{
       key: i.toString(),
       label: (
         <>
-          <FormattedMessage id="batch" /> {i + 1}
+          <Badge
+            status={getStageStatusBadge(diffStatus, podUpgrades)}
+            text={<FormattedMessage id="batch" />}
+          />{' '}
+          {i + 1}
         </>
       ),
       children: (
@@ -168,7 +172,7 @@ const PodUpgradeTable: React.FC<{
       gutter={4}
       wrap
     >
-      <Collapse items={stageItems} defaultActiveKey={[activeStage]} />
+      <Collapse items={stageItems} bordered={false} defaultActiveKey={[activeStage]} />
     </ProCard>
   )
 }
@@ -189,4 +193,28 @@ const getUpgradeStatusBadge = (finalStatus: string) => {
     default:
       return 'default'
   }
+}
+
+const getStageStatusBadge = (
+  diffStatus: Map<string, string>,
+  podUpgrades: MountPodUpgrade[],
+) => {
+  let batchStatus: string = 'pending'
+  let success = 0
+  podUpgrades.forEach((podUpgrade) => {
+    const status = diffStatus.get(podUpgrade.name)
+    if (status === 'running' || status === 'start') {
+      batchStatus = 'running'
+    }
+    if (status === 'fail') {
+      batchStatus = 'fail'
+    }
+    if (status === 'success') {
+      success += 1
+    }
+  })
+  if (podUpgrades.length === success) {
+    batchStatus = 'success'
+  }
+  return getUpgradeStatusBadge(batchStatus)
 }
