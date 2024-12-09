@@ -15,13 +15,13 @@
  */
 
 import { useEffect, useState } from 'react'
-import { PageContainer } from '@ant-design/pro-components'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
-import { Button } from 'antd'
+import { Alert, Button, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML, { YAMLParseError } from 'yaml'
 
-import { useConfig, useUpdateConfig } from '@/hooks/cm-api'
+import { useConfig, useConfigDiff, useUpdateConfig } from '@/hooks/cm-api'
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)
@@ -29,6 +29,23 @@ const ConfigDetail = () => {
   const { data, isLoading, mutate } = useConfig()
   const [state, actions] = useUpdateConfig()
   const [config, setConfig] = useState('')
+  const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
+  const [diff, setDiff] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (diffPods && diffPods.length > 0) {
+      setDiff(true)
+    }
+  }, [diffPods])
+
+  useEffect(() => {
+    if (!updated) {
+      diffMutate()
+      mutate()
+    }
+  }, [diffMutate, mutate, updated])
+
   useEffect(() => {
     if (data?.data) {
       try {
@@ -48,6 +65,7 @@ const ConfigDetail = () => {
       }}
       extra={[
         <Button
+          key="docs"
           onClick={() => {
             window.open(
               'https://juicefs.com/docs/zh/csi/guide/configurations',
@@ -58,6 +76,7 @@ const ConfigDetail = () => {
           <FormattedMessage id="docs" />
         </Button>,
         <Button
+          key="reset docs"
           loading={isLoading}
           disabled={!updated}
           onClick={() => {
@@ -77,39 +96,92 @@ const ConfigDetail = () => {
           <FormattedMessage id="reset" />
         </Button>,
         <Button
+          key="update docs"
           type="primary"
           disabled={!updated}
           loading={state.status === 'loading'}
           onClick={() => {
-            actions.execute({
-              ...data,
-              data: {
-                'config.yaml': config,
-              },
-            })
-            setUpdated(false)
+            actions
+              .execute({
+                ...data,
+                data: {
+                  'config.yaml': config,
+                },
+              })
+              .catch((error) => {
+                setError(error.toString())
+              })
+              .then(() => {
+                setUpdated(false)
+              })
           }}
         >
           <FormattedMessage id="save" />
         </Button>,
+
+        diff ? (
+          <Popover
+            key="diff pods"
+            placement="bottomRight"
+            title={<FormattedMessage id="diffPods" />}
+            content={
+              <div>
+                {diffPods?.map((poddiff) => (
+                  <p key={poddiff?.pod.metadata?.uid || ''}>
+                    {poddiff?.pod.metadata?.name}
+                  </p>
+                ))}
+              </div>
+            }
+          >
+            <Button
+              key="apply"
+              type="primary"
+              disabled={!diff}
+              onClick={() => {
+                window.location.href = `upgrade`
+              }}
+            >
+              <FormattedMessage id="apply" />
+            </Button>
+          </Popover>
+        ) : (
+          <Button key="apply" type="primary" disabled={true}>
+            <FormattedMessage id="apply" />
+          </Button>
+        ),
       ]}
     >
-      <Editor
-        defaultLanguage="yaml"
-        height="calc(100vh - 200px)"
-        options={{
-          wordWrap: 'on',
-          theme: 'vs-light', // TODO dark mode
-          scrollBeyondLastLine: false,
-        }}
-        value={config}
-        onChange={(v) => {
-          if (v) {
-            setConfig(v)
-            setUpdated(true)
-          }
-        }}
-      />
+      <ProCard>
+        {error && (
+          <Alert
+            message={<FormattedMessage id="updateConfigError" />}
+            description={error}
+            type="error"
+            showIcon
+            style={{ marginTop: '10px' }}
+            onClick={() => setError('')}
+          />
+        )}
+
+        <Editor
+          defaultLanguage="yaml"
+          height="calc(100vh - 200px)"
+          options={{
+            wordWrap: 'on',
+            theme: 'vs-light', // TODO dark mode
+            scrollBeyondLastLine: false,
+          }}
+          value={config}
+          onChange={(v) => {
+            if (v) {
+              setConfig(v)
+              setUpdated(true)
+              setError('')
+            }
+          }}
+        />
+      </ProCard>
     </PageContainer>
   )
 }

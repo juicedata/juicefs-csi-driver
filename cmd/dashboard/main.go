@@ -57,6 +57,7 @@ func init() {
 	ctrllog.SetLogger(klog.NewKlogr())
 	// To disable controller runtime logging, instead set the null logger:
 	//log.SetLogger(logr.New(log.NullLogSink{}))
+
 }
 
 const (

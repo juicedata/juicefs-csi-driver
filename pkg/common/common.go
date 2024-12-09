@@ -24,7 +24,7 @@ const (
 	PodTypeValue           = "juicefs-mount"
 	PodUniqueIdLabelKey    = "volume-id"
 	PodJuiceHashLabelKey   = "juicefs-hash"
-	PodUpgradeHashLabelKey = "juicefs-upgrade-hash"
+	PodUpgradeUUIDLabelKey = "juicefs-upgrade-uuid"
 	Finalizer              = "juicefs.com/finalizer"
 	JuiceFSUUID            = "juicefs-uuid"
 	UniqueId               = "juicefs-uniqueid"
@@ -32,6 +32,7 @@ const (
 	MountContainerName     = "jfs-mount"
 	JobTypeValue           = "juicefs-job"
 	JfsInsideContainer     = "JFS_INSIDE_CONTAINER"
+	MaxParallelUpgradeNum  = 50
 
 	// CSI Secret
 	ProvisionerSecretName           = "csi.storage.k8s.io/provisioner-secret-name"
@@ -88,8 +89,7 @@ const (
 	JfsCommEnv              = "JFS_SUPER_COMM"
 	JfsUpgradeJobLabelKey   = "app.kubernetes.io/name"
 	JfsUpgradeJobLabelValue = "juicefs-upgrade"
-	JfsUpgradeNodeName      = "juicefs-upgrade-node"
-	JfsUpgradeRecreateName  = "juicefs-upgrade-recreate"
+	JfsUpgradePodLabelKey   = "juicefs-job-name"
 )
 
 func GenUpgradeJobName() string {

@@ -36,7 +36,6 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -397,21 +396,15 @@ func (api *API) getPodLatestImage() gin.HandlerFunc {
 			return
 		}
 		rawPod := po.(*corev1.Pod)
-		// gen k8s client
-		k8sClient, err := k8sclient.NewClientWithConfig(api.kubeconfig)
-		if err != nil {
-			c.String(500, "Could not create k8s client: %v", err)
-			return
-		}
 		if rawPod.Labels[common.PodTypeKey] != common.PodTypeValue {
 			c.String(400, "pod %s is not a mount pod", rawPod.Name)
 			return
 		}
-		if err := config.LoadFromConfigMap(c, k8sClient); err != nil {
+		if err := config.LoadFromConfigMap(c, api.k8sclient); err != nil {
 			c.String(500, "Load config from configmap error: %v", err)
 			return
 		}
-		setting, err := config.GenSettingAttrWithMountPod(c, k8sClient, rawPod)
+		setting, err := config.GenSettingAttrWithMountPod(c, api.k8sclient, rawPod)
 		if err != nil {
 			c.String(500, "generate pod attribute error: %v", err)
 			return

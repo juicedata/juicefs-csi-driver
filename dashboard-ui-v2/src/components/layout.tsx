@@ -34,8 +34,7 @@ import zhCN from 'antd/locale/zh_CN'
 import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
-import BatchUpgradeModal from '@/components/batch-upgrade-modal.tsx'
-import { LocaleIcon, ResourcesIcon, UpgradeIcon } from '@/icons'
+import { LocaleIcon, ResourcesIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
@@ -99,6 +98,14 @@ const items: MenuProps['items'] = [
         ),
         key: '/config',
       },
+      {
+        label: (
+          <Link to="/upgrade">
+            <FormattedMessage id="batchUpgrade" />
+          </Link>
+        ),
+        key: '/upgrade',
+      },
     ],
   },
 ]
@@ -148,17 +155,6 @@ export default function Layout(props: { children: ReactNode }) {
                 }}
               />
             </Tooltip>
-            <BatchUpgradeModal>
-              {({ onClick }) => (
-                <Tooltip title={<FormattedMessage id="batchUpgrade" />}>
-                  <Button
-                    className="header-button"
-                    onClick={onClick}
-                    icon={<UpgradeIcon />}
-                  />
-                </Tooltip>
-              )}
-            </BatchUpgradeModal>
             <Tooltip title="English / 中文">
               <Button
                 icon={<LocaleIcon />}

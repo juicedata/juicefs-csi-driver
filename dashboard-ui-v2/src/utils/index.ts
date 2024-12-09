@@ -529,6 +529,7 @@ export function getBasePath() {
       'storageclass',
       'config',
       'cachegroups',
+      'upgrade',
     ].includes(domain[1])
   ) {
     base = `/${domain[1]}`

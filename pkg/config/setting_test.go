@@ -670,6 +670,7 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/var/jfsCache",
 				},
+				CachePVCs: []CachePVC{},
 				// default cache-dir is /var/jfsCache
 				// Options: []string{"cache-dir=/var/jfsCache"},
 			},
@@ -701,6 +702,7 @@ func Test_genCacheDirs(t *testing.T) {
 						},
 					},
 				},
+				CacheDirs: []string{},
 			},
 			wantErr: false,
 		},
@@ -716,7 +718,9 @@ func Test_genCacheDirs(t *testing.T) {
 					SizeLimit: resource.MustParse("1Gi"),
 					Medium:    "Memory",
 				},
-				Options: []string{"cache-dir=/var/jfsCache-emptyDir"},
+				Options:   []string{"cache-dir=/var/jfsCache-emptyDir"},
+				CachePVCs: []CachePVC{},
+				CacheDirs: []string{},
 			},
 			wantErr: false,
 		},
@@ -731,7 +735,8 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/tmp/abc",
 				},
-				Options: []string{"cache-dir=/tmp/abc"},
+				CachePVCs: []CachePVC{},
+				Options:   []string{"cache-dir=/tmp/abc"},
 			},
 			wantErr: false,
 		},
@@ -761,7 +766,8 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/abc",
 				},
-				Options: []string{"cache-dir=/abc"},
+				CachePVCs: []CachePVC{},
+				Options:   []string{"cache-dir=/abc"},
 			},
 			wantErr: false,
 		},
@@ -1022,7 +1028,7 @@ func Test_parsePodResources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest)
+			got, err := ParsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest, getDefaultResource())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parsePodResources() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1297,6 +1303,28 @@ func TestGenHashOfSetting(t *testing.T) {
 				},
 			},
 			want:    "92672dd79d284e609e2de7f3da2082bf5a6a11f2496f54a452b9ce136155f0f",
+			wantErr: false,
+		},
+		{
+			name: "test-list1",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"f", "a=b", "c=d"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			wantErr: false,
+		},
+		{
+			name: "test-list2",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"c=d", "f", "a=b"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
 			wantErr: false,
 		},
 	}

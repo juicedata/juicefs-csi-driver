@@ -345,11 +345,11 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 }
 
 func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
+	upgradeUUID := GetUpgradeUUID(&pod)
+	if upgradeUUID == "" {
 		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
-	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
+	return path.Join(basePath, upgradeUUID, "fuse_fd_comm.1"), nil
 }
 
 func GetUniqueId(pod corev1.Pod) string {
@@ -487,7 +487,12 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
-		if CanUpgrade(pod, recreate) {
+		canUpgrade, err := CanUpgrade(pod, recreate)
+		if err != nil {
+			log.Error(err, "check pod upgrade error", "pod", pod.Name)
+			continue
+		}
+		if canUpgrade {
 			pods = append(pods, pod)
 		}
 	}
@@ -498,36 +503,47 @@ func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 // 1. pod has hash label
 // 2. pod image support upgrade
 // 3. pod is ready
-func CanUpgrade(pod corev1.Pod, recreate bool) bool {
-	// todo: if pod has config update?
+func CanUpgrade(pod corev1.Pod, recreate bool) (bool, error) {
 	if len(pod.Spec.Containers) == 0 {
-		return false
+		return false, nil
 	}
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
-		return false
+		return false, nil
 	}
 	// check mount pod now support upgrade or not
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support smooth binary upgrade")
-		return false
+		return false, nil
 	}
 	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false
+		return false, nil
 	}
 
 	// check status
-	return IsPodReady(&pod)
+	return IsPodReady(&pod), nil
 }
 
-func GetUpgradeHash(pod *corev1.Pod) string {
+func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
+	// check config update
+	setting, err := config.GenSettingAttrWithMountPod(ctx, client, &pod)
+	if err != nil {
+		return false, err
+	}
+	if setting.HashVal == pod.Labels[common.PodJuiceHashLabelKey] {
+		return false, err
+	}
+	return CanUpgrade(pod, recreate)
+}
+
+func GetUpgradeUUID(pod *corev1.Pod) string {
 	if pod == nil {
 		return ""
 	}
-	if pod.Labels[common.PodUpgradeHashLabelKey] != "" {
-		return pod.Labels[common.PodUpgradeHashLabelKey]
+	if pod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		return pod.Labels[common.PodUpgradeUUIDLabelKey]
 	}
 	return pod.Labels[common.PodJuiceHashLabelKey]
 }

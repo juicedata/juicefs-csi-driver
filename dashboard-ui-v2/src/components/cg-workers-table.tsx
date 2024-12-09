@@ -52,7 +52,7 @@ const CgWorkersTable: React.FC<{
   autoRefresh?: boolean
 }> = ({ namespace, name, autoRefresh }) => {
   const [refreshInterval, setRefreshInterval] = React.useState<number>(0)
-  const { data: nodes } = useNodes(true)
+  const { data: nodes } = useNodes()
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
   const [form] = Form.useForm<{ nodeName: string }>()

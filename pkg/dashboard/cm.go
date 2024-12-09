@@ -22,6 +22,9 @@ import (
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func (api *API) getCSIConfig() gin.HandlerFunc {
@@ -54,6 +57,14 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": "invalid config map name"})
 			return
 		}
+		// validate global config
+		cfg := &config.Config{}
+		d := cm.Data["config.yaml"]
+		if err := cfg.Unmarshal([]byte(d)); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
 		_, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Update(c, &cm, metav1.UpdateOptions{})
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
@@ -84,4 +95,29 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 		}
 		c.JSON(200, cm)
 	}
+}
+
+func (api *API) getCSIConfigDiff() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		nodeName := c.Query("nodeName")
+		uniqueId := c.Query("uniqueId")
+		_, podDiffs, err := api.getUpgradePods(c, uniqueId, nodeName, true)
+		if err != nil {
+			c.String(500, "get upgrade pods error %v", err)
+			return
+		}
+		c.JSON(200, podDiffs)
+	}
+}
+
+func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret *corev1.Secret) (bool, error) {
+	secretsMap := make(map[string]string)
+	for k, v := range secret.Data {
+		secretsMap[k] = string(v[:])
+	}
+	setting, err := config.GenSettingWithConfig(pod, pvc, pv, secret)
+	if err != nil {
+		return false, err
+	}
+	return setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey], nil
 }

@@ -38,6 +38,7 @@ import (
 	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver/mocks"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -66,6 +67,7 @@ var readyPod = &corev1.Pod{
 			util.GetReferenceKey(target): target},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -101,6 +103,7 @@ var errCmdPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -120,6 +123,7 @@ var deletedPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		Finalizers:        []string{common.Finalizer},
@@ -153,6 +157,7 @@ var errorPod1 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -196,6 +201,7 @@ var resourceErrPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -239,6 +245,7 @@ var errorPod2 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -274,6 +281,7 @@ var errorPod3 = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -300,6 +308,7 @@ var pendingPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -326,6 +335,7 @@ var runningPod = &corev1.Pod{
 			util.GetReferenceKey("/mnt/abc"): "/mnt/abc"},
 		Labels: map[string]string{
 			common.PodJuiceHashLabelKey: "e11ef7a140d2e8bac9c75b1c44dcba22954402edc5015a8eae931d389b82db9",
+			common.PodUniqueIdLabelKey:  "test",
 		},
 		Finalizers: []string{common.Finalizer},
 	},
@@ -723,6 +733,17 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 
 func TestPodDriver_podDeletedHandler(t *testing.T) {
 	Convey("Test pod delete handler", t, func() {
+		client := fake.NewClientset()
+		_, _ = client.CoreV1().Secrets(config.Namespace).Create(context.Background(), &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "juicefs-test-secret",
+			},
+		}, metav1.CreateOptions{})
+		d := NewPodDriver(&k8sclient.K8sClient{Interface: client}, mount.SafeFormatAndMount{
+			Interface: mount.New(""),
+			Exec:      k8sexec.New(),
+		})
+
 		Convey("umount fail", func() {
 			var tmpCmd = &exec.Cmd{}
 			patch1 := ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
@@ -759,10 +780,6 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch8.Reset()
 
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			tmpPod := copyPod(deletedPod)
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
@@ -803,19 +820,11 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			})
 			defer patch8.Reset()
 
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			tmpPod := copyPod(deletedPod)
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod delete success ", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			var tmpCmd = &exec.Cmd{}
 			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
 				return tmpCmd
@@ -839,29 +848,17 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("get nil pod", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			_, err := d.podDeletedHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("pod no finalizer", func() {
 			tmpPod := copyPod(readyPod)
 			tmpPod.Finalizers = nil
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			_, err := d.podDeletedHandler(context.Background(), tmpPod)
 			So(err, ShouldBeNil)
 		})
 		Convey("skip delete resource err pod", func() {
 			tmpPod := copyPod(resourceErrPod)
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			k := &k8sclient.K8sClient{}
 			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
 				return nil
@@ -872,20 +869,12 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 		})
 		Convey("remove pod finalizer err ", func() {
 			tmpPod := copyPod(readyPod)
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			_, err := d.podDeletedHandler(ctx, tmpPod)
 			So(err, ShouldBeError)
 		})
 		Convey("pod no Annotations", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = nil
 			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
@@ -896,10 +885,6 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("can not get mntTarget from pod Annotations", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			tmpPod := copyPod(resourceErrPod)
 			tmpPod.Annotations = map[string]string{
 				"/var/lib/xxx": "/var/lib/xxx",
@@ -912,12 +897,8 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("get sourcePath from pod cmd failed", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			tmpPod := copyPod(readyPod)
-			tmpPod.Spec.Containers = nil
+			tmpPod.Spec.Containers[0].Command = []string{}
 			_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 			if err != nil {
 				t.Fatal(err)
@@ -926,10 +907,6 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("umount source err and need mount lazy ", func() {
-			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
-				Interface: mount.New(""),
-				Exec:      k8sexec.New(),
-			})
 			var tmpCmd = &exec.Cmd{}
 			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
 				return tmpCmd
