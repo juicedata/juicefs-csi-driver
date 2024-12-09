@@ -92,6 +92,11 @@ spec:
 
 ## 部署分布式缓存集群 {#distributed-cache-cluster}
 
+:::info
+JuiceFS 提供了一种更为方便管理缓存组集群的 Operator，推荐使用这种方式。
+参考 [JuiceFS Operator](./cache-group-operator.md)
+:::
+
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，在集群内指定的节点挂载 JuiceFS 客户端，形成一个稳定的缓存组。
 
 下方介绍两种部署方式，分别是 StatefulSet 和 DaemonSet。功能上并无区别，但是在升级或修改配置的时候，StatefulSet 默认会按照从低到高位依次重启，这种方式对缓存组消费端的服务冲击更小。而 DaemonSet 方式则会根据其 `updateStrategy` 设置来执行更新，如果规模巨大，需要仔细设置更新策略，避免冲击服务。
