@@ -327,6 +327,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - apps.kruise.io
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -1084,6 +1091,13 @@ rules:
   - patch
 - apiGroups:
   - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - apps.kruise.io
   resources:
   - daemonsets
   verbs:
