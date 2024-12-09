@@ -14,23 +14,44 @@
  * limitations under the License.
  */
 
+import { useState } from 'react'
 import Editor from '@monaco-editor/react'
-import { Modal } from 'antd'
+import { Button, Modal, Space } from 'antd'
 
 const YamlModal: React.FC<{
   isOpen: boolean
   onClose: () => void
   content: string
-}> = ({ isOpen, onClose, content }) => {
+  editable?: boolean
+  onSave?: (data: string) => void
+  saveButtonText?: string
+}> = ({ isOpen, onClose, content, editable, onSave, saveButtonText }) => {
+  const [data, setData] = useState(content)
   return (
-    <Modal title="YAML" open={isOpen} onCancel={onClose} footer={null}>
+    <Modal
+      title="YAML"
+      open={isOpen}
+      onCancel={onClose}
+      footer={
+        editable ? (
+          <Space>
+            <Button type="primary" onClick={() => onSave && onSave(data)}>
+              {saveButtonText ?? 'Save'}
+            </Button>
+          </Space>
+        ) : null
+      }
+    >
       <Editor
         defaultLanguage="yaml"
         options={{
           wordWrap: 'on',
-          readOnly: true,
+          readOnly: !editable,
           theme: 'vs-light', // TODO dark mode
           scrollBeyondLastLine: false,
+        }}
+        onChange={(value) => {
+          setData(value ?? '')
         }}
         value={content}
       />

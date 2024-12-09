@@ -24,6 +24,7 @@ export type Params = {
     | 'pvcs'
     | 'storageclass'
     | 'config'
+    | 'cachegroups'
 }
 
 export type DetailParams = {
@@ -79,4 +80,11 @@ export interface PVCPagingListArgs {
   sc?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+}
+
+export interface CgWorkerPagingListArgs {
+  pageSize?: number
+  current?: number
+  name?: string
+  node?: string
 }

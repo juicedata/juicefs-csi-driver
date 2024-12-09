@@ -34,6 +34,7 @@ type API struct {
 	sysNamespace string
 	// for cached resources
 	cachedReader client.Reader
+	mgrClient    client.Client
 	// for logs and events
 	client     kubernetes.Interface
 	k8sclient  *k8sclient.K8sClient
@@ -49,7 +50,7 @@ type API struct {
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader, config *rest.Config) *API {
+func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config) *API {
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClientWithConfig(*config)
 	if err != nil {
@@ -57,7 +58,8 @@ func NewAPI(ctx context.Context, sysNamespace string, cachedReader client.Reader
 	}
 	api := &API{
 		sysNamespace: sysNamespace,
-		cachedReader: cachedReader,
+		cachedReader: client,
+		mgrClient:    client,
 		client:       kubernetes.NewForConfigOrDie(config),
 		k8sclient:    k8sClient,
 		csiNodeIndex: make(map[string]types.NamespacedName),
@@ -81,6 +83,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pvs", api.listPVsHandler())
 	group.GET("/pvcs", api.listPVCsHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
+	group.GET("/cachegroups", api.listCacheGroups())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
@@ -116,6 +119,16 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	batchGroup.DELETE("/job", api.clearUpgradeStatus())
 	batchGroup.POST("/upgrade", api.upgradePods())
 	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
+	cgGroup := group.Group("/cachegroup/:namespace/:name")
+	cgGroup.GET("/", api.getCacheGroup())
+	cgGroup.POST("/", api.createCacheGroup())
+	cgGroup.PUT("/", api.updateCacheGroup())
+	cgGroup.DELETE("/", api.deleteCacheGroup())
+	cgWorkersGroup := group.Group("/cachegroup/:namespace/:name/workers")
+	cgWorkersGroup.GET("/", api.listCacheGroupWorkers())
+	cgWorkersGroup.POST("/", api.addWorker())
+	cgWorkersGroup.DELETE("/", api.removeWorker())
+	cgWorkersGroup.GET("/:workerName/cacheBytes", api.getCacheWorkerBytes())
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/batch/upgrade/logs", api.watchUpgradeJobLog())
