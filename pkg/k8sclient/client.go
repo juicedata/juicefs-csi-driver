@@ -89,14 +89,14 @@ func NewClient() (*K8sClient, error) {
 	if config == nil {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
+	return newClient(*config)
+}
+
+func NewClientWithConfig(config rest.Config) (*K8sClient, error) {
 	return newClient(config)
 }
 
-func NewClientWithConfig(config *rest.Config) (*K8sClient, error) {
-	return newClient(config)
-}
-
-func newClient(config *rest.Config) (*K8sClient, error) {
+func newClient(config rest.Config) (*K8sClient, error) {
 	config.Timeout = timeout
 
 	if os.Getenv("KUBE_QPS") != "" {
@@ -114,7 +114,7 @@ func newClient(config *rest.Config) (*K8sClient, error) {
 		config.Burst = kubeBurstInt
 	}
 
-	client, err := kubernetes.NewForConfig(config)
+	client, err := kubernetes.NewForConfig(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -521,6 +521,28 @@ func (k *K8sClient) GetConfigMap(ctx context.Context, cmName, namespace string) 
 		return nil, err
 	}
 	return cm, nil
+}
+
+func (k *K8sClient) CreateConfigMap(ctx context.Context, cfg *corev1.ConfigMap) error {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Create configmap", "name", cfg.Name)
+	_, err := k.CoreV1().ConfigMaps(cfg.Namespace).Create(ctx, cfg, metav1.CreateOptions{})
+	if err != nil {
+		log.V(1).Info("Can't create configMap", "name", cfg.Name, "error", err)
+		return err
+	}
+	return nil
+}
+
+func (k *K8sClient) UpdateConfigMap(ctx context.Context, cfg *corev1.ConfigMap) error {
+	log := util.GenLog(ctx, clientLog, "")
+	log.V(1).Info("Update configmap", "name", cfg.Name)
+	_, err := k.CoreV1().ConfigMaps(cfg.Namespace).Update(ctx, cfg, metav1.UpdateOptions{})
+	if err != nil {
+		log.V(1).Info("Can't update configMap", "name", cfg.Name, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (k *K8sClient) CreateEvent(ctx context.Context, pod corev1.Pod, evtType, reason, message string) error {

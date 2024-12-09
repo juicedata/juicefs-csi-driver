@@ -17,9 +17,9 @@
 import { memo, ReactNode, useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { Button, Modal, Space } from 'antd'
+import { FormattedMessage } from 'react-intl'
 
 import { useMountPodImage, useWebsocket } from '@/hooks/use-api'
-import { FormattedMessage } from 'react-intl'
 
 const upgradeHelpMessage = `Click Start to upgrade Mount Pod
 
@@ -56,13 +56,16 @@ const UpgradeModal: React.FC<{
       },
       onMessage: async (msg) => {
         setData((prev) => prev + msg.data)
-        if (msg.data.includes('SUCCESS Upgrade mount pod and recreate one: ')) {
-          const regex = /SUCCESS Upgrade mount pod and recreate one: ([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)"/
+        if (msg.data.includes('POD-SUCCESS')) {
+          const regex =
+            /Upgrade mount pod and recreate one: ([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)"/
           const match = msg.data.match(regex)
 
           if (match && match[1]) {
             const newPod = match[1]
-            setData((prev) => prev + `Redirect to the new mount pod: ${newPod}...\n`)
+            setData(
+              (prev) => prev + `Redirect to the new mount pod: ${newPod}...\n`,
+            )
             for (let i = 3; i > 0; i--) {
               setData((prev) => prev + `${i}...`)
               await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -80,9 +83,13 @@ const UpgradeModal: React.FC<{
   useEffect(() => {
     if (isModalOpen) {
       if (recreate) {
-        setData(`Smoothly upgrade Mount Pod to ${newImage}\n\n` + upgradeHelpMessage)
+        setData(
+          `Smoothly upgrade Mount Pod to ${newImage}\n\n` + upgradeHelpMessage,
+        )
       } else {
-        setData(`Smoothly upgrade Mount Pod to ${newImage}\n\n` + binaryHelpMessage)
+        setData(
+          `Smoothly upgrade Mount Pod to ${newImage}\n\n` + binaryHelpMessage,
+        )
       }
     }
   }, [recreate, isModalOpen, newImage])

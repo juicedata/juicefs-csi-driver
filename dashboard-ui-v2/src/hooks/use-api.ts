@@ -15,15 +15,14 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Event } from 'kubernetes-types/core/v1'
+import { Job } from 'kubernetes-types/batch/v1'
+import { Event, Node } from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { Pod, PodToUpgrade } from '@/types/k8s'
-import { Node } from 'kubernetes-types/core/v1'
+import { BatchConfig, Pod } from '@/types/k8s'
 import { getBasePath, getHost } from '@/utils'
-import { Job } from 'kubernetes-types/batch/v1'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -59,8 +58,14 @@ export function useSysAppPods(args: SysPagingListArgs) {
   )
 }
 
-export function useMountPodImage(isMountPod: boolean, namespace?: string, name?: string) {
-  return useSWR<string>(isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '')
+export function useMountPodImage(
+  isMountPod: boolean,
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<string>(
+    isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '',
+  )
 }
 
 export function useAppPod(namespace?: string, name?: string) {
@@ -154,40 +159,51 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   })
 }
 
-export function usePodsToUpgrade(toCall: boolean, recreate: boolean, nodeName?: string) {
-  const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<PodToUpgrade[]>(
-    toCall ?
-      recreate ?
-        `/api/v1/batch/pods?nodeName=${node}&recreate=true`
-        : `/api/v1/batch/pods?nodeName=${node}`
-      : ``,
-  )
-}
-
-export function useNodes(toCall: boolean) {
-  return useSWR<Node[]>(toCall ? '/api/v1/nodes' : '')
+export function useNodes() {
+  return useSWR<Node[]>('/api/v1/nodes')
 }
 
 export function useUpgradePods() {
-  return useAsync(async ({ nodeName, recreate }) => {
+  return useAsync(async (batchConfig?: BatchConfig) => {
     const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        nodeName: nodeName === 'All Nodes' ? '' : nodeName,
-        recreate: recreate,
-      }),
+      body: JSON.stringify(batchConfig),
     })
     const result: {
-      jobName: string,
+      jobName: string
     } = await response.json()
     return result
   })
 }
 
-export function useUpgradeStatus(toCall: boolean) {
-  return useSWR<Job>(toCall ? `/api/v1/batch/job` : '')
+export function useUpgradeStatus() {
+  return useSWR<Job>(`/api/v1/batch/job`)
+}
+
+export function useClearUpgradeStatus() {
+  return useAsync(async () => {
+    await fetch(`${getHost()}/api/v1/batch/job`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return
+  })
+}
+
+export function useBatchPlan(
+  nodeName: string,
+  uniqueId: string,
+  worker: number,
+  ignoreError: boolean,
+  recreate: boolean,
+) {
+  const node = nodeName === 'All Nodes' ? '' : nodeName
+  return useSWR<BatchConfig>(
+    `/api/v1/batch/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`,
+  )
 }

@@ -264,7 +264,7 @@ func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	}
 	secret := r.NewSecret()
 	builder.SetJobAsOwner(&secret, *exist)
-	if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+	if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 		return err
 	}
 	err = p.waitUtilJobCompleted(ctx, job.Name)
@@ -297,7 +297,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	}
 	secret := r.NewSecret()
 	builder.SetJobAsOwner(&secret, *exist)
-	if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+	if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 		return err
 	}
 	err = p.waitUtilJobCompleted(ctx, job.Name)
@@ -422,7 +422,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					}
 				}
 
-				if err := p.createOrUpdateSecret(ctx, &secret); err != nil {
+				if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 					return err
 				}
 				_, err = p.K8sClient.CreatePod(ctx, newPod)
@@ -438,7 +438,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 			return err
 		}
 		// pod exist, add refs
-		if err = p.createOrUpdateSecret(ctx, &secret); err != nil {
+		if err = resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 			return err
 		}
 		// update mount path
@@ -650,45 +650,6 @@ func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volu
 		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
 			log.Error(e, "delete job %s error: %v", "jobName", job.Name)
 		}
-	}
-	return nil
-}
-
-func (p *PodMount) createOrUpdateSecret(ctx context.Context, secret *corev1.Secret) error {
-	log := p.log.WithName("createOrUpdateSecret")
-	log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		oldSecret, err := p.K8sClient.GetSecret(ctx, secret.Name, jfsConfig.Namespace)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				// secret not exist, create
-				_, err := p.K8sClient.CreateSecret(ctx, secret)
-				return err
-			}
-			// unexpected err
-			return err
-		}
-		oldSecret.Data = nil
-		oldSecret.StringData = secret.StringData
-		// merge owner reference
-		if len(secret.OwnerReferences) != 0 {
-			newOwner := secret.OwnerReferences[0]
-			exist := false
-			for _, ref := range oldSecret.OwnerReferences {
-				if ref.UID == newOwner.UID {
-					exist = true
-					break
-				}
-			}
-			if !exist {
-				oldSecret.OwnerReferences = append(oldSecret.OwnerReferences, newOwner)
-			}
-		}
-		return p.K8sClient.UpdateSecret(ctx, oldSecret)
-	})
-	if err != nil {
-		log.Error(err, "create or update secret error", "secretName", secret.Name)
-		return err
 	}
 	return nil
 }
