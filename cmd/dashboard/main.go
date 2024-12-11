@@ -45,12 +45,14 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 )
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(juicefsiov1.AddToScheme(scheme))
 	// Initialize a logger for the controller runtime
 	ctrllog.SetLogger(klog.NewKlogr())
 	// To disable controller runtime logging, instead set the null logger:
@@ -115,10 +117,12 @@ func run() {
 	var config *rest.Config
 	var err error
 	sysNamespace := "kube-system"
+	if v := os.Getenv(SysNamespaceKey); v != "" {
+		sysNamespace = v
+	}
 	if devMode {
 		config, err = getLocalConfig()
 	} else {
-		sysNamespace = os.Getenv(SysNamespaceKey)
 		gin.SetMode(gin.ReleaseMode)
 		config = ctrl.GetConfigOrDie()
 	}

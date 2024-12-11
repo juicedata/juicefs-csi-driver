@@ -16,6 +16,7 @@
 
 import { useParams } from 'react-router-dom'
 
+import CgDetail from '@/pages/cg-detail'
 import PodDetail from '@/pages/pod-detail'
 import PVDetail from '@/pages/pv-detail'
 import PVCDetail from '@/pages/pvc-detail'
@@ -35,6 +36,8 @@ export default function ResourcesDetail() {
       return <PVDetail name={name} />
     case 'pvcs':
       return <PVCDetail name={name} namespace={namespace} />
+    case 'cachegroups':
+      return <CgDetail name={name} namespace={namespace} />
     default:
       return <div>Not Found</div>
   }

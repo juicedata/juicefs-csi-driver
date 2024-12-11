@@ -528,6 +528,7 @@ export function getBasePath() {
       'pvs',
       'storageclass',
       'config',
+      'cachegroups',
       'upgrade',
     ].includes(domain[1])
   ) {
