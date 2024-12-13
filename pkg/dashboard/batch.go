@@ -17,11 +17,13 @@
 package dashboard
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +33,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,6 +45,16 @@ import (
 )
 
 var batchLog = klog.NewKlogr().WithName("batch")
+
+type ListJobResult struct {
+	Total int           `json:"total"`
+	Jobs  []*UpgradeJob `json:"jobs"`
+}
+
+type UpgradeJob struct {
+	Job    *batchv1.Job        `json:"job"`
+	Config *config.BatchConfig `json:"config"`
+}
 
 func (api *API) getNodes() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -54,7 +68,7 @@ func (api *API) getNodes() gin.HandlerFunc {
 	}
 }
 
-func (api *API) upgradePods() gin.HandlerFunc {
+func (api *API) createUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		batchConfig := &config.BatchConfig{}
 		if err := c.ShouldBindJSON(&batchConfig); err != nil {
@@ -62,7 +76,7 @@ func (api *API) upgradePods() gin.HandlerFunc {
 			return
 		}
 		var needCreate bool
-		jobName := common.GenUpgradeJobName()
+		jobName := GenUpgradeJobName()
 
 		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -73,34 +87,15 @@ func (api *API) upgradePods() gin.HandlerFunc {
 			needCreate = true
 		}
 
-		// if job already completed (fail or succeed), create it again
-		if job.Status.Succeeded == 1 || job.Status.Failed != 0 {
-			needCreate = true
-			if err = api.client.BatchV1().Jobs(job.Namespace).Delete(c, job.Name, metav1.DeleteOptions{
-				PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
-			}); err != nil {
-				c.String(500, "delete job error %v", err)
-				return
-			}
-
-			// wait for job deleted
-			t := time.NewTicker(1 * time.Second)
-			for range t.C {
-				_, err = api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
-				if err != nil && k8serrors.IsNotFound(err) {
-					t.Stop()
-					break
-				}
-			}
-		}
 		if needCreate {
-			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, config.UpgradeConfigMapName, batchConfig)
+			cmName := GenUpgradeConfig(jobName)
+			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, cmName, batchConfig)
 			if err != nil {
 				c.String(500, "save upgrade config error %v", err)
 				return
 			}
 
-			newJob := newUpgradeJob()
+			newJob := newUpgradeJob(jobName)
 			job, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
 			if err != nil {
 				batchLog.Error(err, "create job error")
@@ -124,9 +119,65 @@ func (api *API) upgradePods() gin.HandlerFunc {
 	}
 }
 
-func (api *API) getUpgradeStatus() gin.HandlerFunc {
+func (api *API) listUpgradeJobs() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobName := common.GenUpgradeJobName()
+		var (
+			err      error
+			pageSize uint64
+		)
+		pageSize, err = strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			c.String(400, "invalid page size")
+			return
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			c.String(400, "invalid current page")
+			return
+		}
+		descend := c.Query("order") != "ascend"
+		nameFilter := c.Query("name")
+
+		jobs := make([]*batchv1.Job, 0, api.jobsIndexes.length())
+		for name := range api.jobsIndexes.iterate(c, descend) {
+			var job batchv1.Job
+			if err := api.cachedReader.Get(c, name, &job); err == nil &&
+				(nameFilter == "" || strings.Contains(job.Name, nameFilter)) &&
+				(isUpgradeJob(&job)) {
+				jobs = append(jobs, &job)
+			}
+		}
+		configs, err := api.getAllUpgradeConfig(c)
+		if err != nil {
+			c.String(500, "get all upgrade config error %v", err)
+			return
+		}
+
+		result := &ListJobResult{len(jobs), make([]*UpgradeJob, 0)}
+
+		startIndex := (current - 1) * pageSize
+		if startIndex >= uint64(len(jobs)) {
+			c.IndentedJSON(200, result)
+			return
+		}
+		endIndex := startIndex + pageSize
+		if endIndex > uint64(len(jobs)) {
+			endIndex = uint64(len(jobs))
+		}
+		for i := startIndex; i < endIndex; i++ {
+			result.Jobs = append(result.Jobs, &UpgradeJob{
+				Job:    jobs[i],
+				Config: configs[jobs[i].Labels[common.JfsUpgradeConfig]],
+			})
+		}
+
+		c.IndentedJSON(200, result)
+	}
+}
+
+func (api *API) getUpgradeJob() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		jobName := c.Param("jobName")
 		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -136,13 +187,78 @@ func (api *API) getUpgradeStatus() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		c.IndentedJSON(200, job)
+		conf, err := config.LoadUpgradeConfig(c, api.k8sclient, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		podsName := make(map[string]bool)
+		for _, batch := range conf.Batches {
+			for _, c := range batch {
+				podsName[c.Name] = true
+			}
+		}
+
+		pods := make([]corev1.Pod, 0, api.sysIndexes.length())
+		for name := range api.sysIndexes.iterate(c, false) {
+			if !podsName[name.Name] {
+				continue
+			}
+			var po corev1.Pod
+			if err := api.cachedReader.Get(c, name, &po); err == nil {
+				pods = append(pods, po)
+			}
+		}
+		_, diffs, err := api.genPodDiffs(c, pods, false)
+		if err != nil {
+			c.String(500, "get pods diff configs error %v", err)
+			return
+		}
+		c.IndentedJSON(200, map[string]interface{}{
+			"job":    job,
+			"config": conf,
+			"diffs":  diffs,
+		})
 	}
 }
 
-func (api *API) clearUpgradeStatus() gin.HandlerFunc {
+func (api *API) updateUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobName := common.GenUpgradeJobName()
+		jobName := c.Param("jobName")
+		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		type body struct {
+			Action string `json:"action"`
+		}
+		action := &body{}
+		if err := c.ShouldBindJSON(action); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		pod, err := api.getPodOfUpgradeJob(c, job)
+		if err != nil {
+			c.String(500, "get pod of job error %v", err)
+			return
+		}
+
+		err = api.doActionInUpgradeJob(c, pod, action.Action)
+		if err != nil {
+			c.String(500, "do action in job error %v", err)
+			return
+		}
+
+		c.IndentedJSON(200, map[string]string{
+			"jobName": jobName,
+		})
+	}
+}
+
+func (api *API) deleteUpgradeJob() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		jobName := c.Param("jobName")
 		err := api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
 			PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
 		})
@@ -155,7 +271,7 @@ func (api *API) clearUpgradeStatus() gin.HandlerFunc {
 
 func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		jobName := c.Query("job")
+		jobName := c.Param("jobName")
 		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -167,8 +283,9 @@ func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 		}
 		s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
-				"job-name":                   jobName,
+				common.PodTypeKey:        common.JobTypeValue,
+				common.JfsJobKind:        common.KindOfUpgrade,
+				common.JfsUpgradeJobName: jobName,
 			},
 		})
 		podList, err := api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
@@ -199,7 +316,7 @@ func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		websocket.Handler(func(ws *websocket.Conn) {
-			jobName := c.Query("job")
+			jobName := c.Param("jobName")
 			var (
 				job     *batchv1.Job
 				jobPod  *corev1.Pod
@@ -214,8 +331,9 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				if err == nil && job.DeletionTimestamp == nil {
 					s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
-							common.JfsUpgradePodLabelKey: jobName,
+							common.PodTypeKey:        common.JobTypeValue,
+							common.JfsJobKind:        common.KindOfUpgrade,
+							common.JfsUpgradeJobName: jobName,
 						},
 					})
 					podList, err = api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
@@ -261,18 +379,6 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 
 func (api *API) getBatchPlan() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		conf, err := config.LoadUpgradeConfig(c, api.k8sclient, config.UpgradeConfigMapName)
-		if err != nil {
-			if !k8serrors.IsNotFound(err) {
-				c.String(500, "get upgrade config error %v", err)
-				return
-			}
-		}
-		if conf != nil {
-			c.IndentedJSON(200, conf)
-			return
-		}
-
 		nodeName := c.Query("nodeName")
 		recreate := c.Query("recreate") == "true"
 		worker, err := strconv.Atoi(c.DefaultQuery("worker", "1"))
@@ -304,31 +410,35 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 	}
 }
 
-func newUpgradeJob() *batchv1.Job {
+func newUpgradeJob(jobName string) *batchv1.Job {
 	sysNamespace := getSysNamespace()
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	sa := "juicefs-csi-dashboard-sa"
 	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
 		sa = os.Getenv("JUICEFS_CSI_DASHBOARD_SA")
 	}
-	jobName := common.GenUpgradeJobName()
+	configName := GenUpgradeConfig(jobName)
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: sysNamespace,
 			Labels: map[string]string{
-				common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
+				common.PodTypeKey:       common.JobTypeValue,
+				common.JfsJobKind:       common.KindOfUpgrade,
+				common.JfsUpgradeConfig: configName,
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Parallelism:  util.ToPtr(int32(1)),
-			Completions:  util.ToPtr(int32(1)),
-			BackoffLimit: util.ToPtr(int32(1)),
+			Parallelism:             util.ToPtr(int32(1)),
+			Completions:             util.ToPtr(int32(1)),
+			BackoffLimit:            util.ToPtr(int32(0)),
+			TTLSecondsAfterFinished: util.ToPtr(int32(3600 * 24)), // automatically deleted after 1 day
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						common.JfsUpgradeJobLabelKey: common.JfsUpgradeJobLabelValue,
-						common.JfsUpgradePodLabelKey: jobName,
+						common.PodTypeKey:        common.JobTypeValue,
+						common.JfsJobKind:        common.KindOfUpgrade,
+						common.JfsUpgradeJobName: jobName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -336,7 +446,10 @@ func newUpgradeJob() *batchv1.Job {
 						Name:    "juicefs-upgrade",
 						Image:   os.Getenv("DASHBOARD_IMAGE"),
 						Command: cmds,
-						Env:     []corev1.EnvVar{{Name: "SYS_NAMESPACE", Value: sysNamespace}},
+						Env: []corev1.EnvVar{
+							{Name: "SYS_NAMESPACE", Value: sysNamespace},
+							{Name: common.JfsUpgradeConfig, Value: configName},
+						},
 					}},
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: sa,
@@ -370,7 +483,19 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 
 	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
+	return api.genPodDiffs(ctx, podsToUpgrade, true)
+}
 
+type PodDiff struct {
+	Pod       corev1.Pod           `json:"pod"`
+	OldConfig config.MountPodPatch `json:"oldConfig"`
+	NewConfig config.MountPodPatch `json:"newConfig"`
+}
+
+// genPodDiffs return mount pods with diff configs
+// mountPods: pods need to get diff configs
+// shouldDiff: should pass the pods which have no diff config
+func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff bool) ([]corev1.Pod, []PodDiff, error) {
 	// load config
 	if err := config.LoadFromConfigMap(ctx, api.k8sclient); err != nil {
 		return nil, nil, err
@@ -392,13 +517,13 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 		}
 	}
 	var secretList corev1.SecretList
-	ls = &metav1.LabelSelector{
+	ls := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			common.JuicefsSecretLabelKey: "true",
 		},
 	}
-	s, _ = metav1.LabelSelectorAsSelector(ls)
-	if err = api.cachedReader.List(ctx, &secretList, &client.ListOptions{LabelSelector: s}); err != nil {
+	s, _ := metav1.LabelSelectorAsSelector(ls)
+	if err := api.cachedReader.List(ctx, &secretList, &client.ListOptions{LabelSelector: s}); err != nil {
 		return nil, nil, err
 	}
 
@@ -422,30 +547,114 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 
 	var needUpdatePods []corev1.Pod
 	var podDiffs []PodDiff
-	for _, pod := range podsToUpgrade {
+	for _, pod := range mountPods {
 		po := pod
 		diff, err := DiffConfig(&po, pvMap[po.Annotations[common.UniqueId]], pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
 		if err != nil {
 			return nil, nil, err
 		}
-		if diff {
-			oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pvMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
-			if err != nil {
-				return nil, nil, err
-			}
-			needUpdatePods = append(needUpdatePods, po)
-			podDiffs = append(podDiffs, PodDiff{
-				Pod:       po,
-				OldConfig: *oldConfig,
-				NewConfig: *newConfig,
-			})
+		if !diff && shouldDiff {
+			// no diff config and should diff, skip
+			continue
 		}
+		oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pvMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+		if err != nil {
+			return nil, nil, err
+		}
+		needUpdatePods = append(needUpdatePods, po)
+		podDiffs = append(podDiffs, PodDiff{
+			Pod:       po,
+			OldConfig: *oldConfig,
+			NewConfig: *newConfig,
+		})
 	}
 	return needUpdatePods, podDiffs, nil
 }
 
-type PodDiff struct {
-	Pod       corev1.Pod           `json:"pod"`
-	OldConfig config.MountPodPatch `json:"oldConfig"`
-	NewConfig config.MountPodPatch `json:"newConfig"`
+func GenUpgradeJobName() string {
+	return fmt.Sprintf("juicefs-upgrade-job-%s", util.RandStringRunes(6))
+}
+
+func GenUpgradeConfig(jobName string) string {
+	return fmt.Sprintf("%s-config", jobName)
+}
+
+func (api *API) getAllUpgradeConfig(ctx context.Context) (map[string]*config.BatchConfig, error) {
+	var (
+		cmList  *corev1.ConfigMapList
+		configs = make(map[string]*config.BatchConfig)
+		err     error
+	)
+	s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.ConfigTypeValue,
+		},
+	})
+	cmList, err = api.client.CoreV1().ConfigMaps(getSysNamespace()).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
+	if err != nil {
+		return nil, err
+	}
+	for _, cm := range cmList.Items {
+		cfg, err := config.LoadBatchConfig(&cm)
+		if err != nil {
+			return nil, err
+		}
+		configs[cm.Name] = cfg
+	}
+	return configs, nil
+}
+
+func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1.Pod, error) {
+	if job == nil {
+		return nil, nil
+	}
+	s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey:        common.JobTypeValue,
+			common.JfsJobKind:        common.KindOfUpgrade,
+			common.JfsUpgradeJobName: job.Name,
+		},
+	})
+	podList, err := api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
+	if err == nil && len(podList.Items) != 0 {
+		return &podList.Items[0], nil
+	}
+	return nil, nil
+}
+
+func (api *API) doActionInUpgradeJob(ctx context.Context, pod *corev1.Pod, action string) error {
+	sig := "-SIGUSR1"
+	if action == "stop" {
+		sig = "-SIGTERM"
+	}
+	req := api.client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command:   []string{"kill", sig, "1"},
+		Container: "juicefs-upgrade",
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+	exec, err := remotecommand.NewSPDYExecutor(api.kubeconfig, "POST", req.URL())
+	if err != nil {
+		return err
+	}
+	var sout, serr bytes.Buffer
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  nil,
+		Stdout: &sout,
+		Stderr: &serr,
+		Tty:    false,
+	})
+	if err != nil {
+		batchLog.Info("kill -SIGUSR1", "pod", pod.Name, "stdout", strings.TrimSpace(sout.String()), "stderr", strings.TrimSpace(serr.String()), "error", err)
+		return err
+	}
+
+	return err
 }

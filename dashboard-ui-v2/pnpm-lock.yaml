@@ -96,6 +96,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
         version: 4.3.1(vite@5.2.14(@types/node@20.14.6))
+      '@welldone-software/why-did-you-render':
+        specifier: ^8.0.3
+        version: 8.0.3(react@18.3.1)
       eslint:
         specifier: ^8.57.0
         version: 8.57.0
@@ -898,6 +901,11 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0
+
+  '@welldone-software/why-did-you-render@8.0.3':
+    resolution: {integrity: sha512-bb5bKPMStYnocyTBVBu4UTegZdBqzV1mPhxc0UIV/S43KFUSRflux9gvzJfu2aM4EWLJ3egTvdjOi+viK+LKGA==}
+    peerDependencies:
+      react: ^18
 
   '@xterm/addon-fit@0.10.0':
     resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
@@ -2936,6 +2944,11 @@ snapshots:
       vite: 5.2.14(@types/node@20.14.6)
     transitivePeerDependencies:
       - supports-color
+
+  '@welldone-software/why-did-you-render@8.0.3(react@18.3.1)':
+    dependencies:
+      lodash: 4.17.21
+      react: 18.3.1
 
   '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
     dependencies:

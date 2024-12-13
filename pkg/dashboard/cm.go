@@ -86,6 +86,9 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			return
 		}
 		for _, pod := range csiNodeList.Items {
+			if pod.Annotations == nil {
+				pod.Annotations = make(map[string]string)
+			}
 			pod.Annotations["juicefs/update-time"] = metav1.Now().Format("2006-01-02T15:04:05Z")
 			_, err = api.client.CoreV1().Pods(api.sysNamespace).Update(c, &pod, metav1.UpdateOptions{})
 			if err != nil {

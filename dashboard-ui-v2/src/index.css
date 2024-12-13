@@ -32,9 +32,9 @@
 body {
   margin: 0;
   /* display: flex;
-  align-items: center;
-  min-width: 100%;
-  min-height: 100vh; */
+    align-items: center;
+    min-width: 100%;
+    min-height: 100vh; */
 }
 
 .ant-page-header {
@@ -48,6 +48,7 @@ body {
   margin: 0;
   top: 0;
 }
+
 .ant-modal-body {
   height: calc(100vh - 110px);
 }
@@ -64,6 +65,26 @@ body {
   margin: unset;
   max-width: fit-content;
   margin: auto;
+}
+
+.batch-upgrade-modal {
+  width: unset !important;
+}
+
+.batch-upgrade-modal .ant-modal,
+.batch-upgrade-modal .ant-modal-content,
+.batch-upgrade-modal .ant-modal-body {
+  height: unset;
+  top: 100px;
+  margin: unset;
+  width: fit-content;
+  margin: auto;
+}
+
+.diff-pods-table {
+  /*width: fit-content;*/
+  /*justify-content: center;*/
+  margin-top: 20px;
 }
 
 .xterm-screen {

@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -46,6 +47,7 @@ type API struct {
 	appIndexes   *timeOrderedIndexes[corev1.Pod]
 	pvIndexes    *timeOrderedIndexes[corev1.PersistentVolume]
 	pvcIndexes   *timeOrderedIndexes[corev1.PersistentVolumeClaim]
+	jobsIndexes  *timeOrderedIndexes[batchv1.Job]
 	pairLock     sync.RWMutex
 	pairs        map[types.NamespacedName]types.NamespacedName
 }
@@ -67,6 +69,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 		appIndexes:   newTimeIndexes[corev1.Pod](),
 		pvIndexes:    newTimeIndexes[corev1.PersistentVolume](),
 		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
+		jobsIndexes:  newTimeIndexes[batchv1.Job](),
 		pairs:        make(map[types.NamespacedName]types.NamespacedName),
 		kubeconfig:   config,
 	}
@@ -82,6 +85,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/controllers", api.listCSIControllerPod())
 	group.GET("/pvs", api.listPVsHandler())
 	group.GET("/pvcs", api.listPVCsHandler())
+	group.GET("/pvcs/uniqueids/:uniqueid", api.getPVCByUniqueId())
 	group.GET("/storageclasses", api.listSCsHandler())
 	group.GET("/cachegroups", api.listCacheGroups())
 	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
@@ -113,12 +117,14 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())
-	batchGroup := group.Group("/batch")
-	batchGroup.GET("/job", api.getUpgradeStatus())
+	batchGroup := group.Group("/batch/upgrade")
 	batchGroup.GET("/plan", api.getBatchPlan())
-	batchGroup.DELETE("/job", api.clearUpgradeStatus())
-	batchGroup.POST("/upgrade", api.upgradePods())
-	batchGroup.GET("/job/logs", api.getUpgradeJobLog())
+	batchGroup.GET("/jobs", api.listUpgradeJobs())
+	batchGroup.POST("/jobs", api.createUpgradeJob())
+	batchGroup.GET("/jobs/:jobName", api.getUpgradeJob())
+	batchGroup.DELETE("/jobs/:jobName", api.deleteUpgradeJob())
+	batchGroup.PUT("/jobs/:jobName", api.updateUpgradeJob())
+	batchGroup.GET("/jobs/:jobName/logs", api.getUpgradeJobLog())
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
 	cgGroup.POST("/", api.createCacheGroup())
@@ -131,7 +137,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	cgWorkersGroup.GET("/:workerName/cacheBytes", api.getCacheWorkerBytes())
 
 	websocketAPI := group.Group("/ws")
-	websocketAPI.GET("/batch/upgrade/logs", api.watchUpgradeJobLog())
+	websocketAPI.GET("/batch/upgrade/jobs/:jobName/logs", api.watchUpgradeJobLog())
 	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
 	// only for mountpod
 	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())

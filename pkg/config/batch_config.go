@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 
@@ -29,8 +30,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
-
-const UpgradeConfigMapName = "juicefs-upgrade-batch"
 
 type BatchConfig struct {
 	Parallel    int                 `json:"parallel"`
@@ -56,6 +55,8 @@ const (
 	Running UpgradeStatus = "running"
 	Success UpgradeStatus = "success"
 	Fail    UpgradeStatus = "fail"
+	Stop    UpgradeStatus = "stop"
+	Pause   UpgradeStatus = "pause"
 )
 
 func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate bool, nodeName string, uniqueId string, csiNodes []corev1.Pod) *BatchConfig {
@@ -121,16 +122,20 @@ func LoadUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 		sysNamespace = "kube-system"
 	}
 	if configName == "" {
-		configName = UpgradeConfigMapName
+		return nil, fmt.Errorf("config name is empty")
 	}
 	cm, err := client.GetConfigMap(ctx, configName, sysNamespace)
 	if err != nil {
 		return nil, err
 	}
 
+	return LoadBatchConfig(cm)
+}
+
+func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 	cfg := &BatchConfig{}
 
-	err = json.Unmarshal([]byte(cm.Data["upgrade"]), cfg)
+	err := json.Unmarshal([]byte(cm.Data["upgrade"]), cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +149,7 @@ func SaveUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 		sysNamespace = "kube-system"
 	}
 	if configName == "" {
-		configName = UpgradeConfigMapName
+		return nil, fmt.Errorf("config name is empty")
 	}
 	var cfg *corev1.ConfigMap
 	var err error
@@ -163,6 +168,9 @@ func SaveUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configName,
 				Namespace: sysNamespace,
+				Labels: map[string]string{
+					common.PodTypeKey: common.ConfigTypeValue,
+				},
 			},
 			Data: map[string]string{"upgrade": string(data)},
 		}

@@ -21,8 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"regexp"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,13 +36,12 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-var (
-	batchConfigName = "juicefs-upgrade-batch"
-)
+var batchConfigName string
 
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
@@ -60,26 +61,27 @@ var upgradeCmd = &cobra.Command{
 		}
 		clientset, err := kubernetes.NewForConfig(k8sconfig)
 		if err != nil {
-			fmt.Printf("%s BATCH-FAIL failed to create kubernetes clientset\n", time.Now().Format(time.DateTime))
-			return
+			logger("BATCH-FAIL failed to create kubernetes clientset")
+			os.Exit(1)
 		}
 
 		k8sClient, err := k8sclient.NewClientWithConfig(*k8sconfig)
 		if err != nil {
-			fmt.Printf("%s BATCH-FAIL could not create k8s client\n", time.Now().Format(time.DateTime))
-			return
+			logger("BATCH-FAIL could not create k8s client")
+			os.Exit(1)
 		}
 
+		batchConfigName = os.Getenv(common.JfsUpgradeConfig)
 		conf, err := config.LoadUpgradeConfig(context.Background(), k8sClient, batchConfigName)
 		if err != nil {
-			fmt.Printf("%s BATCH-FAIL failed to load upgrade config\n", time.Now().Format(time.DateTime))
-			return
+			logger("BATCH-FAIL failed to load upgrade config")
+			os.Exit(1)
 		}
 
 		podsStatus := make(map[string]config.UpgradeStatus)
 		for _, batch := range conf.Batches {
 			for _, pods := range batch {
-				podsStatus[pods.Name] = config.Pending
+				podsStatus[pods.Name] = config.Running
 			}
 		}
 		bu := &BatchUpgrade{
@@ -90,13 +92,45 @@ var upgradeCmd = &cobra.Command{
 			clientset:    clientset,
 			lock:         sync.Mutex{},
 			podsStatus:   podsStatus,
+			status:       config.Running,
 		}
-		bu.Run(context.Background())
-	},
-}
+		bu.updateStatus(context.TODO())
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-func init() {
-	upgradeCmd.Flags().StringVar(&batchConfigName, "batchConfigName", "juicefs-upgrade-batch", "configmap name for batch upgrade")
+		sigChan := make(chan os.Signal, 10)
+		signal.Notify(sigChan, syscall.SIGUSR1, syscall.SIGTERM)
+
+		pauseChan := make(chan bool)
+		stopCh := make(chan struct{})
+		defer func() {
+			close(pauseChan)
+			close(stopCh)
+		}()
+
+		go func() {
+			paused := false
+			for {
+				sig := <-sigChan
+				if sig == syscall.SIGUSR1 {
+					paused = !paused
+					if paused {
+						logger("Pause upgrade...")
+					} else {
+						logger("Resuming upgrade...")
+					}
+					pauseChan <- paused
+				}
+				if sig == syscall.SIGTERM {
+					stopCh <- struct{}{}
+					logger("Stop upgrade...")
+					return
+				}
+			}
+		}()
+
+		bu.Run(ctx, pauseChan, stopCh)
+	},
 }
 
 type BatchUpgrade struct {
@@ -108,14 +142,33 @@ type BatchUpgrade struct {
 
 	lock       sync.Mutex
 	podsStatus map[string]config.UpgradeStatus
+	status     config.UpgradeStatus
 }
 
-func (u *BatchUpgrade) Run(ctx context.Context) {
+func (u *BatchUpgrade) Run(ctx context.Context, pauseChan chan bool, stopCh chan struct{}) {
+	defer u.updateStatus(ctx)
 	if u.conf.Parallel > 50 {
-		fmt.Printf("%s BATCH-FAIL parallel should not exceed 50\n", time.Now().Format(time.DateTime))
-		return
+		logger("BATCH-FAIL parallel should not exceed 50")
+		u.status = config.Fail
+		u.panic(ctx)
 	}
 	for _, batch := range u.conf.Batches {
+		select {
+		case <-ctx.Done():
+			return
+		case <-stopCh:
+			u.status = config.Stop
+			return
+		case paused := <-pauseChan:
+			if paused {
+				u.status = config.Pause
+				u.updateStatus(ctx)
+				<-pauseChan
+				u.status = config.Running
+				u.updateStatus(ctx)
+			}
+		default:
+		}
 		var (
 			limiter  = make(chan struct{}, u.conf.Parallel)
 			resultCh = make(chan error)
@@ -129,11 +182,7 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 			}()
 			for _, mp := range batch {
 				mp2 := mp
-				select {
-				case <-ctx.Done():
-					return
-				case limiter <- struct{}{}:
-				}
+				limiter <- struct{}{}
 
 				wg.Add(1)
 				go func() {
@@ -149,32 +198,58 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 		for oneErr := range resultCh {
 			if oneErr != nil {
 				if !u.conf.IgnoreError {
-					fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
-					return
+					logger("BATCH-FAIL some pods upgrade failed")
+					u.status = config.Fail
+					u.panic(ctx)
 				}
 			}
 		}
 
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			log.Error(ctx.Err(), "upgrade timeout")
-			fmt.Printf("%s BATCH-FAIL upgrade timeout\n", time.Now().Format(time.DateTime))
-			return
+			logger("BATCH-FAIL upgrade timeout")
+			u.status = config.Fail
+			u.panic(ctx)
 		}
 
 		for _, status := range u.podsStatus {
 			if status == config.Fail && !u.conf.IgnoreError {
-				fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
-				return
+				logger("BATCH-FAIL some pods upgrade failed")
+				u.status = config.Fail
+				u.panic(ctx)
 			}
 		}
 	}
 	for _, status := range u.podsStatus {
 		if status == config.Fail {
-			fmt.Printf("%s BATCH-FAIL some pods upgrade failed\n", time.Now().Format(time.DateTime))
-			return
+			logger("BATCH-FAIL some pods upgrade failed")
+			u.status = config.Fail
+			u.panic(ctx)
 		}
 	}
-	fmt.Printf("%s BATCH-SUCCESS all pods upgraded successfully\n", time.Now().Format(time.DateTime))
+	logger("BATCH-SUCCESS all pods upgraded successfully")
+	u.status = config.Success
+}
+
+func (u *BatchUpgrade) panic(ctx context.Context) {
+	u.updateStatus(ctx)
+	os.Exit(1)
+}
+
+func (u *BatchUpgrade) updateStatus(ctx context.Context) {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	conf := u.conf
+	for i, batch := range conf.Batches {
+		for j, mp := range batch {
+			mp.Status = u.podsStatus[mp.Name]
+			conf.Batches[i][j] = mp
+		}
+	}
+	conf.Status = u.status
+	_, err := config.SaveUpgradeConfig(ctx, u.k8sClient, batchConfigName, conf)
+	if err != nil {
+		logger(fmt.Sprintf("failed to update upgrade status in config: %v\n", err))
+	}
 }
 
 func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUpgrade) error {
@@ -197,7 +272,7 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUp
 
 	executor, err := remotecommand.NewSPDYExecutor(u.k8sConfig, "POST", req.URL())
 	if err != nil {
-		log.Error(err, "Failed to create SPDY executor")
+		logger(fmt.Sprintf("failed to create SPDY executor: %v", err))
 		return err
 	}
 	if err := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
@@ -237,4 +312,8 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+func logger(msg string) {
+	fmt.Printf("%s %s\n", time.Now().Format(time.DateTime), msg)
 }
