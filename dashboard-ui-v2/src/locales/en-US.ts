@@ -132,6 +132,8 @@ export default {
   fileSystem: 'File System',
   dataMigration: 'Waiting for data migration',
   warmingUp: 'Warming up',
+  warmup: 'Warm up',
+  addWorker: 'Add Worker',
   updateConfigError: 'Fail to update Config',
   diff: 'Config Diff',
   view: 'View',

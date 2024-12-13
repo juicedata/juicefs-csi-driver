@@ -117,7 +117,7 @@ const WarmupModal: React.FC<{
       {children({ onClick: showModal })}
       {isModalOpen ? (
         <Modal
-          title={`Warmup: ${namespace}/${name}/${container}`}
+          title={`Warmup: ${namespace}/${name}/${container.name}`}
           open={isModalOpen}
           footer={() => (
             <div style={{ textAlign: 'start' }}>

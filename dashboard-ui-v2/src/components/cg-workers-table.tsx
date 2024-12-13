@@ -38,6 +38,7 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import WorkerCacheBytes from './cache-bytes'
+import WarmupModal from './warmup-modal'
 import {
   useAddWorker,
   useCacheGroupWorkers,
@@ -102,7 +103,7 @@ const CgWorkersTable: React.FC<{
               trigger={
                 <Button type="primary">
                   <PlusOutlined />
-                  Add worker
+                  <FormattedMessage id="addWorker" />
                 </Button>
               }
               form={form}
@@ -139,6 +140,19 @@ const CgWorkersTable: React.FC<{
                 />
               </ProForm.Group>
             </ModalForm>,
+            data && data.items.length > 0 && (
+              <WarmupModal
+                name={data.items[0].metadata!.name!}
+                namespace={data.items[0].metadata!.namespace!}
+                container={data.items[0].status!.containerStatuses![0]}
+              >
+                {({ onClick }) => (
+                  <Button onClick={onClick}>
+                    <FormattedMessage id="warmup" />
+                  </Button>
+                )}
+              </WarmupModal>
+            ),
           ],
         }}
         columns={[
