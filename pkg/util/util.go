@@ -391,7 +391,7 @@ func parseMntPath(cmd string) (string, string, error) {
 	if args[0] == "exec" {
 		args = args[1:]
 	}
-	if len(args) < 3 || !strings.HasPrefix(args[2], "/jfs") {
+	if len(args) < 3 || (!strings.HasPrefix(args[2], "/jfs") && !strings.HasPrefix(args[2], "/mnt/jfs")) {
 		return "", "", fmt.Errorf("err cmd:%s", cmd)
 	}
 	argSlice := strings.Split(args[2], "/")
