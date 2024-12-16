@@ -51,20 +51,7 @@ const BatchUpgradeJobDetail: React.FC<{
       totalPods += podUpgrades?.length || 0
     })
     setTotal(totalPods)
-    if ((upgradeJob?.job.status?.failed || 0) > 0) {
-      setJobStatus('batch-fail')
-    } else {
-      setJobStatus((prevState) => {
-        if ((upgradeJob?.job.status?.succeeded || 0) > 0) {
-          return prevState
-        }
-        return prevState !== 'fail' &&
-        prevState !== 'batch-fail' &&
-        prevState !== 'success'
-          ? 'running'
-          : prevState
-      })
-    }
+    setJobStatus(upgradeJob?.config?.status || 'running')
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
   }, [upgradeJob])
 
@@ -72,15 +59,6 @@ const BatchUpgradeJobDetail: React.FC<{
     setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
       updatePodStatus(msg.data)
-    }
-    if (msg.data.includes('FAIL')) {
-      setJobStatus('fail')
-    }
-    if (msg.data.includes('BATCH-SUCCESS')) {
-      setJobStatus('success')
-    }
-    if (msg.data.includes('BATCH-FAIL')) {
-      setJobStatus('batch-fail')
     }
     if (msg.data.includes('BATCH-')) {
       return
@@ -158,7 +136,6 @@ const BatchUpgradeJobDetail: React.FC<{
 
       <UpgradeBasic upgradeJob={upgradeJob} freshJob={() => {
         jobMutate()
-        setData('')
       }} />
 
       <ProCard
@@ -172,7 +149,7 @@ const BatchUpgradeJobDetail: React.FC<{
           <div
             style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
           >
-            {!isComplete(jobStatus) && <Spin style={{ marginRight: 16 }} />}
+            {isRunning(jobStatus) && <Spin style={{ marginRight: 16 }} />}
             <Progress
               percent={total > 0 ? percent : 100}
               status={jobStatus.includes('fail') ? 'exception' : undefined}
@@ -226,6 +203,6 @@ const BatchUpgradeJobDetail: React.FC<{
 
 export default BatchUpgradeJobDetail
 
-const isComplete = (jobStatus: string): boolean => {
-  return jobStatus === 'batch-fail' || jobStatus === 'success'
+const isRunning = (jobStatus: string): boolean => {
+  return jobStatus === 'running'
 }

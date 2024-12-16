@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Button, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
@@ -35,7 +35,10 @@ const UpgradeBasic: React.FC<{
   const { data: pvc } = usePVCWithUniqueId(upgradeJob.config.uniqueId)
   const [, action] = useDeleteUpgradeJob()
   const [, updateAction] = useUpdateUpgradeJob()
-  const [status] = useState(upgradeJob.config.status || 'running')
+  const [status, setStatus] = useState(upgradeJob.config.status || 'running')
+  useEffect(() => {
+    setStatus(upgradeJob.config.status)
+  }, [upgradeJob])
 
   const upgradeData = {
     upgradeJob,

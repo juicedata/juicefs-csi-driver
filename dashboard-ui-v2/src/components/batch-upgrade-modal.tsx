@@ -35,6 +35,7 @@ import { useBatchPlan, useCreateUpgradeJob } from '@/hooks/job-api.ts'
 import { usePVCs, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
 import { PVC } from '@/types/k8s.ts'
+import { useNavigate } from 'react-router-dom'
 
 const BatchUpgradeModal: React.FC<{
   modalOpen: boolean
@@ -64,6 +65,7 @@ const BatchUpgradeModal: React.FC<{
     true,
   )
   const [, actions] = useCreateUpgradeJob()
+  const navigate = useNavigate()
 
   const resetState = () => {
     setWorker(1)
@@ -73,7 +75,11 @@ const BatchUpgradeModal: React.FC<{
 
   const handleStartClick = () => {
     resetState()
-    actions.execute(batchConfig).then(onOk)
+    actions.execute(batchConfig).then((response) => {
+        onOk()
+        navigate(`/jobs/${response.jobName}`)
+      },
+    )
   }
   const handleCancel = () => {
     resetState()

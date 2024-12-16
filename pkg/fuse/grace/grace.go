@@ -139,9 +139,9 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 		return
 	}
 
-	canUpgrade, err := resource.CanUpgradeWithHash(ctx, client, *pu.pod, pu.recreate)
+	canUpgrade, reason, err := resource.CanUpgradeWithHash(ctx, client, *pu.pod, pu.recreate)
 	if err != nil || !canUpgrade {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade", pu.pod.Name))
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade: %s", pu.pod.Name, reason))
 		return
 	}
 

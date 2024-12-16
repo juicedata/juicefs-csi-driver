@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -98,9 +97,6 @@ var upgradeCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		sigChan := make(chan os.Signal, 10)
-		signal.Notify(sigChan, syscall.SIGUSR1, syscall.SIGTERM)
-
 		pauseChan := make(chan bool)
 		stopCh := make(chan struct{})
 		defer func() {
@@ -108,29 +104,33 @@ var upgradeCmd = &cobra.Command{
 			close(stopCh)
 		}()
 
-		go func() {
-			paused := false
-			for {
-				sig := <-sigChan
-				if sig == syscall.SIGUSR1 {
-					paused = !paused
-					if paused {
-						logger("Pause upgrade...")
-					} else {
-						logger("Resuming upgrade...")
-					}
-					pauseChan <- paused
-				}
-				if sig == syscall.SIGTERM {
-					stopCh <- struct{}{}
-					logger("Stop upgrade...")
-					return
-				}
-			}
-		}()
-
+		go handleSignal(pauseChan, stopCh)
 		bu.Run(ctx, pauseChan, stopCh)
 	},
+}
+
+func handleSignal(pauseChan chan bool, stopCh chan struct{}) {
+	sigChan := make(chan os.Signal, 10)
+	signal.Notify(sigChan, syscall.SIGUSR1, syscall.SIGTERM)
+
+	paused := false
+	for {
+		sig := <-sigChan
+		if sig == syscall.SIGUSR1 {
+			paused = !paused
+			if paused {
+				logger("Pause upgrade...")
+			} else {
+				logger("Resuming upgrade...")
+			}
+			pauseChan <- paused
+		}
+		if sig == syscall.SIGTERM {
+			logger("Stop upgrade...")
+			stopCh <- struct{}{}
+			return
+		}
+	}
 }
 
 type BatchUpgrade struct {
@@ -146,88 +146,91 @@ type BatchUpgrade struct {
 }
 
 func (u *BatchUpgrade) Run(ctx context.Context, pauseChan chan bool, stopCh chan struct{}) {
-	defer u.updateStatus(ctx)
 	if u.conf.Parallel > 50 {
 		logger("BATCH-FAIL parallel should not exceed 50")
 		u.status = config.Fail
 		u.panic(ctx)
 	}
+	var nextBatch = make(chan struct{})
 	for _, batch := range u.conf.Batches {
+		go u.processBatch(ctx, batch, nextBatch)
+
 		select {
 		case <-ctx.Done():
+			logger("BATCH-FAIL upgrade timeout")
+			u.status = config.Fail
+			u.panic(ctx)
 			return
 		case <-stopCh:
 			u.status = config.Stop
+			u.updateStatus(ctx)
 			return
 		case paused := <-pauseChan:
 			if paused {
 				u.status = config.Pause
 				u.updateStatus(ctx)
-				<-pauseChan
-				u.status = config.Running
-				u.updateStatus(ctx)
-			}
-		default:
-		}
-		var (
-			limiter  = make(chan struct{}, u.conf.Parallel)
-			resultCh = make(chan error)
-			wg       sync.WaitGroup
-		)
-		go func() {
-			defer func() {
-				wg.Wait()
-				close(resultCh)
-				close(limiter)
-			}()
-			for _, mp := range batch {
-				mp2 := mp
-				limiter <- struct{}{}
 
-				wg.Add(1)
-				go func() {
-					defer func() {
-						wg.Done()
-						<-limiter
-					}()
-					resultCh <- u.triggerUpgrade(ctx, &mp2)
-				}()
-			}
-		}()
-
-		for oneErr := range resultCh {
-			if oneErr != nil {
-				if !u.conf.IgnoreError {
-					logger("BATCH-FAIL some pods upgrade failed")
-					u.status = config.Fail
-					u.panic(ctx)
+				select {
+				case <-stopCh:
+					u.status = config.Stop
+					u.updateStatus(ctx)
+					return
+				case <-pauseChan:
+					u.status = config.Running
+					u.updateStatus(ctx)
+					<-nextBatch
 				}
 			}
-		}
-
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			logger("BATCH-FAIL upgrade timeout")
-			u.status = config.Fail
-			u.panic(ctx)
-		}
-
-		for _, status := range u.podsStatus {
-			if status == config.Fail && !u.conf.IgnoreError {
-				logger("BATCH-FAIL some pods upgrade failed")
-				u.status = config.Fail
-				u.panic(ctx)
-			}
+		case <-nextBatch:
 		}
 	}
-	for _, status := range u.podsStatus {
-		if status == config.Fail {
-			logger("BATCH-FAIL some pods upgrade failed")
-			u.status = config.Fail
-			u.panic(ctx)
-		}
+	if u.status == config.Fail {
+		// handle upgrade error when ignoreError is true
+		logger("BATCH-FAIL some pods upgrade failed")
+		u.panic(ctx)
 	}
 	logger("BATCH-SUCCESS all pods upgraded successfully")
 	u.status = config.Success
+	u.updateStatus(ctx)
+}
+
+func (u *BatchUpgrade) processBatch(ctx context.Context, batch []config.MountPodUpgrade, nextBatch chan struct{}) {
+	var (
+		wg       sync.WaitGroup
+		resultCh = make(chan error, u.conf.Parallel)
+	)
+	go func() {
+		defer func() {
+			wg.Wait()
+			close(resultCh)
+		}()
+		for _, mp := range batch {
+			wg.Add(1)
+			go func(mp config.MountPodUpgrade) {
+				resultCh <- u.triggerUpgrade(ctx, &mp)
+				wg.Done()
+			}(mp)
+		}
+	}()
+	for oneErr := range resultCh {
+		// pod upgrade error:
+		// 1. trigger upgrade failed
+		// 2. pod upgrade failed which is parsed in log stream
+		isErr := oneErr != nil
+		if !isErr {
+			for _, s := range u.podsStatus {
+				if s == config.Fail {
+					u.status = config.Fail
+					break
+				}
+			}
+		}
+		if isErr && !u.conf.IgnoreError {
+			logger("BATCH-FAIL some pods upgrade failed")
+			u.panic(ctx)
+		}
+	}
+	nextBatch <- struct{}{}
 }
 
 func (u *BatchUpgrade) panic(ctx context.Context) {
@@ -280,6 +283,7 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUp
 		Stderr: u,
 		Tty:    true,
 	}); err != nil {
+		logger(fmt.Sprintf("failed to stream: %v", err))
 		return err
 	}
 	return nil
