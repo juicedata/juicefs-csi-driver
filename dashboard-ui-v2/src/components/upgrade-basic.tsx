@@ -54,7 +54,8 @@ const UpgradeBasic: React.FC<{
             <Tooltip title="Pause">
               <Button
                 onClick={() => {
-                  updateAction.execute(upgradeJob.job.metadata?.name || '', 'pause')
+                  updateAction
+                    .execute(upgradeJob.job.metadata?.name || '', 'pause')
                     .then(freshJob)
                 }}
                 icon={<PauseIcon />}
@@ -65,7 +66,8 @@ const UpgradeBasic: React.FC<{
             <Tooltip title="Resume">
               <Button
                 onClick={() => {
-                  updateAction.execute(upgradeJob.job.metadata?.name || '', 'resume')
+                  updateAction
+                    .execute(upgradeJob.job.metadata?.name || '', 'resume')
                     .then(freshJob)
                 }}
                 icon={<ResumeIcon />}
@@ -76,7 +78,8 @@ const UpgradeBasic: React.FC<{
             <Tooltip title="Stop">
               <Button
                 onClick={() => {
-                  updateAction.execute(upgradeJob.job.metadata?.name || '', 'stop')
+                  updateAction
+                    .execute(upgradeJob.job.metadata?.name || '', 'stop')
                     .then(freshJob)
                 }}
                 icon={<StopIcon />}
@@ -171,7 +174,12 @@ const UpgradeBasic: React.FC<{
 export default UpgradeBasic
 
 const canPause = (status: string): boolean => {
-  return status !== 'stop' && status !== 'pause' && status !== 'fail' && status !== 'success'
+  return (
+    status !== 'stop' &&
+    status !== 'pause' &&
+    status !== 'fail' &&
+    status !== 'success'
+  )
 }
 
 const canStop = (status: string): boolean => {

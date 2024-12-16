@@ -70,13 +70,19 @@ func (api *API) getNodes() gin.HandlerFunc {
 
 func (api *API) createUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		batchConfig := &config.BatchConfig{}
-		if err := c.ShouldBindJSON(&batchConfig); err != nil {
+		createJobBody := struct {
+			BatchConfig *config.BatchConfig `json:"batchConfig"`
+			JobName     string              `json:"jobName,omitempty"`
+		}{}
+		if err := c.ShouldBindJSON(&createJobBody); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 		var needCreate bool
-		jobName := GenUpgradeJobName()
+		jobName := createJobBody.JobName
+		if jobName == "" {
+			jobName = GenUpgradeJobName()
+		}
 
 		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -89,7 +95,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 
 		if needCreate {
 			cmName := GenUpgradeConfig(jobName)
-			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, cmName, batchConfig)
+			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, cmName, createJobBody.BatchConfig)
 			if err != nil {
 				c.String(500, "save upgrade config error %v", err)
 				return

@@ -139,10 +139,11 @@ export default {
   upgradeJobTableName: 'Upgrade Task List',
   createUpgradeJob: 'Create Batch Upgrade Task',
   diffMountPodName: 'Mount Pod will be upgraded',
-  new: 'Create',
+  new: 'New',
   upgradePods: 'Mount Pods Upgraded',
   upgradeDetail: 'Details of Upgrade Task',
   batchUpgradeTask: 'Batch Upgrade Task',
   upgradeLog: 'Upgrade Log',
   jobNotFound: 'Task not found',
+  inputJobName: 'Job Name',
 }

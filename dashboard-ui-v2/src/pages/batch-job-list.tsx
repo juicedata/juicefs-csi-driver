@@ -80,7 +80,9 @@ const UpgradeJobList: React.FC = () => {
     pageSize: pagination.pageSize,
   })
 
-  const [isModalVisible, setIsModalVisible] = useState(modalOpen === 'true' || false)
+  const [isModalVisible, setIsModalVisible] = useState(
+    modalOpen === 'true' || false,
+  )
 
   const showModal = () => {
     setIsModalVisible(true)

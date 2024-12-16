@@ -19,10 +19,10 @@ import { PageContainer, ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
 import { Alert, Button, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
+import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
 
 import { useConfig, useConfigDiff, useUpdateConfig } from '@/hooks/cm-api'
-import { useNavigate } from 'react-router-dom'
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)

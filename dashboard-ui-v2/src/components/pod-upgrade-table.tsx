@@ -121,8 +121,14 @@ const PodUpgradeTable: React.FC<{
       key: 'status',
       render: (podUpgrade) => (
         <Badge
-          status={getUpgradeStatusBadge(diffStatus.get(podUpgrade.name) || '')}
-          text={`${diffStatus.get(podUpgrade.name) || 'pending'}`}
+          status={getUpgradeStatusBadge(
+            getPodUpgradeStatus(
+              podUpgrade.name,
+              diffStatus.get(podUpgrade.name) || 'pending',
+              batchConfig,
+            ),
+          )}
+          text={`${getPodUpgradeStatus(podUpgrade.name, diffStatus.get(podUpgrade.name) || 'pending', batchConfig)}`}
         />
       ),
     },
@@ -157,3 +163,22 @@ const PodUpgradeTable: React.FC<{
 }
 
 export default PodUpgradeTable
+
+const getPodUpgradeStatus = (
+  podName: string,
+  statusFromLog: string,
+  config?: BatchConfig,
+): string => {
+  if (statusFromLog !== 'running') {
+    return statusFromLog
+  }
+  let status = statusFromLog
+  config?.batches.forEach((batch) => {
+    batch.forEach((pod) => {
+      if (pod.name === podName && pod.status !== '') {
+        status = pod.status
+      }
+    })
+  })
+  return status
+}

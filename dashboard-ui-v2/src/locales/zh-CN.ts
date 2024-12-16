@@ -140,4 +140,5 @@ export default {
   batchUpgradeTask: '批量升级任务',
   upgradeLog: '升级日志',
   jobNotFound: '任务找不到',
+  jobName: '任务名',
 }

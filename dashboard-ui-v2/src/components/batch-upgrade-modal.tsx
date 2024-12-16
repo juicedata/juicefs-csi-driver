@@ -22,12 +22,14 @@ import {
   Button,
   Checkbox,
   Dropdown,
+  Input,
   InputNumber,
   MenuProps,
   Modal,
   Space,
 } from 'antd'
 import { FormattedMessage } from 'react-intl'
+import { useNavigate } from 'react-router-dom'
 
 import PodToUpgradeTable from '@/components/pod-to-upgrade-table.tsx'
 import { useConfigDiff } from '@/hooks/cm-api.ts'
@@ -35,7 +37,6 @@ import { useBatchPlan, useCreateUpgradeJob } from '@/hooks/job-api.ts'
 import { usePVCs, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
 import { PVC } from '@/types/k8s.ts'
-import { useNavigate } from 'react-router-dom'
 
 const BatchUpgradeModal: React.FC<{
   modalOpen: boolean
@@ -55,6 +56,7 @@ const BatchUpgradeModal: React.FC<{
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
+  const [newJobName, setNewJobName] = useState(genNewJobName())
 
   const { data: diffPods } = useConfigDiff(selectedNode, uniqueId)
   const { data: batchConfig } = useBatchPlan(
@@ -75,11 +77,10 @@ const BatchUpgradeModal: React.FC<{
 
   const handleStartClick = () => {
     resetState()
-    actions.execute(batchConfig).then((response) => {
-        onOk()
-        navigate(`/jobs/${response.jobName}`)
-      },
-    )
+    actions.execute(batchConfig, newJobName).then((response) => {
+      onOk()
+      navigate(`/jobs/${response.jobName}`)
+    })
   }
   const handleCancel = () => {
     resetState()
@@ -125,6 +126,13 @@ const BatchUpgradeModal: React.FC<{
       >
         <ProCard>
           <Space size="large" style={{ width: '100%' }}>
+            <Input
+              addonBefore={<FormattedMessage id="jobName" />}
+              defaultValue={newJobName}
+              onChange={(v) => {
+                setNewJobName(v.target.value)
+              }}
+            />
             <Dropdown key="select node" menu={menuProps}>
               <Button>
                 <Space>
@@ -180,4 +188,16 @@ function getAllPVCs(pvcs: PVC[]) {
     value: `${v.metadata?.namespace}/${v.metadata?.name}`,
     pvc: v,
   }))
+}
+
+const genNewJobName = () => {
+  function generateRandomString(length: number): string {
+    const characters = 'abcdefghijklmnopqrstuvwxyz'
+    return Array.from({ length }, () =>
+      characters.charAt(Math.floor(Math.random() * characters.length)),
+    ).join('')
+  }
+
+  const randomString = generateRandomString(6)
+  return 'jfs-upgrade-job-' + randomString
 }

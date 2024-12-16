@@ -84,32 +84,28 @@ var upgradeCmd = &cobra.Command{
 			}
 		}
 		bu := &BatchUpgrade{
-			sysNamespace: sysNamespace,
-			conf:         conf,
-			k8sConfig:    k8sconfig,
-			k8sClient:    k8sClient,
-			clientset:    clientset,
-			lock:         sync.Mutex{},
-			podsStatus:   podsStatus,
-			status:       config.Running,
+			sysNamespace:    sysNamespace,
+			conf:            conf,
+			k8sConfig:       k8sconfig,
+			k8sClient:       k8sClient,
+			clientset:       clientset,
+			lock:            sync.Mutex{},
+			podsStatus:      podsStatus,
+			status:          config.Running,
+			crtBatchStatus:  config.Pending,
+			nextBatchStatus: config.Pending,
+			crtBatch:        0,
 		}
-		bu.updateStatus(context.TODO())
+		bu.flushStatus(context.TODO())
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		pauseChan := make(chan bool)
-		stopCh := make(chan struct{})
-		defer func() {
-			close(pauseChan)
-			close(stopCh)
-		}()
-
-		go handleSignal(pauseChan, stopCh)
-		bu.Run(ctx, pauseChan, stopCh)
+		go bu.handleSignal()
+		bu.Run(ctx)
 	},
 }
 
-func handleSignal(pauseChan chan bool, stopCh chan struct{}) {
+func (u *BatchUpgrade) handleSignal() {
 	sigChan := make(chan os.Signal, 10)
 	signal.Notify(sigChan, syscall.SIGUSR1, syscall.SIGTERM)
 
@@ -120,14 +116,21 @@ func handleSignal(pauseChan chan bool, stopCh chan struct{}) {
 			paused = !paused
 			if paused {
 				logger("Pause upgrade...")
+				u.setNextBatchStatus(config.Pause)
+				u.status = config.Pause
+				u.flushStatus(context.TODO())
 			} else {
 				logger("Resuming upgrade...")
+				u.setNextBatchStatus(config.Pending)
+				u.status = config.Running
+				u.flushStatus(context.TODO())
 			}
-			pauseChan <- paused
 		}
 		if sig == syscall.SIGTERM {
 			logger("Stop upgrade...")
-			stopCh <- struct{}{}
+			u.setNextBatchStatus(config.Stop)
+			u.status = config.Stop
+			u.flushStatus(context.TODO())
 			return
 		}
 	}
@@ -140,64 +143,82 @@ type BatchUpgrade struct {
 	k8sClient    *k8sclient.K8sClient
 	clientset    *kubernetes.Clientset
 
-	lock       sync.Mutex
-	podsStatus map[string]config.UpgradeStatus
-	status     config.UpgradeStatus
+	lock            sync.Mutex
+	podsStatus      map[string]config.UpgradeStatus
+	status          config.UpgradeStatus
+	crtBatchStatus  config.UpgradeStatus
+	nextBatchStatus config.UpgradeStatus
+	crtBatch        int
 }
 
-func (u *BatchUpgrade) Run(ctx context.Context, pauseChan chan bool, stopCh chan struct{}) {
+func (u *BatchUpgrade) Run(ctx context.Context) {
+	if len(u.conf.Batches) == 0 {
+		logger("BATCH-SUCCESS no batch found")
+		u.status = config.Success
+		u.flushStatus(ctx)
+		return
+	}
 	if u.conf.Parallel > 50 {
 		logger("BATCH-FAIL parallel should not exceed 50")
-		u.status = config.Fail
 		u.panic(ctx)
 	}
-	var nextBatch = make(chan struct{})
-	for _, batch := range u.conf.Batches {
-		go u.processBatch(ctx, batch, nextBatch)
 
+	handleFinalStatus := func() {
+		if u.status == config.Fail {
+			logger("BATCH-FAIL some pods upgrade failed")
+			u.panic(ctx)
+		}
+		if u.status == config.Success {
+			logger("BATCH-SUCCESS all pods upgraded successfully")
+		}
+		u.flushStatus(ctx)
+	}
+
+	t := time.NewTicker(1 * time.Second)
+	defer t.Stop()
+
+	for {
 		select {
 		case <-ctx.Done():
 			logger("BATCH-FAIL upgrade timeout")
-			u.status = config.Fail
 			u.panic(ctx)
 			return
-		case <-stopCh:
-			u.status = config.Stop
-			u.updateStatus(ctx)
-			return
-		case paused := <-pauseChan:
-			if paused {
-				u.status = config.Pause
-				u.updateStatus(ctx)
-
-				select {
-				case <-stopCh:
-					u.status = config.Stop
-					u.updateStatus(ctx)
-					return
-				case <-pauseChan:
-					u.status = config.Running
-					u.updateStatus(ctx)
-					<-nextBatch
-				}
+		case <-t.C:
+			if u.crtBatchStatus == config.Fail && !u.conf.IgnoreError {
+				u.status = config.Fail
+				handleFinalStatus()
+				return
 			}
-		case <-nextBatch:
+			if u.crtBatch > len(u.conf.Batches) {
+				u.status = u.crtBatchStatus
+				handleFinalStatus()
+				return
+			}
+			switch u.nextBatchStatus {
+			case config.Pending:
+				if u.crtBatchStatus == config.Pending || u.crtBatchStatus == config.Success || (u.crtBatchStatus == config.Fail && u.conf.IgnoreError) {
+					u.crtBatch++
+					go u.processBatch(ctx)
+				}
+			case config.Pause:
+			case config.Stop:
+				u.status = config.Stop
+				handleFinalStatus()
+				return
+			}
 		}
 	}
-	if u.status == config.Fail {
-		// handle upgrade error when ignoreError is true
-		logger("BATCH-FAIL some pods upgrade failed")
-		u.panic(ctx)
-	}
-	logger("BATCH-SUCCESS all pods upgraded successfully")
-	u.status = config.Success
-	u.updateStatus(ctx)
 }
 
-func (u *BatchUpgrade) processBatch(ctx context.Context, batch []config.MountPodUpgrade, nextBatch chan struct{}) {
+func (u *BatchUpgrade) processBatch(ctx context.Context) {
+	if u.crtBatch > len(u.conf.Batches) {
+		return
+	}
+	u.setCrtBatchStatus(config.Running)
 	var (
 		wg       sync.WaitGroup
 		resultCh = make(chan error, u.conf.Parallel)
+		batch    = u.conf.Batches[u.crtBatch-1]
 	)
 	go func() {
 		defer func() {
@@ -216,35 +237,46 @@ func (u *BatchUpgrade) processBatch(ctx context.Context, batch []config.MountPod
 		// pod upgrade error:
 		// 1. trigger upgrade failed
 		// 2. pod upgrade failed which is parsed in log stream
-		isErr := oneErr != nil
-		if !isErr {
-			for _, s := range u.podsStatus {
-				if s == config.Fail {
-					u.status = config.Fail
-					break
-				}
+		if oneErr != nil {
+			u.setCrtBatchStatus(config.Fail)
+			return
+		}
+		for _, s := range u.podsStatus {
+			if s == config.Fail {
+				u.setCrtBatchStatus(config.Fail)
+				return
 			}
 		}
-		if isErr && !u.conf.IgnoreError {
-			logger("BATCH-FAIL some pods upgrade failed")
-			u.panic(ctx)
-		}
 	}
-	nextBatch <- struct{}{}
+	u.setCrtBatchStatus(config.Success)
+}
+
+func (u *BatchUpgrade) setCrtBatchStatus(s config.UpgradeStatus) {
+	u.lock.Lock()
+	u.crtBatchStatus = s
+	u.lock.Unlock()
+}
+
+func (u *BatchUpgrade) setNextBatchStatus(s config.UpgradeStatus) {
+	u.nextBatchStatus = s
 }
 
 func (u *BatchUpgrade) panic(ctx context.Context) {
-	u.updateStatus(ctx)
+	u.status = config.Fail
+	u.flushStatus(ctx)
 	os.Exit(1)
 }
 
-func (u *BatchUpgrade) updateStatus(ctx context.Context) {
+func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	conf := u.conf
 	for i, batch := range conf.Batches {
 		for j, mp := range batch {
 			mp.Status = u.podsStatus[mp.Name]
+			if u.status == config.Stop && mp.Status == config.Running {
+				mp.Status = config.Stop
+			}
 			conf.Batches[i][j] = mp
 		}
 	}

@@ -133,10 +133,12 @@ const BatchUpgradeJobDetail: React.FC<{
         ghost: true,
       }}
     >
-
-      <UpgradeBasic upgradeJob={upgradeJob} freshJob={() => {
-        jobMutate()
-      }} />
+      <UpgradeBasic
+        upgradeJob={upgradeJob}
+        freshJob={() => {
+          jobMutate()
+        }}
+      />
 
       <ProCard
         title={<FormattedMessage id="upgradeDetail" />}
@@ -146,9 +148,7 @@ const BatchUpgradeJobDetail: React.FC<{
         wrap
       >
         <ProCard>
-          <div
-            style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             {isRunning(jobStatus) && <Spin style={{ marginRight: 16 }} />}
             <Progress
               percent={total > 0 ? percent : 100}

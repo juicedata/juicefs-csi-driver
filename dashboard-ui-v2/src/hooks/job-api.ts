@@ -22,13 +22,16 @@ import { BatchConfig, UpgradeJob, UpgradeJobWithDiff } from '@/types/k8s.ts'
 import { getHost } from '@/utils'
 
 export function useCreateUpgradeJob() {
-  return useAsync(async (batchConfig?: BatchConfig) => {
+  return useAsync(async (batchConfig?: BatchConfig, jobName?: string) => {
     const response = await fetch(`${getHost()}/api/v1/batch/upgrade/jobs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(batchConfig),
+      body: JSON.stringify({
+        batchConfig: batchConfig,
+        jobName: jobName,
+      }),
     })
     const result: {
       jobName: string
