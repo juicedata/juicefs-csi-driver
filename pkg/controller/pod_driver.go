@@ -839,12 +839,10 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		pod.Spec = newPod.Spec
 		pod.ObjectMeta = newPod.ObjectMeta
-		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
-			// update secret
-			secret := podBuilder.NewSecret()
-			if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
-				return err
-			}
+		// update secret
+		secret := podBuilder.NewSecret()
+		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -869,6 +867,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	resource.MergeVolumes(pod, setting)
 	if setting.CustomerSecret != nil {
 		// update secret
+		setting.SecretName = fmt.Sprintf("juicefs-%s-secret", pod.Labels[common.PodUniqueIdLabelKey])
 		r := builder.NewPodBuilder(setting, 0)
 		secret := r.NewSecret()
 		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {

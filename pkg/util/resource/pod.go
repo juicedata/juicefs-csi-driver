@@ -487,7 +487,7 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
-		canUpgrade, err := CanUpgrade(pod, recreate)
+		canUpgrade, _, err := CanUpgrade(pod, recreate)
 		if err != nil {
 			log.Error(err, "check pod upgrade error", "pod", pod.Name)
 			continue
@@ -503,30 +503,33 @@ func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 // 1. pod has hash label
 // 2. pod image support upgrade
 // 3. pod is ready
-func CanUpgrade(pod corev1.Pod, recreate bool) (bool, error) {
+func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
 	if len(pod.Spec.Containers) == 0 {
-		return false, nil
+		return false, fmt.Sprintf("pod %s has no container", pod.Name), nil
 	}
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
-		return false, nil
+		return false, fmt.Sprintf("pod %s has no hash label", pod.Name), nil
 	}
 	// check mount pod now support upgrade or not
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support smooth binary upgrade")
-		return false, nil
+		return false, "mount pod now do not support smooth binary upgrade", nil
 	}
 	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
 		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false, nil
+		return false, "mount pod now do not support recreate smooth upgrade", nil
 	}
 
 	// check status
-	return IsPodReady(&pod), nil
+	if !IsPodReady(&pod) {
+		return false, "mount pod is not ready yet", nil
+	}
+	return true, "", nil
 }
 
-func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
+func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, string, error) {
 	return CanUpgrade(pod, recreate)
 }
 
