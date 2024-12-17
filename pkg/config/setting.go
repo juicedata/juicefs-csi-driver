@@ -541,7 +541,6 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 			custSecretName := pv.Spec.CSI.NodePublishSecretRef.Name
 			custSecretNameSpace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-			log.Info("Get custom secret", "name", custSecretName, "namespace", custSecretNameSpace)
 			custSecret, err = client.GetSecret(ctx, custSecretName, custSecretNameSpace)
 			if err != nil {
 				log.Error(err, "Get secret error", "namespace", custSecretNameSpace, "name", custSecretName)
