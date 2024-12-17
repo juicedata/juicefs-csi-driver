@@ -392,19 +392,14 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 		}
 	}
 	var secretList corev1.SecretList
-	ls = &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			common.JuicefsSecretLabelKey: "true",
-		},
-	}
-	s, _ = metav1.LabelSelectorAsSelector(ls)
-	if err = api.cachedReader.List(ctx, &secretList, &client.ListOptions{LabelSelector: s}); err != nil {
+	if err = api.cachedReader.List(ctx, &secretList, &client.ListOptions{}); err != nil {
 		return nil, nil, err
 	}
 
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
+	custSecretMap := make(map[string]*corev1.Secret)
 	for _, pv := range pvs {
 		pvMap[pv.Name] = pv
 	}
@@ -418,18 +413,24 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 		if uniqueId != "" {
 			secretMap[uniqueId] = &secret2
 		}
+		custSecretMap[secret2.Name] = &secret2
 	}
 
 	var needUpdatePods []corev1.Pod
 	var podDiffs []PodDiff
 	for _, pod := range podsToUpgrade {
 		po := pod
-		diff, err := DiffConfig(&po, pvMap[po.Annotations[common.UniqueId]], pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+		pv := pvMap[po.Annotations[common.UniqueId]]
+		var custSecret *corev1.Secret
+		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+			custSecret = custSecretMap[pv.Spec.CSI.NodePublishSecretRef.Name]
+		}
+		diff, err := DiffConfig(&po, pv, pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]], custSecret)
 		if err != nil {
 			return nil, nil, err
 		}
 		if diff {
-			oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pvMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+			oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
 			if err != nil {
 				return nil, nil, err
 			}

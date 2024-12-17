@@ -41,10 +41,12 @@ import (
 )
 
 type JfsSetting struct {
-	HashVal     string `json:"-"`
-	UpgradeUUID string `json:"-"`
-	IsCe        bool
-	UsePod      bool
+	HashVal        string         `json:"-"`
+	UpgradeUUID    string         `json:"-"`
+	JuiceFSSecret  *corev1.Secret `json:"-"`
+	CustomerSecret *corev1.Secret `json:"-"`
+	IsCe           bool
+	UsePod         bool
 
 	UUID               string
 	Name               string               `json:"name"`
@@ -522,9 +524,10 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		}
 	}
 	var (
-		pv  *corev1.PersistentVolume
-		pvc *corev1.PersistentVolumeClaim
-		err error
+		pv         *corev1.PersistentVolume
+		pvc        *corev1.PersistentVolumeClaim
+		err        error
+		custSecret *corev1.Secret
 	)
 	pv, err = client.GetPersistentVolume(ctx, pvName)
 	if err != nil {
@@ -534,6 +537,14 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
+		}
+		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+			custSecretName := pv.Spec.CSI.NodePublishSecretRef.Name
+			custSecretNameSpace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+			custSecret, err = client.GetSecret(ctx, custSecretName, custSecretNameSpace)
+			if err != nil {
+				log.Error(err, "Get secret error", "namespace", custSecretNameSpace, "name", custSecretName)
+			}
 		}
 	}
 
@@ -547,7 +558,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		return nil, err
 	}
-	if err = ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, custSecret, setting); err != nil {
 		return nil, err
 	}
 	return setting, nil
@@ -569,6 +580,7 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 			if err := setting.Load(secretsMap["jfsSettings"]); err != nil {
 				return nil, err
 			}
+			setting.JuiceFSSecret = secret
 			return setting, nil
 		}
 	}
@@ -641,20 +653,45 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 	return setting, nil
 }
 
-func GenSettingWithConfig(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (*JfsSetting, error) {
+func GenSettingWithConfig(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (*JfsSetting, error) {
 	setting, err := GenSetting(mountPod, pvc, pv, secret)
 	if err != nil {
 		return nil, err
 	}
-	if err = ApplySettingWithMountPod(mountPod, pvc, pv, setting); err != nil {
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, custSecret, setting); err != nil {
 		return nil, err
 	}
 	return setting, nil
 }
 
-func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, setting *JfsSetting) error {
+func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, custSecret *corev1.Secret, setting *JfsSetting) error {
 	if setting == nil {
 		return nil
+	}
+	if custSecret != nil {
+		custSetting := &JfsSetting{}
+		secretStr, err := json.Marshal(custSecret.Data)
+		if err != nil {
+			log.Error(err, "Marshal custSecret error")
+		}
+		err = parseYamlOrJson(string(secretStr), &custSetting)
+		if err != nil {
+			log.Error(err, "Parse custSecret error")
+		} else {
+			setting.SecretKey = util.CpNotEmpty(custSetting.SecretKey, setting.SecretKey)
+			setting.SecretKey2 = util.CpNotEmpty(custSetting.SecretKey2, setting.SecretKey2)
+			setting.Token = util.CpNotEmpty(custSetting.Token, setting.Token)
+			setting.Passphrase = util.CpNotEmpty(custSetting.Passphrase, setting.Passphrase)
+			setting.EncryptRsaKey = util.CpNotEmpty(custSetting.EncryptRsaKey, setting.EncryptRsaKey)
+			setting.InitConfig = util.CpNotEmpty(custSetting.InitConfig, setting.InitConfig)
+			if len(custSetting.Configs) > 0 {
+				setting.Configs = custSetting.Configs
+			}
+			if len(custSetting.Envs) > 0 {
+				setting.Envs = custSetting.Envs
+			}
+		}
+		setting.CustomerSecret = custSecret
 	}
 	setting.PV = pv
 	setting.PVC = pvc
