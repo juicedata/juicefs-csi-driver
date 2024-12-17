@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,7 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	podCtr := PodController{api}
 	pvCtr := PVController{api}
 	pvcCtr := PVCController{api}
+	jobCtr := JobController{api}
 	if err := podCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -49,6 +51,9 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 		return err
 	}
 	if err := pvcCtr.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := jobCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	return mgr.Start(ctx)
@@ -63,6 +68,10 @@ type PVController struct {
 }
 
 type PVCController struct {
+	*API
+}
+
+type JobController struct {
 	*API
 }
 
@@ -329,4 +338,58 @@ func (c *PVCController) SetupWithManager(mgr manager.Manager) error {
 			return false
 		},
 	}))
+}
+
+func (c *JobController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	job := &batchv1.Job{}
+	if err := c.cachedReader.Get(ctx, req.NamespacedName, job); err != nil {
+		mgrLog.Error(err, "get job failed", "namespacedName", req.NamespacedName)
+		return reconcile.Result{}, nil
+	}
+	if job.DeletionTimestamp != nil {
+		return reconcile.Result{}, nil
+	}
+	if isUpgradeJob(job) {
+		c.jobsIndexes.addIndex(
+			job,
+			func(p *batchv1.Job) metav1.ObjectMeta { return p.ObjectMeta },
+			func(name types.NamespacedName) (*batchv1.Job, error) {
+				var j batchv1.Job
+				err := c.cachedReader.Get(ctx, name, &j)
+				return &j, err
+			},
+		)
+	}
+	mgrLog.V(1).Info("job created", "namespacedName", req.NamespacedName)
+	return reconcile.Result{}, nil
+}
+
+func (c *JobController) SetupWithManager(mgr manager.Manager) error {
+	ctr, err := controller.New("job", mgr, controller.Options{Reconciler: c})
+	if err != nil {
+		return err
+	}
+
+	return ctr.Watch(source.Kind(mgr.GetCache(), &batchv1.Job{}, &handler.TypedEnqueueRequestForObject[*batchv1.Job]{}, predicate.TypedFuncs[*batchv1.Job]{
+		CreateFunc: func(event event.TypedCreateEvent[*batchv1.Job]) bool {
+			return true
+		},
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*batchv1.Job]) bool {
+			return true
+		},
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*batchv1.Job]) bool {
+			job := deleteEvent.Object
+			indexes := c.jobsIndexes
+			if isUpgradeJob(job) && indexes != nil {
+				indexes.removeIndex(types.NamespacedName{
+					Namespace: job.GetNamespace(),
+					Name:      job.GetName(),
+				})
+				mgrLog.V(1).Info("job deleted", "namespace", job.GetNamespace(), "name", job.GetName())
+				return false
+			}
+			return true
+		},
+	}))
+
 }

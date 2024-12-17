@@ -25,6 +25,7 @@ export type Params = {
     | 'storageclass'
     | 'config'
     | 'cachegroups'
+    | 'jobs'
 }
 
 export type DetailParams = {
@@ -87,4 +88,13 @@ export interface CgWorkerPagingListArgs {
   current?: number
   name?: string
   node?: string
+}
+
+export interface UpgradeJobsPagingListArgs {
+  pageSize?: number
+  current?: number
+  namespace?: string
+  name?: string
+  sort?: Record<string, SortOrder>
+  filter?: Record<string, (string | number)[] | null>
 }

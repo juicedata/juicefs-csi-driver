@@ -15,9 +15,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { ProCard } from '@ant-design/pro-components'
 import { Button, Popover, Table, TableProps, Tooltip } from 'antd'
-import { Badge } from 'antd/lib'
 import ReactDiffViewer from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -30,14 +28,12 @@ import {
   MountPodUpgrade,
   PodDiffConfig,
 } from '@/types/k8s.ts'
-import { getUpgradeStatusBadge } from '@/utils'
 
-const PodUpgradeTable: React.FC<{
+const PodToUpgradeTable: React.FC<{
   batchConfig?: BatchConfig
   diffPods?: [PodDiffConfig]
-  diffStatus: Map<string, string>
 }> = (props) => {
-  const { diffPods, batchConfig, diffStatus } = props
+  const { diffPods, batchConfig } = props
   const [podMap, setPodMap] = useState<Map<string, PodDiffConfig>>()
 
   useEffect(() => {
@@ -52,7 +48,6 @@ const PodUpgradeTable: React.FC<{
   interface UpgradeType {
     key: string
     name: string
-    status: string
     diff: {
       oldConfig?: MountPatch
       newConfig?: MountPatch
@@ -89,7 +84,6 @@ const PodUpgradeTable: React.FC<{
       return {
         key: podUpgrade.name,
         name: podUpgrade.name,
-        status: diffStatus.get(podUpgrade.name) || '',
         diff: {
           oldConfig: podMap?.get(podUpgrade.name)?.oldConfig,
           newConfig: podMap?.get(podUpgrade.name)?.newConfig,
@@ -100,7 +94,7 @@ const PodUpgradeTable: React.FC<{
 
   const upgradeColumn: TableProps<UpgradeType>['columns'] = [
     {
-      title: 'Mount Pods',
+      title: <FormattedMessage id="diffMountPodName" />,
       key: 'name',
       render: (podUpgrade) => (
         <>
@@ -114,22 +108,6 @@ const PodUpgradeTable: React.FC<{
             `${podUpgrade.name}`
           )}
         </>
-      ),
-    },
-    {
-      title: <FormattedMessage id="upgradeStatus" />,
-      key: 'status',
-      render: (podUpgrade) => (
-        <Badge
-          status={getUpgradeStatusBadge(
-            getPodUpgradeStatus(
-              podUpgrade.name,
-              diffStatus.get(podUpgrade.name) || 'pending',
-              batchConfig,
-            ),
-          )}
-          text={`${getPodUpgradeStatus(podUpgrade.name, diffStatus.get(podUpgrade.name) || 'pending', batchConfig)}`}
-        />
       ),
     },
     {
@@ -152,33 +130,15 @@ const PodUpgradeTable: React.FC<{
   ]
 
   return (
-    <ProCard>
+    <>
       <Table<UpgradeType>
+        className="diff-pods-table"
         pagination={false}
         columns={upgradeColumn}
         dataSource={mountPods(batchConfig?.batches || []) || []}
       />
-    </ProCard>
+    </>
   )
 }
 
-export default PodUpgradeTable
-
-const getPodUpgradeStatus = (
-  podName: string,
-  statusFromLog: string,
-  config?: BatchConfig,
-): string => {
-  if (statusFromLog !== 'running') {
-    return statusFromLog
-  }
-  let status = statusFromLog
-  config?.batches.forEach((batch) => {
-    batch.forEach((pod) => {
-      if (pod.name === podName && pod.status !== '') {
-        status = pod.status
-      }
-    })
-  })
-  return status
-}
+export default PodToUpgradeTable

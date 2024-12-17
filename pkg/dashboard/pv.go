@@ -327,6 +327,38 @@ func (api *API) getPVCHandler() gin.HandlerFunc {
 	}
 }
 
+func (api *API) getPVCByUniqueId() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uniqueId := c.Param("uniqueid")
+
+		var selectPV *corev1.PersistentVolume
+		for name := range api.pvIndexes.iterate(c, false) {
+			var pv corev1.PersistentVolume
+			if err := api.cachedReader.Get(c, name, &pv); err == nil {
+				if pv.Spec.CSI.VolumeHandle == uniqueId {
+					selectPV = &pv
+					break
+				}
+			}
+		}
+		if selectPV == nil || selectPV.Spec.ClaimRef == nil {
+			c.String(404, "not found")
+			return
+		}
+		var pvc corev1.PersistentVolumeClaim
+		err := api.cachedReader.Get(c, types.NamespacedName{Namespace: selectPV.Spec.ClaimRef.Namespace, Name: selectPV.Spec.ClaimRef.Name}, &pvc)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.String(404, "not found")
+				return
+			}
+			c.String(500, "get pvc error: %v", err)
+			return
+		}
+		c.IndentedJSON(200, pvc)
+	}
+}
+
 func (api *API) getPVCWithPVHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		obj, ok := c.Get("pvc")

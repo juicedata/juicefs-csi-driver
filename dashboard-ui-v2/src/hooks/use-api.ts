@@ -15,13 +15,12 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Job } from 'kubernetes-types/batch/v1'
 import { Event, Node } from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
-import { BatchConfig, Pod } from '@/types/k8s'
+import { Pod } from '@/types/k8s'
 import { getBasePath, getHost } from '@/utils'
 
 export function useAppPods(args: AppPagingListArgs) {
@@ -161,49 +160,4 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
 
 export function useNodes() {
   return useSWR<Node[]>('/api/v1/nodes')
-}
-
-export function useUpgradePods() {
-  return useAsync(async (batchConfig?: BatchConfig) => {
-    const response = await fetch(`${getHost()}/api/v1/batch/upgrade`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(batchConfig),
-    })
-    const result: {
-      jobName: string
-    } = await response.json()
-    return result
-  })
-}
-
-export function useUpgradeStatus() {
-  return useSWR<Job>(`/api/v1/batch/job`)
-}
-
-export function useClearUpgradeStatus() {
-  return useAsync(async () => {
-    await fetch(`${getHost()}/api/v1/batch/job`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    return
-  })
-}
-
-export function useBatchPlan(
-  nodeName: string,
-  uniqueId: string,
-  worker: number,
-  ignoreError: boolean,
-  recreate: boolean,
-) {
-  const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<BatchConfig>(
-    `/api/v1/batch/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`,
-  )
 }

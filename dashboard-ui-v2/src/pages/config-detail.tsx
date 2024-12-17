@@ -19,6 +19,7 @@ import { PageContainer, ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
 import { Alert, Button, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
+import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
 
 import { useConfig, useConfigDiff, useUpdateConfig } from '@/hooks/cm-api'
@@ -32,6 +33,7 @@ const ConfigDetail = () => {
   const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
   const [error, setError] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (diffPods && diffPods.length > 0) {
@@ -139,7 +141,8 @@ const ConfigDetail = () => {
               type="primary"
               disabled={!diff}
               onClick={() => {
-                window.location.href = `upgrade`
+                navigate('/jobs?modalOpen=true')
+                setDiff(false)
               }}
             >
               <FormattedMessage id="apply" />

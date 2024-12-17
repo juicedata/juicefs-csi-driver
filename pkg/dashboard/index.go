@@ -21,6 +21,7 @@ import (
 	"context"
 	"sync"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ import (
 var indexLog = klog.NewKlogr().WithName("index")
 
 type k8sResource interface {
-	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass
+	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass | batchv1.Job
 }
 
 type timeOrderedIndexes[T k8sResource] struct {

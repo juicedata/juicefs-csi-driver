@@ -86,6 +86,13 @@ func isSysPod(pod *corev1.Pod) bool {
 	return false
 }
 
+func isUpgradeJob(job *batchv1.Job) bool {
+	if job.Labels != nil {
+		return job.Labels[common.PodTypeKey] == common.JobTypeValue && job.Labels[common.JfsJobKind] == common.KindOfUpgrade
+	}
+	return false
+}
+
 func isCsiNode(pod *corev1.Pod) bool {
 	if pod.Labels != nil {
 		return pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" && pod.Labels["app"] == "juicefs-csi-node"

@@ -29,6 +29,7 @@ type APIStatus struct {
 	Events       map[string]int
 	PvIndexes    []types.NamespacedName
 	PvcIndexes   []types.NamespacedName
+	JobIndexes   []types.NamespacedName
 	Pairs        map[string]types.NamespacedName
 }
 
@@ -50,12 +51,14 @@ func (api *API) debugAPIStatus() gin.HandlerFunc {
 		api.csiNodeLock.RUnlock()
 		status.SysIndexes = api.sysIndexes.debug()
 		status.AppIndexes = api.appIndexes.debug()
+		status.JobIndexes = api.jobsIndexes.debug()
 		api.pairLock.RLock()
 		for k, v := range api.pairs {
 			status.Pairs[k.String()] = v
 		}
 		status.PvIndexes = api.pvIndexes.debug()
 		status.PvcIndexes = api.pvcIndexes.debug()
+
 		api.pairLock.RUnlock()
 		c.IndentedJSON(200, status)
 	}
