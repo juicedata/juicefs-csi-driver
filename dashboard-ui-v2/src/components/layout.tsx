@@ -100,7 +100,7 @@ const items: MenuProps['items'] = [
       },
       {
         label: (
-          <Link to="/upgrade">
+          <Link to="/jobs">
             <FormattedMessage id="batchUpgrade" />
           </Link>
         ),

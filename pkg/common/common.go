@@ -31,6 +31,7 @@ const (
 	CleanCache             = "juicefs-clean-cache"
 	MountContainerName     = "jfs-mount"
 	JobTypeValue           = "juicefs-job"
+	ConfigTypeValue        = "juicefs-conf"
 	JfsInsideContainer     = "JFS_INSIDE_CONTAINER"
 	MaxParallelUpgradeNum  = 50
 
@@ -84,14 +85,13 @@ const (
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 
 	// smooth upgrade
-	JfsFuseFsPathInPod      = "/tmp"
-	JfsFuseFsPathInHost     = "/var/run/juicefs-csi"
-	JfsCommEnv              = "JFS_SUPER_COMM"
-	JfsUpgradeJobLabelKey   = "app.kubernetes.io/name"
-	JfsUpgradeJobLabelValue = "juicefs-upgrade"
-	JfsUpgradePodLabelKey   = "juicefs-job-name"
-)
+	JfsFuseFsPathInPod  = "/tmp"
+	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
+	JfsCommEnv          = "JFS_SUPER_COMM"
 
-func GenUpgradeJobName() string {
-	return "juicefs-upgrade-job"
-}
+	JfsJobKind    = "juicefs-job-kind"
+	KindOfUpgrade = "juicefs-upgrade"
+
+	JfsUpgradeJobName = "juicefs-job-name"
+	JfsUpgradeConfig  = "juicefs-upgrade-config"
+)

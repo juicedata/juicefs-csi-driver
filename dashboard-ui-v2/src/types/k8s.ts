@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Job } from 'kubernetes-types/batch/v1'
 import {
   Container,
   EnvVar,
@@ -119,6 +120,17 @@ export type MountPatchCacheDir = {
   type: string
   path: string
   name: string
+}
+
+export type UpgradeJob = {
+  job: Job
+  config: BatchConfig
+}
+
+export type UpgradeJobWithDiff = {
+  job: Job
+  config: BatchConfig
+  diffs: [PodDiffConfig]
 }
 
 export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &

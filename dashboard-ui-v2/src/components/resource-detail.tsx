@@ -16,6 +16,7 @@
 
 import { useParams } from 'react-router-dom'
 
+import BatchUpgradeJobDetail from '@/pages/batch-upgrade-job-detail.tsx'
 import CgDetail from '@/pages/cg-detail'
 import PodDetail from '@/pages/pod-detail'
 import PVDetail from '@/pages/pv-detail'
@@ -38,6 +39,8 @@ export default function ResourcesDetail() {
       return <PVCDetail name={name} namespace={namespace} />
     case 'cachegroups':
       return <CgDetail name={name} namespace={namespace} />
+    case 'jobs':
+      return <BatchUpgradeJobDetail jobName={name} />
     default:
       return <div>Not Found</div>
   }
