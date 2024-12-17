@@ -125,6 +125,8 @@ export default {
   fileSystem: '文件系统',
   dataMigration: '等待数据迁移',
   warmingUp: '预热中',
+  warmup: '预热',
+  addWorker: '添加节点',
   podName: 'Pod 名称',
   upgradeStatus: '升级状态',
   updateConfigError: '更新配置错误',

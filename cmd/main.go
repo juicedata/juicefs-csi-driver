@@ -30,6 +30,8 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
+
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -56,6 +58,13 @@ var (
 
 	log = klog.NewKlogr().WithName("main")
 )
+
+func init() {
+	// Initialize a logger for the controller runtime
+	ctrllog.SetLogger(klog.NewKlogr())
+	// To disable controller runtime logging, instead set the null logger:
+	//log.SetLogger(logr.New(log.NullLogSink{}))
+}
 
 func main() {
 	var cmd = &cobra.Command{

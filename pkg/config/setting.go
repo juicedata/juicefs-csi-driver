@@ -541,7 +541,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	secretName := fmt.Sprintf("juicefs-%s-secret", mountPod.Labels[common.PodUniqueIdLabelKey])
 	secret, err := client.GetSecret(ctx, secretName, mountPod.Namespace)
 	if err != nil {
-		return nil, err
+		log.Error(err, "Get secret error", "secret", secretName)
 	}
 	setting, err := GenSetting(mountPod, pvc, pv, secret)
 	if err != nil {

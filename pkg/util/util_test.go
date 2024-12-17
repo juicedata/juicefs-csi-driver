@@ -833,6 +833,13 @@ func TestParseMntPath(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "without mnt jfs",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /mnt/jfs"},
+			want:    "/mnt/jfs",
+			want1:   "jfs",
+			wantErr: false,
+		},
+		{
 			name: "with create subpath",
 			args: args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n" +
 				"/bin/mount.juicefs ${metaurl} /mnt/jfs -o buffer-size=300,cache-size=100,enable-xattr\n" +
