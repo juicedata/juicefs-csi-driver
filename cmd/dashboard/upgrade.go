@@ -281,7 +281,7 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 		}
 	}
 	conf.Status = u.status
-	_, err := config.SaveUpgradeConfig(ctx, u.k8sClient, batchConfigName, conf)
+	_, err := config.UpdateUpgradeConfig(ctx, u.k8sClient, batchConfigName, conf)
 	if err != nil {
 		logger(fmt.Sprintf("failed to update upgrade status in config: %v\n", err))
 	}

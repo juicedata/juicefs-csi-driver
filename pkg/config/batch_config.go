@@ -143,7 +143,7 @@ func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 	return cfg, nil
 }
 
-func SaveUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
+func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
 	sysNamespace := os.Getenv("SYS_NAMESPACE")
 	if sysNamespace == "" {
 		sysNamespace = "kube-system"
@@ -176,6 +176,26 @@ func SaveUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 		}
 		return cfg, client.CreateConfigMap(ctx, cfg)
 
+	}
+	return nil, fmt.Errorf("config %s already exists", configName)
+}
+
+func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
+	sysNamespace := os.Getenv("SYS_NAMESPACE")
+	if sysNamespace == "" {
+		sysNamespace = "kube-system"
+	}
+	if configName == "" {
+		return nil, fmt.Errorf("config name is empty")
+	}
+	var cfg *corev1.ConfigMap
+	var err error
+	if cfg, err = client.GetConfigMap(ctx, configName, sysNamespace); err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
 	}
 	cfg.Data = map[string]string{"upgrade": string(data)}
 	return cfg, client.UpdateConfigMap(ctx, cfg)

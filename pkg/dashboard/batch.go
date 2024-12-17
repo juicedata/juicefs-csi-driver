@@ -95,7 +95,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 
 		if needCreate {
 			cmName := GenUpgradeConfig(jobName)
-			cfg, err := config.SaveUpgradeConfig(c, api.k8sclient, cmName, createJobBody.BatchConfig)
+			cfg, err := config.CreateUpgradeConfig(c, api.k8sclient, cmName, createJobBody.BatchConfig)
 			if err != nil {
 				c.String(500, "save upgrade config error %v", err)
 				return
