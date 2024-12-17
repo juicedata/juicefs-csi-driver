@@ -541,6 +541,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 			custSecretName := pv.Spec.CSI.NodePublishSecretRef.Name
 			custSecretNameSpace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+			log.Info("Get custom secret", "name", custSecretName, "namespace", custSecretNameSpace)
 			custSecret, err = client.GetSecret(ctx, custSecretName, custSecretNameSpace)
 			if err != nil {
 				log.Error(err, "Get secret error", "namespace", custSecretNameSpace, "name", custSecretName)
@@ -690,8 +691,38 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 			if len(custSetting.Envs) > 0 {
 				setting.Envs = custSetting.Envs
 			}
+			setting.CustomerSecret = custSecret
+			secretsMap := make(map[string]string)
+			for k, v := range custSecret.Data {
+				secretsMap[k] = string(v[:])
+			}
+			if !setting.IsCe {
+				if setting.Token == "" {
+					log.Info("token is empty, skip authfs.")
+				} else {
+					_, cmdArgs, err := GenAuthCmd(secretsMap, setting)
+					if err != nil {
+						log.Error(err, "GenAuthCmd error")
+					} else {
+						setting.FormatCmd = strings.Join(cmdArgs, " ")
+					}
+				}
+				setting.UUID = secretsMap["name"]
+				setting.InitConfig = secretsMap["initconfig"]
+			} else {
+				noUpdate := false
+				if secretsMap["storage"] == "" || secretsMap["bucket"] == "" {
+					log.Info("JfsMount: storage or bucket is empty, format --no-update.")
+					noUpdate = true
+				}
+				_, cmdArgs, err := GenFormatCmd(secretsMap, noUpdate, setting)
+				if err != nil {
+					log.Error(err, "generate format cmd error")
+				} else {
+					setting.FormatCmd = strings.Join(cmdArgs, " ")
+				}
+			}
 		}
-		setting.CustomerSecret = custSecret
 	}
 	setting.PV = pv
 	setting.PVC = pvc

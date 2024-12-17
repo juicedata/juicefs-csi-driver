@@ -527,14 +527,6 @@ func CanUpgrade(pod corev1.Pod, recreate bool) (bool, error) {
 }
 
 func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, error) {
-	// check config update
-	setting, err := config.GenSettingAttrWithMountPod(ctx, client, &pod)
-	if err != nil {
-		return false, err
-	}
-	if setting.HashVal == pod.Labels[common.PodJuiceHashLabelKey] {
-		return false, err
-	}
 	return CanUpgrade(pod, recreate)
 }
 
