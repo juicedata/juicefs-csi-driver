@@ -110,8 +110,7 @@ func (u *BatchUpgrade) handleSignal() {
 	signal.Notify(sigChan, syscall.SIGUSR1, syscall.SIGTERM)
 
 	paused := false
-	for {
-		sig := <-sigChan
+	for sig := range sigChan {
 		if sig == syscall.SIGUSR1 {
 			paused = !paused
 			if paused {
@@ -217,8 +216,8 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 	u.setCrtBatchStatus(config.Running)
 	var (
 		wg       sync.WaitGroup
-		resultCh = make(chan error, u.conf.Parallel)
 		batch    = u.conf.Batches[u.crtBatch-1]
+		resultCh = make(chan error, len(batch))
 	)
 	go func() {
 		defer func() {

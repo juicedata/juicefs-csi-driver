@@ -84,7 +84,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			jobName = GenUpgradeJobName()
 		}
 
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		_, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
 			c.String(500, "get job error %v", err)
 			return
@@ -102,7 +102,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			}
 
 			newJob := newUpgradeJob(jobName)
-			job, err = api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
+			job, err := api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
 			if err != nil {
 				batchLog.Error(err, "create job error")
 				c.String(500, "create job error %v", err)
