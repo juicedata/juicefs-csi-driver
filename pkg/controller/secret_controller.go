@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,6 +155,13 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 	return reconcile.Result{Requeue: true, RequeueAfter: config.SecretReconcilerInterval}, nil
 }
 
+func shouldSecretInQueue(secret *corev1.Secret) bool {
+	if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secret.Namespace, secret.Name)]; ok {
+		return true
+	}
+	return false
+}
+
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New("secret", mgr, controller.Options{Reconciler: m})
 	if err != nil {
@@ -164,7 +172,7 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		CreateFunc: func(event event.TypedCreateEvent[*corev1.Secret]) bool {
 			secret := event.Object
 			secretCtrlLog.V(1).Info("watch secret created", "name", secret.GetName())
-			return true
+			return shouldSecretInQueue(secret)
 		},
 		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Secret]) bool {
 			secretNew, secretOld := updateEvent.ObjectNew, updateEvent.ObjectOld
@@ -172,13 +180,12 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
-
-			return true
+			return shouldSecretInQueue(secretNew)
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
 			secret := deleteEvent.Object
 			secretCtrlLog.V(1).Info("watch secret deleted", "name", secret.GetName())
-			return false
+			return shouldSecretInQueue(secret)
 		},
 	}))
 }
