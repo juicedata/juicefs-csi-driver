@@ -30,8 +30,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -601,100 +599,10 @@ func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) er
 // AuthFs authenticates JuiceFS, enterprise edition only
 func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "AuthFs")
-	if secrets == nil {
-		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
+	args, cmdArgs, err := config.GenAuthCmd(secrets, setting)
+	if err != nil {
+		return "", err
 	}
-
-	if secrets["name"] == "" {
-		return "", status.Errorf(codes.InvalidArgument, "Empty name")
-	}
-
-	args := []string{"auth", security.EscapeBashStr(secrets["name"])}
-	cmdArgs := []string{config.CliPath, "auth", security.EscapeBashStr(secrets["name"])}
-
-	keysCompatible := map[string]string{
-		"accesskey":  "access-key",
-		"accesskey2": "access-key2",
-		"secretkey":  "secret-key",
-		"secretkey2": "secret-key2",
-	}
-	// compatible
-	for compatibleKey, realKey := range keysCompatible {
-		if value, ok := secrets[compatibleKey]; ok {
-			log.Info("transform key", "compatibleKey", compatibleKey, "realKey", realKey)
-			secrets[realKey] = value
-			delete(secrets, compatibleKey)
-		}
-	}
-
-	keys := []string{
-		"access-key",
-		"access-key2",
-		"bucket",
-		"bucket2",
-		"subdir",
-	}
-	keysStripped := []string{
-		"token",
-		"secret-key",
-		"secret-key2",
-		"passphrase",
-	}
-	strippedkey := map[string]string{
-		"secret-key":  "secretkey",
-		"secret-key2": "secretkey2",
-	}
-	for _, k := range keys {
-		if secrets[k] != "" {
-			v := security.EscapeBashStr(secrets[k])
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, v))
-			args = append(args, fmt.Sprintf("--%s=%s", k, v))
-		}
-	}
-	for _, k := range keysStripped {
-		if secrets[k] != "" {
-			argKey := k
-			if v, ok := strippedkey[k]; ok {
-				argKey = v
-			}
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, argKey))
-			args = append(args, fmt.Sprintf("--%s=%s", k, security.EscapeBashStr(secrets[k])))
-		}
-	}
-	if v, ok := os.LookupEnv("JFS_NO_UPDATE_CONFIG"); ok && v == "enabled" {
-		cmdArgs = append(cmdArgs, "--no-update")
-		args = append(args, "--no-update")
-		if secrets["bucket"] == "" {
-			return "", fmt.Errorf("bucket argument is required when --no-update option is provided")
-		}
-		if config.ByProcess && secrets["initconfig"] != "" {
-			conf := secrets["name"] + ".conf"
-			confPath := filepath.Join(setting.ClientConfPath, conf)
-			if _, err := os.Stat(confPath); os.IsNotExist(err) {
-				err = os.WriteFile(confPath, []byte(secrets["initconfig"]), 0644)
-				if err != nil {
-					return "", fmt.Errorf("create config file %q failed: %v", confPath, err)
-				}
-				log.Info("Create config file success", "confPath", confPath)
-			}
-		}
-	}
-	if setting.FormatOptions != "" {
-		options, err := setting.ParseFormatOptions()
-		if err != nil {
-			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
-		}
-		args = append(args, setting.RepresentFormatOptions(options)...)
-		stripped := setting.StripFormatOptions(options, []string{"session-token"})
-		cmdArgs = append(cmdArgs, stripped...)
-	}
-
-	if setting.ClientConfPath != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
-		args = append(args, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
-	}
-
-	log.Info("AuthFs cmd", "args", cmdArgs)
 
 	// only run command when in process mode
 	if !force && !config.ByProcess {
@@ -872,64 +780,10 @@ func (j *juicefs) Upgrade() {
 
 func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpdate bool, setting *config.JfsSetting) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "ceFormat")
-
-	if secrets == nil {
-		return "", status.Errorf(codes.InvalidArgument, "Nil secrets")
+	args, cmdArgs, err := config.GenFormatCmd(secrets, noUpdate, setting)
+	if err != nil {
+		return "", err
 	}
-
-	if secrets["name"] == "" {
-		return "", status.Errorf(codes.InvalidArgument, "Empty name")
-	}
-
-	if secrets["metaurl"] == "" {
-		return "", status.Errorf(codes.InvalidArgument, "Empty metaurl")
-	}
-
-	args := []string{"format"}
-	cmdArgs := []string{config.CeCliPath, "format"}
-	if noUpdate {
-		cmdArgs = append(cmdArgs, "--no-update")
-		args = append(args, "--no-update")
-	}
-	keys := []string{
-		"storage",
-		"bucket",
-		"access-key",
-		"block-size",
-		"compress",
-		"trash-days",
-		"capacity",
-		"inodes",
-		"shards",
-	}
-	keysStripped := map[string]string{"secret-key": "secretkey"}
-	for _, k := range keys {
-		if secrets[k] != "" {
-			v := security.EscapeBashStr(secrets[k])
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=%s", k, v))
-			args = append(args, fmt.Sprintf("--%s=%s", k, v))
-		}
-	}
-	for k, v := range keysStripped {
-		if secrets[k] != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--%s=${%s}", k, v))
-			args = append(args, fmt.Sprintf("--%s=%s", k, security.EscapeBashStr(secrets[k])))
-		}
-	}
-	cmdArgs = append(cmdArgs, "${metaurl}", secrets["name"])
-	args = append(args, security.EscapeBashStr(secrets["metaurl"]), security.EscapeBashStr(secrets["name"]))
-
-	if setting.FormatOptions != "" {
-		options, err := setting.ParseFormatOptions()
-		if err != nil {
-			return "", status.Errorf(codes.InvalidArgument, "Parse format options error: %v", err)
-		}
-		args = append(args, setting.RepresentFormatOptions(options)...)
-		stripped := setting.StripFormatOptions(options, []string{"session-token"})
-		cmdArgs = append(cmdArgs, stripped...)
-	}
-
-	log.Info("ce format cmd", "args", cmdArgs)
 
 	// only run command when in process mode
 	if !config.ByProcess {

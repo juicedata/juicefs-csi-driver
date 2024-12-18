@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -822,7 +821,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		log.Error(err, "gen setting error")
 		return err
 	}
-	if setting.Source != "" {
+	if setting.JuiceFSSecret != nil {
 		// regenerate pod spec
 		podBuilder := builder.NewPodBuilder(setting, 0)
 		newPod, err := podBuilder.NewMountPod(pod.Name)
@@ -840,25 +839,10 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		pod.Spec = newPod.Spec
 		pod.ObjectMeta = newPod.ObjectMeta
-		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
-			// update secret
-			secretName := resource.GetSecretNameByUniqueId(pod.Labels[common.PodUniqueIdLabelKey])
-			secret, err := p.Client.GetSecret(ctx, secretName, pod.Namespace)
-			if err != nil {
-				return err
-			}
-			secretsMap := make(map[string]string)
-			for k, v := range secret.Data {
-				secretsMap[k] = string(v[:])
-			}
-			sr, _ := json.Marshal(setting)
-			secretsMap["jfsSettings"] = string(sr)
-			secret.Data = nil
-			secret.StringData = secretsMap
-			err = resource.CreateOrUpdateSecret(ctx, p.Client, secret)
-			if err != nil {
-				return err
-			}
+		// update secret
+		secret := podBuilder.NewSecret()
+		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -881,6 +865,15 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	resource.MergeEnvs(pod, attr.Env)
 	resource.MergeMountOptions(pod, setting)
 	resource.MergeVolumes(pod, setting)
+	if setting.CustomerSecret != nil {
+		// update secret
+		setting.SecretName = fmt.Sprintf("juicefs-%s-secret", pod.Labels[common.PodUniqueIdLabelKey])
+		r := builder.NewPodBuilder(setting, 0)
+		secret := r.NewSecret()
+		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

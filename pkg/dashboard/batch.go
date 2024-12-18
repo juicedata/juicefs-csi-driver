@@ -522,20 +522,18 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 			pvcs = append(pvcs, &pvc)
 		}
 	}
-	var secretList corev1.SecretList
-	ls := &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			common.JuicefsSecretLabelKey: "true",
-		},
-	}
-	s, _ := metav1.LabelSelectorAsSelector(ls)
-	if err := api.cachedReader.List(ctx, &secretList, &client.ListOptions{LabelSelector: s}); err != nil {
-		return nil, nil, err
+	secrets := make([]*corev1.Secret, 0, api.secretIndexes.length())
+	for name := range api.secretIndexes.iterate(ctx, false) {
+		var secret corev1.Secret
+		if err := api.cachedReader.Get(ctx, name, &secret); err == nil {
+			secrets = append(secrets, &secret)
+		}
 	}
 
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
+	custSecretMap := make(map[string]*corev1.Secret)
 	for _, pv := range pvs {
 		pvMap[pv.Name] = pv
 	}
@@ -543,19 +541,25 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		pvc2 := pvc
 		pvcMap[pvc.Spec.VolumeName] = pvc2
 	}
-	for _, secret := range secretList.Items {
+	for _, secret := range secrets {
 		secret2 := secret
 		uniqueId := getUniqueIdFromSecretName(secret2.Name)
 		if uniqueId != "" {
-			secretMap[uniqueId] = &secret2
+			secretMap[uniqueId] = secret2
 		}
+		custSecretMap[secret2.Name] = secret2
 	}
 
 	var needUpdatePods []corev1.Pod
 	var podDiffs []PodDiff
 	for _, pod := range mountPods {
 		po := pod
-		diff, err := DiffConfig(&po, pvMap[po.Annotations[common.UniqueId]], pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+		pv := pvMap[po.Annotations[common.UniqueId]]
+		var custSecret *corev1.Secret
+		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+			custSecret = custSecretMap[pv.Spec.CSI.NodePublishSecretRef.Name]
+		}
+		diff, err := DiffConfig(&po, pv, pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]], custSecret)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -563,7 +567,7 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 			// no diff config and should diff, skip
 			continue
 		}
-		oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pvMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]])
+		oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
 		if err != nil {
 			return nil, nil, err
 		}

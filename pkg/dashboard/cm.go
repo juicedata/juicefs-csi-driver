@@ -113,12 +113,12 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	}
 }
 
-func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret *corev1.Secret) (bool, error) {
+func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret, custSecret *corev1.Secret) (bool, error) {
 	secretsMap := make(map[string]string)
 	for k, v := range secret.Data {
 		secretsMap[k] = string(v[:])
 	}
-	setting, err := config.GenSettingWithConfig(pod, pvc, pv, secret)
+	setting, err := config.GenSettingWithConfig(pod, pvc, pv, secret, custSecret)
 	if err != nil {
 		return false, err
 	}

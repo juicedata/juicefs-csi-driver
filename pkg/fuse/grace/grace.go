@@ -375,7 +375,7 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 			for _, po := range pods {
 				if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) && po.Name != p.pod.Name {
 					if resource.IsPodReady(&po) {
-						sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
+						sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
 						p.status = podUpgradeSuccess
 						return
 					}
