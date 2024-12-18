@@ -410,15 +410,17 @@ func (c *SecretController) Reconcile(ctx context.Context, req reconcile.Request)
 	if secret.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
-	c.secretIndexes.addIndex(
-		secret,
-		func(p *corev1.Secret) metav1.ObjectMeta { return p.ObjectMeta },
-		func(name types.NamespacedName) (*corev1.Secret, error) {
-			var s corev1.Secret
-			err := c.cachedReader.Get(ctx, name, &s)
-			return &s, err
-		},
-	)
+	if isJuiceSecret(secret) || isJuiceCustSecret(secret) {
+		c.secretIndexes.addIndex(
+			secret,
+			func(p *corev1.Secret) metav1.ObjectMeta { return p.ObjectMeta },
+			func(name types.NamespacedName) (*corev1.Secret, error) {
+				var s corev1.Secret
+				err := c.cachedReader.Get(ctx, name, &s)
+				return &s, err
+			},
+		)
+	}
 	mgrLog.V(1).Info("secret created", "namespacedName", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
@@ -439,7 +441,7 @@ func (c *SecretController) SetupWithManager(mgr manager.Manager) error {
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
 			secret := deleteEvent.Object
 			indexes := c.secretIndexes
-			if indexes != nil {
+			if indexes != nil && (isJuiceSecret(secret) || isJuiceCustSecret(secret)) {
 				indexes.removeIndex(types.NamespacedName{
 					Namespace: secret.GetNamespace(),
 					Name:      secret.GetName(),
