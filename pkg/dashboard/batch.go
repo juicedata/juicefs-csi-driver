@@ -522,9 +522,12 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 			pvcs = append(pvcs, &pvc)
 		}
 	}
-	var secretList corev1.SecretList
-	if err := api.cachedReader.List(ctx, &secretList, &client.ListOptions{}); err != nil {
-		return nil, nil, err
+	secrets := make([]*corev1.Secret, 0, api.secretIndexes.length())
+	for name := range api.secretIndexes.iterate(ctx, false) {
+		var secret corev1.Secret
+		if err := api.cachedReader.Get(ctx, name, &secret); err == nil {
+			secrets = append(secrets, &secret)
+		}
 	}
 
 	pvMap := make(map[string]*corev1.PersistentVolume)
@@ -538,12 +541,13 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		pvc2 := pvc
 		pvcMap[pvc.Spec.VolumeName] = pvc2
 	}
-	for _, secret := range secretList.Items {
+	for _, secret := range secrets {
 		secret2 := secret
 		uniqueId := getUniqueIdFromSecretName(secret2.Name)
 		if uniqueId != "" {
-			secretMap[uniqueId] = &secret2
+			secretMap[uniqueId] = secret2
 		}
+		custSecretMap[secret2.Name] = secret2
 	}
 
 	var needUpdatePods []corev1.Pod
