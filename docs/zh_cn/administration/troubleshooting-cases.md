@@ -19,6 +19,15 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 若使用的是 Mount Pod 模式，遵循以下步骤进行排查：
 
 * 运行 `kubectl get csidrivers.storage.k8s.io`，如果输出的中确没有 `csi.juicefs.com` 字样，说明 CSI 驱动并未安装，仔细回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)；
+* 检查 kubelet 的根目录与 CSI Node 的配置是否一致，如果不一致，会导致 CSI Node 无法正常注册，请修复 CSI Node 的配置，或者重新安装，参考[「安装 JuiceFS CSI 驱动」](../getting_started.md)；
+
+  ```shell
+  # kubelet 根目录
+  ps -ef | grep kubelet | grep root-dir 
+  # CSI Node 配置
+  kubectl -n kube-system get ds juicefs-csi-node -oyaml | grep csi.juicefs.com
+  ```
+
 * 如果上方的 `csidrivers` 列表中存在 `csi.juicefs.com`，那么说明 CSI 驱动已经安装，问题出在 CSI Node，检查 CSI Node 是否正常运作：
   * 排查开始前，可以简单阅读[检查 CSI Node](./troubleshooting.md#check-csi-node)，代码示范里有一些快捷命令可供参考；
   * 关注应用 Pod 所在节点，检查节点是否正常运行着 CSI Node，如果为 CSI Node 这个 DaemonSet 组件配置了[调度策略](../guide/resource-optimization.md#csi-node-node-selector)，或者节点本身存在[「污点」](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration)，都有可能造成 CSI Node 容器缺失，造成该错误；
