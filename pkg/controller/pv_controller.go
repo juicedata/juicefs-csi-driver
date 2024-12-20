@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -60,26 +59,27 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 	if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		if _, ok := watchedSecrets[secretName]; !ok {
-			watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
-			sc := NewSecretController(m.K8sClient)
-			_, err := sc.Reconcile(ctx, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: secretNamespace,
-					Name:      secretName,
-				},
-			})
-			if err != nil {
-				return reconcile.Result{}, err
-			}
+		watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
+		// for first time, we need to refresh the secret init config in pv controller
+		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretNamespace, secretName); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
 func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
-	if pv.Spec.CSI != nil {
-		return pv.Spec.CSI.Driver == config.DriverName
+	if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+		if pv.Spec.CSI.NodePublishSecretRef == nil {
+			return false
+		}
+		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+		if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
+			return true
+		}
+		return false
 	}
 	return false
 }

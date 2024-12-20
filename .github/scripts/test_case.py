@@ -869,7 +869,8 @@ def test_cache_client_conf():
     LOG.info("Deploy pv {}".format(pv.name))
     pv.create()
     secret.watch_for_initconfig_injection()
-
+    pv.delete()
+    LOG.info("Test pass.")
 
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
