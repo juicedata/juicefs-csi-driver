@@ -1,6 +1,6 @@
 ---
 title: 运行其他 JuiceFS 应用
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 严格来说，本章内容与 JuiceFS CSI 驱动没有关联，而是通用的 Kubernetes 应用，因此下方介绍的各种部署方式，也完全可以脱离 CSI 驱动、独立使用。比方说：
@@ -92,9 +92,8 @@ spec:
 
 ## 部署分布式缓存集群 {#distributed-cache-cluster}
 
-:::info
-JuiceFS 提供了一种更为方便管理缓存组集群的 Operator，推荐使用这种方式。
-参考 [JuiceFS Operator](./cache-group-operator.md)
+:::tip
+对于大多数场景，通过[「缓存组 Operator」](./cache-group-operator.md)来部署及管理分布式缓存集群更为方便，推荐优先使用这种方式。
 :::
 
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，在集群内指定的节点挂载 JuiceFS 客户端，形成一个稳定的缓存组。
