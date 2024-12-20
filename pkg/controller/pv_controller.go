@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -61,6 +62,16 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
 		if _, ok := watchedSecrets[secretName]; !ok {
 			watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
+			sc := NewSecretController(m.K8sClient)
+			_, err := sc.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: secretNamespace,
+					Name:      secretName,
+				},
+			})
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 	return reconcile.Result{}, nil
