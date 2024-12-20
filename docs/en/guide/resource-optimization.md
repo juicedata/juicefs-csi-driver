@@ -1,6 +1,6 @@
 ---
 title: Resource Optimization
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 Kubernetes allows much easier and efficient resource utilization, in JuiceFS CSI Driver, there's much to be done in this aspect. Methods on resource optimizations are introduced in this chapter.
