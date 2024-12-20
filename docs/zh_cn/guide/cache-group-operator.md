@@ -67,10 +67,16 @@ spec:
           memory: 1Gi
 ```
 
-确保至少有 1 个 K8s 节点已经设置了标签 `juicefs.io/cg-worker: "true"`，然后通过 `kubectl apply` 命令创建分布式缓存集群：
+然后通过 `kubectl apply` 命令创建缓存组：
 
 ```shell
 kubectl apply -f juicefs-cache-group.yaml
+```
+
+如果 Kubernetes 节点还没有设置 `juicefs.io/cg-worker: "true"` 标签，需要加上这个标签：
+
+```shell
+kubectl label node node1 juicefs.io/cg-worker=true
 ```
 
 ## 获取缓存组状态 {#get-cache-group-status}
@@ -103,7 +109,7 @@ mountOptions:
 
 缓存组 Operator 支持平滑增删缓存节点，确保调整过程中不会对缓存命中率造成太大影响。
 
-在[「创建缓存组」](#create-cache-group)的示例中，要求 K8s 节点必须有 `juicefs.io/cg-worker: "true"` 这个标签，因此增删缓存节点所需的操作就是给 K8s 节点增删对应的标签。例如通过 `kubectl` 命令增加或删除节点：
+在[「创建缓存组」](#create-cache-group)的示例中，要求 Kubernetes 节点必须有 `juicefs.io/cg-worker: "true"` 这个标签，因此增删缓存节点所需的操作就是给 Kubernetes 节点增删对应的标签。例如通过 `kubectl` 命令增加或删除节点：
 
 ```sh
 # 增加节点
