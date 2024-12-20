@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -90,6 +92,66 @@ func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient,
 	return nil
 }
 
+func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, name, namespace string) error {
+	secretCtrlLog.V(1).Info("refresh secret initconfig", "name", name, "namespace", namespace)
+	secrets, err := client.GetSecret(ctx, name, namespace)
+	if err != nil {
+		secretCtrlLog.Error(err, "get secret error", "namespace", namespace, "name", name)
+		return ctrlclient.IgnoreNotFound(err)
+	}
+
+	if err := checkAndCleanOrphanSecret(ctx, client, secrets); err != nil {
+		secretCtrlLog.Error(err, "check and clean orphan secret error", "namespace", namespace, "name", name)
+		return err
+	}
+
+	if _, found := secrets.Data["token"]; !found {
+		secretCtrlLog.V(1).Info("token not found in secret", "namespace", namespace, "name", name)
+		return nil
+	}
+	if _, found := secrets.Data["name"]; !found {
+		secretCtrlLog.V(1).Info("name not found in secret", "namespace", namespace, "name", name)
+		return nil
+	}
+
+	jfs := juicefs.NewJfsProvider(nil, nil)
+	secretsMap := make(map[string]string)
+	for k, v := range secrets.Data {
+		secretsMap[k] = string(v[:])
+	}
+	jfsSetting, err := jfs.Settings(ctx, "", secretsMap, nil, nil)
+	if err != nil {
+		return err
+	}
+	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempConfDir)
+	jfsSetting.ClientConfPath = tempConfDir
+	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
+	if err != nil {
+		secretCtrlLog.Error(err, "auth failed", "output", output)
+		return err
+	}
+	conf := jfsSetting.Name + ".conf"
+	confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
+	b, err := os.ReadFile(confPath)
+	if err != nil {
+		secretCtrlLog.Error(err, "read initconfig failed", "conf", conf)
+		return err
+	}
+	confs := string(b)
+	secretsMap["initconfig"] = confs
+	secrets.StringData = secretsMap
+	err = client.UpdateSecret(ctx, secrets)
+	if err != nil {
+		secretCtrlLog.Error(err, "inject initconfig failed", "namespace", namespace, "name", name)
+		return err
+	}
+	return nil
+}
+
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	secretCtrlLog.V(1).Info("Receive secret", "name", request.Name, "namespace", request.Namespace)
 	secrets, err := m.GetSecret(ctx, request.Name, request.Namespace)
@@ -107,51 +169,19 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 
-	if _, found := secrets.Data["token"]; !found {
-		secretCtrlLog.V(1).Info("token not found in secret", "name", request.Name)
-		return reconcile.Result{}, nil
-	}
-	if _, found := secrets.Data["name"]; !found {
-		secretCtrlLog.V(1).Info("name not found in secret", "name", request.Name)
-		return reconcile.Result{}, nil
-	}
-	jfs := juicefs.NewJfsProvider(nil, nil)
-	secretsMap := make(map[string]string)
-	for k, v := range secrets.Data {
-		secretsMap[k] = string(v[:])
-	}
-	jfsSetting, err := jfs.Settings(ctx, "", secretsMap, nil, nil)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	defer os.RemoveAll(tempConfDir)
-	jfsSetting.ClientConfPath = tempConfDir
-	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
-	if err != nil {
-		secretCtrlLog.Error(err, "auth failed", "output", output)
-		return reconcile.Result{}, err
-	}
-	conf := jfsSetting.Name + ".conf"
-	confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
-	b, err := os.ReadFile(confPath)
-	if err != nil {
-		secretCtrlLog.Error(err, "read initconfig failed", "conf", conf)
-		return reconcile.Result{}, err
-	}
-	confs := string(b)
-	secretsMap["initconfig"] = confs
-	secrets.StringData = secretsMap
-	err = m.UpdateSecret(ctx, secrets)
-	if err != nil {
-		secretCtrlLog.Error(err, "inject initconfig failed", "name", request.Name)
+	if err := refreshSecretInitConfig(ctx, m.K8sClient, request.Name, request.Namespace); err != nil {
+		secretCtrlLog.Error(err, "refresh secret initconfig error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
 	// requeue after to make sure the initconfig is always up-to-date
 	return reconcile.Result{Requeue: true, RequeueAfter: config.SecretReconcilerInterval}, nil
+}
+
+func shouldSecretInQueue(secret *corev1.Secret) bool {
+	if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secret.Namespace, secret.Name)]; ok {
+		return true
+	}
+	return false
 }
 
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
@@ -164,7 +194,7 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 		CreateFunc: func(event event.TypedCreateEvent[*corev1.Secret]) bool {
 			secret := event.Object
 			secretCtrlLog.V(1).Info("watch secret created", "name", secret.GetName())
-			return true
+			return shouldSecretInQueue(secret)
 		},
 		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Secret]) bool {
 			secretNew, secretOld := updateEvent.ObjectNew, updateEvent.ObjectOld
@@ -172,13 +202,12 @@ func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
 				secretCtrlLog.V(1).Info("secret.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
-
-			return true
+			return shouldSecretInQueue(secretNew)
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
 			secret := deleteEvent.Object
 			secretCtrlLog.V(1).Info("watch secret deleted", "name", secret.GetName())
-			return false
+			return shouldSecretInQueue(secret)
 		},
 	}))
 }
