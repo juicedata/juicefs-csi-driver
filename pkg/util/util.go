@@ -739,6 +739,13 @@ func CpNotNil[T any](s, d *T) *T {
 	return d
 }
 
+func CpNotEmpty(s, d string) string {
+	if s != "" {
+		return s
+	}
+	return d
+}
+
 func SortBy[T any](slice []T, less func(i, j int) bool) {
 	if slice == nil {
 		return

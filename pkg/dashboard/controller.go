@@ -44,6 +44,7 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	pvCtr := PVController{api}
 	pvcCtr := PVCController{api}
 	jobCtr := JobController{api}
+	secretCtr := SecretController{api}
 	if err := podCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -54,6 +55,9 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 		return err
 	}
 	if err := jobCtr.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := secretCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	return mgr.Start(ctx)
@@ -72,6 +76,10 @@ type PVCController struct {
 }
 
 type JobController struct {
+	*API
+}
+
+type SecretController struct {
 	*API
 }
 
@@ -391,5 +399,57 @@ func (c *JobController) SetupWithManager(mgr manager.Manager) error {
 			return true
 		},
 	}))
+}
 
+func (c *SecretController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	secret := &corev1.Secret{}
+	if err := c.cachedReader.Get(ctx, req.NamespacedName, secret); err != nil {
+		mgrLog.Error(err, "get secret failed", "namespacedName", req.NamespacedName)
+		return reconcile.Result{}, nil
+	}
+	if secret.DeletionTimestamp != nil {
+		return reconcile.Result{}, nil
+	}
+	if isJuiceSecret(secret) || isJuiceCustSecret(secret) {
+		c.secretIndexes.addIndex(
+			secret,
+			func(p *corev1.Secret) metav1.ObjectMeta { return p.ObjectMeta },
+			func(name types.NamespacedName) (*corev1.Secret, error) {
+				var s corev1.Secret
+				err := c.cachedReader.Get(ctx, name, &s)
+				return &s, err
+			},
+		)
+	}
+	mgrLog.V(1).Info("secret created", "namespacedName", req.NamespacedName)
+	return reconcile.Result{}, nil
+}
+
+func (c *SecretController) SetupWithManager(mgr manager.Manager) error {
+	ctr, err := controller.New("secret", mgr, controller.Options{Reconciler: c})
+	if err != nil {
+		return err
+	}
+
+	return ctr.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}, &handler.TypedEnqueueRequestForObject[*corev1.Secret]{}, predicate.TypedFuncs[*corev1.Secret]{
+		CreateFunc: func(event event.TypedCreateEvent[*corev1.Secret]) bool {
+			return true
+		},
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Secret]) bool {
+			return true
+		},
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Secret]) bool {
+			secret := deleteEvent.Object
+			indexes := c.secretIndexes
+			if indexes != nil && (isJuiceSecret(secret) || isJuiceCustSecret(secret)) {
+				indexes.removeIndex(types.NamespacedName{
+					Namespace: secret.GetNamespace(),
+					Name:      secret.GetName(),
+				})
+				mgrLog.V(1).Info("secret deleted", "namespace", secret.GetNamespace(), "name", secret.GetName())
+				return false
+			}
+			return true
+		},
+	}))
 }

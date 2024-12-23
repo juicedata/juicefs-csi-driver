@@ -201,7 +201,7 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
 
-func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret *corev1.Secret) (old *MountPodPatch, new *MountPodPatch, err error) {
+func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (old *MountPodPatch, new *MountPodPatch, err error) {
 	var (
 		oldSetting *JfsSetting
 		newSetting *JfsSetting
@@ -215,7 +215,7 @@ func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1
 	if err != nil {
 		return
 	}
-	if err = ApplySettingWithMountPod(mountPod, pvc, pv, newSetting); err != nil {
+	if err = ApplySettingWithMountPod(mountPod, pvc, pv, custSecret, newSetting); err != nil {
 		return
 	}
 	new = genPatchFromSetting(*newSetting)

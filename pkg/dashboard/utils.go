@@ -100,6 +100,21 @@ func isCsiNode(pod *corev1.Pod) bool {
 	return false
 }
 
+func isJuiceCustSecret(secret *corev1.Secret) bool {
+	if secret.Data["token"] == nil && secret.Data["metaurl"] == nil {
+		return false
+	}
+	return true
+}
+
+func isJuiceSecret(secret *corev1.Secret) bool {
+	if secret.Labels == nil {
+		return false
+	}
+	_, ok := secret.Labels[common.JuicefsSecretLabelKey]
+	return ok
+}
+
 type ReverseSort struct {
 	sort.Interface
 }

@@ -41,15 +41,16 @@ type API struct {
 	k8sclient  *k8sclient.K8sClient
 	kubeconfig *rest.Config
 
-	csiNodeLock  sync.RWMutex
-	csiNodeIndex map[string]types.NamespacedName
-	sysIndexes   *timeOrderedIndexes[corev1.Pod]
-	appIndexes   *timeOrderedIndexes[corev1.Pod]
-	pvIndexes    *timeOrderedIndexes[corev1.PersistentVolume]
-	pvcIndexes   *timeOrderedIndexes[corev1.PersistentVolumeClaim]
-	jobsIndexes  *timeOrderedIndexes[batchv1.Job]
-	pairLock     sync.RWMutex
-	pairs        map[types.NamespacedName]types.NamespacedName
+	csiNodeLock   sync.RWMutex
+	csiNodeIndex  map[string]types.NamespacedName
+	sysIndexes    *timeOrderedIndexes[corev1.Pod]
+	appIndexes    *timeOrderedIndexes[corev1.Pod]
+	pvIndexes     *timeOrderedIndexes[corev1.PersistentVolume]
+	pvcIndexes    *timeOrderedIndexes[corev1.PersistentVolumeClaim]
+	jobsIndexes   *timeOrderedIndexes[batchv1.Job]
+	secretIndexes *timeOrderedIndexes[corev1.Secret]
+	pairLock      sync.RWMutex
+	pairs         map[types.NamespacedName]types.NamespacedName
 }
 
 func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config) *API {
@@ -59,19 +60,20 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 		return nil
 	}
 	api := &API{
-		sysNamespace: sysNamespace,
-		cachedReader: client,
-		mgrClient:    client,
-		client:       kubernetes.NewForConfigOrDie(config),
-		k8sclient:    k8sClient,
-		csiNodeIndex: make(map[string]types.NamespacedName),
-		sysIndexes:   newTimeIndexes[corev1.Pod](),
-		appIndexes:   newTimeIndexes[corev1.Pod](),
-		pvIndexes:    newTimeIndexes[corev1.PersistentVolume](),
-		pvcIndexes:   newTimeIndexes[corev1.PersistentVolumeClaim](),
-		jobsIndexes:  newTimeIndexes[batchv1.Job](),
-		pairs:        make(map[types.NamespacedName]types.NamespacedName),
-		kubeconfig:   config,
+		sysNamespace:  sysNamespace,
+		cachedReader:  client,
+		mgrClient:     client,
+		client:        kubernetes.NewForConfigOrDie(config),
+		k8sclient:     k8sClient,
+		csiNodeIndex:  make(map[string]types.NamespacedName),
+		sysIndexes:    newTimeIndexes[corev1.Pod](),
+		appIndexes:    newTimeIndexes[corev1.Pod](),
+		pvIndexes:     newTimeIndexes[corev1.PersistentVolume](),
+		pvcIndexes:    newTimeIndexes[corev1.PersistentVolumeClaim](),
+		jobsIndexes:   newTimeIndexes[batchv1.Job](),
+		secretIndexes: newTimeIndexes[corev1.Secret](),
+		pairs:         make(map[types.NamespacedName]types.NamespacedName),
+		kubeconfig:    config,
 	}
 	return api
 }
