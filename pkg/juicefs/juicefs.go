@@ -374,12 +374,14 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 // When STORAGE_CLASS_SHARE_MOUNT env is set:
 //
 //	in dynamic provision, UniqueId set as SC name
+//	if sc secrets is template. UniqueId set as volumeId
 //	in static provision, UniqueId set as volumeId
 //
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 //
 //	UniqueId set as volumeId
 func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, error) {
+	log := util.GenLog(ctx, jfsLog, "getUniqueId")
 	if config.StorageClassShareMount && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
@@ -387,7 +389,19 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, err
 			return "", err
 		}
 		// In dynamic provision, PV.spec.StorageClassName is which SC(StorageClass) it belongs to.
+		// if SC has template secrets, UniqueId set as volumeId
 		if err == nil && pv.Spec.StorageClassName != "" {
+			if sc, err := j.K8sClient.GetStorageClass(ctx, pv.Spec.StorageClassName); err != nil {
+				log.Error(err, "Get storage class error", "sc", pv.Spec.StorageClassName)
+				return "", err
+			} else {
+				secret := sc.Parameters[common.PublishSecretName]
+				secretNamespace := sc.Parameters[common.PublishSecretNamespace]
+				if strings.Contains(secret, "$") || strings.Contains(secretNamespace, "$") {
+					log.Info("storageClass has template secrets, cannot use `STORAGE_CLASS_SHARE_MOUNT`", "volumeId", volumeId)
+					return volumeId, nil
+				}
+			}
 			return pv.Spec.StorageClassName, nil
 		}
 	}
