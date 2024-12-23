@@ -7,14 +7,18 @@ Enterprise users can use the "Cache Group Operator" to create and manage [distri
 
 ## Install Cache Group Operator {#install-cache-group-operator}
 
+Install Helm, add the JuiceFS Helm chart repo:
+
 ```shell
 helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
+```
 
-wget https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml
+Before installation, read [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) to learn all available configuration items, if you need to override any config, create a new values file (e.g. `values-mycluster.yaml`) and put any customizations there, and when you need to install operator on multiple Kubernetes clusters, you will create multiple values file to use different settings.
 
-# Modify values.yaml as needed
-helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values.yaml
+```shell
+# Modify values-mycluster.yaml as needed
+helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values-mycluster.yaml
 ```
 
 You can use `kubectl wait` to wait for the Operator to be ready:

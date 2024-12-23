@@ -7,14 +7,18 @@ sidebar_position: 4
 
 ## 安装缓存组 Operator {#install-cache-group-operator}
 
+安装 Helm，然后加入 JuiceFS 官方仓库。
+
 ```shell
 helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
+```
 
-wget https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml
+安装之前，阅读 [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) 了解各个配置项，该文件包含了所有的默认配置，如果需要修改配置，请在本地创建另一份 values（以下且称 `values-mycuster.yaml`），并把需要修改的部分加入其中。如果需要在多个 Kubernetes 集群部署 Operator，就创建多个 values 文件，来区分不同的集群配置。
 
-# 可根据需要修改 values.yaml
-helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values.yaml
+```shell
+# 根据需要修改 values-mycluster.yaml
+helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values-mycluster.yaml
 ```
 
 可以使用 `kubectl wait` 等待 Operator 准备就绪：
