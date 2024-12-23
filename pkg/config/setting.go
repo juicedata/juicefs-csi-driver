@@ -669,8 +669,12 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 		return nil
 	}
 	if custSecret != nil {
+		secretsMap := make(map[string]string)
+		for k, v := range custSecret.Data {
+			secretsMap[k] = string(v[:])
+		}
 		custSetting := &JfsSetting{}
-		secretStr, err := json.Marshal(custSecret.Data)
+		secretStr, err := json.Marshal(secretsMap)
 		if err != nil {
 			log.Error(err, "Marshal custSecret error")
 		}
@@ -691,10 +695,6 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 				setting.Envs = custSetting.Envs
 			}
 			setting.CustomerSecret = custSecret
-			secretsMap := make(map[string]string)
-			for k, v := range custSecret.Data {
-				secretsMap[k] = string(v[:])
-			}
 			if !setting.IsCe {
 				if setting.Token == "" {
 					log.Info("token is empty, skip authfs.")
