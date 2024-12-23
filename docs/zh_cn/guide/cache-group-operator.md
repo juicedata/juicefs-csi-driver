@@ -61,6 +61,8 @@ spec:
         juicefs.io/cg-worker: "true"
       image: juicedata/mount:ee-5.1.1-1faf43b
       opts:
+        - cache-size=204800
+        - free-space-ratio=0.01
         - group-weight=100
       resources:
         requests:
