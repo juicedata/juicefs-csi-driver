@@ -438,7 +438,7 @@ func newUpgradeJob(jobName string) *batchv1.Job {
 			Parallelism:             util.ToPtr(int32(1)),
 			Completions:             util.ToPtr(int32(1)),
 			BackoffLimit:            util.ToPtr(int32(0)),
-			TTLSecondsAfterFinished: util.ToPtr(int32(3600 * 24)), // automatically deleted after 1 day
+			TTLSecondsAfterFinished: util.ToPtr(int32(3600 * 24 * 7)), // automatically deleted after 7 day
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -582,7 +582,7 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 }
 
 func GenUpgradeJobName() string {
-	return fmt.Sprintf("juicefs-upgrade-job-%s", util.RandStringRunes(6))
+	return fmt.Sprintf("jfs-upgrade-job-%s", util.RandStringRunes(6))
 }
 
 func GenUpgradeConfig(jobName string) string {

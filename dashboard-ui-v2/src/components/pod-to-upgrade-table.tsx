@@ -133,7 +133,6 @@ const PodToUpgradeTable: React.FC<{
     <>
       <Table<UpgradeType>
         className="diff-pods-table"
-        pagination={false}
         columns={upgradeColumn}
         dataSource={mountPods(batchConfig?.batches || []) || []}
       />

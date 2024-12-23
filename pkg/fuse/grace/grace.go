@@ -31,6 +31,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -141,7 +142,7 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 
 	canUpgrade, reason, err := resource.CanUpgradeWithHash(ctx, client, *pu.pod, pu.recreate)
 	if err != nil || !canUpgrade {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade: %s", pu.pod.Name, reason))
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade: %s.", pu.pod.Name, reason))
 		return
 	}
 
@@ -171,12 +172,12 @@ const (
 func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) (*PodUpgrade, error) {
 	mountPod, err := client.GetPod(ctx, name, config.Namespace)
 	if err != nil {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not get pod", name))
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not get pod.", name))
 		log.Error(err, "get pod error", "name", name)
 		return nil, err
 	}
 	if mountPod.Spec.NodeName != config.NodeName {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is not on node", name))
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is not on node.", name))
 		return nil, err
 	}
 	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "metaurl")
@@ -206,13 +207,13 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 		var err error
 
 		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
-			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error(), p.pod.Name))
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
 			p.status = podUpgradeFail
 			return err
 		}
 
 		if err := p.sighup(ctx, conn, jfsConf); err != nil {
-			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error(), p.pod.Name))
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
 			p.status = podUpgradeFail
 			return err
 		}
@@ -339,6 +340,66 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	if upgradeUUID == "" {
 		return
 	}
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey:             common.PodTypeValue,
+			common.PodUpgradeUUIDLabelKey: upgradeUUID,
+		},
+	})
+	fieldSelector := fields.Set{
+		"spec.nodeName": p.pod.Spec.NodeName,
+	}
+	w, err := p.client.CoreV1().Pods(p.pod.Namespace).Watch(ctx, metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fieldSelector).String(),
+		LabelSelector: labelSelector.String(),
+	})
+	if err != nil {
+		log.Error(err, "watch pod error")
+		sendMessage(conn, fmt.Sprintf("WARNING watch pod error: %v", err))
+		p.polling(ctx, conn, upgradeUUID)
+		return
+	}
+	defer w.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
+			p.status = podUpgradeFail
+			return
+		case event := <-w.ResultChan():
+			po, ok := event.Object.(*corev1.Pod)
+			if !ok {
+				log.Error(nil, "unexpected type", "type", fmt.Sprintf("%T", event.Object))
+				continue
+			}
+			if po.Name == p.pod.Name {
+				if event.Type == watch.Deleted {
+					sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
+					continue
+				}
+				if resource.IsPodComplete(po) {
+					sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
+					continue
+				}
+			}
+
+			if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
+				if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
+					if resource.IsPodReady(po) {
+						sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
+						p.status = podUpgradeSuccess
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+func (p *PodUpgrade) polling(ctx context.Context, conn net.Conn, upgradeUUID string) {
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
