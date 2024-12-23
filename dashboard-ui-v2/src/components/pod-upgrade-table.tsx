@@ -36,8 +36,9 @@ const PodUpgradeTable: React.FC<{
   batchConfig?: BatchConfig
   diffPods?: [PodDiffConfig]
   diffStatus: Map<string, string>
+  failReasons: Map<string, string>
 }> = (props) => {
-  const { diffPods, batchConfig, diffStatus } = props
+  const { diffPods, batchConfig, diffStatus, failReasons } = props
   const [podMap, setPodMap] = useState<Map<string, PodDiffConfig>>()
 
   useEffect(() => {
@@ -119,18 +120,30 @@ const PodUpgradeTable: React.FC<{
     {
       title: <FormattedMessage id="upgradeStatus" />,
       key: 'status',
-      render: (podUpgrade) => (
-        <Badge
-          status={getUpgradeStatusBadge(
-            getPodUpgradeStatus(
-              podUpgrade.name,
-              diffStatus.get(podUpgrade.name) || 'pending',
-              batchConfig,
-            ),
-          )}
-          text={`${getPodUpgradeStatus(podUpgrade.name, diffStatus.get(podUpgrade.name) || 'pending', batchConfig)}`}
-        />
-      ),
+      render: (podUpgrade) => {
+        const podStatus = getPodUpgradeStatus(
+          podUpgrade.name,
+          diffStatus.get(podUpgrade.name) || 'pending',
+          batchConfig,
+        )
+        return (
+          <>
+            {podStatus !== 'fail' ?
+              <Badge
+                status={getUpgradeStatusBadge(podStatus)}
+                text={podStatus}
+              />
+              :
+              <Tooltip title={failReasons.get(podUpgrade.name) || ''}>
+                <Badge
+                  status={getUpgradeStatusBadge(podStatus)}
+                  text={podStatus}
+                />
+              </Tooltip>
+            }
+          </>
+        )
+      },
     },
     {
       title: <FormattedMessage id="diff" />,
@@ -142,9 +155,12 @@ const PodUpgradeTable: React.FC<{
             title={<FormattedMessage id="diff" />}
             trigger="click"
           >
-            <Tooltip title={<FormattedMessage id="clickToViewDetail" />}>
-              <Button icon={<DiffIcon />} />
-            </Tooltip>
+            {diffStatus.get(podDiff.name) !== 'success' ?
+              <Tooltip title={<FormattedMessage id="clickToViewDetail" />}>
+                <Button icon={<DiffIcon />} />
+              </Tooltip> :
+              <Button disabled={true} icon={<DiffIcon />} />
+            }
           </Popover>
         )
       },
@@ -154,7 +170,6 @@ const PodUpgradeTable: React.FC<{
   return (
     <ProCard>
       <Table<UpgradeType>
-        pagination={false}
         columns={upgradeColumn}
         dataSource={mountPods(batchConfig?.batches || []) || []}
       />
