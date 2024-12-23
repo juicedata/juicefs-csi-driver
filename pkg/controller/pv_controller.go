@@ -61,7 +61,7 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
 		watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
 		// for first time, we need to refresh the secret init config in pv controller
-		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretNamespace, secretName); err != nil {
+		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretName, secretNamespace); err != nil {
 			return reconcile.Result{}, err
 		}
 	}

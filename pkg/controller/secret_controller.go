@@ -93,7 +93,7 @@ func checkAndCleanOrphanSecret(ctx context.Context, client *k8sclient.K8sClient,
 }
 
 func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, name, namespace string) error {
-	secretCtrlLog.V(1).Info("refresh secret initconfig", "name", name, "namespace", namespace)
+	secretCtrlLog.V(1).Info("refresh secret initconfig", "namespace", namespace, "name", name)
 	secrets, err := client.GetSecret(ctx, name, namespace)
 	if err != nil {
 		secretCtrlLog.Error(err, "get secret error", "namespace", namespace, "name", name)
@@ -153,24 +153,26 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 }
 
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	secretCtrlLog.V(1).Info("Receive secret", "name", request.Name, "namespace", request.Namespace)
+	name := request.Name
+	namespace := request.Namespace
+	secretCtrlLog.V(1).Info("Receive secret", "namespace", namespace, "name", name)
 	secrets, err := m.GetSecret(ctx, request.Name, request.Namespace)
 	if err != nil && !k8serrors.IsNotFound(err) {
-		secretCtrlLog.Error(err, "get secret error", "name", request.Name)
+		secretCtrlLog.Error(err, "get secret error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 	if secrets == nil {
-		secretCtrlLog.V(1).Info("secret has been deleted.", "name", request.Name)
+		secretCtrlLog.V(1).Info("secret has been deleted.", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
 	}
 
 	if err := checkAndCleanOrphanSecret(ctx, m.K8sClient, secrets); err != nil {
-		secretCtrlLog.Error(err, "check and clean orphan secret error", "name", request.Name)
+		secretCtrlLog.Error(err, "check and clean orphan secret error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
 	if err := refreshSecretInitConfig(ctx, m.K8sClient, request.Name, request.Namespace); err != nil {
-		secretCtrlLog.Error(err, "refresh secret initconfig error", "name", request.Name)
+		secretCtrlLog.Error(err, "refresh secret initconfig error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 	// requeue after to make sure the initconfig is always up-to-date
