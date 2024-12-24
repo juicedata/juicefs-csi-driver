@@ -86,15 +86,17 @@ const UpgradeBasic: React.FC<{
               />
             </Tooltip>
           ) : null}
-          <Tooltip title="Delete">
-            <Button
-              onClick={() => {
-                action.execute(upgradeJob.job.metadata?.name || '')
-                window.location.href = `/jobs`
-              }}
-              icon={<DeleteIcon />}
-            />
-          </Tooltip>
+          {canDelete(status) ? (
+            <Tooltip title="Delete">
+              <Button
+                onClick={() => {
+                  action.execute(upgradeJob.job.metadata?.name || '')
+                  window.location.href = `/jobs`
+                }}
+                icon={<DeleteIcon />}
+              />
+            </Tooltip>
+          ) : null}
         </Space>
       }
     >
@@ -188,4 +190,8 @@ const canStop = (status: string): boolean => {
 
 const canResume = (status: string): boolean => {
   return status === 'pause'
+}
+
+const canDelete = (status: string): boolean => {
+  return status === 'fail' || status === 'success' || status === 'stop' || status === 'pause'
 }
