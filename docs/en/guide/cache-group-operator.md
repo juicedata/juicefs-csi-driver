@@ -1,39 +1,40 @@
 ---
 title: Cache Group Operator
 sidebar_position: 4
+description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Cache Group Operator. 
 ---
 
-Enterprise users can use the "Cache Group Operator" to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supports both GUI and CLI), and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
+Enterprise users can use the *Cache Group Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
 
-## Install Cache Group Operator {#install-cache-group-operator}
+## Install the Cache Group Operator {#install-cache-group-operator}
 
-Install Helm, add the JuiceFS Helm chart repo:
+Install Helm and add the JuiceFS Helm chart repository:
 
 ```shell
 helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
 ```
 
-Before installation, read [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) to learn all available configuration items, if you need to override any config, create a new values file (e.g. `values-mycluster.yaml`) and put any customizations there, and when you need to install operator on multiple Kubernetes clusters, you will create multiple values file to use different settings.
+Before installation, read [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) to learn all available configuration items. If modifications are needed, create a new `values` file (for example, `values-mycluster.yaml`) and include the parts you want to modify. If you need to install the operator on multiple Kubernetes clusters, create separate `values` files for each cluster configuration.
 
 ```shell
 # Modify values-mycluster.yaml as needed
 helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values-mycluster.yaml
 ```
 
-You can use `kubectl wait` to wait for the Operator to be ready:
+You can use `kubectl wait` to wait until the operator is ready:
 
 ```shell
 kubectl wait -n juicefs-cache-group --for=condition=Available=true --timeout=120s deployment/juicefs-cache-group-operator
 ```
 
-Once the Cache Group Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 and above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
+Once the Cache Group Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 or above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
 
 ![Cache Group Dashboard](../images/cache-group-dashboard.png)
 
-## Create Cache Group {#create-cache-group}
+## Create a cache group {#create-cache-group}
 
-Refer to the following example to save the cache group configuration as a YAML file (e.g., `juicefs-cache-group.yaml`). This example deploys a distributed cache on all nodes with the `juicefs.io/cg-worker: "true"` label (you can also set any label you like). For more configuration options, refer to the [Cache Group Configurations](#cache-group-configs) section.
+Refer to the following example to save the cache group configuration as a YAML file (for example, `juicefs-cache-group.yaml`). This example deploys a distributed cache on all nodes with the `juicefs.io/cg-worker: "true"` label (you can set any label you like). For more configuration options, refer to the [Cache group configurations](#cache-group-configs) section.
 
 ```yaml name="juicefs-cache-group.yaml"
 apiVersion: v1
@@ -85,9 +86,9 @@ If the Kubernetes nodes do not have the `juicefs.io/cg-worker: "true"` label, ad
 kubectl label node node1 juicefs.io/cg-worker=true
 ```
 
-## Get Cache Group Status {#get-cache-group-status}
+## Check cache group status {#check-cache-group-status}
 
-Use the following command to get the cache group status and confirm that the cache group is in the "Ready" state:
+Use the following command to check the cache group status and confirm that the cache group is in the "Ready" state:
 
 ```sh
 $ kubectl get cachegroups
@@ -95,11 +96,11 @@ NAME                CACHE GROUP NAME                        PHASE   READY   AGE
 cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
 ```
 
-## Use Cache Group {#use-cache-group}
+## Use the cache group {#use-cache-group}
 
-After completing the above steps, a JuiceFS distributed cache cluster has been started in K8s, with the cache group name `juicefs-cache-group-cachegroup-sample`. To allow the JuiceFS client of the application to use this cache cluster, the JuiceFS client needs to join this cache group and add the `--no-sharing` mount option. This way, the JuiceFS client of the application joins the cache group but does not participate in cache data construction, avoiding cache data instability caused by frequent client creation and destruction.
+After completing the above steps, a JuiceFS distributed cache cluster has been started in Kubernetes, with the cache group name `juicefs-cache-group-cachegroup-sample`. To allow the JuiceFS client of the application to use this cache cluster, the JuiceFS client needs to join this cache group and add the `--no-sharing` mount option. This way, the JuiceFS client of the application joins the cache group but does not participate in cache data construction, avoiding cache data instability caused by frequent client creation and destruction.
 
-For dynamic configuration, modify the mount options as shown below. For more information on how to adjust mount configurations, see [Mount Options](../guide/configurations.md#mount-options).
+For dynamic configuration, modify the mount options as shown below. For more information on how to adjust mount configurations, see [Mount options](../guide/configurations.md#mount-options).
 
 ```yaml {6-7}
 apiVersion: storage.k8s.io/v1
@@ -111,11 +112,11 @@ mountOptions:
   - no-sharing
 ```
 
-## Add and Delete Cache Nodes {#add-and-delete-cache-node}
+## Add and delete cache nodes {#add-and-delete-cache-node}
 
 The Cache Group Operator supports smooth scaling of cache nodes, ensuring that adjustments do not significantly impact cache hit rates.
 
-In the [Create Cache Group](#create-cache-group) example, Kubernetes nodes must have the `juicefs.io/cg-worker: "true"` label. Therefore, adding or deleting cache nodes involves adding or removing this label from Kubernetes nodes. For example, use the `kubectl` command to add or delete nodes:
+In the [Create a cache group](#create-cache-group) example, Kubernetes nodes must have the `juicefs.io/cg-worker: "true"` label. Therefore, adding or deleting cache nodes involves adding or removing this label from Kubernetes nodes. For example, use the `kubectl` command to add or delete nodes:
 
 ```sh
 # Add nodes
@@ -128,7 +129,7 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 When nodes change, the Cache Group Operator will smoothly add or delete nodes. The specific logic is as follows:
 
-- When adding nodes, the Cache Group Operator will automatically create new Worker Pods and add the [`group-backup`](https://juicefs.com/docs/cloud/guide/distributed-cache#group-backup) mount option. If the new Worker Pod receives an application request and finds a cache miss, it will forward the request to other cache nodes to ensure cache hits. By default, the `group-backup` mount option will be removed after 10 minutes, which can be controlled by the `spec.backupDuration` field:
+- When adding nodes, the Cache Group Operator automatically creates new Worker Pods and adds the [`group-backup`](https://juicefs.com/docs/cloud/guide/distributed-cache#group-backup) mount option. If the new Worker Pod receives an application request and finds a cache miss, it forwards the request to other cache nodes to ensure cache hits. By default, the `group-backup` mount option will be removed after 10 minutes, which can be controlled by the `spec.backupDuration` field:
 
   ```yaml {6}
   apiVersion: juicefs.io/v1
@@ -139,7 +140,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
     backupDuration: 10m
   ```
 
-- When removing nodes, the Cache Group Operator will first attempt to migrate the cache data on the node to other nodes before deleting the node. The maximum waiting time is 1 hour by default, which can be controlled by the `spec.waitingDeletedMaxDuration` field:
+- When removing nodes, the Cache Group Operator first attempts to migrate the cache data on the node to other nodes before deleting the node. The maximum waiting time is 1 hour by default, which can be controlled by the `spec.waitingDeletedMaxDuration` field:
 
   ```yaml {6}
   apiVersion: juicefs.io/v1
@@ -150,11 +151,11 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
     waitingDeletedMaxDuration: 1h
   ```
 
-## Cache Group Configurations {#cache-group-configs}
+## Cache group configurations {#cache-group-configs}
 
 All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml).
 
-### Update Strategy {#update-strategy}
+### Update strategy {#update-strategy}
 
 When updating the cache group configuration, you can specify the update strategy for the worker nodes under the cache group using the `spec.updateStrategy` field.
 
@@ -175,7 +176,7 @@ spec:
       maxUnavailable: 1
 ```
 
-### Cache Directory {#cache-directory}
+### Cache directory {#cache-directory}
 
 The cache directory can be set using the `spec.worker.template.cacheDirs` field. Supported types are `HostPath` and `PVC`.
 
@@ -198,9 +199,9 @@ spec:
           name: juicefs-cache-pvc
 ```
 
-### Specify Different Configurations for Different Nodes {#specify-different-configurations-for-different-nodes}
+### Specify different configurations for different nodes {#specify-different-configurations-for-different-nodes}
 
-Cache nodes may have heterogeneous configurations (e.g., different cache disk sizes). In this case, you can specify different configurations for different nodes using the `spec.worker.overwrite` field:
+Cache nodes may have heterogeneous configurations (for example, different cache disk sizes). In this case, you can specify different configurations for different nodes using the `spec.worker.overwrite` field:
 
 ```yaml {17-29}
 apiVersion: juicefs.io/v1
@@ -234,7 +235,7 @@ spec:
           type: HostPath
 ```
 
-### Mount Options {#mount-options}
+### Mount options {#mount-options}
 
 Mount options can be set using the `spec.worker.template.opts` field. Refer to the [documentation](https://juicefs.com/docs/cloud/reference/commands_reference/#mount) for all mount options.
 
@@ -254,9 +255,10 @@ spec:
         - group-weight=100
 ```
 
-### Cache Group Name {#cache-group-name}
+### Cache group name {#cache-group-name}
 
-The default cache group name format generated by the Cache Group Operator is `${NAMESPACE}-${NAME}`. If you want to customize the cache group name, you can set it using the `spec.cacheGroup` field:
+The Cache Group Operator generates default cache group names in the
+`${NAMESPACE}-${NAME}` format. If you want to customize the cache group name, you can set it using the `spec.cacheGroup` field:
 
 ```yaml {6}
 apiVersion: juicefs.io/v1
@@ -267,7 +269,7 @@ spec:
   cacheGroup: jfscachegroup
 ```
 
-### Clean Cache When Deleting a Node {#clean-cache-when-deleteing-a-node}
+### Clean cache when deleting a node {#clean-cache-when-deleteing-a-node}
 
 When deleting a node, you can specify whether to clean the cache using the `spec.cleanCache` field:
 
@@ -280,9 +282,9 @@ spec:
   cleanCache: true
 ```
 
-## Delete Cache Group {#delete-cache-group}
+## Delete a cache group {#delete-cache-group}
 
-Use the following command to delete the cache group. All Worker nodes under the cache cluster will be deleted:
+Use the following command to delete the cache group. All worker nodes under the cache cluster will be deleted:
 
 ```sh
 kubectl delete cachegroup cachegroup-sample
