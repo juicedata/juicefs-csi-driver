@@ -31,7 +31,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -352,99 +352,72 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	fieldSelector := fields.Set{
 		"spec.nodeName": p.pod.Spec.NodeName,
 	}
-	w, err := p.client.CoreV1().Pods(p.pod.Namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fieldSelector).String(),
-		LabelSelector: labelSelector.String(),
-	})
-	if err != nil {
-		log.Error(err, "watch pod error")
-		sendMessage(conn, fmt.Sprintf("WARNING watch pod error: %v", err))
-		p.polling(ctx, conn, upgradeUUID)
-		return
+
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	defer func() {
+		close(stop)
+		close(done)
+	}()
+	watchlist := cache.NewFilteredListWatchFromClient(
+		p.client.CoreV1().RESTClient(),
+		"pods",
+		p.pod.Namespace,
+		func(options *metav1.ListOptions) {
+			options.FieldSelector = fieldSelector.String()
+			options.LabelSelector = labelSelector.String()
+		},
+	)
+	handle := func(obj interface{}) {
+		po, ok := obj.(*corev1.Pod)
+		if !ok {
+			return
+		}
+		if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
+			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
+				if resource.IsPodReady(po) {
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
+					p.status = podUpgradeSuccess
+					done <- struct{}{}
+					return
+				}
+			}
+		}
+		if po.Name == p.pod.Name {
+			if resource.IsPodComplete(po) {
+				sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
+				return
+			}
+			if po.DeletionTimestamp != nil {
+				sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
+				return
+			}
+		}
 	}
-	defer w.Stop()
+	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: watchlist,
+		ObjectType:    &corev1.Pod{},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				handle(newObj)
+			},
+		},
+	})
+	go controller.Run(stop)
+
 	for {
 		select {
 		case <-ctx.Done():
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 			p.status = podUpgradeFail
 			return
-		case event := <-w.ResultChan():
-			po, ok := event.Object.(*corev1.Pod)
-			if !ok {
-				log.Error(nil, "unexpected type", "type", fmt.Sprintf("%T", event.Object))
-				continue
-			}
-			if po.Name == p.pod.Name {
-				if event.Type == watch.Deleted {
-					sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
-					continue
-				}
-				if resource.IsPodComplete(po) {
-					sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
-					continue
-				}
-			}
-
-			if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
-				if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
-					if resource.IsPodReady(po) {
-						sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
-						p.status = podUpgradeSuccess
-						return
-					}
-				}
-			}
-		}
-	}
-}
-
-func (p *PodUpgrade) polling(ctx context.Context, conn net.Conn, upgradeUUID string) {
-	t := time.NewTicker(1 * time.Second)
-	defer t.Stop()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	reportDeleted := false
-	for {
-		select {
-		case <-t.C:
-			po, err := p.client.GetPod(ctx, p.pod.Name, p.pod.Namespace)
-			if err != nil && !k8serrors.IsNotFound(err) {
-				log.Error(err, "get pod error", "pod", p.pod.Name)
-				sendMessage(conn, fmt.Sprintf("WARNING get pod error: %v", err))
-				continue
-			}
-			if po != nil {
-				if resource.IsPodComplete(po) {
-					sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
-				}
-			} else if !reportDeleted {
-				sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
-				reportDeleted = true
-			}
-			labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-				common.PodTypeKey:             common.PodTypeValue,
-				common.PodUpgradeUUIDLabelKey: upgradeUUID,
-			}}
-			fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-			pods, err := p.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-			if err != nil {
-				log.Error(err, "List pod error")
-				sendMessage(conn, fmt.Sprintf("WARNING list pod error: %v", err))
-				continue
-			}
-			for _, po := range pods {
-				if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) && po.Name != p.pod.Name {
-					if resource.IsPodReady(&po) {
-						sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
-						p.status = podUpgradeSuccess
-						return
-					}
-				}
-			}
-		case <-ctx.Done():
-			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
-			p.status = podUpgradeFail
+		case <-done:
 			return
 		}
 	}

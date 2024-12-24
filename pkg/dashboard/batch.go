@@ -244,6 +244,15 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
+		conf, err := config.LoadUpgradeConfig(c, api.k8sclient, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		if !api.canDoAction(c, conf.Status, action.Action) {
+			c.String(400, "can not %s job", action.Action)
+			return
+		}
 		pod, err := api.getPodOfUpgradeJob(c, job)
 		if err != nil {
 			c.String(500, "get pod of job error %v", err)
@@ -265,7 +274,21 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		err := api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
+		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		conf, err := config.LoadUpgradeConfig(c, api.k8sclient, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		if !api.canDoAction(c, conf.Status, "delete") {
+			c.String(400, "can not delete job")
+			return
+		}
+		err = api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
 			PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
 		})
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -630,6 +653,25 @@ func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1
 		return &podList.Items[0], nil
 	}
 	return nil, nil
+}
+
+func (api *API) canDoAction(ctx context.Context, status config.UpgradeStatus, action string) bool {
+	switch action {
+	case "stop":
+		return status != config.Fail &&
+			status != config.Success &&
+			status != config.Stop
+	case "resume":
+		return status == config.Pause
+	case "pause":
+		return status != config.Stop &&
+			status != config.Pause &&
+			status != config.Fail &&
+			status != config.Success
+	case "delete":
+		return status == config.Fail || status == config.Success || status == config.Stop || status == config.Pause
+	}
+	return false
 }
 
 func (api *API) doActionInUpgradeJob(ctx context.Context, pod *corev1.Pod, action string) error {

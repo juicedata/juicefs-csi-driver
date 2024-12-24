@@ -276,6 +276,9 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 			if u.status == config.Stop && mp.Status == config.Running {
 				mp.Status = config.Stop
 			}
+			if u.status == config.Fail && mp.Status == config.Running {
+				mp.Status = config.Fail
+			}
 			conf.Batches[i][j] = mp
 		}
 	}
