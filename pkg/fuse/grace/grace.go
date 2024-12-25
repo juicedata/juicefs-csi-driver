@@ -231,7 +231,7 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 
 func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.JuiceConf) error {
 	// send SIGHUP to mount pod
-	log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name)
+	log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "namespace", p.pod.Namespace)
 	sendMessage(conn, fmt.Sprintf("send SIGHUP to mount pod %s", p.pod.Name))
 	if stdout, stderr, err := p.client.ExecuteInContainer(
 		ctx,
@@ -240,14 +240,13 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		common.MountContainerName,
 		[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
 	); err != nil {
-		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
-		sendMessage(conn, fmt.Sprintf("fail to send SIGHUP to mount pod: %v", err))
+		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "stdout", stdout, "stderr", stderr, "error", err)
 		p.status = podUpgradeFail
-		return err
+		return fmt.Errorf("fail to send SIGHUP to mount pod: %v", err)
 	}
 	upgradeEvtMsg := fmt.Sprintf("[%s] Upgrade binary in %s", p.pod.Name, common.MountContainerName)
 	if p.recreate {
-		upgradeEvtMsg = "Upgrade pod with recreating"
+		upgradeEvtMsg = fmt.Sprintf("Upgrade pod [%s] with recreating", p.pod.Name)
 		sendMessage(conn, upgradeEvtMsg)
 	} else {
 		sendMessage(conn, "POD-SUCCESS "+upgradeEvtMsg)
@@ -271,29 +270,29 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	var conf []byte
 	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
 		conf, err = os.ReadFile(path.Join(mntPath, ".config"))
-		return err
+		return fmt.Errorf("fail to read config file: %v", err)
 	})
 	jfsConf, err := util.ParseConfig(conf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to parse config file: %v", err)
 	}
 	log.V(1).Info("get pid in mount pod", "pid", jfsConf.Pid)
 
 	cJob, err := builder.NewCanaryJob(ctx, p.client, p.pod, p.recreate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to new canary job: %v", err)
 	}
 	log.V(1).Info("create canary job", "job", cJob.Name)
 	if _, err := p.client.CreateJob(ctx, cJob); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error(err, "create canary pod error", "name", p.pod.Name)
-		return nil, err
+		return nil, fmt.Errorf("fail to create canary job: %v", err)
 	}
 
 	log.V(1).Info("wait for canary job completed", "job", cJob.Name)
 	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
 		log.Error(err, "canary job is not complete, delete it.", "job", cJob.Name)
 		_ = p.client.DeleteJob(ctx, cJob.Name, cJob.Namespace)
-		return nil, err
+		return nil, fmt.Errorf("fail to wait for canary job complete: %v", err)
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
@@ -328,7 +327,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		log.Info(msg, "pod", p.pod.Name)
 		sendMessage(conn, msg)
 		if err := p.uploadBinary(ctx); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fail to upload binary: %v", err)
 		}
 	}
 	return jfsConf, nil

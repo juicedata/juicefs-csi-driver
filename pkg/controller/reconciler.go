@@ -119,6 +119,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 
 			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
 			if backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
+				reconcilerLog.V(1).Info("in backoff, retry later", "name", pod.Name)
 				continue
 			}
 			g.Go(func() error {
