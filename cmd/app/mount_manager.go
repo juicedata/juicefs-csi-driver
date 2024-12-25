@@ -113,6 +113,10 @@ func (m *MountManager) Start(ctx context.Context) {
 		return
 	}
 	if config.CacheClientConf {
+		if err := (mountctrl.NewPVController(m.client)).SetupWithManager(m.mgr); err != nil {
+			log.Error(err, "Register pv controller error")
+			return
+		}
 		if err := (mountctrl.NewSecretController(m.client)).SetupWithManager(m.mgr); err != nil {
 			log.Error(err, "Register secret controller error")
 			return

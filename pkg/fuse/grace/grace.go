@@ -375,7 +375,7 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
 				if resource.IsPodReady(po) {
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
 					p.status = podUpgradeSuccess
 					done <- struct{}{}
 					return

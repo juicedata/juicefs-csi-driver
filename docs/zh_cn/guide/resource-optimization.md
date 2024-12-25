@@ -1,6 +1,6 @@
 ---
 title: 资源优化
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱动中，也有不少方面可以做资源占用优化，甚至带来一定的性能提升。在这里集中罗列介绍。

@@ -300,25 +300,7 @@ Dedicated cache cluster is only supported in JuiceFS Cloud Service & Enterprise 
 
 Kubernetes containers are usually ephemeral, a [distributed cache cluster](/docs/cloud/guide/distributed-cache) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](/docs/cloud/guide/distributed-cache#dedicated-cache-cluster) to achieve a stable cache service.
 
-Use below example to deploy a StatefulSet of JuiceFS clients, together they form a stable JuiceFS cache group.
+There are currently two ways to deploy a distributed cache cluster in Kubernetes:
 
-A JuiceFS cache cluster is deployed with the cache group name `jfscache`, in order to use this cache cluster in application JuiceFS clients, you'll need to join them into the same cache group, and additionally add the `--no-sharing` option, so that these application clients doesn't really involve in building the cache data, this is what prevents a instable cache group.
-
-Under dynamic provisioning, modify mount options according to below examples, see full description in [mount options](../guide/configurations.md#mount-options).
-
-```yaml {13-14}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions:
-  ...
-  - cache-group=jfscache
-  - no-sharing
-```
+1. For most scenarios, it can be deployed through ["Cache Group Operator"](./cache-group-operator.md);
+2. For scenarios that require flexible customization of deployment configuration, you can deploy it through ["Write your own YAML configuration file"](./generic-applications.md#distributed-cache-cluster).

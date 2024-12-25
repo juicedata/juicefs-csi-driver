@@ -57,8 +57,7 @@ const UpgradeModal: React.FC<{
       onMessage: async (msg) => {
         setData((prev) => prev + msg.data)
         if (msg.data.includes('POD-SUCCESS')) {
-          const regex =
-            /Upgrade mount pod and recreate one: ([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)"/
+          const regex = /Upgrade mount pod and recreate one: ([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*) !/
           const match = msg.data.match(regex)
 
           if (match && match[1]) {

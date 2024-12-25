@@ -863,8 +863,14 @@ def test_pod_resource_err():
 def test_cache_client_conf():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
     secret = Secret(secret_name=SECRET_NAME)
+    # create a used pv
+    # deploy pv with secret
+    pv = PV(name="pv-cache-client-conf", access_mode="ReadWriteMany", volume_handle="pv-cache-client-conf", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
     secret.watch_for_initconfig_injection()
-
+    pv.delete()
+    LOG.info("Test pass.")
 
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")

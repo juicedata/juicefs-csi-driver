@@ -1,6 +1,6 @@
 ---
 title: Running other JuiceFS applications
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 Strictly speaking, this chapter isn't directly related to JuiceFS CSI Driver, they are generic Kubernetes applications that can run without our CSI Driver. For example:
@@ -91,6 +91,10 @@ spec:
 ```
 
 ## Deploy distributed cache cluster {#distributed-cache-cluster}
+
+:::tip
+For most scenarios, it is more convenient to deploy and manage distributed cache cluster through ["Cache Group Operator"](./cache-group-operator.md), and it is recommended to use this method first.
+:::
 
 Refer to below examples to deploy a stable, dedicated cache cluster within Kubernetes, on selected nodes.
 
