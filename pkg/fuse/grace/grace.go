@@ -87,8 +87,10 @@ func ServeGfShutdown(addr string) error {
 }
 
 type upgradeRequest struct {
-	action string
-	name   string
+	action     string
+	name       string
+	configName string
+	batchIndex int
 }
 
 // parseRequest parse request from message
@@ -104,6 +106,27 @@ func parseRequest(message string) upgradeRequest {
 		return req
 	}
 	req.action = ss[1]
+	if ss[0] == "BATCH" && len(ss) > 2 {
+		options := strings.Split(ss[2], ",")
+		for _, option := range options {
+			ops := strings.Split(option, "=")
+			if len(ops) < 2 {
+				continue
+			}
+			if ops[0] == "batchIndex" {
+				w, err := strconv.Atoi(ops[1])
+				if err != nil {
+					log.Error(err, "failed to parse options", "option", option)
+					continue
+				}
+				req.batchIndex = w
+			}
+			if ops[0] == "batchConfig" {
+				req.configName = ops[1]
+			}
+		}
+		return req
+	}
 	return req
 }
 
@@ -127,6 +150,11 @@ func handleShutdown(conn net.Conn) {
 		log.Error(err, "failed to create k8s client")
 		return
 	}
+	if req.name == "BATCH" {
+		NewBatchUpgrade(client, req).BatchUpgrade(context.TODO(), conn)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.TODO(), singleUpgradeTimeout)
 	defer cancel()
 	SinglePodUpgrade(ctx, client, req.name, req.action == recreate, conn)
@@ -150,6 +178,9 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 		log.Error(err, "graceful shutdown error")
 		return
 	}
+	if pu.recreate {
+		pu.waitForUpgrade(ctx, conn)
+	}
 }
 
 type PodUpgrade struct {
@@ -159,15 +190,8 @@ type PodUpgrade struct {
 	ce          bool
 	hashVal     string
 	upgradeUUID string
-	status      podUpgradeStatus
+	status      config.UpgradeStatus
 }
-
-type podUpgradeStatus string
-
-const (
-	podUpgradeSuccess podUpgradeStatus = "success"
-	podUpgradeFail    podUpgradeStatus = "fail"
-)
 
 func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) (*PodUpgrade, error) {
 	mountPod, err := client.GetPod(ctx, name, config.Namespace)
@@ -208,13 +232,13 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 
 		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
-			p.status = podUpgradeFail
+			p.status = config.Fail
 			return err
 		}
 
 		if err := p.sighup(ctx, conn, jfsConf); err != nil {
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
-			p.status = podUpgradeFail
+			p.status = config.Fail
 			return err
 		}
 		return nil
@@ -223,9 +247,6 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 		return err
 	}
 
-	if p.recreate {
-		p.waitForUpgrade(ctx, conn)
-	}
 	return nil
 }
 
@@ -241,7 +262,7 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
 	); err != nil {
 		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "stdout", stdout, "stderr", stderr, "error", err)
-		p.status = podUpgradeFail
+		p.status = config.Fail
 		return fmt.Errorf("fail to send SIGHUP to mount pod: %v", err)
 	}
 	upgradeEvtMsg := fmt.Sprintf("[%s] Upgrade binary in %s", p.pod.Name, common.MountContainerName)
@@ -250,7 +271,7 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		sendMessage(conn, upgradeEvtMsg)
 	} else {
 		sendMessage(conn, "POD-SUCCESS "+upgradeEvtMsg)
-		p.status = podUpgradeSuccess
+		p.status = config.Success
 	}
 	if err := p.client.CreateEvent(ctx, *p.pod, corev1.EventTypeNormal, "Upgrade", upgradeEvtMsg); err != nil {
 		log.Error(err, "fail to create event")
@@ -375,8 +396,8 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
 				if resource.IsPodReady(po) {
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s", p.pod.Name, po.Name))
-					p.status = podUpgradeSuccess
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
+					p.status = config.Success
 					done <- struct{}{}
 					return
 				}
@@ -414,7 +435,7 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		select {
 		case <-ctx.Done():
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
-			p.status = podUpgradeFail
+			p.status = config.Fail
 			return
 		case <-done:
 			return
