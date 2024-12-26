@@ -123,7 +123,6 @@ func GenAuthCmd(secrets map[string]string, setting *JfsSetting) (args []string, 
 		args = append(args, fmt.Sprintf("--conf-dir=%s", setting.ClientConfPath))
 	}
 
-	log.Info("AuthFs cmd", "args", cmdArgs)
 	return
 }
 
@@ -184,6 +183,5 @@ func GenFormatCmd(secrets map[string]string, noUpdate bool, setting *JfsSetting)
 		cmdArgs = append(cmdArgs, stripped...)
 	}
 
-	log.Info("ce format cmd", "args", cmdArgs)
 	return
 }

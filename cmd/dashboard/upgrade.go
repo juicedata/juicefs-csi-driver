@@ -215,21 +215,27 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 	}
 	u.setCrtBatchStatus(config.Running)
 	var (
-		wg       sync.WaitGroup
-		batch    = u.conf.Batches[u.crtBatch-1]
-		resultCh = make(chan error, len(batch))
+		wg                  sync.WaitGroup
+		batch               = u.conf.Batches[u.crtBatch-1]
+		crtBatchFinalStatus = config.Success
+		csiNodeNames        = make(map[string]bool)
 	)
+	// trigger upgrade in each csi node only one time
+	for _, mp := range batch {
+		csiNodeNames[mp.CSINodePod] = true
+	}
+	resultCh := make(chan error, len(csiNodeNames))
 	go func() {
 		defer func() {
 			wg.Wait()
 			close(resultCh)
 		}()
-		for _, mp := range batch {
+		for csiNode := range csiNodeNames {
 			wg.Add(1)
-			go func(mp config.MountPodUpgrade) {
-				resultCh <- u.triggerUpgrade(ctx, &mp)
+			go func() {
+				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, u.crtBatch)
 				wg.Done()
-			}(mp)
+			}()
 		}
 	}()
 	for oneErr := range resultCh {
@@ -237,17 +243,15 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 		// 1. trigger upgrade failed
 		// 2. pod upgrade failed which is parsed in log stream
 		if oneErr != nil {
-			u.setCrtBatchStatus(config.Fail)
-			return
+			crtBatchFinalStatus = config.Fail
 		}
 		for _, s := range u.podsStatus {
 			if s == config.Fail {
-				u.setCrtBatchStatus(config.Fail)
-				return
+				crtBatchFinalStatus = config.Fail
 			}
 		}
 	}
-	u.setCrtBatchStatus(config.Success)
+	u.setCrtBatchStatus(crtBatchFinalStatus)
 }
 
 func (u *BatchUpgrade) setCrtBatchStatus(s config.UpgradeStatus) {
@@ -289,14 +293,14 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 	}
 }
 
-func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUpgrade) error {
-	cmds := []string{"juicefs-csi-driver", "upgrade", mp.Name}
+func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, configName string, crtBatchIndex int) error {
+	cmds := []string{"juicefs-csi-driver", "upgrade", "BATCH", "--batchConfig", configName, "--batchIndex", fmt.Sprintf("%d", crtBatchIndex)}
 	if !u.conf.NoRecreate {
 		cmds = append(cmds, "--recreate")
 	}
 	req := u.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Name(mp.CSINodePod).
+		Name(csiNode).
 		Namespace(u.sysNamespace).SubResource("exec")
 	req.VersionedParams(&corev1.PodExecOptions{
 		Command:   cmds,

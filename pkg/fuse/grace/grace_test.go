@@ -17,6 +17,7 @@
 package grace
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -48,6 +49,18 @@ func Test_parseRequest(t *testing.T) {
 			want: upgradeRequest{
 				action: noRecreate,
 				name:   "juicefs-xxxx",
+			},
+		},
+		{
+			name: "batch",
+			args: args{
+				message: fmt.Sprintf("BATCH %s batchConfig=test,batchIndex=1", recreate),
+			},
+			want: upgradeRequest{
+				action:     recreate,
+				name:       "BATCH",
+				configName: "test",
+				batchIndex: 1,
 			},
 		},
 	}
