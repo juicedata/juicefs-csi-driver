@@ -143,4 +143,8 @@ export default {
   upgradeLog: '升级日志',
   jobNotFound: '任务找不到',
   jobName: '任务名',
+  deleteJob: '删除任务',
+  deleteJobDesc: '你确定删除该任务吗？',
+  yes: '是',
+  no: '否',
 }
