@@ -60,7 +60,7 @@ func NewBatchUpgrade(client *k8s.K8sClient, req upgradeRequest) *BatchUpgrade {
 	}
 }
 
-func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
+func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 	batchConfig, err := config.LoadUpgradeConfig(ctx, u.client, u.batchConfigName)
 	if err != nil {
 		return err
@@ -89,6 +89,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		if _, ok := podNames[po.Name]; !ok {
 			continue
 		}
+		delete(podNames, po.Name)
 		canUpgrade, reason, err := resource.CanUpgradeWithHash(ctx, u.client, po, u.recreate)
 		if err != nil || !canUpgrade {
 			log.Info("pod can not upgrade, ignore", "pod", pod.Name, "err", err, "reason", reason)
@@ -113,11 +114,14 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		podNameStrs = append(podNameStrs, name)
 	}
 	log.Info("pods to upgrade", "pods", strings.Join(podNameStrs, ", "))
+	for name := range podNames {
+		sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] has already upgraded in node %s.", name, config.NodeName))
+	}
 	return nil
 }
 
 func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
-	if err := u.fetchPods(ctx); err != nil {
+	if err := u.fetchPods(ctx, conn); err != nil {
 		return
 	}
 	var (
@@ -136,6 +140,9 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
 				p.status = config.Fail
 				u.failSum++
+				if e := resource.DelPodAnnotation(ctx, u.client, p.pod, []string{common.JfsUpgradeProcess}); e != nil {
+					sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", p.pod.Name, e.Error()))
+				}
 				return
 			}
 		}()
@@ -146,7 +153,7 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 }
 
 func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
-	ctx, cancel := context.WithTimeout(ctx, 3600*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
 	defer cancel()
 
 	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
