@@ -16,7 +16,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, Space, Tooltip } from 'antd'
+import { Button, Popconfirm, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -88,13 +88,19 @@ const UpgradeBasic: React.FC<{
           ) : null}
           {canDelete(status) ? (
             <Tooltip title="Delete">
-              <Button
-                onClick={() => {
+              <Popconfirm
+                placement="topRight"
+                title={<FormattedMessage id="deleteJob" />}
+                description={<FormattedMessage id="deleteJobDesc" />}
+                okText={<FormattedMessage id="yes" />}
+                cancelText={<FormattedMessage id="no" />}
+                onConfirm={() => {
                   action.execute(upgradeJob.job.metadata?.name || '')
                   window.location.href = `/jobs`
                 }}
-                icon={<DeleteIcon />}
-              />
+              >
+                <Button icon={<DeleteIcon />} />
+              </Popconfirm>
             </Tooltip>
           ) : null}
         </Space>

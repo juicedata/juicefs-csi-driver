@@ -70,7 +70,7 @@ export default {
   mountContainUidMsg:
     'Mount Pod still contain its uid，please check logs of CSI Node',
   podFinalizerMsg:
-    "There are still finalizers in the Pod. Please check the finalizer's status.",
+    'There are still finalizers in the Pod. Please check the finalizer\'s status.',
   csiNodeNullMsg:
     'CSI Node in the node did not start, please check: 1. If it is in sidecar mode, please check whether the namespace has set the required label or check the CSI Controller log to confirm why the sidecar is not injected; 2. If it is in Mount Pod mode, please check Whether CSI Node DaemonSet has been scheduled to this node.',
   csiNodeErrMsg:
@@ -148,4 +148,8 @@ export default {
   upgradeLog: 'Upgrade Log',
   jobNotFound: 'Task not found',
   inputJobName: 'Job Name',
+  deleteJob: 'Delete Task',
+  deleteJobDesc: 'Are you sure to delete this task?',
+  yes: 'Yes',
+  no: 'No',
 }
