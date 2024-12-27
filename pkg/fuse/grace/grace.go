@@ -176,6 +176,12 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 
 	if err := pu.gracefulShutdown(ctx, conn); err != nil {
 		log.Error(err, "graceful shutdown error")
+		if pu.recreate {
+			if e := resource.DelPodAnnotation(ctx, client, pu.pod, []string{common.JfsUpgradeProcess}); e != nil {
+				sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", pu.pod.Name, e.Error()))
+				return
+			}
+		}
 		return
 	}
 	if pu.recreate {
@@ -224,33 +230,27 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 
 func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
 	lock := config.GetPodLock(p.hashVal)
-	err := func() error {
-		lock.Lock()
-		defer lock.Unlock()
-		var jfsConf *util.JuiceConf
-		var err error
+	lock.Lock()
+	defer lock.Unlock()
 
-		if p.isInUpgradeProcess() {
-			sendMessage(conn, fmt.Sprintf("[%s] pod is already in upgrade process.", p.pod.Name))
-			return nil
-		}
-		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
-			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
-			p.status = config.Fail
-			return err
-		}
+	var jfsConf *util.JuiceConf
+	var err error
 
-		if err := p.sighup(ctx, conn, jfsConf); err != nil {
-			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
-			p.status = config.Fail
-			return err
-		}
+	if p.isInUpgradeProcess() {
+		sendMessage(conn, fmt.Sprintf("[%s] pod is already in upgrade process.", p.pod.Name))
 		return nil
-	}()
-	if err != nil {
+	}
+	if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
+		p.status = config.Fail
 		return err
 	}
 
+	if err := p.sighup(ctx, conn, jfsConf); err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
+		p.status = config.Fail
+		return err
+	}
 	return nil
 }
 
@@ -287,7 +287,12 @@ func (p *PodUpgrade) isInUpgradeProcess() bool {
 	if p.pod.Annotations == nil {
 		return false
 	}
-	return p.pod.Annotations[common.JfsUpgradeProcess] == "true"
+	t, err := time.Parse(time.DateTime, p.pod.Annotations[common.JfsUpgradeProcess])
+	if err != nil {
+		log.Error(err, "parse upgrade time from pod upgradeProcess error", "pod", p.pod.Name, "time", p.pod.Annotations[common.JfsUpgradeProcess])
+		return false
+	}
+	return time.Since(t) < 5*time.Minute
 }
 
 func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.JuiceConf, error) {
@@ -301,8 +306,12 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
 	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		conf, err = os.ReadFile(path.Join(mntPath, ".config"))
-		return fmt.Errorf("fail to read config file: %v", err)
+		confPath := path.Join(mntPath, ".config")
+		conf, err = os.ReadFile(confPath)
+		if err != nil {
+			return fmt.Errorf("fail to read config file %s: %v", confPath, err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -331,14 +340,13 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
-	if err := resource.AddPodAnnotation(ctx, p.client, p.pod, map[string]string{common.JfsUpgradeProcess: "true"}); err != nil {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] %s.", p.pod.Name, err.Error()))
-		return nil, err
-	}
-
 	if p.recreate {
-		// set fuse fd to -1 in mount pod
+		if err := resource.AddPodAnnotation(ctx, p.client, p.pod, map[string]string{common.JfsUpgradeProcess: time.Now().Format(time.DateTime)}); err != nil {
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] %s.", p.pod.Name, err.Error()))
+			return nil, err
+		}
 
+		// set fuse fd to -1 in mount pod
 		// update sid
 		if p.ce {
 			passfd.GlobalFds.UpdateSid(p.pod, jfsConf.Meta.Sid)
