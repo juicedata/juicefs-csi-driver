@@ -230,6 +230,10 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 		var jfsConf *util.JuiceConf
 		var err error
 
+		if p.isInUpgradeProcess() {
+			sendMessage(conn, fmt.Sprintf("[%s] pod is already in upgrade process.", p.pod.Name))
+			return nil
+		}
 		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
 			p.status = config.Fail
@@ -279,6 +283,13 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 	return nil
 }
 
+func (p *PodUpgrade) isInUpgradeProcess() bool {
+	if p.pod.Annotations == nil {
+		return false
+	}
+	return p.pod.Annotations[common.JfsUpgradeProcess] == "true"
+}
+
 func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.JuiceConf, error) {
 	mntPath, _, err := util.GetMountPathOfPod(*p.pod)
 	if err != nil {
@@ -293,6 +304,9 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		conf, err = os.ReadFile(path.Join(mntPath, ".config"))
 		return fmt.Errorf("fail to read config file: %v", err)
 	})
+	if err != nil {
+		return nil, err
+	}
 	jfsConf, err := util.ParseConfig(conf)
 	if err != nil {
 		return nil, fmt.Errorf("fail to parse config file: %v", err)
@@ -316,6 +330,11 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, fmt.Errorf("fail to wait for canary job complete: %v", err)
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
+
+	if err := resource.AddPodAnnotation(ctx, p.client, p.pod, map[string]string{common.JfsUpgradeProcess: "true"}); err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] %s.", p.pod.Name, err.Error()))
+		return nil, err
+	}
 
 	if p.recreate {
 		// set fuse fd to -1 in mount pod

@@ -229,8 +229,12 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 			sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", config.NodeName))
 			return
 		default:
-			if u.successSum+u.failSum == len(u.podsToUpgrade) {
+			if u.successSum == len(u.podsToUpgrade) {
 				sendMessage(conn, fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", config.NodeName))
+				return
+			}
+			if u.failSum > 0 && u.failSum+u.successSum == len(u.podsToUpgrade) {
+				sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL some pods of current batch upgrade failed in node %s", config.NodeName))
 				return
 			}
 		}
