@@ -174,6 +174,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		"pods",
 		config.Namespace,
 		func(options *metav1.ListOptions) {
+			options.ResourceVersion = "0"
 			options.FieldSelector = fieldSelector.String()
 			options.LabelSelector = labelSelector.String()
 		},
