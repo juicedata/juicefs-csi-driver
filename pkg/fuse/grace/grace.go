@@ -411,6 +411,7 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		"pods",
 		p.pod.Namespace,
 		func(options *metav1.ListOptions) {
+			options.ResourceVersion = "0"
 			options.FieldSelector = fieldSelector.String()
 			options.LabelSelector = labelSelector.String()
 		},
