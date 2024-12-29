@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -34,18 +35,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 var mgrLog = klog.NewKlogr().WithName("manager")
 
 func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
-	podCtr := PodController{api}
+	appPodCtr := AppPodController{api}
+	sysPodCtr := SysPodController{api}
 	pvCtr := PVController{api}
 	pvcCtr := PVCController{api}
 	jobCtr := JobController{api}
 	secretCtr := SecretController{api}
-	if err := podCtr.SetupWithManager(mgr); err != nil {
+	if err := appPodCtr.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := sysPodCtr.SetupWithManager(mgr); err != nil {
 		return err
 	}
 	if err := pvCtr.SetupWithManager(mgr); err != nil {
@@ -63,7 +69,10 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 	return mgr.Start(ctx)
 }
 
-type PodController struct {
+type AppPodController struct {
+	*API
+}
+type SysPodController struct {
 	*API
 }
 
@@ -83,18 +92,98 @@ type SecretController struct {
 	*API
 }
 
-func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (c *AppPodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	pod := &corev1.Pod{}
 	if err := c.cachedReader.Get(ctx, req.NamespacedName, pod); err != nil {
 		mgrLog.Error(err, "get pod failed", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
-	if !isSysPod(pod) && !isAppPod(pod) && !c.isAppPodShouldList(ctx, pod) {
+	if !isAppPod(pod) {
 		// skip
 		return reconcile.Result{}, nil
 	}
 	if pod.DeletionTimestamp != nil {
 		c.appIndexes.removeIndex(req.NamespacedName)
+		mgrLog.V(1).Info("app pod deleted", "namespacedName", req.NamespacedName)
+		return reconcile.Result{}, nil
+	}
+	indexes := c.appIndexes
+	indexes.addIndex(
+		pod,
+		func(p *corev1.Pod) metav1.ObjectMeta { return p.ObjectMeta },
+		func(name types.NamespacedName) (*corev1.Pod, error) {
+			var pod corev1.Pod
+			err := c.cachedReader.Get(ctx, name, &pod)
+			return &pod, err
+		},
+	)
+	mgrLog.V(1).Info("app pod created", "namespacedName", req.NamespacedName)
+	return reconcile.Result{}, nil
+}
+
+func (c *AppPodController) SetupWithManager(mgr manager.Manager) error {
+	ctr, err := controller.New("pod", mgr, controller.Options{Reconciler: c})
+	if err != nil {
+		return err
+	}
+
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
+		pod := rawObj.(*corev1.Pod)
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		return err
+	}
+
+	// todo: sidecar mode
+	sl := metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      common.UniqueId, // app pod in mount mode
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
+	podCache, err := cache.New(mgr.GetConfig(), cache.Options{
+		Scheme: mgr.GetScheme(),
+		Mapper: mgr.GetRESTMapper(),
+		ByObject: map[client.Object]cache.ByObject{
+			&corev1.Pod{}: {Label: labelMap},
+		},
+	})
+
+	return ctr.Watch(source.Kind(
+		podCache,
+		&corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+			CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+				return true
+			},
+			UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+				return true
+			},
+			DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+				pod := deleteEvent.Object
+				c.appIndexes.removeIndex(types.NamespacedName{
+					Namespace: pod.GetNamespace(),
+					Name:      pod.GetName(),
+				})
+				mgrLog.V(1).Info("app pod deleted", "namespace", pod.GetNamespace(), "name", pod.GetName())
+				return false
+			},
+		}))
+}
+
+func (c *SysPodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	pod := &corev1.Pod{}
+	if err := c.cachedReader.Get(ctx, req.NamespacedName, pod); err != nil {
+		mgrLog.Error(err, "get pod failed", "namespacedName", req.NamespacedName)
+		return reconcile.Result{}, nil
+	}
+	if !isSysPod(pod) {
+		// skip
+		return reconcile.Result{}, nil
+	}
+	if pod.DeletionTimestamp != nil {
 		if isCsiNode(pod) {
 			c.csiNodeLock.Lock()
 			delete(c.csiNodeIndex, pod.Spec.NodeName)
@@ -128,7 +217,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 	return reconcile.Result{}, nil
 }
 
-func (c *PodController) SetupWithManager(mgr manager.Manager) error {
+func (c *SysPodController) SetupWithManager(mgr manager.Manager) error {
 	ctr, err := controller.New("pod", mgr, controller.Options{Reconciler: c})
 	if err != nil {
 		return err
@@ -141,23 +230,36 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	return ctr.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
-		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
-			return true
+	sl := metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      common.PodTypeKey, // system pod: csi node, csi controller, dashboard, mount pod, operator
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{"juicefs-mount", "juicefs-csi-driver", "juicefs-cache-group-worker"},
+			},
 		},
-		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
-			return true
+	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
+	podCache, err := cache.New(mgr.GetConfig(), cache.Options{
+		Scheme: mgr.GetScheme(),
+		Mapper: mgr.GetRESTMapper(),
+		ByObject: map[client.Object]cache.ByObject{
+			&corev1.Pod{}: {Label: labelMap},
 		},
-		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
-			pod := deleteEvent.Object
-			var indexes *timeOrderedIndexes[corev1.Pod]
-			if isAppPod(pod) {
-				indexes = c.appIndexes
-			} else if isSysPod(pod) {
-				indexes = c.sysIndexes
-			}
-			if indexes != nil {
-				indexes.removeIndex(types.NamespacedName{
+	})
+
+	return ctr.Watch(source.Kind(
+		podCache,
+		&corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
+			CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+				return true
+			},
+			UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
+				return true
+			},
+			DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
+				pod := deleteEvent.Object
+				c.sysIndexes.removeIndex(types.NamespacedName{
 					Namespace: pod.GetNamespace(),
 					Name:      pod.GetName(),
 				})
@@ -168,10 +270,8 @@ func (c *PodController) SetupWithManager(mgr manager.Manager) error {
 				}
 				mgrLog.V(1).Info("pod deleted", "namespace", pod.GetNamespace(), "name", pod.GetName())
 				return false
-			}
-			return true
-		},
-	}))
+			},
+		}))
 }
 
 func (c *PVController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

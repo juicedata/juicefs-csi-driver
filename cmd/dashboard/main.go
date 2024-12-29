@@ -31,6 +31,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +46,6 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 )
 
