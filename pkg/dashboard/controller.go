@@ -151,6 +151,9 @@ func (c *AppPodController) SetupWithManager(mgr manager.Manager) error {
 			&corev1.Pod{}: {Label: labelMap},
 		},
 	})
+	if err != nil {
+		return err
+	}
 
 	return ctr.Watch(source.Kind(
 		podCache,
@@ -247,6 +250,9 @@ func (c *SysPodController) SetupWithManager(mgr manager.Manager) error {
 			&corev1.Pod{}: {Label: labelMap},
 		},
 	})
+	if err != nil {
+		return err
+	}
 
 	return ctr.Watch(source.Kind(
 		podCache,
