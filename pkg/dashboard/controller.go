@@ -122,7 +122,7 @@ func (c *AppPodController) Reconcile(ctx context.Context, req reconcile.Request)
 }
 
 func (c *AppPodController) SetupWithManager(mgr manager.Manager) error {
-	ctr, err := controller.New("pod", mgr, controller.Options{Reconciler: c})
+	ctr, err := controller.New("apppod", mgr, controller.Options{Reconciler: c})
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (c *SysPodController) Reconcile(ctx context.Context, req reconcile.Request)
 }
 
 func (c *SysPodController) SetupWithManager(mgr manager.Manager) error {
-	ctr, err := controller.New("pod", mgr, controller.Options{Reconciler: c})
+	ctr, err := controller.New("syspod", mgr, controller.Options{Reconciler: c})
 	if err != nil {
 		return err
 	}
