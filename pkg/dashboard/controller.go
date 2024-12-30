@@ -127,13 +127,6 @@ func (c *AppPodController) SetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
-		pod := rawObj.(*corev1.Pod)
-		return []string{pod.Spec.NodeName}
-	}); err != nil {
-		return err
-	}
-
 	// todo: sidecar mode
 	sl := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -223,13 +216,6 @@ func (c *SysPodController) Reconcile(ctx context.Context, req reconcile.Request)
 func (c *SysPodController) SetupWithManager(mgr manager.Manager) error {
 	ctr, err := controller.New("syspod", mgr, controller.Options{Reconciler: c})
 	if err != nil {
-		return err
-	}
-
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
-		pod := rawObj.(*corev1.Pod)
-		return []string{pod.Spec.NodeName}
-	}); err != nil {
 		return err
 	}
 
