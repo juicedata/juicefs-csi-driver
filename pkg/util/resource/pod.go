@@ -486,14 +486,16 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
-		canUpgrade, _, err := CanUpgrade(pod, recreate)
+		canUpgrade, reason, err := CanUpgrade(pod, recreate)
 		if err != nil {
 			log.Error(err, "check pod upgrade error", "pod", pod.Name)
 			continue
 		}
-		if canUpgrade {
-			pods = append(pods, pod)
+		if !canUpgrade {
+			log.V(1).Info("pod can not upgrade", "pod", pod.Name, "reason", reason)
+			continue
 		}
+		pods = append(pods, pod)
 	}
 	return pods
 }
@@ -508,17 +510,24 @@ func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
 	}
 	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
-		log.Info("pod has no hash label")
-		return false, fmt.Sprintf("pod %s has no hash label", pod.Name), nil
+		return false, "pod has no hash label", nil
 	}
 	// check mount pod now support upgrade or not
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
-		log.Info("mount pod now do not support smooth binary upgrade")
-		return false, "mount pod now do not support smooth binary upgrade", nil
+		return false, fmt.Sprintf("image %s do not support smooth binary upgrade", pod.Spec.Containers[0].Image), nil
 	}
 	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
-		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false, "mount pod now do not support recreate smooth upgrade", nil
+		return false, fmt.Sprintf("image %s do not support recreate smooth upgrade", pod.Spec.Containers[0].Image), nil
+	}
+
+	// check prestop hook
+	if pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
+		prestopCmd := pod.Spec.Containers[0].Lifecycle.PreStop.Exec.Command
+		for _, cmd := range prestopCmd {
+			if strings.Contains(cmd, "umount") {
+				return false, "mount pod has umount prestop hook, can not upgrade", nil
+			}
+		}
 	}
 
 	// check status
