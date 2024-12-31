@@ -96,6 +96,38 @@ func (s *JfsSetting) String() string {
 	return string(data)
 }
 
+func (s *JfsSetting) Safe() *JfsSetting {
+	if s == nil {
+		return nil
+	}
+	sCopy := s
+	if sCopy.Token != "" {
+		sCopy.Token = "***"
+	}
+	if sCopy.SecretKey != "" {
+		sCopy.SecretKey = "***"
+	}
+	if sCopy.SecretKey2 != "" {
+		sCopy.SecretKey2 = "***"
+	}
+	if sCopy.Passphrase != "" {
+		sCopy.Passphrase = "***"
+	}
+	if sCopy.EncryptRsaKey != "" {
+		sCopy.EncryptRsaKey = "***"
+	}
+	return sCopy
+}
+
+func (s *JfsSetting) SafeString() string {
+	if s == nil {
+		return ""
+	}
+	sCopy := s.Safe()
+	data, _ := json.Marshal(sCopy)
+	return string(data)
+}
+
 func (s *JfsSetting) Load(str string) error {
 	return json.Unmarshal([]byte(str), s)
 }
@@ -1074,6 +1106,6 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val, "setting", setting)
+	log.V(1).Info("get jfsSetting hash", "hashVal", val, "setting", setting.SafeString())
 	return val
 }
