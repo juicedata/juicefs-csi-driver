@@ -521,7 +521,7 @@ func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
 	}
 
 	// check prestop hook
-	if pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
+	if pod.Spec.Containers[0].Lifecycle != nil && pod.Spec.Containers[0].Lifecycle.PreStop != nil && pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
 		prestopCmd := pod.Spec.Containers[0].Lifecycle.PreStop.Exec.Command
 		for _, cmd := range prestopCmd {
 			if strings.Contains(cmd, "umount") {
