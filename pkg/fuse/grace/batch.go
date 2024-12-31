@@ -38,6 +38,7 @@ import (
 )
 
 type BatchUpgrade struct {
+	lock            sync.Mutex
 	batchConfigName string
 	batchConfig     *config.BatchConfig
 	crtBatchIndex   int
@@ -46,17 +47,20 @@ type BatchUpgrade struct {
 
 	// batch
 	podsToUpgrade map[string]*PodUpgrade
-	successSum    int
-	failSum       int
+	successSum    map[string]bool
+	failSum       map[string]bool
 }
 
 func NewBatchUpgrade(client *k8s.K8sClient, req upgradeRequest) *BatchUpgrade {
 	return &BatchUpgrade{
+		lock:            sync.Mutex{},
 		client:          client,
 		recreate:        true,
 		batchConfigName: req.configName,
 		crtBatchIndex:   req.batchIndex,
 		podsToUpgrade:   map[string]*PodUpgrade{},
+		successSum:      map[string]bool{},
+		failSum:         map[string]bool{},
 	}
 }
 
@@ -136,10 +140,13 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 		go func() {
 			defer wg.Done()
 			sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", p.pod.Name))
-			if err := p.gracefulShutdown(ctx, conn); err != nil {
+			if err := p.gracefulShutdown(ctx, conn); err != nil && u.failSum[p.pod.Name] != true {
 				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
 				p.status = config.Fail
-				u.failSum++
+				u.lock.Lock()
+				u.failSum[p.pod.Name] = true
+				u.lock.Unlock()
+				sendMessage(conn, fmt.Sprintf("pod [%s] upgrade pod error", p.pod.Name))
 				if e := resource.DelPodAnnotation(ctx, u.client, p.pod, []string{common.JfsUpgradeProcess}); e != nil {
 					sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", p.pod.Name, e.Error()))
 				}
@@ -190,10 +197,12 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		}
 		if po.Name != pu.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
-				if resource.IsPodReady(po) {
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", pu.pod.Name, po.Name))
+				if resource.IsPodReady(po) && u.successSum[pu.pod.Name] != true {
 					pu.status = config.Success
-					u.successSum++
+					u.lock.Lock()
+					u.successSum[pu.pod.Name] = true
+					u.lock.Unlock()
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", pu.pod.Name, po.Name))
 					return
 				}
 			}
@@ -237,11 +246,11 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 			sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", config.NodeName))
 			return
 		default:
-			if u.successSum == len(u.podsToUpgrade) {
+			if len(u.successSum) == len(u.podsToUpgrade) {
 				sendMessage(conn, fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", config.NodeName))
 				return
 			}
-			if u.failSum > 0 && u.failSum+u.successSum == len(u.podsToUpgrade) {
+			if len(u.failSum) > 0 && len(u.failSum)+len(u.successSum) == len(u.podsToUpgrade) {
 				sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL some pods of current batch upgrade failed in node %s", config.NodeName))
 				return
 			}
