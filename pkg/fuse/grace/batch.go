@@ -140,7 +140,7 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 		go func() {
 			defer wg.Done()
 			sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", p.pod.Name))
-			if err := p.gracefulShutdown(ctx, conn); err != nil && u.failSum[p.pod.Name] != true {
+			if err := p.gracefulShutdown(ctx, conn); err != nil && !u.failSum[p.pod.Name] {
 				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
 				p.status = config.Fail
 				u.lock.Lock()
@@ -197,7 +197,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		}
 		if po.Name != pu.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
-				if resource.IsPodReady(po) && u.successSum[pu.pod.Name] != true {
+				if resource.IsPodReady(po) && !u.successSum[pu.pod.Name] {
 					pu.status = config.Success
 					u.lock.Lock()
 					u.successSum[pu.pod.Name] = true
