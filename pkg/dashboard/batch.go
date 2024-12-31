@@ -215,7 +215,7 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 				pods = append(pods, po)
 			}
 		}
-		_, diffs, err := api.genPodDiffs(c, pods, false)
+		_, diffs, err := api.genPodDiffs(c, pods, false, false)
 		if err != nil {
 			c.String(500, "get pods diff configs error %v", err)
 			return
@@ -429,7 +429,7 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 			c.String(500, "list pods error %v", err)
 			return
 		}
-		pods, _, err := api.getUpgradePods(c, uniqueId, nodeName, recreate)
+		pods, _, err := api.getUpgradePods(c, uniqueId, nodeName, recreate, false)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
@@ -488,7 +488,7 @@ func newUpgradeJob(jobName string) *batchv1.Job {
 	}
 }
 
-func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, []PodDiff, error) {
+func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate, debug bool) ([]corev1.Pod, []PodDiff, error) {
 	var pods corev1.PodList
 	ls := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -512,19 +512,21 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 
 	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
-	return api.genPodDiffs(ctx, podsToUpgrade, true)
+	return api.genPodDiffs(ctx, podsToUpgrade, true, debug)
 }
 
 type PodDiff struct {
-	Pod       corev1.Pod           `json:"pod"`
-	OldConfig config.MountPodPatch `json:"oldConfig"`
-	NewConfig config.MountPodPatch `json:"newConfig"`
+	Pod        corev1.Pod           `json:"pod"`
+	OldConfig  config.MountPodPatch `json:"oldConfig"`
+	OldSetting *config.JfsSetting   `json:"oldSetting,omitempty"`
+	NewConfig  config.MountPodPatch `json:"newConfig"`
+	NewSetting *config.JfsSetting   `json:"newSetting,omitempty"`
 }
 
 // genPodDiffs return mount pods with diff configs
 // mountPods: pods need to get diff configs
 // shouldDiff: should pass the pods which have no diff config
-func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff bool) ([]corev1.Pod, []PodDiff, error) {
+func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff, debug bool) ([]corev1.Pod, []PodDiff, error) {
 	// load config
 	if err := config.LoadFromConfigMap(ctx, api.k8sclient); err != nil {
 		return nil, nil, err
@@ -590,16 +592,21 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 			// no diff config and should diff, skip
 			continue
 		}
-		oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
+		oldConfig, oldSetting, newConfig, newSetting, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
 		if err != nil {
 			return nil, nil, err
 		}
 		needUpdatePods = append(needUpdatePods, po)
-		podDiffs = append(podDiffs, PodDiff{
+		pd := PodDiff{
 			Pod:       po,
 			OldConfig: *oldConfig,
 			NewConfig: *newConfig,
-		})
+		}
+		if debug {
+			pd.OldSetting = oldSetting
+			pd.NewSetting = newSetting
+		}
+		podDiffs = append(podDiffs, pd)
 	}
 	return needUpdatePods, podDiffs, nil
 }
