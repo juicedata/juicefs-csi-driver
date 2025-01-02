@@ -618,6 +618,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return "", err
 	}
 
+	log.Info("AuthFs cmd", "args", cmdArgs)
 	// only run command when in process mode
 	if !force && !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
@@ -799,6 +800,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return "", err
 	}
 
+	log.Info("ce format cmd", "args", cmdArgs)
 	// only run command when in process mode
 	if !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")

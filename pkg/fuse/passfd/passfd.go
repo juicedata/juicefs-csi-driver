@@ -81,6 +81,24 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		fdLog.Error(err, "read dir error", "basePath", fs.basePath)
 		return err
 	}
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		common.PodTypeKey: common.PodTypeValue,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		fdLog.Error(err, "list pods error")
+		return err
+	}
+	podMaps := make(map[string]*corev1.Pod)
+	for _, pod := range pods {
+		podMaps[resource.GetUpgradeUUID(&pod)] = &pod
+	}
+
+	wg := sync.WaitGroup{}
+	limitCh := make(chan struct{}, 20)
+	defer close(limitCh)
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -97,11 +115,24 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
 				subdir := path.Join(fs.basePath, entry.Name(), subEntry.Name())
+				if po, ok := podMaps[entry.Name()]; !ok || po.DeletionTimestamp != nil {
+					// make sure the pod is still running
+					continue
+				}
 				fdLog.V(1).Info("parse fuse fd", "path", subdir)
-				fs.parseFuse(ctx, entry.Name(), subdir)
+				wg.Add(1)
+				go func() {
+					defer func() {
+						wg.Done()
+						<-limitCh
+					}()
+					limitCh <- struct{}{}
+					fs.parseFuse(ctx, entry.Name(), subdir)
+				}()
 			}
 		}
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -193,28 +224,8 @@ func (fs *Fds) CloseFd(pod *corev1.Pod) {
 func (fs *Fds) parseFuse(ctx context.Context, upgradeUUID, fusePath string) {
 	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
 	if fuseFd <= 0 {
-		// get fuse fd error, try to get mount pod
-		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-			common.PodTypeKey: common.PodTypeValue,
-		}}
-		fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-		pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-		if err != nil {
-			fdLog.Error(err, "list pods error")
-			return
-		}
-		var mountPod *corev1.Pod
-		for _, pod := range pods {
-			if resource.GetUpgradeUUID(&pod) == upgradeUUID && pod.DeletionTimestamp == nil {
-				mountPod = &pod
-				break
-			}
-		}
-		if mountPod == nil {
-			fdLog.V(1).Info("get fuse fd error and mount pod not found, ignore it", "upgradeUUID", upgradeUUID, "fusePath", fusePath)
-			// if can not get fuse fd, do not serve for it
-			return
-		}
+		// if can not get fuse fd, do not serve for it
+		return
 	}
 
 	serverPath := path.Join(fs.basePath, upgradeUUID, "fuse_fd_csi_comm.sock")
