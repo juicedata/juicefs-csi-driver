@@ -565,7 +565,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		log.Error(err, "Get pv error", "pv", pvName)
 	}
-	if pv != nil {
+	if pv != nil && pv.Spec.ClaimRef != nil {
 		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
@@ -1106,6 +1106,5 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val, "setting", setting.SafeString())
 	return val
 }

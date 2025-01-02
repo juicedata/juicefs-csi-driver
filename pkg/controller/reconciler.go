@@ -143,7 +143,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					lastStatus.syncAt = time.Now()
 					if err != nil {
 						reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
-						if strings.Contains(err.Error(), "client rate limiter Wait returned an error: context canceled") {
+						if strings.Contains(err.Error(), "client rate limiter Wait returned an error") {
 							reconcilerLog.V(1).Info("client rate limit")
 							backOff.Next(backOffID, time.Now())
 						} else {
