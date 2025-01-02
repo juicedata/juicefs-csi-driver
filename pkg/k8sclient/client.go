@@ -42,14 +42,11 @@ import (
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/klog/v2"
 )
 
 const (
 	timeout = 10 * time.Second
 )
-
-var clientLog = klog.NewKlogr().WithName("client")
 
 type PatchListValue struct {
 	Op    string   `json:"op"`
