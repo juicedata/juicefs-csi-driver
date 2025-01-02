@@ -727,6 +727,7 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 				setting.Envs = custSetting.Envs
 			}
 			setting.CustomerSecret = custSecret
+			setting.ClientConfPath = DefaultClientConfPath
 			if !setting.IsCe {
 				if setting.Token == "" {
 					log.Info("token is empty, skip authfs.")
