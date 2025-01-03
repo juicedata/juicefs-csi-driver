@@ -55,21 +55,6 @@ func (mit *mountInfoTable) setPodStatus(pod *corev1.Pod) {
 	}
 }
 
-func (mit *mountInfoTable) setPodsStatus(podList *corev1.PodList) {
-	mit.deletedPods = make(map[string]bool)
-	if podList == nil {
-		return
-	}
-	for _, pod := range podList.Items {
-		deleted := false
-		if pod.DeletionTimestamp != nil {
-			deleted = true
-		}
-		miLog.V(2).Info("set pod deleted status", "name", pod.Name, "deleted status", deleted)
-		mit.deletedPods[string(pod.UID)] = deleted
-	}
-}
-
 const (
 	// place for subpath mounts
 	containerSubPathDirectory = "volume-subpaths"

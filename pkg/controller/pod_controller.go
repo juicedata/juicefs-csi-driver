@@ -85,7 +85,18 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		}},
 	}
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	podLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	appPodLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	if err != nil {
+		podCtrlLog.Error(err, "reconcile ListPod error")
+		return reconcile.Result{}, err
+	}
+
+	mountLabelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.PodTypeValue,
+		},
+	}
+	mountPodLists, err := m.K8sClient.ListPod(ctx, "", &mountLabelSelector, fieldSelector)
 	if err != nil {
 		podCtrlLog.Error(err, "reconcile ListPod error")
 		return reconcile.Result{}, err
@@ -96,9 +107,10 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		Exec:      k8sexec.New(),
 	}
 
-	podDriver := NewPodDriver(m.K8sClient, mounter)
+	podDriver := NewPodDriver(m.K8sClient, mounter, &corev1.PodList{
+		Items: append(appPodLists, mountPodLists...),
+	})
 	podDriver.SetMountInfo(*mit)
-	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podLists})
 
 	result, err := podDriver.Run(ctx, mountPod)
 	if err != nil {

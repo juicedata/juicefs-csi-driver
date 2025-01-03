@@ -60,7 +60,7 @@ func StartReconciler() error {
 	}
 
 	// check if kubelet can be connected
-	_, err = kc.GetNodeRunningPods()
+	err = kc.Access()
 	if err != nil {
 		return err
 	}
@@ -126,9 +126,8 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					Interface: mount.New(""),
 					Exec:      k8sexec.New(),
 				}
-				podDriver := NewPodDriver(ks, mounter)
+				podDriver := NewPodDriver(ks, mounter, podList)
 				podDriver.SetMountInfo(*mit)
-				podDriver.mit.setPodsStatus(podList)
 
 				errChan := make(chan error, 1)
 				go func() {
@@ -169,6 +168,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		}
 		backOff.GC()
 		_ = g.Wait()
+		podList = nil
 	finish:
 		cancel()
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)

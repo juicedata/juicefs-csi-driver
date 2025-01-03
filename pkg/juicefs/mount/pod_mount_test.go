@@ -551,7 +551,7 @@ func TestUmountTarget(t *testing.T) {
 		})
 		Convey("pod update error", func() {
 			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
+			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
 				return errors.New("test")
 			})
 			defer patch1.Reset()

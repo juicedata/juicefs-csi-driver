@@ -483,7 +483,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
@@ -508,7 +508,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
@@ -530,7 +530,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
@@ -544,7 +544,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, notExistsErr}},
@@ -562,7 +562,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
@@ -587,7 +587,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			_, err := d.podReadyHandler(context.Background(), nil)
 			So(err, ShouldBeNil)
 		})
@@ -595,7 +595,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			_, err := d.podReadyHandler(context.Background(), &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "juicefs-test-err-pod",
@@ -614,7 +614,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			_, err := d.podReadyHandler(context.Background(), errCmdPod)
 			So(err, ShouldNotBeNil)
 		})
@@ -622,7 +622,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "juicefs-test-err-mount-cmd-pod",
@@ -645,7 +645,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{nil, volErr}, Times: 121},
 			}
@@ -660,7 +660,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
@@ -682,7 +682,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, volErr}},
@@ -700,7 +700,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
@@ -742,7 +742,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 		d := NewPodDriver(&k8sclient.K8sClient{Interface: client}, mount.SafeFormatAndMount{
 			Interface: mount.New(""),
 			Exec:      k8sexec.New(),
-		})
+		}, &corev1.PodList{})
 
 		Convey("umount fail", func() {
 			var tmpCmd = &exec.Cmd{}
@@ -759,7 +759,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -799,7 +799,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 				return nil, errors.New("test")
 			})
 			defer patch3.Reset()
-			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
+			patch4 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch4.Reset()
@@ -860,7 +860,7 @@ func TestPodDriver_podDeletedHandler(t *testing.T) {
 		Convey("skip delete resource err pod", func() {
 			tmpPod := copyPod(resourceErrPod)
 			k := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
+			patch1 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
 				return nil
 			})
 			defer patch1.Reset()
@@ -934,7 +934,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			Pod := copyPod(readyPod)
 			Pod.Spec.Containers = nil
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -946,7 +946,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			errPod := copyPod(resourceErrPod)
 			errPod.Spec.Containers[0].Resources = corev1.ResourceRequirements{}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -969,7 +969,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 				}
 			})
 			defer patch1.Reset()
-			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod, data []byte, pt types.PatchType) error {
+			patch2 := ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
 				return errors.New("test")
 			})
 			defer patch2.Reset()
@@ -980,7 +980,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			Pod := copyPod(resourceErrPod)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -991,7 +991,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, notExistsErr
 			})
@@ -1012,7 +1012,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			_, err := d.podErrorHandler(ctx, nil)
@@ -1022,7 +1022,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, notExistsErr
 			})
@@ -1038,7 +1038,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			errPod := copyPod(resourceErrPod)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -1049,7 +1049,7 @@ func TestPodDriver_podErrorHandler(t *testing.T) {
 			d := NewPodDriver(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
 				Exec:      k8sexec.New(),
-			})
+			}, &corev1.PodList{})
 			Pod := copyPod(readyPod)
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return true, nil
