@@ -161,32 +161,21 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 		log.Info("Mount pod of target not exists.", "target", target)
 		return nil
 	}
-	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		log.Error(err, "Get pod err", "podName", podName)
-		return err
-	}
-
-	// if mount pod not exists.
-	if pod == nil {
-		log.Info("Mount pod not exists", "podName", podName)
-		return nil
-	}
 
 	key := util.GetReferenceKey(target)
 	log.V(1).Info("Target hash of target", "target", target, "key", key)
 
-	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		po, err := p.K8sClient.GetPod(ctx, pod.Name, pod.Namespace)
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		po, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err != nil {
 			return err
 		}
 		annotation := po.Annotations
 		if _, ok := annotation[key]; !ok {
-			log.Info("Target ref in pod already not exists.", "target", target, "podName", pod.Name)
+			log.Info("Target ref in pod already not exists.", "target", target, "podName", podName)
 			return nil
 		}
-		return resource.DelPodAnnotation(ctx, p.K8sClient, pod, []string{key})
+		return resource.DelPodAnnotation(ctx, p.K8sClient, podName, jfsConfig.Namespace, []string{key})
 	})
 	if err != nil {
 		log.Error(err, "Remove ref of target err", "target", target)
@@ -331,7 +320,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
 					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
-					if err := resource.DelPodAnnotation(ctx, p.K8sClient, &po, []string{k}); err != nil {
+					if err := resource.DelPodAnnotation(ctx, p.K8sClient, po.Name, po.Namespace, []string{k}); err != nil {
 						return "", err
 					}
 				}
@@ -553,7 +542,7 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 		annotation[key] = target
 		// delete deleteDelayAt when there ars refs
 		delete(annotation, common.DeleteDelayAtKey)
-		return resource.ReplacePodAnnotation(ctx, p.K8sClient, exist, annotation)
+		return resource.ReplacePodAnnotation(ctx, p.K8sClient, podName, jfsConfig.Namespace, annotation)
 	})
 	if err != nil {
 		log.Error(err, "Add target ref in mount pod error", "podName", podName)
@@ -564,24 +553,14 @@ func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName str
 
 func (p *PodMount) setUUIDAnnotation(ctx context.Context, podName string, uuid string) (err error) {
 	logger := util.GenLog(ctx, p.log, "")
-	var pod *corev1.Pod
-	pod, err = p.K8sClient.GetPod(context.Background(), podName, jfsConfig.Namespace)
-	if err != nil {
-		return err
-	}
 	logger.Info("set pod annotation", "podName", podName, "key", common.JuiceFSUUID, "uuid", uuid)
-	return resource.AddPodAnnotation(ctx, p.K8sClient, pod, map[string]string{common.JuiceFSUUID: uuid})
+	return resource.AddPodAnnotation(ctx, p.K8sClient, podName, jfsConfig.Namespace, map[string]string{common.JuiceFSUUID: uuid})
 }
 
 func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName string, podName, podNamespace string) (err error) {
 	logger := util.GenLog(ctx, p.log, "")
-	var pod *corev1.Pod
-	pod, err = p.K8sClient.GetPod(context.Background(), podName, podNamespace)
-	if err != nil {
-		return err
-	}
 	logger.Info("set mount info in pod", "podName", podName)
-	if err := resource.AddPodLabel(ctx, p.K8sClient, pod, map[string]string{common.UniqueId: ""}); err != nil {
+	if err := resource.AddPodLabel(ctx, p.K8sClient, podName, podNamespace, map[string]string{common.UniqueId: ""}); err != nil {
 		return err
 	}
 

@@ -754,20 +754,10 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 }
 
 func ParseAppInfo(volCtx map[string]string) (*AppInfo, error) {
-	// check kubelet access. If not, should turn `podInfoOnMount` on in csiDriver, and fallback to apiServer
-	if !ByProcess && !Webhook && KubeletPort != "" && HostIp != "" {
-		port, err := strconv.Atoi(KubeletPort)
-		if err != nil {
-			return nil, err
-		}
-		kc, err := k8sclient.NewKubeletClient(HostIp, port)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := kc.GetNodeRunningPods(); err != nil {
-			if volCtx == nil || volCtx[common.PodInfoName] == "" {
-				return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
-			}
+	// check kubelet access. If not, should turn `podInfoOnMount` on in csiDriver, and csi will fallback to apiServer
+	if !ByProcess && !Webhook && !AccessToKubelet {
+		if volCtx == nil || volCtx[common.PodInfoName] == "" {
+			return nil, fmt.Errorf("can not connect to kubelet, please turn `podInfoOnMount` on in csiDriver, and fallback to apiServer")
 		}
 	}
 	if volCtx != nil {
