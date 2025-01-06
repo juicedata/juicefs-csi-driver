@@ -18,7 +18,6 @@ package dashboard
 
 import (
 	"context"
-	"os"
 	"regexp"
 	"sort"
 
@@ -141,14 +140,6 @@ func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
 	}
 	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
 	return labelMap
-}
-
-func getSysNamespace() string {
-	namespace := "kube-system"
-	if os.Getenv("SYS_NAMESPACE") != "" {
-		namespace = os.Getenv("SYS_NAMESPACE")
-	}
-	return namespace
 }
 
 func isShareMount(pod *corev1.Pod) bool {

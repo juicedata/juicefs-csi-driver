@@ -84,7 +84,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			jobName = GenUpgradeJobName()
 		}
 
-		_, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		_, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
 			c.String(500, "get job error %v", err)
 			return
@@ -184,7 +184,7 @@ func (api *API) listUpgradeJobs() gin.HandlerFunc {
 func (api *API) getUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				c.IndentedJSON(200, batchv1.Job{})
@@ -231,7 +231,7 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 func (api *API) updateUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			c.String(500, "get job error %v", err)
 			return
@@ -274,7 +274,7 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			c.String(500, "get job error %v", err)
 			return
@@ -288,7 +288,7 @@ func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 			c.String(400, "can not delete job")
 			return
 		}
-		err = api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
+		err = api.client.BatchV1().Jobs(config.Namespace).Delete(c, jobName, metav1.DeleteOptions{
 			PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
 		})
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -301,7 +301,7 @@ func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				c.String(400, "not found")
@@ -356,7 +356,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 			ctx, cancel := context.WithTimeout(c, 2*time.Minute)
 			defer cancel()
 			for {
-				job, err = api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+				job, err = api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 				if err == nil && job.DeletionTimestamp == nil {
 					s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -379,7 +379,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				case <-ctx.Done():
 					c.String(500, "get job or list pod timeout")
 					batchLog.Info("get job or list pod timeout", "job", jobName)
-					_, _ = ws.Write([]byte(fmt.Sprintf("Upgrade timeout, job for upgrade is not ready, please check job [%s] in [%s] and try again later.", jobName, getSysNamespace())))
+					_, _ = ws.Write([]byte(fmt.Sprintf("Upgrade timeout, job for upgrade is not ready, please check job [%s] in [%s] and try again later.", jobName, config.Namespace)))
 					t.Stop()
 					return
 				case <-t.C:
@@ -440,7 +440,7 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 }
 
 func newUpgradeJob(jobName string) *batchv1.Job {
-	sysNamespace := getSysNamespace()
+	sysNamespace := config.Namespace
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	sa := "juicefs-csi-dashboard-sa"
 	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
@@ -630,7 +630,7 @@ func (api *API) getAllUpgradeConfig(ctx context.Context) (map[string]*config.Bat
 			common.PodTypeKey: common.ConfigTypeValue,
 		},
 	})
-	cmList, err = api.client.CoreV1().ConfigMaps(getSysNamespace()).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
+	cmList, err = api.client.CoreV1().ConfigMaps(config.Namespace).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
 	if err != nil {
 		return nil, err
 	}

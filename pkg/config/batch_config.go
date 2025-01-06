@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -117,14 +116,10 @@ func (p podList) Swap(i, j int) {
 }
 
 func LoadUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string) (*BatchConfig, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
-	cm, err := client.GetConfigMap(ctx, configName, sysNamespace)
+	cm, err := client.GetConfigMap(ctx, configName, Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -144,16 +139,12 @@ func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 }
 
 func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
 	var cfg *corev1.ConfigMap
 	var err error
-	if cfg, err = client.GetConfigMap(ctx, configName, sysNamespace); err != nil {
+	if cfg, err = client.GetConfigMap(ctx, configName, Namespace); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -167,7 +158,7 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 		cfg = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configName,
-				Namespace: sysNamespace,
+				Namespace: Namespace,
 				Labels: map[string]string{
 					common.PodTypeKey: common.ConfigTypeValue,
 				},
@@ -181,16 +172,12 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 }
 
 func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
 	var cfg *corev1.ConfigMap
 	var err error
-	if cfg, err = client.GetConfigMap(ctx, configName, sysNamespace); err != nil {
+	if cfg, err = client.GetConfigMap(ctx, configName, Namespace); err != nil {
 		return nil, err
 	}
 	data, err := json.Marshal(config)

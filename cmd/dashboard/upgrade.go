@@ -52,6 +52,7 @@ var upgradeCmd = &cobra.Command{
 		if sysNamespace == "" {
 			sysNamespace = "kube-system"
 		}
+		config.Namespace = sysNamespace
 		if devMode {
 			k8sconfig, _ = getLocalConfig()
 		} else {
