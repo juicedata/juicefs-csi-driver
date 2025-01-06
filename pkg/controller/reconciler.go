@@ -36,7 +36,7 @@ import (
 
 const (
 	retryPeriod    = 5 * time.Second
-	maxRetryPeriod = 300 * time.Second
+	maxRetryPeriod = 60 * time.Second
 )
 
 var (
