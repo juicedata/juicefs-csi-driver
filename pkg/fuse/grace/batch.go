@@ -195,7 +195,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		}
 		var pu *PodUpgrade
 		for _, p := range u.podsToUpgrade {
-			if p.pod.Name == po.Name {
+			if p.pod.Labels[common.PodUpgradeUUIDLabelKey] == po.Labels[common.PodUpgradeUUIDLabelKey] {
 				pu = p
 				break
 			}
