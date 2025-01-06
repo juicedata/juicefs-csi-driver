@@ -21,13 +21,13 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -47,18 +47,19 @@ var (
 
 type PodController struct {
 	*k8sclient.K8sClient
+	cachedReader client.Reader
 }
 
-func NewPodController(client *k8sclient.K8sClient) *PodController {
-	return &PodController{client}
+func NewPodController(client *k8sclient.K8sClient, reader client.Reader) *PodController {
+	return &PodController{client, reader}
 }
 
 func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	podCtrlLog.V(1).Info("Receive pod", "name", request.Name, "namespace", request.Namespace)
 	ctx, cancel := context.WithTimeout(ctx, config.ReconcileTimeout)
 	defer cancel()
-	mountPod, err := m.GetPod(ctx, request.Name, request.Namespace)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	var mountPod *corev1.Pod
+	if err := m.cachedReader.Get(ctx, request.NamespacedName, mountPod); err == nil {
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
@@ -84,8 +85,16 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&labelSelector)
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	appPodLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	var (
+		appPodList   corev1.PodList
+		mountPodList corev1.PodList
+	)
+	err := m.cachedReader.List(ctx, &appPodList, &client.ListOptions{
+		LabelSelector: labelMap,
+		FieldSelector: fieldSelector.AsSelector(),
+	})
 	if err != nil {
 		podCtrlLog.Error(err, "reconcile ListPod error")
 		return reconcile.Result{}, err
@@ -96,7 +105,11 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			common.PodTypeKey: common.PodTypeValue,
 		},
 	}
-	mountPodLists, err := m.K8sClient.ListPod(ctx, "", &mountLabelSelector, fieldSelector)
+	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&mountLabelSelector)
+	err = m.cachedReader.List(ctx, &mountPodList, &client.ListOptions{
+		LabelSelector: mountLabelMap,
+		FieldSelector: fieldSelector.AsSelector(),
+	})
 	if err != nil {
 		podCtrlLog.Error(err, "reconcile ListPod error")
 		return reconcile.Result{}, err
@@ -108,7 +121,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	}
 
 	podDriver := NewPodDriver(m.K8sClient, mounter, &corev1.PodList{
-		Items: append(appPodLists, mountPodLists...),
+		Items: append(appPodList.Items, mountPodList.Items...),
 	})
 	podDriver.SetMountInfo(*mit)
 

@@ -39,8 +39,9 @@ func init() {
 }
 
 type PodManager struct {
-	mgr    ctrl.Manager
-	client *k8sclient.K8sClient
+	mgr         ctrl.Manager
+	client      *k8sclient.K8sClient
+	cacheReader client.Reader
 }
 
 func NewPodManager() (*PodManager, error) {
@@ -77,14 +78,15 @@ func NewPodManager() (*PodManager, error) {
 	}
 
 	return &PodManager{
-		mgr:    mgr,
-		client: k8sClient,
+		mgr:         mgr,
+		cacheReader: mgr.GetAPIReader(),
+		client:      k8sClient,
 	}, err
 }
 
 func (m *PodManager) Start(ctx context.Context) error {
 	// init Reconciler（Controller）
-	if err := (mountctrl.NewPodController(m.client)).SetupWithManager(m.mgr); err != nil {
+	if err := (mountctrl.NewPodController(m.client, m.cacheReader)).SetupWithManager(m.mgr); err != nil {
 		log.Error(err, "Register pod controller error")
 		return err
 	}
