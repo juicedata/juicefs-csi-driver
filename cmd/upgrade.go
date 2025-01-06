@@ -45,8 +45,7 @@ var upgradeCmd = &cobra.Command{
 				log.Error(err, "failed to upgrade mount pod")
 				os.Exit(1)
 			}
-		}
-		if err := grace.TriggerShutdown(config.ShutdownSockPath, name, recreate); err != nil {
+		} else if err := grace.TriggerShutdown(config.ShutdownSockPath, name, recreate); err != nil {
 			log.Error(err, "failed to upgrade mount pod")
 			os.Exit(1)
 		}
