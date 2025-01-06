@@ -21,13 +21,13 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -47,24 +47,21 @@ var (
 
 type PodController struct {
 	*k8sclient.K8sClient
+	cachedReader client.Reader
 }
 
-func NewPodController(client *k8sclient.K8sClient) *PodController {
-	return &PodController{client}
+func NewPodController(client *k8sclient.K8sClient, reader client.Reader) *PodController {
+	return &PodController{client, reader}
 }
 
 func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	podCtrlLog.V(1).Info("Receive pod", "name", request.Name, "namespace", request.Namespace)
 	ctx, cancel := context.WithTimeout(ctx, config.ReconcileTimeout)
 	defer cancel()
-	mountPod, err := m.GetPod(ctx, request.Name, request.Namespace)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	mountPod := &corev1.Pod{}
+	if err := m.cachedReader.Get(ctx, request.NamespacedName, mountPod); err != nil {
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
-	}
-	if mountPod == nil {
-		podCtrlLog.V(1).Info("pod has been deleted.", "name", request.Name)
-		return reconcile.Result{}, nil
 	}
 	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 		podCtrlLog.V(1).Info("pod is not on node, skipped", "namespace", mountPod.Namespace, "name", mountPod.Name, "node", config.NodeName)
@@ -84,8 +81,31 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 			Operator: metav1.LabelSelectorOpExists,
 		}},
 	}
+	labelMap, _ := metav1.LabelSelectorAsSelector(&labelSelector)
 	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	podLists, err := m.K8sClient.ListPod(ctx, "", &labelSelector, fieldSelector)
+	var (
+		appPodList   corev1.PodList
+		mountPodList corev1.PodList
+	)
+	err := m.cachedReader.List(ctx, &appPodList, &client.ListOptions{
+		LabelSelector: labelMap,
+		FieldSelector: fieldSelector.AsSelector(),
+	})
+	if err != nil {
+		podCtrlLog.Error(err, "reconcile ListPod error")
+		return reconcile.Result{}, err
+	}
+
+	mountLabelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.PodTypeValue,
+		},
+	}
+	mountLabelMap, _ := metav1.LabelSelectorAsSelector(&mountLabelSelector)
+	err = m.cachedReader.List(ctx, &mountPodList, &client.ListOptions{
+		LabelSelector: mountLabelMap,
+		FieldSelector: fieldSelector.AsSelector(),
+	})
 	if err != nil {
 		podCtrlLog.Error(err, "reconcile ListPod error")
 		return reconcile.Result{}, err
@@ -96,9 +116,10 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		Exec:      k8sexec.New(),
 	}
 
-	podDriver := NewPodDriver(m.K8sClient, mounter)
+	podDriver := NewPodDriver(m.K8sClient, mounter, &corev1.PodList{
+		Items: append(appPodList.Items, mountPodList.Items...),
+	})
 	podDriver.SetMountInfo(*mit)
-	podDriver.mit.setPodsStatus(&corev1.PodList{Items: podLists})
 
 	result, err := podDriver.Run(ctx, mountPod)
 	if err != nil {
@@ -144,6 +165,9 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
+			if pod.Labels == nil || pod.Labels[common.PodTypeKey] != common.PodTypeValue {
+				return false
+			}
 			podCtrlLog.V(1).Info("watch pod created", "podName", pod.GetName())
 			return true
 		},
@@ -153,11 +177,17 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
+			if podNew.Labels == nil || podNew.Labels[common.PodTypeKey] != common.PodTypeValue {
+				return false
+			}
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
 			pod := deleteEvent.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
+			if pod.Labels == nil || pod.Labels[common.PodTypeKey] != common.PodTypeValue {
 				return false
 			}
 			podCtrlLog.V(1).Info("watch pod deleted", "podName", pod.GetName())

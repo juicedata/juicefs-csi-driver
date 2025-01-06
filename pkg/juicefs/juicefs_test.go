@@ -281,6 +281,7 @@ func Test_jfs_GetBasePath(t *testing.T) {
 
 func Test_juicefs_JfsMount(t *testing.T) {
 	k8sClient := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
+	config.AccessToKubelet = true
 
 	Convey("Test JfsMount", t, func() {
 		Convey("ee normal", func() {

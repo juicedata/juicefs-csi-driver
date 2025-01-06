@@ -20,7 +20,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/fields"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -39,8 +39,9 @@ func init() {
 }
 
 type PodManager struct {
-	mgr    ctrl.Manager
-	client *k8sclient.K8sClient
+	mgr         ctrl.Manager
+	client      *k8sclient.K8sClient
+	cacheReader client.Reader
 }
 
 func NewPodManager() (*PodManager, error) {
@@ -59,7 +60,9 @@ func NewPodManager() (*PodManager, error) {
 			Scheme: scheme,
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
-					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.PodTypeValue}),
+					Field: fields.SelectorFromSet(map[string]string{
+						"spec.nodeName": config.NodeName,
+					}),
 				},
 			},
 		},
@@ -77,14 +80,15 @@ func NewPodManager() (*PodManager, error) {
 	}
 
 	return &PodManager{
-		mgr:    mgr,
-		client: k8sClient,
+		mgr:         mgr,
+		cacheReader: mgr.GetAPIReader(),
+		client:      k8sClient,
 	}, err
 }
 
 func (m *PodManager) Start(ctx context.Context) error {
 	// init Reconciler（Controller）
-	if err := (mountctrl.NewPodController(m.client)).SetupWithManager(m.mgr); err != nil {
+	if err := (mountctrl.NewPodController(m.client, m.cacheReader)).SetupWithManager(m.mgr); err != nil {
 		log.Error(err, "Register pod controller error")
 		return err
 	}
