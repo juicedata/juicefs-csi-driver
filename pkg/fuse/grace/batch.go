@@ -46,7 +46,7 @@ type BatchUpgrade struct {
 	recreate        bool
 
 	// batch
-	podsToUpgrade map[string]*PodUpgrade
+	podsToUpgrade []*PodUpgrade
 	successSum    map[string]bool
 	failSum       map[string]bool
 }
@@ -58,7 +58,7 @@ func NewBatchUpgrade(client *k8s.K8sClient, req upgradeRequest) *BatchUpgrade {
 		recreate:        true,
 		batchConfigName: req.configName,
 		crtBatchIndex:   req.batchIndex,
-		podsToUpgrade:   map[string]*PodUpgrade{},
+		podsToUpgrade:   []*PodUpgrade{},
 		successSum:      map[string]bool{},
 		failSum:         map[string]bool{},
 	}
@@ -81,7 +81,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 		log.Error(err, "reconcile ListPod error")
 		return err
 	}
-	u.podsToUpgrade = make(map[string]*PodUpgrade)
+	u.podsToUpgrade = make([]*PodUpgrade, 0)
 	podNames := make(map[string]bool)
 	for _, batch := range batchConfig.Batches[u.crtBatchIndex-1] {
 		if batch.Node == config.NodeName {
@@ -109,7 +109,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 			upgradeUUID: resource.GetUpgradeUUID(&po),
 			status:      config.Running,
 		}
-		u.podsToUpgrade[po.Labels[common.PodUpgradeUUIDLabelKey]] = pu
+		u.podsToUpgrade = append(u.podsToUpgrade, pu)
 	}
 
 	podNameStrs := []string{}
@@ -193,7 +193,13 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		if !ok {
 			return
 		}
-		pu := u.podsToUpgrade[po.Labels[common.PodUpgradeUUIDLabelKey]]
+		var pu *PodUpgrade
+		for _, p := range u.podsToUpgrade {
+			if p.pod.Name == po.Name {
+				pu = p
+				break
+			}
+		}
 		if pu == nil {
 			return
 		}
