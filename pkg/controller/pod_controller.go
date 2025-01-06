@@ -58,7 +58,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	podCtrlLog.V(1).Info("Receive pod", "name", request.Name, "namespace", request.Namespace)
 	ctx, cancel := context.WithTimeout(ctx, config.ReconcileTimeout)
 	defer cancel()
-	var mountPod *corev1.Pod
+	mountPod := &corev1.Pod{}
 	if err := m.cachedReader.Get(ctx, request.NamespacedName, mountPod); err == nil {
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
