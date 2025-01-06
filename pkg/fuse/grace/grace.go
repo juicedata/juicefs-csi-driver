@@ -284,7 +284,7 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 }
 
 func (p *PodUpgrade) isInUpgradeProcess() bool {
-	if p.pod.Annotations == nil {
+	if p.pod.Annotations == nil || p.pod.Annotations[common.JfsUpgradeProcess] == "" {
 		return false
 	}
 	t, err := time.Parse(time.DateTime, p.pod.Annotations[common.JfsUpgradeProcess])
