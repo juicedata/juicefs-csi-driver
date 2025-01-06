@@ -177,7 +177,7 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 	if err := pu.gracefulShutdown(ctx, conn); err != nil {
 		log.Error(err, "graceful shutdown error")
 		if pu.recreate {
-			if e := resource.DelPodAnnotation(ctx, client, pu.pod, []string{common.JfsUpgradeProcess}); e != nil {
+			if e := resource.DelPodAnnotation(ctx, client, pu.pod.Name, pu.pod.Namespace, []string{common.JfsUpgradeProcess}); e != nil {
 				sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", pu.pod.Name, e.Error()))
 				return
 			}
@@ -341,7 +341,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
 	if p.recreate {
-		if err := resource.AddPodAnnotation(ctx, p.client, p.pod, map[string]string{common.JfsUpgradeProcess: time.Now().Format(time.DateTime)}); err != nil {
+		if err := resource.AddPodAnnotation(ctx, p.client, p.pod.Name, p.pod.Namespace, map[string]string{common.JfsUpgradeProcess: time.Now().Format(time.DateTime)}); err != nil {
 			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] %s.", p.pod.Name, err.Error()))
 			return nil, err
 		}
