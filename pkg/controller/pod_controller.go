@@ -165,6 +165,9 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 				return false
 			}
+			if pod.Labels == nil || pod.Labels[common.PodTypeKey] != common.PodTypeValue {
+				return false
+			}
 			podCtrlLog.V(1).Info("watch pod created", "podName", pod.GetName())
 			return true
 		},
@@ -174,11 +177,17 @@ func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
 				podCtrlLog.V(1).Info("pod.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
 			}
+			if podNew.Labels == nil || podNew.Labels[common.PodTypeKey] != common.PodTypeValue {
+				return false
+			}
 			return true
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
 			pod := deleteEvent.Object
 			if pod.Spec.NodeName != config.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
+				return false
+			}
+			if pod.Labels == nil || pod.Labels[common.PodTypeKey] != common.PodTypeValue {
 				return false
 			}
 			podCtrlLog.V(1).Info("watch pod deleted", "podName", pod.GetName())
