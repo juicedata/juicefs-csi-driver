@@ -126,6 +126,8 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 
 func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 	if err := u.fetchPods(ctx, conn); err != nil {
+		log.Error(err, "fetch pods error", "config", u.batchConfigName)
+		sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL fetch pods error: %s", err.Error()))
 		return
 	}
 	var (
