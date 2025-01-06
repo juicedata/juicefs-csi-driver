@@ -63,10 +63,6 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, err
 	}
-	if mountPod == nil {
-		podCtrlLog.V(1).Info("pod has been deleted.", "name", request.Name)
-		return reconcile.Result{}, nil
-	}
 	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 		podCtrlLog.V(1).Info("pod is not on node, skipped", "namespace", mountPod.Namespace, "name", mountPod.Name, "node", config.NodeName)
 		return reconcile.Result{}, nil
