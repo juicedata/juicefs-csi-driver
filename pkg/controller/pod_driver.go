@@ -1019,7 +1019,9 @@ func (p *PodDriver) getAvailableMountPod(ctx context.Context, uniqueId, upgradeU
 	// check pods in which get from kubelet
 	for _, u := range p.uniqueIdIndex[uniqueId] {
 		if u.upgradeUUID == upgradeUUID {
-			return u.status != podDeleted && u.status != podComplete
+			if u.status != podDeleted && u.status != podComplete {
+				return true
+			}
 		}
 	}
 	return false

@@ -25,10 +25,8 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -157,113 +155,6 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 		}()
 	}
 	wg.Wait()
-
-	u.waitForUpgrade(ctx, conn)
-}
-
-func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
-	ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
-	defer cancel()
-
-	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			common.PodTypeKey: common.PodTypeValue,
-		},
-	})
-	fieldSelector := fields.Set{
-		"spec.nodeName": config.NodeName,
-	}
-
-	stop := make(chan struct{})
-	defer func() {
-		close(stop)
-	}()
-	watchlist := cache.NewFilteredListWatchFromClient(
-		u.client.CoreV1().RESTClient(),
-		"pods",
-		config.Namespace,
-		func(options *metav1.ListOptions) {
-			options.ResourceVersion = "0"
-			options.FieldSelector = fieldSelector.String()
-			options.LabelSelector = labelSelector.String()
-		},
-	)
-	handle := func(obj interface{}) {
-		po, ok := obj.(*corev1.Pod)
-		if !ok {
-			return
-		}
-		var pu *PodUpgrade
-		for _, p := range u.podsToUpgrade {
-			if p.pod.Labels[common.PodUpgradeUUIDLabelKey] == po.Labels[common.PodUpgradeUUIDLabelKey] {
-				pu = p
-				break
-			}
-		}
-		if pu == nil {
-			return
-		}
-		if po.Name != pu.pod.Name {
-			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
-				if resource.IsPodReady(po) && !u.successSum[pu.pod.Name] {
-					pu.status = config.Success
-					u.lock.Lock()
-					u.successSum[pu.pod.Name] = true
-					u.lock.Unlock()
-					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", pu.pod.Name, po.Name))
-					return
-				}
-			}
-		}
-		if po.Name == pu.pod.Name {
-			if resource.IsPodComplete(po) {
-				sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", pu.pod.Name))
-				return
-			}
-			if po.DeletionTimestamp != nil {
-				sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", pu.pod.Name))
-				return
-			}
-		}
-	}
-	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
-		ListerWatcher: watchlist,
-		ObjectType:    &corev1.Pod{},
-		Handler: cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				handle(obj)
-			},
-			DeleteFunc: func(obj interface{}) {
-				handle(obj)
-			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				handle(newObj)
-			},
-		},
-	})
-	go controller.Run(stop)
-
-	for {
-		select {
-		case <-ctx.Done():
-			for _, p := range u.podsToUpgrade {
-				if p.status != config.Success {
-					sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
-				}
-			}
-			sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", config.NodeName))
-			return
-		default:
-			if len(u.successSum) == len(u.podsToUpgrade) {
-				sendMessage(conn, fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", config.NodeName))
-				return
-			}
-			if len(u.failSum) > 0 && len(u.failSum)+len(u.successSum) == len(u.podsToUpgrade) {
-				sendMessage(conn, fmt.Sprintf("CRT-BATCH-FAIL some pods of current batch upgrade failed in node %s", config.NodeName))
-				return
-			}
-		}
-	}
 }
 
 func TriggerBatchUpgrade(socketPath string, batchConfigName string, batchIndex int) error {
