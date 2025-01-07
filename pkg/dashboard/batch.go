@@ -33,6 +33,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
@@ -40,6 +42,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -95,7 +98,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 
 		if needCreate {
 			cmName := GenUpgradeConfig(jobName)
-			cfg, err := config.CreateUpgradeConfig(c, api.k8sclient, cmName, createJobBody.BatchConfig)
+			cfg, err := config.CreateUpgradeConfig(c, api.client, cmName, createJobBody.BatchConfig)
 			if err != nil {
 				c.String(500, "save upgrade config error %v", err)
 				return
@@ -127,56 +130,35 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 
 func (api *API) listUpgradeJobs() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var (
-			err      error
-			pageSize uint64
-		)
-		pageSize, err = strconv.ParseUint(c.Query("pageSize"), 10, 64)
-		if err != nil || pageSize == 0 {
-			c.String(400, "invalid page size")
+		jobs := batchv1.JobList{}
+		labelSelector := labels.SelectorFromSet(map[string]string{
+			common.PodTypeKey: common.JobTypeValue,
+			common.JfsJobKind: common.KindOfUpgrade,
+		})
+		if err := api.cachedReader.List(c, &jobs, &client.ListOptions{
+			LabelSelector: labelSelector,
+		}); err != nil {
+			c.String(500, "list jobs error %v", err)
 			return
 		}
-		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
-		if err != nil || current == 0 {
-			c.String(400, "invalid current page")
-			return
-		}
-		descend := c.Query("order") != "ascend"
-		nameFilter := c.Query("name")
 
-		jobs := make([]*batchv1.Job, 0, api.jobsIndexes.length())
-		for name := range api.jobsIndexes.iterate(c, descend) {
-			var job batchv1.Job
-			if err := api.cachedReader.Get(c, name, &job); err == nil &&
-				(nameFilter == "" || strings.Contains(job.Name, nameFilter)) &&
-				(isUpgradeJob(&job)) {
-				jobs = append(jobs, &job)
-			}
-		}
 		configs, err := api.getAllUpgradeConfig(c)
 		if err != nil {
 			c.String(500, "get all upgrade config error %v", err)
 			return
 		}
 
-		result := &ListJobResult{len(jobs), make([]*UpgradeJob, 0)}
+		result := &ListJobResult{
+			len(jobs.Items),
+			make([]*UpgradeJob, 0),
+		}
 
-		startIndex := (current - 1) * pageSize
-		if startIndex >= uint64(len(jobs)) {
-			c.IndentedJSON(200, result)
-			return
-		}
-		endIndex := startIndex + pageSize
-		if endIndex > uint64(len(jobs)) {
-			endIndex = uint64(len(jobs))
-		}
-		for i := startIndex; i < endIndex; i++ {
+		for i := range jobs.Items {
 			result.Jobs = append(result.Jobs, &UpgradeJob{
-				Job:    jobs[i],
-				Config: configs[jobs[i].Labels[common.JfsUpgradeConfig]],
+				Job:    &jobs.Items[i],
+				Config: configs[jobs.Items[i].Labels[common.JfsUpgradeConfig]],
 			})
 		}
-
 		c.IndentedJSON(200, result)
 	}
 }
@@ -193,7 +175,7 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		conf, err := config.LoadUpgradeConfig(c, api.k8sclient, job.Labels[common.JfsUpgradeConfig])
+		conf, err := config.LoadUpgradeConfig(c, api.client, job.Labels[common.JfsUpgradeConfig])
 		if err != nil {
 			c.String(500, "get job error %v", err)
 			return
@@ -205,13 +187,13 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 			}
 		}
 
-		pods := make([]corev1.Pod, 0, api.sysIndexes.length())
-		for name := range api.sysIndexes.iterate(c, false) {
-			if !podsName[name.Name] {
-				continue
-			}
+		pods := make([]corev1.Pod, 0, len(podsName))
+		for name := range podsName {
 			var po corev1.Pod
-			if err := api.cachedReader.Get(c, name, &po); err == nil {
+			if err := api.cachedReader.Get(c, types.NamespacedName{
+				Namespace: getSysNamespace(),
+				Name:      name,
+			}, &po); err == nil {
 				pods = append(pods, po)
 			}
 		}
@@ -373,7 +355,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				fmt.Printf("err in stream: %s", err)
 				return
 			}
-			wr := newLogPipe(c.Request.Context(), ws, stream)
+			wr := utils.NewLogPipe(c.Request.Context(), ws, stream)
 			_, err = io.Copy(wr, wr)
 			if err != nil {
 				fmt.Printf("err in copy: %s", err)
@@ -503,51 +485,42 @@ type PodDiff struct {
 // shouldDiff: should pass the pods which have no diff config
 func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff bool) ([]corev1.Pod, []PodDiff, error) {
 	// load config
-	if err := config.LoadFromConfigMap(ctx, api.k8sclient); err != nil {
+	if err := config.LoadFromConfigMap(ctx, api.client); err != nil {
 		return nil, nil, err
 	}
 
 	// get pvc、pv、secret
-	pvs := make([]*corev1.PersistentVolume, 0, api.pvIndexes.length())
-	for name := range api.pvIndexes.iterate(ctx, false) {
-		var pv corev1.PersistentVolume
-		if err := api.cachedReader.Get(ctx, name, &pv); err == nil {
-			pvs = append(pvs, &pv)
-		}
+	pvs, err := api.pvSvc.ListAllPVs(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
-	pvcs := make([]*corev1.PersistentVolumeClaim, 0, api.pvcIndexes.length())
-	for name := range api.pvcIndexes.iterate(ctx, false) {
-		var pvc corev1.PersistentVolumeClaim
-		if err := api.cachedReader.Get(ctx, name, &pvc); err == nil {
-			pvcs = append(pvcs, &pvc)
-		}
-	}
-	secrets := make([]*corev1.Secret, 0, api.secretIndexes.length())
-	for name := range api.secretIndexes.iterate(ctx, false) {
-		var secret corev1.Secret
-		if err := api.cachedReader.Get(ctx, name, &secret); err == nil {
-			secrets = append(secrets, &secret)
-		}
+	pvcs, err := api.pvcSvc.ListAllPVCs(ctx, pvs)
+	if err != nil {
+		return nil, nil, err
 	}
 
+	secrets, err := api.secretSvc.ListAllSecrets(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
 	custSecretMap := make(map[string]*corev1.Secret)
 	for _, pv := range pvs {
-		pvMap[pv.Name] = pv
+		pvMap[pv.Name] = &pv
 	}
 	for _, pvc := range pvcs {
 		pvc2 := pvc
-		pvcMap[pvc.Spec.VolumeName] = pvc2
+		pvcMap[pvc.Spec.VolumeName] = &pvc2
 	}
 	for _, secret := range secrets {
 		secret2 := secret
 		uniqueId := getUniqueIdFromSecretName(secret2.Name)
 		if uniqueId != "" {
-			secretMap[uniqueId] = secret2
+			secretMap[uniqueId] = &secret2
 		}
-		custSecretMap[secret2.Name] = secret2
+		custSecretMap[secret2.Name] = &secret2
 	}
 
 	var needUpdatePods []corev1.Pod

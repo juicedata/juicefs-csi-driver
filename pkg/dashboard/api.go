@@ -18,13 +18,13 @@ package dashboard
 
 import (
 	"context"
-	"sync"
 
 	"github.com/gin-gonic/gin"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/events"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pods"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvcs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/secrets"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -32,28 +32,22 @@ import (
 )
 
 type API struct {
-	sysNamespace string
+	sysNamespace  string
+	enableManager bool
 	// for cached resources
 	cachedReader client.Reader
 	mgrClient    client.Client
-	// for logs and events
-	client     kubernetes.Interface
-	k8sclient  *k8sclient.K8sClient
-	kubeconfig *rest.Config
+	client       *k8sclient.K8sClient
+	kubeconfig   *rest.Config
 
-	csiNodeLock   sync.RWMutex
-	csiNodeIndex  map[string]types.NamespacedName
-	sysIndexes    *timeOrderedIndexes[corev1.Pod]
-	appIndexes    *timeOrderedIndexes[corev1.Pod]
-	pvIndexes     *timeOrderedIndexes[corev1.PersistentVolume]
-	pvcIndexes    *timeOrderedIndexes[corev1.PersistentVolumeClaim]
-	jobsIndexes   *timeOrderedIndexes[batchv1.Job]
-	secretIndexes *timeOrderedIndexes[corev1.Secret]
-	pairLock      sync.RWMutex
-	pairs         map[types.NamespacedName]types.NamespacedName
+	podSvc    pods.PodService
+	pvSvc     pvs.PVService
+	pvcSvc    pvcs.PVCService
+	secretSvc secrets.SecretService
+	eventSvc  events.EventService
 }
 
-func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config) *API {
+func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config, enableManager bool) *API {
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClientWithConfig(*config)
 	if err != nil {
@@ -61,40 +55,34 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	}
 	api := &API{
 		sysNamespace:  sysNamespace,
+		enableManager: enableManager,
 		cachedReader:  client,
 		mgrClient:     client,
-		client:        kubernetes.NewForConfigOrDie(config),
-		k8sclient:     k8sClient,
-		csiNodeIndex:  make(map[string]types.NamespacedName),
-		sysIndexes:    newTimeIndexes[corev1.Pod](),
-		appIndexes:    newTimeIndexes[corev1.Pod](),
-		pvIndexes:     newTimeIndexes[corev1.PersistentVolume](),
-		pvcIndexes:    newTimeIndexes[corev1.PersistentVolumeClaim](),
-		jobsIndexes:   newTimeIndexes[batchv1.Job](),
-		secretIndexes: newTimeIndexes[corev1.Secret](),
-		pairs:         make(map[types.NamespacedName]types.NamespacedName),
+		client:        k8sClient,
 		kubeconfig:    config,
+		pvSvc:         pvs.NewPVService(client, enableManager),
+		podSvc:        pods.NewPodService(client, k8sClient, config, enableManager),
+		pvcSvc:        pvcs.NewPVCService(client, enableManager),
+		eventSvc:      events.NewEventService(k8sClient),
+		secretSvc:     secrets.NewSecretService(client, enableManager),
 	}
 	return api
 }
 
 func (api *API) Handle(group *gin.RouterGroup) {
-	group.GET("/debug/status", api.debugAPIStatus())
 	group.GET("/pods", api.listAppPod())
 	group.GET("/syspods", api.listSysPod())
-	group.GET("/mountpods", api.listMountPod())
-	group.GET("/csi-nodes", api.listCSINodePod())
-	group.GET("/controllers", api.listCSIControllerPod())
 	group.GET("/pvs", api.listPVsHandler())
 	group.GET("/pvcs", api.listPVCsHandler())
-	group.GET("/pvcs/uniqueids/:uniqueid", api.getPVCByUniqueId())
 	group.GET("/storageclasses", api.listSCsHandler())
 	group.GET("/cachegroups", api.listCacheGroups())
-	group.GET("/csi-node/:nodeName", api.getCSINodeByName())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
-	group.GET("/config/diff", api.getCSIConfigDiff())
 	group.GET("/nodes", api.getNodes())
+
+	group.GET("/pvcs/uniqueids/:uniqueid", api.getPVCByUniqueId())
+	group.GET("/config/diff", api.getCSIConfigDiff())
+
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())
 	podGroup.GET("/", api.getPodHandler())
 	podGroup.GET("/latestimage", api.getPodLatestImage())
@@ -107,18 +95,22 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/csi-nodes", api.listCSINodePod())
 	podGroup.GET("/node", api.getPodNode())
 	podGroup.GET("/downloadDebugFile", api.downloadDebugFile())
+
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
 	pvGroup.GET("/events", api.getPVEvents())
+
 	pvcGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
 	pvcGroup.GET("/", api.getPVCHandler())
 	pvcGroup.GET("/uniqueid", api.getPVCWithPVHandler())
 	pvcGroup.GET("/mountpods", api.getMountPodsOfPVC())
 	pvcGroup.GET("/events", api.getPVCEvents())
+
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
 	scGroup.GET("/pvs", api.getPVOfSC())
+
 	batchGroup := group.Group("/batch/upgrade")
 	batchGroup.GET("/plan", api.getBatchPlan())
 	batchGroup.GET("/jobs", api.listUpgradeJobs())
@@ -127,6 +119,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	batchGroup.DELETE("/jobs/:jobName", api.deleteUpgradeJob())
 	batchGroup.PUT("/jobs/:jobName", api.updateUpgradeJob())
 	batchGroup.GET("/jobs/:jobName/logs", api.getUpgradeJobLog())
+
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
 	cgGroup.POST("/", api.createCacheGroup())
