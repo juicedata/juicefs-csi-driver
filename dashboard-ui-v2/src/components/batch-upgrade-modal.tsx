@@ -48,7 +48,7 @@ const BatchUpgradeModal: React.FC<{
   const [selectedPVCName, setSelectedPVCName] = useState('')
   const { data: selectedPVC } = usePVCsWithUniqueId(selectedPVCName)
   const [uniqueId, setUniqueId] = useState('')
-  const { data: pvcs } = usePVCs({ name: '' })
+  const { data: pvcs } = usePVCs({ name: '', pageSize: 100 })
 
   const [selectedNode, setSelectedNode] = useState('All Nodes')
   const { data: nodes } = useNodes()

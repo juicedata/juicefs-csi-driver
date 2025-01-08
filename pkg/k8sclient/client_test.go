@@ -180,15 +180,6 @@ func TestK8sClient_PatchPod(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test-nil",
-			pod:  nil,
-			args: args{
-				data: PatchMapValue{},
-			},
-			want:    nil,
-			wantErr: false,
-		},
-		{
 			name: "test-patch",
 			pod:  &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"}},
 			args: args{
@@ -222,7 +213,7 @@ func TestK8sClient_PatchPod(t *testing.T) {
 				t.Errorf("Parse json error: %v", err)
 				return
 			}
-			err = k.PatchPod(context.TODO(), tt.args.pod, data, types.JSONPatchType)
+			err = k.PatchPod(context.TODO(), tt.args.pod.Name, tt.args.pod.Namespace, data, types.JSONPatchType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PatchPod() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -148,4 +148,8 @@ export default {
   upgradeLog: 'Upgrade Log',
   jobNotFound: 'Task not found',
   inputJobName: 'Job Name',
+  deleteJob: 'Delete Task',
+  deleteJobDesc: 'Are you sure to delete this task?',
+  yes: 'Yes',
+  no: 'No',
 }

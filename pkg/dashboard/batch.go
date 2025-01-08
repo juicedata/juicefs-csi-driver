@@ -87,7 +87,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			jobName = GenUpgradeJobName()
 		}
 
-		_, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		_, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
 			c.String(500, "get job error %v", err)
 			return
@@ -166,7 +166,7 @@ func (api *API) listUpgradeJobs() gin.HandlerFunc {
 func (api *API) getUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				c.IndentedJSON(200, batchv1.Job{})
@@ -191,13 +191,13 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 		for name := range podsName {
 			var po corev1.Pod
 			if err := api.cachedReader.Get(c, types.NamespacedName{
-				Namespace: getSysNamespace(),
+				Namespace: config.Namespace,
 				Name:      name,
 			}, &po); err == nil {
 				pods = append(pods, po)
 			}
 		}
-		_, diffs, err := api.genPodDiffs(c, pods, false)
+		_, diffs, err := api.genPodDiffs(c, pods, false, false)
 		if err != nil {
 			c.String(500, "get pods diff configs error %v", err)
 			return
@@ -213,7 +213,7 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 func (api *API) updateUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			c.String(500, "get job error %v", err)
 			return
@@ -224,6 +224,15 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 		action := &body{}
 		if err := c.ShouldBindJSON(action); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		conf, err := config.LoadUpgradeConfig(c, api.client, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		if !api.canDoAction(c, conf.Status, action.Action) {
+			c.String(400, "can not %s job", action.Action)
 			return
 		}
 		pod, err := api.getPodOfUpgradeJob(c, job)
@@ -247,7 +256,21 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		err := api.client.BatchV1().Jobs(getSysNamespace()).Delete(c, jobName, metav1.DeleteOptions{
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		conf, err := config.LoadUpgradeConfig(c, api.client, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get job error %v", err)
+			return
+		}
+		if !api.canDoAction(c, conf.Status, "delete") {
+			c.String(400, "can not delete job")
+			return
+		}
+		err = api.client.BatchV1().Jobs(config.Namespace).Delete(c, jobName, metav1.DeleteOptions{
 			PropagationPolicy: util.ToPtr(metav1.DeletePropagationBackground),
 		})
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -260,7 +283,7 @@ func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 func (api *API) getUpgradeJobLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
-		job, err := api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				c.String(400, "not found")
@@ -315,7 +338,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 			ctx, cancel := context.WithTimeout(c, 2*time.Minute)
 			defer cancel()
 			for {
-				job, err = api.client.BatchV1().Jobs(getSysNamespace()).Get(c, jobName, metav1.GetOptions{})
+				job, err = api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 				if err == nil && job.DeletionTimestamp == nil {
 					s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -338,7 +361,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 				case <-ctx.Done():
 					c.String(500, "get job or list pod timeout")
 					batchLog.Info("get job or list pod timeout", "job", jobName)
-					_, _ = ws.Write([]byte(fmt.Sprintf("Upgrade timeout, job for upgrade is not ready, please check job [%s] in [%s] and try again later.", jobName, getSysNamespace())))
+					_, _ = ws.Write([]byte(fmt.Sprintf("Upgrade timeout, job for upgrade is not ready, please check job [%s] in [%s] and try again later.", jobName, config.Namespace)))
 					t.Stop()
 					return
 				case <-t.C:
@@ -388,7 +411,7 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 			c.String(500, "list pods error %v", err)
 			return
 		}
-		pods, _, err := api.getUpgradePods(c, uniqueId, nodeName, recreate)
+		pods, _, err := api.getUpgradePods(c, uniqueId, nodeName, recreate, false)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
@@ -399,7 +422,7 @@ func (api *API) getBatchPlan() gin.HandlerFunc {
 }
 
 func newUpgradeJob(jobName string) *batchv1.Job {
-	sysNamespace := getSysNamespace()
+	sysNamespace := config.Namespace
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	sa := "juicefs-csi-dashboard-sa"
 	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
@@ -420,7 +443,7 @@ func newUpgradeJob(jobName string) *batchv1.Job {
 			Parallelism:             util.ToPtr(int32(1)),
 			Completions:             util.ToPtr(int32(1)),
 			BackoffLimit:            util.ToPtr(int32(0)),
-			TTLSecondsAfterFinished: util.ToPtr(int32(3600 * 24)), // automatically deleted after 1 day
+			TTLSecondsAfterFinished: util.ToPtr(int32(3600 * 24 * 7)), // automatically deleted after 7 day
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -447,7 +470,7 @@ func newUpgradeJob(jobName string) *batchv1.Job {
 	}
 }
 
-func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, []PodDiff, error) {
+func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName string, recreate, debug bool) ([]corev1.Pod, []PodDiff, error) {
 	var pods corev1.PodList
 	ls := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -471,19 +494,21 @@ func (api *API) getUpgradePods(ctx context.Context, uniqueId string, nodeName st
 	}
 
 	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
-	return api.genPodDiffs(ctx, podsToUpgrade, true)
+	return api.genPodDiffs(ctx, podsToUpgrade, true, debug)
 }
 
 type PodDiff struct {
-	Pod       corev1.Pod           `json:"pod"`
-	OldConfig config.MountPodPatch `json:"oldConfig"`
-	NewConfig config.MountPodPatch `json:"newConfig"`
+	Pod        corev1.Pod           `json:"pod"`
+	OldConfig  config.MountPodPatch `json:"oldConfig"`
+	OldSetting *config.JfsSetting   `json:"oldSetting,omitempty"`
+	NewConfig  config.MountPodPatch `json:"newConfig"`
+	NewSetting *config.JfsSetting   `json:"newSetting,omitempty"`
 }
 
 // genPodDiffs return mount pods with diff configs
 // mountPods: pods need to get diff configs
 // shouldDiff: should pass the pods which have no diff config
-func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff bool) ([]corev1.Pod, []PodDiff, error) {
+func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff, debug bool) ([]corev1.Pod, []PodDiff, error) {
 	// load config
 	if err := config.LoadFromConfigMap(ctx, api.client); err != nil {
 		return nil, nil, err
@@ -540,22 +565,27 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 			// no diff config and should diff, skip
 			continue
 		}
-		oldConfig, newConfig, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
+		oldConfig, oldSetting, newConfig, newSetting, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
 		if err != nil {
 			return nil, nil, err
 		}
 		needUpdatePods = append(needUpdatePods, po)
-		podDiffs = append(podDiffs, PodDiff{
+		pd := PodDiff{
 			Pod:       po,
 			OldConfig: *oldConfig,
 			NewConfig: *newConfig,
-		})
+		}
+		if debug {
+			pd.OldSetting = oldSetting
+			pd.NewSetting = newSetting
+		}
+		podDiffs = append(podDiffs, pd)
 	}
 	return needUpdatePods, podDiffs, nil
 }
 
 func GenUpgradeJobName() string {
-	return fmt.Sprintf("juicefs-upgrade-job-%s", util.RandStringRunes(6))
+	return fmt.Sprintf("jfs-upgrade-job-%s", util.RandStringRunes(6))
 }
 
 func GenUpgradeConfig(jobName string) string {
@@ -573,7 +603,7 @@ func (api *API) getAllUpgradeConfig(ctx context.Context) (map[string]*config.Bat
 			common.PodTypeKey: common.ConfigTypeValue,
 		},
 	})
-	cmList, err = api.client.CoreV1().ConfigMaps(getSysNamespace()).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
+	cmList, err = api.client.CoreV1().ConfigMaps(config.Namespace).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -603,6 +633,25 @@ func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1
 		return &podList.Items[0], nil
 	}
 	return nil, nil
+}
+
+func (api *API) canDoAction(ctx context.Context, status config.UpgradeStatus, action string) bool {
+	switch action {
+	case "stop":
+		return status != config.Fail &&
+			status != config.Success &&
+			status != config.Stop
+	case "resume":
+		return status == config.Pause
+	case "pause":
+		return status != config.Stop &&
+			status != config.Pause &&
+			status != config.Fail &&
+			status != config.Success
+	case "delete":
+		return status == config.Fail || status == config.Success || status == config.Stop || status == config.Pause
+	}
+	return false
 }
 
 func (api *API) doActionInUpgradeJob(ctx context.Context, pod *corev1.Pod, action string) error {

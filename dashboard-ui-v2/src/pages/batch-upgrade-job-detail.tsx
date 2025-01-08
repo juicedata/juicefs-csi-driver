@@ -43,12 +43,18 @@ const BatchUpgradeJobDetail: React.FC<{
 
   const [total, setTotal] = useState(0)
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
+  const [failReasons, setFailReasons] = useState<Map<string, string>>(new Map())
   const [deletedTime, setDeleteTime] = useState<string>()
 
   useEffect(() => {
     let totalPods = 0
     upgradeJob?.config?.batches?.forEach((podUpgrades) => {
       totalPods += podUpgrades?.length || 0
+      podUpgrades.forEach((mu) => {
+        if (mu.status !== 'pending') {
+          setDiffStatus((prev) => new Map(prev).set(mu.name, mu.status))
+        }
+      })
     })
     setTotal(totalPods)
     setJobStatus(upgradeJob?.config?.status || 'running')
@@ -59,6 +65,12 @@ const BatchUpgradeJobDetail: React.FC<{
     setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
       updatePodStatus(msg.data)
+    }
+    if (msg.data.includes('POD-FAIL')) {
+      failReason(
+        msg.data,
+        /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      )
     }
     if (msg.data.includes('BATCH-')) {
       return
@@ -85,7 +97,6 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
-
     const successMatches = message.match(/POD-SUCCESS/g) || []
     setPercent((prev) => {
       if (total != 0) {
@@ -95,6 +106,22 @@ const BatchUpgradeJobDetail: React.FC<{
         )
       }
       return 0
+    })
+  }
+
+  const failReason = (message: string, regex: RegExp) => {
+    const pods: string[] = []
+    for (const match of message.matchAll(regex)) {
+      const podName = match[1]
+      pods.push(podName)
+    }
+
+    pods.forEach((pod) => {
+      const podReg = new RegExp(String.raw`POD-FAIL \[${pod}\] (.+).`, 'g')
+      for (const match of message.matchAll(podReg)) {
+        const reason = match[1]
+        setFailReasons((prev) => new Map(prev).set(pod, reason))
+      }
     })
   }
 
@@ -163,6 +190,7 @@ const BatchUpgradeJobDetail: React.FC<{
             diffPods={upgradeJob?.diffs}
             batchConfig={upgradeJob?.config}
             diffStatus={diffStatus}
+            failReasons={failReasons}
           />
         )}
       </ProCard>

@@ -33,7 +33,6 @@ const (
 	JobTypeValue           = "juicefs-job"
 	ConfigTypeValue        = "juicefs-conf"
 	JfsInsideContainer     = "JFS_INSIDE_CONTAINER"
-	MaxParallelUpgradeNum  = 50
 
 	// CSI Secret
 	ProvisionerSecretName           = "csi.storage.k8s.io/provisioner-secret-name"
@@ -85,6 +84,7 @@ const (
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 
 	// smooth upgrade
+	JfsUpgradeProcess   = "juicefs-upgrade-process"
 	JfsFuseFsPathInPod  = "/tmp"
 	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
 	JfsCommEnv          = "JFS_SUPER_COMM"

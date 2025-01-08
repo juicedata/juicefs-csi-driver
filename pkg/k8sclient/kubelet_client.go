@@ -158,21 +158,40 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 	}, nil
 }
 
+func (kc *KubeletClient) Access() error {
+	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
-	if string(body) == "Unauthorized" {
-		return nil, fmt.Errorf("unauthorized")
-	}
+
 	podLists := &corev1.PodList{}
-	if err = json.Unmarshal(body, &podLists); err != nil {
-		kubeletLog.Error(err, "GetNodeRunningPods err", "body", body)
+	if err = json.NewDecoder(resp.Body).Decode(podLists); err != nil {
+		kubeletLog.Error(err, "GetNodeRunningPods err")
 		return nil, err
 	}
 	return podLists, err
