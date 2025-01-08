@@ -42,12 +42,14 @@ export function usePVs(args: PVPagingListArgs) {
   const sc = args.sc || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
-    pvs: [PV]
-    total: number
+    pvs: PV[]
+    total?: number
+    continue?: string
   }>(
-    `/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -59,12 +61,14 @@ export function usePVCs(args: PVCPagingListArgs) {
   const sc = args.sc || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
-    pvcs: [PVC]
-    total: number
+    pvcs: PVC[]
+    total?: number
+    continue?: string
   }>(
-    `/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 

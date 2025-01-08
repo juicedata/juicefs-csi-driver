@@ -43,6 +43,7 @@ export interface AppPagingListArgs {
   csiNode?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+  continue?: string // for k8s api server pagination
 }
 
 export interface SysPagingListArgs {
@@ -53,6 +54,8 @@ export interface SysPagingListArgs {
   node?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+
+  continue?: string // for k8s api server pagination
 }
 
 export interface SCPagingListArgs {
@@ -70,6 +73,7 @@ export interface PVPagingListArgs {
   sc?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+  continue?: string // for k8s api server pagination
 }
 
 export interface PVCPagingListArgs {
@@ -81,6 +85,7 @@ export interface PVCPagingListArgs {
   sc?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+  continue?: string // for k8s api server pagination
 }
 
 export interface CgWorkerPagingListArgs {
