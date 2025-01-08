@@ -1,16 +1,17 @@
 ---
 slug: /custom-etc-passwd-group
+description: Learn how to configure customized /etc/passwd and /etc/group files in JuiceFS Mount Pods to resolve UID/GID inconsistencies. 
 ---
 
-# Use customized /etc/passwd and /etc/group in Mount Pod
+# Use Customized /etc/passwd and /etc/group in Mount Pods
 
-If enterprise edition users enable the UID/GID auto map feature, when mounting simultaneously in both the host machine and Kubernetes Pods, inconsistencies between `/etc/passwd` and `/etc/group` can often lead to encountering the [UID/GID inconsistency](https://juicefs.com/docs/cloud/guide/guid_auto_map/#uidgid-inconsistency).
+For enterprise edition users who have enabled the UID/GID auto-mapping feature, mounting both on the host machine and in the Kubernetes Pod may lead to [UID/GID inconsistencies](https://juicefs.com/docs/cloud/guide/guid_auto_map/#uidgid-inconsistency) due to inconsistencies between `/etc/passwd` and `/etc/group`.
 
-At this point, it is necessary to ensure UID/GID consistency by customizing `/etc/passwd` and `/etc/group` to be the same for the CSI Mount Pod as in the host machine.
+In such cases, configuring the CSI Mount Pod with customized `/etc/passwd` and `/etc/group` files that match those of the host machine ensures consistent UID/GID mappings.
 
-## Create Secret Based on Host Configuration
+## Create a Secret based on host configuration
 
-The following commands will read the host machine's `/etc/passwd` and `/etc/group` to generate the Kubernetes Secret used by the Mount Pod.
+The following commands read the host machine's `/etc/passwd` and `/etc/group` to generate the Kubernetes Secret used by the Mount Pod.
 
 ```bash
 $ kubectl create secret generic juicefs-uid-gid --from-file=passwd=/etc/passwd --from-file=group=/etc/group 
@@ -28,9 +29,9 @@ group:   882 bytes
 passwd:  1898 byte
 ```
 
-## Configure Mount Pod
+## Configure the Mount Pod
 
-By default, our Mount Pod has already redirected `/etc/passwd` and `/etc/group` to symbolic links pointing to `~/.acl/passwd` and `~/.acl/group`.
+By default, the Mount Pod has already redirected `/etc/passwd` and `/etc/group` to symbolic links pointing to `~/.acl/passwd` and `~/.acl/group`.
 
 ``` bash
 $ ls -l /etc/ | grep acl
@@ -38,4 +39,4 @@ lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /root/.acl/group
 lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /root/.acl/passwd
 ```
 
-Just simply mount the Secret to `/root/.acl`, referring to [Adding extra files into Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /root/.acl}"`.
+Simply mount the Secret to `/root/.acl`. Refer to [Adding extra files into the Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /root/.acl}"`.
