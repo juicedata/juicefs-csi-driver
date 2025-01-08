@@ -199,5 +199,10 @@ const canResume = (status: string): boolean => {
 }
 
 const canDelete = (status: string): boolean => {
-  return status === 'fail' || status === 'success' || status === 'stop' || status === 'pause'
+  return (
+    status === 'fail' ||
+    status === 'success' ||
+    status === 'stop' ||
+    status === 'pause'
+  )
 }

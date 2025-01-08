@@ -128,19 +128,19 @@ const PodUpgradeTable: React.FC<{
         )
         return (
           <>
-            {podStatus !== 'fail' ?
+            {podStatus !== 'fail' ? (
               <Badge
                 status={getUpgradeStatusBadge(podStatus)}
                 text={podStatus}
               />
-              :
+            ) : (
               <Tooltip title={failReasons.get(podUpgrade.name) || ''}>
                 <Badge
                   status={getUpgradeStatusBadge(podStatus)}
                   text={podStatus}
                 />
               </Tooltip>
-            }
+            )}
           </>
         )
       },
@@ -155,12 +155,13 @@ const PodUpgradeTable: React.FC<{
             title={<FormattedMessage id="diff" />}
             trigger="click"
           >
-            {diffStatus.get(podDiff.name) !== 'success' ?
+            {diffStatus.get(podDiff.name) !== 'success' ? (
               <Tooltip title={<FormattedMessage id="clickToViewDetail" />}>
                 <Button icon={<DiffIcon />} />
-              </Tooltip> :
+              </Tooltip>
+            ) : (
               <Button disabled={true} icon={<DiffIcon />} />
-            }
+            )}
           </Popover>
         )
       },
@@ -184,7 +185,7 @@ const getPodUpgradeStatus = (
   statusFromLog: string,
   config?: BatchConfig,
 ): string => {
-  if (statusFromLog !== 'running') {
+  if (statusFromLog !== 'pending') {
     return statusFromLog
   }
   let status = statusFromLog

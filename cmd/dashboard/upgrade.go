@@ -85,7 +85,7 @@ var upgradeCmd = &cobra.Command{
 		podsStatus := make(map[string]config.UpgradeStatus)
 		for _, batch := range conf.Batches {
 			for _, pods := range batch {
-				podsStatus[pods.Name] = config.Running
+				podsStatus[pods.Name] = config.Pending
 			}
 		}
 		bu := &BatchUpgrade{
@@ -151,7 +151,7 @@ type BatchUpgrade struct {
 	k8sClient    *k8sclient.K8sClient
 	clientset    *kubernetes.Clientset
 
-	batches         [][]*PodUpgrade
+	batches         []map[string][]*PodUpgrade
 	lock            sync.Mutex
 	podsStatus      map[string]config.UpgradeStatus
 	status          config.UpgradeStatus
@@ -242,15 +242,16 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 		podMap[pod.Name] = &po
 	}
 
-	u.batches = make([][]*PodUpgrade, len(u.conf.Batches))
+	u.batches = make([]map[string][]*PodUpgrade, len(u.conf.Batches))
 	for i, batch := range u.conf.Batches {
-		pods := make([]*PodUpgrade, 0)
+		pods := make(map[string][]*PodUpgrade)
 		for _, pu := range batch {
 			po := podMap[pu.Name]
 			if po == nil {
 				continue
 			}
-			pods = append(pods, &PodUpgrade{
+
+			pods[pu.Node] = append(pods[pu.Node], &PodUpgrade{
 				pod:         po,
 				hashVal:     po.Labels[common.PodJuiceHashLabelKey],
 				upgradeUUID: resource.GetUpgradeUUID(po),
@@ -270,11 +271,11 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 		wg                  sync.WaitGroup
 		batch               = u.conf.Batches[u.crtBatch-1]
 		crtBatchFinalStatus = config.Success
-		csiNodeNames        = make(map[string]string)
+		csiNodeNames        = make(map[string][]config.MountPodUpgrade)
 	)
 	// trigger upgrade in each csi node only one time
 	for _, mp := range batch {
-		csiNodeNames[mp.CSINodePod] = mp.Node
+		csiNodeNames[mp.CSINodePod] = append(csiNodeNames[mp.CSINodePod], mp)
 	}
 	resultCh := make(chan error, len(csiNodeNames))
 	go func() {
@@ -282,13 +283,16 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 			wg.Wait()
 			close(resultCh)
 		}()
-		for csiNode, node := range csiNodeNames {
+		for csiNode, mps := range csiNodeNames {
 			wg.Add(1)
+
 			go func() {
 				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, u.crtBatch)
 				needWait := false
-				for _, p := range u.batches[u.crtBatch-1] {
-					if u.podsStatus[p.pod.Name] != config.Success && u.podsStatus[p.pod.Name] != config.Fail {
+				node := ""
+				for _, p := range mps {
+					node = p.Node
+					if u.podsStatus[p.Name] != config.Success && u.podsStatus[p.Name] != config.Fail {
 						needWait = true
 						break
 					}
@@ -397,7 +401,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName s
 	var (
 		successSum = make(map[string]bool)
 		failSum    = make(map[string]bool)
-		crtBatch   = u.batches[index-1]
+		crtBatch   = u.batches[index-1][nodeName]
 	)
 
 	for _, p := range crtBatch {
@@ -518,6 +522,17 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName s
 func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	msg := string(p)
 	fmt.Print(msg)
+
+	runningRegex := `/POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	runningRe := regexp.MustCompile(runningRegex)
+
+	runningMatches := runningRe.FindStringSubmatch(msg)
+	if len(runningMatches) > 1 {
+		podName := runningMatches[1]
+		u.lock.Lock()
+		u.podsStatus[podName] = config.Running
+		u.lock.Unlock()
+	}
 
 	successRegex := `POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	successRe := regexp.MustCompile(successRegex)

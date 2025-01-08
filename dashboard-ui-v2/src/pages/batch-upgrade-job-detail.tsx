@@ -51,16 +51,9 @@ const BatchUpgradeJobDetail: React.FC<{
     upgradeJob?.config?.batches?.forEach((podUpgrades) => {
       totalPods += podUpgrades?.length || 0
       podUpgrades.forEach((mu) => {
-        setDiffStatus((prev) => new Map(prev).set(mu.name, mu.status))
-        setPercent((prev) => {
-          if (totalPods != 0) {
-            return Math.min(
-              Math.ceil(prev + (1 / totalPods) * 100),
-              100,
-            )
-          }
-          return 0
-        })
+        if (mu.status !== 'pending') {
+          setDiffStatus((prev) => new Map(prev).set(mu.name, mu.status))
+        }
       })
     })
     setTotal(totalPods)
@@ -74,7 +67,8 @@ const BatchUpgradeJobDetail: React.FC<{
       updatePodStatus(msg.data)
     }
     if (msg.data.includes('POD-FAIL')) {
-      failReason(msg.data,
+      failReason(
+        msg.data,
         /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       )
     }
@@ -103,6 +97,16 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
+    const successMatches = message.match(/POD-SUCCESS/g) || []
+    setPercent((prev) => {
+      if (total != 0) {
+        return Math.min(
+          Math.ceil(prev + (successMatches.length / total) * 100),
+          100,
+        )
+      }
+      return 0
+    })
   }
 
   const failReason = (message: string, regex: RegExp) => {

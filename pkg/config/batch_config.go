@@ -82,6 +82,7 @@ func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate 
 			Name:       pod.Name,
 			Node:       pod.Spec.NodeName,
 			CSINodePod: csiNodesMap[pod.Spec.NodeName].Name,
+			Status:     Pending,
 		}
 		batches[j] = append(batches[j], mountPod)
 		index += 1
