@@ -72,12 +72,14 @@ func TestNewBatchConfig(t *testing.T) {
 				Batches: [][]MountPodUpgrade{
 					{
 						{
-							Name: "test1",
-							Node: "node1",
+							Name:   "test1",
+							Node:   "node1",
+							Status: Pending,
 						},
 						{
-							Name: "test2",
-							Node: "node2",
+							Name:   "test2",
+							Node:   "node2",
+							Status: Pending,
 						},
 					},
 				},
@@ -132,22 +134,26 @@ func TestNewBatchConfig(t *testing.T) {
 				Batches: [][]MountPodUpgrade{
 					{
 						{
-							Name: "test11",
-							Node: "node1",
+							Name:   "test11",
+							Node:   "node1",
+							Status: Pending,
 						},
 						{
-							Name: "test12",
-							Node: "node1",
+							Name:   "test12",
+							Node:   "node1",
+							Status: Pending,
 						},
 					},
 					{
 						{
-							Name: "test13",
-							Node: "node1",
+							Name:   "test13",
+							Node:   "node1",
+							Status: Pending,
 						},
 						{
-							Name: "test21",
-							Node: "node2",
+							Name:   "test21",
+							Node:   "node2",
+							Status: Pending,
 						},
 					},
 				},
@@ -202,22 +208,26 @@ func TestNewBatchConfig(t *testing.T) {
 				Batches: [][]MountPodUpgrade{
 					{
 						{
-							Name: "test11",
-							Node: "node1",
+							Name:   "test11",
+							Node:   "node1",
+							Status: Pending,
 						},
 						{
-							Name: "test12",
-							Node: "node1",
+							Name:   "test12",
+							Node:   "node1",
+							Status: Pending,
 						},
 					},
 					{
 						{
-							Name: "test13",
-							Node: "node1",
+							Name:   "test13",
+							Node:   "node1",
+							Status: Pending,
 						},
 						{
-							Name: "test21",
-							Node: "node1",
+							Name:   "test21",
+							Node:   "node1",
+							Status: Pending,
 						},
 					},
 				},
