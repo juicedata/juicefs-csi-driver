@@ -20,11 +20,11 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/events"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pods"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvcs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/secrets"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/events"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 

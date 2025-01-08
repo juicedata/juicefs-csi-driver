@@ -22,10 +22,10 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pods"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvcs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/pvs"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/resources/secrets"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
 )
 
 func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
