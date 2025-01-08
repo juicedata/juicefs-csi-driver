@@ -45,7 +45,7 @@ func (s *pvService) listPVs(ctx context.Context, limit int64, continueToken stri
 	}
 	nextContinue := pvLists.Continue
 	var err error
-	if len(pvs) != 0 && len(pvs) < int(limit) && nextContinue != "" {
+	if len(pvs) != 0 && int64(len(pvs)) < limit && nextContinue != "" {
 		var nextPvs []corev1.PersistentVolume
 		nextPvs, nextContinue, err = s.listPVs(ctx, limit-int64(len(pvs)), nextContinue)
 		if err != nil {
@@ -62,7 +62,7 @@ func (s *pvService) ListPVs(c *gin.Context) (*ListPVPodResult, error) {
 		pageSize = 10
 	}
 	continueToken := c.Query("continue")
-	pvs, nextContinue, err := s.listPVs(c, int64(pageSize), continueToken)
+	pvs, nextContinue, err := s.listPVs(c, pageSize, continueToken)
 	if err != nil {
 		return nil, err
 	}

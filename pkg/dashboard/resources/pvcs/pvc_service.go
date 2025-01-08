@@ -55,7 +55,7 @@ func (s *pvcService) listPVCs(ctx context.Context, limit int64, continueToken st
 	}
 	nextContinue := pvcLists.Continue
 	var err error
-	if len(pvcs) != 0 && len(pvcs) < int(limit) && nextContinue != "" {
+	if len(pvcs) != 0 && int64(len(pvcs)) < limit && nextContinue != "" {
 		var nextPVCs []corev1.PersistentVolumeClaim
 		nextPVCs, nextContinue, err = s.listPVCs(ctx, limit-int64(len(pvcs)), nextContinue)
 		if err != nil {
@@ -72,7 +72,7 @@ func (s *pvcService) ListPVCs(c *gin.Context) (*ListPVCResult, error) {
 		pageSize = 10
 	}
 	continueToken := c.Query("continue")
-	pvcs, nextContinue, err := s.listPVCs(c, int64(pageSize), continueToken)
+	pvcs, nextContinue, err := s.listPVCs(c, pageSize, continueToken)
 	if err != nil {
 		return nil, err
 	}

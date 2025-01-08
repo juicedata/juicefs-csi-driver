@@ -118,7 +118,6 @@ func (s *podService) ListAppPods(c *gin.Context) (*ListAppPodResult, error) {
 		pageSize = 10
 	}
 	namespaceFilter := c.Query("namespace")
-
 	continueToken := c.Query("continue")
 
 	labelSelector := labels.SelectorFromSet(map[string]string{common.UniqueId: ""})
@@ -150,6 +149,18 @@ func (s *podService) ListSysPods(c *gin.Context) (*ListSysPodResult, error) {
 	}
 	continueToken := c.Query("continue")
 
+	nameFilter := c.Query("name")
+	if nameFilter != "" {
+		pod := corev1.Pod{}
+		if err := s.client.Get(c, types.NamespacedName{Name: nameFilter, Namespace: s.sysNamespace}, &pod); err != nil {
+			return nil, client.IgnoreNotFound(err)
+		}
+		result := &ListSysPodResult{
+			Pods: []PodExtra{{Pod: &pod}},
+		}
+		return result, nil
+	}
+
 	labelSelector := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
@@ -170,7 +181,7 @@ func (s *podService) ListSysPods(c *gin.Context) (*ListSysPodResult, error) {
 	if err := s.client.List(c, &podLists, &client.ListOptions{
 		LabelSelector: selector,
 		Namespace:     s.sysNamespace,
-		Limit:         int64(pageSize),
+		Limit:         pageSize,
 		Continue:      continueToken,
 	}); err != nil {
 		c.String(500, "list sys pods error %v", err)
