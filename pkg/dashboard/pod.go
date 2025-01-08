@@ -96,11 +96,14 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
 			return
-		} else if !utils.IsAppPod(&pod) && !utils.IsSysPod(&pod) && !utils.IsAppPodShouldList(c, api.mgrClient, &pod) {
-			c.String(404, "not found")
+		}
+
+		if utils.IsAppPod(&pod) || utils.IsSysPod(&pod) {
+			c.Set("pod", &pod)
 			return
 		}
-		c.Set("pod", &pod)
+
+		c.String(404, "not found")
 	}
 }
 

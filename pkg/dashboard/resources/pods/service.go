@@ -1,16 +1,18 @@
-// Copyright 2025 Juicedata Inc
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ Copyright 2025 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
 
 package pods
 
@@ -28,16 +30,16 @@ import (
 
 type PodExtra struct {
 	*corev1.Pod `json:",inline"`
-	Pvs         []corev1.PersistentVolume      `json:"pvs"`
-	Pvcs        []corev1.PersistentVolumeClaim `json:"pvcs"`
-	MountPods   []corev1.Pod                   `json:"mountPods"`
-	CsiNode     *corev1.Pod                    `json:"csiNode"`
-	Node        *corev1.Node                   `json:"node"`
+	Pvs         []corev1.PersistentVolume      `json:"pvs,omitempty"`
+	Pvcs        []corev1.PersistentVolumeClaim `json:"pvcs,omitempty"`
+	MountPods   []corev1.Pod                   `json:"mountPods,omitempty"`
+	CsiNode     *corev1.Pod                    `json:"csiNode,omitempty"`
+	Node        *corev1.Node                   `json:"node,omitempty"`
 }
 
 type ListAppPodResult struct {
-	Total    int        `json:"total"`
-	Continue string     `json:"continue"`
+	Total    int        `json:"total,omitempty"`
+	Continue string     `json:"continue,omitempty"`
 	Pods     []PodExtra `json:"pods"`
 }
 

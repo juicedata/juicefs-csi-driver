@@ -1,16 +1,18 @@
-// Copyright 2025 Juicedata Inc
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ Copyright 2025 Juicedata Inc
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
 
 package pvcs
 
@@ -24,14 +26,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type pvcService struct {
 	client client.Client
 }
 
-func (s *pvcService) listPVCs(ctx context.Context, limit int64, continueToken string) ([]corev1.PersistentVolumeClaim, string, error) {
+func (s *pvcService) listPVCs(ctx context.Context, pvMap map[string]interface{}, limit int64, continueToken string) ([]corev1.PersistentVolumeClaim, string, error) {
 	pvcLists := corev1.PersistentVolumeClaimList{}
 	opts := &client.ListOptions{
 		Limit:    limit,
@@ -45,11 +46,7 @@ func (s *pvcService) listPVCs(ctx context.Context, limit int64, continueToken st
 		if pvc.Spec.VolumeName == "" {
 			continue
 		}
-		pv := corev1.PersistentVolume{}
-		if err := s.client.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, &pv); err != nil {
-			return nil, "", err
-		}
-		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+		if _, ok := pvMap[pvc.Spec.VolumeName]; ok {
 			pvcs = append(pvcs, pvc)
 		}
 	}
@@ -57,7 +54,7 @@ func (s *pvcService) listPVCs(ctx context.Context, limit int64, continueToken st
 	var err error
 	if len(pvcs) != 0 && int64(len(pvcs)) < limit && nextContinue != "" {
 		var nextPVCs []corev1.PersistentVolumeClaim
-		nextPVCs, nextContinue, err = s.listPVCs(ctx, limit-int64(len(pvcs)), nextContinue)
+		nextPVCs, nextContinue, err = s.listPVCs(ctx, pvMap, limit-int64(len(pvcs)), nextContinue)
 		if err != nil {
 			return nil, "", err
 		}
@@ -72,13 +69,25 @@ func (s *pvcService) ListPVCs(c *gin.Context) (*ListPVCResult, error) {
 		pageSize = 10
 	}
 	continueToken := c.Query("continue")
-	pvcs, nextContinue, err := s.listPVCs(c, pageSize, continueToken)
+	pvMap := make(map[string]interface{})
+	pvList := corev1.PersistentVolumeList{}
+	if err := s.client.List(c, &pvList); err != nil {
+		return nil, err
+	}
+	for _, pv := range pvList.Items {
+		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+			if pv.Spec.ClaimRef != nil {
+				pvMap[pv.Name] = nil
+			}
+		}
+	}
+	pvcs, nextContinue, err := s.listPVCs(c, pvMap, pageSize, continueToken)
 	if err != nil {
 		return nil, err
 	}
 	result := &ListPVCResult{
-		PVCs:          pvcs,
-		ContinueToken: nextContinue,
+		PVCs:     pvcs,
+		Continue: nextContinue,
 	}
 	return result, nil
 }
