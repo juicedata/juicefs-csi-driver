@@ -46,6 +46,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 )
 
@@ -120,6 +122,7 @@ func run() {
 	if v := os.Getenv(SysNamespaceKey); v != "" {
 		sysNamespace = v
 	}
+	jfsConfig.Namespace = sysNamespace
 	if devMode {
 		config, err = getLocalConfig()
 	} else {

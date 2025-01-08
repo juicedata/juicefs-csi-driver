@@ -858,10 +858,12 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		pod.Spec = newPod.Spec
 		pod.ObjectMeta = newPod.ObjectMeta
-		// update secret
-		secret := podBuilder.NewSecret()
-		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
-			return err
+		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
+			// update secret
+			secret := podBuilder.NewSecret()
+			if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -1017,7 +1019,9 @@ func (p *PodDriver) getAvailableMountPod(ctx context.Context, uniqueId, upgradeU
 	// check pods in which get from kubelet
 	for _, u := range p.uniqueIdIndex[uniqueId] {
 		if u.upgradeUUID == upgradeUUID {
-			return u.status != podDeleted && u.status != podComplete
+			if u.status != podDeleted && u.status != podComplete {
+				return true
+			}
 		}
 	}
 	return false

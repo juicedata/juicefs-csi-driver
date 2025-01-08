@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -83,6 +82,7 @@ func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate 
 			Name:       pod.Name,
 			Node:       pod.Spec.NodeName,
 			CSINodePod: csiNodesMap[pod.Spec.NodeName].Name,
+			Status:     Pending,
 		}
 		batches[j] = append(batches[j], mountPod)
 		index += 1
@@ -117,14 +117,10 @@ func (p podList) Swap(i, j int) {
 }
 
 func LoadUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string) (*BatchConfig, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
-	cm, err := client.GetConfigMap(ctx, configName, sysNamespace)
+	cm, err := client.GetConfigMap(ctx, configName, Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -144,16 +140,12 @@ func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 }
 
 func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
 	var cfg *corev1.ConfigMap
 	var err error
-	if cfg, err = client.GetConfigMap(ctx, configName, sysNamespace); err != nil {
+	if cfg, err = client.GetConfigMap(ctx, configName, Namespace); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -167,7 +159,7 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 		cfg = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configName,
-				Namespace: sysNamespace,
+				Namespace: Namespace,
 				Labels: map[string]string{
 					common.PodTypeKey: common.ConfigTypeValue,
 				},
@@ -181,16 +173,12 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 }
 
 func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
-	sysNamespace := os.Getenv("SYS_NAMESPACE")
-	if sysNamespace == "" {
-		sysNamespace = "kube-system"
-	}
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
 	}
 	var cfg *corev1.ConfigMap
 	var err error
-	if cfg, err = client.GetConfigMap(ctx, configName, sysNamespace); err != nil {
+	if cfg, err = client.GetConfigMap(ctx, configName, Namespace); err != nil {
 		return nil, err
 	}
 	data, err := json.Marshal(config)
@@ -201,16 +189,14 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
 
-func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (old *MountPodPatch, new *MountPodPatch, err error) {
-	var (
-		oldSetting *JfsSetting
-		newSetting *JfsSetting
-	)
+func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (old *MountPodPatch, oldSetting *JfsSetting, new *MountPodPatch, newSetting *JfsSetting, err error) {
 	oldSetting, err = GenSetting(mountPod, pvc, pv, secret)
 	if err != nil {
 		return
 	}
 	old = genPatchFromSetting(*oldSetting)
+	oldSetting = oldSetting.Safe()
+
 	newSetting, err = GenSetting(mountPod, pvc, pv, secret)
 	if err != nil {
 		return
@@ -219,6 +205,7 @@ func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1
 		return
 	}
 	new = genPatchFromSetting(*newSetting)
+	newSetting = newSetting.Safe()
 	return
 }
 

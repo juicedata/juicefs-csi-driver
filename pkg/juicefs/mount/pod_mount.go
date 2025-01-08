@@ -316,7 +316,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		if pod.Spec.NodeName != jfsConfig.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != jfsConfig.NodeName {
 			continue
 		}
-		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal {
+		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal || po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
 			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
 					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
@@ -325,9 +325,6 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 					}
 				}
 			}
-			continue
-		}
-		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
 			continue
 		}
 		podName = pod.Name

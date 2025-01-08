@@ -96,6 +96,38 @@ func (s *JfsSetting) String() string {
 	return string(data)
 }
 
+func (s *JfsSetting) Safe() *JfsSetting {
+	if s == nil {
+		return nil
+	}
+	sCopy := s
+	if sCopy.Token != "" {
+		sCopy.Token = "***"
+	}
+	if sCopy.SecretKey != "" {
+		sCopy.SecretKey = "***"
+	}
+	if sCopy.SecretKey2 != "" {
+		sCopy.SecretKey2 = "***"
+	}
+	if sCopy.Passphrase != "" {
+		sCopy.Passphrase = "***"
+	}
+	if sCopy.EncryptRsaKey != "" {
+		sCopy.EncryptRsaKey = "***"
+	}
+	return sCopy
+}
+
+func (s *JfsSetting) SafeString() string {
+	if s == nil {
+		return ""
+	}
+	sCopy := s.Safe()
+	data, _ := json.Marshal(sCopy)
+	return string(data)
+}
+
 func (s *JfsSetting) Load(str string) error {
 	return json.Unmarshal([]byte(str), s)
 }
@@ -533,7 +565,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		log.Error(err, "Get pv error", "pv", pvName)
 	}
-	if pv != nil {
+	if pv != nil && pv.Spec.ClaimRef != nil {
 		pvc, err = client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 		if err != nil {
 			log.Error(err, "Get pvc error", "namespace", pv.Spec.ClaimRef.Namespace, "name", pv.Spec.ClaimRef.Name)
@@ -695,6 +727,7 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 				setting.Envs = custSetting.Envs
 			}
 			setting.CustomerSecret = custSecret
+			setting.ClientConfPath = DefaultClientConfPath
 			if !setting.IsCe {
 				if setting.Token == "" {
 					log.Info("token is empty, skip authfs.")
@@ -1074,6 +1107,5 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
-	log.V(1).Info("get jfsSetting hash", "hashVal", val, "setting", setting)
 	return val
 }

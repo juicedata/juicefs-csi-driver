@@ -16,7 +16,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { Button, Space, Tooltip } from 'antd'
+import { Button, Popconfirm, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -86,15 +86,23 @@ const UpgradeBasic: React.FC<{
               />
             </Tooltip>
           ) : null}
-          <Tooltip title="Delete">
-            <Button
-              onClick={() => {
-                action.execute(upgradeJob.job.metadata?.name || '')
-                window.location.href = `/jobs`
-              }}
-              icon={<DeleteIcon />}
-            />
-          </Tooltip>
+          {canDelete(status) ? (
+            <Tooltip title="Delete">
+              <Popconfirm
+                placement="topRight"
+                title={<FormattedMessage id="deleteJob" />}
+                description={<FormattedMessage id="deleteJobDesc" />}
+                okText={<FormattedMessage id="yes" />}
+                cancelText={<FormattedMessage id="no" />}
+                onConfirm={() => {
+                  action.execute(upgradeJob.job.metadata?.name || '')
+                  window.location.href = `/jobs`
+                }}
+              >
+                <Button icon={<DeleteIcon />} />
+              </Popconfirm>
+            </Tooltip>
+          ) : null}
         </Space>
       }
     >
@@ -188,4 +196,13 @@ const canStop = (status: string): boolean => {
 
 const canResume = (status: string): boolean => {
   return status === 'pause'
+}
+
+const canDelete = (status: string): boolean => {
+  return (
+    status === 'fail' ||
+    status === 'success' ||
+    status === 'stop' ||
+    status === 'pause'
+  )
 }

@@ -18,8 +18,8 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,7 +36,7 @@ import (
 
 const (
 	retryPeriod    = 5 * time.Second
-	maxRetryPeriod = 300 * time.Second
+	maxRetryPeriod = 60 * time.Second
 )
 
 var (
@@ -117,8 +117,9 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 				}
 			}
 
-			backOffID := fmt.Sprintf("mountpod/%s", pod.Name)
+			backOffID := "mountpod" // all pods share the same backoffID
 			if backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
+				reconcilerLog.V(1).Info("in backoff, retry later", "name", pod.Name)
 				continue
 			}
 			g.Go(func() error {
@@ -142,7 +143,12 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 					lastStatus.syncAt = time.Now()
 					if err != nil {
 						reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)
-						backOff.Next(backOffID, time.Now())
+						if strings.Contains(err.Error(), "client rate limiter Wait returned an error") {
+							reconcilerLog.V(1).Info("client rate limit")
+							backOff.Next(backOffID, time.Now())
+						} else {
+							backOff.Reset(backOffID)
+						}
 						lastStatus.nextSyncAt = time.Now()
 						errChan <- err
 						return

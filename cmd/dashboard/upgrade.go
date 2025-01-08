@@ -29,15 +29,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	k8scheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var batchConfigName string
@@ -52,6 +56,7 @@ var upgradeCmd = &cobra.Command{
 		if sysNamespace == "" {
 			sysNamespace = "kube-system"
 		}
+		config.Namespace = sysNamespace
 		if devMode {
 			k8sconfig, _ = getLocalConfig()
 		} else {
@@ -80,7 +85,7 @@ var upgradeCmd = &cobra.Command{
 		podsStatus := make(map[string]config.UpgradeStatus)
 		for _, batch := range conf.Batches {
 			for _, pods := range batch {
-				podsStatus[pods.Name] = config.Running
+				podsStatus[pods.Name] = config.Pending
 			}
 		}
 		bu := &BatchUpgrade{
@@ -101,6 +106,10 @@ var upgradeCmd = &cobra.Command{
 		defer cancel()
 
 		go bu.handleSignal()
+		if err := bu.fetchPods(ctx); err != nil {
+			logger("BATCH-FAIL failed to fetch pods")
+			os.Exit(1)
+		}
 		bu.Run(ctx)
 	},
 }
@@ -142,12 +151,19 @@ type BatchUpgrade struct {
 	k8sClient    *k8sclient.K8sClient
 	clientset    *kubernetes.Clientset
 
+	batches         []map[string][]*PodUpgrade
 	lock            sync.Mutex
 	podsStatus      map[string]config.UpgradeStatus
 	status          config.UpgradeStatus
 	crtBatchStatus  config.UpgradeStatus
 	nextBatchStatus config.UpgradeStatus
 	crtBatch        int
+}
+
+type PodUpgrade struct {
+	pod         *corev1.Pod
+	hashVal     string
+	upgradeUUID string
 }
 
 func (u *BatchUpgrade) Run(ctx context.Context) {
@@ -209,27 +225,84 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 	}
 }
 
+func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.PodTypeValue,
+		},
+	}
+	podLists, err := u.k8sClient.ListPod(ctx, config.Namespace, labelSelector, nil)
+	if err != nil {
+		log.Error(err, "reconcile ListPod error")
+		return err
+	}
+	podMap := make(map[string]*corev1.Pod)
+	for _, pod := range podLists {
+		po := pod
+		podMap[pod.Name] = &po
+	}
+
+	u.batches = make([]map[string][]*PodUpgrade, len(u.conf.Batches))
+	for i, batch := range u.conf.Batches {
+		pods := make(map[string][]*PodUpgrade)
+		for _, pu := range batch {
+			po := podMap[pu.Name]
+			if po == nil {
+				continue
+			}
+
+			pods[pu.Node] = append(pods[pu.Node], &PodUpgrade{
+				pod:         po,
+				hashVal:     po.Labels[common.PodJuiceHashLabelKey],
+				upgradeUUID: resource.GetUpgradeUUID(po),
+			})
+		}
+		u.batches[i] = pods
+	}
+	return nil
+}
+
 func (u *BatchUpgrade) processBatch(ctx context.Context) {
 	if u.crtBatch > len(u.conf.Batches) {
 		return
 	}
 	u.setCrtBatchStatus(config.Running)
 	var (
-		wg       sync.WaitGroup
-		batch    = u.conf.Batches[u.crtBatch-1]
-		resultCh = make(chan error, len(batch))
+		wg                  sync.WaitGroup
+		batch               = u.conf.Batches[u.crtBatch-1]
+		crtBatchFinalStatus = config.Success
+		csiNodeNames        = make(map[string][]config.MountPodUpgrade)
 	)
+	// trigger upgrade in each csi node only one time
+	for _, mp := range batch {
+		csiNodeNames[mp.CSINodePod] = append(csiNodeNames[mp.CSINodePod], mp)
+	}
+	resultCh := make(chan error, len(csiNodeNames))
 	go func() {
 		defer func() {
 			wg.Wait()
 			close(resultCh)
 		}()
-		for _, mp := range batch {
+		for csiNode, mps := range csiNodeNames {
 			wg.Add(1)
-			go func(mp config.MountPodUpgrade) {
-				resultCh <- u.triggerUpgrade(ctx, &mp)
+
+			go func() {
+				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, u.crtBatch)
+				needWait := false
+				node := ""
+				for _, p := range mps {
+					node = p.Node
+					if u.podsStatus[p.Name] != config.Success && u.podsStatus[p.Name] != config.Fail {
+						needWait = true
+						break
+					}
+				}
+				if needWait {
+					u.waitForUpgrade(ctx, u.crtBatch, node)
+				}
+
 				wg.Done()
-			}(mp)
+			}()
 		}
 	}()
 	for oneErr := range resultCh {
@@ -237,17 +310,15 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 		// 1. trigger upgrade failed
 		// 2. pod upgrade failed which is parsed in log stream
 		if oneErr != nil {
-			u.setCrtBatchStatus(config.Fail)
-			return
+			crtBatchFinalStatus = config.Fail
 		}
 		for _, s := range u.podsStatus {
 			if s == config.Fail {
-				u.setCrtBatchStatus(config.Fail)
-				return
+				crtBatchFinalStatus = config.Fail
 			}
 		}
 	}
-	u.setCrtBatchStatus(config.Success)
+	u.setCrtBatchStatus(crtBatchFinalStatus)
 }
 
 func (u *BatchUpgrade) setCrtBatchStatus(s config.UpgradeStatus) {
@@ -276,6 +347,9 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 			if u.status == config.Stop && mp.Status == config.Running {
 				mp.Status = config.Stop
 			}
+			if u.status == config.Fail && mp.Status == config.Running {
+				mp.Status = config.Fail
+			}
 			conf.Batches[i][j] = mp
 		}
 	}
@@ -286,14 +360,14 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 	}
 }
 
-func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUpgrade) error {
-	cmds := []string{"juicefs-csi-driver", "upgrade", mp.Name}
+func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, configName string, crtBatchIndex int) error {
+	cmds := []string{"juicefs-csi-driver", "upgrade", "BATCH", "--batchConfig", configName, "--batchIndex", fmt.Sprintf("%d", crtBatchIndex)}
 	if !u.conf.NoRecreate {
 		cmds = append(cmds, "--recreate")
 	}
 	req := u.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Name(mp.CSINodePod).
+		Name(csiNode).
 		Namespace(u.sysNamespace).SubResource("exec")
 	req.VersionedParams(&corev1.PodExecOptions{
 		Command:   cmds,
@@ -320,9 +394,145 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, mp *config.MountPodUp
 	return nil
 }
 
+func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName string) {
+	ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
+	defer cancel()
+
+	var (
+		successSum = make(map[string]bool)
+		failSum    = make(map[string]bool)
+		crtBatch   = u.batches[index-1][nodeName]
+	)
+
+	for _, p := range crtBatch {
+		if u.podsStatus[p.pod.Name] == config.Fail {
+			failSum[p.pod.Name] = true
+		}
+		if u.podsStatus[p.pod.Name] == config.Success {
+			successSum[p.pod.Name] = true
+		}
+	}
+
+	stop := make(chan struct{})
+	defer close(stop)
+
+	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.PodTypeValue,
+		},
+	})
+	watchlist := cache.NewFilteredListWatchFromClient(
+		u.clientset.CoreV1().RESTClient(),
+		"pods",
+		config.Namespace,
+		func(options *metav1.ListOptions) {
+			options.ResourceVersion = "0"
+			options.FieldSelector = fields.Set{"spec.nodeName": nodeName}.String()
+			options.LabelSelector = labelSelector.String()
+		},
+	)
+	handle := func(obj interface{}) {
+		if obj == nil {
+			return
+		}
+		po, ok := obj.(*corev1.Pod)
+		if !ok {
+			return
+		}
+		var pu *PodUpgrade
+		for _, p := range crtBatch {
+			if p.pod.Labels[common.PodUpgradeUUIDLabelKey] == po.Labels[common.PodUpgradeUUIDLabelKey] {
+				pu = p
+				break
+			}
+		}
+		if pu == nil {
+			return
+		}
+		if po.Name != pu.pod.Name {
+			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
+				if resource.IsPodReady(po) && !successSum[pu.pod.Name] {
+					u.lock.Lock()
+					u.podsStatus[pu.pod.Name] = config.Success
+					u.lock.Unlock()
+					successSum[pu.pod.Name] = true
+					logger(fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", pu.pod.Name, po.Name))
+					return
+				}
+			}
+		}
+		if po.Name == pu.pod.Name {
+			if resource.IsPodComplete(po) {
+				logger(fmt.Sprintf("Mount pod %s received signal and completed", pu.pod.Name))
+				return
+			}
+			if po.DeletionTimestamp != nil {
+				logger(fmt.Sprintf("Mount pod %s is deleted", pu.pod.Name))
+				return
+			}
+		}
+	}
+	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: watchlist,
+		ObjectType:    &corev1.Pod{},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				handle(newObj)
+			},
+		},
+	})
+	go controller.Run(stop)
+
+	for {
+		select {
+		case <-ctx.Done():
+			if len(successSum) == len(crtBatch) {
+				logger(fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", nodeName))
+				return
+			}
+			for _, p := range crtBatch {
+				if u.podsStatus[p.pod.Name] != config.Success {
+					u.lock.Lock()
+					u.podsStatus[p.pod.Name] = config.Fail
+					u.lock.Unlock()
+					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
+				}
+			}
+			logger(fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", nodeName))
+			return
+		default:
+			if len(successSum) == len(crtBatch) {
+				logger(fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", nodeName))
+				return
+			}
+			if len(failSum) > 0 && len(failSum)+len(successSum) == len(crtBatch) {
+				logger(fmt.Sprintf("CRT-BATCH-FAIL some pods of current batch upgrade failed in node %s", nodeName))
+				return
+			}
+		}
+	}
+}
+
 func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	msg := string(p)
 	fmt.Print(msg)
+
+	runningRegex := `/POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	runningRe := regexp.MustCompile(runningRegex)
+
+	runningMatches := runningRe.FindStringSubmatch(msg)
+	if len(runningMatches) > 1 {
+		podName := runningMatches[1]
+		u.lock.Lock()
+		u.podsStatus[podName] = config.Running
+		u.lock.Unlock()
+	}
 
 	successRegex := `POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	successRe := regexp.MustCompile(successRegex)
