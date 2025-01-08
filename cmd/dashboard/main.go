@@ -148,7 +148,9 @@ func run() {
 		}
 		mgrClient = mgr.GetClient()
 	} else {
-		mgrClient, err = client.New(config, client.Options{})
+		mgrClient, err = client.New(config, client.Options{
+			Scheme: scheme,
+		})
 		if err != nil {
 			log.Error(err, "can't create client")
 			os.Exit(1)
