@@ -714,6 +714,28 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 		if err != nil {
 			log.Error(err, "Parse custSecret error")
 		} else {
+			if secretsMap["configs"] != "" {
+				configStr := secretsMap["configs"]
+				configs := make(map[string]string)
+				log.V(1).Info("Get configs in secret", "config", configStr)
+				if err = parseYamlOrJson(configStr, &configs); err != nil {
+					log.Error(err, "Parse configs in cust secret error")
+				} else {
+					custSetting.Configs = configs
+				}
+			}
+			if secretsMap["envs"] != "" {
+				envStr := secretsMap["envs"]
+				env := make(map[string]string)
+				log.V(1).Info("Get envs in secret", "env", envStr)
+				if err = parseYamlOrJson(envStr, &env); err != nil {
+					log.Error(err, "Parse envs in cust secret error")
+				} else {
+					custSetting.Envs = env
+				}
+			}
+		}
+		if err == nil {
 			setting.SecretKey = util.CpNotEmpty(custSetting.SecretKey, setting.SecretKey)
 			setting.SecretKey2 = util.CpNotEmpty(custSetting.SecretKey2, setting.SecretKey2)
 			setting.Token = util.CpNotEmpty(custSetting.Token, setting.Token)
