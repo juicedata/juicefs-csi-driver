@@ -129,14 +129,15 @@ export type UpgradeJob = {
 
 export type UpgradeJobWithDiff = {
   job: Job
+  total: number
   config: BatchConfig
   diffs: [PodDiffConfig]
 }
 
 export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
   Omit<Container, 'name'> & {
-    opts?: string[]
-  }
+  opts?: string[]
+}
 
 export type CacheGroup = {
   metadata?: ObjectMeta

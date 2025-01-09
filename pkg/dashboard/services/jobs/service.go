@@ -14,29 +14,29 @@
  limitations under the License.
 */
 
-package secrets
+package jobs
 
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
-type SecretService interface {
-	ListAllSecrets(ctx context.Context) ([]corev1.Secret, error)
+type JobService interface {
+	ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error)
 }
 
-func NewSecretService(client client.Client, enableManager bool) SecretService {
-	svc := &secretService{
+func NewJobService(client client.Client, enableManager bool) JobService {
+	svc := &jobService{
 		client: client,
 	}
 	if enableManager {
-		return &CacheSecretService{
-			secretService: svc,
-			secretIndexes: utils.NewTimeIndexes[corev1.Secret](),
+		return &CacheJobService{
+			jobService: svc,
+			jobIndexes: utils.NewTimeIndexes[batchv1.Job](),
 		}
 	}
 	return svc

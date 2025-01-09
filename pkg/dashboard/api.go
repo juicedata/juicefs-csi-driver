@@ -20,13 +20,15 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/events"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/jobs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
@@ -44,6 +46,7 @@ type API struct {
 	pvSvc     pvs.PVService
 	pvcSvc    pvcs.PVCService
 	secretSvc secrets.SecretService
+	jobSvc    jobs.JobService
 	eventSvc  events.EventService
 }
 
@@ -65,6 +68,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 		pvcSvc:        pvcs.NewPVCService(client, enableManager),
 		eventSvc:      events.NewEventService(k8sClient),
 		secretSvc:     secrets.NewSecretService(client, enableManager),
+		jobSvc:        jobs.NewJobService(client, enableManager),
 	}
 	return api
 }
@@ -112,7 +116,6 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	scGroup.GET("/pvs", api.getPVOfSC())
 
 	batchGroup := group.Group("/batch/upgrade")
-	batchGroup.GET("/plan", api.getBatchPlan())
 	batchGroup.GET("/jobs", api.listUpgradeJobs())
 	batchGroup.POST("/jobs", api.createUpgradeJob())
 	batchGroup.GET("/jobs/:jobName", api.getUpgradeJob())

@@ -22,6 +22,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/jobs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
@@ -58,6 +59,14 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 		return fmt.Errorf("secret service is not cache service")
 	}
 	if err := secretSvc.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	jobSvc, ok := api.jobSvc.(*jobs.CacheJobService)
+	if !ok {
+		return fmt.Errorf("job service is not cache service")
+	}
+	if err := jobSvc.SetupWithManager(mgr); err != nil {
 		return err
 	}
 

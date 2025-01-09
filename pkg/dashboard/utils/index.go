@@ -21,13 +21,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
 var indexLog = klog.NewKlogr().WithName("index")
@@ -133,4 +134,11 @@ func IsJuiceSecret(secret *corev1.Secret) bool {
 	}
 	_, ok := secret.Labels[common.JuicefsSecretLabelKey]
 	return ok
+}
+
+func IsUpgradeJob(job *batchv1.Job) bool {
+	if job.Labels != nil {
+		return job.Labels[common.PodTypeKey] == common.JobTypeValue && job.Labels[common.JfsJobKind] == common.KindOfUpgrade
+	}
+	return false
 }

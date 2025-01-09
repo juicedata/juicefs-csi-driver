@@ -14,30 +14,32 @@
  limitations under the License.
 */
 
-package secrets
+package jobs
 
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
-type SecretService interface {
-	ListAllSecrets(ctx context.Context) ([]corev1.Secret, error)
+type jobService struct {
+	client client.Client
 }
 
-func NewSecretService(client client.Client, enableManager bool) SecretService {
-	svc := &secretService{
-		client: client,
+func (c *jobService) ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error) {
+	jobs := batchv1.JobList{}
+	labelSelector := labels.SelectorFromSet(map[string]string{
+		common.PodTypeKey: common.JobTypeValue,
+		common.JfsJobKind: common.KindOfUpgrade,
+	})
+	if err := c.client.List(ctx, &jobs, &client.ListOptions{
+		LabelSelector: labelSelector,
+	}); err != nil {
+		return nil, err
 	}
-	if enableManager {
-		return &CacheSecretService{
-			secretService: svc,
-			secretIndexes: utils.NewTimeIndexes[corev1.Secret](),
-		}
-	}
-	return svc
+	return jobs.Items, nil
 }

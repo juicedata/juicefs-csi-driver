@@ -24,9 +24,9 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
@@ -234,6 +239,57 @@ func (s *CachePodService) ListSysPods(c *gin.Context) (*ListSysPodResult, error)
 		})
 	}
 	return result, nil
+}
+
+func (s *CachePodService) ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error) {
+	podsName := make(map[string]bool)
+	for _, batch := range conf.Batches {
+		for _, c := range batch {
+			podsName[c.Name] = true
+		}
+	}
+
+	pods := make([]corev1.Pod, 0, len(podsName))
+	for name := range podsName {
+		var po corev1.Pod
+		if err := s.client.Get(c, types.NamespacedName{
+			Namespace: config.Namespace,
+			Name:      name,
+		}, &po); err != nil {
+			podLog.Error(err, "get pod error", "name", name)
+			continue
+		}
+		pods = append(pods, po)
+	}
+	return pods, nil
+}
+
+func (s *CachePodService) ListUpgradePods(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error) {
+	var pods corev1.PodList
+	ls := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app.kubernetes.io/name": "juicefs-mount",
+		},
+	}
+	if uniqueId != "" {
+		ls.MatchLabels[common.PodUniqueIdLabelKey] = uniqueId
+	}
+	sls, _ := metav1.LabelSelectorAsSelector(ls)
+	listOptions := client.ListOptions{
+		LabelSelector: sls,
+	}
+	if nodeName != "" {
+		fieldSelector := fields.Set{"spec.nodeName": nodeName}.AsSelector()
+		listOptions.FieldSelector = fieldSelector
+	}
+	err := s.client.List(c, &pods, &listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
+
+	return podsToUpgrade, nil
 }
 
 func (c *CachePodService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
