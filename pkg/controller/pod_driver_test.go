@@ -651,7 +651,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
-			patch2 := ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string) {})
+			patch2 := ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string, lazy bool) {})
 			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldNotBeNil)
