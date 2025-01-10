@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -105,12 +106,34 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 		nodeName := c.Query("nodeName")
 		uniqueId := c.Query("uniqueId")
 		debug := c.Query("debug")
-		_, podDiffs, err := api.getUpgradePods(c, uniqueId, nodeName, true, debug == "true")
+
+		pods, err := api.podSvc.ListUpgradePods(c, uniqueId, nodeName, true)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
 		}
-		c.JSON(200, podDiffs)
+		_, podDiffs, err := api.genPodDiffs(c, pods, true, debug == "true")
+		if err != nil {
+			c.String(500, "get pods diff configs error %v", err)
+			return
+		}
+		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
+		if err != nil || pageSize == 0 {
+			pageSize = uint64(len(podDiffs))
+		}
+		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
+		if err != nil || current == 0 {
+			current = 1
+		}
+		result := ListDiffPodResult{
+			Total: len(podDiffs),
+			Pods:  make([]PodDiff, 0),
+		}
+		for i := (current - 1) * pageSize; i < current*pageSize && i < uint64(len(podDiffs)); i++ {
+			result.Pods = append(result.Pods, podDiffs[i])
+		}
+
+		c.IndentedJSON(200, result)
 	}
 }
 

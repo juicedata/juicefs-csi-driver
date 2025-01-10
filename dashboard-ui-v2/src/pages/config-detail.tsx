@@ -36,7 +36,7 @@ const ConfigDetail = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (diffPods && diffPods.length > 0) {
+    if (diffPods && diffPods.pods.length > 0) {
       setDiff(true)
     }
   }, [diffPods])
@@ -128,7 +128,7 @@ const ConfigDetail = () => {
             title={<FormattedMessage id="diffPods" />}
             content={
               <div>
-                {diffPods?.map((poddiff) => (
+                {diffPods?.pods?.map((poddiff) => (
                   <p key={poddiff?.pod.metadata?.uid || ''}>
                     {poddiff?.pod.metadata?.name}
                   </p>

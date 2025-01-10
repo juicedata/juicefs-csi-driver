@@ -34,10 +34,10 @@ import { ObjectMeta } from 'kubernetes-types/meta/v1'
 
 export type Pod = {
   mountPods?: NativePod[]
-  node: Node
-  pvcs: PersistentVolumeClaim[]
-  pvs: PersistentVolume[]
-  csiNode: NativePod
+  node?: Node
+  pvcs?: PersistentVolumeClaim[]
+  pvs?: PersistentVolume[]
+  csiNode?: NativePod
 } & NativePod
 
 export type PV = PersistentVolume & {
@@ -129,6 +129,7 @@ export type UpgradeJob = {
 
 export type UpgradeJobWithDiff = {
   job: Job
+  total: number
   config: BatchConfig
   diffs: [PodDiffConfig]
 }

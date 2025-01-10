@@ -84,16 +84,7 @@ func NewClient() (*K8sClient, error) {
 	if config == nil {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
-	return newClient(*config)
-}
-
-func NewClientWithConfig(config rest.Config) (*K8sClient, error) {
-	return newClient(config)
-}
-
-func newClient(config rest.Config) (*K8sClient, error) {
 	config.Timeout = timeout
-
 	if os.Getenv("KUBE_QPS") != "" {
 		kubeQpsInt, err := strconv.Atoi(os.Getenv("KUBE_QPS"))
 		if err != nil {
@@ -108,7 +99,14 @@ func newClient(config rest.Config) (*K8sClient, error) {
 		}
 		config.Burst = kubeBurstInt
 	}
+	return newClient(*config)
+}
 
+func NewClientWithConfig(config rest.Config) (*K8sClient, error) {
+	return newClient(config)
+}
+
+func newClient(config rest.Config) (*K8sClient, error) {
 	client, err := kubernetes.NewForConfig(&config)
 	if err != nil {
 		return nil, err

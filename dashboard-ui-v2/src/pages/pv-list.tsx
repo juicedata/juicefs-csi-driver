@@ -19,6 +19,7 @@ import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import {
   Badge,
+  Button,
   Tooltip,
   type TablePaginationConfig,
   type TableProps,
@@ -148,6 +149,7 @@ const PVList: React.FC<unknown> = () => {
     name?: string
     pvc?: string
     sc?: string
+    continue?: string
   }>()
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
@@ -169,9 +171,14 @@ const PVList: React.FC<unknown> = () => {
     }
   }
 
+  const [continueToken, setContinueToken] = useState<string | undefined>()
   useEffect(() => {
     setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
   }, [data?.total])
+
+  useEffect(() => {
+    setContinueToken(data?.continue)
+  }, [data?.continue])
 
   return (
     <PageContainer
@@ -204,8 +211,28 @@ const PVList: React.FC<unknown> = () => {
             }
           },
         }}
-        pagination={pagination}
+        pagination={data?.total ? pagination : false}
       />
+      {continueToken && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 16,
+          }}
+        >
+          <Button
+            onClick={() =>
+              setFilter({
+                ...filter,
+                continue: continueToken,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </PageContainer>
   )
 }

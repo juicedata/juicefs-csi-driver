@@ -17,7 +17,12 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import {
+  Button,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { SortOrder } from 'antd/es/table/interface'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
@@ -159,6 +164,7 @@ const PVCList: React.FC<unknown> = () => {
     namespace?: string
     pv?: string
     sc?: string
+    continue?: string
   }>()
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
@@ -179,9 +185,14 @@ const PVCList: React.FC<unknown> = () => {
     ...filter,
   })
 
+  const [continueToken, setContinueToken] = useState<string | undefined>()
   useEffect(() => {
     setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
   }, [data?.total])
+
+  useEffect(() => {
+    setContinueToken(data?.continue)
+  }, [data?.continue])
 
   return (
     <PageContainer
@@ -214,8 +225,28 @@ const PVCList: React.FC<unknown> = () => {
             }
           },
         }}
-        pagination={pagination}
+        pagination={data?.total ? pagination : false}
       />
+      {continueToken && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 16,
+          }}
+        >
+          <Button
+            onClick={() =>
+              setFilter({
+                ...filter,
+                continue: continueToken,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </PageContainer>
   )
 }

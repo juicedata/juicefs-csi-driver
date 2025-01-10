@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { PlusOutlined } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import { Button, TablePaginationConfig, TableProps } from 'antd'
@@ -31,6 +31,7 @@ const columns: ProColumns<UpgradeJob>[] = [
   {
     title: <FormattedMessage id="name" />,
     dataIndex: ['job', 'metadata', 'name'],
+    key: 'name',
     render: (_, upgradeJob) => {
       return (
         <div>
@@ -46,6 +47,7 @@ const columns: ProColumns<UpgradeJob>[] = [
   {
     title: <FormattedMessage id="status" />,
     key: 'status',
+    search: false,
     render: (_, upgradeJob) => {
       const status =
         upgradeJob.config.status === '' ? 'running' : upgradeJob.config.status
@@ -68,9 +70,13 @@ const UpgradeJobList: React.FC = () => {
   const modalOpen = searchParams.get('modalOpen')
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
-    pageSize: 20,
+    pageSize: 10,
     total: 0,
   })
+  const [filter, setFilter] = useState<{
+    name?: string
+    continue?: string
+  }>()
   const {
     data,
     isLoading,
@@ -78,7 +84,9 @@ const UpgradeJobList: React.FC = () => {
   } = useUpgradeJobs({
     current: pagination.current,
     pageSize: pagination.pageSize,
+    ...filter,
   })
+  const [continueToken, setContinueToken] = useState<string | undefined>()
 
   const [isModalVisible, setIsModalVisible] = useState(
     modalOpen === 'true' || false,
@@ -96,6 +104,13 @@ const UpgradeJobList: React.FC = () => {
   const handleTableChange: TableProps['onChange'] = (pagination) => {
     setPagination(pagination)
   }
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
+  }, [data?.total])
+
+  useEffect(() => {
+    setContinueToken(data?.continue)
+  }, [data?.continue])
 
   return (
     <PageContainer
@@ -128,11 +143,44 @@ const UpgradeJobList: React.FC = () => {
         loading={isLoading}
         columns={columns}
         dataSource={data?.jobs}
-        pagination={pagination}
-        search={false}
+        pagination={data?.total ? pagination : false}
+        search={{
+          optionRender: false,
+          collapsed: false,
+        }}
+        form={{
+          onValuesChange: (_, values) => {
+            if (values) {
+              setFilter((prev) => ({
+                ...prev,
+                ...values,
+              }))
+            }
+          },
+        }}
         onChange={handleTableChange}
         rowKey={(row) => row.job.metadata!.uid!}
       />
+      {continueToken && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 16,
+          }}
+        >
+          <Button
+            onClick={() =>
+              setFilter({
+                ...filter,
+                continue: continueToken,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </PageContainer>
   )
 }

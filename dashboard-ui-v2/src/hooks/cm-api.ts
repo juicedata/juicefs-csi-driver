@@ -26,9 +26,20 @@ export function useUpdateConfig() {
   })
 }
 
-export function useConfigDiff(nodeName: string, uniqueId: string) {
+export function useConfigDiff(
+  nodeName: string,
+  uniqueId: string,
+  pageSize?: number,
+  current?: number,
+) {
+  const size = pageSize || 20
+  const currentPage = current || 1
   const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<[PodDiffConfig]>(
-    `/api/v1/config/diff?nodeName=${node}&uniqueIds=${uniqueId}`,
+
+  return useSWR<{
+    total: number
+    pods: PodDiffConfig[]
+  }>(
+    `/api/v1/config/diff?nodeName=${node}&uniqueIds=${uniqueId}&pageSize=${size}&current=${currentPage}`,
   )
 }
