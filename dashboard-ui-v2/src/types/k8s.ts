@@ -129,6 +129,7 @@ export type UpgradeJob = {
 
 export type UpgradeJobWithDiff = {
   job: Job
+  total: number
   config: BatchConfig
   diffs: [PodDiffConfig]
 }

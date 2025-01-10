@@ -20,12 +20,14 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 type PodExtra struct {
@@ -49,6 +51,14 @@ type ListSysPodResult struct {
 	Pods     []PodExtra `json:"pods"`
 }
 
+type PodDiff struct {
+	Pod        corev1.Pod           `json:"pod"`
+	OldConfig  config.MountPodPatch `json:"oldConfig"`
+	OldSetting *config.JfsSetting   `json:"oldSetting,omitempty"`
+	NewConfig  config.MountPodPatch `json:"newConfig"`
+	NewSetting *config.JfsSetting   `json:"newSetting,omitempty"`
+}
+
 type PodService interface {
 	ListAppPods(ctx *gin.Context) (*ListAppPodResult, error)
 	ListSysPods(ctx *gin.Context) (*ListSysPodResult, error)
@@ -58,6 +68,8 @@ type PodService interface {
 	ListAppPodMountPods(ctx context.Context, pod *corev1.Pod) ([]corev1.Pod, error)
 	ListNodeMountPods(ctx context.Context, nodeName string) ([]corev1.Pod, error)
 	ListMountPodAppPods(ctx context.Context, mountPod *corev1.Pod) ([]corev1.Pod, error)
+	ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error)
+	ListUpgradePods(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error)
 
 	ExecPod(c *gin.Context, namespace, name, ontainer string)
 	WatchPodLogs(c *gin.Context, namespace, name, container string) error
@@ -69,9 +81,10 @@ type PodService interface {
 
 func NewPodService(client client.Client, k8sClient *k8sclient.K8sClient, kubeconfig *rest.Config, enableManager bool) PodService {
 	svc := &podService{
-		k8sClient:  k8sClient,
-		client:     client,
-		kubeconfig: kubeconfig,
+		k8sClient:    k8sClient,
+		client:       client,
+		kubeconfig:   kubeconfig,
+		sysNamespace: config.Namespace,
 	}
 	if enableManager {
 		return &CachePodService{

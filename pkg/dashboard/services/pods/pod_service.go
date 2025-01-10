@@ -23,9 +23,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
-	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,6 +30,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 type podService struct {
@@ -205,13 +208,15 @@ func (s *podService) ListCSINodePod(ctx context.Context, nodeName string) ([]cor
 		"app.kubernetes.io/name": "juicefs-csi-driver",
 		"app":                    "juicefs-csi-node",
 	})
-	fieldSelector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName})
+	listOptions := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	if nodeName != "" {
+		listOptions.FieldSelector = fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName})
+	}
 
 	pods := corev1.PodList{}
-	if err := s.client.List(ctx, &pods, &client.ListOptions{
-		LabelSelector: labelSelector,
-		FieldSelector: fieldSelector,
-	}); err != nil {
+	if err := s.client.List(ctx, &pods, listOptions); err != nil {
 		return nil, err
 	}
 	return pods.Items, nil
@@ -290,4 +295,71 @@ func (s *podService) ListMountPodAppPods(ctx context.Context, mountPod *corev1.P
 		}
 	}
 	return appPods, nil
+}
+
+func (s *podService) ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error) {
+	var pods corev1.PodList
+	ls := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app.kubernetes.io/name": "juicefs-mount",
+		},
+	}
+	if conf.UniqueId != "" {
+		ls.MatchLabels[common.PodUniqueIdLabelKey] = conf.UniqueId
+	}
+	sls, _ := metav1.LabelSelectorAsSelector(ls)
+	listOptions := client.ListOptions{
+		LabelSelector: sls,
+	}
+	if conf.Node != "" {
+		fieldSelector := fields.Set{"spec.nodeName": conf.Node}.AsSelector()
+		listOptions.FieldSelector = fieldSelector
+	}
+	err := s.client.List(c, &pods, &listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	podsMap := make(map[string]corev1.Pod)
+	for _, pod := range pods.Items {
+		podsMap[pod.Name] = pod
+	}
+
+	results := make([]corev1.Pod, 0)
+	for _, batch := range conf.Batches {
+		for _, p := range batch {
+			if po, ok := podsMap[p.Name]; ok {
+				results = append(results, po)
+			}
+		}
+	}
+
+	return results, nil
+}
+
+func (s *podService) ListUpgradePods(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error) {
+	var pods corev1.PodList
+	ls := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app.kubernetes.io/name": "juicefs-mount",
+		},
+	}
+	if uniqueId != "" {
+		ls.MatchLabels[common.PodUniqueIdLabelKey] = uniqueId
+	}
+	sls, _ := metav1.LabelSelectorAsSelector(ls)
+
+	listOptions := client.ListOptions{
+		LabelSelector: sls,
+	}
+	if nodeName != "" {
+		listOptions.FieldSelector = fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName})
+	}
+	err := s.client.List(c, &pods, &listOptions)
+	if err != nil {
+		return nil, err
+	}
+	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
+
+	return podsToUpgrade, nil
 }

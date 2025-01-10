@@ -187,8 +187,7 @@ const BatchUpgradeJobDetail: React.FC<{
 
         {total !== 0 && (
           <PodUpgradeTable
-            diffPods={upgradeJob?.diffs}
-            batchConfig={upgradeJob?.config}
+            upgradeJob={upgradeJob}
             diffStatus={diffStatus}
             failReasons={failReasons}
           />
