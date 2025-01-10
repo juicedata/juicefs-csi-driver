@@ -46,8 +46,9 @@ import (
 var batchLog = klog.NewKlogr().WithName("batch")
 
 type ListJobResult struct {
-	Total int           `json:"total"`
-	Jobs  []*UpgradeJob `json:"jobs"`
+	Total    int           `json:"total"`
+	Continue string        `json:"continue"`
+	Jobs     []*UpgradeJob `json:"jobs"`
 }
 
 type UpgradeJob struct {
@@ -143,14 +144,15 @@ func (api *API) listUpgradeJobs() gin.HandlerFunc {
 		}
 
 		result := &ListJobResult{
-			len(jobs),
+			jobs.Total,
+			jobs.Continue,
 			make([]*UpgradeJob, 0),
 		}
 
-		for i := range jobs {
+		for i := range jobs.Jobs {
 			result.Jobs = append(result.Jobs, &UpgradeJob{
-				Job:    &jobs[i],
-				Config: configs[jobs[i].Labels[common.JfsUpgradeConfig]],
+				Job:    &jobs.Jobs[i],
+				Config: configs[jobs.Jobs[i].Labels[common.JfsUpgradeConfig]],
 			})
 		}
 		c.IndentedJSON(200, result)

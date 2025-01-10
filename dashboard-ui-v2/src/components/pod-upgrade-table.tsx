@@ -16,7 +16,13 @@
 
 import React, { useEffect, useState } from 'react'
 import { ProCard, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Button, Popover, type TablePaginationConfig, TableProps, Tooltip } from 'antd'
+import {
+  Button,
+  Popover,
+  TableProps,
+  Tooltip,
+  type TablePaginationConfig,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import ReactDiffViewer from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
@@ -27,7 +33,8 @@ import { DiffIcon } from '@/icons'
 import {
   BatchConfig,
   MountPatch,
-  PodDiffConfig, UpgradeJobWithDiff,
+  PodDiffConfig,
+  UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
 

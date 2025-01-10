@@ -136,8 +136,8 @@ export type UpgradeJobWithDiff = {
 
 export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
   Omit<Container, 'name'> & {
-  opts?: string[]
-}
+    opts?: string[]
+  }
 
 export type CacheGroup = {
   metadata?: ObjectMeta

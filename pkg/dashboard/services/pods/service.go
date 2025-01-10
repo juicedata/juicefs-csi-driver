@@ -81,9 +81,10 @@ type PodService interface {
 
 func NewPodService(client client.Client, k8sClient *k8sclient.K8sClient, kubeconfig *rest.Config, enableManager bool) PodService {
 	svc := &podService{
-		k8sClient:  k8sClient,
-		client:     client,
-		kubeconfig: kubeconfig,
+		k8sClient:    k8sClient,
+		client:       client,
+		kubeconfig:   kubeconfig,
+		sysNamespace: config.Namespace,
 	}
 	if enableManager {
 		return &CachePodService{

@@ -17,21 +17,28 @@
 package jobs
 
 import (
-	"context"
-
+	"github.com/gin-gonic/gin"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
+type ListJobResult struct {
+	Total    int           `json:"total"`
+	Continue string        `json:"continue"`
+	Jobs     []batchv1.Job `json:"jobs"`
+}
+
 type JobService interface {
-	ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error)
+	ListAllBatchJobs(ctx *gin.Context) (*ListJobResult, error)
 }
 
 func NewJobService(client client.Client, enableManager bool) JobService {
 	svc := &jobService{
-		client: client,
+		client:       client,
+		sysNamespace: config.Namespace,
 	}
 	if enableManager {
 		return &CacheJobService{

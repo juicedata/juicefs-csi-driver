@@ -68,10 +68,12 @@ const BatchUpgradeModal: React.FC<{
 
   const handleStartClick = () => {
     resetState()
-    actions.execute(worker, ignoreError, newJobName, selectedNode, uniqueId).then((response) => {
-      onOk()
-      navigate(`/jobs/${response.jobName}`)
-    })
+    actions
+      .execute(worker, ignoreError, newJobName, selectedNode, uniqueId)
+      .then((response) => {
+        onOk()
+        navigate(`/jobs/${response.jobName}`)
+      })
   }
   const handleCancel = () => {
     resetState()

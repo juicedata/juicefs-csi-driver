@@ -18,13 +18,14 @@ package jobs
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
+	"github.com/gin-gonic/gin"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -33,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
@@ -47,18 +47,46 @@ type CacheJobService struct {
 	jobIndexes *utils.TimeOrderedIndexes[batchv1.Job]
 }
 
-func (c *CacheJobService) ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error) {
-	jobs := batchv1.JobList{}
-	labelSelector := labels.SelectorFromSet(map[string]string{
-		common.PodTypeKey: common.JobTypeValue,
-		common.JfsJobKind: common.KindOfUpgrade,
-	})
-	if err := c.client.List(ctx, &jobs, &client.ListOptions{
-		LabelSelector: labelSelector,
-	}); err != nil {
-		return nil, err
+func (c *CacheJobService) ListAllBatchJobs(ctx *gin.Context) (*ListJobResult, error) {
+	pageSize, err := strconv.ParseUint(ctx.Query("pageSize"), 10, 64)
+	if err != nil || pageSize == 0 {
+		pageSize = 10
 	}
-	return jobs.Items, nil
+	current, err := strconv.ParseUint(ctx.Query("current"), 10, 64)
+	if err != nil || current == 0 {
+		current = 1
+	}
+	descend := ctx.Query("order") == "descend"
+	nameFilter := ctx.Query("name")
+
+	required := func(job *batchv1.Job) bool {
+		return (nameFilter == "" || strings.Contains(job.Name, nameFilter)) &&
+			utils.IsUpgradeJob(job)
+	}
+
+	jobs := make([]*batchv1.Job, 0, c.jobIndexes.Length())
+	for name := range c.jobIndexes.Iterate(ctx, descend) {
+		var job batchv1.Job
+		if err := c.client.Get(ctx, name, &job); err == nil && required(&job) {
+			jobs = append(jobs, &job)
+		}
+	}
+	result := &ListJobResult{
+		Total: len(jobs),
+		Jobs:  make([]batchv1.Job, 0),
+	}
+	startIndex := (current - 1) * pageSize
+	if startIndex >= uint64(len(jobs)) {
+		return result, nil
+	}
+	endIndex := startIndex + pageSize
+	if endIndex > uint64(len(jobs)) {
+		endIndex = uint64(len(jobs))
+	}
+	for i := startIndex; i < endIndex; i++ {
+		result.Jobs = append(result.Jobs, *jobs[i])
+	}
+	return result, nil
 }
 
 func (c *CacheJobService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

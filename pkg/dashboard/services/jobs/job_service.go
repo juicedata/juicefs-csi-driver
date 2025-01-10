@@ -17,20 +17,40 @@
 package jobs
 
 import (
-	"context"
+	"strconv"
 
+	"github.com/gin-gonic/gin"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
 type jobService struct {
-	client client.Client
+	client       client.Client
+	sysNamespace string
 }
 
-func (c *jobService) ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error) {
+func (c *jobService) ListAllBatchJobs(ctx *gin.Context) (*ListJobResult, error) {
+	pageSize, err := strconv.ParseInt(ctx.Query("pageSize"), 10, 64)
+	if err != nil || pageSize == 0 {
+		pageSize = 10
+	}
+	continueToken := ctx.Query("continue")
+
+	nameFilter := ctx.Query("name")
+	if nameFilter != "" {
+		job := batchv1.Job{}
+		if err := c.client.Get(ctx, types.NamespacedName{Name: nameFilter, Namespace: c.sysNamespace}, &job); err != nil {
+			return nil, client.IgnoreNotFound(err)
+		}
+		result := &ListJobResult{
+			Jobs: []batchv1.Job{job},
+		}
+		return result, nil
+	}
 	jobs := batchv1.JobList{}
 	labelSelector := labels.SelectorFromSet(map[string]string{
 		common.PodTypeKey: common.JobTypeValue,
@@ -38,8 +58,14 @@ func (c *jobService) ListAllBatchJobs(ctx context.Context) ([]batchv1.Job, error
 	})
 	if err := c.client.List(ctx, &jobs, &client.ListOptions{
 		LabelSelector: labelSelector,
+		Namespace:     c.sysNamespace,
+		Limit:         pageSize,
+		Continue:      continueToken,
 	}); err != nil {
 		return nil, err
 	}
-	return jobs.Items, nil
+	return &ListJobResult{
+		Continue: jobs.Continue,
+		Jobs:     jobs.Items,
+	}, nil
 }

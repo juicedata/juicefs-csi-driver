@@ -15,18 +15,22 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { Button, Popover, type TablePaginationConfig, TableProps, Tooltip } from 'antd'
+import { ProColumns, ProTable } from '@ant-design/pro-components'
+import {
+  Button,
+  Popover,
+  TableProps,
+  Tooltip,
+  type TablePaginationConfig,
+} from 'antd'
 import ReactDiffViewer from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
 
-import { DiffIcon } from '@/icons'
-import {
-  PodDiffConfig,
-} from '@/types/k8s.ts'
-import { ProColumns, ProTable } from '@ant-design/pro-components'
 import { useConfigDiff } from '@/hooks/cm-api.ts'
+import { DiffIcon } from '@/icons'
+import { PodDiffConfig } from '@/types/k8s.ts'
 
 const diffContent = (podDiff: PodDiffConfig) => {
   const oldData = YAML.stringify(podDiff.oldConfig)
@@ -87,7 +91,12 @@ const PodToUpgradeTable: React.FC<{
     pageSize: 10,
     total: 0,
   })
-  const { data: diffPods } = useConfigDiff(nodeName || '', uniqueId || '', pagination.pageSize, pagination.current)
+  const { data: diffPods } = useConfigDiff(
+    nodeName || '',
+    uniqueId || '',
+    pagination.pageSize,
+    pagination.current,
+  )
   const handleTableChange: TableProps['onChange'] = (pagination) => {
     setPagination(pagination)
   }

@@ -102,4 +102,5 @@ export interface UpgradeJobsPagingListArgs {
   name?: string
   sort?: Record<string, SortOrder>
   filter?: Record<string, (string | number)[] | null>
+  continue?: string
 }

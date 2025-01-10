@@ -26,7 +26,12 @@ export function useUpdateConfig() {
   })
 }
 
-export function useConfigDiff(nodeName: string, uniqueId: string, pageSize?: number, current?: number) {
+export function useConfigDiff(
+  nodeName: string,
+  uniqueId: string,
+  pageSize?: number,
+  current?: number,
+) {
   const size = pageSize || 20
   const currentPage = current || 1
   const node = nodeName === 'All Nodes' ? '' : nodeName
