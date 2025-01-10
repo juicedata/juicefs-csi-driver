@@ -357,9 +357,17 @@ func CheckDynamicPV(name string) (bool, error) {
 	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
 }
 
-func UmountPath(ctx context.Context, sourcePath string) {
+func UmountPath(ctx context.Context, sourcePath string, lazy bool) {
 	log := GenLog(ctx, utilLog, "Umount")
-	out, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
+	var (
+		out []byte
+		err error
+	)
+	if lazy {
+		out, err = exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
+	} else {
+		out, err = exec.CommandContext(ctx, "umount", sourcePath).CombinedOutput()
+	}
 	if err != nil &&
 		!strings.Contains(string(out), "not mounted") &&
 		!strings.Contains(string(out), "mountpoint not found") &&

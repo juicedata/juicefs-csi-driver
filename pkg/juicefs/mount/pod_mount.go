@@ -443,21 +443,6 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	if err == nil {
 		return nil
 	}
-	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
-	if err != nil {
-		return err
-	}
-	if util.SupportFusePass(jfsSetting.Attr.Image) {
-		logger.Error(err, "pod is not ready within 60s")
-		// mount pod hang probably, close fd
-		logger.Info("close fuse fd")
-		passfd.GlobalFds.CloseFd(pod)
-		// umount it
-		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
-			util.UmountPath(ctx, jfsSetting.MountPath)
-			return nil
-		})
-	}
 	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(ctx, podName)
 	if err != nil {
