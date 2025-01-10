@@ -499,7 +499,7 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		po := pod
 		pv := pvMap[po.Annotations[common.UniqueId]]
 		var custSecret *corev1.Secret
-		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+		if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 			custSecret = custSecretMap[pv.Spec.CSI.NodePublishSecretRef.Name]
 		}
 		diff, err := DiffConfig(&po, pv, pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]], custSecret)

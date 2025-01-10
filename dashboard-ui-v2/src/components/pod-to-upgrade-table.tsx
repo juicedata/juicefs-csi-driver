@@ -105,6 +105,7 @@ const PodToUpgradeTable: React.FC<{
         search={false}
         pagination={diffPods?.total ? pagination : false}
         options={false}
+        rowKey={(row) => row.pod.metadata!.uid!}
       />
     </>
   )

@@ -99,7 +99,6 @@ const PodUpgradeTable: React.FC<{
       }
     }
     setMountPods(mountPodUpgrades)
-    console.log("mountPods", mountPodUpgrades)
   }, [upgradeJob, diffStatus])
 
   const handleTableChange: TableProps['onChange'] = (pagination) => {
@@ -187,6 +186,7 @@ const PodUpgradeTable: React.FC<{
         search={false}
         pagination={upgradeJob?.total ? pagination : false}
         options={false}
+        rowKey={(row) => row.key}
       />
     </ProCard>
   )

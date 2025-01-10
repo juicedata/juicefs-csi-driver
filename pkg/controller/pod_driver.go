@@ -856,8 +856,6 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
 		newPod.Spec.Tolerations = pod.Spec.Tolerations
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
-		pod.Spec = newPod.Spec
-		pod.ObjectMeta = newPod.ObjectMeta
 		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
 			// update secret
 			secret := podBuilder.NewSecret()
@@ -865,6 +863,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 				return err
 			}
 		}
+		pod.Spec = newPod.Spec
+		pod.ObjectMeta = newPod.ObjectMeta
 		return nil
 	}
 	attr := setting.Attr

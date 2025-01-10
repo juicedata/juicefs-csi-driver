@@ -328,7 +328,9 @@ func (s *podService) ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]
 	results := make([]corev1.Pod, 0)
 	for _, batch := range conf.Batches {
 		for _, p := range batch {
-			results = append(results, podsMap[p.Name])
+			if po, ok := podsMap[p.Name]; ok {
+				results = append(results, po)
+			}
 		}
 	}
 
