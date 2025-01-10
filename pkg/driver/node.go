@@ -41,7 +41,10 @@ import (
 )
 
 var (
-	nodeCaps = []csi.NodeServiceCapability_RPC_Type{csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}
+	nodeCaps = []csi.NodeServiceCapability_RPC_Type{
+		csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+		csi.NodeServiceCapability_RPC_VOLUME_MOUNT_GROUP,
+	}
 )
 
 const defaultCheckTimeout = 2 * time.Second
@@ -143,6 +146,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if m := volCap.GetMount(); m != nil {
 		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
 		options = append(options, m.MountFlags...)
+	}
+
+	volumeMountGroup := req.GetVolumeCapability().GetMount().GetVolumeMountGroup()
+	if volumeMountGroup != "" {
+		options = append(options, "group_id="+volumeMountGroup)
 	}
 
 	log.Info("get volume context", "volCtx", volCtx)
