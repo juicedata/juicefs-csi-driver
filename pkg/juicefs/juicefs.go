@@ -632,7 +632,9 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	for key, val := range setting.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
 	}
-	envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
+	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
+		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
+	}
 	authCmd.SetEnv(envs)
 	res, err := authCmd.CombinedOutput()
 	log.Info("auth output", "output", res)
