@@ -32,12 +32,14 @@ export function useAppPods(args: AppPagingListArgs) {
   const mountPod = args.mountPod || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
     pods: Pod[]
     total: number
+    continue?: string
   }>(
-    `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -48,12 +50,14 @@ export function useSysAppPods(args: SysPagingListArgs) {
   const node = args.node || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
     pods: Pod[]
     total: number
+    continue?: string
   }>(
-    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 

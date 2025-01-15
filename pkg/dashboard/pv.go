@@ -44,9 +44,9 @@ func (api *API) listPodPVsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvs, err := api.listPVsOfPod(c, pod)
+		pvs, err := api.podSvc.ListPodPVs(c, pod)
 		if err != nil {
-			c.String(500, "get pod persistent volumes error: %v", err)
+			c.String(500, "get pod pv error: %v", err)
 			return
 		}
 		c.IndentedJSON(200, pvs)
@@ -61,9 +61,9 @@ func (api *API) listPodPVCsHandler() gin.HandlerFunc {
 			return
 		}
 		pod := obj.(*corev1.Pod)
-		pvcs, err := api.listPVCsOfPod(c, pod)
+		pvcs, err := api.podSvc.ListPodPVCs(c, pod)
 		if err != nil {
-			c.String(500, "get pod persistent volume claims error: %v", err)
+			c.String(500, "get pod pvcs error: %v", err)
 			return
 		}
 		c.IndentedJSON(200, pvcs)
@@ -153,51 +153,11 @@ func (r ListSCResult) Swap(i, j int) {
 
 func (api *API) listPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
-		if err != nil || pageSize == 0 {
-			c.String(400, "invalid page size")
+		result, err := api.pvSvc.ListPVs(c)
+		if err != nil {
+			c.String(500, "list pvs error %v", err)
 			return
 		}
-		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
-		if err != nil || current == 0 {
-			c.String(400, "invalid current page")
-			return
-		}
-		descend := c.Query("order") != "ascend"
-		nameFilter := c.Query("name")
-		pvcFilter := c.Query("pvc")
-		scFilter := c.Query("sc")
-		required := func(pv *corev1.PersistentVolume) bool {
-			pvcName := types.NamespacedName{}
-			if pv.Spec.ClaimRef != nil {
-				pvcName = types.NamespacedName{
-					Namespace: pv.Spec.ClaimRef.Namespace,
-					Name:      pv.Spec.ClaimRef.Name,
-				}
-			}
-			return (nameFilter == "" || strings.Contains(pv.Name, nameFilter)) &&
-				(pvcFilter == "" || strings.Contains(pvcName.String(), pvcFilter)) &&
-				(scFilter == "" || strings.Contains(pv.Spec.StorageClassName, scFilter))
-
-		}
-		pvs := make([]*corev1.PersistentVolume, 0, api.pvIndexes.length())
-		for name := range api.pvIndexes.iterate(c, descend) {
-			var pv corev1.PersistentVolume
-			if err := api.cachedReader.Get(c, name, &pv); err == nil && required(&pv) {
-				pvs = append(pvs, &pv)
-			}
-		}
-		result := &ListPVPodResult{len(pvs), make([]*corev1.PersistentVolume, 0)}
-		startIndex := (current - 1) * pageSize
-		if startIndex >= uint64(len(pvs)) {
-			c.IndentedJSON(200, result)
-			return
-		}
-		endIndex := startIndex + pageSize
-		if endIndex > uint64(len(pvs)) {
-			endIndex = uint64(len(pvs))
-		}
-		result.PVs = pvs[startIndex:endIndex]
 		c.IndentedJSON(200, result)
 	}
 }
@@ -253,54 +213,11 @@ func (api *API) getSCMiddileware() gin.HandlerFunc {
 
 func (api *API) listPVCsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		pageSize, err := strconv.ParseUint(c.Query("pageSize"), 10, 64)
-		if err != nil || pageSize == 0 {
-			c.String(400, "invalid page size")
+		result, err := api.pvcSvc.ListPVCs(c)
+		if err != nil {
+			c.String(500, "list pvcs error %v", err)
 			return
 		}
-		current, err := strconv.ParseUint(c.Query("current"), 10, 64)
-		if err != nil || current == 0 {
-			c.String(400, "invalid current page")
-			return
-		}
-		descend := c.Query("order") != "ascend"
-		namespaceFilter := c.Query("namespace")
-		nameFilter := c.Query("name")
-		pvFilter := c.Query("pv")
-		scFilter := c.Query("sc")
-		required := func(pvc *corev1.PersistentVolumeClaim) bool {
-			pvName := ""
-			scName := ""
-			if pv, ok := api.pairs[types.NamespacedName{Namespace: pvc.Namespace, Name: pvc.Name}]; ok {
-				pvName = pv.Name
-			}
-			if pvc.Spec.StorageClassName != nil {
-				scName = *pvc.Spec.StorageClassName
-			}
-			return (namespaceFilter == "" || strings.Contains(pvc.Namespace, namespaceFilter)) &&
-				(nameFilter == "" || strings.Contains(pvc.Name, nameFilter)) &&
-				(pvFilter == "" || strings.Contains(pvName, pvFilter)) &&
-				(scFilter == "" || strings.Contains(scName, scFilter))
-
-		}
-		pvcs := make([]*corev1.PersistentVolumeClaim, 0, api.pvcIndexes.length())
-		for name := range api.pvcIndexes.iterate(c, descend) {
-			var pvc corev1.PersistentVolumeClaim
-			if err := api.cachedReader.Get(c, name, &pvc); err == nil && required(&pvc) {
-				pvcs = append(pvcs, &pvc)
-			}
-		}
-		result := &ListPVCPodResult{len(pvcs), make([]*corev1.PersistentVolumeClaim, 0)}
-		startIndex := (current - 1) * pageSize
-		if startIndex >= uint64(len(pvcs)) {
-			c.IndentedJSON(200, result)
-			return
-		}
-		endIndex := startIndex + pageSize
-		if endIndex > uint64(len(pvcs)) {
-			endIndex = uint64(len(pvcs))
-		}
-		result.PVCs = pvcs[startIndex:endIndex]
 		c.IndentedJSON(200, result)
 	}
 }
@@ -331,22 +248,17 @@ func (api *API) getPVCByUniqueId() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uniqueId := c.Param("uniqueid")
 
-		var selectPV *corev1.PersistentVolume
-		for name := range api.pvIndexes.iterate(c, false) {
-			var pv corev1.PersistentVolume
-			if err := api.cachedReader.Get(c, name, &pv); err == nil {
-				if pv.Spec.CSI.VolumeHandle == uniqueId {
-					selectPV = &pv
-					break
-				}
-			}
+		selectPV, err := api.pvSvc.GetPVByUniqueId(c, uniqueId)
+		if err != nil {
+			c.String(400, "get pv error: %v", err)
+			return
 		}
 		if selectPV == nil || selectPV.Spec.ClaimRef == nil {
 			c.String(404, "not found")
 			return
 		}
 		var pvc corev1.PersistentVolumeClaim
-		err := api.cachedReader.Get(c, types.NamespacedName{Namespace: selectPV.Spec.ClaimRef.Namespace, Name: selectPV.Spec.ClaimRef.Name}, &pvc)
+		err = api.cachedReader.Get(c, types.NamespacedName{Namespace: selectPV.Spec.ClaimRef.Namespace, Name: selectPV.Spec.ClaimRef.Name}, &pvc)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				c.String(404, "not found")
@@ -416,7 +328,7 @@ func (api *API) getSCHandler() gin.HandlerFunc {
 
 func (api *API) getPV(ctx context.Context, name string) (*corev1.PersistentVolume, error) {
 	var pv corev1.PersistentVolume
-	if err := api.cachedReader.Get(ctx, api.sysNamespaced(name), &pv); err != nil {
+	if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: name}, &pv); err != nil {
 		if k8serrors.IsNotFound(err) {
 			pvLog.Error(err, "get pv error", "name", name)
 			return nil, nil
@@ -450,37 +362,117 @@ func (api *API) getStorageClass(ctx *gin.Context, name string) (*storagev1.Stora
 	return &sc, nil
 }
 
-func (api *API) listPVsOfPod(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolume, error) {
-	pvs := make([]*corev1.PersistentVolume, 0)
-	for _, v := range pod.Spec.Volumes {
-		if v.PersistentVolumeClaim == nil {
-			continue
+func (api *API) getPVEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		p, ok := c.Get("pv")
+		if !ok {
+			c.String(404, "not found")
+			return
 		}
-		pvName := api.pairs[types.NamespacedName{Namespace: pod.Namespace, Name: v.PersistentVolumeClaim.ClaimName}]
-		pv, err := api.getPV(ctx, pvName.Name)
+		pv := p.(*corev1.PersistentVolume)
+		result, err := api.eventSvc.ListEvents(c, "", "PersistentVolume", string(pv.UID))
 		if err != nil {
-			return nil, err
+			c.String(500, "list events error %v", err)
+			return
 		}
-		if pv != nil {
-			pvs = append(pvs, pv)
-		}
+		c.IndentedJSON(200, result)
 	}
-	return pvs, nil
 }
 
-func (api *API) listPVCsOfPod(ctx context.Context, pod *corev1.Pod) ([]*corev1.PersistentVolumeClaim, error) {
-	pvcs := make([]*corev1.PersistentVolumeClaim, 0)
-	for _, v := range pod.Spec.Volumes {
-		if v.PersistentVolumeClaim == nil {
-			continue
+func (api *API) getPVCEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		p, ok := c.Get("pvc")
+		if !ok {
+			c.String(404, "not found")
+			return
 		}
-		pvc, err := api.getPVC(pod.Namespace, v.PersistentVolumeClaim.ClaimName)
+		pvc := p.(*corev1.PersistentVolumeClaim)
+		result, err := api.eventSvc.ListEvents(c, pvc.Namespace, "PersistentVolumeClaim", string(pvc.UID))
 		if err != nil {
-			return nil, err
+			c.String(500, "list events error %v", err)
+			return
 		}
-		if pvc != nil {
-			pvcs = append(pvcs, pvc)
-		}
+		c.IndentedJSON(200, result)
 	}
-	return pvcs, nil
+}
+
+func (api *API) getMountPodsOfPV() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pv")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pv := obj.(*corev1.PersistentVolume)
+
+		var pods corev1.PodList
+		err := api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: LabelSelectorOfMount(*pv),
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods.Items)
+	}
+}
+
+func (api *API) getMountPodsOfPVC() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("pvc")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		pvc := obj.(*corev1.PersistentVolumeClaim)
+		if pvc.Spec.VolumeName == "" {
+			c.String(404, "not found")
+			return
+		}
+		pvName := pvc.Spec.VolumeName
+		var pv corev1.PersistentVolume
+		if err := api.cachedReader.Get(c, types.NamespacedName{Name: pvName}, &pv); err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.String(404, "not found")
+			} else {
+				c.String(500, "get pv %s error %v", pvName, err)
+			}
+			return
+		}
+
+		var pods corev1.PodList
+		err := api.cachedReader.List(c, &pods, &client.ListOptions{
+			LabelSelector: LabelSelectorOfMount(pv),
+		})
+		if err != nil {
+			c.String(500, "list pods error %v", err)
+			return
+		}
+		c.IndentedJSON(200, pods.Items)
+	}
+}
+
+func (api *API) getPVOfSC() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		obj, ok := c.Get("sc")
+		if !ok {
+			c.String(404, "not found")
+			return
+		}
+		sc := obj.(*storagev1.StorageClass)
+		var pvList corev1.PersistentVolumeList
+		err := api.cachedReader.List(c, &pvList)
+		if err != nil {
+			c.String(500, "list pvs error %v", err)
+			return
+		}
+		var pvs []*corev1.PersistentVolume
+		for i := range pvList.Items {
+			pv := &pvList.Items[i]
+			if pv.Spec.StorageClassName == sc.Name {
+				pvs = append(pvs, pv)
+			}
+		}
+		c.IndentedJSON(200, pvs)
+	}
 }

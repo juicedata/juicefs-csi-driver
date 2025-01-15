@@ -32,8 +32,7 @@ import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 
 import PodToUpgradeTable from '@/components/pod-to-upgrade-table.tsx'
-import { useConfigDiff } from '@/hooks/cm-api.ts'
-import { useBatchPlan, useCreateUpgradeJob } from '@/hooks/job-api.ts'
+import { useCreateUpgradeJob } from '@/hooks/job-api.ts'
 import { usePVCs, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
 import { PVC } from '@/types/k8s.ts'
@@ -58,14 +57,6 @@ const BatchUpgradeModal: React.FC<{
   const [ignoreError, setIgnoreError] = useState(false)
   const [newJobName, setNewJobName] = useState(genNewJobName())
 
-  const { data: diffPods } = useConfigDiff(selectedNode, uniqueId)
-  const { data: batchConfig } = useBatchPlan(
-    selectedNode,
-    uniqueId,
-    worker,
-    ignoreError,
-    true,
-  )
   const [, actions] = useCreateUpgradeJob()
   const navigate = useNavigate()
 
@@ -77,10 +68,12 @@ const BatchUpgradeModal: React.FC<{
 
   const handleStartClick = () => {
     resetState()
-    actions.execute(batchConfig, newJobName).then((response) => {
-      onOk()
-      navigate(`/jobs/${response.jobName}`)
-    })
+    actions
+      .execute(worker, ignoreError, newJobName, selectedNode, uniqueId)
+      .then((response) => {
+        onOk()
+        navigate(`/jobs/${response.jobName}`)
+      })
   }
   const handleCancel = () => {
     resetState()
@@ -173,7 +166,7 @@ const BatchUpgradeModal: React.FC<{
             ></InputNumber>
           </Space>
 
-          <PodToUpgradeTable diffPods={diffPods} batchConfig={batchConfig} />
+          <PodToUpgradeTable nodeName={selectedNode} uniqueId={uniqueId} />
         </ProCard>
       </Modal>
     </>

@@ -17,7 +17,12 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import {
+  Button,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -197,6 +202,7 @@ const PodList: React.FC = () => {
     pageSize: 20,
     total: 0,
   })
+  const [continueToken, setContinueToken] = useState<string | undefined>()
 
   const handleTableChange: TableProps['onChange'] = (pagination) => {
     setPagination(pagination)
@@ -207,6 +213,7 @@ const PodList: React.FC = () => {
     pv?: string
     mountPod?: string
     namespace?: string
+    continue?: string
   }>()
 
   const { data, isLoading } = useAppPods({
@@ -218,6 +225,10 @@ const PodList: React.FC = () => {
   useEffect(() => {
     setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
   }, [data?.total])
+
+  useEffect(() => {
+    setContinueToken(data?.continue)
+  }, [data?.continue])
 
   return (
     <PageContainer
@@ -231,7 +242,7 @@ const PodList: React.FC = () => {
         columns={columns}
         loading={isLoading}
         dataSource={data?.pods}
-        pagination={pagination}
+        pagination={data?.total ? pagination : false}
         onChange={handleTableChange}
         search={{
           optionRender: false,
@@ -250,6 +261,26 @@ const PodList: React.FC = () => {
         }}
         rowKey={(row) => row.metadata!.uid!}
       />
+      {continueToken && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 16,
+          }}
+        >
+          <Button
+            onClick={() =>
+              setFilter({
+                ...filter,
+                continue: continueToken,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </PageContainer>
   )
 }

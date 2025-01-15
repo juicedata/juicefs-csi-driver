@@ -17,7 +17,12 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTwoTone } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
+import {
+  Button,
+  Tooltip,
+  type TablePaginationConfig,
+  type TableProps,
+} from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -117,6 +122,7 @@ const SysPodList: React.FC = () => {
     name?: string
     namespace?: string
     node?: string
+    continue?: string
   }>()
 
   const { data, isLoading } = useSysAppPods({
@@ -125,9 +131,14 @@ const SysPodList: React.FC = () => {
     ...filter,
   })
 
+  const [continueToken, setContinueToken] = useState<string | undefined>()
+
   useEffect(() => {
     setPagination((prev) => ({ ...prev, total: data?.total || 0 }))
   }, [data?.total])
+  useEffect(() => {
+    setContinueToken(data?.continue)
+  }, [data?.continue])
 
   return (
     <PageContainer
@@ -140,7 +151,7 @@ const SysPodList: React.FC = () => {
         columns={columns}
         loading={isLoading}
         dataSource={data?.pods}
-        pagination={pagination}
+        pagination={data?.total ? pagination : false}
         onChange={handleTableChange}
         rowKey={(row) => row.metadata!.uid!}
         search={{
@@ -159,6 +170,26 @@ const SysPodList: React.FC = () => {
           },
         }}
       />
+      {continueToken && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 16,
+          }}
+        >
+          <Button
+            onClick={() =>
+              setFilter({
+                ...filter,
+                continue: continueToken,
+              })
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </PageContainer>
   )
 }

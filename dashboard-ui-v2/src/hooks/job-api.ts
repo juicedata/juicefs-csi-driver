@@ -18,26 +18,38 @@ import { useAsync } from '@react-hookz/web'
 import useSWR from 'swr'
 
 import { UpgradeJobsPagingListArgs } from '@/types'
-import { BatchConfig, UpgradeJob, UpgradeJobWithDiff } from '@/types/k8s.ts'
+import { UpgradeJob, UpgradeJobWithDiff } from '@/types/k8s.ts'
 import { getHost } from '@/utils'
 
 export function useCreateUpgradeJob() {
-  return useAsync(async (batchConfig?: BatchConfig, jobName?: string) => {
-    const response = await fetch(`${getHost()}/api/v1/batch/upgrade/jobs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        batchConfig: batchConfig,
-        jobName: jobName,
-      }),
-    })
-    const result: {
-      jobName: string
-    } = await response.json()
-    return result
-  })
+  return useAsync(
+    async (
+      worker: number,
+      ignoreError: boolean,
+      jobName?: string,
+      nodeName?: string,
+      uniqueId?: string,
+    ) => {
+      const response = await fetch(`${getHost()}/api/v1/batch/upgrade/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobName: jobName,
+          nodeName: nodeName === 'All Nodes' ? '' : nodeName,
+          recreate: true,
+          worker: worker,
+          ignoreError: ignoreError,
+          uniqueId: uniqueId,
+        }),
+      })
+      const result: {
+        jobName: string
+      } = await response.json()
+      return result
+    },
+  )
 }
 
 export function useUpgradeJob(jobName: string) {
@@ -50,12 +62,14 @@ export function useUpgradeJobs(args: UpgradeJobsPagingListArgs) {
   const name = args.name || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
     jobs: UpgradeJob[]
     total: number
+    continue: string | undefined
   }>(
-    `/api/v1/batch/upgrade/jobs?order=${order}&namespace=${namespace}&name=${name}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/batch/upgrade/jobs?order=${order}&namespace=${namespace}&name=${name}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -84,17 +98,4 @@ export function useUpdateUpgradeJob() {
     })
     return
   })
-}
-
-export function useBatchPlan(
-  nodeName: string,
-  uniqueId: string,
-  worker: number,
-  ignoreError: boolean,
-  recreate: boolean,
-) {
-  const node = nodeName === 'All Nodes' ? '' : nodeName
-  return useSWR<BatchConfig>(
-    `/api/v1/batch/upgrade/plan?nodeName=${node}&uniqueId=${uniqueId}&worker=${worker}&ignoreError=${ignoreError}&recreate=${recreate}`,
-  )
 }
