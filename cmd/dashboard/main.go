@@ -208,7 +208,7 @@ func run() {
 			log.Error(err, "pprof server error")
 		}
 	}()
-	quit := make(chan os.Signal, 1)
+	quit := make(chan os.Signal, 2)
 	if enableManager {
 		go func() {
 			if err := podApi.StartManager(ctx, mgr); err != nil {
@@ -219,11 +219,16 @@ func run() {
 	}
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info("Shutdown Server ...")
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Error(err, "Server Shutdown")
-		os.Exit(1)
-	}
+	go func() {
+		log.Info("Shutdown Server ...")
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Error(err, "Server Shutdown")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}()
+	<-quit
+	os.Exit(1) // second signal. Exit directly.
 }
 
 func getLocalConfig() (*rest.Config, error) {
