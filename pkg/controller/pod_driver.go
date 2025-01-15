@@ -401,8 +401,6 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 
-	go p.checkMountPodStuck(pod)
-
 	// pod with resource error
 	if resource.IsPodResourceError(pod) {
 		log.V(1).Info("The pod is PodResourceError, skip delete the pod")
@@ -446,6 +444,10 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		if res, err := p.cleanBeforeDeleted(ctx, pod); err != nil {
 			return res, err
 		}
+	}
+
+	if (!util.SupportFusePass(pod.Spec.Containers[0].Image) || len(existTargets) == 0) && !hasAvailPod {
+		go p.checkMountPodStuck(pod)
 	}
 
 	// create
@@ -916,11 +918,6 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	}
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
 	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
-	defer func() {
-		if runtime.GOOS == "linux" {
-			util.DevMinorTableDelete(mountPoint)
-		}
-	}()
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
@@ -929,29 +926,24 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			timeout = gracePeriod
 		}
 	}
+	if pod.DeletionTimestamp.Add(timeout).After(time.Now()) {
+		return
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
-			if runtime.GOOS == "linux" {
-				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
-					if err := p.doAbortFuse(pod, devMinor); err != nil {
-						log.Error(err, "abort fuse connection error")
-					}
-				} else {
-					log.Info("can't find devMinor of mountPoint", "mount point", mountPoint)
-				}
+	defer func() {
+		if runtime.GOOS == "linux" {
+			util.DevMinorTableDelete(mountPoint)
+		}
+	}()
+
+	log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
+	if runtime.GOOS == "linux" {
+		if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
+			if err := p.doAbortFuse(pod, devMinor); err != nil {
+				log.Error(err, "abort fuse connection error")
 			}
-			return
-		default:
-			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-			if apierrors.IsNotFound(err) || getPodStatus(newPod) != podDeleted {
-				return
-			}
-			time.Sleep(10 * time.Second)
+		} else {
+			log.Info("can't find devMinor of mountPoint", "mount point", mountPoint)
 		}
 	}
 }
