@@ -109,7 +109,7 @@ func main() {
 	cmd.PersistentFlags().BoolVar(&leaderElection, "leader-election", false, "Enables leader election. If leader election is enabled, additional RBAC rules are required. ")
 	cmd.PersistentFlags().StringVar(&leaderElectionNamespace, "leader-election-namespace", "", "Namespace where the leader election resource lives. Defaults to the pod namespace if not set.")
 	cmd.PersistentFlags().DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
-	cmd.PersistentFlags().BoolVar(&enableManager, "enable-manager", false, "enable manager")
+	cmd.PersistentFlags().BoolVar(&enableManager, "enable-manager", true, "enable manager for cache/index resource")
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
