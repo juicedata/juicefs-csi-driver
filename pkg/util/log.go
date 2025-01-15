@@ -33,6 +33,7 @@ func WithLog(parentCtx context.Context, log klog.Logger) context.Context {
 func GenLog(ctx context.Context, log klog.Logger, name string) klog.Logger {
 	if ctx.Value(LoggerType(LogKey)) != nil {
 		log = ctx.Value(LoggerType(LogKey)).(klog.Logger)
+		return log
 	}
 	if name != "" {
 		log = log.WithName(name)
