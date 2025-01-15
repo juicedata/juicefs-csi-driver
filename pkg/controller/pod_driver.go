@@ -130,28 +130,28 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 		return Result{}, nil
 	}
 	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
-	ctx = util.WithLog(ctx, log)
+	ctxWithLog := util.WithLog(ctx, log)
 	ps := getPodStatus(current)
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 	// check refs in mount pod annotation first, delete ref that target pod is not found
-	err := p.checkAnnotations(ctx, current)
+	err := p.checkAnnotations(ctxWithLog, current)
 	if err != nil {
 		return Result{}, err
 	}
 
 	if ps != podError && ps != podDeleted {
-		return p.handlers[ps](ctx, current)
+		return p.handlers[ps](ctxWithLog, current)
 	}
 
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
-	pod, err := p.Client.GetPod(ctx, current.Name, current.Namespace)
+	pod, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
 	if err != nil {
 		return Result{}, err
 	}
 	// set mount pod status in mit again, maybe deleted
 	p.mit.setPodStatus(pod)
-	return p.handlers[getPodStatus(pod)](ctx, pod)
+	return p.handlers[getPodStatus(pod)](ctxWithLog, pod)
 }
 
 // getPodStatus get pod status
@@ -494,7 +494,7 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 
 	// do not need to create new one or available pod has different mount path, umount
 	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		util.UmountPath(ctx, sourcePath)
+		util.UmountPath(ctx, sourcePath, true)
 		return nil
 	})
 	// clean mount point
@@ -622,7 +622,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			passfd.GlobalFds.CloseFd(pod)
 			// umount it
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				util.UmountPath(ctx, mntPath)
+				util.UmountPath(ctx, mntPath, false)
 				return nil
 			})
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
@@ -776,7 +776,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 		}
 
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-			util.UmountPath(subCtx, target)
+			util.UmountPath(subCtx, target, false)
 			return nil
 		})
 	}
@@ -1077,7 +1077,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		if err == nil {
 			log.Info("start to umount", "mountPath", sourcePath)
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				util.UmountPath(ctx, sourcePath)
+				util.UmountPath(ctx, sourcePath, false)
 				return nil
 			})
 		}

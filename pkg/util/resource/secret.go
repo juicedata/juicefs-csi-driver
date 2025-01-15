@@ -26,10 +26,11 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secret *corev1.Secret) error {
-	log := log.WithName("createOrUpdateSecret")
+	log := util.GenLog(ctx, log, "createOrUpdateSecret")
 	log.Info("secret", "name", secret.Name, "namespace", secret.Namespace)
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		oldSecret, err := client.GetSecret(ctx, secret.Name, jfsConfig.Namespace)

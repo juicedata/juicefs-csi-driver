@@ -114,7 +114,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 }
 
 func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
-	log := util.GenLog(ctx, p.log, "")
+	log := util.GenLog(ctx, p.log, "GetMountRef")
 	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -267,7 +267,7 @@ func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 }
 
 func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
-	log := p.log.WithName("JDeleteVolume")
+	log := util.GenLog(ctx, p.log, "JDeleteVolume")
 	var exist *batchv1.Job
 	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForDeleteVolume()
@@ -336,7 +336,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 }
 
 func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
-	log := p.log.WithName("createOrAddRef")
+	log := util.GenLog(ctx, p.log, "createOrAddRef")
 	log.V(1).Info("mount pod", "podName", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
 	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
@@ -438,25 +438,10 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 }
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	logger := util.GenLog(ctx, p.log, "")
+	logger := util.GenLog(ctx, p.log, "waitUtilMountReady")
 	err := resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
 	if err == nil {
 		return nil
-	}
-	pod, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
-	if err != nil {
-		return err
-	}
-	if util.SupportFusePass(jfsSetting.Attr.Image) {
-		logger.Error(err, "pod is not ready within 60s")
-		// mount pod hang probably, close fd
-		logger.Info("close fuse fd")
-		passfd.GlobalFds.CloseFd(pod)
-		// umount it
-		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
-			util.UmountPath(ctx, jfsSetting.MountPath)
-			return nil
-		})
 	}
 	// mountpoint not ready, get mount pod log for detail
 	log, err := p.getErrContainerLog(ctx, podName)
@@ -468,7 +453,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 }
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
-	log := p.log.WithName("waitUtilJobCompleted")
+	log := util.GenLog(ctx, p.log, "waitUtilJobCompleted")
 	// Wait until the job is completed
 	waitCtx, waitCancel := context.WithTimeout(ctx, 40*time.Second)
 	defer waitCancel()
@@ -515,7 +500,7 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 }
 
 func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName string) error {
-	log := p.log.WithName("AddRefOfMount")
+	log := util.GenLog(ctx, p.log, "AddRefOfMount")
 	log.Info("Add target ref in mount pod.", "podName", podName, "target", target)
 	// add volumeId ref in pod annotation
 	key := util.GetReferenceKey(target)
@@ -566,7 +551,7 @@ func (p *PodMount) setMountLabel(ctx context.Context, uniqueId, mountPodName str
 
 // GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
 func (p *PodMount) GetJfsVolUUID(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
-	log := util.GenLog(ctx, p.log, "")
+	log := util.GenLog(ctx, p.log, "GetJfsVolUUID")
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	statusCmd := p.Exec.CommandContext(cmdCtx, jfsConfig.CeCliPath, "status", jfsSetting.Source)
@@ -597,7 +582,7 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, jfsSetting *jfsConfig.JfsS
 }
 
 func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volumeId string, cacheDirs []string) error {
-	log := p.log.WithName("CleanCache")
+	log := util.GenLog(ctx, p.log, "CleanCache")
 	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true, nil, nil)
 	if err != nil {
 		log.Error(err, "parse jfs setting err")

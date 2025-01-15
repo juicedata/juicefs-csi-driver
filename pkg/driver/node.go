@@ -111,7 +111,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	volumeID := req.GetVolumeId()
 	log = log.WithValues("volumeId", volumeID)
 
-	ctx = util.WithLog(ctx, log)
+	ctxWithLog := util.WithLog(ctx, log)
 
 	// WARNING: debug only, secrets included
 	log.V(1).Info("called with args", "args", req)
@@ -132,7 +132,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	log.Info("creating dir", "target", target)
-	if err := d.juicefs.CreateTarget(ctx, target); err != nil {
+	if err := d.juicefs.CreateTarget(ctxWithLog, target); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
 	}
 
@@ -156,19 +156,19 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	mountOptions = append(mountOptions, options...)
 
 	log.Info("mounting juicefs", "secret", reflect.ValueOf(secrets).MapKeys(), "options", mountOptions)
-	jfs, err := d.juicefs.JfsMount(ctx, volumeID, target, secrets, volCtx, mountOptions)
+	jfs, err := d.juicefs.JfsMount(ctxWithLog, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not mount juicefs: %v", err)
 	}
 
-	bindSource, err := jfs.CreateVol(ctx, volumeID, volCtx["subPath"])
+	bindSource, err := jfs.CreateVol(ctxWithLog, volumeID, volCtx["subPath"])
 	if err != nil {
 		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
 
-	if err := jfs.BindTarget(ctx, bindSource, target); err != nil {
+	if err := jfs.BindTarget(ctxWithLog, bindSource, target); err != nil {
 		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
@@ -211,6 +211,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // NodeUnpublishVolume is a reverse operation of NodePublishVolume. This RPC is typically called by the CO when the workload using the volume is being moved to a different node, or all the workload using the volume on a node has finished.
 func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log := klog.NewKlogr().WithName("NodeUnpublishVolume")
+	ctxWithLog := util.WithLog(ctx, log)
 	log.V(1).Info("called with args", "args", req)
 
 	target := req.GetTargetPath()
@@ -221,7 +222,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	log.Info("get volume_id", "volumeId", volumeId)
 
-	err := d.juicefs.JfsUnmount(ctx, volumeId, target)
+	err := d.juicefs.JfsUnmount(ctxWithLog, volumeId, target)
 	if err != nil {
 		d.metrics.volumeDelErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
