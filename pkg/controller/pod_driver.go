@@ -252,6 +252,11 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); !apierrors.IsNotFound(err) && err != nil {
 				log.V(1).Info("Delete secret error", "secretName", secretName)
 			}
+			// return conflict if pod is deleted here
+			return apierrors.NewConflict(schema.GroupResource{
+				Group:    pod.GroupVersionKind().Group,
+				Resource: pod.GroupVersionKind().Kind,
+			}, pod.Name, fmt.Errorf("delete pod and reconcile"))
 		}
 	}
 	return nil

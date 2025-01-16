@@ -69,6 +69,16 @@ func InitTestFds() {
 	}
 }
 
+func (fs *Fds) PrintFds() []byte {
+	fs.globalMu.Lock()
+	defer fs.globalMu.Unlock()
+	var res []byte
+	for k, v := range fs.fds {
+		res = append(res, []byte(fmt.Sprintf("key: %s, value: %s\n", k, v.serverAddress))...)
+	}
+	return res
+}
+
 func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
@@ -112,8 +122,10 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 			fdLog.Error(err, "read dir error", "basePath", fs.basePath)
 			return err
 		}
+		shouldRemove := true
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
+				shouldRemove = false
 				subdir := path.Join(fs.basePath, entry.Name(), subEntry.Name())
 				if po, ok := podMaps[entry.Name()]; !ok || po.DeletionTimestamp != nil {
 					// make sure the pod is still running
@@ -130,6 +142,13 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 					fs.parseFuse(ctx, entry.Name(), subdir)
 				}()
 			}
+		}
+		if shouldRemove {
+			_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+				// clean up the directory if pod is deleted
+				_ = os.RemoveAll(path.Join(fs.basePath, entry.Name()))
+				return nil
+			})
 		}
 	}
 	wg.Wait()
@@ -182,8 +201,8 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 	}
 	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
-	if f == nil {
-		serverParentPath := path.Join(fs.basePath, upgradeUUID)
+	serverParentPath := path.Join(fs.basePath, upgradeUUID)
+	defer func() {
 		_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
 			_, err := os.Stat(serverParentPath)
 			if err == nil {
@@ -192,18 +211,12 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 			return nil
 		})
 		fs.globalMu.Unlock()
-		return
+	}()
+	if f != nil {
+		fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress, "pod", pod.Name)
+		close(f.done)
+		delete(fs.fds, upgradeUUID)
 	}
-	fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress)
-	close(f.done)
-	delete(fs.fds, upgradeUUID)
-
-	serverParentPath := path.Join(fs.basePath, upgradeUUID)
-	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		_ = os.RemoveAll(serverParentPath)
-		return nil
-	})
-	fs.globalMu.Unlock()
 }
 
 func (fs *Fds) CloseFd(pod *corev1.Pod) {
@@ -214,7 +227,7 @@ func (fs *Fds) CloseFd(pod *corev1.Pod) {
 		fs.globalMu.Unlock()
 		return
 	}
-	fdLog.V(1).Info("close fuse fd", "upgradeUUID", upgradeUUID)
+	fdLog.V(1).Info("close fuse fd", "upgradeUUID", upgradeUUID, "pod", pod.Name)
 	_ = syscall.Close(f.fuseFd)
 	f.fuseFd = -1
 	fs.fds[upgradeUUID] = f
