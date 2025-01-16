@@ -38,15 +38,20 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 )
 
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{csi.NodeServiceCapability_RPC_GET_VOLUME_STATS}
 )
 
-const defaultCheckTimeout = 2 * time.Second
+const (
+	defaultCheckTimeout = 2 * time.Second
+	defaultQuotaPoolNum = 4
+)
 
 type nodeService struct {
+	quotaPool *dispatch.Pool
 	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
 	juicefs   juicefs.Interface
@@ -83,6 +88,7 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	metrics := newNodeMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
 	return &nodeService{
+		quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
 		SafeFormatAndMount: *mounter,
 		juicefs:            jfsProvider,
 		nodeID:             nodeID,
@@ -194,14 +200,14 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		}
 
-		go func() {
+		d.quotaPool.Run(context.Background(), func(ctx context.Context) {
 			err := retry.OnError(retry.DefaultRetry, func(err error) bool { return true }, func() error {
-				return d.juicefs.SetQuota(context.Background(), secrets, settings, path.Join(subdir, quotaPath), capacity)
+				return d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
 			})
 			if err != nil {
 				log.Error(err, "set quota failed")
 			}
-		}()
+		})
 	}
 
 	log.Info("juicefs volume mounted", "volumeId", volumeID, "target", target)
