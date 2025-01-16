@@ -402,18 +402,20 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					}
 				}
 
-				if util.SupportFusePass(jfsSetting.Attr.Image) {
-					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
-						log.Error(err, "serve fuse fd error")
-					}
-				}
-
 				if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 					return err
 				}
+
+				if util.SupportFusePass(jfsSetting.Attr.Image) {
+					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
+						log.Error(err, "serve fuse fd error", "podName", podName)
+					}
+				}
+
 				_, err = p.K8sClient.CreatePod(ctx, newPod)
 				if err != nil {
-					log.Error(err, "Create pod err", "podName", podName)
+					log.Error(err, "Create pod err, stop fuse fd server", "podName", podName)
+					passfd.GlobalFds.StopFd(ctx, newPod)
 				}
 				return err
 			} else if k8serrors.IsTimeout(err) {

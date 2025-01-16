@@ -79,7 +79,6 @@ func ServeGfShutdown(addr string) error {
 				continue
 			}
 
-			log.Info("Start to graceful shutdown")
 			go handleShutdown(conn)
 		}
 	}()
@@ -143,7 +142,12 @@ func handleShutdown(conn net.Conn) {
 	message := string(buf[:n])
 	req := parseRequest(message)
 
-	log.V(1).Info("Received shutdown message", "message", message)
+	if req.name == "list" {
+		_, _ = conn.Write(passfd.GlobalFds.PrintFds())
+		return
+	}
+
+	log.Info("Received shutdown message", "message", message)
 
 	client, err := k8s.NewClient()
 	if err != nil {
@@ -515,6 +519,9 @@ func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 		message = fmt.Sprintf("%s %s", name, recreate)
 	} else {
 		message = fmt.Sprintf("%s %s", name, noRecreate)
+	}
+	if name == "list" {
+		message = "list"
 	}
 
 	_, err = conn.Write([]byte(message))
