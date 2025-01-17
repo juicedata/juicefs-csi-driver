@@ -40,8 +40,6 @@ const (
 
 type VCIBuilder struct {
 	ServerlessBuilder
-	pvc corev1.PersistentVolumeClaim
-	app corev1.Pod
 }
 
 type VCIPropagationStruct struct {
@@ -53,13 +51,15 @@ var _ SidecarInterface = &VCIBuilder{}
 
 func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, pvc corev1.PersistentVolumeClaim) SidecarInterface {
 	return &VCIBuilder{
-		ServerlessBuilder: ServerlessBuilder{PodBuilder{
-			BaseBuilder: BaseBuilder{
-				jfsSetting: setting,
-				capacity:   capacity,
-			}}},
-		pvc: pvc,
-		app: app,
+		ServerlessBuilder: ServerlessBuilder{
+			PodBuilder: PodBuilder{
+				BaseBuilder: BaseBuilder{
+					jfsSetting: setting,
+					capacity:   capacity,
+				},
+			},
+			pvc: pvc, app: app,
+		},
 	}
 }
 

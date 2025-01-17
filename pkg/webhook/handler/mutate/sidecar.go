@@ -101,6 +101,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = pair.PVC.Name + "-jfs-secret"
+	sidecarLog.Info("jfs setting", "setting", jfsSetting.String())
 	s.jfsSetting = jfsSetting
 	capacity := pair.PVC.Spec.Resources.Requests.Storage().Value()
 	cap := capacity / 1024 / 1024 / 1024
@@ -116,7 +117,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	} else if pod.Labels != nil && pod.Labels[builder.CCIANNOKey] == builder.CCIANNOValue {
 		r = builder.NewCCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	} else {
-		r = builder.NewServerlessBuilder(jfsSetting, cap)
+		r = builder.NewServerlessBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	}
 
 	// create secret per PVC
