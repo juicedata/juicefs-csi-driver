@@ -371,6 +371,15 @@ If however, a configuration file isn't used, then kubelet is configured purely v
       value: 5
   ```
 
+* Dashboard Disable manager function
+
+The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it. After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
+
+  ```yaml title="values-mycluster.yaml"
+  dashboard:
+    enableManager: false
+  ```
+
 ## Client write cache (not recommended) {#client-write-cache}
 
 Even without Kubernetes, the client write cache (`--writeback`) is a feature that needs to be used with caution. Its function is to store the file data written by the client on the local disk and then asynchronously upload it to the object storage. This brings about a lot of user experience and data security issues, which are highlighted in the JuiceFS documentation:
@@ -427,3 +436,21 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
+
+## Avoid Using `fsGroup` {#avoid-using-fsgroup}
+
+JuiceFS does not support mapping the files in the file system to a specific Group ID when mounting. If you use `fsGroup` in your business Pod, the kubelet will recursively change the ownership and permissions of all files in the file system, which may cause your business Pod to start very slowly.
+
+If you must use `fsGroup`, you can modify the `fsGroupChangePolicy` field and set it to `OnRootMismatch`. This will only change the ownership and permissions of the contents when the owner and permissions of the root directory do not match the expected permissions of the volume. This setting helps to reduce the time required to change the ownership and permissions of the volume.
+
+```yaml title="my-pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-context-demo-2
+spec:
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 2000
+    fsGroupChangePolicy: "OnRootMismatch"
+```
