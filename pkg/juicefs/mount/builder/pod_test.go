@@ -93,6 +93,10 @@ var (
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{
 					{
+						Name:  "JFS_INSIDE_CONTAINER",
+						Value: "1",
+					},
+					{
 						Name: "metaurl",
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
@@ -241,6 +245,7 @@ func TestNewMountPod(t *testing.T) {
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
 	podEnvTest.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "JFS_INSIDE_CONTAINER", Value: "1"},
 		{Name: "metaurl", ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
