@@ -1,7 +1,7 @@
 ---
 title: Cache Group Operator
 sidebar_position: 4
-description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Cache Group Operator. 
+description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Cache Group Operator.
 ---
 
 Enterprise users can use the *Cache Group Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.

@@ -240,6 +240,24 @@ spec:
       restartPolicy: Never
 ```
 
+## 缓存和容器内存占用 {#clean-pagecache}
+
+在某些 Kubernetes 环境下，读取大量缓存的时候，可能会由于内核页缓存用量大，造成内存使用量上升并引发 OOM（阅读[这个 issue](https://github.com/kubernetes/kubernetes/issues/43916) 了解更多）。如遇这种情况，首先考虑[增加 `limits.memory`](./resource-optimization.md#mount-pod-resources)，来允许更多内存占用、提升缓存性能。
+
+如果确实无法继续增加内存上限，考虑给 JuiceFS 客户端增加 `JFS_DROP_OSCACHE=1` 环境变量，令客户端主动标记缓存状态，让内核更积极回收页缓存（读写完以后立刻淘汰缓存），来降低内存用量。
+
+```yaml {9}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+type: Opaque
+stringData:
+  ...
+  envs: "{JFS_DROP_OSCACHE: 1}"
+```
+
 ## 清理缓存 {#mount-pod-clean-cache}
 
 在大规模场景下，已建立的缓存是宝贵的，因此 JuiceFS CSI 驱动默认并不会在 Mount Pod 退出时清理缓存。如果这对你的场景不适用，可以对 PV 进行配置，令 Mount Pod 退出时直接清理自己的缓存。
