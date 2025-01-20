@@ -17,7 +17,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/net v0.28.0
+	golang.org/x/net v0.33.0
 	golang.org/x/sync v0.10.0
 	google.golang.org/grpc v1.65.0
 	k8s.io/api v0.31.1
