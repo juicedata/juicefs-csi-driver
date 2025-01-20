@@ -180,7 +180,10 @@ func nodeRun(ctx context.Context) {
 	// enable pod manager in csi node
 	if !process && podManager {
 		if config.KubeletPort != "" && config.HostIp != "" {
-			err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
+			err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+				log.Error(err, "Could not Start Reconciler of polling kubelet, retrying...")
+				return true
+			}, func() error {
 				return controller.StartReconciler()
 			})
 			if err != nil {
