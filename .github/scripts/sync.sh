@@ -88,6 +88,13 @@ elif [ "$imageName" = "csi-driver" ]; then
     sync_image "juicedata" "csi-dashboard"
     sync_image "juicedata" "csi-dashboard" "arm64"
   fi
+elif [ "$imageName" = "juicefs-cache-group-operator" ]; then
+  if [ "$tag" = "nightly" ]; then
+    sync_image "juicedata" "juicefs-cache-group-operator"
+  else
+    sync_image "juicedata" "juicefs-cache-group-operator"
+    sync_image "juicedata" "juicefs-cache-group-operator" "arm64"
+  fi
 else
   image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)
   registryName=$(echo $imageName | awk -F'/' '{OFS="/"; $NF=""; NF--; print $0}')
