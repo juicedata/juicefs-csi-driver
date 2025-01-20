@@ -373,7 +373,7 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 * Dashboard Disable manager function
 
-The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it. After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
+The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it (supported from version 0.26.1). After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
 
   ```yaml title="values-mycluster.yaml"
   dashboard:
