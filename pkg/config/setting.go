@@ -331,34 +331,51 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	}
 
 	// parse emptydir of cache
-	if volCtx != nil {
-		if _, ok := volCtx[common.CacheEmptyDir]; ok {
-			volPath := "/var/jfsCache-emptyDir"
-			cacheDirsInContainer = append(cacheDirsInContainer, volPath)
-			cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[common.CacheEmptyDir]), ":")
-			var (
-				medium    string
-				sizeLimit string
-			)
-			if len(cacheEmptyDirs) == 1 {
-				medium = strings.TrimSpace(cacheEmptyDirs[0])
-			}
-			if len(cacheEmptyDirs) == 2 {
-				medium = strings.TrimSpace(cacheEmptyDirs[0])
-				sizeLimit = strings.TrimSpace(cacheEmptyDirs[1])
-			}
-			jfsSetting.CacheEmptyDir = &CacheEmptyDir{
-				Medium: medium,
-				Path:   volPath,
-			}
-			log.Info("sizeLimit of emptyDir", "size", sizeLimit)
-			if sizeLimit != "" {
-				if jfsSetting.CacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
-					return err
-				}
+	var cacheEmptyDir *CacheEmptyDir
+	if volCtx != nil && volCtx[common.CacheEmptyDir] != "" {
+		volPath := "/var/jfsCache-emptyDir"
+		cacheEmptyDirs := strings.Split(strings.TrimSpace(volCtx[common.CacheEmptyDir]), ":")
+		var (
+			medium    string
+			sizeLimit string
+		)
+		if len(cacheEmptyDirs) == 1 {
+			medium = strings.TrimSpace(cacheEmptyDirs[0])
+		}
+		if len(cacheEmptyDirs) == 2 {
+			medium = strings.TrimSpace(cacheEmptyDirs[0])
+			sizeLimit = strings.TrimSpace(cacheEmptyDirs[1])
+		}
+		cacheEmptyDir = &CacheEmptyDir{
+			Medium: medium,
+			Path:   volPath,
+		}
+		log.Info("sizeLimit of emptyDir", "size", sizeLimit)
+		if sizeLimit != "" {
+			if cacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
+				return err
 			}
 		}
 	}
+
+	if jfsSetting.Attr != nil {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+			if cacheDir.Type == MountPatchCacheDirTypeEmptyDir {
+				cacheEmptyDir = &CacheEmptyDir{
+					Medium:    string(cacheDir.Medium),
+					SizeLimit: *cacheDir.SizeLimit,
+					Path:      "/var/jfsCache-emptyDir",
+				}
+				break
+			}
+		}
+	}
+
+	if cacheEmptyDir != nil {
+		jfsSetting.CacheEmptyDir = cacheEmptyDir
+		cacheDirsInContainer = append(cacheDirsInContainer, cacheEmptyDir.Path)
+	}
+
 	// parse inline volume of cache
 	if volCtx != nil {
 		if _, ok := volCtx[common.CacheInlineVolume]; ok {

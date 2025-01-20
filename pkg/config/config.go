@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -173,6 +174,7 @@ type MountPatchCacheDirType string
 var (
 	MountPatchCacheDirTypeHostPath MountPatchCacheDirType = "HostPath"
 	MountPatchCacheDirTypePVC      MountPatchCacheDirType = "PVC"
+	MountPatchCacheDirTypeEmptyDir MountPatchCacheDirType = "EmptyDir"
 )
 
 type MountPatchCacheDir struct {
@@ -183,6 +185,10 @@ type MountPatchCacheDir struct {
 
 	// required for PVC type
 	Name string `json:"name,omitempty"`
+
+	// Required for EmptyDir type
+	SizeLimit *resource.Quantity   `json:"sizeLimit,omitempty"`
+	Medium    corev1.StorageMedium `json:"medium,omitempty"`
 }
 
 type MountPodPatch struct {
