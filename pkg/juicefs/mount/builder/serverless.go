@@ -118,7 +118,7 @@ func (r *ServerlessBuilder) OverwriteVolumeMounts(mount *corev1.VolumeMount) {
 }
 
 // genServerlessVolumes generates volumes and volumeMounts for serverless sidecar
-// 1. jfs dir: mount point as hostPath, used to propagate the mount point in the mount container to the business container
+// 1. jfs dir: mount point as emptyDir, used to propagate the mount point in the mount container to the business container
 // 2. jfs-check-mount: secret volume, used to check if the mount point is mounted
 func (r *ServerlessBuilder) genServerlessVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	mp := corev1.MountPropagationBidirectional
