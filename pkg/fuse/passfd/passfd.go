@@ -59,7 +59,6 @@ func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) 
 		fds:      make(map[string]*fd),
 	}
 	go GlobalFds.ParseFuseFds(ctx)
-	return
 }
 
 func InitTestFds() {
@@ -153,7 +152,6 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 		}
 	}
 	wg.Wait()
-	return
 }
 
 func GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
