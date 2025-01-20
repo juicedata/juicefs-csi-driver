@@ -371,6 +371,15 @@ authorization:
       value: 5
   ```
 
+* Dashboard 关闭 manager 功能
+
+JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch 的形式缓存集群中的资源，如果你的集群规模过大，可以考虑将其关闭（0.26.1 开始支持），关闭后只有当用户访问 dashboard 的时候，才会去集群中拉取资源。同时失去了模糊搜索，更好用的分页等功能。
+
+  ```yaml title="values-mycluster.yaml"
+  dashboard:
+    enableManager: false
+  ```
+
 ## 客户端写缓存（不推荐） {#client-write-cache}
 
 就算脱离 Kubernetes，客户端写缓存（`--writeback`）也是需要谨慎使用的功能，他的作用是将客户端写入的文件数据存在本地盘，然后异步上传至对象存储。这带来不少使用体验和数据安全性的问题，在 JuiceFS 文档里都有着重介绍：
@@ -427,3 +436,21 @@ authorization:
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
+
+## 避免使用 `fsGroup` {#avoid-using-fsgroup}
+
+JuiceFS 不支持挂载的时候将文件系统的文件映射为某个 Group ID，如果你在业务 Pod 中使用 fsGroup，kubelet 会去递归的去修改文件系统里面所有文件的所有权和权限，可能导致业务 Pod 启动非常缓慢。
+
+如果确实需要使用，可以修改 `fsGroupChangePolicy` 字段，将其改为 `OnRootMismatch`, 只有根目录的属主与访问权限与卷所期望的权限不一致时，才改变其中内容的属主和访问权限。这一设置有助于缩短更改卷的属主与访问权限所需要的时间。
+
+```yaml title="my-pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-context-demo-2
+spec:
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 2000
+    fsGroupChangePolicy: "OnRootMismatch"
+```
