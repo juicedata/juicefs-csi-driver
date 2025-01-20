@@ -373,7 +373,7 @@ authorization:
 
 * Dashboard 关闭 manager 功能
 
-JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch 的形式缓存集群中的资源，如果你的集群规模过大，可以考虑将其关闭，关闭后只有当用户访问 dashboard 的时候，才会去集群中拉取资源。同时失去了模糊搜索，更好用的分页等功能。
+JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch 的形式缓存集群中的资源，如果你的集群规模过大，可以考虑将其关闭（0.26.1 开始支持），关闭后只有当用户访问 dashboard 的时候，才会去集群中拉取资源。同时失去了模糊搜索，更好用的分页等功能。
 
   ```yaml title="values-mycluster.yaml"
   dashboard:
