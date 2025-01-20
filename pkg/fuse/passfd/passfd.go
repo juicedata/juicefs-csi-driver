@@ -51,14 +51,15 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) error {
+func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
 		client:   client,
 		basePath: basePath,
 		fds:      make(map[string]*fd),
 	}
-	return GlobalFds.ParseFuseFds(ctx)
+	go GlobalFds.ParseFuseFds(ctx)
+	return
 }
 
 func InitTestFds() {
@@ -79,7 +80,7 @@ func (fs *Fds) PrintFds() []byte {
 	return res
 }
 
-func (fs *Fds) ParseFuseFds(ctx context.Context) error {
+func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
@@ -89,7 +90,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 	})
 	if err != nil {
 		fdLog.Error(err, "read dir error", "basePath", fs.basePath)
-		return err
+		return
 	}
 	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
 		common.PodTypeKey: common.PodTypeValue,
@@ -98,7 +99,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 	pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
 	if err != nil {
 		fdLog.Error(err, "list pods error")
-		return err
+		return
 	}
 	podMaps := make(map[string]*corev1.Pod)
 	for _, pod := range pods {
@@ -120,7 +121,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		})
 		if err != nil {
 			fdLog.Error(err, "read dir error", "basePath", fs.basePath)
-			return err
+			return
 		}
 		shouldRemove := true
 		for _, subEntry := range subEntries {
@@ -152,7 +153,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		}
 	}
 	wg.Wait()
-	return nil
+	return
 }
 
 func GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
@@ -235,7 +236,14 @@ func (fs *Fds) CloseFd(pod *corev1.Pod) {
 }
 
 func (fs *Fds) parseFuse(ctx context.Context, upgradeUUID, fusePath string) {
-	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
+	var (
+		fuseFd      int
+		fuseSetting []byte
+	)
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		fuseFd, fuseSetting = GetFuseFd(fusePath, false)
+		return nil
+	})
 	if fuseFd <= 0 {
 		// if can not get fuse fd, do not serve for it
 		return
