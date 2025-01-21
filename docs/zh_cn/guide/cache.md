@@ -244,7 +244,7 @@ spec:
 
 在某些 Kubernetes 环境下，读取大量缓存的时候，可能会由于内核页缓存用量大，造成内存使用量上升并引发 OOM（阅读[这个 issue](https://github.com/kubernetes/kubernetes/issues/43916) 了解更多）。如遇这种情况，首先考虑[增加 `limits.memory`](./resource-optimization.md#mount-pod-resources)，来允许更多内存占用、提升缓存性能。
 
-如果确实无法继续增加内存上限，考虑给 JuiceFS 客户端增加 `JFS_DROP_OSCACHE=1` 环境变量，令客户端主动标记缓存状态，让内核更积极回收页缓存（读写完以后立刻淘汰缓存），来降低内存用量。
+如果确实无法继续增加内存上限，考虑给 JuiceFS 客户端增加 `JFS_DROP_OSCACHE=1` 环境变量，令客户端主动标记缓存状态，让内核更积极回收页缓存（读写完以后立刻淘汰缓存），来降低内存用量。可想而知，这样的设置会影响缓存命中率，在需要反复读取缓存的场合会降低性能。
 
 ```yaml {9}
 apiVersion: v1
