@@ -241,6 +241,24 @@ spec:
       restartPolicy: Never
 ```
 
+## Cache and Pod memory usage {#clean-pagecache}
+
+In some Kubernetes environments, when reading logs of cache data, pagecache usage will increase and potentially cause OOM kills (read [this issue](https://github.com/kubernetes/kubernetes/issues/43916) for more). When this happens, [increasing `limits.memory`](./resource-optimization.md#mount-pod-resources) should be your first option.
+
+If your system cannot allocate more memory, then you can us the `JFS_DROP_OSCACHE=1` environment variable so that our client actively marks the cache data state, so that Kernel evicts cache more aggressively, and hence reduce memory usage. Evidently, this affects cache hit ratio and can hinder performance when cache data needs to be read repeatedly.
+
+```yaml {9}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+type: Opaque
+stringData:
+  ...
+  envs: "{JFS_DROP_OSCACHE: 1}"
+```
+
 ## Cache cleanup {#mount-pod-clean-cache}
 
 Local cache can be a precious resource, especially when dealing with large scale data. For this reason, JuiceFS CSI Driver does not delete cache by default when the Mount Pod exits. If this behavior does not fit your needs, you can configure it to clear the local cache when the Mount Pod exits.
