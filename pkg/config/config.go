@@ -348,8 +348,11 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 // TODO: migrate more config for here
 type Config struct {
 	// arrange mount pod to node with node selector instead nodeName
-	EnableNodeSelector bool            `json:"enableNodeSelector,omitempty"`
-	MountPodPatch      []MountPodPatch `json:"mountPodPatch"`
+	EnableNodeSelector bool `json:"enableNodeSelector,omitempty"`
+	// in sidecar mode, use k8s native sidecar instead of container
+	// If the k8s version is 1.29 and later, the default is true.
+	EnableNativeSidecar *bool           `json:"enableNativeSidecar,omitempty"`
+	MountPodPatch       []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {
