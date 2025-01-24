@@ -243,9 +243,9 @@ spec:
 
 ## Cache and Pod memory usage {#clean-pagecache}
 
-In some Kubernetes environments, when reading logs of cache data, pagecache usage will increase and potentially cause OOM kills (read [this issue](https://github.com/kubernetes/kubernetes/issues/43916) for more). When this happens, [increasing `limits.memory`](./resource-optimization.md#mount-pod-resources) should be your first option.
+In some Kubernetes environments, reading log cache data can increase pagecache usage and potentially cause OOM kills (read [this issue](https://github.com/kubernetes/kubernetes/issues/43916) for more). When this happens, [increasing `limits.memory`](./resource-optimization.md#mount-pod-resources) should be your first option.
 
-If your system cannot allocate more memory, then you can us the `JFS_DROP_OSCACHE=1` environment variable so that our client actively marks the cache data state, so that Kernel evicts cache more aggressively, and hence reduce memory usage. Evidently, this affects cache hit ratio and can hinder performance when cache data needs to be read repeatedly.
+If your system cannot allocate more memory, you can add the `JFS_DROP_OSCACHE=1` environment variable to the JuiceFS client. This setting prompts the client to actively mark the cache data state, so that Kernel evicts cache more aggressively, thereby reducing memory usage. Evidently, this affects cache hit ratio and can hinder performance when cache data needs to be read repeatedly.
 
 ```yaml {9}
 apiVersion: v1
@@ -320,5 +320,5 @@ Kubernetes containers are usually ephemeral, a [distributed cache cluster](/docs
 
 There are currently two ways to deploy a distributed cache cluster in Kubernetes:
 
-1. For most scenarios, it can be deployed through ["Cache Group Operator"](./cache-group-operator.md);
-2. For scenarios that require flexible customization of deployment configuration, you can deploy it through ["Write your own YAML configuration file"](./generic-applications.md#distributed-cache-cluster).
+- For most scenarios, it can be deployed through ["Cache Group Operator"](./cache-group-operator.md);
+- For scenarios that require flexible customization of deployment configuration, you can deploy it through ["Write your own YAML configuration file"](./generic-applications.md#distributed-cache-cluster).
