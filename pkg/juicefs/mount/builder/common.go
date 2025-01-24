@@ -283,7 +283,10 @@ func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annot
 		labels[k] = v
 	}
 	for k, v := range jfsSetting.Attr.Annotations {
-		annotations[k] = v
+		if k != common.JfsUpgradeProcess {
+			// new pod do not need upgradeProcess annotation
+			annotations[k] = v
+		}
 	}
 	// inter labels & annotations
 	annotations[common.JuiceFSUUID] = jfsSetting.UUID

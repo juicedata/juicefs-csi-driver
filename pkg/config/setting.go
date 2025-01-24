@@ -753,6 +753,18 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 			}
 		}
 		if err == nil {
+			setting.Name = util.CpNotEmpty(custSetting.Name, setting.Name)
+			setting.Source = custSetting.Name
+			if custSetting.MetaUrl != "" {
+				setting.MetaUrl = custSetting.MetaUrl
+				source := custSetting.MetaUrl
+				setting.IsCe = true
+				// Default use redis:// scheme
+				if !strings.Contains(custSetting.MetaUrl, "://") {
+					source = "redis://" + source
+				}
+				setting.Source = source
+			}
 			setting.SecretKey = util.CpNotEmpty(custSetting.SecretKey, setting.SecretKey)
 			setting.SecretKey2 = util.CpNotEmpty(custSetting.SecretKey2, setting.SecretKey2)
 			setting.Token = util.CpNotEmpty(custSetting.Token, setting.Token)
