@@ -441,7 +441,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName s
 		}
 		var pu *PodUpgrade
 		for _, p := range crtBatch {
-			if p.pod.Labels[common.PodUpgradeUUIDLabelKey] == po.Labels[common.PodUpgradeUUIDLabelKey] {
+			if resource.GetUpgradeUUID(p.pod) == resource.GetUpgradeUUID(po) {
 				pu = p
 				break
 			}

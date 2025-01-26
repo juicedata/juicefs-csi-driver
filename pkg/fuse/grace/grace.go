@@ -241,7 +241,7 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 	var err error
 
 	if p.isInUpgradeProcess() {
-		sendMessage(conn, fmt.Sprintf("[%s] pod is already in upgrade process.", p.pod.Name))
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is already in upgrade process.", p.pod.Name))
 		return nil
 	}
 	if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
@@ -394,15 +394,14 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			common.PodTypeKey:             common.PodTypeValue,
-			common.PodUpgradeUUIDLabelKey: upgradeUUID,
-		},
-	})
-	fieldSelector := fields.Set{
-		"spec.nodeName": p.pod.Spec.NodeName,
+	matchLabels := map[string]string{
+		common.PodTypeKey: common.PodTypeValue,
 	}
+	if p.pod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		matchLabels[common.PodUpgradeUUIDLabelKey] = upgradeUUID
+	}
+	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: matchLabels})
+	fieldSelector := fields.Set{"spec.nodeName": p.pod.Spec.NodeName}
 
 	stop := make(chan struct{})
 	done := make(chan struct{})
@@ -425,7 +424,7 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 		if !ok {
 			return
 		}
-		if po.Labels[common.PodUpgradeUUIDLabelKey] == upgradeUUID && po.Name != p.pod.Name {
+		if resource.GetUpgradeUUID(po) == upgradeUUID && po.Name != p.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
 				if resource.IsPodReady(po) {
 					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
