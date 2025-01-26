@@ -639,34 +639,27 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 	}
 
 	attr := &PodAttr{
-		Namespace:                     mountPod.Namespace,
-		MountPointPath:                MountPointPath,
-		JFSConfigPath:                 JFSConfigPath,
-		JFSMountPriorityName:          JFSMountPriorityName,
-		HostNetwork:                   mountPod.Spec.HostNetwork,
-		TerminationGracePeriodSeconds: mountPod.Spec.TerminationGracePeriodSeconds,
-		HostAliases:                   mountPod.Spec.HostAliases,
-		HostPID:                       mountPod.Spec.HostPID,
-		HostIPC:                       mountPod.Spec.HostIPC,
-		DNSConfig:                     mountPod.Spec.DNSConfig,
-		DNSPolicy:                     mountPod.Spec.DNSPolicy,
-		ImagePullSecrets:              mountPod.Spec.ImagePullSecrets,
-		Tolerations:                   mountPod.Spec.Tolerations,
-		PreemptionPolicy:              mountPod.Spec.PreemptionPolicy,
-		ServiceAccountName:            mountPod.Spec.ServiceAccountName,
-		Labels:                        make(map[string]string),
-		Annotations:                   make(map[string]string),
-		Env:                           mountPod.Spec.Containers[0].Env,
+		Namespace:            mountPod.Namespace,
+		MountPointPath:       MountPointPath,
+		JFSConfigPath:        JFSConfigPath,
+		JFSMountPriorityName: JFSMountPriorityName,
+		HostNetwork:          mountPod.Spec.HostNetwork,
+		HostAliases:          mountPod.Spec.HostAliases,
+		HostPID:              mountPod.Spec.HostPID,
+		HostIPC:              mountPod.Spec.HostIPC,
+		DNSConfig:            mountPod.Spec.DNSConfig,
+		DNSPolicy:            mountPod.Spec.DNSPolicy,
+		ImagePullSecrets:     mountPod.Spec.ImagePullSecrets,
+		Tolerations:          mountPod.Spec.Tolerations,
+		PreemptionPolicy:     mountPod.Spec.PreemptionPolicy,
+		ServiceAccountName:   mountPod.Spec.ServiceAccountName,
+		Labels:               make(map[string]string),
+		Annotations:          make(map[string]string),
+		Env:                  make([]corev1.EnvVar, 0),
 	}
 	if len(mountPod.Spec.Containers) > 0 {
 		attr.Image = mountPod.Spec.Containers[0].Image
 		attr.Resources = mountPod.Spec.Containers[0].Resources
-	}
-	for k, v := range mountPod.Labels {
-		attr.Labels[k] = v
-	}
-	for k, v := range mountPod.Annotations {
-		attr.Annotations[k] = v
 	}
 	if pv != nil {
 		if v, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok && v != "" {
@@ -687,6 +680,7 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 	}
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
+		UsePod:    true,
 		PV:        pv,
 		PVC:       pvc,
 		Name:      mountPod.Annotations[common.JuiceFSUUID],
@@ -697,6 +691,12 @@ func GenSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *cor
 		MountPath: mntPath,
 		SubPath:   subPath,
 		HashVal:   mountPod.Labels[common.PodJuiceHashLabelKey],
+		Envs:      map[string]string{},
+	}
+	for _, v := range mountPod.Spec.Containers[0].Env {
+		if _, ok := CSISetEnvMap[v.Name]; !ok {
+			setting.Attr.Env = append(setting.Attr.Env, v)
+		}
 	}
 	setting.Attr = attr
 	return setting, nil
@@ -772,10 +772,14 @@ func ApplySettingWithMountPod(mountPod *corev1.Pod, pvc *corev1.PersistentVolume
 			setting.EncryptRsaKey = util.CpNotEmpty(custSetting.EncryptRsaKey, setting.EncryptRsaKey)
 			setting.InitConfig = util.CpNotEmpty(custSetting.InitConfig, setting.InitConfig)
 			if len(custSetting.Configs) > 0 {
-				setting.Configs = custSetting.Configs
+				for k, v := range custSetting.Configs {
+					setting.Configs[k] = v
+				}
 			}
 			if len(custSetting.Envs) > 0 {
-				setting.Envs = custSetting.Envs
+				for k, v := range custSetting.Envs {
+					setting.Envs[k] = v
+				}
 			}
 			setting.CustomerSecret = custSecret
 			setting.ClientConfPath = DefaultClientConfPath
