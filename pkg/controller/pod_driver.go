@@ -873,24 +873,33 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		return nil
 	}
 	attr := setting.Attr
+	newPod := pod
 	// update pod spec
-	pod.Labels, pod.Annotations = builder.GenMetadata(setting)
-	pod.Spec.HostAliases = attr.HostAliases
-	pod.Spec.HostNetwork = attr.HostNetwork
-	pod.Spec.HostPID = attr.HostPID
-	pod.Spec.HostIPC = attr.HostIPC
-	pod.Spec.TerminationGracePeriodSeconds = attr.TerminationGracePeriodSeconds
-	pod.Spec.Containers[0].Image = attr.Image
-	pod.Spec.Containers[0].LivenessProbe = attr.LivenessProbe
-	pod.Spec.Containers[0].ReadinessProbe = attr.ReadinessProbe
-	pod.Spec.Containers[0].StartupProbe = attr.StartupProbe
-	pod.Spec.Containers[0].Lifecycle = attr.Lifecycle
-	pod.Spec.Containers[0].Image = attr.Image
-	pod.Spec.Containers[0].Resources = attr.Resources
+	newPod.Labels, newPod.Annotations = builder.GenMetadata(setting)
+	for k, v := range pod.Annotations {
+		if k == util.GetReferenceKey(v) {
+			newPod.Annotations[k] = v
+		}
+	}
+	newPod.Spec.HostAliases = attr.HostAliases
+	newPod.Spec.HostNetwork = attr.HostNetwork
+	newPod.Spec.HostPID = attr.HostPID
+	newPod.Spec.HostIPC = attr.HostIPC
+	if attr.TerminationGracePeriodSeconds != nil {
+		newPod.Spec.TerminationGracePeriodSeconds = attr.TerminationGracePeriodSeconds
+	}
+	newPod.Spec.Containers[0].Image = attr.Image
+	newPod.Spec.Containers[0].Env = pod.Spec.Containers[0].Env
+	newPod.Spec.Containers[0].LivenessProbe = attr.LivenessProbe
+	newPod.Spec.Containers[0].ReadinessProbe = attr.ReadinessProbe
+	newPod.Spec.Containers[0].StartupProbe = attr.StartupProbe
+	newPod.Spec.Containers[0].Lifecycle = attr.Lifecycle
+	newPod.Spec.Containers[0].Image = attr.Image
+	newPod.Spec.Containers[0].Resources = attr.Resources
 
-	resource.MergeEnvs(pod, attr.Env)
-	resource.MergeMountOptions(pod, setting)
-	resource.MergeVolumes(pod, setting)
+	resource.MergeEnvs(newPod, attr.Env)
+	resource.MergeMountOptions(newPod, setting)
+	resource.MergeVolumes(newPod, setting)
 	if setting.CustomerSecret != nil {
 		// update secret
 		setting.SecretName = fmt.Sprintf("juicefs-%s-secret", pod.Labels[common.PodUniqueIdLabelKey])
@@ -900,6 +909,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 			return err
 		}
 	}
+	pod.Spec = newPod.Spec
+	pod.ObjectMeta = newPod.ObjectMeta
 	return nil
 }
 
