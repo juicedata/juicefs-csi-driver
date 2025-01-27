@@ -41,6 +41,14 @@ body {
   height: 64px;
 }
 
+.config-page-header .ant-page-header {
+  height: unset !important;
+}
+.config-form .ant-space-item .ant-space {
+  /*width: 600px !important;*/
+  /*max-width: unset !important;*/
+}
+
 .ant-modal,
 .ant-modal-content {
   height: 100vh;

@@ -22,10 +22,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "k8s.io/api/core/v1"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type pvcService struct {
