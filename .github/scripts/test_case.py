@@ -2132,6 +2132,10 @@ def test_dynamic_mount_image_with_webhook():
     for container in pod.spec.containers:
         if container.name == "jfs-mount":
             found_image = container.image
+    if found_image == "":
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                found_image = container.image
 
     if found_image != mount_image:
         raise Exception("Image of sidecar is not {}".format(mount_image))
@@ -2233,6 +2237,10 @@ def test_static_mount_image_with_webhook():
     for container in pod.spec.containers:
         if container.name == "jfs-mount":
             found_image = container.image
+    if found_image == "":
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                found_image = container.image
 
     if found_image != mount_image:
         raise Exception("Image of sidecar is not {}".format(mount_image))
@@ -2476,9 +2484,9 @@ def test_webhook_two_volume():
     if len(pods.items) != 1:
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
     pod = pods.items[0]
-    if len(pod.spec.containers) != 3:
+    if len(pod.spec.containers) != 3 and len(pod.spec.init_containers) != 2:
         raise Exception(
-            "Pod {} should have 3 containers, only {} has been found".format(pod.name, len(pod.spec.containers)))
+            "Pod {} should have 3 containers/ 2 init_containers, only {}/{} has been found".format(pod.name, len(pod.spec.containers), len(pod.spec.init_containers)))
     LOG.info("Test pass.")
 
     # delete test resources
