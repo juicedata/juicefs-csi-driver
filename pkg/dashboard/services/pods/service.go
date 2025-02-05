@@ -94,5 +94,13 @@ func NewPodService(client client.Client, k8sClient *k8sclient.K8sClient, kubecon
 			appIndexes:   utils.NewTimeIndexes[corev1.Pod](),
 		}
 	}
+
+	csiNodes, err := svc.ListCSINodePod(context.TODO(), "")
+	if err != nil || len(csiNodes) == 0 {
+		podLog.Error(err, "can't list csi node pods")
+		return svc
+	}
+	// get csi pod spec
+	config.CSIPod = csiNodes[0]
 	return svc
 }
