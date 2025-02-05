@@ -193,10 +193,9 @@ func GenFormatCmd(secrets map[string]string, noUpdate bool, setting *JfsSetting)
 }
 
 // GenJfsVolUUID get UUID from result of `juicefs status <volumeName>`
-func GenJfsVolUUID(ctx context.Context, s *JfsSetting) error {
+func GenJfsVolUUID(ctx context.Context, s *JfsSetting) (string, error) {
 	if !s.IsCe {
-		s.UUID = s.Name
-		return nil
+		return s.Name, nil
 	}
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
@@ -212,23 +211,22 @@ func GenJfsVolUUID(ctx context.Context, s *JfsSetting) error {
 		re := string(stdout)
 		if strings.Contains(re, "database is not formatted") {
 			log.V(1).Info("juicefs not formatted.", "name", s.Source)
-			return nil
+			return "", nil
 		}
 		log.Error(err, "juicefs status error", "output", re)
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
-			return errors.New(re)
+			return "", errors.New(re)
 		}
-		return errors.Wrap(err, re)
+		return "", errors.Wrap(err, re)
 	}
 
 	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
 	idStr := matchExp.FindString(string(stdout))
 	idStrs := strings.Split(idStr, "\"")
 	if len(idStrs) < 4 {
-		return fmt.Errorf("get uuid of %s error", s.Source)
+		return "", fmt.Errorf("get uuid of %s error", s.Source)
 	}
 
-	s.UUID = idStrs[3]
-	return nil
+	return idStrs[3], nil
 }

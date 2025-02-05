@@ -63,9 +63,9 @@ func TestGenJfsVolUUID(t *testing.T) {
 				Envs:   map[string]string{},
 				IsCe:   true,
 			}
-			err := GenJfsVolUUID(context.TODO(), setting)
+			uuid, err := GenJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldBeNil)
-			So(setting.UUID, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
+			So(uuid, ShouldEqual, "e267db92-051d-4214-b1aa-e97bf61bff1a")
 		})
 		Convey("status error", func() {
 			var tmpCmd = &exec.Cmd{}
@@ -79,7 +79,7 @@ func TestGenJfsVolUUID(t *testing.T) {
 				Envs:   map[string]string{},
 				IsCe:   true,
 			}
-			err := GenJfsVolUUID(context.TODO(), setting)
+			_, err := GenJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("ee", func() {
@@ -89,9 +89,9 @@ func TestGenJfsVolUUID(t *testing.T) {
 				Envs:   map[string]string{},
 				IsCe:   false,
 			}
-			err := GenJfsVolUUID(context.TODO(), setting)
+			uuid, err := GenJfsVolUUID(context.TODO(), setting)
 			So(err, ShouldBeNil)
-			So(setting.UUID, ShouldEqual, "test")
+			So(uuid, ShouldEqual, "test")
 		})
 	})
 }
