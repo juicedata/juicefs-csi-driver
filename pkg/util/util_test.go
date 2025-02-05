@@ -1121,3 +1121,54 @@ func TestSortBy(t *testing.T) {
 		t.Errorf("SortBy() = %v, want %v", sc, wantSC)
 	}
 }
+
+func TestMergeMap(t *testing.T) {
+	type args struct {
+		s map[string]string
+		d map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "test1",
+			args: args{
+				s: map[string]string{"a": "1", "b": "2"},
+				d: map[string]string{"c": "3", "d": "4"},
+			},
+			want: map[string]string{"a": "1", "b": "2", "c": "3", "d": "4"},
+		},
+		{
+			name: "test2",
+			args: args{
+				s: nil,
+				d: map[string]string{"c": "3", "d": "4"},
+			},
+			want: map[string]string{"c": "3", "d": "4"},
+		},
+		{
+			name: "test3",
+			args: args{s: map[string]string{"a": "1", "b": "2"}, d: nil},
+			want: map[string]string{"a": "1", "b": "2"},
+		},
+		{
+			name: "test4",
+			args: args{s: nil, d: nil},
+			want: nil,
+		},
+		{
+			name: "test5",
+			args: args{s: map[string]string{"a": "1", "b": "2"}, d: map[string]string{"a": "3", "d": "4"}},
+			want: map[string]string{"a": "1", "b": "2", "d": "4"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MergeMap(tt.args.s, tt.args.d); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MergeMap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -775,7 +775,8 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 		err = parseYamlOrJson(string(secretStr), &custSetting)
 		if err != nil {
 			log.Error(err, "Parse custSecret error")
-		} else {
+		}
+		if err == nil {
 			if secretsMap["configs"] != "" {
 				configStr := secretsMap["configs"]
 				configs := make(map[string]string)
@@ -783,7 +784,7 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 				if err = parseYamlOrJson(configStr, &configs); err != nil {
 					log.Error(err, "Parse configs in cust secret error")
 				} else {
-					custSetting.Configs = configs
+					s.Configs = util.MergeMap(configs, s.Configs)
 				}
 			}
 			if secretsMap["envs"] != "" {
@@ -793,11 +794,9 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 				if err = parseYamlOrJson(envStr, &env); err != nil {
 					log.Error(err, "Parse envs in cust secret error")
 				} else {
-					custSetting.Envs = env
+					s.Envs = util.MergeMap(env, s.Envs)
 				}
 			}
-		}
-		if err == nil {
 			s.Name = util.CpNotEmpty(custSetting.Name, s.Name)
 			s.Source = custSetting.Name
 			if custSetting.MetaUrl != "" {
@@ -810,49 +809,17 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 				}
 				s.Source = source
 			}
-			s.SecretKey = util.CpNotEmpty(custSetting.SecretKey, s.SecretKey)
-			s.SecretKey2 = util.CpNotEmpty(custSetting.SecretKey2, s.SecretKey2)
+			s.SecretKey = util.CpNotEmpty(secretsMap["secretkey"], s.SecretKey)
+			s.SecretKey2 = util.CpNotEmpty(secretsMap["secretkey2"], s.SecretKey2)
 			s.Token = util.CpNotEmpty(custSetting.Token, s.Token)
 			s.Passphrase = util.CpNotEmpty(custSetting.Passphrase, s.Passphrase)
 			s.EncryptRsaKey = util.CpNotEmpty(custSetting.EncryptRsaKey, s.EncryptRsaKey)
 			s.InitConfig = util.CpNotEmpty(custSetting.InitConfig, s.InitConfig)
-			if len(custSetting.Configs) > 0 {
-				for k, v := range custSetting.Configs {
-					s.Configs[k] = v
-				}
-			}
-			if len(custSetting.Envs) > 0 {
-				for k, v := range custSetting.Envs {
-					s.Envs[k] = v
-				}
-			}
 			s.CustomerSecret = custSecret
 			s.ClientConfPath = DefaultClientConfPath
-			if !s.IsCe {
-				if s.Token == "" {
-					log.Info("token is empty, skip authfs.")
-				} else {
-					_, cmdArgs, err := GenAuthCmd(secretsMap, s)
-					if err != nil {
-						log.Error(err, "GenAuthCmd error")
-					} else {
-						s.FormatCmd = strings.Join(cmdArgs, " ")
-					}
-				}
-				s.UUID = secretsMap["name"]
-				s.InitConfig = secretsMap["initconfig"]
-			} else {
-				noUpdate := false
-				if secretsMap["storage"] == "" || secretsMap["bucket"] == "" {
-					log.Info("JfsMount: storage or bucket is empty, format --no-update.")
-					noUpdate = true
-				}
-				_, cmdArgs, err := GenFormatCmd(secretsMap, noUpdate, s)
-				if err != nil {
-					log.Error(err, "generate format cmd error")
-				} else {
-					s.FormatCmd = strings.Join(cmdArgs, " ")
-				}
+			err = s.genFormatCmd(secretsMap)
+			if err != nil {
+				log.Error(err, "genFormatCmd error")
 			}
 		}
 	}
