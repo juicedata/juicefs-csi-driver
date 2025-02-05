@@ -310,9 +310,6 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 		return nil, status.Errorf(codes.Internal, "get quotaPath error: %v", err)
 	}
 	secrets := req.GetSecrets()
-	if secrets == nil {
-		return nil, status.Error(codes.InvalidArgument, "Secrets not provided")
-	}
 	settings, err := d.juicefs.Settings(ctx, volumeID, volumeID, secrets["name"], secrets, nil, options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get settings: %v", err)
