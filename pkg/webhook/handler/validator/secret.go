@@ -42,7 +42,7 @@ func (s *SecretValidator) Validate(ctx context.Context, secret corev1.Secret) er
 	for k, v := range secret.Data {
 		secretsMap[k] = string(v[:])
 	}
-	jfsSetting, err := s.jfs.Settings(ctx, "", secretsMap, nil, nil)
+	jfsSetting, err := s.jfs.Settings(ctx, "", "", secretsMap["name"], secretsMap, nil, nil)
 	if err != nil {
 		return err
 	}

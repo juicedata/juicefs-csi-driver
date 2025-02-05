@@ -119,7 +119,7 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 	for k, v := range secrets.Data {
 		secretsMap[k] = string(v[:])
 	}
-	jfsSetting, err := jfs.Settings(ctx, "", secretsMap, nil, nil)
+	jfsSetting, err := jfs.Settings(ctx, "", "", "", secretsMap, nil, nil)
 	if err != nil {
 		return err
 	}

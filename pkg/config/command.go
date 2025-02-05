@@ -17,12 +17,18 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
+	"syscall"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	k8sexec "k8s.io/utils/exec"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
@@ -184,4 +190,45 @@ func GenFormatCmd(secrets map[string]string, noUpdate bool, setting *JfsSetting)
 	}
 
 	return
+}
+
+// GenJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+func GenJfsVolUUID(ctx context.Context, s *JfsSetting) error {
+	if !s.IsCe {
+		s.UUID = s.Name
+		return nil
+	}
+	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
+	defer cmdCancel()
+	exec := k8sexec.New()
+	statusCmd := exec.CommandContext(cmdCtx, CeCliPath, "status", s.Source)
+	envs := syscall.Environ()
+	for key, val := range s.Envs {
+		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+	}
+	statusCmd.SetEnv(envs)
+	stdout, err := statusCmd.CombinedOutput()
+	if err != nil {
+		re := string(stdout)
+		if strings.Contains(re, "database is not formatted") {
+			log.V(1).Info("juicefs not formatted.", "name", s.Source)
+			return nil
+		}
+		log.Error(err, "juicefs status error", "output", re)
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			re = fmt.Sprintf("juicefs status %s timed out", 8*defaultCheckTimeout)
+			return errors.New(re)
+		}
+		return errors.Wrap(err, re)
+	}
+
+	matchExp := regexp.MustCompile(`"UUID": "(.*)"`)
+	idStr := matchExp.FindString(string(stdout))
+	idStrs := strings.Split(idStr, "\"")
+	if len(idStrs) < 4 {
+		return fmt.Errorf("get uuid of %s error", s.Source)
+	}
+
+	s.UUID = idStrs[3]
+	return nil
 }
