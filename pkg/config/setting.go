@@ -317,7 +317,7 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 
 	jfsSetting.UUID = uuid
 	if uuid == "" {
-		jfsSetting.UUID, err = GenJfsVolUUID(ctx, &jfsSetting)
+		jfsSetting.UUID, err = GetJfsVolUUID(ctx, &jfsSetting)
 		if err != nil {
 			return nil, err
 		}
