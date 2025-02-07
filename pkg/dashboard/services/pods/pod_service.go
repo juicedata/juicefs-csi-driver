@@ -270,6 +270,20 @@ func (s *podService) ListNodeMountPods(ctx context.Context, nodeName string) ([]
 	return mountpods.Items, nil
 }
 
+func (s *podService) ListMountPods(ctx context.Context) ([]corev1.Pod, error) {
+	labelSelector := labels.SelectorFromSet(map[string]string{
+		"app.kubernetes.io/name": "juicefs-mount",
+	})
+
+	mountpods := corev1.PodList{}
+	if err := s.client.List(ctx, &mountpods, &client.ListOptions{
+		LabelSelector: labelSelector,
+	}); err != nil {
+		return nil, err
+	}
+	return mountpods.Items, nil
+}
+
 func (s *podService) ListMountPodAppPods(ctx context.Context, mountPod *corev1.Pod) ([]corev1.Pod, error) {
 	labelSelector := labels.SelectorFromSet(map[string]string{
 		common.UniqueId: "",
