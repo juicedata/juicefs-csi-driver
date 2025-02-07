@@ -229,6 +229,14 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 		return false
 	}
 
+	// ignore if fuse container is running in init container
+	for _, cn := range pod.Spec.InitContainers {
+		if strings.Contains(cn.Name, common.MountContainerName) {
+			log.V(1).Info("There are juicefs sidecar running in init-container, no need to handle.")
+			return false
+		}
+	}
+
 	// ignore if no fuse container
 	exist := false
 	for _, cn := range pod.Spec.Containers {
