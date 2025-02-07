@@ -98,7 +98,6 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
 	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, r.jfsSetting.Attr.Env...)
 	// set env key from secret
-	builderLog.Info("envKey", "envKey", r.GetEnvKey())
 	for _, key := range r.GetEnvKey() {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
 			Name: key,
@@ -151,7 +150,6 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := r.jfsSetting.Options
 	if r.jfsSetting.IsCe {
-		builderLog.Info("ceMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
@@ -164,7 +162,6 @@ func (r *BaseBuilder) genMountCommand() string {
 		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		builderLog.Info("eeMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {

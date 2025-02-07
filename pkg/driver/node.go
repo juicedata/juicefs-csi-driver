@@ -18,6 +18,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"reflect"
 	"strconv"
@@ -161,7 +162,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	mountOptions = append(mountOptions, options...)
 
-	log.Info("mounting juicefs", "secret", reflect.ValueOf(secrets).MapKeys(), "options", mountOptions)
+	log.Info("mounting juicefs", "secret", fmt.Sprintf("%+v", reflect.ValueOf(secrets).MapKeys()), "options", mountOptions)
 	jfs, err := d.juicefs.JfsMount(ctxWithLog, volumeID, target, secrets, volCtx, mountOptions)
 	if err != nil {
 		d.metrics.volumeErrors.Inc()

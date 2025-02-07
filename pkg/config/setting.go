@@ -377,7 +377,6 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 			Medium: medium,
 			Path:   volPath,
 		}
-		log.Info("sizeLimit of emptyDir", "size", sizeLimit)
 		if sizeLimit != "" {
 			if cacheEmptyDir.SizeLimit, err = resource.ParseQuantity(sizeLimit); err != nil {
 				return err
@@ -929,14 +928,11 @@ func (s *JfsSetting) StripFormatOptions(parsedOptions [][]string, strippedKeys [
 
 func (s *JfsSetting) genFormatCmd(secrets map[string]string) error {
 	if !s.IsCe {
-		if secrets["token"] == "" {
-			log.Info("token is empty, skip authfs.")
-		} else {
+		if secrets["token"] != "" {
 			_, cmdArgs, err := GenAuthCmd(secrets, s)
 			if err != nil {
 				return err
 			}
-			log.Info("AuthFs cmd", "args", cmdArgs)
 			s.FormatCmd = strings.Join(cmdArgs, " ")
 		}
 		s.UUID = secrets["name"]
@@ -944,7 +940,6 @@ func (s *JfsSetting) genFormatCmd(secrets map[string]string) error {
 	} else {
 		noUpdate := false
 		if secrets["storage"] == "" || secrets["bucket"] == "" {
-			log.Info("JfsMount: storage or bucket is empty, format --no-update.")
 			noUpdate = true
 		}
 		_, cmdArgs, err := GenFormatCmd(secrets, noUpdate, s)
@@ -952,7 +947,6 @@ func (s *JfsSetting) genFormatCmd(secrets map[string]string) error {
 			return err
 		}
 
-		log.Info("ce format cmd", "args", cmdArgs)
 		cmd := strings.Join(cmdArgs, " ")
 		s.FormatCmd = cmd
 	}
