@@ -477,6 +477,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-resizer:v1.9.0
           args:
             - --csi-address=$(ADDRESS)
+            - --timeout=20s
             - --leader-election
             - --v=2
           env:
