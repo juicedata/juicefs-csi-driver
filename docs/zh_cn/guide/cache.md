@@ -11,22 +11,50 @@ JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.co
 * 如果你的集群中，所有节点均用于运行 Mount Pod，那么由于每个宿主机都持有大致相同的缓存（或者使用了分布式缓存），那么 Pod 漂移的问题可能也并不构成影响，完全可以使用宿主机路径作为缓存。
 * 如果用 PVC 作为缓存存储，好处是不同 JuiceFS PV 可以隔离缓存数据、分别管理，并且就算 Mount Pod 随着业务被迁移到其他节点，由于 PVC 引用关系不变，所以缓存数据仍然可以访问。
 
-## 使用宿主机目录作为缓存（`hostPath`） {#cache-settings}
+## 使用宿主机路径作为缓存（`hostPath`） {#cache-settings}
 
-Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此使用 JuiceFS 时，一定要注意正确设置缓存路径，否则默认使用根分区的 `/var/jfsCache` 目录来缓存数据，极易耗尽磁盘空间。
+默认情况下，CSI 驱动的缓存路径就是标准的 JuiceFS 客户端默认值 `/var/jfsCache`，考虑到 Kubernetes 节点往往采用单独的数据盘作为缓存盘，因此一定要注意正确设置缓存路径，否则使用根分区的 `/var/jfsCache` 目录来缓存数据，容易耗尽系统盘空间。
 
-设置缓存路径以后，Kubernetes 宿主机上的路径会以 `hostPath` 卷的形式挂载到 Mount Pod 中，因此还需要根据缓存盘参数，对缓存相关的[挂载参数](./configurations.md#mount-options)进行调整（如缓存大小）。
+在挂载参数中指定好 `--cache-dir`，CSI 驱动就会自动将目标路径映射到 Pod 内，比方说在 ConfigMap 中这样配置：
+
+```yaml {6} title="values-mycluster.yaml"
+...
+globalConfig:
+  enabled: true
+  mountPodPatch:
+    - mountOptions:
+      - cache-dir=/data/cache
+      - cache-size=10T
+```
+
+那么随着 Mount Pod 启动，CSI 驱动就会为其加入对应的宿主机路径挂载：
+
+```yaml {4,9}
+...
+    volumeMounts:
+    ...
+    - mountPath: /data/cache
+      name: cachedir-0
+  volumes:
+  ...
+  - hostPath:
+      path: /data/cache
+      type: DirectoryOrCreate
+    name: cachedir-0
+```
+
+如果还需要进一步调整其他缓存相关的挂载参数，请阅读对应的 JuiceFS 客户端参数列表，详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
 
 :::tip 注意
 
-* 在 CSI 驱动中，`cache-dir` 不支持填写通配符，如果需要用多个设备作为缓存盘，填写多个目录，以 `:` 连接。详见[社区版](https://juicefs.com/docs/zh/community/command_reference/#mount)与[云服务](https://juicefs.com/docs/zh/cloud/reference/commands_reference/#mount)文档。
+* 在 CSI 驱动中，`cache-dir` 不支持填写通配符 `*`，如果需要用多个设备作为缓存盘，必须直接填写多个目录，以 `:` 连接。
 * 对于大量小文件写入场景，我们一般推荐临时开启客户端写缓存，但由于该模式本身带来的数据安全风险，我们尤其不推荐在 CSI 驱动中开启 `--writeback`，避免容器出现意外时，写缓存尚未完成上传，造成数据无法访问。
 
 :::
 
 ### 使用 ConfigMap
 
-阅读[「调整挂载参数」](./configurations.md#custom-cachedirs)。
+已经在上方代码块中进行示范。
 
 ### 在 PV 中定义（不推荐）
 
@@ -80,20 +108,35 @@ mountOptions:
 
 ## 使用 PVC 作为缓存路径
 
-JuiceFS CSI 驱动 0.15.1 及以上版本支持使用 PVC 作为缓存路径，该实践多用于托管 Kubernetes 集群的云服务商，让你可以使用单独的云盘来作为 CSI 驱动的缓存存储设备。
+如果对隔离程度有要求，或者因为其他原因而无法使用宿主机路径作为缓存目的地，那么可以使用 PVC 作为 JuiceFS 客户端缓存，但是需要注意：
 
-首先，按照所使用的托管 Kubernetes 集群的云服务商的说明，创建 PVC，比如：
-
-* [Amazon EBS CSI 驱动](https://docs.aws.amazon.com/zh_cn/eks/latest/userguide/ebs-csi.html)
-* [在 Azure Kubernetes 服务（AKS）中使用 Azure 磁盘 CSI 驱动](https://learn.microsoft.com/zh-cn/azure/aks/azure-disk-csi)
-* [使用 Google Compute Engine 永久性磁盘 CSI 驱动](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
-* [阿里云 ACK 云盘存储卷](https://help.aliyun.com/document_detail/134767.html)
+- 如果使用 PVC 作为缓存路径，PVC 需要提前创建，并确保和 Mount Pod 在同一个 namespace，如果你正在使用公有云托管服务，以下是部分常用服务商的文档：
+  * [Amazon EBS CSI 驱动](https://docs.aws.amazon.com/zh_cn/eks/latest/userguide/ebs-csi.html)
+  * [在 Azure Kubernetes 服务（AKS）中使用 Azure 磁盘 CSI 驱动](https://learn.microsoft.com/zh-cn/azure/aks/azure-disk-csi)
+  * [使用 Google Compute Engine 永久性磁盘 CSI 驱动](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
+  * [阿里云 ACK 云盘存储卷](https://help.aliyun.com/document_detail/134767.html)
+- 如果自定义了 Volume，确保自定义 Volume 中的 `mountPath` 和 `hostPath` 没有重复，避免冲突。
 
 假设名为 `jfs-cache-pvc` 的 PVC 创建完毕，与 Mount Pod 在同一个命名空间下（默认 `kube-system`），参考下方示范，让 CSI 驱动使用该 PVC 作为缓存路径。
 
 ### 使用 ConfigMap
 
-缓存相关配置均通过挂载参数进行调整，请阅读[「调整挂载参数」](./configurations.md#custom-cachedirs)。
+该功能最低需要 CSI 驱动版本 v0.25.1，修改后需重建业务 Pod 生效。如果使用了多个缓存路径，需要注意使用大小相同的存储设备，并且将 `--cache-size` 设置为可用空间之和。
+
+```yaml
+  - cacheDirs:
+      - type: PVC
+        name: jfs-cache-pvc
+      - type: HostPath
+        path: /var/jfsCache
+    mountOptions:
+      - cache-size=204800
+      - free-space-ratio=0.01
+    # 可选字段，对特定 PVC 定制缓存配置时使用
+    pvcSelector:
+      matchLabels:
+        need-cachedirs: "true"
+```
 
 ### 在 PV 中定义（不推荐）
 
