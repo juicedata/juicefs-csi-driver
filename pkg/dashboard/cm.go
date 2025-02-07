@@ -142,8 +142,11 @@ func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.Persis
 	for k, v := range secret.Data {
 		secretsMap[k] = string(v[:])
 	}
-	setting, err := config.GenSettingWithConfig(pod, pvc, pv, secret, custSecret)
+	setting, err := config.RevertSetting(pod, pvc, pv, secret, custSecret)
 	if err != nil {
+		return false, err
+	}
+	if err = setting.ReNew(pod, pvc, pv, custSecret); err != nil {
 		return false, err
 	}
 	return setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey], nil

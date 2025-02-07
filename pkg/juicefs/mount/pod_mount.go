@@ -585,15 +585,13 @@ func (p *PodMount) GetJfsVolUUID(ctx context.Context, jfsSetting *jfsConfig.JfsS
 
 func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volumeId string, cacheDirs []string) error {
 	log := util.GenLog(ctx, p.log, "CleanCache")
-	jfsSetting, err := jfsConfig.ParseSetting(map[string]string{"name": id}, nil, []string{}, true, nil, nil)
+	jfsSetting, err := jfsConfig.ParseSetting(ctx, map[string]string{"name": id}, nil, []string{}, volumeId, volumeId, id, nil, nil)
 	if err != nil {
 		log.Error(err, "parse jfs setting err")
 		return err
 	}
 	jfsSetting.Attr.Image = image
-	jfsSetting.VolumeId = volumeId
 	jfsSetting.CacheDirs = cacheDirs
-	jfsSetting.UUID = id
 	r := builder.NewJobBuilder(jfsSetting, 0)
 	job := r.NewJobForCleanCache()
 	log.V(1).Info("Clean cache job", "jobName", job)

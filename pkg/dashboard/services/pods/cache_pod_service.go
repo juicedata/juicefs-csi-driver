@@ -320,6 +320,11 @@ func (c *CachePodService) SetupWithManager(mgr manager.Manager) error {
 
 	return ctr.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &handler.TypedEnqueueRequestForObject[*corev1.Pod]{}, predicate.TypedFuncs[*corev1.Pod]{
 		CreateFunc: func(event event.TypedCreateEvent[*corev1.Pod]) bool {
+			pod := event.Object
+			if utils.IsCsiNode(pod) && config.CSIPod.Name == "" {
+				// get csi pod spec
+				config.CSIPod = *pod
+			}
 			return true
 		},
 		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {

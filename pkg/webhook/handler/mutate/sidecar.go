@@ -92,7 +92,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	}
 	out = pod.DeepCopy()
 	// gen jfs settings
-	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
+	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, pair.PV.Spec.CSI.VolumeHandle, secrets["name"], secrets, volCtx, options)
 	if err != nil {
 		return
 	}

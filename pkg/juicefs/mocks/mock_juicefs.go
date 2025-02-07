@@ -66,21 +66,6 @@ func (mr *MockInterfaceMockRecorder) CreateTarget(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTarget", reflect.TypeOf((*MockInterface)(nil).CreateTarget), arg0, arg1)
 }
 
-// GetJfsVolUUID mocks base method.
-func (m *MockInterface) GetJfsVolUUID(arg0 context.Context, arg1 *config.JfsSetting) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetJfsVolUUID", arg0, arg1)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetJfsVolUUID indicates an expected call of GetJfsVolUUID.
-func (mr *MockInterfaceMockRecorder) GetJfsVolUUID(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJfsVolUUID", reflect.TypeOf((*MockInterface)(nil).GetJfsVolUUID), arg0, arg1)
-}
-
 // GetMountRefs mocks base method.
 func (m *MockInterface) GetMountRefs(arg0 string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -255,18 +240,18 @@ func (mr *MockInterfaceMockRecorder) SetQuota(arg0, arg1, arg2, arg3, arg4 inter
 }
 
 // Settings mocks base method.
-func (m *MockInterface) Settings(arg0 context.Context, arg1 string, arg2, arg3 map[string]string, arg4 []string) (*config.JfsSetting, error) {
+func (m *MockInterface) Settings(arg0 context.Context, arg1, arg2, arg3 string, arg4, arg5 map[string]string, arg6 []string) (*config.JfsSetting, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Settings", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Settings", arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 	ret0, _ := ret[0].(*config.JfsSetting)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Settings indicates an expected call of Settings.
-func (mr *MockInterfaceMockRecorder) Settings(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockInterfaceMockRecorder) Settings(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Settings", reflect.TypeOf((*MockInterface)(nil).Settings), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Settings", reflect.TypeOf((*MockInterface)(nil).Settings), arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 }
 
 // Status mocks base method.

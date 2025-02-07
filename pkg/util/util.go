@@ -754,6 +754,16 @@ func CpNotEmpty(s, d string) string {
 	return d
 }
 
+func MergeMap(s, d map[string]string) map[string]string {
+	if d == nil {
+		return s
+	}
+	for k, v := range s {
+		d[k] = v
+	}
+	return d
+}
+
 func SortBy[T any](slice []T, less func(i, j int) bool) {
 	if slice == nil {
 		return

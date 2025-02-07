@@ -52,12 +52,8 @@ func (j *fakeJfsProvider) CreateTarget(ctx context.Context, target string) error
 	return nil
 }
 
-func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+func (j *fakeJfsProvider) Settings(ctx context.Context, volumeID, uniqueId, uuid string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
 	return new(config.JfsSetting), nil
-}
-
-func (j *fakeJfsProvider) GetJfsVolUUID(ctx context.Context, jfsSetting *config.JfsSetting) (string, error) {
-	return "", nil
 }
 
 func (j *fakeJfsProvider) JfsCreateVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string) error {

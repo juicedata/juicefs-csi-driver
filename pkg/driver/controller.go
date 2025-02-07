@@ -309,7 +309,8 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get quotaPath error: %v", err)
 	}
-	settings, err := d.juicefs.Settings(ctx, volumeID, req.GetSecrets(), nil, options)
+	secrets := req.GetSecrets()
+	settings, err := d.juicefs.Settings(ctx, volumeID, volumeID, secrets["name"], secrets, nil, options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get settings: %v", err)
 	}
@@ -325,7 +326,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 		}
 	}
 
-	err = d.juicefs.SetQuota(ctx, req.GetSecrets(), settings, path.Join(subdir, quotaPath), capacity)
+	err = d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "set quota: %v", err)
 	}
