@@ -306,6 +306,12 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 		return nil, err
 	}
 
+	if jfsSetting.FormatCmd != "" {
+		log.Info("Format/Auth command", "cmd", jfsSetting.FormatCmd)
+	} else {
+		log.Info("Skip auth/format")
+	}
+
 	// do format/auth in process mode
 	if config.ByProcess {
 		if !jfsSetting.IsCe {
@@ -573,13 +579,13 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return "", err
 	}
 
-	log.Info("AuthFs cmd", "args", cmdArgs)
 	// only run command when in process mode
 	if !force && !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
 
+	log.Info("AuthFs cmd", "args", cmdArgs)
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
@@ -754,13 +760,13 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return "", err
 	}
 
-	log.Info("ce format cmd", "args", cmdArgs)
 	// only run command when in process mode
 	if !config.ByProcess {
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
 
+	log.Info("ce format cmd", "args", cmdArgs)
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 
