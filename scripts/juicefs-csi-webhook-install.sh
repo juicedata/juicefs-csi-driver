@@ -637,6 +637,7 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
+        - --timeout=20s
         - --leader-election
         - --v=2
         env:
@@ -1374,6 +1375,7 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
+        - --timeout=20s
         - --leader-election
         - --v=2
         env:
