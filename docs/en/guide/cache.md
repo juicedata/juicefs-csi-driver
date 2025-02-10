@@ -12,22 +12,50 @@ With CSI Driver, you can use either a host directory or a PVC for cache storage.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
 
-## Using host directories (`hostPath`) {#cache-settings}
+## Using host path (`hostPath`) {#cache-settings}
 
-For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
+By default, CSI Driver uses the standard JuiceFS Client cache directory `/var/jfsCache` on the host, if you intend to use data disk as cache storage, make sure the correct path is configured, otherwise cache can drain the system disk.
 
-After the cache directory is set, it will be accessible in the Mount Pod via `hostPath`. You might also need to configure other cache-related options (like `--cache-size`) according to [Adjust mount options](./configurations.md#mount-options).
+Specify `--cache-dir` in mount options, preferably in ConfigMap, and then CSI Driver will handle the mounts accordingly:
+
+```yaml {6} title="values-mycluster.yaml"
+...
+globalConfig:
+  enabled: true
+  mountPodPatch:
+    - mountOptions:
+      - cache-dir=/data/cache
+      - cache-size=10T
+```
+
+When Mount Pod starts, it will include the hostPath mounts:
+
+```yaml {4,9}
+...
+    volumeMounts:
+    ...
+    - mountPath: /data/cache
+      name: cachedir-0
+  volumes:
+  ...
+  - hostPath:
+      path: /data/cache
+      type: DirectoryOrCreate
+    name: cachedir-0
+```
+
+If you need to further customize cache related options, check out the option list in [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
 
 :::note
 
-* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
+* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character.
 * For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
 :::
 
 ### Using ConfigMap
 
-Read [Custom directory](./configurations.md#custom-cachedirs).
+Demostrated in the above code snippets.
 
 ### Define in PV (deprecated)
 
@@ -81,20 +109,41 @@ mountOptions:
 
 ## Use PVC as cache path
 
-From 0.15.1 and above, JuiceFS CSI Driver supports using a PVC as cache directory. This is often used in hosted Kubernetes clusters provided by cloud services, which allows you to use a dedicated cloud disk as cache storage for CSI Driver.
+If you have higher demands for cache isolation, or cannot use hostPath for cache due to other reasons, consider using PVC as cache storage.
 
-First, create a PVC according to your cloud service provider's manual, for example:
+PVC should be created in advance, and if you are using one of the following service providers, you can refer to their manual:
 
 * [Amazon EBS CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)
 * [Use the Azure Disks CSI Driver in Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/azure/aks/azure-disk-csi)
 * [Using the Google Compute Engine persistent disk CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
+:::tip
+For custom volumes, make sure `mountPath` and `hostPath` doesn't contain duplicates, to avoid conflicts.
+:::
+
 Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as the Mount Pod (which defaults to `kube-system`), use the following example to set this PVC as the cache directory for JuiceFS CSI Driver.
 
 ### Using ConfigMap
 
-Read [Custom directory](./configurations.md#custom-cachedirs).
+The minimum required version is CSI Driver v0.25.1. Upon modification, application Pods need to be re-created for changes to take effect.
+
+When multiple cache directories are used, make sure all items have the same available capacity, and then set `--cache-size` to the sum.
+
+```yaml
+  - cacheDirs:
+      - type: PVC
+        name: jfs-cache-pvc
+      - type: HostPath
+        path: /var/jfsCache
+    mountOptions:
+      - cache-size=204800
+      - free-space-ratio=0.01
+    # Optional, used when you need to customize individual PVCs
+    pvcSelector:
+      matchLabels:
+        need-cachedirs: "true"
+```
 
 ### Define in PV (deprecated)
 
