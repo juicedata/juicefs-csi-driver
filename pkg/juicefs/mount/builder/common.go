@@ -148,24 +148,22 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 // genMountCommand generates mount command
 func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
-	options := r.jfsSetting.Options
-	subpath := r.jfsSetting.SubPath
+	options := []string{}
+	subdir := r.jfsSetting.SubPath
 	if !config.StorageClassShareMount {
-		hasSubdirOption := false
-		for i, option := range options {
+		for _, option := range r.jfsSetting.Options {
 			if strings.HasPrefix(option, "subdir=") {
 				s := strings.Split(option, "=")
 				if len(s) != 2 {
 					continue
 				}
-				subpath = path.Join(s[1], subpath)
-				hasSubdirOption = true
-				options[i] = fmt.Sprintf("subdir=%s", subpath)
-				break
+				subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				continue
 			}
+			options = append(options, option)
 		}
-		if subpath != "" && !hasSubdirOption {
-			options = append(options, fmt.Sprintf("subdir=%s", subpath))
+		if subdir != "" {
+			options = append(options, fmt.Sprintf("subdir=%s", subdir))
 		}
 	}
 	if r.jfsSetting.IsCe {
