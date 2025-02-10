@@ -16,9 +16,9 @@ Best practices and recommended settings when going production.
 
 ## Sidecar recommendations {#sidecar}
 
-The CSI Driver currently supports Kubernetes [native sidecar containers](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers). If your cluster runs Kubernetes v1.29 or above with CSI v0.27.0 or later, no modifications are needed to ensure that sidecar containers terminate only after the application containers have exited.
+Starting from v0.27.0, CSI Driver supports Kubernetes [native sidecar containers](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers). So if you are running Kubernetes v1.29 with CSI Driver v0.27.0 or newer versions, no special configurations are needed to ensure optimal exit order (sidecar containers terminate only after the application containers have exited).
 
-If your cluster does not meet these version requirements, we recommend users configure the `preStop` lifecycle hook to control exit order:
+But if your cluster does not yet meet the above version requirements, we recommend users configure the `preStop` lifecycle hook to control exit order:
 
 ```yaml
 mountPodPatch:

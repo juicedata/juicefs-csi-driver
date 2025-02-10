@@ -136,7 +136,7 @@ When multiple cache directories are used, make sure all items have the same avai
         name: jfs-cache-pvc
       - type: HostPath
         path: /var/jfsCache
-      # v0.26.2 and above support emptyDir
+      # emptyDir is supported in v0.26.2 and above
       - type: EmptyDir
         sizeLimit: 1024Mi
         medium: Memory
