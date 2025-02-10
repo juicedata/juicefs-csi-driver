@@ -135,6 +135,10 @@ mountOptions:
         name: jfs-cache-pvc
       - type: HostPath
         path: /var/jfsCache
+      # v0.26.2 及以上支持 emptyDir
+      - type: EmptyDir
+        sizeLimit: 1024Mi
+        medium: Memory
     mountOptions:
       - cache-size=204800
       - free-space-ratio=0.01
