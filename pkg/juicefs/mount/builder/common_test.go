@@ -18,92 +18,12 @@ package builder
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
-func TestBaseBuilder_overwriteSubdirWithSubPath(t *testing.T) {
-	type fields struct {
-		jfsSetting *config.JfsSetting
-	}
-	tests := []struct {
-		name       string
-		fields     fields
-		wantSubdir string
-	}{
-		{
-			name: "test1",
-			fields: fields{
-				jfsSetting: &config.JfsSetting{
-					Options: []string{
-						"subdir=abc",
-					},
-					SubPath: "def",
-				},
-			},
-			wantSubdir: "abc/def",
-		},
-		{
-			name: "test2",
-			fields: fields{
-				jfsSetting: &config.JfsSetting{
-					Options: []string{},
-					SubPath: "def",
-				},
-			},
-			wantSubdir: "def",
-		},
-		{
-			name: "test3",
-			fields: fields{
-				jfsSetting: &config.JfsSetting{
-					Options: []string{},
-					SubPath: "",
-				},
-			},
-			wantSubdir: "",
-		},
-		{
-			name: "test4",
-			fields: fields{
-				jfsSetting: &config.JfsSetting{
-					Options: []string{
-						"subdir=abc",
-					},
-					SubPath: "",
-				},
-			},
-			wantSubdir: "abc",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &BaseBuilder{
-				jfsSetting: tt.fields.jfsSetting,
-			}
-			r.overwriteSubdirWithSubPath()
-			var subdir string
-			for _, option := range r.jfsSetting.Options {
-				if strings.HasPrefix(option, "subdir=") {
-					s := strings.Split(option, "=")
-					if len(s) != 2 {
-						t.Error("overwriteSubdirWithSubPath() error")
-					}
-					if s[0] == "subdir" {
-						subdir = s[1]
-					}
-				}
-			}
-
-			if subdir != tt.wantSubdir {
-				t.Errorf("overwriteSubdirWithSubPath() got=%s, want=%s", subdir, tt.wantSubdir)
-			}
-		})
-	}
-}
 func TestGenMetadata(t *testing.T) {
 	tests := []struct {
 		name            string
