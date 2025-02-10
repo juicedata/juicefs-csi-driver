@@ -49,10 +49,10 @@ const MountPodPatchForm: React.FC = () => {
             }}
           >
             <ProForm.Group>
-              <ProFormText name={['key']} label="key">
+              <ProFormText name={['key']}>
                 <Input placeholder="Key" />
               </ProFormText>
-              <ProFormText name={['value']} label="value">
+              <ProFormText name={['value']}>
                 <Input placeholder="Value" />
               </ProFormText>
             </ProForm.Group>
@@ -77,24 +77,35 @@ const MountPodPatchForm: React.FC = () => {
           </ProFormList>
         </ProForm.Group>
 
-        <ProFormList
-          name={'mountOptions'}
-          label={<FormattedMessage id="mountOptions" />}
-        >
-          <ProFormText name="value" />
-        </ProFormList>
+        <ProForm.Group>
 
-        <ProFormList name={'env'} label={<FormattedMessage id="envs" />}>
-          <ProForm.Group>
-            <ProFormText name={'name'}>
-              <Input placeholder="Name" />
-            </ProFormText>
+          <ProFormList
+            name={'mountOptions'}
+            label={<FormattedMessage id="mountOptions" />}
+            creatorButtonProps={{
+              position: 'bottom',
+              creatorButtonText: 'New',
+            }}
+          >
+            <ProForm.Group>
+              <ProFormText name={['value']}>
+                <Input placeholder="Value" />
+              </ProFormText>
+            </ProForm.Group>
+          </ProFormList>
 
-            <ProFormText name={'value'}>
-              <Input placeholder="Value" />
-            </ProFormText>
-          </ProForm.Group>
-        </ProFormList>
+          <ProFormList name={'env'} label={<FormattedMessage id="envs" />}>
+            <ProForm.Group>
+              <ProFormText name={'name'}>
+                <Input placeholder="Name" />
+              </ProFormText>
+
+              <ProFormText name={'value'}>
+                <Input placeholder="Value" />
+              </ProFormText>
+            </ProForm.Group>
+          </ProFormList>
+        </ProForm.Group>
 
         <ProForm.Group>
           <ProForm.Item

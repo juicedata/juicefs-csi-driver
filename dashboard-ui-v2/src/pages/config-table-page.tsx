@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Juicedata Inc
+ * Copyright 2025 Juicedata Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,14 +21,14 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Card, Collapse, Switch } from 'antd'
-import { FormattedMessage } from 'react-intl'
+import { Card, Collapse } from 'antd'
 import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
 import { Config, ToConfig, ToOriginConfig } from '@/types/config.ts'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
+import { FormattedMessage } from 'react-intl'
 
 const ConfigTablePage: React.FC<{
   configData?: string
@@ -48,7 +48,6 @@ const ConfigTablePage: React.FC<{
         const c = ToConfig(oc)
         setConfig(c)
         formRef?.current?.setFieldsValue(c)
-        // console.log('config', c)
       } catch (e) {
         console.log(e)
       }
@@ -77,14 +76,6 @@ const ConfigTablePage: React.FC<{
             gutter: [16, 0],
           }}
         >
-          <ProForm.Item
-            label={<FormattedMessage id="enableNodeSelector" />}
-            name="enableNodeSelector"
-            valuePropName="checked"
-          >
-            <Switch />
-          </ProForm.Item>
-
           <ProFormList
             name="mountPodPatches"
             creatorButtonProps={{
@@ -98,7 +89,7 @@ const ConfigTablePage: React.FC<{
               const items = [
                 {
                   key: 'Form' + index,
-                  label: <> Patch {index + 1} </>,
+                  label: <> {<FormattedMessage id="patch" />} {index + 1} </>,
                   children: <Card bordered={false}>{listDom}</Card>,
                   extra: action,
                 },
@@ -116,36 +107,22 @@ const ConfigTablePage: React.FC<{
           </ProFormList>
         </ProForm>
       ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ marginRight: 8 }}>
-              {<FormattedMessage id="enableNodeSelector" />}:
-            </span>
-            <Switch
-              key="enableNodeSelector"
-              checked={config?.enableNodeSelector}
-              disabled={true}
-            />
-          </div>
-          <ProCard />
-
-          <Collapse
-            defaultActiveKey={['0']}
-            style={{ marginBottom: 16 }}
-            items={config?.mountPodPatches?.map((value, index) => {
-              return {
-                key: index,
-                label: <> Patch {index + 1} </>,
-                children: (
-                  <MountPodPatchDetail
-                    patch={value}
-                    pvcs={pvcs ? pvcs[index] : []}
-                  />
-                ),
-              }
-            })}
-          />
-        </>
+        <Collapse
+          defaultActiveKey={['0']}
+          style={{ marginBottom: 16 }}
+          items={config?.mountPodPatches?.map((value, index) => {
+            return {
+              key: index,
+              label: <> {<FormattedMessage id="patch" />} {index + 1} </>,
+              children: (
+                <MountPodPatchDetail
+                  patch={value}
+                  pvcs={pvcs ? pvcs[index] : []}
+                />
+              ),
+            }
+          })}
+        />
       )}
     </ProCard>
   )

@@ -43,6 +43,7 @@ type PVCWithPod struct {
 
 type PVCService interface {
 	ListPVCs(c *gin.Context) (*ListPVCResult, error)
+	ListPVCsByStorageClass(c context.Context, scName string) ([]corev1.PersistentVolumeClaim, error)
 	ListAllPVCs(ctx context.Context, pvs []corev1.PersistentVolume) ([]corev1.PersistentVolumeClaim, error)
 }
 

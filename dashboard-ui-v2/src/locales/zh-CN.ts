@@ -167,4 +167,5 @@ export default {
   patch: '配置',
   selector: '选择器',
   allPVC: '全部 PVC',
+  basicPatch: '基础配置',
 }

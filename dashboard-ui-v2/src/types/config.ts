@@ -90,70 +90,70 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     enableNodeSelector: originConfig.enableNodeSelector,
     mountPodPatches: originConfig.mountPodPatch
       ? originConfig.mountPodPatch?.map((patch) => {
-          return {
-            ...patch,
-            pvcSelector: patch.pvcSelector
-              ? {
-                  ...patch.pvcSelector,
-                  matchLabels: patch.pvcSelector.matchLabels
-                    ? Object.keys(patch.pvcSelector.matchLabels).map((key) => {
+        return {
+          ...patch,
+          pvcSelector: patch.pvcSelector
+            ? {
+              ...patch.pvcSelector,
+              matchLabels: patch.pvcSelector.matchLabels
+                ? Object.keys(patch.pvcSelector.matchLabels).map((key) => {
+                  return {
+                    key: key,
+                    value: patch.pvcSelector?.matchLabels![key] || '',
+                  }
+                })
+                : undefined,
+              matchExpressions: patch.pvcSelector.matchExpressions
+                ? patch.pvcSelector.matchExpressions.map((key) => {
+                  return {
+                    key: key.key,
+                    operator: key.operator,
+                    values: key.values
+                      ? key.values.map((key, index) => {
                         return {
-                          key: key,
-                          value: patch.pvcSelector?.matchLabels![key] || '',
+                          key: `${index}`,
+                          value: key,
                         }
                       })
-                    : undefined,
-                  matchExpressions: patch.pvcSelector.matchExpressions
-                    ? patch.pvcSelector.matchExpressions.map((key) => {
-                        return {
-                          key: key.key,
-                          operator: key.operator,
-                          values: key.values
-                            ? key.values.map((key, index) => {
-                                return {
-                                  key: `${index}`,
-                                  value: key,
-                                }
-                              })
-                            : undefined,
-                        }
-                      })
-                    : undefined,
+                      : undefined,
+                  }
+                })
+                : undefined,
+            }
+            : undefined,
+          labels: patch.labels
+            ? Object.keys(patch.labels).map((key) => {
+              return { key: key, value: patch.labels![key] }
+            })
+            : undefined,
+          annotations: patch.annotations
+            ? Object.keys(patch.annotations).map((key) => {
+              return { key: key, value: patch.annotations![key] }
+            })
+            : undefined,
+          mountOptions: patch.mountOptions
+            ? patch.mountOptions.map((value) => {
+              return { key: value, value: value }
+            })
+            : undefined,
+          resources: patch.resources
+            ? {
+              requests: patch.resources.requests
+                ? {
+                  cpu: patch.resources.requests!['cpu'],
+                  memory: patch.resources.requests!['memory'],
                 }
-              : undefined,
-            labels: patch.labels
-              ? Object.keys(patch.labels).map((key) => {
-                  return { key: key, value: patch.labels![key] }
-                })
-              : undefined,
-            annotations: patch.annotations
-              ? Object.keys(patch.annotations).map((key) => {
-                  return { key: key, value: patch.annotations![key] }
-                })
-              : undefined,
-            mountOptions: patch.mountOptions
-              ? patch.mountOptions.map((value, index) => {
-                  return { key: `${index}`, value: value }
-                })
-              : undefined,
-            resources: patch.resources
-              ? {
-                  requests: patch.resources.requests
-                    ? {
-                        cpu: patch.resources.requests!['cpu'],
-                        memory: patch.resources.requests!['memory'],
-                      }
-                    : undefined,
-                  limits: patch.resources.limits
-                    ? {
-                        cpu: patch.resources.limits!['cpu'],
-                        memory: patch.resources.limits!['memory'],
-                      }
-                    : undefined,
+                : undefined,
+              limits: patch.resources.limits
+                ? {
+                  cpu: patch.resources.limits!['cpu'],
+                  memory: patch.resources.limits!['memory'],
                 }
-              : undefined,
-          }
-        })
+                : undefined,
+            }
+            : undefined,
+        }
+      })
       : undefined,
   }
 }
@@ -186,7 +186,7 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     }
     const output: string[] = []
     input.forEach((value) => {
-      output.push(`${value.value}`)
+      value.value ? output.push(`${value.value}`) : output.push('')
     })
     return output
   }
@@ -194,10 +194,10 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
   const convertRequirements = (requirements?: KeyValueRequirement[]) => {
     return requirements
       ? (requirements.map((req) => ({
-          key: req.key,
-          operator: req.operator,
-          values: req.values ? req.values.map((v) => v.value) : undefined,
-        })) as Array<LabelSelectorRequirement>)
+        key: req.key,
+        operator: req.operator,
+        values: req.values ? req.values.map((v) => v.value) : undefined,
+      })) as Array<LabelSelectorRequirement>)
       : undefined
   }
 
@@ -205,52 +205,52 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     enableNodeSelector: config.enableNodeSelector,
     mountPodPatch: config.mountPodPatches
       ? config.mountPodPatches?.map((patch) => {
-          return {
-            ...patch,
-            pvcSelector: patch.pvcSelector
-              ? {
-                  ...patch.pvcSelector,
-                  matchLabels: patch.pvcSelector.matchLabels
-                    ? patch.pvcSelector.matchLabels.reduce(
-                        (acc, { key, value }) => {
-                          acc[key] = value
-                          return acc
-                        },
-                        {} as { [name: string]: string },
-                      )
-                    : undefined,
-                  matchExpressions: convertRequirements(
-                    patch.pvcSelector.matchExpressions,
-                  ),
-                }
-              : undefined,
-            labels: patch.labels
-              ? patch.labels.reduce(
+        return {
+          ...patch,
+          pvcSelector: patch.pvcSelector
+            ? {
+              ...patch.pvcSelector,
+              matchLabels: patch.pvcSelector.matchLabels
+                ? patch.pvcSelector.matchLabels.reduce(
                   (acc, { key, value }) => {
                     acc[key] = value
                     return acc
                   },
                   {} as { [name: string]: string },
                 )
-              : undefined,
-            annotations: patch.annotations
-              ? patch.annotations.reduce(
-                  (acc, { key, value }) => {
-                    acc[key] = value
-                    return acc
-                  },
-                  {} as { [name: string]: string },
-                )
-              : undefined,
-            mountOptions: convertMountOptions(patch.mountOptions),
-            resources: patch.resources
-              ? {
-                  requests: convertResource(patch.resources.requests),
-                  limits: convertResource(patch.resources.limits),
-                }
-              : undefined,
-          }
-        })
+                : undefined,
+              matchExpressions: convertRequirements(
+                patch.pvcSelector.matchExpressions,
+              ),
+            }
+            : undefined,
+          labels: patch.labels
+            ? patch.labels.reduce(
+              (acc, { key, value }) => {
+                acc[key] = value
+                return acc
+              },
+              {} as { [name: string]: string },
+            )
+            : undefined,
+          annotations: patch.annotations
+            ? patch.annotations.reduce(
+              (acc, { key, value }) => {
+                acc[key] = value
+                return acc
+              },
+              {} as { [name: string]: string },
+            )
+            : undefined,
+          mountOptions: convertMountOptions(patch.mountOptions),
+          resources: patch.resources
+            ? {
+              requests: convertResource(patch.resources.requests),
+              limits: convertResource(patch.resources.limits),
+            }
+            : undefined,
+        }
+      })
       : undefined,
   }
 }

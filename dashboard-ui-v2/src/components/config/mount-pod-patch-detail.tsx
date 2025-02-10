@@ -1,6 +1,21 @@
+/*
+ * Copyright 2025 Juicedata Inc
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import React from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
-import { EnvVar } from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 
 import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
@@ -13,148 +28,139 @@ const MountPodPatchDetail: React.FC<{
 }> = (props) => {
   const { patch, pvcs } = props
   const kvDescribe = (kv?: KeyValue[]) => {
-    if (!kv) return null
-    return Object.entries(kv).map(([key, value]) => (
-      <ProDescriptions.Item key={key} label={value.key}>
-        {value.key}: {value.value}
-      </ProDescriptions.Item>
-    ))
-  }
-
-  const envDescribe = (l?: EnvVar[]) => {
-    if (!l) return null
-    return Object.entries(l).map(([key, value], index) => (
-      <React.Fragment key={key}>
-        <ProDescriptions.Item key={key} label={value.name}>
-          {value.name}: {value.value}
-        </ProDescriptions.Item>
-        {index < Object.entries(patch.env || []).length - 1 && <br />}
-      </React.Fragment>
-    ))
-  }
-
-  const renderProDescriptionItem = (
-    condition: boolean,
-    labelId: string,
-    content: React.ReactNode,
-  ) =>
-    condition && (
-      <ProDescriptions.Item label={<FormattedMessage id={labelId} />}>
-        {content}
-      </ProDescriptions.Item>
+    if (!kv || kv.length === 0) return null
+    return (
+      <div>
+        {kv.map((value, index) => (
+          <div key={index} className="inlinecode">
+            {value.key}: {value.value}
+          </div>
+        ))}
+      </div>
     )
+  }
 
   return (
     <>
       {patch.pvcSelector && (
         <ProCard title={<FormattedMessage id="selector" />}>
-          <ProDescriptions column={3} dataSource={patch.pvcSelector}>
-            {renderProDescriptionItem(
-              !!patch.pvcSelector.matchName,
-              'pvcName',
-              patch.pvcSelector.matchName,
-            )}
-            {renderProDescriptionItem(
-              !!patch.pvcSelector.matchStorageClassName,
-              'scName',
-              patch.pvcSelector.matchStorageClassName,
-            )}
-            {renderProDescriptionItem(
-              !!patch.pvcSelector.matchLabels,
-              'pvcLabelMatch',
-              kvDescribe(patch.pvcSelector.matchLabels),
-            )}
-          </ProDescriptions>
+          <ProDescriptions
+            column={3}
+            dataSource={patch.pvcSelector}
+            columns={[
+              {
+                title: <FormattedMessage id="pvcLabelMatch" />,
+                key: 'pvcLabelMatch',
+                render: () => kvDescribe(patch.pvcSelector?.matchLabels) || '-',
+              },
+              {
+                title: <FormattedMessage id="pvcName" />,
+                key: 'pvcName',
+                dataIndex: ['matchName'],
+              },
+              {
+                title: <FormattedMessage id="scName" />,
+                key: 'scName',
+                dataIndex: ['matchStorageClassName'],
+              },
+            ]}
+          />
         </ProCard>
       )}
 
-      <ProCard title={<FormattedMessage id="patch" />}>
-        <ProDescriptions column={2} dataSource={patch}>
-          {renderProDescriptionItem(
-            !!patch.ceMountImage,
-            'ceImage',
-            patch.ceMountImage,
-          )}
-          {renderProDescriptionItem(
-            !!patch.eeMountImage,
-            'eeImage',
-            patch.eeMountImage,
-          )}
-          {renderProDescriptionItem(
-            !!patch.labels,
-            'labels',
-            kvDescribe(patch.labels),
-          )}
-          {renderProDescriptionItem(
-            !!patch.annotations,
-            'annotations',
-            kvDescribe(patch.annotations),
-          )}
-          {renderProDescriptionItem(
-            !!patch.mountOptions,
-            'mountOptions',
-            patch.mountOptions?.map((value) => (
-              <ProDescriptions.Item key={value.key}>
-                {value.value}
-              </ProDescriptions.Item>
-            )),
-          )}
-          {renderProDescriptionItem(
-            !!patch.env,
-            'envs',
-            envDescribe(patch.env),
-          )}
-          {renderProDescriptionItem(
-            !!patch.resources?.requests,
-            'resourceRequests',
-            <>
-              {renderProDescriptionItem(
-                !!patch.resources?.requests?.cpu,
-                'cpu',
-                <>
-                  <FormattedMessage id="cpu" />:{' '}
-                  {patch.resources?.requests?.cpu}
-                </>,
-              )}
-              {patch.resources?.requests?.cpu &&
-              patch.resources.requests.memory ? (
-                <br />
-              ) : null}
-              {renderProDescriptionItem(
-                !!patch.resources?.requests?.memory,
-                'memory',
-                <>
-                  <FormattedMessage id="memory" />:{' '}
-                  {patch.resources?.requests?.memory}
-                </>,
-              )}
-            </>,
-          )}
-          {renderProDescriptionItem(
-            !!patch.resources?.limits,
-            'resourceLimits',
-            <>
-              {renderProDescriptionItem(
-                !!patch.resources?.limits?.cpu,
-                'cpu',
-                <>
-                  <FormattedMessage id="cpu" />: {patch.resources?.limits?.cpu}
-                </>,
-              )}
-              {patch.resources?.limits?.cpu && patch.resources.limits.memory ? (
-                <br />
-              ) : null}
-              {renderProDescriptionItem(
-                !!patch.resources?.limits?.memory,
-                'memory',
-                <>
-                  <FormattedMessage id="memory" />:{' '}
-                  {patch.resources?.limits?.memory}
-                </>,
-              )}
-            </>,
-          )}
-        </ProDescriptions>
+      <ProCard title={<FormattedMessage id="basicPatch" />}>
+        <ProDescriptions
+          column={2}
+          dataSource={patch}
+          columns={[
+            {
+              title: <FormattedMessage id="ceImage" />,
+              key: 'ceMountImage',
+              render: () => patch.ceMountImage || '-',
+            },
+            {
+              title: <FormattedMessage id="eeImage" />,
+              key: 'eeMountImage',
+              render: () => patch.eeMountImage || '-',
+            },
+            {
+              title: <FormattedMessage id="labels" />,
+              key: 'labels',
+              render: () => kvDescribe(patch.labels) || '-',
+            },
+            {
+              title: <FormattedMessage id="annotations" />,
+              key: 'annotations',
+              render: () => kvDescribe(patch.annotations) || '-',
+            },
+            {
+              title: <FormattedMessage id="mountOptions" />,
+              key: 'mountOptions',
+              render: () => (
+                <div>
+                  {patch.mountOptions?.map((value, index) => (
+                    <div key={index} className="inlinecode">
+                      {value.value}
+                    </div>
+                  )) || '-'}
+                </div>
+              ),
+            },
+            {
+              title: <FormattedMessage id="envs" />,
+              key: 'envs',
+              render: () => (
+                <div>
+                  {patch.env?.map((value, index) => (
+                    <div key={index} className="inlinecode">
+                      {value.name}: {value.value}
+                    </div>
+                  )) || '-'}
+                </div>
+              ),
+            },
+            {
+              title: <FormattedMessage id="resourceRequests" />,
+              key: 'resourceRequests',
+              render: () => (
+                patch.resources?.requests ? (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {patch.resources.requests.cpu && (
+                      <span>
+                      <FormattedMessage id="cpu" />: {patch.resources?.requests?.cpu}
+                    </span>
+                    )}
+                    {patch.resources.requests.memory && (
+                      <span>
+                      <FormattedMessage id="memory" />: {patch.resources?.requests?.memory || '-'}
+                    </span>
+                    )}
+                  </div>
+                ) : '-'
+              ),
+            },
+            {
+              title: <FormattedMessage id="resourceLimits" />,
+              key: 'resourceLimits',
+              render: () => (
+                patch.resources?.limits ? (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {patch.resources.limits.cpu && (
+                      <span>
+                    <FormattedMessage id="cpu" />: {patch.resources?.limits?.cpu || '-'}
+                    </span>
+                    )}
+                    {patch.resources.limits.memory && (
+                      <span>
+                    <FormattedMessage id="memory" />: {patch.resources?.limits?.memory || '-'}
+                    </span>
+                    )}
+                  </div>
+                ) : '-'
+              ),
+            },
+          ]}
+        />
       </ProCard>
 
       <PVCWithSelector pvcSelector={patch.pvcSelector} pvcs={pvcs} />

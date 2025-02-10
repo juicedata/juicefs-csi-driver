@@ -27,7 +27,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -267,22 +266,23 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 				continue
 			}
 			if patch.PVCSelector.MatchStorageClassName != "" {
-				fieldSelector := &fields.Set{"spec.storageClassName": patch.PVCSelector.MatchStorageClassName}
-				pvcs, err := api.client.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{
-					FieldSelector: fieldSelector.String(),
-				})
+				pvcs, err := api.pvcSvc.ListPVCsByStorageClass(c, patch.PVCSelector.MatchStorageClassName)
 				if err != nil {
 					c.JSON(500, gin.H{"error": err.Error()})
 					return
 				}
-				pmp := make([]PVCWithMountPod, 0, len(pvcs.Items))
-				for _, pvc := range pvcs.Items {
+				pmp := make([]PVCWithMountPod, 0, len(pvcs))
+				for _, pvc := range pvcs {
 					pmp = append(pmp, PVCWithMountPod{
 						PVC:       pvc,
 						MountPods: mountPodMaps[utils.GetUniqueOfPVC(pvc)],
 					})
 				}
 				results[i] = pmp
+				continue
+			}
+			if (patch.PVCSelector.LabelSelector.MatchLabels == nil || len(patch.PVCSelector.LabelSelector.MatchLabels) == 0) &&
+				(patch.PVCSelector.LabelSelector.MatchExpressions == nil || len(patch.PVCSelector.LabelSelector.MatchExpressions) == 0) {
 				continue
 			}
 			selector, err := metav1.LabelSelectorAsSelector(&patch.PVCSelector.LabelSelector)

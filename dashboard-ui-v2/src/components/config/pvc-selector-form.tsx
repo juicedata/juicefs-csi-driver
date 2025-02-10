@@ -21,57 +21,35 @@ const PVCSelectorForm = () => {
   return (
     <ProForm.Item name={'pvcSelector'} label="PVCSelector">
       <ProForm.Group>
+        <ProFormList
+          name={['pvcSelector', 'matchLabels']}
+          label="Match Labels"
+          creatorButtonProps={{
+            position: 'bottom',
+            creatorButtonText: 'New',
+          }}
+        >
+          <ProForm.Group>
+            <ProFormText name={['key']}>
+              <Input placeholder="Key" />
+            </ProFormText>
+            <ProFormText name={['value']}>
+              <Input placeholder="Value" />
+            </ProFormText>
+          </ProForm.Group>
+        </ProFormList>
+
+        <ProForm.Item name={['pvcSelector', 'matchName']} label="Match Name">
+          <Input />
+        </ProForm.Item>
+
         <ProForm.Item
           name={['pvcSelector', 'matchStorageClassName']}
           label="Match StorageClass Name"
         >
           <Input />
         </ProForm.Item>
-
-        <ProForm.Item name={['pvcSelector', 'matchName']} label="Match Name">
-          <Input />
-        </ProForm.Item>
       </ProForm.Group>
-      <ProFormList
-        name={['pvcSelector', 'matchLabels']}
-        label="Match Labels"
-        creatorButtonProps={{
-          position: 'bottom',
-          creatorButtonText: 'New',
-        }}
-      >
-        <ProForm.Group>
-          <ProFormText name={['key']}>
-            <Input placeholder="Key" />
-          </ProFormText>
-          <ProFormText name={['value']}>
-            <Input placeholder="Value" />
-          </ProFormText>
-        </ProForm.Group>
-      </ProFormList>
-
-      <ProFormList
-        name={['pvcSelector', 'matchExpressions']}
-        label="Match Expressions"
-        creatorButtonProps={{
-          position: 'bottom',
-          creatorButtonText: 'New',
-        }}
-      >
-        <ProForm.Group>
-          <ProFormText name={['key']}>
-            <Input placeholder="Key" />
-          </ProFormText>
-          <ProFormText name={['operator']}>
-            <Input placeholder="Operator" />
-          </ProFormText>
-          <ProFormList name={['values']}>
-            <ProFormText name={['value']}>
-              <Input placeholder="Value" />
-            </ProFormText>
-          </ProFormList>
-        </ProForm.Group>
-      </ProFormList>
     </ProForm.Item>
   )
 }
