@@ -16,9 +16,9 @@ Best practices and recommended settings when going production.
 
 ## Sidecar recommendations {#sidecar}
 
-Current CSI Driver doesn't support exit order of sidecar containers, this essentially means there's no guarantee that sidecar JuiceFS client exits only after application container termination. This can be rooted back to Kubernetes sidecar's own limitations, however, this changes in [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) as native sidecar is supported. So if you're using newer Kubernetes and wish to use native sidecar, mark your requests at our [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976).
+Starting from v0.27.0, CSI Driver supports Kubernetes [native sidecar containers](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers). So if you are running Kubernetes v1.29 with CSI Driver v0.27.0 or newer versions, no special configurations are needed to ensure optimal exit order (sidecar containers terminate only after the application containers have exited).
 
-Hence, before our users widely adopt Kubernetes v1.28 (which allows us to implement native sidecar mount), we recommend that you use `preStop` to control exit order:
+But if your cluster does not yet meet the above version requirements, we recommend users configure the `preStop` lifecycle hook to control exit order:
 
 ```yaml
 mountPodPatch:
