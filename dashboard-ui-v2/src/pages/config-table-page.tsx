@@ -21,14 +21,19 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Card, Collapse, Popover, Tooltip } from 'antd'
+import { Card, Collapse, Popover } from 'antd'
+import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
-import { Config, pvcSelector, ToConfig, ToOriginConfig } from '@/types/config.ts'
+import {
+  Config,
+  pvcSelector,
+  ToConfig,
+  ToOriginConfig,
+} from '@/types/config.ts'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
-import { FormattedMessage } from 'react-intl'
 
 const ConfigTablePage: React.FC<{
   configData?: string
@@ -89,7 +94,13 @@ const ConfigTablePage: React.FC<{
               const items = [
                 {
                   key: 'Form' + index,
-                  label: pvcPop(index, config?.mountPodPatches ? config?.mountPodPatches[index].pvcSelector: undefined, pvcs),
+                  label: pvcPop(
+                    index,
+                    config?.mountPodPatches
+                      ? config?.mountPodPatches[index].pvcSelector
+                      : undefined,
+                    pvcs,
+                  ),
                   children: <Card bordered={false}>{listDom}</Card>,
                   extra: action,
                 },
@@ -137,13 +148,15 @@ const pvcPop = (index: number, pvcSt?: pvcSelector, pvcs?: PVCWithPod[][]) => {
       title={<FormattedMessage id="pvcMatched" />}
       content={
         <>
-          {pvcSt ?
-            (pvcs && pvcs[index]) ? pvcs[index].map((pvc) => (
-              <p key={pvc.PVC.metadata?.uid}>
-                {pvc.PVC.metadata?.name}
-              </p>
-            )) : null
-            : <FormattedMessage id="allPVC" />}
+          {pvcSt ? (
+            pvcs && pvcs[index] ? (
+              pvcs[index].map((pvc) => (
+                <p key={pvc.PVC.metadata?.uid}>{pvc.PVC.metadata?.name}</p>
+              ))
+            ) : null
+          ) : (
+            <FormattedMessage id="allPVC" />
+          )}
         </>
       }
     >

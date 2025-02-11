@@ -78,7 +78,6 @@ const MountPodPatchForm: React.FC = () => {
         </ProForm.Group>
 
         <ProForm.Group>
-
           <ProFormList
             name={'mountOptions'}
             label={<FormattedMessage id="mountOptions" />}

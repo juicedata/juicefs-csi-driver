@@ -122,42 +122,48 @@ const MountPodPatchDetail: React.FC<{
             {
               title: <FormattedMessage id="resourceRequests" />,
               key: 'resourceRequests',
-              render: () => (
+              render: () =>
                 patch.resources?.requests ? (
                   <div style={{ display: 'flex', gap: '12px' }}>
                     {patch.resources.requests.cpu && (
                       <span>
-                      <FormattedMessage id="cpu" />: {patch.resources?.requests?.cpu}
-                    </span>
+                        <FormattedMessage id="cpu" />:{' '}
+                        {patch.resources?.requests?.cpu}
+                      </span>
                     )}
                     {patch.resources.requests.memory && (
                       <span>
-                      <FormattedMessage id="memory" />: {patch.resources?.requests?.memory || '-'}
-                    </span>
+                        <FormattedMessage id="memory" />:{' '}
+                        {patch.resources?.requests?.memory || '-'}
+                      </span>
                     )}
                   </div>
-                ) : '-'
-              ),
+                ) : (
+                  '-'
+                ),
             },
             {
               title: <FormattedMessage id="resourceLimits" />,
               key: 'resourceLimits',
-              render: () => (
+              render: () =>
                 patch.resources?.limits ? (
                   <div style={{ display: 'flex', gap: '12px' }}>
                     {patch.resources.limits.cpu && (
                       <span>
-                    <FormattedMessage id="cpu" />: {patch.resources?.limits?.cpu || '-'}
-                    </span>
+                        <FormattedMessage id="cpu" />:{' '}
+                        {patch.resources?.limits?.cpu || '-'}
+                      </span>
                     )}
                     {patch.resources.limits.memory && (
                       <span>
-                    <FormattedMessage id="memory" />: {patch.resources?.limits?.memory || '-'}
-                    </span>
+                        <FormattedMessage id="memory" />:{' '}
+                        {patch.resources?.limits?.memory || '-'}
+                      </span>
                     )}
                   </div>
-                ) : '-'
-              ),
+                ) : (
+                  '-'
+                ),
             },
           ]}
         />

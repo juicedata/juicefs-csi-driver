@@ -96,7 +96,8 @@ const PVCWithSelector: React.FC<{
   return (
     <>
       {pvcSelector ? (
-        pvcs && (pvcs.length !== 0) && (
+        pvcs &&
+        pvcs.length !== 0 && (
           <ProCard title={<FormattedMessage id="pvcMatched" />}>
             <ProTable<PVCWithPod>
               name={'PVC'}
