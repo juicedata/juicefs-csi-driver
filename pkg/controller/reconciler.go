@@ -86,6 +86,10 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 	backOff := flowcontrol.NewBackOff(retryPeriod, maxRetryPeriod)
 	lastPodStatus := make(map[string]PodStatus)
 	statusMu := sync.Mutex{}
+	mounter := mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      k8sexec.New(),
+	}
 	for {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
 		g, ctx := errgroup.WithContext(timeoutCtx)
@@ -94,8 +98,12 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		podList, err := kc.GetNodeRunningPods()
 		if err != nil {
 			reconcilerLog.Error(err, "doReconcile GetNodeRunningPods error")
-			goto finish
+			cancel()
+			time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)
+			continue
 		}
+		podDriver := NewPodDriver(ks, mounter, podList)
+		podDriver.SetMountInfo(*mit)
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]
@@ -123,13 +131,6 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 				continue
 			}
 			g.Go(func() error {
-				mounter := mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				}
-				podDriver := NewPodDriver(ks, mounter, podList)
-				podDriver.SetMountInfo(*mit)
-
 				errChan := make(chan error, 1)
 				go func() {
 					defer close(errChan)
@@ -175,7 +176,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		backOff.GC()
 		_ = g.Wait()
 		podList = nil
-	finish:
+
 		cancel()
 		time.Sleep(time.Duration(config.ReconcilerInterval) * time.Second)
 	}
