@@ -21,12 +21,12 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Card, Collapse } from 'antd'
+import { Card, Collapse, Popover, Tooltip } from 'antd'
 import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
-import { Config, ToConfig, ToOriginConfig } from '@/types/config.ts'
+import { Config, pvcSelector, ToConfig, ToOriginConfig } from '@/types/config.ts'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
 import { FormattedMessage } from 'react-intl'
 
@@ -89,7 +89,7 @@ const ConfigTablePage: React.FC<{
               const items = [
                 {
                   key: 'Form' + index,
-                  label: <> {<FormattedMessage id="patch" />} {index + 1} </>,
+                  label: pvcPop(index, config?.mountPodPatches ? config?.mountPodPatches[index].pvcSelector: undefined, pvcs),
                   children: <Card bordered={false}>{listDom}</Card>,
                   extra: action,
                 },
@@ -113,7 +113,7 @@ const ConfigTablePage: React.FC<{
           items={config?.mountPodPatches?.map((value, index) => {
             return {
               key: index,
-              label: <> {<FormattedMessage id="patch" />} {index + 1} </>,
+              label: pvcPop(index, value.pvcSelector, pvcs),
               children: (
                 <MountPodPatchDetail
                   patch={value}
@@ -129,3 +129,25 @@ const ConfigTablePage: React.FC<{
 }
 
 export default ConfigTablePage
+
+const pvcPop = (index: number, pvcSt?: pvcSelector, pvcs?: PVCWithPod[][]) => {
+  return (
+    <Popover
+      placement={'bottomLeft'}
+      title={<FormattedMessage id="pvcMatched" />}
+      content={
+        <>
+          {pvcSt ?
+            (pvcs && pvcs[index]) ? pvcs[index].map((pvc) => (
+              <p key={pvc.PVC.metadata?.uid}>
+                {pvc.PVC.metadata?.name}
+              </p>
+            )) : null
+            : <FormattedMessage id="allPVC" />}
+        </>
+      }
+    >
+      <FormattedMessage id="patch" /> {index + 1}
+    </Popover>
+  )
+}
