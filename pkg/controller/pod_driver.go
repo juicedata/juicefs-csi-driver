@@ -974,7 +974,20 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 
 func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", mountpod.Name)
-	job := builder.NewFuseAbortJob(mountpod, devMinor)
+	mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+	if err != nil {
+		log.Error(err, "get mount point error")
+		return err
+	}
+	err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
+		_, err := os.Stat(mntPath)
+		return err
+	})
+	if err == nil {
+		log.Info("mount point is normal, don't need to abort fuse connection")
+		return nil
+	}
+	job := builder.NewFuseAbortJob(mountpod, devMinor, mntPath)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
 		log.Error(err, "create fuse abort job error")
 		return err

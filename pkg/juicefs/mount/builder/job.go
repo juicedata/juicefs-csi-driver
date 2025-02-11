@@ -172,7 +172,7 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
 
-func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
+func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *batchv1.Job {
 	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
 	ttlSecond := DefaultJobTTLSecond
 	privileged := true
@@ -193,9 +193,23 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 							Command: []string{
 								"sh",
 								"-c",
-								fmt.Sprintf(
-									"if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then echo 1 > /sys/fs/fuse/connections/%d/abort; fi;",
-									devMinor, devMinor),
+								fmt.Sprintf(`
+                                    attempt=1
+									while [ $attempt -le 5 ]; do
+										if timeout 1 stat "%s"; then
+											echo "fuse mount success, exit 0"
+											exit 0
+										fi
+											sleep 1
+											attempt=$((attempt+1))
+									done
+
+									echo "fuse mount failed, aborting..."
+
+									if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then 
+										echo 1 > /sys/fs/fuse/connections/%d/abort 	
+									fi
+                                `, mntPath, devMinor, devMinor),
 							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
@@ -204,6 +218,10 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 								{
 									Name:      "fuse-connections",
 									MountPath: "/sys/fs/fuse/connections",
+								},
+								{
+									Name:      "jfs-dir",
+									MountPath: "/jfs",
 								},
 							},
 						},
@@ -216,6 +234,14 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/sys/fs/fuse/connections",
+								},
+							},
+						},
+						{
+							Name: "jfs-dir",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: config.MountPointPath,
 								},
 							},
 						},
