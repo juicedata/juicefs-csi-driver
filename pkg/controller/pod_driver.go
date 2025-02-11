@@ -986,6 +986,9 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	if err == nil {
 		log.Info("mount point is normal, don't need to abort fuse connection")
 		return nil
+	} else if err.Error() != "function timeout" {
+		log.Error(err, "stat mount point error")
+		return err
 	}
 	job := builder.NewFuseAbortJob(mountpod, devMinor, mntPath)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {

@@ -194,22 +194,21 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 								"sh",
 								"-c",
 								fmt.Sprintf(`
-                                    attempt=1
-									while [ $attempt -le 5 ]; do
-										if timeout 1 stat "%s"; then
-											echo "fuse mount success, exit 0"
-											exit 0
-										fi
-											sleep 1
-											attempt=$((attempt+1))
-									done
+attempt=1
+while [ $attempt -le 5 ]; do
+    if timeout 1 stat "%s"; then
+        echo "fuse mount success, exit 0"
+        exit 0
+    fi
+    sleep 1
+    attempt=$((attempt+1))
+done
 
-									echo "fuse mount failed, aborting..."
+echo "fuse mount failed, aborting..."
 
-									if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then 
-										echo 1 > /sys/fs/fuse/connections/%d/abort 	
-									fi
-                                `, mntPath, devMinor, devMinor),
+if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then
+    echo 1 > /sys/fs/fuse/connections/%d/abort
+fi`, mntPath, devMinor, devMinor),
 							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
