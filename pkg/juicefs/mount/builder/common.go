@@ -165,6 +165,8 @@ func (r *BaseBuilder) genMountCommand() string {
 		if subdir != "" {
 			options = append(options, fmt.Sprintf("subdir=%s", subdir))
 		}
+	} else {
+		options = r.jfsSetting.Options
 	}
 	if r.jfsSetting.IsCe {
 		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
