@@ -107,7 +107,7 @@ func (fs *jfs) GetBasePath() string {
 // CreateVol creates the directory needed
 func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "CreateVol")
-	if !config.StorageClassShareMount {
+	if !config.StorageClassShareMount && !config.ByProcess {
 		return fs.MountPath, nil
 	}
 	volPath := filepath.Join(fs.MountPath, subPath)
