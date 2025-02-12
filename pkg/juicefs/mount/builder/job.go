@@ -172,10 +172,33 @@ func (r *JobBuilder) getDeleteVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
 
-func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
+func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *batchv1.Job {
 	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
 	ttlSecond := DefaultJobTTLSecond
 	privileged := true
+	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	command := fmt.Sprintf(`set -x
+supFusePass=%t
+if [ $supFusePass = true ]; then
+  attempt=1
+  while [ $attempt -le 5 ]; do
+    if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
+      echo "fuse mount point is normal, exit 0"
+      exit 0
+    fi
+    sleep 1
+    attempt=$((attempt+1))
+  done
+fi
+
+if [ $(cat /sys/fs/fuse/connections/%d/waiting) -eq 0 ]; then
+  echo "fuse connections 'waiting' is zero, skip"
+fi
+
+echo "fuse mount point is hung or deadlocked, aborting..."
+echo 1 > /sys/fs/fuse/connections/%d/abort
+`, supFusePass, mntPath, devMinor, devMinor)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -193,9 +216,7 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 							Command: []string{
 								"sh",
 								"-c",
-								fmt.Sprintf(
-									"if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then echo 1 > /sys/fs/fuse/connections/%d/abort; fi;",
-									devMinor, devMinor),
+								command,
 							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
@@ -204,6 +225,10 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 								{
 									Name:      "fuse-connections",
 									MountPath: "/sys/fs/fuse/connections",
+								},
+								{
+									Name:      "jfs-dir",
+									MountPath: "/jfs",
 								},
 							},
 						},
@@ -216,6 +241,14 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32) *batchv1.Job {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/sys/fs/fuse/connections",
+								},
+							},
+						},
+						{
+							Name: "jfs-dir",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: config.MountPointPath,
 								},
 							},
 						},

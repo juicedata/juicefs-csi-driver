@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -979,7 +980,33 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 
 func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", mountpod.Name)
-	job := builder.NewFuseAbortJob(mountpod, devMinor)
+	mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+	if err != nil {
+		log.Error(err, "get mount point error")
+		return err
+	}
+	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	if supFusePass {
+		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
+			finfo, err := os.Stat(mntPath)
+			if err != nil {
+				return err
+			}
+			if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+				if st.Ino == 1 {
+					return nil
+				} else {
+					return fmt.Errorf("mount point is not fuse mount")
+				}
+			}
+			return err
+		})
+		if err == nil {
+			log.Info("mount point is normal, don't need to abort fuse connection")
+			return nil
+		}
+	}
+	job := builder.NewFuseAbortJob(mountpod, devMinor, mntPath)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
 		log.Error(err, "create fuse abort job error")
 		return err
