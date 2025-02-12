@@ -193,18 +193,18 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 							Command: []string{
 								"sh",
 								"-c",
-								fmt.Sprintf(`
+								fmt.Sprintf(`set -x
 attempt=1
 while [ $attempt -le 5 ]; do
-    if timeout 1 stat "%s"; then
-        echo "fuse mount success, exit 0"
+	if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
+        echo "fuse mount point is normal, exit 0"
         exit 0
     fi
     sleep 1
     attempt=$((attempt+1))
 done
 
-echo "fuse mount failed, aborting..."
+echo "fuse mount point has become corrupted, aborting..."
 
 if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then
     echo 1 > /sys/fs/fuse/connections/%d/abort

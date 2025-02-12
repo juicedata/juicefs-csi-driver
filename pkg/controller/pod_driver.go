@@ -23,6 +23,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -980,15 +981,22 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 		return err
 	}
 	err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
-		_, err := os.Stat(mntPath)
+		finfo, err := os.Stat(mntPath)
+		if err != nil {
+			return err
+		}
+		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+			if st.Ino == 1 {
+				return nil
+			} else {
+				return fmt.Errorf("mount point is not fuse mount")
+			}
+		}
 		return err
 	})
 	if err == nil {
 		log.Info("mount point is normal, don't need to abort fuse connection")
 		return nil
-	} else if err.Error() != "function timeout" {
-		log.Error(err, "stat mount point error")
-		return err
 	}
 	job := builder.NewFuseAbortJob(mountpod, devMinor, mntPath)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
