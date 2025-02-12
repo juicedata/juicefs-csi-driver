@@ -176,6 +176,29 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
 	ttlSecond := DefaultJobTTLSecond
 	privileged := true
+	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	command := fmt.Sprintf(`set -x
+supFusePass=%t
+if [ $supFusePass = true ]; then
+  attempt=1
+  while [ $attempt -le 5 ]; do
+    if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
+      echo "fuse mount point is normal, exit 0"
+      exit 0
+    fi
+    sleep 1
+    attempt=$((attempt+1))
+  done
+fi
+
+if [ $(cat /sys/fs/fuse/connections/%d/waiting) -eq 0 ]; then
+  echo "fuse connections 'waiting' is zero, skip"
+fi
+
+echo "fuse mount point is hung or deadlocked, aborting..."
+echo 1 > /sys/fs/fuse/connections/%d/abort
+`, supFusePass, mntPath, devMinor, devMinor)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -193,22 +216,7 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 							Command: []string{
 								"sh",
 								"-c",
-								fmt.Sprintf(`set -x
-attempt=1
-while [ $attempt -le 5 ]; do
-	if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
-        echo "fuse mount point is normal, exit 0"
-        exit 0
-    fi
-    sleep 1
-    attempt=$((attempt+1))
-done
-
-echo "fuse mount point has become corrupted, aborting..."
-
-if [ $(cat /sys/fs/fuse/connections/%d/waiting) -gt 0 ]; then
-    echo 1 > /sys/fs/fuse/connections/%d/abort
-fi`, mntPath, devMinor, devMinor),
+								command,
 							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,

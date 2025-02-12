@@ -980,23 +980,26 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 		log.Error(err, "get mount point error")
 		return err
 	}
-	err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
-		finfo, err := os.Stat(mntPath)
-		if err != nil {
-			return err
-		}
-		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
-			if st.Ino == 1 {
-				return nil
-			} else {
-				return fmt.Errorf("mount point is not fuse mount")
+	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	if supFusePass {
+		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
+			finfo, err := os.Stat(mntPath)
+			if err != nil {
+				return err
 			}
+			if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
+				if st.Ino == 1 {
+					return nil
+				} else {
+					return fmt.Errorf("mount point is not fuse mount")
+				}
+			}
+			return err
+		})
+		if err == nil {
+			log.Info("mount point is normal, don't need to abort fuse connection")
+			return nil
 		}
-		return err
-	})
-	if err == nil {
-		log.Info("mount point is normal, don't need to abort fuse connection")
-		return nil
 	}
 	job := builder.NewFuseAbortJob(mountpod, devMinor, mntPath)
 	if _, err := p.Client.CreateJob(context.Background(), job); err != nil {
