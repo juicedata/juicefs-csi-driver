@@ -23,6 +23,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,6 +54,7 @@ var (
 )
 
 type PodDriver struct {
+	lock          sync.Mutex
 	Client        *k8sclient.K8sClient
 	handlers      map[podStatus]podHandler
 	uniqueIdIndex map[string][]podWithUpgradeUUID
@@ -92,6 +94,7 @@ func NewPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount,
 
 func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount) *PodDriver {
 	driver := &PodDriver{
+		lock:               sync.Mutex{},
 		Client:             client,
 		handlers:           map[podStatus]podHandler{},
 		SafeFormatAndMount: mounter,
@@ -279,7 +282,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 	lock.Lock()
 	defer lock.Unlock()
 
-	hasAvailPod := p.getAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
+	hasAvailPod := p.getAvailableMountPod(pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
 	if !hasAvailPod {
 		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("need to create a new one", "newPodName", newPodName)
@@ -309,6 +312,7 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 			log.Error(err, "Create pod")
 			return Result{}, err
 		}
+		p.recordPod(newPod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(newPod))
 	}
 
 	// delete the old one
@@ -444,7 +448,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		}
 	}
 
-	hasAvailPod := p.getAvailableMountPod(ctx, pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
+	hasAvailPod := p.getAvailableMountPod(pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
 
 	// if no reference, clean up
 	if len(existTargets) == 0 && !hasAvailPod {
@@ -470,6 +474,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 				log.Error(err, "Create pod")
 				return Result{}, err
 			}
+			p.recordPod(newPod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(newPod))
 		}
 		// remove finalizer of pod
 		if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
@@ -1031,8 +1036,10 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 	return nil
 }
 
-func (p *PodDriver) getAvailableMountPod(ctx context.Context, uniqueId, upgradeUUID string) bool {
+func (p *PodDriver) getAvailableMountPod(uniqueId, upgradeUUID string) bool {
 	// check pods in which get from kubelet
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	for _, u := range p.uniqueIdIndex[uniqueId] {
 		if u.upgradeUUID == upgradeUUID {
 			if u.status != podDeleted && u.status != podComplete {
@@ -1041,6 +1048,19 @@ func (p *PodDriver) getAvailableMountPod(ctx context.Context, uniqueId, upgradeU
 		}
 	}
 	return false
+}
+
+func (p *PodDriver) recordPod(uniqueId, upgradeUUID string) {
+	// record pod in pool which get from kubelet
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.uniqueIdIndex[uniqueId] == nil {
+		p.uniqueIdIndex[uniqueId] = make([]podWithUpgradeUUID, 0)
+	}
+	p.uniqueIdIndex[uniqueId] = append(p.uniqueIdIndex[uniqueId], podWithUpgradeUUID{
+		upgradeUUID: upgradeUUID,
+		status:      podPending,
+	})
 }
 
 func (p *PodDriver) getUniqueMountPod(ctx context.Context, uniqueId string) bool {
