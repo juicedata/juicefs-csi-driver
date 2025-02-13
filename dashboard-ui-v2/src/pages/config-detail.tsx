@@ -15,30 +15,40 @@
  */
 
 import { useEffect, useState } from 'react'
-import { PageContainer, ProCard } from '@ant-design/pro-components'
-import Editor from '@monaco-editor/react'
-import { Alert, Button, Popover } from 'antd'
+import { PageContainer } from '@ant-design/pro-components'
+import { Button, Popover, Tabs, TabsProps } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
 
-import { useConfig, useConfigDiff, useUpdateConfig } from '@/hooks/cm-api'
+import {
+  useConfig,
+  useConfigDiff,
+  useConfigPVC,
+  useUpdateConfig,
+} from '@/hooks/cm-api'
+import ConfigTablePage from '@/pages/config-table-page.tsx'
+import ConfigYamlPage from '@/pages/config-yaml-page.tsx'
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)
 
   const { data, isLoading, mutate } = useConfig()
+  const { data: pvcs } = useConfigPVC()
   const [state, actions] = useUpdateConfig()
-  const [config, setConfig] = useState('')
+  const [configData, setConfigData] = useState('')
   const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const [edit, setEdit] = useState(false)
 
   useEffect(() => {
-    if (diffPods && diffPods.pods.length > 0) {
-      setDiff(true)
-    }
+    setConfigData(data?.data?.['config.yaml'] || '')
+  }, [data])
+
+  useEffect(() => {
+    setDiff((diffPods?.pods?.length || 0) > 0)
   }, [diffPods])
 
   useEffect(() => {
@@ -48,19 +58,40 @@ const ConfigDetail = () => {
     }
   }, [diffMutate, mutate, updated])
 
-  useEffect(() => {
-    if (data?.data) {
-      try {
-        setConfig(YAML.stringify(YAML.parse(data?.data?.['config.yaml'])))
-      } catch (e) {
-        setConfig((e as YAMLParseError).message)
-      }
-    }
-  }, [data])
+  const items: TabsProps['items'] = [
+    {
+      key: '1',
+      label: 'Detail',
+      children: (
+        <ConfigTablePage
+          configData={configData}
+          setConfigData={setConfigData}
+          setUpdate={setUpdated}
+          pvcs={pvcs}
+          edit={edit}
+        />
+      ),
+    },
+    {
+      key: '2',
+      label: 'Yaml',
+      children: (
+        <ConfigYamlPage
+          error={error}
+          setError={setError}
+          setUpdated={setUpdated}
+          setConfigData={setConfigData}
+          configData={configData}
+          edit={edit}
+        />
+      ),
+    },
+  ]
 
   return (
     <PageContainer
       fixedHeader
+      className="config-page-header"
       header={{
         title: <FormattedMessage id="config" />,
         ghost: true,
@@ -77,49 +108,62 @@ const ConfigDetail = () => {
         >
           <FormattedMessage id="docs" />
         </Button>,
-        <Button
-          key="reset docs"
-          loading={isLoading}
-          disabled={!updated}
-          onClick={() => {
-            mutate()
-            if (data?.data) {
-              try {
-                setConfig(
-                  YAML.stringify(YAML.parse(data?.data?.['config.yaml'])),
-                )
-              } catch (e) {
-                setConfig((e as YAMLParseError).message)
+        !edit && (
+          <Button
+            key="edit docs"
+            loading={isLoading}
+            onClick={() => {
+              setEdit(true)
+            }}
+          >
+            <FormattedMessage id="edit" />
+          </Button>
+        ),
+        edit && (
+          <Button
+            key="reset docs"
+            loading={isLoading}
+            onClick={() => {
+              mutate()
+              if (data) {
+                setConfigData(data.data?.['config.yaml'] || '')
+                setEdit(false)
               }
-              setUpdated(false)
-            }
-          }}
-        >
-          <FormattedMessage id="reset" />
-        </Button>,
-        <Button
-          key="update docs"
-          type="primary"
-          disabled={!updated}
-          loading={state.status === 'loading'}
-          onClick={() => {
-            actions
-              .execute({
-                ...data,
-                data: {
-                  'config.yaml': config,
-                },
-              })
-              .catch((error) => {
-                setError(error.toString())
-              })
-              .then(() => {
-                setUpdated(false)
-              })
-          }}
-        >
-          <FormattedMessage id="save" />
-        </Button>,
+            }}
+          >
+            <FormattedMessage id="reset" />
+          </Button>
+        ),
+        edit && (
+          <Button
+            key="update docs"
+            type="primary"
+            loading={state.status === 'loading'}
+            onClick={() => {
+              try {
+                YAML.stringify(YAML.parse(configData))
+                actions
+                  .execute({
+                    ...data,
+                    data: {
+                      'config.yaml': configData || '',
+                    },
+                  })
+                  .catch((error) => {
+                    setError(error.toString())
+                  })
+                  .then(() => {
+                    setEdit(false)
+                    setUpdated(false)
+                  })
+              } catch (e) {
+                setError((e as YAMLParseError).message)
+              }
+            }}
+          >
+            <FormattedMessage id="save" />
+          </Button>
+        ),
 
         diff ? (
           <Popover
@@ -155,36 +199,7 @@ const ConfigDetail = () => {
         ),
       ]}
     >
-      <ProCard>
-        {error && (
-          <Alert
-            message={<FormattedMessage id="updateConfigError" />}
-            description={error}
-            type="error"
-            showIcon
-            style={{ marginTop: '10px' }}
-            onClick={() => setError('')}
-          />
-        )}
-
-        <Editor
-          defaultLanguage="yaml"
-          height="calc(100vh - 200px)"
-          options={{
-            wordWrap: 'on',
-            theme: 'vs-light', // TODO dark mode
-            scrollBeyondLastLine: false,
-          }}
-          value={config}
-          onChange={(v) => {
-            if (v) {
-              setConfig(v)
-              setUpdated(true)
-              setError('')
-            }
-          }}
-        />
-      </ProCard>
+      <Tabs items={items} />
     </PageContainer>
   )
 }

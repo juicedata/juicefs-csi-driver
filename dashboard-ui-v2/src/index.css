@@ -41,6 +41,14 @@ body {
   height: 64px;
 }
 
+.config-page-header .ant-page-header {
+  height: unset !important;
+}
+.config-form .ant-space-item .ant-space {
+  /*width: 600px !important;*/
+  /*max-width: unset !important;*/
+}
+
 .ant-modal,
 .ant-modal-content {
   height: 100vh;
@@ -85,6 +93,15 @@ body {
   /*width: fit-content;*/
   /*justify-content: center;*/
   margin-top: 20px;
+}
+
+.inlinecode {
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  margin-bottom: 4px;
 }
 
 .xterm-screen {
