@@ -102,7 +102,9 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	}
 	podMaps := make(map[string]*corev1.Pod)
 	for _, pod := range pods {
-		podMaps[resource.GetUpgradeUUID(&pod)] = &pod
+		if util.SupportFusePass(pod.Spec.Containers[0].Image) {
+			podMaps[resource.GetUpgradeUUID(&pod)] = &pod
+		}
 	}
 
 	wg := sync.WaitGroup{}
