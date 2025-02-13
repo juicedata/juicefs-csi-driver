@@ -426,6 +426,7 @@ func TestNewMountPod(t *testing.T) {
 func TestPodMount_getCommand(t *testing.T) {
 	type args struct {
 		mountPath string
+		subPath   string
 		options   []string
 	}
 	tests := []struct {
@@ -455,6 +456,17 @@ func TestPodMount_getCommand(t *testing.T) {
 			},
 			want: "exec /sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,debug",
 		},
+		{
+			name:   "test-subpath",
+			isCe:   false,
+			source: "test",
+			args: args{
+				mountPath: "/jfs/test-volume",
+				options:   []string{"subdir=test"},
+				subPath:   "/jfs/test-volume/subpath",
+			},
+			want: "exec /sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,subdir=test/jfs/test-volume/subpath",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -464,6 +476,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				Source:    tt.source,
 				IsCe:      tt.isCe,
 				MountPath: tt.args.mountPath,
+				SubPath:   tt.args.subPath,
 				Options:   tt.args.options,
 				Attr:      &config.PodAttr{},
 			}

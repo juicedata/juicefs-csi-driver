@@ -96,9 +96,6 @@ func (r *ContainerBuilder) NewMountSidecar() *corev1.Pod {
 			)}},
 	}
 
-	// overwrite subdir
-	r.overwriteSubdirWithSubPath()
-
 	mountCmd := r.genMountCommand()
 	cmd := mountCmd
 	initCmd := r.genInitCommand()

@@ -1073,7 +1073,6 @@ def test_deployment_dynamic_patch_pv():
     pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
-    pv.spec.mount_options.append("subdir={}".format(subdir))
     LOG.info(f"Patch PV {pv_name}: add subdir={subdir} and verbose in mountOptions")
     client.CoreV1Api().patch_persistent_volume(pv_name, pv)
 
@@ -1143,7 +1142,7 @@ def test_deployment_dynamic_patch_pv():
     LOG.info("Check subdir {}".format(subdir))
     result = check_mount_point(subdir + "/{}/out.txt".format(volume_id))
     if not result:
-        raise Exception("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
+        raise Exception("mount Point of {}/{}/out.txt are not ready within 5 min.".format(subdir,volume_id))
 
     # check target
     LOG.info("Check target path is ok..")
@@ -1749,7 +1748,6 @@ def test_deployment_dynamic_patch_pv_with_webhook():
     pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
-    pv.spec.mount_options.append("subdir={}".format(subdir))
     LOG.info(f"Patch PV {pv_name}: add subdir={subdir} and verbose in mountOptions")
     client.CoreV1Api().patch_persistent_volume(pv_name, pv)
 

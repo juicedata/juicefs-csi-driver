@@ -63,13 +63,15 @@ func Test_jfs_CreateVol(t *testing.T) {
 			}
 			got, err := j.CreateVol(context.TODO(), "", "subPath")
 			So(err, ShouldBeNil)
-			So(got, ShouldEqual, "/mountPath/subPath")
+			So(got, ShouldEqual, "/mountPath")
 		})
 		Convey("test exist err", func() {
 			patch1 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
 				return false, errors.New("test")
 			})
 			defer patch1.Reset()
+			patch2 := ApplyGlobalVar(&config.StorageClassShareMount, true)
+			defer patch2.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -87,6 +89,8 @@ func Test_jfs_CreateVol(t *testing.T) {
 				return errors.New("test")
 			})
 			defer patch2.Reset()
+			patch3 := ApplyGlobalVar(&config.StorageClassShareMount, true)
+			defer patch3.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
@@ -108,6 +112,8 @@ func Test_jfs_CreateVol(t *testing.T) {
 				return mocks.FakeFileInfoIno1{}, errors.New("test")
 			})
 			defer patch3.Reset()
+			patch4 := ApplyGlobalVar(&config.StorageClassShareMount, true)
+			defer patch4.Reset()
 
 			j := jfs{
 				MountPath: "/mountPath",
