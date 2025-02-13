@@ -87,9 +87,6 @@ const ConfigTablePage: React.FC<{
               position: 'bottom',
               creatorButtonText: 'New',
             }}
-            creatorRecord={{
-              useMode: 'none',
-            }}
             itemRender={({ listDom, action }, { index }) => {
               const items = [
                 {

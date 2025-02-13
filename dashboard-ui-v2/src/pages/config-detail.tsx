@@ -48,9 +48,7 @@ const ConfigDetail = () => {
   }, [data])
 
   useEffect(() => {
-    if (diffPods && diffPods.pods.length > 0) {
-      setDiff(true)
-    }
+    setDiff((diffPods?.pods?.length || 0) > 0)
   }, [diffPods])
 
   useEffect(() => {
@@ -110,22 +108,10 @@ const ConfigDetail = () => {
         >
           <FormattedMessage id="docs" />
         </Button>,
-        edit ? (
-          <Button
-            key="finish docs"
-            loading={isLoading}
-            disabled={!edit}
-            onClick={() => {
-              setEdit(false)
-            }}
-          >
-            <FormattedMessage id="finish" />
-          </Button>
-        ) : (
+        !edit && (
           <Button
             key="edit docs"
             loading={isLoading}
-            disabled={edit}
             onClick={() => {
               setEdit(true)
             }}
@@ -133,55 +119,51 @@ const ConfigDetail = () => {
             <FormattedMessage id="edit" />
           </Button>
         ),
-        updated ? (
+        edit && (
           <Button
             key="reset docs"
             loading={isLoading}
-            disabled={!updated}
             onClick={() => {
               mutate()
-              if (configData) {
-                try {
-                  setConfigData(data?.data?.['config.yaml'] || '')
-                } catch (e) {
-                  setConfigData((e as YAMLParseError).message)
-                }
-                setUpdated(false)
+              if (data) {
+                setConfigData(data.data?.['config.yaml'] || '')
+                setEdit(false)
               }
             }}
           >
             <FormattedMessage id="reset" />
           </Button>
-        ) : null,
-        <Button
-          key="update docs"
-          type="primary"
-          disabled={!updated}
-          loading={state.status === 'loading'}
-          onClick={() => {
-            try {
-              YAML.stringify(YAML.parse(configData))
-              actions
-                .execute({
-                  ...data,
-                  data: {
-                    'config.yaml': configData || '',
-                  },
-                })
-                .catch((error) => {
-                  setError(error.toString())
-                })
-                .then(() => {
-                  setUpdated(false)
-                  setEdit(false)
-                })
-            } catch (e) {
-              setConfigData((e as YAMLParseError).message)
-            }
-          }}
-        >
-          <FormattedMessage id="save" />
-        </Button>,
+        ),
+        edit && (
+          <Button
+            key="update docs"
+            type="primary"
+            loading={state.status === 'loading'}
+            onClick={() => {
+              try {
+                YAML.stringify(YAML.parse(configData))
+                actions
+                  .execute({
+                    ...data,
+                    data: {
+                      'config.yaml': configData || '',
+                    },
+                  })
+                  .catch((error) => {
+                    setError(error.toString())
+                  })
+                  .then(() => {
+                    setEdit(false)
+                    setUpdated(false)
+                  })
+              } catch (e) {
+                setError((e as YAMLParseError).message)
+              }
+            }}
+          >
+            <FormattedMessage id="save" />
+          </Button>
+        ),
 
         diff ? (
           <Popover
