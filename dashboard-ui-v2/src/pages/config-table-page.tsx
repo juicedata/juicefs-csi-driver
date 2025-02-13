@@ -21,12 +21,13 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Card, Collapse, Popover } from 'antd'
+import { Button, Card, Collapse, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
+import { DeleteIcon } from '@/icons'
 import {
   Config,
   pvcSelector,
@@ -88,13 +89,14 @@ const ConfigTablePage: React.FC<{
               creatorButtonText: 'New',
             }}
             itemRender={({ listDom, action }, { index }) => {
+              const key = 'Form' + index
               const items = [
                 {
-                  key: 'Form' + index,
+                  key: key,
                   label: pvcPop(
                     index,
                     config?.mountPodPatches
-                      ? config?.mountPodPatches[index].pvcSelector
+                      ? config?.mountPodPatches[index]?.pvcSelector
                       : undefined,
                     pvcs,
                   ),
@@ -104,7 +106,7 @@ const ConfigTablePage: React.FC<{
               ]
               return (
                 <Collapse
-                  defaultActiveKey={['0']}
+                  defaultActiveKey={key}
                   style={{ marginBottom: 16 }}
                   items={items}
                 />
@@ -115,22 +117,27 @@ const ConfigTablePage: React.FC<{
           </ProFormList>
         </ProForm>
       ) : (
-        <Collapse
-          defaultActiveKey={['0']}
-          style={{ marginBottom: 16 }}
-          items={config?.mountPodPatches?.map((value, index) => {
-            return {
-              key: index,
-              label: pvcPop(index, value.pvcSelector, pvcs),
-              children: (
-                <MountPodPatchDetail
-                  patch={value}
-                  pvcs={pvcs ? pvcs[index] : []}
-                />
-              ),
-            }
-          })}
-        />
+        <>
+          {config?.mountPodPatches?.map((value, index) => (
+            <Collapse
+              key={index}
+              defaultActiveKey={[index]}
+              style={{ marginBottom: 16 }}
+              items={[
+                {
+                  key: index,
+                  label: pvcPop(index, value.pvcSelector, pvcs),
+                  children: (
+                    <MountPodPatchDetail
+                      patch={value}
+                      pvcs={pvcs ? pvcs[index] : []}
+                    />
+                  ),
+                },
+              ]}
+            />
+          ))}
+        </>
       )}
     </ProCard>
   )
