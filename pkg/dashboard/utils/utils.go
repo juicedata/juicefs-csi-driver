@@ -27,9 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func IsAppPod(pod *corev1.Pod) bool {
@@ -100,6 +101,11 @@ func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
 	}
 	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
 	return labelMap
+}
+
+func GetUniqueOfPVC(pvc corev1.PersistentVolumeClaim) string {
+	// todo use pvc unique id
+	return pvc.Spec.VolumeName
 }
 
 func GetTargetUID(target string) string {

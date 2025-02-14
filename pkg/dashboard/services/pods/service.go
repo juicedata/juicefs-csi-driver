@@ -62,6 +62,7 @@ type PodDiff struct {
 type PodService interface {
 	ListAppPods(ctx *gin.Context) (*ListAppPodResult, error)
 	ListSysPods(ctx *gin.Context) (*ListSysPodResult, error)
+	ListMountPods(ctx context.Context) ([]corev1.Pod, error)
 	ListCSINodePod(ctx context.Context, nodeName string) ([]corev1.Pod, error)
 	ListPodPVs(ctx context.Context, pod *corev1.Pod) ([]corev1.PersistentVolume, error)
 	ListPodPVCs(ctx context.Context, pod *corev1.Pod) ([]corev1.PersistentVolumeClaim, error)
