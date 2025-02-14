@@ -148,7 +148,26 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 // genMountCommand generates mount command
 func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
-	options := r.jfsSetting.Options
+	options := []string{}
+	subdir := r.jfsSetting.SubPath
+	if !config.StorageClassShareMount {
+		for _, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				continue
+			}
+			options = append(options, option)
+		}
+		if subdir != "" {
+			options = append(options, fmt.Sprintf("subdir=%s", subdir))
+		}
+	} else {
+		options = r.jfsSetting.Options
+	}
 	if r.jfsSetting.IsCe {
 		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
@@ -204,27 +223,6 @@ func (r *BaseBuilder) getQuotaPath() string {
 	}
 	targetPath := path.Join(subdir, quotaPath)
 	return targetPath
-}
-
-func (r *BaseBuilder) overwriteSubdirWithSubPath() {
-	if r.jfsSetting.SubPath != "" {
-		options := make([]string, 0)
-		subdir := r.jfsSetting.SubPath
-		for _, option := range r.jfsSetting.Options {
-			if strings.HasPrefix(option, "subdir=") {
-				s := strings.Split(option, "=")
-				if len(s) != 2 {
-					continue
-				}
-				if s[0] == "subdir" {
-					subdir = path.Join(s[1], r.jfsSetting.SubPath)
-				}
-				continue
-			}
-			options = append(options, option)
-		}
-		r.jfsSetting.Options = append(options, fmt.Sprintf("subdir=%s", subdir))
-	}
 }
 
 // genJobCommand generates job command

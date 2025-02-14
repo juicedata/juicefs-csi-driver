@@ -22,7 +22,6 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -30,7 +29,6 @@ import (
 	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 )
 
@@ -162,16 +160,6 @@ func (s *podService) WarmupPod(c *gin.Context, namespace, name, container string
 			klog.Error("Failed to get mount pod: ", err)
 			return
 		}
-		rootPath := ""
-		volumeId := mountpod.Labels[common.PodUniqueIdLabelKey]
-		var pv corev1.PersistentVolume
-		if err := s.client.Get(ctx, types.NamespacedName{Name: volumeId}, &pv); err == nil {
-			if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeAttributes != nil {
-				if subPath, ok := pv.Spec.CSI.VolumeAttributes["subPath"]; ok {
-					rootPath = subPath
-				}
-			}
-		}
 
 		mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 		if err != nil || mntPath == "" {
@@ -189,7 +177,7 @@ func (s *podService) WarmupPod(c *gin.Context, namespace, name, container string
 			cmds = append(cmds, "--io-retries="+ioRetries)
 			cmds = append(cmds, "--max-failure="+maxFailure)
 		}
-		cmds = append(cmds, path.Join(mntPath, rootPath, customSubPath))
+		cmds = append(cmds, path.Join(mntPath, customSubPath))
 		if err := resource.ExecInPod(
 			ctx,
 			s.k8sClient, s.kubeconfig, terminal, namespace, name, container,
