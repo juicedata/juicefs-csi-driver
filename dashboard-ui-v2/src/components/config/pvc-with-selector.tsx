@@ -28,6 +28,7 @@ const columns: ProColumns<PVCWithPod>[] = [
     title: <FormattedMessage id="name" />,
     dataIndex: ['PVC', 'metadata', 'name'],
     render: (_, pvc) => {
+      console.log('pvc', pvc)
       return (
         <Link
           to={`/pvcs/${pvc.PVC.metadata?.namespace}/${pvc.PVC.metadata?.name}`}
@@ -107,7 +108,7 @@ const PVCWithSelector: React.FC<{
               options={false}
               onChange={handleTableChange}
               pagination={pagination}
-              rowKey={(row) => row.PVC.metadata!.uid!}
+              rowKey={(row) => row?.PVC?.metadata?.uid || ''}
             />
           </ProCard>
         )

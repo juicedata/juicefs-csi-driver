@@ -21,13 +21,11 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Button, Card, Collapse, Popover } from 'antd'
+import { Card, Collapse, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
-import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
-import { DeleteIcon } from '@/icons'
 import {
   Config,
   pvcSelector,
@@ -41,9 +39,8 @@ const ConfigTablePage: React.FC<{
   setConfigData: (configData: string) => void
   setUpdate: (updated: boolean) => void
   pvcs?: PVCWithPod[][]
-  edit: boolean
 }> = (props) => {
-  const { configData, setConfigData, setUpdate, pvcs, edit } = props
+  const { configData, setConfigData, setUpdate, pvcs } = props
   const [config, setConfig] = useState<Config>()
   const formRef = useRef<ProFormInstance>()
 
@@ -58,87 +55,75 @@ const ConfigTablePage: React.FC<{
         console.log(e)
       }
     }
-  }, [configData, edit])
+  }, [configData])
 
   return (
     <ProCard>
-      {edit ? (
-        <ProForm
-          submitter={false}
-          onValuesChange={(_, allValues) => {
-            const oc = ToOriginConfig(allValues)
-            try {
-              const ocs = YAML.stringify(oc)
-              setConfigData(ocs)
-              setUpdate(true)
-            } catch (e) {
-              console.log(e)
-            }
+      <ProForm
+        submitter={false}
+        onValuesChange={(_, allValues) => {
+          const oc = ToOriginConfig(allValues)
+          try {
+            const ocs = YAML.stringify(oc)
+            setConfigData(ocs)
+            setUpdate(true)
+          } catch (e) {
+            console.log(e)
+          }
+        }}
+        formRef={formRef}
+        layout={'horizontal'}
+        grid={false}
+        rowProps={{
+          gutter: [16, 0],
+        }}
+      >
+        <ProFormList
+          name="mountPodPatches"
+          creatorButtonProps={{
+            position: 'bottom',
+            creatorButtonText: 'New',
           }}
-          formRef={formRef}
-          layout={'horizontal'}
-          grid={false}
-          rowProps={{
-            gutter: [16, 0],
+          itemRender={({ listDom, action }, { index }) => {
+            const key = 'Form' + index
+            const items = [
+              {
+                key: key,
+                label: pvcPop(
+                  index,
+                  config?.mountPodPatches
+                    ? config?.mountPodPatches[index]?.pvcSelector
+                    : undefined,
+                  pvcs,
+                ),
+                children: (
+                  <>
+                    {listDom}
+                    <Card bordered={false}>
+                      <MountPodPatchForm
+                        patch={
+                          config?.mountPodPatches
+                            ? config?.mountPodPatches[index]
+                            : undefined
+                        }
+                        pvcs={pvcs ? pvcs[index] : undefined}
+                      />
+                    </Card>
+                  </>
+                ),
+                extra: action,
+              },
+            ]
+            return (
+              <Collapse
+                defaultActiveKey={index === 0 ? [key] : []}
+                style={{ marginBottom: 16 }}
+                items={items}
+              />
+            )
           }}
-        >
-          <ProFormList
-            name="mountPodPatches"
-            creatorButtonProps={{
-              position: 'bottom',
-              creatorButtonText: 'New',
-            }}
-            itemRender={({ listDom, action }, { index }) => {
-              const key = 'Form' + index
-              const items = [
-                {
-                  key: key,
-                  label: pvcPop(
-                    index,
-                    config?.mountPodPatches
-                      ? config?.mountPodPatches[index]?.pvcSelector
-                      : undefined,
-                    pvcs,
-                  ),
-                  children: <Card bordered={false}>{listDom}</Card>,
-                  extra: action,
-                },
-              ]
-              return (
-                <Collapse
-                  defaultActiveKey={key}
-                  style={{ marginBottom: 16 }}
-                  items={items}
-                />
-              )
-            }}
-          >
-            <MountPodPatchForm />
-          </ProFormList>
-        </ProForm>
-      ) : (
-        <>
-          {config?.mountPodPatches?.map((value, index) => (
-            <Collapse
-              key={index}
-              defaultActiveKey={[index]}
-              style={{ marginBottom: 16 }}
-              items={[
-                {
-                  key: index,
-                  label: pvcPop(index, value.pvcSelector, pvcs),
-                  children: (
-                    <MountPodPatchDetail
-                      patch={value}
-                      pvcs={pvcs ? pvcs[index] : []}
-                    />
-                  ),
-                },
-              ]}
-            />
-          ))}
-        </>
-      )}
+        ></ProFormList>
+      </ProForm>
     </ProCard>
   )
 }
