@@ -21,19 +21,13 @@ import {
   ProFormInstance,
   ProFormList,
 } from '@ant-design/pro-components'
-import { Button, Card, Collapse, Popover } from 'antd'
+import { Collapse, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
-import { DeleteIcon } from '@/icons'
-import {
-  Config,
-  pvcSelector,
-  ToConfig,
-  ToOriginConfig,
-} from '@/types/config.ts'
+import { Config, ToConfig, ToOriginConfig } from '@/types/config.ts'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
 
 const ConfigTablePage: React.FC<{
@@ -88,33 +82,26 @@ const ConfigTablePage: React.FC<{
               position: 'bottom',
               creatorButtonText: 'New',
             }}
-            itemRender={({ listDom, action }, { index }) => {
+            itemRender={({ action }, { index, record }) => {
               const key = 'Form' + index
               const items = [
                 {
                   key: key,
-                  label: pvcPop(
-                    index,
-                    config?.mountPodPatches
-                      ? config?.mountPodPatches[index]?.pvcSelector
-                      : undefined,
-                    pvcs,
-                  ),
-                  children: <Card bordered={false}>{listDom}</Card>,
+                  label: pvcPop(index, pvcs),
+                  children: <MountPodPatchForm patch={record} />,
                   extra: action,
+                  headerClass: 'patch-extra',
                 },
               ]
               return (
                 <Collapse
-                  defaultActiveKey={key}
+                  defaultActiveKey={index === 0 ? [key] : []}
                   style={{ marginBottom: 16 }}
                   items={items}
                 />
               )
             }}
-          >
-            <MountPodPatchForm />
-          </ProFormList>
+          ></ProFormList>
         </ProForm>
       ) : (
         <>
@@ -126,7 +113,7 @@ const ConfigTablePage: React.FC<{
               items={[
                 {
                   key: index,
-                  label: pvcPop(index, value.pvcSelector, pvcs),
+                  label: pvcPop(index, pvcs),
                   children: (
                     <MountPodPatchDetail
                       patch={value}
@@ -145,19 +132,17 @@ const ConfigTablePage: React.FC<{
 
 export default ConfigTablePage
 
-const pvcPop = (index: number, pvcSt?: pvcSelector, pvcs?: PVCWithPod[][]) => {
+const pvcPop = (index: number, pvcs?: PVCWithPod[][]) => {
   return (
     <Popover
       placement={'bottomLeft'}
       title={<FormattedMessage id="pvcMatched" />}
       content={
         <>
-          {pvcSt ? (
-            pvcs && pvcs[index] ? (
-              pvcs[index].map((pvc) => (
-                <p key={pvc.PVC.metadata?.uid}>{pvc.PVC.metadata?.name}</p>
-              ))
-            ) : null
+          {pvcs && pvcs[index] ? (
+            pvcs[index].map((pvc) => (
+              <p key={pvc.PVC.metadata?.uid}>{pvc.PVC.metadata?.name}</p>
+            ))
           ) : (
             <FormattedMessage id="allPVC" />
           )}

@@ -248,10 +248,11 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 
 		results := make([][]PVCWithMountPod, len(config.GlobalConfig.MountPodPatch))
 		for i, patch := range config.GlobalConfig.MountPodPatch {
-			if patch.PVCSelector == nil {
+			if IsPVCSelectorEmpty(patch.PVCSelector) {
 				continue
 			}
 			if patch.PVCSelector.MatchName != "" {
+				results[i] = []PVCWithMountPod{}
 				pvc, err := api.client.CoreV1().PersistentVolumeClaims("").Get(c, patch.PVCSelector.MatchName, metav1.GetOptions{})
 				if err != nil {
 					pvLog.Error(err, "get pvc error", "name", patch.PVCSelector.MatchName)
@@ -260,8 +261,11 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 				if pvc != nil {
 					results[i] = []PVCWithMountPod{{
 						PVC:       *pvc,
-						MountPods: mountPodMaps[utils.GetUniqueOfPVC(*pvc)],
+						MountPods: []corev1.Pod{},
 					}}
+					if m, ok := mountPodMaps[utils.GetUniqueOfPVC(*pvc)]; ok {
+						results[i][0].MountPods = m
+					}
 				}
 				continue
 			}
@@ -271,11 +275,15 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 					c.JSON(500, gin.H{"error": err.Error()})
 					return
 				}
-				pmp := make([]PVCWithMountPod, 0, len(pvcs))
+				pmp := []PVCWithMountPod{}
 				for _, pvc := range pvcs {
+					mps := []corev1.Pod{}
+					if m, ok := mountPodMaps[utils.GetUniqueOfPVC(pvc)]; ok {
+						mps = m
+					}
 					pmp = append(pmp, PVCWithMountPod{
 						PVC:       pvc,
-						MountPods: mountPodMaps[utils.GetUniqueOfPVC(pvc)],
+						MountPods: mps,
 					})
 				}
 				results[i] = pmp
@@ -297,11 +305,15 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
-			pmp := make([]PVCWithMountPod, 0, len(pvcs.Items))
+			pmp := []PVCWithMountPod{}
 			for _, pvc := range pvcs.Items {
+				mps := []corev1.Pod{}
+				if m, ok := mountPodMaps[utils.GetUniqueOfPVC(pvc)]; ok {
+					mps = m
+				}
 				pmp = append(pmp, PVCWithMountPod{
 					PVC:       pvc,
-					MountPods: mountPodMaps[utils.GetUniqueOfPVC(pvc)],
+					MountPods: mps,
 				})
 			}
 			results[i] = pmp

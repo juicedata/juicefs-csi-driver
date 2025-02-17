@@ -17,6 +17,7 @@
 package dashboard
 
 import (
+	"reflect"
 	"regexp"
 	"sort"
 
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type ReverseSort struct {
@@ -87,4 +89,12 @@ func getUniqueIdFromSecretName(secretName string) string {
 		return match[1]
 	}
 	return ""
+}
+
+func IsPVCSelectorEmpty(selector *config.PVCSelector) bool {
+	if selector == nil {
+		return true
+	}
+
+	return reflect.DeepEqual(selector.LabelSelector, metav1.LabelSelector{}) && selector.MatchName == "" && selector.MatchStorageClassName == ""
 }

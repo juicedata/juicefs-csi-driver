@@ -14,43 +14,79 @@
  * limitations under the License.
  */
 
-import { ProForm, ProFormList, ProFormText } from '@ant-design/pro-components'
+import React from 'react'
+import {
+  ProCard,
+  ProDescriptions,
+  ProForm,
+  ProFormList,
+  ProFormText,
+} from '@ant-design/pro-components'
 import { Input } from 'antd'
+import { FormattedMessage } from 'react-intl'
 
-const PVCSelectorForm = () => {
+import { mountPodPatch } from '@/types/config.ts'
+
+const PVCSelectorForm: React.FC<{
+  patch?: mountPodPatch
+}> = (props) => {
+  const { patch } = props
+
   return (
-    <ProForm.Item name={'pvcSelector'} label="PVCSelector">
-      <ProForm.Group>
-        <ProFormList
-          name={['pvcSelector', 'matchLabels']}
-          label="Match Labels"
-          creatorButtonProps={{
-            position: 'bottom',
-            creatorButtonText: 'New',
-          }}
-        >
-          <ProForm.Group>
-            <ProFormText name={['key']}>
-              <Input placeholder="Key" />
-            </ProFormText>
-            <ProFormText name={['value']}>
-              <Input placeholder="Value" />
-            </ProFormText>
-          </ProForm.Group>
-        </ProFormList>
-
-        <ProForm.Item name={['pvcSelector', 'matchName']} label="Match Name">
-          <Input />
-        </ProForm.Item>
-
-        <ProForm.Item
-          name={['pvcSelector', 'matchStorageClassName']}
-          label="Match StorageClass Name"
-        >
-          <Input />
-        </ProForm.Item>
-      </ProForm.Group>
-    </ProForm.Item>
+    <ProCard title={<FormattedMessage id="selector" />}>
+      <ProDescriptions
+        column={2}
+        dataSource={patch?.pvcSelector}
+        columns={[
+          {
+            title: <FormattedMessage id="pvcName" />,
+            key: 'pvcName',
+            render: () => {
+              return (
+                <ProForm.Item name={['pvcSelector', 'matchName']}>
+                  <Input />
+                </ProForm.Item>
+              )
+            },
+          },
+          {
+            title: <FormattedMessage id="scName" />,
+            key: 'scName',
+            render: () => {
+              return (
+                <ProForm.Item name={['pvcSelector', 'matchStorageClassName']}>
+                  <Input />
+                </ProForm.Item>
+              )
+            },
+          },
+          {
+            title: <FormattedMessage id="pvcLabelMatch" />,
+            key: 'pvcLabelMatch',
+            render: () => {
+              return (
+                <ProFormList
+                  name={['pvcSelector', 'matchLabels']}
+                  creatorButtonProps={{
+                    position: 'bottom',
+                    creatorButtonText: 'New',
+                  }}
+                >
+                  <ProForm.Group>
+                    <ProFormText name={['key']}>
+                      <Input placeholder="Key" />
+                    </ProFormText>
+                    <ProFormText name={['value']}>
+                      <Input placeholder="Value" />
+                    </ProFormText>
+                  </ProForm.Group>
+                </ProFormList>
+              )
+            },
+          },
+        ]}
+      ></ProDescriptions>
+    </ProCard>
   )
 }
 

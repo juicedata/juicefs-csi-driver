@@ -15,8 +15,9 @@
  */
 
 import { useEffect, useState } from 'react'
+import { QuestionCircleOutlined } from '@ant-design/icons'
 import { PageContainer } from '@ant-design/pro-components'
-import { Button, Popover, Tabs, TabsProps } from 'antd'
+import { Button, Popover, Tabs, TabsProps, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
@@ -94,20 +95,23 @@ const ConfigDetail = () => {
       className="config-page-header"
       header={{
         title: <FormattedMessage id="config" />,
+        subTitle: (
+          <Tooltip title="Docs">
+            <Button
+              icon={<QuestionCircleOutlined />}
+              className="header-subtitle-button"
+              onClick={() => {
+                window.open(
+                  'https://juicefs.com/docs/zh/csi/guide/configurations',
+                  '_blank',
+                )
+              }}
+            />
+          </Tooltip>
+        ),
         ghost: true,
       }}
       extra={[
-        <Button
-          key="docs"
-          onClick={() => {
-            window.open(
-              'https://juicefs.com/docs/zh/csi/guide/configurations',
-              '_blank',
-            )
-          }}
-        >
-          <FormattedMessage id="docs" />
-        </Button>,
         !edit && (
           <Button
             key="edit docs"

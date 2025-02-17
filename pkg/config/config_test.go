@@ -626,6 +626,23 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: toPtr(""),
+				},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range testCases {

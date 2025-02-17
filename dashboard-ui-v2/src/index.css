@@ -89,6 +89,20 @@ body {
   margin: auto;
 }
 
+.patch-form-item {
+  width: 80%;
+}
+
+.patch-extra {
+  height: unset !important;
+}
+
+.patch-extra .ant-collapse-extra,
+.patch-extra .ant-pro-form-list-action {
+  height: 22px;
+  line-height: 22px;
+}
+
 .diff-pods-table {
   /*width: fit-content;*/
   /*justify-content: center;*/
@@ -113,6 +127,12 @@ body {
   width: 24px;
   height: 24px;
   border-color: transparent;
+  box-shadow: none;
+}
+
+.header-subtitle-button {
+  background-color: transparent;
+  border: none;
   box-shadow: none;
 }
 

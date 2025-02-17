@@ -169,7 +169,7 @@ const MountPodPatchDetail: React.FC<{
         />
       </ProCard>
 
-      <PVCWithSelector pvcSelector={patch.pvcSelector} pvcs={pvcs} />
+      <PVCWithSelector pvcs={pvcs} />
     </>
   )
 }

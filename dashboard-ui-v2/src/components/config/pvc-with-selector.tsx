@@ -20,7 +20,6 @@ import { TablePaginationConfig, TableProps } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
-import { pvcSelector } from '@/types/config.ts'
 import { PVCWithPod } from '@/types/k8s.ts'
 
 const columns: ProColumns<PVCWithPod>[] = [
@@ -76,10 +75,9 @@ const columns: ProColumns<PVCWithPod>[] = [
 ]
 
 const PVCWithSelector: React.FC<{
-  pvcSelector?: pvcSelector
   pvcs?: PVCWithPod[]
 }> = (props) => {
-  const { pvcSelector, pvcs } = props
+  const { pvcs } = props
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
@@ -95,8 +93,7 @@ const PVCWithSelector: React.FC<{
 
   return (
     <>
-      {pvcSelector ? (
-        pvcs &&
+      {pvcs ? (
         pvcs.length !== 0 && (
           <ProCard title={<FormattedMessage id="pvcMatched" />}>
             <ProTable<PVCWithPod>
@@ -107,7 +104,7 @@ const PVCWithSelector: React.FC<{
               options={false}
               onChange={handleTableChange}
               pagination={pagination}
-              rowKey={(row) => row.PVC.metadata!.uid!}
+              rowKey={(row) => row?.PVC?.metadata?.uid || ''}
             />
           </ProCard>
         )
