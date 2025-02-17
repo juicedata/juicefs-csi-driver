@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react'
 import { ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
 import { Alert } from 'antd'
@@ -29,14 +28,6 @@ const ConfigYamlPage: React.FC<{
   edit: boolean
 }> = (props) => {
   const { error, setError, setUpdated, setConfigData, configData, edit } = props
-
-  const [data, setData] = useState('')
-
-  useEffect(() => {
-    if (configData) {
-      setData(configData)
-    }
-  }, [configData])
 
   return (
     <ProCard>
@@ -61,7 +52,7 @@ const ConfigYamlPage: React.FC<{
           readOnly: !edit,
           cursorStyle: edit ? 'line' : 'block',
         }}
-        value={data}
+        value={configData}
         onChange={(v) => {
           if (v) {
             // setConfigData(YAML.stringify(YAML.parse(v)))
