@@ -33,7 +33,6 @@ const MountPodPatchForm: React.FC<{
 }> = (props) => {
   const { patch } = props
 
-  console.log(patch)
   return (
     <ProForm.Item>
       <PVCSelectorForm patch={patch} />

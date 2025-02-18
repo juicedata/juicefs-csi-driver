@@ -24,7 +24,11 @@ import {
 } from 'kubernetes-types/core/v1'
 import { LabelSelectorRequirement } from 'kubernetes-types/meta/v1'
 
-import { MountPatchCacheDir, OriginConfig, OriginPVCSelector } from '@/types/k8s.ts'
+import {
+  MountPatchCacheDir,
+  OriginConfig,
+  OriginPVCSelector,
+} from '@/types/k8s.ts'
 
 export type Config = {
   enableNodeSelector?: boolean
@@ -86,12 +90,14 @@ export type KeyValue = {
 }
 
 export const ToConfig = (originConfig: OriginConfig): Config => {
-  const convertMap = (input?: { [name: string]: string }): KeyValue[] | undefined => {
+  const convertMap = (input?: {
+    [name: string]: string
+  }): KeyValue[] | undefined => {
     if (!input) {
       return []
     }
 
-    const output: KeyValue [] = []
+    const output: KeyValue[] = []
     for (const key in input) {
       const value = input[key]
       output.push({
@@ -110,14 +116,13 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
 
     const output: KeyValue[] = []
     input.forEach((option) => {
-        if (option) {
-          output.push({
-            key: option,
-            value: option,
-          })
-        }
-      },
-    )
+      if (option) {
+        output.push({
+          key: option,
+          value: option,
+        })
+      }
+    })
 
     return output
   }
@@ -129,19 +134,20 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
 
     const output: EnvVar[] = []
     input.forEach((value) => {
-        if (value && value.name) {
-          output.push({
-            name: value.name,
-            value: value.value || '',
-          })
-        }
-      },
-    )
+      if (value && value.name) {
+        output.push({
+          name: value.name,
+          value: value.value || '',
+        })
+      }
+    })
 
     return output
   }
 
-  const convertKVRequirement = (input?: Array<LabelSelectorRequirement>): KeyValueRequirement[] | undefined => {
+  const convertKVRequirement = (
+    input?: Array<LabelSelectorRequirement>,
+  ): KeyValueRequirement[] | undefined => {
     if (!input) {
       return []
     }
@@ -150,7 +156,8 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     input.forEach((value) => {
       if (value.key && value.values) {
         output.push({
-          key: value.key, operator: value.operator,
+          key: value.key,
+          operator: value.operator,
           values: convertOptions(value.values),
         })
       }
@@ -159,7 +166,9 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     return output
   }
 
-  const convertPVCSelector = (input?: OriginPVCSelector): pvcSelector | undefined => {
+  const convertPVCSelector = (
+    input?: OriginPVCSelector,
+  ): pvcSelector | undefined => {
     if (!input) {
       return {}
     }
@@ -184,37 +193,40 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     enableNodeSelector: originConfig.enableNodeSelector,
     mountPodPatches: originConfig.mountPodPatch
       ? originConfig.mountPodPatch?.map((patch) => {
-        return {
-          ...patch,
-          pvcSelector: convertPVCSelector(patch.pvcSelector),
-          labels: convertMap(patch.labels),
-          annotations: convertMap(patch.annotations),
-          mountOptions: convertOptions(patch.mountOptions),
-          env: convertEnvs(patch.env),
-          resources: patch.resources
-            ? {
-              requests: patch.resources.requests
-                ? {
-                  cpu: patch.resources.requests!['cpu'],
-                  memory: patch.resources.requests!['memory'],
+          return {
+            ...patch,
+            pvcSelector: convertPVCSelector(patch.pvcSelector),
+            labels: convertMap(patch.labels),
+            annotations: convertMap(patch.annotations),
+            mountOptions: convertOptions(patch.mountOptions),
+            env: convertEnvs(patch.env),
+            resources: patch.resources
+              ? {
+                  requests: patch.resources.requests
+                    ? {
+                        cpu: patch.resources.requests!['cpu'],
+                        memory: patch.resources.requests!['memory'],
+                      }
+                    : undefined,
+                  limits: patch.resources.limits
+                    ? {
+                        cpu: patch.resources.limits!['cpu'],
+                        memory: patch.resources.limits!['memory'],
+                      }
+                    : undefined,
                 }
-                : undefined,
-              limits: patch.resources.limits
-                ? {
-                  cpu: patch.resources.limits!['cpu'],
-                  memory: patch.resources.limits!['memory'],
-                }
-                : undefined,
-            }
-            : undefined,
-        }
-      })
+              : undefined,
+          }
+        })
       : undefined,
   }
 }
 
 export const ToOriginConfig = (config: Config): OriginConfig => {
-  const convertResource = (input?: { cpu?: string, memory?: string }): { [key: string]: Quantity } | undefined => {
+  const convertResource = (input?: {
+    cpu?: string
+    memory?: string
+  }): { [key: string]: Quantity } | undefined => {
     if (!input) {
       return undefined
     }
@@ -245,7 +257,9 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     return output.length > 0 ? output : undefined
   }
 
-  const convertKeyValue = (input?: KeyValue[]): { [name: string]: string } | undefined => {
+  const convertKeyValue = (
+    input?: KeyValue[],
+  ): { [name: string]: string } | undefined => {
     if (!input || input.length === 0) {
       return undefined
     }
@@ -261,10 +275,10 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
   const convertRequirements = (requirements?: KeyValueRequirement[]) => {
     return requirements
       ? (requirements.map((req) => ({
-        key: req.key,
-        operator: req.operator,
-        values: req.values ? req.values.map((v) => v.value) : undefined,
-      })) as Array<LabelSelectorRequirement>)
+          key: req.key,
+          operator: req.operator,
+          values: req.values ? req.values.map((v) => v.value) : undefined,
+        })) as Array<LabelSelectorRequirement>)
       : undefined
   }
 
@@ -280,7 +294,9 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     return output.length > 0 ? output : undefined
   }
 
-  const convertPVCSelector = (input?: pvcSelector): OriginPVCSelector | undefined => {
+  const convertPVCSelector = (
+    input?: pvcSelector,
+  ): OriginPVCSelector | undefined => {
     if (!input) {
       return undefined
     }
@@ -310,21 +326,21 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     enableNodeSelector: config.enableNodeSelector,
     mountPodPatch: config.mountPodPatches
       ? config.mountPodPatches?.map((patch) => {
-        return {
-          ...patch,
-          pvcSelector: convertPVCSelector(patch.pvcSelector),
-          labels: convertKeyValue(patch.labels),
-          annotations: convertKeyValue(patch.annotations),
-          mountOptions: convertMountOptions(patch.mountOptions),
-          env: convertEnvs(patch.env),
-          resources: patch.resources
-            ? {
-              requests: convertResource(patch.resources.requests),
-              limits: convertResource(patch.resources.limits),
-            }
-            : undefined,
-        }
-      })
+          return {
+            ...patch,
+            pvcSelector: convertPVCSelector(patch.pvcSelector),
+            labels: convertKeyValue(patch.labels),
+            annotations: convertKeyValue(patch.annotations),
+            mountOptions: convertMountOptions(patch.mountOptions),
+            env: convertEnvs(patch.env),
+            resources: patch.resources
+              ? {
+                  requests: convertResource(patch.resources.requests),
+                  limits: convertResource(patch.resources.limits),
+                }
+              : undefined,
+          }
+        })
       : undefined,
   }
 }
