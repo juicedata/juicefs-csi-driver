@@ -43,7 +43,7 @@ export type pvcSelector = {
   matchStorageClassName?: string
   matchName?: string
   matchLabels?: KeyValue[]
-  matchExpressions?: KeyValueRequirement[]
+  matchExpressions?: Array<LabelSelectorRequirement>
 }
 
 export type KeyValueRequirement = {
@@ -145,27 +145,6 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     return output
   }
 
-  const convertKVRequirement = (
-    input?: Array<LabelSelectorRequirement>,
-  ): KeyValueRequirement[] | undefined => {
-    if (!input) {
-      return []
-    }
-
-    const output: KeyValueRequirement[] = []
-    input.forEach((value) => {
-      if (value.key && value.values) {
-        output.push({
-          key: value.key,
-          operator: value.operator,
-          values: convertOptions(value.values),
-        })
-      }
-    })
-
-    return output
-  }
-
   const convertPVCSelector = (
     input?: OriginPVCSelector,
   ): pvcSelector | undefined => {
@@ -178,7 +157,7 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
       output.matchLabels = convertMap(input.matchLabels)
     }
     if (input.matchExpressions) {
-      output.matchExpressions = convertKVRequirement(input.matchExpressions)
+      output.matchExpressions = input.matchExpressions
     }
     if (input.matchName) {
       output.matchName = input.matchName
@@ -272,16 +251,6 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     return Object.keys(output).length > 0 ? output : undefined
   }
 
-  const convertRequirements = (requirements?: KeyValueRequirement[]) => {
-    return requirements
-      ? (requirements.map((req) => ({
-          key: req.key,
-          operator: req.operator,
-          values: req.values ? req.values.map((v) => v.value) : undefined,
-        })) as Array<LabelSelectorRequirement>)
-      : undefined
-  }
-
   const convertEnvs = (envs?: EnvVar[]): EnvVar[] | undefined => {
     if (!envs || !envs.length) return undefined
 
@@ -308,7 +277,7 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
       noMatch = output.matchLabels === undefined
     }
     if (input.matchExpressions) {
-      output.matchExpressions = convertRequirements(input.matchExpressions)
+      output.matchExpressions = input.matchExpressions
       noMatch = output.matchExpressions === undefined
     }
     if (input.matchName) {
