@@ -302,22 +302,22 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     }
 
     const output: OriginPVCSelector = {}
-    let noMatch = false
+    let noMatch = true
     if (input.matchLabels) {
       output.matchLabels = convertKeyValue(input.matchLabels)
-      noMatch = true
+      noMatch = output.matchLabels === undefined
     }
     if (input.matchExpressions) {
       output.matchExpressions = convertRequirements(input.matchExpressions)
-      noMatch = true
+      noMatch = output.matchExpressions === undefined
     }
     if (input.matchName) {
       output.matchName = input.matchName
-      noMatch = true
+      noMatch = false
     }
     if (input.matchStorageClassName) {
       output.matchStorageClassName = input.matchStorageClassName
-      noMatch = true
+      noMatch = false
     }
     return noMatch ? undefined : output
   }
