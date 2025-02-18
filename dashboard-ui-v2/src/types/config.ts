@@ -24,7 +24,7 @@ import {
 } from 'kubernetes-types/core/v1'
 import { LabelSelectorRequirement } from 'kubernetes-types/meta/v1'
 
-import { MountPatchCacheDir, OriginConfig } from '@/types/k8s.ts'
+import { MountPatchCacheDir, OriginConfig, OriginPVCSelector } from '@/types/k8s.ts'
 
 export type Config = {
   enableNodeSelector?: boolean
@@ -86,83 +86,135 @@ export type KeyValue = {
 }
 
 export const ToConfig = (originConfig: OriginConfig): Config => {
+  const convertMap = (input?: { [name: string]: string }): KeyValue[] | undefined => {
+    if (!input) {
+      return []
+    }
+
+    const output: KeyValue [] = []
+    for (const key in input) {
+      const value = input[key]
+      output.push({
+        key: key,
+        value: value,
+      })
+    }
+
+    return output
+  }
+
+  const convertOptions = (input?: string[]): KeyValue[] | undefined => {
+    if (!input) {
+      return []
+    }
+
+    const output: KeyValue[] = []
+    input.forEach((option) => {
+        if (option) {
+          output.push({
+            key: option,
+            value: option,
+          })
+        }
+      },
+    )
+
+    return output
+  }
+
+  const convertEnvs = (input?: EnvVar[]): EnvVar[] | undefined => {
+    if (!input) {
+      return []
+    }
+
+    const output: EnvVar[] = []
+    input.forEach((value) => {
+        if (value && value.name) {
+          output.push({
+            name: value.name,
+            value: value.value || '',
+          })
+        }
+      },
+    )
+
+    return output
+  }
+
+  const convertKVRequirement = (input?: Array<LabelSelectorRequirement>): KeyValueRequirement[] | undefined => {
+    if (!input) {
+      return []
+    }
+
+    const output: KeyValueRequirement[] = []
+    input.forEach((value) => {
+      if (value.key && value.values) {
+        output.push({
+          key: value.key, operator: value.operator,
+          values: convertOptions(value.values),
+        })
+      }
+    })
+
+    return output
+  }
+
+  const convertPVCSelector = (input?: OriginPVCSelector): pvcSelector | undefined => {
+    if (!input) {
+      return {}
+    }
+
+    const output: pvcSelector = {}
+    if (input.matchLabels) {
+      output.matchLabels = convertMap(input.matchLabels)
+    }
+    if (input.matchExpressions) {
+      output.matchExpressions = convertKVRequirement(input.matchExpressions)
+    }
+    if (input.matchName) {
+      output.matchName = input.matchName
+    }
+    if (input.matchStorageClassName) {
+      output.matchStorageClassName = input.matchStorageClassName
+    }
+    return output
+  }
+
   return {
     enableNodeSelector: originConfig.enableNodeSelector,
     mountPodPatches: originConfig.mountPodPatch
       ? originConfig.mountPodPatch?.map((patch) => {
-          return {
-            ...patch,
-            pvcSelector: patch.pvcSelector
-              ? {
-                  ...patch.pvcSelector,
-                  matchLabels: patch.pvcSelector.matchLabels
-                    ? Object.keys(patch.pvcSelector.matchLabels).map((key) => {
-                        return {
-                          key: key,
-                          value: patch.pvcSelector?.matchLabels![key] || '',
-                        }
-                      })
-                    : undefined,
-                  matchExpressions: patch.pvcSelector.matchExpressions
-                    ? patch.pvcSelector.matchExpressions.map((key) => {
-                        return {
-                          key: key.key,
-                          operator: key.operator,
-                          values: key.values
-                            ? key.values.map((key, index) => {
-                                return {
-                                  key: `${index}`,
-                                  value: key,
-                                }
-                              })
-                            : undefined,
-                        }
-                      })
-                    : undefined,
+        return {
+          ...patch,
+          pvcSelector: convertPVCSelector(patch.pvcSelector),
+          labels: convertMap(patch.labels),
+          annotations: convertMap(patch.annotations),
+          mountOptions: convertOptions(patch.mountOptions),
+          env: convertEnvs(patch.env),
+          resources: patch.resources
+            ? {
+              requests: patch.resources.requests
+                ? {
+                  cpu: patch.resources.requests!['cpu'],
+                  memory: patch.resources.requests!['memory'],
                 }
-              : undefined,
-            labels: patch.labels
-              ? Object.keys(patch.labels).map((key) => {
-                  return { key: key, value: patch.labels![key] }
-                })
-              : undefined,
-            annotations: patch.annotations
-              ? Object.keys(patch.annotations).map((key) => {
-                  return { key: key, value: patch.annotations![key] }
-                })
-              : undefined,
-            mountOptions: patch.mountOptions
-              ? patch.mountOptions.map((value) => {
-                  return { key: value, value: value }
-                })
-              : undefined,
-            resources: patch.resources
-              ? {
-                  requests: patch.resources.requests
-                    ? {
-                        cpu: patch.resources.requests!['cpu'],
-                        memory: patch.resources.requests!['memory'],
-                      }
-                    : undefined,
-                  limits: patch.resources.limits
-                    ? {
-                        cpu: patch.resources.limits!['cpu'],
-                        memory: patch.resources.limits!['memory'],
-                      }
-                    : undefined,
+                : undefined,
+              limits: patch.resources.limits
+                ? {
+                  cpu: patch.resources.limits!['cpu'],
+                  memory: patch.resources.limits!['memory'],
                 }
-              : undefined,
-          }
-        })
+                : undefined,
+            }
+            : undefined,
+        }
+      })
       : undefined,
   }
 }
 
 export const ToOriginConfig = (config: Config): OriginConfig => {
-  const convertResource = (input?: {
-    cpu?: string
-    memory?: string
-  }): { [key: string]: Quantity } | undefined => {
+  const convertResource = (input?: { cpu?: string, memory?: string }): { [key: string]: Quantity } | undefined => {
     if (!input) {
       return undefined
     }
@@ -181,76 +233,98 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
   }
 
   const convertMountOptions = (input?: KeyValue[]): string[] | undefined => {
-    if (!input) {
+    if (!input || input.length === 0) {
       return undefined
     }
     const output: string[] = []
     input.forEach((value) => {
-      value.value ? output.push(`${value.value}`) : output.push('')
+      if (value.value) {
+        output.push(value.value)
+      }
     })
-    return output
+    return output.length > 0 ? output : undefined
+  }
+
+  const convertKeyValue = (input?: KeyValue[]): { [name: string]: string } | undefined => {
+    if (!input || input.length === 0) {
+      return undefined
+    }
+    const output: { [key: string]: string } = {}
+    input.forEach((value) => {
+      if (value.value) {
+        output[value.key] = value.value
+      }
+    })
+    return Object.keys(output).length > 0 ? output : undefined
   }
 
   const convertRequirements = (requirements?: KeyValueRequirement[]) => {
     return requirements
       ? (requirements.map((req) => ({
-          key: req.key,
-          operator: req.operator,
-          values: req.values ? req.values.map((v) => v.value) : undefined,
-        })) as Array<LabelSelectorRequirement>)
+        key: req.key,
+        operator: req.operator,
+        values: req.values ? req.values.map((v) => v.value) : undefined,
+      })) as Array<LabelSelectorRequirement>)
       : undefined
+  }
+
+  const convertEnvs = (envs?: EnvVar[]): EnvVar[] | undefined => {
+    if (!envs || !envs.length) return undefined
+
+    const output: EnvVar[] = []
+    envs.forEach((env) => {
+      if (env.name) {
+        output.push(env)
+      }
+    })
+    return output.length > 0 ? output : undefined
+  }
+
+  const convertPVCSelector = (input?: pvcSelector): OriginPVCSelector | undefined => {
+    if (!input) {
+      return undefined
+    }
+
+    const output: OriginPVCSelector = {}
+    let noMatch = false
+    if (input.matchLabels) {
+      output.matchLabels = convertKeyValue(input.matchLabels)
+      noMatch = true
+    }
+    if (input.matchExpressions) {
+      output.matchExpressions = convertRequirements(input.matchExpressions)
+      noMatch = true
+    }
+    if (input.matchName) {
+      output.matchName = input.matchName
+      noMatch = true
+    }
+    if (input.matchStorageClassName) {
+      output.matchStorageClassName = input.matchStorageClassName
+      noMatch = true
+    }
+    return noMatch ? undefined : output
   }
 
   return {
     enableNodeSelector: config.enableNodeSelector,
     mountPodPatch: config.mountPodPatches
       ? config.mountPodPatches?.map((patch) => {
-          return {
-            ...patch,
-            pvcSelector: patch.pvcSelector
-              ? {
-                  ...patch.pvcSelector,
-                  matchLabels: patch.pvcSelector.matchLabels
-                    ? patch.pvcSelector.matchLabels.reduce(
-                        (acc, { key, value }) => {
-                          acc[key] = value
-                          return acc
-                        },
-                        {} as { [name: string]: string },
-                      )
-                    : undefined,
-                  matchExpressions: convertRequirements(
-                    patch.pvcSelector.matchExpressions,
-                  ),
-                }
-              : undefined,
-            labels: patch.labels
-              ? patch.labels.reduce(
-                  (acc, { key, value }) => {
-                    acc[key] = value
-                    return acc
-                  },
-                  {} as { [name: string]: string },
-                )
-              : undefined,
-            annotations: patch.annotations
-              ? patch.annotations.reduce(
-                  (acc, { key, value }) => {
-                    acc[key] = value
-                    return acc
-                  },
-                  {} as { [name: string]: string },
-                )
-              : undefined,
-            mountOptions: convertMountOptions(patch.mountOptions),
-            resources: patch.resources
-              ? {
-                  requests: convertResource(patch.resources.requests),
-                  limits: convertResource(patch.resources.limits),
-                }
-              : undefined,
-          }
-        })
+        return {
+          ...patch,
+          pvcSelector: convertPVCSelector(patch.pvcSelector),
+          labels: convertKeyValue(patch.labels),
+          annotations: convertKeyValue(patch.annotations),
+          mountOptions: convertMountOptions(patch.mountOptions),
+          env: convertEnvs(patch.env),
+          resources: patch.resources
+            ? {
+              requests: convertResource(patch.resources.requests),
+              limits: convertResource(patch.resources.limits),
+            }
+            : undefined,
+        }
+      })
       : undefined,
   }
 }

@@ -28,7 +28,7 @@ const MountPodPatchDetail: React.FC<{
 }> = (props) => {
   const { patch, pvcs } = props
   const kvDescribe = (kv?: KeyValue[]) => {
-    if (!kv || kv.length === 0) return null
+    if (!kv || !kv.length) return null
     return (
       <div>
         {kv.map((value, index) => (
@@ -96,28 +96,38 @@ const MountPodPatchDetail: React.FC<{
             {
               title: <FormattedMessage id="mountOptions" />,
               key: 'mountOptions',
-              render: () => (
-                <div>
-                  {patch.mountOptions?.map((value, index) => (
-                    <div key={index} className="inlinecode">
-                      {value.value}
-                    </div>
-                  )) || '-'}
-                </div>
-              ),
+              render: () => {
+                if (!patch.mountOptions || !patch.mountOptions.length) {
+                  return '-'
+                }
+                return (
+                  <div>
+                    {patch.mountOptions?.map((value, index) => (
+                      <div key={index} className="inlinecode">
+                        {value.value}
+                      </div>
+                    )) || '-'}
+                  </div>
+                )
+              },
             },
             {
               title: <FormattedMessage id="envs" />,
               key: 'envs',
-              render: () => (
-                <div>
-                  {patch.env?.map((value, index) => (
-                    <div key={index} className="inlinecode">
-                      {value.name}: {value.value}
-                    </div>
-                  )) || '-'}
-                </div>
-              ),
+              render: () => {
+                if (!patch.env || !patch.env.length) {
+                  return '-'
+                }
+                return (
+                  <div>
+                    {patch.env?.map((value, index) => (
+                      <div key={index} className="inlinecode">
+                        {value.name}: {value.value}
+                      </div>
+                    )) || '-'}
+                  </div>
+                )
+              },
             },
             {
               title: <FormattedMessage id="resourceRequests" />,
