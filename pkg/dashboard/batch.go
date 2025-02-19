@@ -93,6 +93,12 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get upgrade pods error %v", err)
 			return
 		}
+		// skip pods which have no diff config
+		pods, _, err = api.genPodDiffs(c, pods, true, false)
+		if err != nil {
+			c.String(500, "get pods diff configs error %v", err)
+			return
+		}
 		csiNodes, err := api.podSvc.ListCSINodePod(c, createJobBody.NodeName)
 		if err != nil {
 			c.String(500, "get csi node pods error %v", err)
