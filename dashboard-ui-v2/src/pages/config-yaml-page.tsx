@@ -16,32 +16,18 @@
 
 import { ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
-import { Alert } from 'antd'
-import { FormattedMessage } from 'react-intl'
 
 const ConfigYamlPage: React.FC<{
-  error?: string
   setError: (message: string) => void
   setUpdated: (updated: boolean) => void
   setConfigData: (configData: string) => void
   configData?: string
   edit: boolean
 }> = (props) => {
-  const { error, setError, setUpdated, setConfigData, configData, edit } = props
+  const { setError, setUpdated, setConfigData, configData, edit } = props
 
   return (
     <ProCard>
-      {error && (
-        <Alert
-          message={<FormattedMessage id="updateConfigError" />}
-          description={error}
-          type="error"
-          showIcon
-          style={{ marginTop: '10px' }}
-          onClick={() => setError('')}
-        />
-      )}
-
       <Editor
         defaultLanguage="yaml"
         height="calc(100vh - 200px)"

@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react'
 import { QuestionCircleOutlined } from '@ant-design/icons'
 import { PageContainer } from '@ant-design/pro-components'
-import { Button, Popover, Tabs, TabsProps, Tooltip } from 'antd'
+import { Button, notification, Popover, Tabs, TabsProps, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
@@ -30,6 +30,7 @@ import {
 } from '@/hooks/cm-api'
 import ConfigTablePage from '@/pages/config-table-page.tsx'
 import ConfigYamlPage from '@/pages/config-yaml-page.tsx'
+import { OriginConfig } from '@/types/k8s.ts'
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)
@@ -44,8 +45,26 @@ const ConfigDetail = () => {
   const navigate = useNavigate()
   const [edit, setEdit] = useState(false)
 
+  const [api, contextHolder] = notification.useNotification()
+
   useEffect(() => {
-    setConfigData(data?.data?.['config.yaml'] || '')
+    if (error) {
+      api['error']({
+        message: <FormattedMessage id="updateConfigError" />,
+        description: error,
+        placement: 'top',
+      })
+    }
+  }, [api, error])
+
+  useEffect(() => {
+    try {
+      const d = YAML.stringify(YAML.parse(data?.data?.['config.yaml'] || ''))
+      setConfigData(d)
+    } catch (e) {
+      setError((e as YAMLParseError).message)
+      setConfigData(data?.data?.['config.yaml'] || '')
+    }
   }, [data])
 
   useEffect(() => {
@@ -65,7 +84,8 @@ const ConfigDetail = () => {
       label: 'Detail',
       children: (
         <ConfigTablePage
-          configData={YAML.stringify(YAML.parse(configData))}
+          setError={setError}
+          configData={configData}
           setConfigData={setConfigData}
           setUpdate={setUpdated}
           pvcs={pvcs}
@@ -78,11 +98,10 @@ const ConfigDetail = () => {
       label: 'Yaml',
       children: (
         <ConfigYamlPage
-          error={error}
           setError={setError}
           setUpdated={setUpdated}
           setConfigData={setConfigData}
-          configData={YAML.stringify(YAML.parse(configData))}
+          configData={configData}
           edit={edit}
         />
       ),
@@ -145,7 +164,7 @@ const ConfigDetail = () => {
             loading={state.status === 'loading'}
             onClick={() => {
               try {
-                YAML.stringify(YAML.parse(configData))
+                YAML.stringify(YAML.parse(configData) as OriginConfig)
                 actions
                   .execute({
                     ...data,
@@ -203,6 +222,7 @@ const ConfigDetail = () => {
         ),
       ]}
     >
+      {contextHolder}
       <Tabs items={items} />
     </PageContainer>
   )

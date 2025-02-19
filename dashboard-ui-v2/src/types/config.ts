@@ -168,6 +168,10 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     return output
   }
 
+  if (!originConfig) {
+    return {}
+  }
+
   return {
     enableNodeSelector: originConfig.enableNodeSelector,
     mountPodPatches: originConfig.mountPodPatch

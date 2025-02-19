@@ -232,7 +232,8 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := config.LoadFromConfigMap(c, api.client); err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+			pvLog.Error(err, "load config error")
+			c.JSON(200, []PVCWithMountPod{})
 			return
 		}
 
