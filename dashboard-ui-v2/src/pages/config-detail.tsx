@@ -65,7 +65,7 @@ const ConfigDetail = () => {
       label: 'Detail',
       children: (
         <ConfigTablePage
-          configData={configData}
+          configData={YAML.stringify(YAML.parse(configData))}
           setConfigData={setConfigData}
           setUpdate={setUpdated}
           pvcs={pvcs}
@@ -82,7 +82,7 @@ const ConfigDetail = () => {
           setError={setError}
           setUpdated={setUpdated}
           setConfigData={setConfigData}
-          configData={configData}
+          configData={YAML.stringify(YAML.parse(configData))}
           edit={edit}
         />
       ),
