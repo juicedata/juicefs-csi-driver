@@ -23,7 +23,7 @@ import {
 } from '@ant-design/pro-components'
 import { Collapse, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
-import YAML, { YAMLParseError } from 'yaml'
+import YAML from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
@@ -31,14 +31,13 @@ import { Config, ToConfig, ToOriginConfig } from '@/types/config.ts'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
 
 const ConfigTablePage: React.FC<{
-  setError: (message: string) => void
   configData?: string
   setConfigData: (configData: string) => void
   setUpdate: (updated: boolean) => void
   pvcs?: PVCWithPod[][]
   edit: boolean
 }> = (props) => {
-  const { setError, configData, setConfigData, setUpdate, pvcs, edit } = props
+  const { configData, setConfigData, setUpdate, pvcs, edit } = props
   const [config, setConfig] = useState<Config>()
   const formRef = useRef<ProFormInstance>()
 
@@ -50,10 +49,10 @@ const ConfigTablePage: React.FC<{
         setConfig(c)
         formRef?.current?.setFieldsValue(c)
       } catch (e) {
-        setError((e as YAMLParseError).message)
+        console.log(e)
       }
     }
-  }, [configData, edit, setError])
+  }, [configData, edit])
 
   return (
     <ProCard>
@@ -67,7 +66,7 @@ const ConfigTablePage: React.FC<{
               setConfigData(ocs)
               setUpdate(true)
             } catch (e) {
-              setError((e as YAMLParseError).message)
+              console.log(e)
             }
           }}
           formRef={formRef}

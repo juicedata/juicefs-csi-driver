@@ -84,7 +84,6 @@ const ConfigDetail = () => {
       label: 'Detail',
       children: (
         <ConfigTablePage
-          setError={setError}
           configData={configData}
           setConfigData={setConfigData}
           setUpdate={setUpdated}
