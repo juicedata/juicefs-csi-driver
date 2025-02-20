@@ -84,8 +84,9 @@ const upgradeColumn: ProColumns<PodDiffConfig>[] = [
 const PodToUpgradeTable: React.FC<{
   nodeName?: string
   uniqueId?: string
+  setDiffPods: (podDiff: PodDiffConfig[]) => void
 }> = (props) => {
-  const { nodeName, uniqueId } = props
+  const { nodeName, uniqueId, setDiffPods } = props
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
@@ -103,6 +104,10 @@ const PodToUpgradeTable: React.FC<{
   useEffect(() => {
     setPagination((prev) => ({ ...prev, total: diffPods?.total || 0 }))
   }, [diffPods?.total])
+
+  useEffect(() => {
+    setDiffPods(diffPods?.pods || [])
+  }, [diffPods, setDiffPods])
 
   return (
     <>

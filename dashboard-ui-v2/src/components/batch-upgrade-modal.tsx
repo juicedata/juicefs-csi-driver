@@ -35,7 +35,7 @@ import PodToUpgradeTable from '@/components/pod-to-upgrade-table.tsx'
 import { useCreateUpgradeJob } from '@/hooks/job-api.ts'
 import { usePVCs, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
-import { PVC } from '@/types/k8s.ts'
+import { PodDiffConfig, PVC } from '@/types/k8s.ts'
 
 const BatchUpgradeModal: React.FC<{
   modalOpen: boolean
@@ -56,6 +56,7 @@ const BatchUpgradeModal: React.FC<{
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
   const [newJobName, setNewJobName] = useState(genNewJobName())
+  const [diffPods, setDiffPods] = useState<PodDiffConfig[]>([])
 
   const [, actions] = useCreateUpgradeJob()
   const navigate = useNavigate()
@@ -112,7 +113,12 @@ const BatchUpgradeModal: React.FC<{
         className="batch-upgrade-modal"
         open={modalOpen}
         footer={() => (
-          <Button type="primary" key="start" onClick={handleStartClick}>
+          <Button
+            disabled={!diffPods.length}
+            type="primary"
+            key="start"
+            onClick={handleStartClick}
+          >
             <FormattedMessage id="start" />
           </Button>
         )}
@@ -166,7 +172,11 @@ const BatchUpgradeModal: React.FC<{
             ></InputNumber>
           </Space>
 
-          <PodToUpgradeTable nodeName={selectedNode} uniqueId={uniqueId} />
+          <PodToUpgradeTable
+            nodeName={selectedNode}
+            uniqueId={uniqueId}
+            setDiffPods={setDiffPods}
+          />
         </ProCard>
       </Modal>
     </>
