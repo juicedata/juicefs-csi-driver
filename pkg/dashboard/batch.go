@@ -112,7 +112,7 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			return
 		}
 
-		newJob := newUpgradeJob(jobName)
+		newJob := NewUpgradeJob(jobName)
 		job, err := api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
 		if err != nil {
 			batchLog.Error(err, "create job error")
@@ -239,7 +239,7 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		if !api.canDoAction(c, conf.Status, action.Action) {
+		if !CanDoAction(conf.Status, action.Action) {
 			c.String(400, "can not %s job", action.Action)
 			return
 		}
@@ -274,7 +274,7 @@ func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		if !api.canDoAction(c, conf.Status, "delete") {
+		if !CanDoAction(conf.Status, "delete") {
 			c.String(400, "can not delete job")
 			return
 		}
@@ -396,7 +396,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 	}
 }
 
-func newUpgradeJob(jobName string) *batchv1.Job {
+func NewUpgradeJob(jobName string) *batchv1.Job {
 	sysNamespace := config.Namespace
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
 	sa := "juicefs-csi-dashboard-sa"
@@ -481,6 +481,10 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 	if err != nil {
 		return nil, nil, err
 	}
+	return GenPodDiffs(mountPods, shouldDiff, debug, pvs, pvcs, secrets)
+}
+
+func GenPodDiffs(mountPods []corev1.Pod, shouldDiff, debug bool, pvs []corev1.PersistentVolume, pvcs []corev1.PersistentVolumeClaim, secrets []corev1.Secret) ([]corev1.Pod, []PodDiff, error) {
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
@@ -588,7 +592,7 @@ func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1
 	return nil, nil
 }
 
-func (api *API) canDoAction(ctx context.Context, status config.UpgradeStatus, action string) bool {
+func CanDoAction(status config.UpgradeStatus, action string) bool {
 	switch action {
 	case "stop":
 		return status != config.Fail &&
