@@ -6,7 +6,9 @@ JuiceFS 支持数据加密，在 CSI 驱动中，你需要将密钥配置加入 
 
 ## 开启 CSI 的相关功能
 
-该功能需要 CSI Node Service 在启动参数中加入 `--format-in-pod=true`（该参数在 0.13.0 引入），请对当前部署做确认，如有需要，可以用以下命令手动开启：
+如果 CSI Node 的版本不低于 0.17.4，则可以跳过此步骤。
+
+该功能需要 CSI Node Service 在启动参数中加入 `--format-in-pod=true`（该参数在 0.13.0 引入，在 0.17.4 被作为默认行为），请对当前部署做确认，如有需要，可以用以下命令手动开启：
 
 ```shell
 kubectl -n kube-system patch daemonset juicefs-csi-node --patch '{"spec": {"template": {"spec": {"containers": [{"name": "juicefs-plugin","args": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--format-in-pod=true"]}]}}}}'
