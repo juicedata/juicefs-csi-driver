@@ -117,8 +117,8 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # 将 $JUICEFS_CONSOLE_URL 替换为私有部署控制台访问地址
-  envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
+  # 将下方 URL 替换为实际私有部署控制台访问地址
+  envs: '{"BASE_URL": "http://console.example.com/static"}'
   # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
@@ -128,7 +128,10 @@ stringData:
 - `name`：JuiceFS 文件系统名称
 - `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
 - `access-key`/`secret-key`：对象存储的认证信息
-- `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL`、`CFG_URL`，指向实际控制台地址
+- `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL` 指向实际控制台地址，如果你不清楚如何填写，可以打开 JuiceFS 私有控制台，点击右上角「设置」按钮，然后直接使用页面中展示的「控制台访问地址」：
+
+  ![on-prem-console-url](../images/on-prem-console-url-cn.png)
+
 - `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
 
 ### 使用多个文件系统 {#multiple-volumes}
