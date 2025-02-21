@@ -6,7 +6,9 @@ JuiceFS supports data encryption, in CSI Driver, you need to add private key inf
 
 ## Enable CSI related feature
 
-This feature demands CSI Node Service be started with `--format-in-pod=true` (available since 0.13.0), check current installation and use below command to add this parameter if in need.
+If your CSI Node version is not lower than 0.17.4, you can skip this step.
+
+This feature demands CSI Node Service be started with `--format-in-pod=true` (available since 0.13.0, set as default since 0.17.4), check current installation and use below command to add this parameter if in need.
 
 ```shell
 kubectl -n kube-system patch ds juicefs-csi-node --patch '{"spec": {"template": {"spec": {"containers": [{"name": "juicefs-plugin","args": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--format-in-pod=true"]}]}}}}'
