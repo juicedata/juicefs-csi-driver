@@ -150,6 +150,34 @@ kubectl label node node1 juicefs.io/cg-worker-
     waitingDeletedMaxDuration: 1h
   ```
 
+## 预热缓存组 {#warmup-cache-group}
+
+Operator 支持创建一个 WarmUp 资源来预热缓存组。
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-sample
+spec:
+  cacheGroupName: cachegroup-sample
+  # 默认预热策略为 Once，即只预热一次
+  # 以下示例为每 5 分钟预热一次。
+  policy:
+    type: Cron
+    cron:
+      schedule: "*/5 * * * *"
+  # 需要预热的路径，不填默认预热整个文件系统
+  targets:
+    - /a
+    - /b
+    - /c
+  # 预热参数
+  # ref https://juicefs.com/docs/zh/cloud/reference/command_reference/#warmup
+  options:
+    - threads=50
+```
+
 ## 缓存组配置项 {#cache-group-configs}
 
 缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
