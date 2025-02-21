@@ -117,8 +117,8 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Replace $JUICEFS_CONSOLE_URL with the actual on-premise web console URL
-  envs: '{"BASE_URL": "$JUICEFS_CONSOLE_URL/static", "CFG_URL": "$JUICEFS_CONSOLE_URL/volume/%s/mount"}'
+  # Replace the example address with the actual on-prem web console URL
+  envs: '{"BASE_URL": "http://console.example.com/static"}'
   # If you need to specify more authentication options, fill in juicefs auth parameters below.
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
 ```
@@ -128,7 +128,10 @@ Fields description:
 - `name`: The JuiceFS file system name
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
 - `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount Pod environment variables, in an on-premises environment, you need to additionally specify `BASE_URL` and `CFG_URL`, pointing to the actual console address
+- `envs`：Mount Pod environment variables, in an on-prem environment, you need to specify the web console address via `BASE_URL`, if you do not know where to get it, navigate to the "Settings" page from our console, and then use the "Console Access URL":
+
+  ![on-prem-console-url](../images/on-prem-console-url-en.png)
+
 - `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
 
 ### Using multiple file systems {#multiple-volumes}
