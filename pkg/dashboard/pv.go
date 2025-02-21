@@ -31,10 +31,17 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
 var pvLog = klog.NewKlogr().WithName("pv")
+
+type PVCWithMountPod struct {
+	PVC       corev1.PersistentVolumeClaim `json:"PVC,omitempty"`
+	MountPods []corev1.Pod                 `json:"MountPods,omitempty"`
+}
 
 func (api *API) listPodPVsHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -219,6 +226,100 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 			return
 		}
 		c.IndentedJSON(200, result)
+	}
+}
+
+func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := config.LoadFromConfigMap(c, api.client); err != nil {
+			pvLog.Error(err, "load config error")
+			c.JSON(200, []PVCWithMountPod{})
+			return
+		}
+
+		mountPods, err := api.podSvc.ListMountPods(c)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		mountPodMaps := make(map[string][]corev1.Pod)
+		for _, po := range mountPods {
+			mountPodMaps[po.Labels[common.PodUniqueIdLabelKey]] = append(mountPodMaps[po.Labels[common.PodUniqueIdLabelKey]], po)
+		}
+
+		results := make([][]PVCWithMountPod, len(config.GlobalConfig.MountPodPatch))
+		for i, patch := range config.GlobalConfig.MountPodPatch {
+			if IsPVCSelectorEmpty(patch.PVCSelector) {
+				continue
+			}
+			if patch.PVCSelector.MatchName != "" {
+				results[i] = []PVCWithMountPod{}
+				pvc, err := api.client.CoreV1().PersistentVolumeClaims("").Get(c, patch.PVCSelector.MatchName, metav1.GetOptions{})
+				if err != nil {
+					pvLog.Error(err, "get pvc error", "name", patch.PVCSelector.MatchName)
+					continue
+				}
+				if pvc != nil {
+					results[i] = []PVCWithMountPod{{
+						PVC:       *pvc,
+						MountPods: []corev1.Pod{},
+					}}
+					if m, ok := mountPodMaps[utils.GetUniqueOfPVC(*pvc)]; ok {
+						results[i][0].MountPods = m
+					}
+				}
+				continue
+			}
+			if patch.PVCSelector.MatchStorageClassName != "" {
+				pvcs, err := api.pvcSvc.ListPVCsByStorageClass(c, patch.PVCSelector.MatchStorageClassName)
+				if err != nil {
+					c.JSON(500, gin.H{"error": err.Error()})
+					return
+				}
+				pmp := []PVCWithMountPod{}
+				for _, pvc := range pvcs {
+					mps := []corev1.Pod{}
+					if m, ok := mountPodMaps[utils.GetUniqueOfPVC(pvc)]; ok {
+						mps = m
+					}
+					pmp = append(pmp, PVCWithMountPod{
+						PVC:       pvc,
+						MountPods: mps,
+					})
+				}
+				results[i] = pmp
+				continue
+			}
+			if (patch.PVCSelector.LabelSelector.MatchLabels == nil || len(patch.PVCSelector.LabelSelector.MatchLabels) == 0) &&
+				(patch.PVCSelector.LabelSelector.MatchExpressions == nil || len(patch.PVCSelector.LabelSelector.MatchExpressions) == 0) {
+				continue
+			}
+			selector, err := metav1.LabelSelectorAsSelector(&patch.PVCSelector.LabelSelector)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			pvcs, err := api.client.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{
+				LabelSelector: selector.String(),
+			})
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			pmp := []PVCWithMountPod{}
+			for _, pvc := range pvcs.Items {
+				mps := []corev1.Pod{}
+				if m, ok := mountPodMaps[utils.GetUniqueOfPVC(pvc)]; ok {
+					mps = m
+				}
+				pmp = append(pmp, PVCWithMountPod{
+					PVC:       pvc,
+					MountPods: mps,
+				})
+			}
+			results[i] = pmp
+		}
+		c.IndentedJSON(200, results)
 	}
 }
 

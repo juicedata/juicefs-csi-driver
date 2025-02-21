@@ -20,9 +20,10 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
 type ListPVCResult struct {
@@ -31,8 +32,18 @@ type ListPVCResult struct {
 	PVCs     []corev1.PersistentVolumeClaim `json:"pvcs"`
 }
 
+type ListPVCWithPodResult struct {
+	PVCWithPods []PVCWithPod `json:"pvcWithPod"`
+}
+
+type PVCWithPod struct {
+	PVC corev1.PersistentVolumeClaim `json:"pvc,omitempty"`
+	Pod corev1.Pod                   `json:"pod,omitempty"`
+}
+
 type PVCService interface {
 	ListPVCs(c *gin.Context) (*ListPVCResult, error)
+	ListPVCsByStorageClass(c context.Context, scName string) ([]corev1.PersistentVolumeClaim, error)
 	ListAllPVCs(ctx context.Context, pvs []corev1.PersistentVolume) ([]corev1.PersistentVolumeClaim, error)
 }
 

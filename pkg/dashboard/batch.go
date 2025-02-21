@@ -464,7 +464,8 @@ type ListDiffPodResult struct {
 func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldDiff, debug bool) ([]corev1.Pod, []PodDiff, error) {
 	// load config
 	if err := config.LoadFromConfigMap(ctx, api.client); err != nil {
-		return nil, nil, err
+		pvLog.Error(err, "load config error")
+		return []corev1.Pod{}, []PodDiff{}, nil
 	}
 
 	// get pvc、pv、secret

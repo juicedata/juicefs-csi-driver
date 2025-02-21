@@ -32,7 +32,7 @@ import YAML from 'yaml'
 import { DiffIcon } from '@/icons'
 import {
   BatchConfig,
-  MountPatch,
+  OriginMountPatch,
   PodDiffConfig,
   UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
@@ -43,14 +43,14 @@ interface UpgradeType {
   name: string
   status: string
   diff: {
-    oldConfig?: MountPatch
-    newConfig?: MountPatch
+    oldConfig?: OriginMountPatch
+    newConfig?: OriginMountPatch
   }
 }
 
 const diffContent = (podDiff: {
-  oldConfig?: MountPatch
-  newConfig?: MountPatch
+  oldConfig?: OriginMountPatch
+  newConfig?: OriginMountPatch
 }) => {
   const oldData = YAML.stringify(podDiff.oldConfig)
   const newData = YAML.stringify(podDiff.newConfig)

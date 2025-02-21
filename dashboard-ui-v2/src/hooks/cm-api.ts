@@ -2,11 +2,15 @@ import { useAsync } from '@react-hookz/web'
 import { ConfigMap } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
-import { PodDiffConfig } from '@/types/k8s.ts'
+import { PodDiffConfig, PVCWithPod } from '@/types/k8s.ts'
 import { getHost } from '@/utils'
 
 export function useConfig() {
   return useSWR<ConfigMap>(`/api/v1/config`)
+}
+
+export function useConfigPVC() {
+  return useSWR<PVCWithPod[][]>(`/api/v1/config/pvcs`)
 }
 
 export function useUpdateConfig() {

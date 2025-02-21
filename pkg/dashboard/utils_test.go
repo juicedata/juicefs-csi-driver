@@ -23,6 +23,8 @@ import (
 
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 func TestReverse(t *testing.T) {
@@ -46,4 +48,30 @@ func TestReverse(t *testing.T) {
 			t.Errorf("sort error")
 		}
 	})
+}
+
+func TestIsPVCSelectorEmpty(t *testing.T) {
+	type args struct {
+		selector *config.PVCSelector
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "",
+			args: args{
+				selector: &config.PVCSelector{},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPVCSelectorEmpty(tt.args.selector); got != tt.want {
+				t.Errorf("IsPVCSelectorEmpty() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
