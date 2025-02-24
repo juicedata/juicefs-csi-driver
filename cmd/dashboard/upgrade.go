@@ -523,7 +523,7 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	msg := string(p)
 	fmt.Print(msg)
 
-	runningRegex := `/POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	runningRegex := `POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	runningRe := regexp.MustCompile(runningRegex)
 
 	runningMatches := runningRe.FindStringSubmatch(msg)
