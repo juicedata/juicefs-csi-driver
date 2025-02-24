@@ -41,6 +41,14 @@ body {
   height: 64px;
 }
 
+.config-page-header .ant-page-header {
+  height: unset !important;
+}
+.config-form .ant-space-item .ant-space {
+  /*width: 600px !important;*/
+  /*max-width: unset !important;*/
+}
+
 .ant-modal,
 .ant-modal-content {
   height: 100vh;
@@ -81,10 +89,33 @@ body {
   margin: auto;
 }
 
+.patch-form-item {
+  width: 80%;
+}
+
+.patch-extra {
+  height: unset !important;
+}
+
+.patch-extra .ant-collapse-extra,
+.patch-extra .ant-pro-form-list-action {
+  height: 22px;
+  line-height: 22px;
+}
+
 .diff-pods-table {
   /*width: fit-content;*/
   /*justify-content: center;*/
   margin-top: 20px;
+}
+
+.inlinecode {
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  margin-bottom: 4px;
 }
 
 .xterm-screen {
@@ -96,6 +127,12 @@ body {
   width: 24px;
   height: 24px;
   border-color: transparent;
+  box-shadow: none;
+}
+
+.header-subtitle-button {
+  background-color: transparent;
+  border: none;
   box-shadow: none;
 }
 

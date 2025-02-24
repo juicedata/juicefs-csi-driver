@@ -22,8 +22,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,6 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
 var (
@@ -110,6 +111,17 @@ func (s *CachePVCService) ListAllPVCs(ctx context.Context, pvs []corev1.Persiste
 		}
 	}
 	return pvcs, nil
+}
+
+func (s *CachePVCService) ListPVCsByStorageClass(c context.Context, scName string) ([]corev1.PersistentVolumeClaim, error) {
+	result := make([]corev1.PersistentVolumeClaim, 0)
+	for name := range s.pvcIndexes.Iterate(c, false) {
+		var pvc corev1.PersistentVolumeClaim
+		if err := s.client.Get(c, name, &pvc); err == nil && pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName == scName {
+			result = append(result, pvc)
+		}
+	}
+	return result, nil
 }
 
 func (s *CachePVCService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {

@@ -30,7 +30,7 @@ import {
   VolumeDevice,
   VolumeMount,
 } from 'kubernetes-types/core/v1'
-import { ObjectMeta } from 'kubernetes-types/meta/v1'
+import { LabelSelector, ObjectMeta } from 'kubernetes-types/meta/v1'
 
 export type Pod = {
   mountPods?: NativePod[]
@@ -58,6 +58,11 @@ export type PVCWithUniqueId = {
   PVC: PersistentVolumeClaim
   PV: PersistentVolume
   UniqueId: string
+}
+
+export type PVCWithPod = {
+  PVC: PersistentVolumeClaim
+  MountPods?: NativePod[]
 }
 
 export const accessModeMap: { [key: string]: string } = {
@@ -91,29 +96,43 @@ export type MountPodUpgrade = {
 
 export type PodDiffConfig = {
   pod: Pod
-  oldConfig: MountPatch
-  newConfig: MountPatch
+  oldConfig: OriginMountPatch
+  newConfig: OriginMountPatch
 }
 
-export type MountPatch = {
-  ceMountImage: string
-  eeMountImage: string
-  cacheDirs: MountPatchCacheDir[]
-  labels: { string: string }
-  annotations: { string: string }
-  hostNetwork: boolean
-  hostPID: boolean
-  livenessProbe: Probe
-  readinessProbe: Probe
-  startupProbe: Probe
-  lifecycle: Lifecycle
-  resources: ResourceRequirements
-  terminationGracePeriodSeconds: number
-  volumes: Volume[]
-  volumeDevices: VolumeDevice[]
-  volumeMounts: VolumeMount[]
-  env: EnvVar[]
-  mountOptions: string[]
+export type OriginConfig = {
+  enableNodeSelector?: boolean
+  mountPodPatch?: OriginMountPodPatch[]
+}
+
+export type OriginMountPodPatch = {
+  pvcSelector?: OriginPVCSelector
+} & OriginMountPatch
+
+export type OriginPVCSelector = {
+  matchStorageClassName?: string
+  matchName?: string
+} & LabelSelector
+
+export type OriginMountPatch = {
+  ceMountImage?: string
+  eeMountImage?: string
+  cacheDirs?: MountPatchCacheDir[]
+  labels?: { [name: string]: string }
+  annotations?: { [name: string]: string }
+  hostNetwork?: boolean
+  hostPID?: boolean
+  livenessProbe?: Probe
+  readinessProbe?: Probe
+  startupProbe?: Probe
+  lifecycle?: Lifecycle
+  resources?: ResourceRequirements
+  terminationGracePeriodSeconds?: number
+  volumes?: Volume[]
+  volumeDevices?: VolumeDevice[]
+  volumeMounts?: VolumeMount[]
+  env?: EnvVar[]
+  mountOptions?: string[]
 }
 
 export type MountPatchCacheDir = {

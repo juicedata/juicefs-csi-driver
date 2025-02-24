@@ -22,15 +22,17 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "k8s.io/api/core/v1"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 type pvcService struct {
 	client client.Client
 }
+
+var _ PVCService = &pvcService{}
 
 func (s *pvcService) listPVCs(ctx context.Context, pvMap map[string]interface{}, limit int64, continueToken string) ([]corev1.PersistentVolumeClaim, string, error) {
 	pvcLists := corev1.PersistentVolumeClaimList{}
@@ -111,6 +113,20 @@ func (s *pvcService) ListAllPVCs(ctx context.Context, pvs []corev1.PersistentVol
 			continue
 		}
 		if _, ok := pvMap[fmt.Sprintf("%s/%s", pvc.Namespace, pvc.Name)]; ok {
+			result = append(result, pvc)
+		}
+	}
+	return result, nil
+}
+
+func (s *pvcService) ListPVCsByStorageClass(c context.Context, scName string) ([]corev1.PersistentVolumeClaim, error) {
+	pvcs := corev1.PersistentVolumeClaimList{}
+	if err := s.client.List(c, &pvcs, &client.ListOptions{}); err != nil {
+		return nil, err
+	}
+	result := make([]corev1.PersistentVolumeClaim, 0)
+	for _, pvc := range pvcs.Items {
+		if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName == scName {
 			result = append(result, pvc)
 		}
 	}
