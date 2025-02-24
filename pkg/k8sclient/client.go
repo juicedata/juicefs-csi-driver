@@ -85,20 +85,23 @@ func NewClient() (*K8sClient, error) {
 		return nil, status.Error(codes.NotFound, "Can't get kube InClusterConfig")
 	}
 	config.Timeout = timeout
+	kubeQPS := float32(20.0)
+	kubeBurst := 30
 	if os.Getenv("KUBE_QPS") != "" {
 		kubeQpsInt, err := strconv.Atoi(os.Getenv("KUBE_QPS"))
 		if err != nil {
 			return nil, err
 		}
-		config.QPS = float32(kubeQpsInt)
+		kubeQPS = float32(kubeQpsInt)
 	}
 	if os.Getenv("KUBE_BURST") != "" {
-		kubeBurstInt, err := strconv.Atoi(os.Getenv("KUBE_BURST"))
+		kubeBurst, err = strconv.Atoi(os.Getenv("KUBE_BURST"))
 		if err != nil {
 			return nil, err
 		}
-		config.Burst = kubeBurstInt
 	}
+	config.QPS = kubeQPS
+	config.Burst = kubeBurst
 	return newClient(*config)
 }
 
