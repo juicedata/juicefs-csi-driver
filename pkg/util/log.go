@@ -71,7 +71,7 @@ func StripSecret(secret map[string]string) map[string]string {
 	}
 	if _, ok := s["initconfig"]; ok {
 		var initconfig map[string]string
-		json.Unmarshal([]byte(s["initconfig"]), &initconfig)
+		_ = json.Unmarshal([]byte(s["initconfig"]), &initconfig)
 
 		stripped := StripSecret(initconfig)
 		b, _ := json.Marshal(stripped)
