@@ -151,6 +151,34 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
     waitingDeletedMaxDuration: 1h
   ```
 
+## Warmup Cache Group {#warmup-cache-group}
+
+Operator supports creating a `WarmUp` CR to warmup the cache group.
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-sample
+spec:
+  cacheGroupName: cachegroup-sample
+  # The default strategy is Once, meaning it run only once.
+  # The following examples are scheduled to run every 5 minutes.
+  policy:
+    type: Cron
+    cron:
+      schedule: "*/5 * * * *" 
+  # if empty, the default is to warmup the entire file system.
+  targets:
+    - /a
+    - /b
+    - /c
+  # warmup options
+  # ref https://juicefs.com/docs/cloud/reference/command_reference/#warmup
+  options:
+    - threads=50
+```
+
 ## Cache group configurations {#cache-group-configs}
 
 All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml).
