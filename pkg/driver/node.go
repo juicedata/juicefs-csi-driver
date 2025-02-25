@@ -119,9 +119,9 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	log = log.WithValues("volumeId", volumeID)
 
 	ctxWithLog := util.WithLog(ctx, log)
-
-	// WARNING: debug only, secrets included
-	log.V(1).Info("called with args", "args", req)
+	secrets := req.Secrets
+	req.Secrets = nil
+	log.V(1).Info("called with args", "args", req, "secrets", util.StripSecret(secrets))
 
 	target := req.GetTargetPath()
 	if len(target) == 0 {
@@ -154,7 +154,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	log.Info("get volume context", "volCtx", volCtx)
 
-	secrets := req.Secrets
 	mountOptions := []string{}
 	// get mountOptions from PV.volumeAttributes or StorageClass.parameters
 	if opts, ok := volCtx["mountOptions"]; ok {

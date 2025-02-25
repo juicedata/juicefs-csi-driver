@@ -87,7 +87,7 @@ type jfs struct {
 	Name      string
 	MountPath string
 	Options   []string
-	Setting   *config.JfsSetting
+	Setting   *config.JfsSetting `json:"-"`
 }
 
 // Jfs is the interface of a mounted file system
