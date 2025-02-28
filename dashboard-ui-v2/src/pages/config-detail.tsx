@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react'
+import { SetStateAction, useEffect, useState } from 'react'
 import { QuestionCircleOutlined } from '@ant-design/icons'
 import { PageContainer } from '@ant-design/pro-components'
-import { Button, notification, Popover, Tabs, TabsProps, Tooltip } from 'antd'
+import { Button, notification, Popover, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
 
-import {
-  useConfig,
-  useConfigDiff,
-  useConfigPVC,
-  useUpdateConfig,
-} from '@/hooks/cm-api'
+import ConfigUpdateConfirmModal from '@/components/config/ConfigUpdateModal.tsx'
+import { useConfig, useConfigDiff, useConfigPVC } from '@/hooks/cm-api'
 import ConfigTablePage from '@/pages/config-table-page.tsx'
 import ConfigYamlPage from '@/pages/config-yaml-page.tsx'
 import { OriginConfig } from '@/types/k8s.ts'
@@ -37,15 +33,21 @@ const ConfigDetail = () => {
 
   const { data, isLoading, mutate } = useConfig()
   const { data: pvcs } = useConfigPVC()
-  const [state, actions] = useUpdateConfig()
   const [configData, setConfigData] = useState('')
   const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const [edit, setEdit] = useState(false)
+  const [activeTabKey, setActiveTabKey] = useState('1')
+
+  const handleTabChange = (key: SetStateAction<string>) => {
+    setActiveTabKey(key)
+  }
 
   const [api, contextHolder] = notification.useNotification()
+
+  const [isModalVisible, setIsModalVisible] = useState(false)
 
   useEffect(() => {
     if (error) {
@@ -77,35 +79,6 @@ const ConfigDetail = () => {
       mutate()
     }
   }, [diffMutate, mutate, updated])
-
-  const items: TabsProps['items'] = [
-    {
-      key: '1',
-      label: 'Detail',
-      children: (
-        <ConfigTablePage
-          configData={configData}
-          setConfigData={setConfigData}
-          setUpdate={setUpdated}
-          pvcs={pvcs}
-          edit={edit}
-        />
-      ),
-    },
-    {
-      key: '2',
-      label: 'Yaml',
-      children: (
-        <ConfigYamlPage
-          setError={setError}
-          setUpdated={setUpdated}
-          setConfigData={setConfigData}
-          configData={configData}
-          edit={edit}
-        />
-      ),
-    },
-  ]
 
   return (
     <PageContainer
@@ -157,34 +130,40 @@ const ConfigDetail = () => {
           </Button>
         ),
         edit && (
-          <Button
-            key="update docs"
-            type="primary"
-            loading={state.status === 'loading'}
-            onClick={() => {
-              try {
-                YAML.stringify(YAML.parse(configData) as OriginConfig)
-                actions
-                  .execute({
-                    ...data,
-                    data: {
-                      'config.yaml': configData || '',
-                    },
-                  })
-                  .catch((error) => {
-                    setError(error.toString())
-                  })
-                  .then(() => {
-                    setEdit(false)
-                    setUpdated(false)
-                  })
-              } catch (e) {
-                setError((e as YAMLParseError).message)
+          <>
+            <Button
+              key="update docs"
+              type="primary"
+              disabled={
+                YAML.stringify(configData) ==
+                YAML.stringify(data?.data?.['config.yaml'] || '')
               }
-            }}
-          >
-            <FormattedMessage id="save" />
-          </Button>
+              onClick={() => {
+                try {
+                  YAML.stringify(YAML.parse(configData) as OriginConfig)
+                  return setIsModalVisible(true)
+                } catch (e) {
+                  setError((e as YAMLParseError).message)
+                }
+              }}
+            >
+              <FormattedMessage id="save" />
+            </Button>
+            <ConfigUpdateConfirmModal
+              modalOpen={isModalVisible}
+              onOk={() => {
+                setIsModalVisible(false)
+                setUpdated(false)
+              }}
+              onCancel={() => setIsModalVisible(false)}
+              setUpdated={setUpdated}
+              setEdit={setEdit}
+              setError={setError}
+              data={data}
+              configData={configData}
+              pvcs={pvcs}
+            />
+          </>
         ),
 
         diff ? (
@@ -220,9 +199,39 @@ const ConfigDetail = () => {
           </Button>
         ),
       ]}
+      tabActiveKey={activeTabKey}
+      onTabChange={handleTabChange}
+      tabList={[
+        {
+          key: '1',
+          tab: 'Detail',
+        },
+        {
+          key: '2',
+          tab: 'Yaml',
+        },
+      ]}
     >
       {contextHolder}
-      <Tabs items={items} />
+      {activeTabKey === '1' && (
+        <ConfigTablePage
+          configData={configData}
+          setConfigData={setConfigData}
+          setUpdate={setUpdated}
+          pvcs={pvcs}
+          edit={edit}
+          setError={setError}
+        />
+      )}
+      {activeTabKey === '2' && (
+        <ConfigYamlPage
+          setError={setError}
+          setUpdated={setUpdated}
+          setConfigData={setConfigData}
+          configData={configData}
+          edit={edit}
+        />
+      )}
     </PageContainer>
   )
 }

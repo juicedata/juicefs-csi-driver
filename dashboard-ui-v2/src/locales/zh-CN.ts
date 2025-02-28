@@ -168,4 +168,7 @@ export default {
   selector: '选择器',
   allPVC: '全部 PVC',
   basicPatch: '基础配置',
+  configUpdateConfirm: '配置发生如下变更，是否确认？',
+  updatePatch: '配置变更',
+  backToUpdate: '返回修改',
 }

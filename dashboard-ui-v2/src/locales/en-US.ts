@@ -173,4 +173,7 @@ export default {
   selector: 'Selector',
   allPVC: 'All PVCs',
   basicPatch: 'Batch Patch',
+  configUpdateConfirm: 'Configs are updated as follows, confirm?',
+  updatePatch: 'Update Patch',
+  backToUpdate: 'Back',
 }
