@@ -23,7 +23,7 @@ import {
 } from '@ant-design/pro-components'
 import { Collapse, Popover } from 'antd'
 import { FormattedMessage } from 'react-intl'
-import YAML from 'yaml'
+import YAML, { YAMLParseError } from 'yaml'
 
 import MountPodPatchDetail from '@/components/config/mount-pod-patch-detail.tsx'
 import MountPodPatchForm from '@/components/config/mount-pod-patch-form.tsx'
@@ -36,8 +36,9 @@ const ConfigTablePage: React.FC<{
   setUpdate: (updated: boolean) => void
   pvcs?: PVCWithPod[][]
   edit: boolean
+  setError: (message: string) => void
 }> = (props) => {
-  const { configData, setConfigData, setUpdate, pvcs, edit } = props
+  const { configData, setConfigData, setUpdate, pvcs, edit, setError } = props
   const [config, setConfig] = useState<Config>()
   const formRef = useRef<ProFormInstance>()
 
@@ -49,10 +50,10 @@ const ConfigTablePage: React.FC<{
         setConfig(c)
         formRef?.current?.setFieldsValue(c)
       } catch (e) {
-        console.log(e)
+        setError((e as YAMLParseError).message)
       }
     }
-  }, [configData, edit])
+  }, [setError, configData, edit])
 
   return (
     <ProCard>
@@ -66,7 +67,7 @@ const ConfigTablePage: React.FC<{
               setConfigData(ocs)
               setUpdate(true)
             } catch (e) {
-              console.log(e)
+              setError((e as YAMLParseError).message)
             }
           }}
           formRef={formRef}
@@ -87,7 +88,7 @@ const ConfigTablePage: React.FC<{
               const items = [
                 {
                   key: key,
-                  label: pvcPop(index, pvcs),
+                  label: PvcPop(index, pvcs),
                   children: <MountPodPatchForm patch={record} />,
                   extra: action,
                   headerClass: 'patch-extra',
@@ -113,7 +114,7 @@ const ConfigTablePage: React.FC<{
               items={[
                 {
                   key: index,
-                  label: pvcPop(index, pvcs),
+                  label: PvcPop(index, pvcs),
                   children: (
                     <MountPodPatchDetail
                       patch={value}
@@ -132,7 +133,7 @@ const ConfigTablePage: React.FC<{
 
 export default ConfigTablePage
 
-const pvcPop = (index: number, pvcs?: PVCWithPod[][]) => {
+export const PvcPop = (index: number, pvcs?: PVCWithPod[][]) => {
   return (
     <Popover
       placement={'bottomLeft'}

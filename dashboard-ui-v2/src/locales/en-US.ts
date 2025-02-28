@@ -176,4 +176,7 @@ export default {
   desensitizedYaml: 'Yaml has been desensitized',
   showYaml: 'Show Yaml',
   containerPath: "Path in Container",
+  configUpdateConfirm: 'Configs are updated as follows, confirm?',
+  updatePatch: 'Update Patch',
+  backToUpdate: 'Back',
 }

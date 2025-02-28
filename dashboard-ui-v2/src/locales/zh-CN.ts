@@ -171,4 +171,7 @@ export default {
   desensitizedYaml: 'Yaml 已做脱敏处理',
   showYaml: '展示 Yaml',
   containerPath: '容器内挂载路径',
+  configUpdateConfirm: '配置发生如下变更，是否确认？',
+  updatePatch: '配置变更',
+  backToUpdate: '返回修改',
 }
