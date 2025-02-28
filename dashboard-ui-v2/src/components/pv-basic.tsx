@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Badge, Button, List, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
@@ -55,7 +55,7 @@ const PVBasic: React.FC<{
         title={<FormattedMessage id="basic" />}
         extra={
           <>
-            <Tooltip title="Show Yaml">
+            <Tooltip title={<FormattedMessage id="showYaml" />}>
               <Button
                 className="action-button"
                 onClick={showModal}

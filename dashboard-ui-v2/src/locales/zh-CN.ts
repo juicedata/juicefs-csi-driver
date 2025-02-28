@@ -168,4 +168,7 @@ export default {
   selector: '选择器',
   allPVC: '全部 PVC',
   basicPatch: '基础配置',
+  desensitizedYaml: 'Yaml 已做脱敏处理',
+  showYaml: '展示 Yaml',
+  containerPath: '容器内挂载路径',
 }

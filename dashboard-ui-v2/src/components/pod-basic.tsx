@@ -28,7 +28,7 @@ import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import {
   getPodStatusBadge,
-  isMountPod,
+  isMountPod, isSysPod,
   omitPod,
   podStatus,
   supportPodSmoothUpgrade,
@@ -78,7 +78,8 @@ const PodBasic: React.FC<{
               )}
             </UpgradeModal>
           ) : null}
-          <Tooltip title="Show Yaml">
+          <Tooltip
+            title={isSysPod(pod) ? <FormattedMessage id="showYaml" /> : <FormattedMessage id="desensitizedYaml" />}>
             <Button
               className="action-button"
               onClick={showModal}

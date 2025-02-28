@@ -15,7 +15,7 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Event, Node } from 'kubernetes-types/core/v1'
+import { Event, Node, PersistentVolume, PersistentVolumeClaim } from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
@@ -97,6 +97,24 @@ export function usePods(
     source === 'pv'
       ? `/api/v1/${source}/${name}/${type}`
       : `/api/v1/${source}/${namespace}/${name}/${type}`,
+  )
+}
+
+export function usePVsOfPod(
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<PersistentVolume[]>(
+    `/api/v1/pod/${namespace}/${name}/pvs`,
+  )
+}
+
+export function usePVCsOfPod(
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<PersistentVolumeClaim[]>(
+    `/api/v1/pod/${namespace}/${name}/pvcs`,
   )
 }
 

@@ -161,3 +161,45 @@ func (l *LogPipe) Write(p []byte) (int, error) {
 func (l *LogPipe) Read(p []byte) (int, error) {
 	return l.stream.Read(p)
 }
+
+func DesensitizeAppPod(pod *corev1.Pod) *corev1.Pod {
+	dPod := &corev1.Pod{
+		ObjectMeta: pod.ObjectMeta,
+		Status:     pod.Status,
+	}
+	dPod.Spec.NodeName = pod.Spec.NodeName
+	dPod.Spec.Volumes = pod.Spec.Volumes
+	dPod.Spec.TerminationGracePeriodSeconds = pod.Spec.TerminationGracePeriodSeconds
+	dPod.Spec.Tolerations = pod.Spec.Tolerations
+	dPod.Spec.Affinity = pod.Spec.Affinity
+	dPod.Spec.RestartPolicy = pod.Spec.RestartPolicy
+	dPod.Spec.Hostname = pod.Spec.Hostname
+	dPod.Spec.Containers = make([]corev1.Container, len(pod.Spec.Containers))
+	dPod.Spec.InitContainers = make([]corev1.Container, len(pod.Spec.InitContainers))
+
+	for i := range pod.Spec.Containers {
+		dPod.Spec.Containers[i] = desensitizeContainer(pod.Spec.Containers[i])
+	}
+	for i := range pod.Spec.InitContainers {
+		dPod.Spec.InitContainers[i] = desensitizeContainer(pod.Spec.InitContainers[i])
+	}
+	return dPod
+}
+
+func desensitizeContainer(cn corev1.Container) corev1.Container {
+	if strings.Contains(cn.Name, common.MountContainerName) {
+		return cn
+	}
+	return corev1.Container{
+		Name:            cn.Name,
+		Image:           cn.Image,
+		Resources:       cn.Resources,
+		VolumeMounts:    cn.VolumeMounts,
+		SecurityContext: cn.SecurityContext,
+		Lifecycle:       cn.Lifecycle,
+		LivenessProbe:   cn.LivenessProbe,
+		ReadinessProbe:  cn.ReadinessProbe,
+		VolumeDevices:   cn.VolumeDevices,
+		Ports:           cn.Ports,
+	}
+}
