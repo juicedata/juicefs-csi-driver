@@ -552,6 +552,16 @@ export function isMountPod(pod: Pod): boolean {
   )
 }
 
+export function isSysPod(pod: Pod): boolean {
+  return (
+    (pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount' ||
+      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-csi-driver' ||
+      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-cache-group-worker'
+    ) ||
+    false
+  )
+}
+
 export function isCEImage(image: string): boolean {
   const tag = image.split(':')[1]
   if (!tag) {

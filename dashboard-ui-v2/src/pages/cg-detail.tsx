@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { memo, useState } from 'react'
+import React, { memo, useState } from 'react'
 import {
   PageContainer,
   ProCard,
@@ -79,7 +79,7 @@ const CgDetail: React.FC<{
         title={<FormattedMessage id="basic" />}
         extra={
           <Space>
-            <Tooltip title="Show Yaml">
+            <Tooltip title={<FormattedMessage id="showYaml" />}>
               <Button
                 className="action-button"
                 onClick={showModal}

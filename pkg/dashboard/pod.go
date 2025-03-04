@@ -114,6 +114,11 @@ func (api *API) getPodHandler() gin.HandlerFunc {
 			c.String(404, "not found")
 			return
 		}
+		// desensitize pod
+		if !utils.IsSysPod(pod.(*corev1.Pod)) {
+			c.IndentedJSON(200, utils.DesensitizeAppPod(pod.(*corev1.Pod)))
+			return
+		}
 		c.IndentedJSON(200, pod)
 	}
 }

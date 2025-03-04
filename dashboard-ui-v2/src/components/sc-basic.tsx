@@ -44,7 +44,7 @@ const SCBasic: React.FC<{
       title={<FormattedMessage id="basic" />}
       extra={
         <>
-          <Tooltip title="Show Yaml">
+          <Tooltip title={<FormattedMessage id="showYaml" />}>
             <Button
               className="action-button"
               onClick={showModal}
