@@ -34,7 +34,6 @@ REGIONS=(
     registry.cn-shanghai.aliyuncs.com
     registry.cn-zhangjiakou.aliyuncs.com
     registry.cn-shenzhen.aliyuncs.com
-    registry.cn-heyuan.aliyuncs.com
     registry.cn-guangzhou.aliyuncs.com
     registry.cn-wulanchabu.aliyuncs.com
     registry.cn-hongkong.aliyuncs.com
