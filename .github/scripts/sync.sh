@@ -34,6 +34,7 @@ REGIONS=(
     registry.cn-shanghai.aliyuncs.com
     registry.cn-zhangjiakou.aliyuncs.com
     registry.cn-shenzhen.aliyuncs.com
+    registry.cn-heyuan.aliyuncs.com
     registry.cn-guangzhou.aliyuncs.com
     registry.cn-wulanchabu.aliyuncs.com
     registry.cn-hongkong.aliyuncs.com
@@ -57,6 +58,7 @@ sync_image() {
       docker login --username=${username} --password=${passwd} ${REGION}
       docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}${platform_suffix}
       docker push ${REGION}/juicedata/${image}:${tag}${platform_suffix}
+      sleep 5
     done
   else
     docker pull $registryName/$image:${tag}
@@ -66,6 +68,7 @@ sync_image() {
       docker login --username=${username} --password=${passwd} ${REGION}
       docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}
       docker push ${REGION}/juicedata/${image}:${tag}
+      sleep 5
     done
   fi
 }
