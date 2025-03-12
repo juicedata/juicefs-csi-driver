@@ -104,7 +104,7 @@ Mount Pod 需要由 CSI Node 创建，考虑到 CSI Node 是一个 DaemonSet 组
 * 不要直接从 Mount Pod 模式升级成 Sidecar 模式。已有的 Mount Pod 在 Sidecar 模式下将无法回收。并且一般而言，考虑到 Sidecar 不支持复用，我们不推荐从 Mount Pod 模式迁移为 Sidecar 模式；
 * 对于启用了 Sidecar 注入的命名空间，CSI Controller 会监听该命名空间下创建的所有容器，检查 PVC 的使用并查询获取相关信息。如果希望最大程度地减小开销，可以在该命名空间下，对不使用 JuiceFS PV 的应用 Pod 打上 `disable.sidecar.juicefs.com/inject: true` 标签，让 CSI Controller 忽略这些不相关的容器。
 
-欲使用 Sidecar 模式，需要[以 Sidecar 模式安装 CSI 驱动](./getting_started.md#sidecar)。安装完毕以后，继续阅读[「在 Serverless 环境中使用 JuiceFS CSI 驱动」]了解如何在各个云服务商的 Serverless 产品中使用 CSI 驱动。
+欲使用 Sidecar 模式，需要[以 Sidecar 模式安装 CSI 驱动](./getting_started.md#sidecar)。安装完毕以后，继续阅读[「在 Serverless 环境中使用 JuiceFS CSI 驱动」](./cookbook/serverless.md)了解如何在各个云服务商的 Serverless 产品中使用 CSI 驱动。
 
 ### 进程挂载模式 {#by-process}
 
