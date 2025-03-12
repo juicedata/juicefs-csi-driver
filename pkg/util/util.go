@@ -30,6 +30,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -320,7 +321,7 @@ func RandStringRunes(n int) string {
 }
 
 func DoWithContext(ctx context.Context, f func() error) error {
-	doneCh := make(chan error)
+	doneCh := make(chan error, 1)
 	go func() {
 		doneCh <- f()
 	}()
@@ -337,7 +338,7 @@ func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	doneCh := make(chan error)
+	doneCh := make(chan error, 1)
 	go func() {
 		doneCh <- f()
 	}()
@@ -356,9 +357,17 @@ func CheckDynamicPV(name string) (bool, error) {
 	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
 }
 
-func UmountPath(ctx context.Context, sourcePath string) {
+func UmountPath(ctx context.Context, sourcePath string, lazy bool) {
 	log := GenLog(ctx, utilLog, "Umount")
-	out, err := exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
+	var (
+		out []byte
+		err error
+	)
+	if lazy {
+		out, err = exec.CommandContext(ctx, "umount", "-l", sourcePath).CombinedOutput()
+	} else {
+		out, err = exec.CommandContext(ctx, "umount", sourcePath).CombinedOutput()
+	}
 	if err != nil &&
 		!strings.Contains(string(out), "not mounted") &&
 		!strings.Contains(string(out), "mountpoint not found") &&
@@ -390,7 +399,7 @@ func parseMntPath(cmd string) (string, string, error) {
 	if args[0] == "exec" {
 		args = args[1:]
 	}
-	if len(args) < 3 || !strings.HasPrefix(args[2], "/jfs") {
+	if len(args) < 3 || (!strings.HasPrefix(args[2], "/jfs") && !strings.HasPrefix(args[2], "/mnt/jfs")) {
 		return "", "", fmt.Errorf("err cmd:%s", cmd)
 	}
 	argSlice := strings.Split(args[2], "/")
@@ -725,4 +734,39 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 		return nil
 	}
 	return strings.Split(mountCmds[len(mountCmds)-1], ",")
+}
+
+func ToPtr[T any](v T) *T {
+	return &v
+}
+
+func CpNotNil[T any](s, d *T) *T {
+	if s != nil {
+		return s
+	}
+	return d
+}
+
+func CpNotEmpty(s, d string) string {
+	if s != "" {
+		return s
+	}
+	return d
+}
+
+func MergeMap(s, d map[string]string) map[string]string {
+	if d == nil {
+		return s
+	}
+	for k, v := range s {
+		d[k] = v
+	}
+	return d
+}
+
+func SortBy[T any](slice []T, less func(i, j int) bool) {
+	if slice == nil {
+		return
+	}
+	sort.Slice(slice, less)
 }

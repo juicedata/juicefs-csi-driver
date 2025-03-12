@@ -350,6 +350,31 @@ func TestCheckForSubPath(t *testing.T) {
 			wantShouldDeleted: true,
 			wantErr:           false,
 		},
+		{
+			name: "test-root-subPath",
+			args: args{
+				volume: &v1.PersistentVolume{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test31",
+					},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeSource: v1.PersistentVolumeSource{
+							CSI: &v1.CSIPersistentVolumeSource{
+								Driver: "juicefs.csi.com",
+								VolumeAttributes: map[string]string{
+									"subPath": "/",
+								},
+							},
+						},
+						StorageClassName: "test-sc",
+					},
+				},
+				pathPattern: "test",
+			},
+			pvs:               []v1.PersistentVolume{},
+			wantShouldDeleted: false,
+			wantErr:           true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

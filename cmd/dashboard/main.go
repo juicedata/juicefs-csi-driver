@@ -42,13 +42,25 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
+
+	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 )
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(juicefsiov1.AddToScheme(scheme))
+	// Initialize a logger for the controller runtime
+	ctrllog.SetLogger(klog.NewKlogr())
+	// To disable controller runtime logging, instead set the null logger:
+	//log.SetLogger(logr.New(log.NullLogSink{}))
+
 }
 
 const (
@@ -67,6 +79,8 @@ var (
 	leaderElectionNamespace     string
 	leaderElectionLeaseDuration time.Duration
 
+	enableManager bool
+
 	// for basic auth
 	USERNAME string
 	PASSWORD string
@@ -81,6 +95,8 @@ func main() {
 		},
 	}
 
+	cmd.AddCommand(upgradeCmd)
+
 	if v := os.Getenv("USERNAME"); v != "" {
 		USERNAME = v
 	}
@@ -93,6 +109,7 @@ func main() {
 	cmd.PersistentFlags().BoolVar(&leaderElection, "leader-election", false, "Enables leader election. If leader election is enabled, additional RBAC rules are required. ")
 	cmd.PersistentFlags().StringVar(&leaderElectionNamespace, "leader-election-namespace", "", "Namespace where the leader election resource lives. Defaults to the pod namespace if not set.")
 	cmd.PersistentFlags().DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
+	cmd.PersistentFlags().BoolVar(&enableManager, "enable-manager", true, "enable manager for cache/index resource")
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
@@ -106,10 +123,13 @@ func run() {
 	var config *rest.Config
 	var err error
 	sysNamespace := "kube-system"
+	if v := os.Getenv(SysNamespaceKey); v != "" {
+		sysNamespace = v
+	}
+	jfsConfig.Namespace = sysNamespace
 	if devMode {
 		config, err = getLocalConfig()
 	} else {
-		sysNamespace = os.Getenv(SysNamespaceKey)
 		gin.SetMode(gin.ReleaseMode)
 		config = ctrl.GetConfigOrDie()
 	}
@@ -117,14 +137,28 @@ func run() {
 		log.Error(err, "can't get k8s config")
 		os.Exit(1)
 	}
-	mgr, err := newManager(config)
-	if err != nil {
-		log.Error(err, "can't create manager")
-		os.Exit(1)
+
+	var mgrClient client.Client
+	var mgr ctrl.Manager
+	if enableManager {
+		mgr, err = newManager(config)
+		if err != nil {
+			log.Error(err, "can't create manager")
+			os.Exit(1)
+		}
+		mgrClient = mgr.GetClient()
+	} else {
+		mgrClient, err = client.New(config, client.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			log.Error(err, "can't create client")
+			os.Exit(1)
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	podApi := dashboard.NewAPI(ctx, sysNamespace, mgr.GetClient(), config)
+	podApi := dashboard.NewAPI(ctx, sysNamespace, mgrClient, config, enableManager)
 	router := gin.Default()
 	if devMode {
 		router.Use(cors.New(cors.Config{
@@ -174,21 +208,27 @@ func run() {
 			log.Error(err, "pprof server error")
 		}
 	}()
-	quit := make(chan os.Signal, 1)
-	go func() {
-		if err := podApi.StartManager(ctx, mgr); err != nil {
-			log.Error(err, "manager start error")
-		}
-		quit <- syscall.SIGTERM
-	}()
-
+	quit := make(chan os.Signal, 2)
+	if enableManager {
+		go func() {
+			if err := podApi.StartManager(ctx, mgr); err != nil {
+				log.Error(err, "manager start error")
+			}
+			quit <- syscall.SIGTERM
+		}()
+	}
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info("Shutdown Server ...")
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Error(err, "Server Shutdown")
-		os.Exit(1)
-	}
+	go func() {
+		log.Info("Shutdown Server ...")
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Error(err, "Server Shutdown")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}()
+	<-quit
+	os.Exit(1) // second signal. Exit directly.
 }
 
 func getLocalConfig() (*rest.Config, error) {
@@ -201,15 +241,16 @@ func getLocalConfig() (*rest.Config, error) {
 
 func newManager(conf *rest.Config) (ctrl.Manager, error) {
 	return ctrl.NewManager(conf, ctrl.Options{
-		Scheme:                  scheme,
-		Port:                    9442,
-		MetricsBindAddress:      "0.0.0.0:8082",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0.0.0.0:8082",
+		},
 		LeaderElection:          leaderElection,
 		LeaderElectionID:        "dashboard.juicefs.com",
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaseDuration:           &leaderElectionLeaseDuration,
-		NewCache: cache.BuilderWithOptions(cache.Options{
+		Cache: cache.Options{
 			Scheme: scheme,
-		}),
+		},
 	})
 }

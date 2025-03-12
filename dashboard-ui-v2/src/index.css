@@ -32,13 +32,21 @@
 body {
   margin: 0;
   /* display: flex;
-  align-items: center;
-  min-width: 100%;
-  min-height: 100vh; */
+    align-items: center;
+    min-width: 100%;
+    min-height: 100vh; */
 }
 
 .ant-page-header {
   height: 64px;
+}
+
+.config-page-header .ant-page-header {
+  height: unset !important;
+}
+.config-form .ant-space-item .ant-space {
+  /*width: 600px !important;*/
+  /*max-width: unset !important;*/
 }
 
 .ant-modal,
@@ -48,8 +56,66 @@ body {
   margin: 0;
   top: 0;
 }
+
 .ant-modal-body {
   height: calc(100vh - 110px);
+}
+
+.add-worker-modal {
+  width: unset !important;
+}
+
+.add-worker-modal .ant-modal,
+.add-worker-modal .ant-modal-content,
+.add-worker-modal .ant-modal-body {
+  height: unset;
+  top: 100px;
+  margin: unset;
+  max-width: fit-content;
+  margin: auto;
+}
+
+.batch-upgrade-modal {
+  width: unset !important;
+}
+
+.batch-upgrade-modal .ant-modal,
+.batch-upgrade-modal .ant-modal-content,
+.batch-upgrade-modal .ant-modal-body {
+  height: unset;
+  top: 100px;
+  margin: unset;
+  width: fit-content;
+  margin: auto;
+}
+
+.patch-form-item {
+  width: 80%;
+}
+
+.patch-extra {
+  height: unset !important;
+}
+
+.patch-extra .ant-collapse-extra,
+.patch-extra .ant-pro-form-list-action {
+  height: 22px;
+  line-height: 22px;
+}
+
+.diff-pods-table {
+  /*width: fit-content;*/
+  /*justify-content: center;*/
+  margin-top: 20px;
+}
+
+.inlinecode {
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  margin-bottom: 4px;
 }
 
 .xterm-screen {
@@ -61,6 +127,12 @@ body {
   width: 24px;
   height: 24px;
   border-color: transparent;
+  box-shadow: none;
+}
+
+.header-subtitle-button {
+  background-color: transparent;
+  border: none;
   box-shadow: none;
 }
 

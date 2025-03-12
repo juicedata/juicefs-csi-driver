@@ -22,11 +22,17 @@ import { FormattedMessage } from 'react-intl'
 import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
+import UpgradeModal from '@/components/upgrade-modal.tsx'
+import { useMountPodImage } from '@/hooks/use-api.ts'
 import { UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
-import { getPodStatusBadge, isMountPod, omitPod, podStatus, supportPodSmoothUpgrade } from '@/utils'
-import { useMountPodImage } from '@/hooks/use-api.ts'
-import UpgradeModal from '@/components/upgrade-modal.tsx'
+import {
+  getPodStatusBadge,
+  isMountPod, isSysPod,
+  omitPod,
+  podStatus,
+  supportPodSmoothUpgrade,
+} from '@/utils'
 
 const PodBasic: React.FC<{
   pod: Pod
@@ -34,7 +40,11 @@ const PodBasic: React.FC<{
   const { pod } = props
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { data } = useMountPodImage(isMountPod(pod), pod.metadata?.namespace, pod.metadata?.name)
+  const { data } = useMountPodImage(
+    isMountPod(pod),
+    pod.metadata?.namespace,
+    pod.metadata?.name,
+  )
   const [image] = useState(pod.spec?.containers[0].image)
 
   const showModal = () => {
@@ -50,7 +60,8 @@ const PodBasic: React.FC<{
       title={<FormattedMessage id="basic" />}
       extra={
         <Space>
-          {supportPodSmoothUpgrade(image || '') && supportPodSmoothUpgrade(data || '') ? (
+          {supportPodSmoothUpgrade(image || '') &&
+          supportPodSmoothUpgrade(data || '') ? (
             <UpgradeModal
               namespace={pod.metadata?.namespace || ''}
               name={pod.metadata?.name || ''}
@@ -67,7 +78,8 @@ const PodBasic: React.FC<{
               )}
             </UpgradeModal>
           ) : null}
-          <Tooltip title="Show Yaml">
+          <Tooltip
+            title={isSysPod(pod) ? <FormattedMessage id="showYaml" /> : <FormattedMessage id="desensitizedYaml" />}>
             <Button
               className="action-button"
               onClick={showModal}

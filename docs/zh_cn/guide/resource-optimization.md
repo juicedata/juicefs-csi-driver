@@ -1,6 +1,6 @@
 ---
 title: 资源优化
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱动中，也有不少方面可以做资源占用优化，甚至带来一定的性能提升。在这里集中罗列介绍。
@@ -49,7 +49,7 @@ globalConfig:
 自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
 
 * 修改以后，已有的 Mount Pod 并不会自动按照新的配置重建。需要删除 Mount Pod，才能以新的资源配置触发创建新的 Mount Pod。
-* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 pod。
+* 必须配置好[挂载点自动恢复](./configurations.md#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 Pod。
 * 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
 
 ```yaml {6-9}
@@ -77,7 +77,7 @@ spec:
 ```yaml
 juicefs/mount-cpu-limit: "0"
 juicefs/mount-memory-limit: "0"
-# 如果 mount pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
+# 如果 Mount Pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
 juicefs/mount-cpu-requests: "1m"
 juicefs/mount-memory-requests: "4Mi"
 ```
@@ -242,6 +242,25 @@ CSI Node 在创建 Mount Pod 时，会默认给其设置 PriorityClass 为 `syst
    kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
    kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
    ```
+
+## 为 Mount Pod 设置干扰预算（PodDisruptionBudget）{#set-poddisruptionbudget-for-mount-pod}
+
+集群管理员有时会对节点进行排空（drain），以便维护节点、升级节点等。在排空节点时，Kubernetes 会驱逐节点上所有的 Pod，包括 Mount Pod。但是 Mound Pod 的驱逐可能会导致应用 Pod 无法访问 JuiceFS PV，并且 CSI Node 在检查到被驱逐的 Mount Pod 还有应用 Pod 使用时，会再次拉起，这样会导致 Mount Pod 处于删除 - 拉取的循环中。
+
+为了避免这种情况的发生，可以为 Mount Pod 设置干扰预算（[PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb)）。干扰预算可以保证在排空节点时，Mount Pod 不会被驱逐，直到其对应的应用 Pod 被驱逐，CSI Node 会将其删除。这样既可以保证节点排空期间应用 Pod 对 JuiceFS PV 的访问，避免 Mount Pod 的删除 - 拉取循环，也不影响整个节点排空的流程。示例如下：
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: jfs-pdb
+  namespace: kube-system  # 对应 JuiceFS CSI 所在的命名空间
+spec:
+  minAvailable: "100%"    # 避免所有 Mount Pod 在节点排空时被驱逐
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: juicefs-mount
+```
 
 ## 为相同的 StorageClass 复用 Mount Pod {#share-mount-pod-for-the-same-storageclass}
 

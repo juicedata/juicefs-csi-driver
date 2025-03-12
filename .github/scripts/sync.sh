@@ -58,6 +58,7 @@ sync_image() {
       docker login --username=${username} --password=${passwd} ${REGION}
       docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}${platform_suffix}
       docker push ${REGION}/juicedata/${image}:${tag}${platform_suffix}
+      sleep 5
     done
   else
     docker pull $registryName/$image:${tag}
@@ -67,6 +68,7 @@ sync_image() {
       docker login --username=${username} --password=${passwd} ${REGION}
       docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}
       docker push ${REGION}/juicedata/${image}:${tag}
+      sleep 5
     done
   fi
 }
@@ -87,6 +89,13 @@ elif [ "$imageName" = "csi-driver" ]; then
     sync_image "juicedata" "juicefs-csi-driver" "arm64"
     sync_image "juicedata" "csi-dashboard"
     sync_image "juicedata" "csi-dashboard" "arm64"
+  fi
+elif [ "$imageName" = "juicefs-cache-group-operator" ]; then
+  if [ "$tag" = "nightly" ]; then
+    sync_image "juicedata" "juicefs-cache-group-operator"
+  else
+    sync_image "juicedata" "juicefs-cache-group-operator"
+    sync_image "juicedata" "juicefs-cache-group-operator" "arm64"
   fi
 else
   image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)

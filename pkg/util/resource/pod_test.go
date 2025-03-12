@@ -1047,7 +1047,7 @@ func TestMergeMountOptions(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8080",
+								"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8080,cache-size=10240",
 							},
 						}},
 					},
@@ -1055,12 +1055,13 @@ func TestMergeMountOptions(t *testing.T) {
 				jfsSetting: &config.JfsSetting{
 					Options: []string{
 						"metrics=0.0.0.0:8081",
+						"cache-size=10241",
 					},
 				}},
 			want: []string{
 				"sh",
 				"-c",
-				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8081",
+				"cp test.config /root/test.config\n/usr/bin/juicefs auth jfs-test --access-key=ceph --token=${token} --secret-key=${secretkey} --conf-dir=/root/.juicefs\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update,metrics=0.0.0.0:8081,cache-size=10241",
 			},
 		},
 	}

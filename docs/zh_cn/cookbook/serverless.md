@@ -9,12 +9,11 @@ sidebar_label: 在 Serverless 中使用
 此特性需使用 0.23.1 及以上版本的 JuiceFS CSI 驱动
 :::
 
-不同的云厂商的 Serverless 环境实现不尽相同，本篇文档会详细描述在不同的云厂商的 Serverless 环境中如何使用 JuiceFS CSI 驱动，包括[华为云 CCI](https://www.huaweicloud.com/product/cci.html)、[火山引擎 VCI](https://www.volcengine.com/theme/1224494-D-7-1)
-以及[腾讯云 Serverless 容器服务](https://cloud.tencent.com/product/tkeserverless)，[阿里云 ECI](https://www.aliyun.com/product/eci) 还不支持使用 JuiceFS CSI 驱动，需要通过 Fluid，请参考文档 [《以 Serverless Container 的方式在 ACK 使用 JuiceFS》](https://juicefs.com/docs/zh/cloud/kubernetes/use_in_eci)。
+不同的云厂商的 Serverless 环境实现不尽相同，本篇文档会详细描述在不同的云厂商的 Serverless 环境中如何使用 JuiceFS CSI 驱动，包括[华为云 CCI](https://www.huaweicloud.com/product/cci.html)、[火山引擎 VCI](https://www.volcengine.com/theme/1224494-D-7-1)、[阿里云 ACS](https://www.aliyun.com/product/acs) 以及[腾讯云 Serverless 容器服务](https://cloud.tencent.com/product/tkeserverless)，[阿里云 ECI](https://www.aliyun.com/product/eci) 还不支持使用 JuiceFS CSI 驱动，需要通过 Fluid，请参考文档 [《以 Serverless Container 的方式在 ACK 使用 JuiceFS》](https://juicefs.com/docs/zh/cloud/kubernetes/use_in_eci)。
 
 ## 安装 {#install}
 
-参考[安装](../getting_started.md#sidecar)小节，唯一需要注意的是，安装完毕后，给需要用到使用 JuiceFS CSI 驱动的命名空间打上下述标签：
+参考[安装](../getting_started.md#sidecar)小节（使用 `mountMode: serverless` 模式），唯一需要注意的是，安装完毕后，给需要用到使用 JuiceFS CSI 驱动的命名空间打上下述标签：
 
 ```shell
 kubectl label namespace $NS juicefs.com/enable-serverless-injection=true --overwrite
@@ -55,6 +54,28 @@ metadata:
   name: mypod
   annotations:
     vke.volcengine.com/burst-to-vci: "enforce"
+spec:
+  volumes:
+    - name: myjfs
+      persistentVolumeClaim:
+        claimName: myjfs
+  containers:
+    - name: myapp
+      volumeMounts:
+        - mountPath: /app
+          name: myjfs
+      ...
+```
+
+## 阿里云 ACS {#acs}
+
+阿里云 ACS 的使用方式可以参考文档 [ACS 文档](https://help.aliyun.com/zh/cs/use-container-computing-for-the-first-time?spm=5176.28566299.J_JeMPinYpaANjKhI-pJViv.2.159f4fcbBJjme3)。环境搭建好后，无需给 Pod 加任何 Label 或 Annotation，可直接使用：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
 spec:
   volumes:
     - name: myjfs

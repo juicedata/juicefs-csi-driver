@@ -37,6 +37,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var fdLog = klog.NewKlogr().WithName("passfd")
@@ -50,14 +51,14 @@ type Fds struct {
 
 var GlobalFds *Fds
 
-func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) error {
+func InitGlobalFds(ctx context.Context, client *k8s.K8sClient, basePath string) {
 	GlobalFds = &Fds{
 		globalMu: sync.Mutex{},
 		client:   client,
 		basePath: basePath,
 		fds:      make(map[string]*fd),
 	}
-	return GlobalFds.ParseFuseFds(ctx)
+	go GlobalFds.ParseFuseFds(ctx)
 }
 
 func InitTestFds() {
@@ -68,7 +69,17 @@ func InitTestFds() {
 	}
 }
 
-func (fs *Fds) ParseFuseFds(ctx context.Context) error {
+func (fs *Fds) PrintFds() []byte {
+	fs.globalMu.Lock()
+	defer fs.globalMu.Unlock()
+	var res []byte
+	for k, v := range fs.fds {
+		res = append(res, []byte(fmt.Sprintf("key: %s, value: %s\n", k, v.serverAddress))...)
+	}
+	return res
+}
+
+func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
@@ -78,8 +89,28 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 	})
 	if err != nil {
 		fdLog.Error(err, "read dir error", "basePath", fs.basePath)
-		return err
+		return
 	}
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		common.PodTypeKey: common.PodTypeValue,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		fdLog.Error(err, "list pods error")
+		return
+	}
+	podMaps := make(map[string]*corev1.Pod)
+	for _, pod := range pods {
+		if util.SupportFusePass(pod.Spec.Containers[0].Image) {
+			podMaps[resource.GetUpgradeUUID(&pod)] = &pod
+		}
+	}
+
+	wg := sync.WaitGroup{}
+	limitCh := make(chan struct{}, 20)
+	defer close(limitCh)
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -91,29 +122,57 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) error {
 		})
 		if err != nil {
 			fdLog.Error(err, "read dir error", "basePath", fs.basePath)
-			return err
+			return
 		}
+		shouldRemove := true
 		for _, subEntry := range subEntries {
 			if strings.HasPrefix(subEntry.Name(), "fuse_fd_comm.") {
+				shouldRemove = false
 				subdir := path.Join(fs.basePath, entry.Name(), subEntry.Name())
+				if po, ok := podMaps[entry.Name()]; !ok || po.DeletionTimestamp != nil {
+					// make sure the pod is still running
+					continue
+				}
 				fdLog.V(1).Info("parse fuse fd", "path", subdir)
-				fs.parseFuse(ctx, entry.Name(), subdir)
+				wg.Add(1)
+				go func() {
+					defer func() {
+						wg.Done()
+						<-limitCh
+					}()
+					limitCh <- struct{}{}
+					fs.parseFuse(ctx, entry.Name(), subdir)
+				}()
 			}
 		}
+		if shouldRemove {
+			_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+				// clean up the directory if pod is deleted
+				_ = os.RemoveAll(path.Join(fs.basePath, entry.Name()))
+				return nil
+			})
+		}
 	}
-	return nil
+	wg.Wait()
 }
 
-func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, error) {
-	if f, ok := fs.fds[podHashVal]; ok {
+func GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
+	if GlobalFds != nil {
+		return GlobalFds.getFdAddress(ctx, upgradeUUID)
+	}
+	return path.Join("/tmp", "fuse_fd_csi_comm.sock"), nil
+}
+
+func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
+	if f, ok := fs.fds[upgradeUUID]; ok {
 		return f.serverAddressInPod, nil
 	}
 
-	address := path.Join(fs.basePath, podHashVal, "fuse_fd_csi_comm.sock")
+	address := path.Join(fs.basePath, upgradeUUID, "fuse_fd_csi_comm.sock")
 	addressInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
 	// mkdir parent
 	err := util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		parentPath := path.Join(fs.basePath, podHashVal)
+		parentPath := path.Join(fs.basePath, upgradeUUID)
 		exist, _ := k8sMount.PathExists(parentPath)
 		if !exist {
 			return os.MkdirAll(parentPath, 0777)
@@ -124,7 +183,7 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 		return "", err
 	}
 	fs.globalMu.Lock()
-	fs.fds[podHashVal] = &fd{
+	fs.fds[upgradeUUID] = &fd{
 		done:               make(chan struct{}),
 		fuseFd:             0,
 		fuseSetting:        []byte("FUSE"),
@@ -136,14 +195,15 @@ func (fs *Fds) GetFdAddress(ctx context.Context, podHashVal string) (string, err
 	return addressInPod, nil
 }
 
-func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
-	if podHashVal == "" {
+func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
+	upgradeUUID := resource.GetUpgradeUUID(pod)
+	if upgradeUUID == "" {
 		return
 	}
 	fs.globalMu.Lock()
-	f := fs.fds[podHashVal]
-	if f == nil {
-		serverParentPath := path.Join(fs.basePath, podHashVal)
+	f := fs.fds[upgradeUUID]
+	serverParentPath := path.Join(fs.basePath, upgradeUUID)
+	defer func() {
 		_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
 			_, err := os.Stat(serverParentPath)
 			if err == nil {
@@ -152,65 +212,46 @@ func (fs *Fds) StopFd(ctx context.Context, podHashVal string) {
 			return nil
 		})
 		fs.globalMu.Unlock()
-		return
+	}()
+	if f != nil {
+		fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress, "pod", pod.Name)
+		close(f.done)
+		delete(fs.fds, upgradeUUID)
 	}
-	fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress)
-	close(f.done)
-	delete(fs.fds, podHashVal)
-
-	serverParentPath := path.Join(fs.basePath, podHashVal)
-	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		_ = os.RemoveAll(serverParentPath)
-		return nil
-	})
-	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) CloseFd(podHashVal string) {
+func (fs *Fds) CloseFd(pod *corev1.Pod) {
+	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
-	f := fs.fds[podHashVal]
+	f := fs.fds[upgradeUUID]
 	if f == nil {
 		fs.globalMu.Unlock()
 		return
 	}
-	fdLog.V(1).Info("close fuse fd", "hashVal", podHashVal)
+	fdLog.V(1).Info("close fuse fd", "upgradeUUID", upgradeUUID, "pod", pod.Name)
 	_ = syscall.Close(f.fuseFd)
 	f.fuseFd = -1
-	fs.fds[podHashVal] = f
+	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
-	fuseFd, fuseSetting := GetFuseFd(fusePath, false)
+func (fs *Fds) parseFuse(ctx context.Context, upgradeUUID, fusePath string) {
+	var (
+		fuseFd      int
+		fuseSetting []byte
+	)
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		fuseFd, fuseSetting = GetFuseFd(fusePath, false)
+		return nil
+	})
 	if fuseFd <= 0 {
-		// get fuse fd error, try to get mount pod
-		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-			common.PodTypeKey:           common.PodTypeValue,
-			common.PodJuiceHashLabelKey: podHashVal,
-		}}
-		fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-		pods, err := fs.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-		if err != nil {
-			fdLog.Error(err, "list pods error")
-			return
-		}
-		var mountPod *corev1.Pod
-		for _, pod := range pods {
-			if pod.DeletionTimestamp == nil {
-				mountPod = &pod
-				break
-			}
-		}
-		if mountPod == nil {
-			fdLog.V(1).Info("get fuse fd error and mount pod not found, ignore it", "hashVal", podHashVal, "fusePath", fusePath)
-			// if can not get fuse fd, do not serve for it
-			return
-		}
+		// if can not get fuse fd, do not serve for it
+		return
 	}
 
-	serverPath := path.Join(fs.basePath, podHashVal, "fuse_fd_csi_comm.sock")
+	serverPath := path.Join(fs.basePath, upgradeUUID, "fuse_fd_csi_comm.sock")
 	serverPathInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
-	fdLog.V(1).Info("fuse fd path of pod", "hashVal", podHashVal, "fusePath", fusePath)
+	fdLog.V(1).Info("fuse fd path of pod", "upgradeUUID", upgradeUUID, "fusePath", fusePath)
 
 	f := &fd{
 		done:               make(chan struct{}),
@@ -222,10 +263,10 @@ func (fs *Fds) parseFuse(ctx context.Context, podHashVal, fusePath string) {
 	f.fuseFd, f.fuseSetting = fuseFd, fuseSetting
 
 	fs.globalMu.Lock()
-	fs.fds[podHashVal] = f
+	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 
-	fs.serveFuseFD(ctx, podHashVal)
+	fs.serveFuseFD(ctx, upgradeUUID)
 }
 
 type fd struct {
@@ -239,16 +280,17 @@ type fd struct {
 	serverAddressInPod string // server path in pod
 }
 
-func (fs *Fds) ServeFuseFd(ctx context.Context, podHashVal string) error {
-	if _, ok := fs.fds[podHashVal]; ok {
-		fs.serveFuseFD(ctx, podHashVal)
+func (fs *Fds) ServeFuseFd(ctx context.Context, pod *corev1.Pod) error {
+	upgradeUUID := resource.GetUpgradeUUID(pod)
+	if _, ok := fs.fds[upgradeUUID]; ok {
+		fs.serveFuseFD(ctx, upgradeUUID)
 		return nil
 	}
-	return fmt.Errorf("fuse fd of podHashVal %s not found in global fuse fds", podHashVal)
+	return fmt.Errorf("fuse fd of upgradeUUID %s not found in global fuse fds", upgradeUUID)
 }
 
-func (fs *Fds) serveFuseFD(ctx context.Context, podHashVal string) {
-	f := fs.fds[podHashVal]
+func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
+	f := fs.fds[upgradeUUID]
 	if f == nil {
 		return
 	}
@@ -284,14 +326,14 @@ func (fs *Fds) serveFuseFD(ctx context.Context, podHashVal string) {
 				fdLog.Error(err, "accept error")
 				continue
 			}
-			go fs.handleFDRequest(podHashVal, conn.(*net.UnixConn))
+			go fs.handleFDRequest(upgradeUUID, conn.(*net.UnixConn))
 		}
 	}()
 }
 
-func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
+func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 	defer conn.Close()
-	f := fs.fds[podHashVal]
+	f := fs.fds[upgradeUUID]
 	if f == nil {
 		return
 	}
@@ -331,24 +373,25 @@ func (fs *Fds) handleFDRequest(podHashVal string, conn *net.UnixConn) {
 		}
 		fdLog.V(1).Info("recv msg and fds", "msg", string(msg), "fd", fds)
 	}
-	fs.fds[podHashVal] = f
+	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) UpdateSid(podHashVal string, sid uint64) {
-	f := fs.fds[podHashVal]
+func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
+	upgradeUUID := resource.GetUpgradeUUID(pod)
+	f := fs.fds[upgradeUUID]
 	if f == nil {
 		return
 	}
 
 	fs.globalMu.Lock()
 	f.sid = sid
-	fs.fds[podHashVal] = f
+	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
 
-func (fs *Fds) GetSid(podHashVal string) uint64 {
-	f := fs.fds[podHashVal]
+func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
+	f := fs.fds[resource.GetUpgradeUUID(pod)]
 	if f == nil {
 		return 0
 	}

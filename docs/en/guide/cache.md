@@ -8,26 +8,54 @@ JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edit
 
 With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
 
-* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
-* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), pod migration is not really a problem, and you can still use host directories for cache storage.
+* Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application Pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
+* If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
 
-## Using host directories (`hostPath`) {#cache-settings}
+## Using host path (`hostPath`) {#cache-settings}
 
-For Kubernetes nodes, a dedicated disk is often used as data and cache storage, be sure to properly configure the cache directory, or JuiceFS cache will by default be written to `/var/jfsCache`, which can easily eat up system storage space.
+By default, CSI Driver uses the standard JuiceFS Client cache directory `/var/jfsCache` on the host, if you intend to use data disk as cache storage, make sure the correct path is configured, otherwise cache can drain the system disk.
 
-After the cache directory is set, it will be accessible in the Mount Pod via `hostPath`. You might also need to configure other cache-related options (like `--cache-size`) according to [Adjust mount options](./configurations.md#mount-options).
+Specify `--cache-dir` in mount options, preferably in ConfigMap, and then CSI Driver will handle the mounts accordingly:
+
+```yaml {6} title="values-mycluster.yaml"
+...
+globalConfig:
+  enabled: true
+  mountPodPatch:
+    - mountOptions:
+      - cache-dir=/data/cache
+      - cache-size=10T
+```
+
+When Mount Pod starts, it will include the hostPath mounts:
+
+```yaml {4,9}
+...
+    volumeMounts:
+    ...
+    - mountPath: /data/cache
+      name: cachedir-0
+  volumes:
+  ...
+  - hostPath:
+      path: /data/cache
+      type: DirectoryOrCreate
+    name: cachedir-0
+```
+
+If you need to further customize cache related options, check out the option list in [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
 
 :::note
 
-* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character. See [JuiceFS Community Edition](https://juicefs.com/docs/community/command_reference/#mount) and [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/reference/commands_reference/#mount).
-* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because pod lifecycle is significantly more unstable, and can cause data loss if pod exists unexpectedly.
+* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character.
+* For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
 :::
 
 ### Using ConfigMap
 
-Read [Custom directory](./configurations.md#custom-cachedirs).
+Demostrated in the above code snippets.
 
 ### Define in PV (deprecated)
 
@@ -81,20 +109,45 @@ mountOptions:
 
 ## Use PVC as cache path
 
-From 0.15.1 and above, JuiceFS CSI Driver supports using a PVC as cache directory. This is often used in hosted Kubernetes clusters provided by cloud services, which allows you to use a dedicated cloud disk as cache storage for CSI Driver.
+If you have higher demands for cache isolation, or cannot use hostPath for cache due to other reasons, consider using PVC as cache storage.
 
-First, create a PVC according to your cloud service provider's manual, for example:
+PVC should be created in advance, and if you are using one of the following service providers, you can refer to their manual:
 
 * [Amazon EBS CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)
 * [Use the Azure Disks CSI Driver in Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/azure/aks/azure-disk-csi)
 * [Using the Google Compute Engine persistent disk CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
 * [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
+:::tip
+For custom volumes, make sure `mountPath` and `hostPath` doesn't contain duplicates, to avoid conflicts.
+:::
+
 Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as the Mount Pod (which defaults to `kube-system`), use the following example to set this PVC as the cache directory for JuiceFS CSI Driver.
 
 ### Using ConfigMap
 
-Read [Custom directory](./configurations.md#custom-cachedirs).
+The minimum required version is CSI Driver v0.25.1. Upon modification, application Pods need to be re-created for changes to take effect.
+
+When multiple cache directories are used, make sure all items have the same available capacity, and then set `--cache-size` to the sum.
+
+```yaml
+  - cacheDirs:
+      - type: PVC
+        name: jfs-cache-pvc
+      - type: HostPath
+        path: /var/jfsCache
+      # emptyDir is supported in v0.26.2 and above
+      - type: EmptyDir
+        sizeLimit: 1024Mi
+        medium: Memory
+    mountOptions:
+      - cache-size=204800
+      - free-space-ratio=0.01
+    # Optional, used when you need to customize individual PVCs
+    pvcSelector:
+      matchLabels:
+        need-cachedirs: "true"
+```
 
 ### Define in PV (deprecated)
 
@@ -148,8 +201,8 @@ parameters:
 The JuiceFS client runs inside the Mount Pod, so cache warm-up must be performed inside the Mount Pod. Use the commands below to enter the Mount Pod and carry out the warm-up operation:
 
 ```shell
-# Application pod information will be used in below commands, save them as environment variables.
-APP_NS=default  # application pod namespace
+# application Pod information will be used in below commands, save them as environment variables.
+APP_NS=default  # application Pod namespace
 APP_POD_NAME=example-app-xxx-xxx
 
 # Enter the Mount Pod using a single command
@@ -241,6 +294,24 @@ spec:
       restartPolicy: Never
 ```
 
+## Cache and Pod memory usage {#clean-pagecache}
+
+In some Kubernetes environments, reading log cache data can increase pagecache usage and potentially cause OOM kills (read [this issue](https://github.com/kubernetes/kubernetes/issues/43916) for more). When this happens, [increasing `limits.memory`](./resource-optimization.md#mount-pod-resources) should be your first option.
+
+If your system cannot allocate more memory, you can add the `JFS_DROP_OSCACHE=1` environment variable to the JuiceFS client. This setting prompts the client to actively mark the cache data state, so that Kernel evicts cache more aggressively, thereby reducing memory usage. Evidently, this affects cache hit ratio and can hinder performance when cache data needs to be read repeatedly.
+
+```yaml {9}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+type: Opaque
+stringData:
+  ...
+  envs: "{JFS_DROP_OSCACHE: 1}"
+```
+
 ## Cache cleanup {#mount-pod-clean-cache}
 
 Local cache can be a precious resource, especially when dealing with large scale data. For this reason, JuiceFS CSI Driver does not delete cache by default when the Mount Pod exits. If this behavior does not fit your needs, you can configure it to clear the local cache when the Mount Pod exits.
@@ -300,25 +371,7 @@ Dedicated cache cluster is only supported in JuiceFS Cloud Service & Enterprise 
 
 Kubernetes containers are usually ephemeral, a [distributed cache cluster](/docs/cloud/guide/distributed-cache) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](/docs/cloud/guide/distributed-cache#dedicated-cache-cluster) to achieve a stable cache service.
 
-Use below example to deploy a StatefulSet of JuiceFS clients, together they form a stable JuiceFS cache group.
+There are currently two ways to deploy a distributed cache cluster in Kubernetes:
 
-A JuiceFS cache cluster is deployed with the cache group name `jfscache`, in order to use this cache cluster in application JuiceFS clients, you'll need to join them into the same cache group, and additionally add the `--no-sharing` option, so that these application clients doesn't really involve in building the cache data, this is what prevents a instable cache group.
-
-Under dynamic provisioning, modify mount options according to below examples, see full description in [mount options](../guide/configurations.md#mount-options).
-
-```yaml {13-14}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-mountOptions:
-  ...
-  - cache-group=jfscache
-  - no-sharing
-```
+- For most scenarios, it can be deployed through ["Cache Group Operator"](./juicefs-operator.md#cache-group);
+- For scenarios that require flexible customization of deployment configuration, you can deploy it through ["Write your own YAML configuration file"](./generic-applications.md#distributed-cache-cluster).

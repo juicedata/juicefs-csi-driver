@@ -7,17 +7,19 @@ Best practices and recommended settings when going production.
 
 ## Mount Pod settings {#mount-pod-settings}
 
+* Enable [Automatic Mount Point Recovery](../guide/configurations.md#automatic-mount-point-recovery);
 * To support [smooth upgrade of Mount Pods](./upgrade-juicefs-client.md#smooth-upgrade), please configure the [CSI dashboard](./troubleshooting.md#csi-dashboard) or the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin) in advance;
 * For dynamic PV scenarios, it is recommended to [configure a more readable PV directory name](../guide/configurations.md#using-path-pattern);
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
 * When cluster resources are limited, refer to techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources) for optimization;
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
+* It's recommended to set PodDisruptionBudget for Mount Pod, see [documentation](../guide/resource-optimization.md#set-poddisruptionbudget-for-mount-pod) for details.
 
 ## Sidecar recommendations {#sidecar}
 
-Current CSI Driver doesn't support exit order of sidecar containers, this essentially means there's no guarantee that sidecar JuiceFS client exits only after application container termination. This can be rooted back to Kubernetes sidecar's own limitations, however, this changes in [v1.28](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) as native sidecar is supported. So if you're using newer Kubernetes and wish to use native sidecar, mark your requests at our [GitHub issue](https://github.com/juicedata/juicefs-csi-driver/issues/976).
+Starting from v0.27.0, CSI Driver supports Kubernetes [native sidecar containers](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers). So if you are running Kubernetes v1.29 with CSI Driver v0.27.0 or newer versions, no special configurations are needed to ensure optimal exit order (sidecar containers terminate only after the application containers have exited).
 
-Hence, before our users widely adopt Kubernetes v1.28 (which allows us to implement native sidecar mount), we recommend that you use `preStop` to control exit order:
+But if your cluster does not yet meet the above version requirements, we recommend users configure the `preStop` lifecycle hook to control exit order:
 
 ```yaml
 mountPodPatch:
@@ -184,7 +186,7 @@ Once metrics data is collected, refer to the following documents to set up Grafa
 
 ## Collect Mount Pod logs using EFK {#collect-mount-pod-logs}
 
-Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking Mount Pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect pod logs for query. Taking EFK for example:
+Troubleshooting CSI Driver usually involves reading Mount Pod logs, if [checking Mount Pod logs in real time](./troubleshooting.md#check-mount-pod) isn't enough, consider deploying an EFK (Elasticsearch + Fluentd + Kibana) stack (or other suitable systems) in Kubernetes Cluster to collect Pod logs for query. Taking EFK for example:
 
 - Elasticsearch: index logs and provide a complete full-text search engine, which can facilitate users to retrieve the required data from the log. For installation, refer to the [official documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html).
 - Fluentd: fetch container log files, filter and transform log data, and then deliver the data to the Elasticsearch cluster. For installation, refer to the [official documentation](https://docs.fluentd.org/installation).
@@ -273,7 +275,7 @@ spec:
 
 ## Enable kubelet authentication {#kubelet-authn-authz}
 
-Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing pods (this is however, a issue fixed in newer versions, continue reading for more):
+Kubelet comes with [different authentication modes](https://kubernetes.io/zh-cn/docs/reference/access-authn-authz/kubelet-authn-authz), and default `AlwaysAllow` mode effectively disables authentication. But if kubelet uses other authentication modes, CSI Node will run into error when listing Pods (this is however, a issue fixed in newer versions, continue reading for more):
 
 ```
 kubelet_client.go:99] GetNodeRunningPods err: Unauthorized
@@ -334,9 +336,9 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 ## Large scale clusters {#large-scale}
 
-"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
+"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or Pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
 
-* Enable `ListPod` cache: CSI Driver needs to obtain the pod list, when faced with a large number of pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
+* Enable `ListPod` cache: CSI Driver needs to obtain the Pod list, when faced with a large number of Pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
 
   ```yaml title="values-mycluster.yaml"
   controller:
@@ -370,6 +372,15 @@ If however, a configuration file isn't used, then kubelet is configured purely v
       value: 5
   ```
 
+* Dashboard Disable manager function
+
+The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it (supported from version 0.26.1). After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
+
+  ```yaml title="values-mycluster.yaml"
+  dashboard:
+    enableManager: false
+  ```
+
 ## Client write cache (not recommended) {#client-write-cache}
 
 Even without Kubernetes, the client write cache (`--writeback`) is a feature that needs to be used with caution. Its function is to store the file data written by the client on the local disk and then asynchronously upload it to the object storage. This brings about a lot of user experience and data security issues, which are highlighted in the JuiceFS documentation:
@@ -383,7 +394,7 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
 
 * Configure cache persistence to ensure that the cache directory will not be lost when the container is destroyed. For specific configuration methods, read [Cache settings](../guide/cache.md#cache-settings);
 * Choose one of the following methods (you can also adopt both) to ensure that the JuiceFS client has enough time to complete the data upload when the application container exits:
-  * Enable [Delayed Mount Pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application pod exits, the Mount Pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
+  * Enable [Delayed Mount Pod deletion](../guide/resource-optimization.md#delayed-mount-pod-deletion). Even if the application Pod exits, the Mount Pod will wait for the specified time before being destroyed by the CSI Node. Set a reasonable delay to ensure that data is uploaded in a timely manner;
   * Since v0.24, the CSI Driver supports [customizing](../guide/configurations.md#customize-mount-pod) all aspects of the Mount Pod, so you can modify `terminationGracePeriodSeconds`. By using [`preStop`](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks), you can ensure that the Mount Pod waits for data uploads to finish before exiting, as demonstrated below:
 
     :::warning
@@ -426,3 +437,21 @@ Under the premise of fully understanding the risks of `--writeback`, if your sce
                   rmdir ${MOUNT_POINT}
                   exit 0
     ```
+
+## Avoid Using `fsGroup` {#avoid-using-fsgroup}
+
+JuiceFS does not support mapping the files in the file system to a specific Group ID when mounting. If you use `fsGroup` in your business Pod, the kubelet will recursively change the ownership and permissions of all files in the file system, which may cause your business Pod to start very slowly.
+
+If you must use `fsGroup`, you can modify the `fsGroupChangePolicy` field and set it to `OnRootMismatch`. This will only change the ownership and permissions of the contents when the owner and permissions of the root directory do not match the expected permissions of the volume. This setting helps to reduce the time required to change the ownership and permissions of the volume.
+
+```yaml title="my-pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-context-demo-2
+spec:
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 2000
+    fsGroupChangePolicy: "OnRootMismatch"
+```

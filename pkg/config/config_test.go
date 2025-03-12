@@ -147,7 +147,7 @@ MountPodPatch:
 	})
 	assert.Equal(t, GlobalConfig.MountPodPatch[4], MountPodPatch{
 		LivenessProbe: &corev1.Probe{
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"stat", "${MOUNT_POINT}/${SUB_PATH}"},
 				},
@@ -345,12 +345,12 @@ func TestGenMountPodPatch(t *testing.T) {
 				MountPodPatch: []MountPodPatch{
 					{
 						Lifecycle: &corev1.Lifecycle{
-							PreStop: &corev1.Handler{
+							PreStop: &corev1.LifecycleHandler{
 								Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0"}},
 							},
 						},
 						LivenessProbe: &corev1.Probe{
-							Handler: corev1.Handler{
+							ProbeHandler: corev1.ProbeHandler{
 								Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat ${MOUNT_POINT}/${SUB_PATH}"}},
 							},
 						},
@@ -369,12 +369,12 @@ func TestGenMountPodPatch(t *testing.T) {
 				Labels:      map[string]string{},
 				Annotations: map[string]string{},
 				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l /jfs/parse_test; rmdir /jfs/parse_test; exit 0"}},
 					},
 				},
 				LivenessProbe: &corev1.Probe{
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat /jfs/parse_test/sub_path"}},
 					},
 				},
@@ -460,7 +460,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 		MountPodPatch: []MountPodPatch{
 			{
 				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0"}},
 					},
 				},
@@ -476,7 +476,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
+			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l ; rmdir ; exit 0"}},
 			},
 		},
@@ -489,7 +489,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
+			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", "umount -l /var/lib/juicefs/volume; rmdir /var/lib/juicefs/volume; exit 0"}},
 			},
 		},
@@ -594,6 +594,54 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 				},
 			},
 			expected: false,
+		},
+		{
+			name: "Mismatch Storage Class Name with pvc nil sc",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "wrong-sc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Mismatch Storage Class Name with pvc empty sc",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					MatchStorageClassName: "wrong-sc",
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: toPtr(""),
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "",
+			patch: MountPodPatch{
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"what": "ever"},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					StorageClassName: toPtr(""),
+				},
+			},
+			expected: true,
 		},
 	}
 

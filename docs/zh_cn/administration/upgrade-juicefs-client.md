@@ -12,8 +12,8 @@ sidebar_position: 3
 
 目前有两种升级 Mount Pod 容器镜像的方法：
 
-- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 pod 升级已经创建好的 Mount Pod
-- [有损升级 Mount Pod](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 pod 才能升级已经创建好的 Mount Pod
+- [平滑升级 Mount Pod](#smooth-upgrade)：这种方法可以实现不重建应用 Pod 升级已经创建好的 Mount Pod
+- [有损升级 Mount Pod](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 Pod 才能升级已经创建好的 Mount Pod
 
 参考[文档](../guide/custom-image.md#ce-ee-separation)在 Docker Hub 找到新版 Mount Pod 容器镜像的标签，然后根据你使用的 CSI 驱动版本和运行模式，选择不同的升级方法：
 
@@ -26,11 +26,7 @@ sidebar_position: 3
 
 ### 平滑升级 Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即在业务不停服的情况下升级 Mount Pod。
-
-:::tip
-平滑升级仅适用于容器挂载（Mount Pod）模式
-:::
+CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级（Sidecar 和进程挂载模式不支持该特性），即在业务不停服的情况下升级 Mount Pod。由于平滑升级实际上利用了 JuiceFS 客户端自身的平滑重启能力，因此该特性还额外允许 Mount Pod 平滑重启与恢复，详见[自动恢复](../guide/configurations.md#automatic-mount-point-recovery)。
 
 :::warning 平滑升级要求
 平滑升级要求 Mount Pod 的 `preStop` 不可配置 `umount ${MOUNT_POINT}` 操作，请务必确保 [CSI ConfigMap](./../guide/configurations.md#configmap) 中未配置 `umount`。
@@ -43,7 +39,7 @@ JuiceFS CSI 驱动 0.25.0 及以上版本支持 Mount Pod 的平滑升级，即�
 
 两种升级方式均为平滑升级，业务可不停服，请根据实际情况选择。
 
-平滑升级只可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)中触发。
+平滑升级可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)中触发，根据你的场景在下方小节中选择合适的方式。
 
 #### CSI 控制台中触发平滑升级 {#smooth-upgrade-via-csi-dashboard}
 
@@ -101,7 +97,7 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0。
 
 由于这是在 CSI Node Service 容器中临时升级 JuiceFS 客户端，完全是临时解决方案，可想而知，如果 CSI Node Service 的 Pod 发生了重建，又或是新增了节点，都需要再次执行该升级过程。
 
-1. 使用以下脚本将 `juicefs-csi-node` pod 中的 `juicefs` 客户端替换为新版：
+1. 使用以下脚本将 `juicefs-csi-node` Pod 中的 `juicefs` 客户端替换为新版：
 
    ```bash
    #!/bin/bash
@@ -120,4 +116,4 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0。
        chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
    ```
 
-2. 将应用逐个重新启动，或 kill 掉已存在的 pod。
+2. 将应用逐个重新启动，或 kill 掉已存在的 Pod。

@@ -22,7 +22,14 @@ GIT_COMMIT?=$(shell git rev-parse HEAD)
 DEV_TAG=dev-$(shell git describe --always --dirty)
 BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 PKG=github.com/juicedata/juicefs-csi-driver
-LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} -s -w"
+CLIENT_GO_PKG=k8s.io/client-go
+LDFLAGS?="-X ${PKG}/pkg/driver.driverVersion=${VERSION} \
+		  -X ${PKG}/pkg/driver.gitCommit=${GIT_COMMIT} \
+		  -X ${PKG}/pkg/driver.buildDate=${BUILD_DATE} \
+		  -X ${CLIENT_GO_PKG}/pkg/version.buildDate=${BUILD_DATE} \
+		  -X ${CLIENT_GO_PKG}/pkg/version.gitVersion=${VERSION} \
+		  -X ${CLIENT_GO_PKG}/pkg/version.gitCommit=${GIT_COMMIT} \
+		  -s -w"
 GO111MODULE=on
 
 GOPROXY?=https://goproxy.io
@@ -50,6 +57,10 @@ test-sanity:
 .PHONY: dashboard-dist
 dashboard-dist:
 	cd dashboard-ui-v2 && pnpm run build
+
+.PHONY: dashboard-lint
+dashboard-lint:
+	cd dashboard-ui-v2 && pnpm run lint
 
 .PHONY: dashboard
 dashboard:
@@ -89,7 +100,7 @@ uninstall: yaml
 # build dev image
 .PHONY: image-dev
 image-dev: juicefs-csi-driver dashboard
-	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
+	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(REGISTRY)/$(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
 	docker build --build-context project=. --build-context ui=dashboard-ui-v2/ -f docker/dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 

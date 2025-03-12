@@ -17,6 +17,8 @@
 import { useParams } from 'react-router-dom'
 
 import PodList from '@/pages/app-pod-list'
+import BatchJobList from '@/pages/batch-job-list.tsx'
+import CgList from '@/pages/cg-list'
 import PVList from '@/pages/pv-list'
 import PVCList from '@/pages/pvc-list'
 import SCList from '@/pages/sc-list'
@@ -37,6 +39,10 @@ export default function ResourcesList() {
       return <PVCList />
     case 'storageclass':
       return <SCList />
+    case 'cachegroups':
+      return <CgList />
+    case 'jobs':
+      return <BatchJobList />
     default:
       return <div>Not Found</div>
   }

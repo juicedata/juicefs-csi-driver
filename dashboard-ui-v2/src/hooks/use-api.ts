@@ -15,7 +15,7 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Event } from 'kubernetes-types/core/v1'
+import { Event, Node, PersistentVolume, PersistentVolumeClaim } from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
@@ -32,12 +32,14 @@ export function useAppPods(args: AppPagingListArgs) {
   const mountPod = args.mountPod || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
     pods: Pod[]
     total: number
+    continue?: string
   }>(
-    `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -48,17 +50,25 @@ export function useSysAppPods(args: SysPagingListArgs) {
   const node = args.node || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
     pods: Pod[]
     total: number
+    continue?: string
   }>(
-    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
-export function useMountPodImage(isMountPod: boolean, namespace?: string, name?: string) {
-  return useSWR<string>(isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '')
+export function useMountPodImage(
+  isMountPod: boolean,
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<string>(
+    isMountPod ? `/api/v1/pod/${namespace}/${name}/latestimage` : '',
+  )
 }
 
 export function useAppPod(namespace?: string, name?: string) {
@@ -87,6 +97,24 @@ export function usePods(
     source === 'pv'
       ? `/api/v1/${source}/${name}/${type}`
       : `/api/v1/${source}/${namespace}/${name}/${type}`,
+  )
+}
+
+export function usePVsOfPod(
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<PersistentVolume[]>(
+    `/api/v1/pod/${namespace}/${name}/pvs`,
+  )
+}
+
+export function usePVCsOfPod(
+  namespace?: string,
+  name?: string,
+) {
+  return useSWR<PersistentVolumeClaim[]>(
+    `/api/v1/pod/${namespace}/${name}/pvcs`,
   )
 }
 
@@ -150,4 +178,8 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
         window.URL.revokeObjectURL(url)
       })
   })
+}
+
+export function useNodes() {
+  return useSWR<Node[]>('/api/v1/nodes')
 }

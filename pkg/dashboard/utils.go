@@ -17,79 +17,18 @@
 package dashboard
 
 import (
-	"context"
+	"reflect"
+	"regexp"
 	"sort"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
-	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
-
-func (api *API) sysNamespaced(name string) types.NamespacedName {
-	return types.NamespacedName{
-		Namespace: api.sysNamespace,
-		Name:      name,
-	}
-}
-
-func isAppPod(pod *corev1.Pod) bool {
-	if pod.Labels != nil {
-		// mount pod mode
-		if _, ok := pod.Labels[common.UniqueId]; ok {
-			return true
-		}
-		// sidecar mode
-		if _, ok := pod.Labels[common.InjectSidecarDone]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func (api *API) isAppPodShouldList(ctx context.Context, pod *corev1.Pod) bool {
-	for _, volume := range pod.Spec.Volumes {
-		if volume.PersistentVolumeClaim != nil {
-			var pvc corev1.PersistentVolumeClaim
-			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}, &pvc); err != nil {
-				return false
-			}
-
-			if pvc.Spec.VolumeName == "" {
-				// pvc not bound
-				// Can't tell whether it is juicefs pvc, so list it as well.
-				return true
-			}
-
-			var pv corev1.PersistentVolume
-			if err := api.cachedReader.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, &pv); err != nil {
-				return false
-			}
-			if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == jfsConfig.DriverName {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func isSysPod(pod *corev1.Pod) bool {
-	if pod.Labels != nil {
-		return pod.Labels["app.kubernetes.io/name"] == "juicefs-mount" || pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver"
-	}
-	return false
-}
-
-func isCsiNode(pod *corev1.Pod) bool {
-	if pod.Labels != nil {
-		return pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" && pod.Labels["app"] == "juicefs-csi-node"
-	}
-	return false
-}
 
 type ReverseSort struct {
 	sort.Interface
@@ -117,4 +56,45 @@ func LabelSelectorOfMount(pv corev1.PersistentVolume) labels.Selector {
 	}
 	labelMap, _ := metav1.LabelSelectorAsSelector(&sl)
 	return labelMap
+}
+
+func isShareMount(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	for _, env := range pod.Spec.Containers[0].Env {
+		if env.Name == "STORAGE_CLASS_SHARE_MOUNT" && env.Value == "true" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func SetJobAsConfigMapOwner(cm *corev1.ConfigMap, owner *batchv1.Job) {
+	controller := true
+	cm.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: "batch/v1",
+		Kind:       "Job",
+		Name:       owner.Name,
+		UID:        owner.UID,
+		Controller: &controller,
+	}})
+}
+
+func getUniqueIdFromSecretName(secretName string) string {
+	re := regexp.MustCompile(`juicefs-(.*?)-secret`)
+	match := re.FindStringSubmatch(secretName)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return ""
+}
+
+func IsPVCSelectorEmpty(selector *config.PVCSelector) bool {
+	if selector == nil {
+		return true
+	}
+
+	return reflect.DeepEqual(selector.LabelSelector, metav1.LabelSelector{}) && selector.MatchName == "" && selector.MatchStorageClassName == ""
 }

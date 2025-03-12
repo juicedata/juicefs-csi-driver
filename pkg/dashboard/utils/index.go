@@ -14,38 +14,41 @@
  limitations under the License.
 */
 
-package dashboard
+package utils
 
 import (
 	"container/list"
 	"context"
 	"sync"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
 var indexLog = klog.NewKlogr().WithName("index")
 
 type k8sResource interface {
-	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass
+	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass | batchv1.Job | corev1.Secret
 }
 
-type timeOrderedIndexes[T k8sResource] struct {
+type TimeOrderedIndexes[T k8sResource] struct {
 	sync.RWMutex
 	list *list.List
 }
 
-func newTimeIndexes[T k8sResource]() *timeOrderedIndexes[T] {
-	return &timeOrderedIndexes[T]{
+func NewTimeIndexes[T k8sResource]() *TimeOrderedIndexes[T] {
+	return &TimeOrderedIndexes[T]{
 		list: list.New(),
 	}
 }
 
-func (i *timeOrderedIndexes[T]) iterate(ctx context.Context, descend bool) <-chan types.NamespacedName {
+func (i *TimeOrderedIndexes[T]) Iterate(ctx context.Context, descend bool) <-chan types.NamespacedName {
 	ch := make(chan types.NamespacedName)
 	go func() {
 		i.RLock()
@@ -64,13 +67,13 @@ func (i *timeOrderedIndexes[T]) iterate(ctx context.Context, descend bool) <-cha
 	return ch
 }
 
-func (i *timeOrderedIndexes[T]) length() int {
+func (i *TimeOrderedIndexes[T]) Length() int {
 	i.RLock()
 	defer i.RUnlock()
 	return i.list.Len()
 }
 
-func (i *timeOrderedIndexes[T]) addIndex(resource *T, metaGetter func(*T) metav1.ObjectMeta, resourceGetter func(types.NamespacedName) (*T, error)) {
+func (i *TimeOrderedIndexes[T]) AddIndex(resource *T, metaGetter func(*T) metav1.ObjectMeta, resourceGetter func(types.NamespacedName) (*T, error)) {
 	i.Lock()
 	defer i.Unlock()
 	meta := metaGetter(resource)
@@ -97,7 +100,7 @@ func (i *timeOrderedIndexes[T]) addIndex(resource *T, metaGetter func(*T) metav1
 	i.list.PushFront(name)
 }
 
-func (i *timeOrderedIndexes[T]) removeIndex(name types.NamespacedName) {
+func (i *TimeOrderedIndexes[T]) RemoveIndex(name types.NamespacedName) {
 	i.Lock()
 	defer i.Unlock()
 	for e := i.list.Front(); e != nil; e = e.Next() {
@@ -108,7 +111,7 @@ func (i *timeOrderedIndexes[T]) removeIndex(name types.NamespacedName) {
 	}
 }
 
-func (i *timeOrderedIndexes[T]) debug() []types.NamespacedName {
+func (i *TimeOrderedIndexes[T]) Debug() []types.NamespacedName {
 	i.RLock()
 	defer i.RUnlock()
 	var names []types.NamespacedName
@@ -116,4 +119,26 @@ func (i *timeOrderedIndexes[T]) debug() []types.NamespacedName {
 		names = append(names, e.Value.(types.NamespacedName))
 	}
 	return names
+}
+
+func IsJuiceCustSecret(secret *corev1.Secret) bool {
+	if secret.Data["token"] == nil && secret.Data["metaurl"] == nil {
+		return false
+	}
+	return true
+}
+
+func IsJuiceSecret(secret *corev1.Secret) bool {
+	if secret.Labels == nil {
+		return false
+	}
+	_, ok := secret.Labels[common.JuicefsSecretLabelKey]
+	return ok
+}
+
+func IsUpgradeJob(job *batchv1.Job) bool {
+	if job.Labels != nil {
+		return job.Labels[common.PodTypeKey] == common.JobTypeValue && job.Labels[common.JfsJobKind] == common.KindOfUpgrade
+	}
+	return false
 }

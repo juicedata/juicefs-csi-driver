@@ -23,6 +23,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 )
 
 // NewFakeDriver creates a new mock driver used for testing
@@ -36,6 +37,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 			vols:    make(map[string]int64),
 		},
 		nodeService: nodeService{
+			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 			juicefs:   fakeProvider,
 			nodeID:    "fake-node-id",
 			k8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},

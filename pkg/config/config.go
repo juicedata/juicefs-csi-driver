@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -51,6 +52,7 @@ var (
 	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
 	Immutable              = false            // csi driver is running in an immutable environment
 	StorageClassShareMount = false            // share mount pod for the same storage class
+	AccessToKubelet        = false            // access kubelet or not
 
 	DriverName               = "csi.juicefs.com"
 	NodeName                 = ""
@@ -128,7 +130,10 @@ func IsInterVolume(name string) bool {
 
 var PodLocks [1024]sync.Mutex
 
-func GetPodLockKey(pod *corev1.Pod) string {
+func GetPodLockKey(pod *corev1.Pod, newHash string) string {
+	if newHash != "" {
+		return newHash
+	}
 	if pod == nil {
 		return ""
 	}
@@ -169,6 +174,7 @@ type MountPatchCacheDirType string
 var (
 	MountPatchCacheDirTypeHostPath MountPatchCacheDirType = "HostPath"
 	MountPatchCacheDirTypePVC      MountPatchCacheDirType = "PVC"
+	MountPatchCacheDirTypeEmptyDir MountPatchCacheDirType = "EmptyDir"
 )
 
 type MountPatchCacheDir struct {
@@ -179,6 +185,10 @@ type MountPatchCacheDir struct {
 
 	// required for PVC type
 	Name string `json:"name,omitempty"`
+
+	// Required for EmptyDir type
+	SizeLimit *resource.Quantity   `json:"sizeLimit,omitempty"`
+	Medium    corev1.StorageMedium `json:"medium,omitempty"`
 }
 
 type MountPodPatch struct {
@@ -218,8 +228,11 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
 	if mpp.PVCSelector.MatchName != "" && mpp.PVCSelector.MatchName != pvc.Name {
 		return false
 	}
-	if mpp.PVCSelector.MatchStorageClassName != "" && pvc.Spec.StorageClassName != nil && mpp.PVCSelector.MatchStorageClassName != *pvc.Spec.StorageClassName {
-		return false
+	if mpp.PVCSelector.MatchStorageClassName != "" {
+		if pvc.Spec.StorageClassName == nil {
+			return false
+		}
+		return *pvc.Spec.StorageClassName == mpp.PVCSelector.MatchStorageClassName
 	}
 	selector, err := metav1.LabelSelectorAsSelector(&mpp.PVCSelector.LabelSelector)
 	if err != nil {
@@ -335,8 +348,11 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 // TODO: migrate more config for here
 type Config struct {
 	// arrange mount pod to node with node selector instead nodeName
-	EnableNodeSelector bool            `json:"enableNodeSelector,omitempty"`
-	MountPodPatch      []MountPodPatch `json:"mountPodPatch"`
+	EnableNodeSelector bool `json:"enableNodeSelector,omitempty"`
+	// in sidecar mode, use k8s native sidecar instead of container
+	// If the k8s version is 1.29 and later, the default is true.
+	EnableNativeSidecar *bool           `json:"enableNativeSidecar,omitempty"`
+	MountPodPatch       []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {

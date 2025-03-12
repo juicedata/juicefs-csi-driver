@@ -198,6 +198,20 @@ rules:
     verbs:
       - create
       - get
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -276,6 +290,9 @@ rules:
       - get
       - list
       - watch
+      - create
+      - delete
+      - update
   - apiGroups:
       - ""
     resources:
@@ -312,6 +329,14 @@ rules:
       - delete
       - update
       - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - list
+      - get
   - apiGroups:
     - ""
     resources:
@@ -376,7 +401,7 @@ spec:
           operator: Exists
       containers:
         - name: juicefs-plugin
-          image: juicedata/juicefs-csi-driver:v0.25.1
+          image: juicedata/juicefs-csi-driver:v0.26.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -452,6 +477,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-resizer:v1.9.0
           args:
             - --csi-address=$(ADDRESS)
+            - --timeout=20s
             - --leader-election
             - --v=2
           env:
@@ -519,7 +545,7 @@ spec:
         - name: juicefs-plugin
           securityContext:
             privileged: true
-          image: juicedata/juicefs-csi-driver:v0.25.1
+          image: juicedata/juicefs-csi-driver:v0.26.3
           args:
             - --endpoint=$(CSI_ENDPOINT)
             - --logtostderr
@@ -783,7 +809,7 @@ spec:
       serviceAccountName: juicefs-csi-dashboard-sa
       containers:
         - name: dashboard
-          image: juicedata/csi-dashboard:v0.25.1
+          image: juicedata/csi-dashboard:v0.26.3
           args:
             - --static-dir=/dist
           env:
@@ -791,6 +817,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: DASHBOARD_IMAGE
+              value: juicedata/csi-dashboard:v0.26.3
           ports:
             - containerPort: 8088
           resources:

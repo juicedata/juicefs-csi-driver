@@ -122,7 +122,7 @@ juicefs-csi-controller-0   3/3     Running   0          22m
 juicefs-csi-node-v9tzb     3/3     Running   0          14m
 ```
 
-CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker nodes, so CSI Node pod amount should match node count. If the numbers don't match, check if any of the nodes are tainted, and resolve them according to the actual situation. You can also [run CSI Node Service on selected nodes](./guide/resource-optimization.md#csi-node-node-selector).
+CSI Node Service is a DaemonSet, and by default runs on all Kubernetes worker nodes, so CSI Node Pod amount should match node count. If the numbers don't match, check if any of the nodes are tainted, and resolve them according to the actual situation. You can also [run CSI Node Service on selected nodes](./guide/resource-optimization.md#csi-node-node-selector).
 
 Learn about JuiceFS CSI Driver architecture, and components functionality in [Introduction](./introduction.md#architecture).
 
@@ -160,7 +160,7 @@ helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-sys
 ```
 
 :::warning
-After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all pods within the namespace will stuck on creating, waiting for the webhook injection check.
+After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all Pods within the namespace will stuck on creating, waiting for the webhook injection check.
 :::
 
 Label all namespaces that need to use JuiceFS CSI Driver:
@@ -192,7 +192,7 @@ Or directly install using this command:
 ```
 
 :::warning
-After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all pods within the namespace will stuck on creating, waiting for the webhook injection check.
+After installation, you must wait until all components are up and running, and then carry on with the labeling. If namespace is labeled before controller is up, all Pods within the namespace will stuck on creating, waiting for the webhook injection check.
 :::
 
 Label all namespaces that need to use JuiceFS CSI Driver, note that the label is different for serverless.

@@ -863,8 +863,14 @@ def test_pod_resource_err():
 def test_cache_client_conf():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
     secret = Secret(secret_name=SECRET_NAME)
+    # create a used pv
+    # deploy pv with secret
+    pv = PV(name="pv-cache-client-conf", access_mode="ReadWriteMany", volume_handle="pv-cache-client-conf", secret_name=SECRET_NAME)
+    LOG.info("Deploy pv {}".format(pv.name))
+    pv.create()
     secret.watch_for_initconfig_injection()
-
+    pv.delete()
+    LOG.info("Test pass.")
 
 def test_static_cache_clean_upon_umount():
     LOG.info("[test case] Pod with static storage and clean cache upon umount begin..")
@@ -1067,7 +1073,6 @@ def test_deployment_dynamic_patch_pv():
     pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
-    pv.spec.mount_options.append("subdir={}".format(subdir))
     LOG.info(f"Patch PV {pv_name}: add subdir={subdir} and verbose in mountOptions")
     client.CoreV1Api().patch_persistent_volume(pv_name, pv)
 
@@ -1137,7 +1142,7 @@ def test_deployment_dynamic_patch_pv():
     LOG.info("Check subdir {}".format(subdir))
     result = check_mount_point(subdir + "/{}/out.txt".format(volume_id))
     if not result:
-        raise Exception("mount Point of /{}/out.txt are not ready within 5 min.".format(subdir))
+        raise Exception("mount Point of {}/{}/out.txt are not ready within 5 min.".format(subdir,volume_id))
 
     # check target
     LOG.info("Check target path is ok..")
@@ -1743,7 +1748,6 @@ def test_deployment_dynamic_patch_pv_with_webhook():
     pv_name = volume_id
     pv = client.CoreV1Api().read_persistent_volume(name=pv_name)
     pv.spec.mount_options = ["subdir={}".format(subdir), "verbose"]
-    pv.spec.mount_options.append("subdir={}".format(subdir))
     LOG.info(f"Patch PV {pv_name}: add subdir={subdir} and verbose in mountOptions")
     client.CoreV1Api().patch_persistent_volume(pv_name, pv)
 
@@ -2126,6 +2130,10 @@ def test_dynamic_mount_image_with_webhook():
     for container in pod.spec.containers:
         if container.name == "jfs-mount":
             found_image = container.image
+    if found_image == "":
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                found_image = container.image
 
     if found_image != mount_image:
         raise Exception("Image of sidecar is not {}".format(mount_image))
@@ -2227,6 +2235,10 @@ def test_static_mount_image_with_webhook():
     for container in pod.spec.containers:
         if container.name == "jfs-mount":
             found_image = container.image
+    if found_image == "":
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                found_image = container.image
 
     if found_image != mount_image:
         raise Exception("Image of sidecar is not {}".format(mount_image))
@@ -2470,9 +2482,9 @@ def test_webhook_two_volume():
     if len(pods.items) != 1:
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
     pod = pods.items[0]
-    if len(pod.spec.containers) != 3:
+    if len(pod.spec.containers) != 3 and len(pod.spec.init_containers) != 2:
         raise Exception(
-            "Pod {} should have 3 containers, only {} has been found".format(pod.name, len(pod.spec.containers)))
+            "Pod {} should have 3 containers/ 2 init_containers, only {}/{} has been found".format(pod.name, len(pod.spec.containers), len(pod.spec.init_containers)))
     LOG.info("Test pass.")
 
     # delete test resources

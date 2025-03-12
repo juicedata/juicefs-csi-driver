@@ -19,7 +19,7 @@ import { StorageClass } from 'kubernetes-types/storage/v1'
 import useSWR from 'swr'
 
 import { PVCPagingListArgs, PVPagingListArgs, SCPagingListArgs } from '@/types'
-import { PV, PVC } from '@/types/k8s.ts'
+import { PV, PVC, PVCWithUniqueId } from '@/types/k8s.ts'
 
 export function useSCs(args: SCPagingListArgs) {
   const order = args.sort?.['time'] || 'ascend'
@@ -42,12 +42,14 @@ export function usePVs(args: PVPagingListArgs) {
   const sc = args.sc || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
-    pvs: [PV]
-    total: number
+    pvs: PV[]
+    total?: number
+    continue?: string
   }>(
-    `/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pvs?order=${order}&name=${name}&pvc=${pvc}&sc=${sc}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -59,12 +61,14 @@ export function usePVCs(args: PVCPagingListArgs) {
   const sc = args.sc || ''
   const pageSize = args.pageSize || 20
   const current = args.current || 1
+  const continueToken = args.continue || ''
 
   return useSWR<{
-    pvcs: [PVC]
-    total: number
+    pvcs: PVC[]
+    total?: number
+    continue?: string
   }>(
-    `/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}`,
+    `/api/v1/pvcs?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&sc=${sc}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
@@ -81,7 +85,24 @@ export function usePV(name?: string) {
 }
 
 export function usePVC(namespace?: string, name?: string) {
-  return useSWR<PVC>(`/api/v1/pvc/${namespace}/${name}/`)
+  return useSWR<PVC>(name ? `/api/v1/pvc/${namespace}/${name}/` : ``)
+}
+
+export function usePVCsWithUniqueId(namespacedName?: string) {
+  const s = namespacedName?.split('/')
+  let name = ''
+  let namespace = ''
+  if (s?.length == 2) {
+    namespace = s[0]
+    name = s[1]
+  }
+  return useSWR<PVCWithUniqueId>(
+    name ? `/api/v1/pvc/${namespace}/${name}/uniqueid` : ``,
+  )
+}
+
+export function usePVCWithUniqueId(uniqueId?: string) {
+  return useSWR<PVC>(uniqueId ? `/api/v1/pvcs/uniqueids/${uniqueId}` : ``)
 }
 
 export function usePVEvents(pvName?: string) {

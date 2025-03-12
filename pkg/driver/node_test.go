@@ -496,9 +496,11 @@ func TestNodeUnpublishVolume(t *testing.T) {
 
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
+			log := klog.NewKlogr().WithName("NodeUnpublishVolume")
+			ctxWithLog := util.WithLog(context.TODO(), log)
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(context.TODO(), volumeId, targetPath).Return(nil)
+			mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(nil)
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,
@@ -527,9 +529,11 @@ func TestNodeUnpublishVolume(t *testing.T) {
 			defer patch.Reset()
 			mockCtl := gomock.NewController(t)
 			defer mockCtl.Finish()
+			log := klog.NewKlogr().WithName("NodeUnpublishVolume")
+			ctxWithLog := util.WithLog(context.TODO(), log)
 
 			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(context.TODO(), volumeId, targetPath).Return(errors.New("test"))
+			mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(errors.New("test"))
 
 			juicefsDriver := &nodeService{
 				juicefs:   mockJuicefs,

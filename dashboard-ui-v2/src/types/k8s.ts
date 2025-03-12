@@ -14,19 +14,30 @@
  * limitations under the License.
  */
 
+import { Job } from 'kubernetes-types/batch/v1'
 import {
+  Container,
+  EnvVar,
+  Lifecycle,
   Pod as NativePod,
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
+  PodSpec,
+  Probe,
+  ResourceRequirements,
+  Volume,
+  VolumeDevice,
+  VolumeMount,
 } from 'kubernetes-types/core/v1'
+import { LabelSelector, ObjectMeta } from 'kubernetes-types/meta/v1'
 
 export type Pod = {
   mountPods?: NativePod[]
-  node: Node
-  pvcs: PersistentVolumeClaim[]
-  pvs: PersistentVolume[]
-  csiNode: NativePod
+  node?: Node
+  pvcs?: PersistentVolumeClaim[]
+  pvs?: PersistentVolume[]
+  csiNode?: NativePod
 } & NativePod
 
 export type PV = PersistentVolume & {
@@ -43,9 +54,132 @@ export type PVC = PersistentVolumeClaim & {
   }
 }
 
+export type PVCWithUniqueId = {
+  PVC: PersistentVolumeClaim
+  PV: PersistentVolume
+  UniqueId: string
+}
+
+export type PVCWithPod = {
+  PVC: PersistentVolumeClaim
+  MountPods?: NativePod[]
+}
+
 export const accessModeMap: { [key: string]: string } = {
   ReadWriteOnce: 'RWO',
   ReadWriteMany: 'RWX',
   ReadOnlyMany: 'ROX',
   ReadWriteOncePod: 'RWOP',
+}
+
+export type PodToUpgrade = {
+  node: string
+  pods: NativePod[]
+}
+
+export type BatchConfig = {
+  parallel: number
+  ignoreError: boolean
+  noRecreate: boolean
+  node: string
+  uniqueId: string
+  batches: MountPodUpgrade[][]
+  status: string
+}
+
+export type MountPodUpgrade = {
+  name: string
+  node: string
+  csiNodePod: string
+  status: string
+}
+
+export type PodDiffConfig = {
+  pod: Pod
+  oldConfig: OriginMountPatch
+  newConfig: OriginMountPatch
+}
+
+export type OriginConfig = {
+  enableNodeSelector?: boolean
+  mountPodPatch?: OriginMountPodPatch[]
+}
+
+export type OriginMountPodPatch = {
+  pvcSelector?: OriginPVCSelector
+} & OriginMountPatch
+
+export type OriginPVCSelector = {
+  matchStorageClassName?: string
+  matchName?: string
+} & LabelSelector
+
+export type OriginMountPatch = {
+  ceMountImage?: string
+  eeMountImage?: string
+  cacheDirs?: MountPatchCacheDir[]
+  labels?: { [name: string]: string }
+  annotations?: { [name: string]: string }
+  hostNetwork?: boolean
+  hostPID?: boolean
+  livenessProbe?: Probe
+  readinessProbe?: Probe
+  startupProbe?: Probe
+  lifecycle?: Lifecycle
+  resources?: ResourceRequirements
+  terminationGracePeriodSeconds?: number
+  volumes?: Volume[]
+  volumeDevices?: VolumeDevice[]
+  volumeMounts?: VolumeMount[]
+  env?: EnvVar[]
+  mountOptions?: string[]
+}
+
+export type MountPatchCacheDir = {
+  type: string
+  path: string
+  name: string
+}
+
+export type UpgradeJob = {
+  job: Job
+  config: BatchConfig
+}
+
+export type UpgradeJobWithDiff = {
+  job: Job
+  total: number
+  config: BatchConfig
+  diffs: [PodDiffConfig]
+}
+
+export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
+  Omit<Container, 'name'> & {
+    opts?: string[]
+  }
+
+export type CacheGroup = {
+  metadata?: ObjectMeta
+  spec: {
+    updateStrategy: {
+      type: 'RollingUpdate' | 'OnDelete'
+      rollingUpdate: {
+        maxUnavailable: number
+      }
+    }
+    secretRef: {
+      name: string
+    }
+    worker: {
+      template: CacheGroupTemplate
+      overwrite: (CacheGroupTemplate & { nodes: string[] })[]
+    }
+  }
+  status?: {
+    phase: string
+    readyWorker?: number
+    expectWorker?: number
+    readyStr?: string
+    cacheGroup?: string
+  }
 }

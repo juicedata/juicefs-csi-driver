@@ -1,6 +1,6 @@
 ---
 title: Running other JuiceFS applications
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 Strictly speaking, this chapter isn't directly related to JuiceFS CSI Driver, they are generic Kubernetes applications that can run without our CSI Driver. For example:
@@ -92,9 +92,13 @@ spec:
 
 ## Deploy distributed cache cluster {#distributed-cache-cluster}
 
+:::tip
+For most scenarios, it is more convenient to deploy and manage distributed cache cluster through ["Cache Group Operator"](./juicefs-operator.md#cache-group), and it is recommended to use this method first.
+:::
+
 Refer to below examples to deploy a stable, dedicated cache cluster within Kubernetes, on selected nodes.
 
-StatefulSet and DaemonSet are both provided, they don't come with any functionality differences, but note that when you adjust config and restart a StatefulSet, pods are restarted one by one in descending order. While daemonset executes the restart according to its own `updateStrategy`. When faced with a large cluster, carefully configure this strategy to avoid service impact.
+StatefulSet and DaemonSet are both provided, they don't come with any functionality differences, but note that when you adjust config and restart a StatefulSet, Pods are restarted one by one in descending order. While daemonset executes the restart according to its own `updateStrategy`. When faced with a large cluster, carefully configure this strategy to avoid service impact.
 
 Apart from that, there's no actual differences between the two.
 
@@ -299,7 +303,7 @@ spec:
         volumeMounts:
         - mountPath: /root/.juicefs
           name: jfs-root-dir
-        # Use the mount pod container image
+        # Use the Mount Pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
         image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:
@@ -518,7 +522,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        # Use the mount pod container image
+        # Use the Mount Pod container image
         # ref: https://juicefs.com/docs/csi/guide/custom-image
         image: juicedata/mount:ee-5.0.2-69f82b3
         lifecycle:

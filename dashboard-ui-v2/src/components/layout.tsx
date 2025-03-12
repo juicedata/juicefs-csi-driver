@@ -18,7 +18,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import {
   GithubOutlined,
   QuestionCircleOutlined,
-  SettingOutlined,
+  ToolOutlined,
 } from '@ant-design/icons'
 import {
   Layout as AntdLayout,
@@ -34,8 +34,7 @@ import zhCN from 'antd/locale/zh_CN'
 import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
-import ConfigModal from './config-modal'
-import { DSIcon, LocaleIcon, PODIcon, PVCIcon, PVIcon, SCIcon } from '@/icons'
+import { LocaleIcon, ResourcesIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
@@ -43,37 +42,71 @@ const { Header, Sider, Content } = AntdLayout
 
 const items: MenuProps['items'] = [
   {
-    icon: <PODIcon />,
-    label: (
-      <Link to="/pods">
-        <FormattedMessage id="appPodTable" />
-      </Link>
-    ),
-    key: '/pods',
+    key: 'resources',
+    label: <FormattedMessage id="resources" />,
+    icon: <ResourcesIcon />,
+    children: [
+      {
+        label: (
+          <Link to="/pods">
+            <FormattedMessage id="appPodTable" />
+          </Link>
+        ),
+        key: '/pods',
+      },
+      {
+        label: (
+          <Link to="/syspods">
+            <FormattedMessage id="sysPodTable" />
+          </Link>
+        ),
+        key: '/syspods',
+      },
+      {
+        label: <Link to="/pvs">PV</Link>,
+        key: '/pvs',
+      },
+      {
+        label: <Link to="/pvcs">PVC</Link>,
+        key: '/pvcs',
+      },
+      {
+        label: <Link to="/storageclass">Storage Class</Link>,
+        key: '/storageclass',
+      },
+      {
+        label: (
+          <Link to="/cachegroups">
+            {' '}
+            <FormattedMessage id="cacheGroup" />
+          </Link>
+        ),
+        key: '/cachegroups',
+      },
+    ],
   },
   {
-    icon: <DSIcon />,
-    label: (
-      <Link to="/syspods">
-        <FormattedMessage id="sysPodTable" />
-      </Link>
-    ),
-    key: '/syspods',
-  },
-  {
-    icon: <PVIcon />,
-    label: <Link to="/pvs">PV</Link>,
-    key: '/pvs',
-  },
-  {
-    icon: <PVCIcon />,
-    label: <Link to="/pvcs">PVC</Link>,
-    key: '/pvcs',
-  },
-  {
-    icon: <SCIcon />,
-    label: <Link to="/storageclass">Storage Class</Link>,
-    key: '/storageclass',
+    key: 'tools',
+    label: <FormattedMessage id="tool" />,
+    icon: <ToolOutlined />,
+    children: [
+      {
+        label: (
+          <Link to="/config">
+            <FormattedMessage id="setting" />
+          </Link>
+        ),
+        key: '/config',
+      },
+      {
+        label: (
+          <Link to="/jobs">
+            <FormattedMessage id="batchUpgrade" />
+          </Link>
+        ),
+        key: '/upgrade',
+      },
+    ],
   },
 ]
 
@@ -122,17 +155,6 @@ export default function Layout(props: { children: ReactNode }) {
                 }}
               />
             </Tooltip>
-            <ConfigModal>
-              {({ onClick }) => (
-                <Tooltip title={<FormattedMessage id="config" />}>
-                  <Button
-                    icon={<SettingOutlined />}
-                    className="header-button"
-                    onClick={onClick}
-                  />
-                </Tooltip>
-              )}
-            </ConfigModal>
             <Tooltip title="English / 中文">
               <Button
                 icon={<LocaleIcon />}
@@ -163,6 +185,7 @@ export default function Layout(props: { children: ReactNode }) {
                 position: 'fixed',
                 marginTop: '64px',
               }}
+              width={220}
             >
               <Menu
                 mode="inline"
@@ -171,13 +194,13 @@ export default function Layout(props: { children: ReactNode }) {
                     ? '/pods'
                     : `/${location.pathname.split('/')[1]}`,
                 ]}
-                defaultOpenKeys={['/pods']}
-                style={{ height: '100%' }}
+                defaultOpenKeys={['resources', 'tools']}
+                style={{ height: '100%', width: '100%' }}
                 items={items}
               />
             </Sider>
           </AntdLayout>
-          <AntdLayout style={{ marginLeft: 200, marginTop: '64px' }}>
+          <AntdLayout style={{ marginLeft: 220, marginTop: '64px' }}>
             <ConfigProvider
               theme={{
                 token: {

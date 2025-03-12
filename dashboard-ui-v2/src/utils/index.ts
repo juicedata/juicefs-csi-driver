@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Job } from 'kubernetes-types/batch/v1'
 import {
   Node,
   PersistentVolume,
@@ -520,9 +521,17 @@ export function getBasePath() {
   const domain = window.location.pathname.split('/')
   let base = ''
   if (
-    !['', 'pods', 'syspods', 'pvcs', 'pvs', 'storageclass', 'config'].includes(
-      domain[1],
-    )
+    ![
+      '',
+      'pods',
+      'syspods',
+      'pvcs',
+      'pvs',
+      'storageclass',
+      'config',
+      'cachegroups',
+      'jobs',
+    ].includes(domain[1])
   ) {
     base = `/${domain[1]}`
   }
@@ -539,6 +548,16 @@ export function isMountPod(pod: Pod): boolean {
   return (
     (pod.metadata?.name?.startsWith('juicefs-') &&
       pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount') ||
+    false
+  )
+}
+
+export function isSysPod(pod: Pod): boolean {
+  return (
+    (pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount' ||
+      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-csi-driver' ||
+      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-cache-group-worker'
+    ) ||
     false
   )
 }
@@ -629,4 +648,74 @@ export function compareImageVersion(current: string, target: string): number {
   }
 
   return imageVersionParts.length < targetVersionParts.length ? -1 : 0
+}
+
+export const getUpgradeStatusBadge = (finalStatus: string) => {
+  switch (finalStatus) {
+    case 'pending':
+    case 'pause':
+    case 'stop':
+      return 'default'
+    case 'running':
+      return 'processing'
+    case 'success':
+      return 'success'
+    case 'fail':
+      return 'error'
+    default:
+      return 'default'
+  }
+}
+
+export const timeToBeDeletedOfJob = (job?: Job): number | undefined => {
+  if (!job) {
+    return undefined
+  }
+  const ttlTime = job.spec?.ttlSecondsAfterFinished
+  if (!ttlTime) {
+    return undefined
+  }
+  // no status
+  if (!job.status) {
+    return undefined
+  }
+  // not finish
+  if (job.status?.active) {
+    return undefined
+  }
+  // complete
+  const completionTime = job.status?.completionTime
+  if (completionTime) {
+    const complete = new Date(completionTime)
+    return ttlTime * 1000 - (Date.now() - complete.getTime())
+  }
+  // no condition
+  if (!job.status.conditions) {
+    return undefined
+  }
+
+  // fail
+  const condition = job.status?.conditions.find(
+    (condition) => condition.lastTransitionTime,
+  )
+  if (condition && condition.lastTransitionTime) {
+    const last = new Date(condition.lastTransitionTime)
+    return ttlTime * 1000 - (Date.now() - last.getTime())
+  }
+}
+
+export const formatTime = (ms?: number): string => {
+  if (!ms) return ''
+  const seconds = Math.floor((ms / 1000) % 60)
+  const minutes = Math.floor((ms / (1000 * 60)) % 60)
+  const hours = Math.floor((ms / (1000 * 60 * 60)) % 24)
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24))
+
+  const parts = []
+  if (days > 0) parts.push(` ${days}d`)
+  if (hours > 0) parts.push(` ${hours}h`)
+  if (minutes > 0) parts.push(` ${minutes}min`)
+  if (seconds > 0 || parts.length === 0) parts.push(` ${seconds}s`)
+
+  return parts.join('')
 }

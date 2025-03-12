@@ -152,6 +152,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - delete
+  - update
 - apiGroups:
   - ""
   resources:
@@ -188,6 +191,14 @@ rules:
   - delete
   - update
   - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list
+  - get
 - apiGroups:
   - ""
   resources:
@@ -497,7 +508,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: juicedata/csi-dashboard:v0.25.1
+        - name: DASHBOARD_IMAGE
+          value: juicedata/csi-dashboard:v0.26.3
+        image: juicedata/csi-dashboard:v0.26.3
         name: dashboard
         ports:
         - containerPort: 8088
@@ -569,7 +582,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.25.1
+        image: juicedata/juicefs-csi-driver:v0.26.3
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -624,6 +637,7 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
+        - --timeout=20s
         - --leader-election
         - --v=2
         env:
@@ -904,6 +918,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - delete
+  - update
 - apiGroups:
   - ""
   resources:
@@ -940,6 +957,14 @@ rules:
   - delete
   - update
   - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list
+  - get
 - apiGroups:
   - ""
   resources:
@@ -1221,7 +1246,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: juicedata/csi-dashboard:v0.25.1
+        - name: DASHBOARD_IMAGE
+          value: juicedata/csi-dashboard:v0.26.3
+        image: juicedata/csi-dashboard:v0.26.3
         name: dashboard
         ports:
         - containerPort: 8088
@@ -1293,7 +1320,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.25.1
+        image: juicedata/juicefs-csi-driver:v0.26.3
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1348,6 +1375,7 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
+        - --timeout=20s
         - --leader-election
         - --v=2
         env:

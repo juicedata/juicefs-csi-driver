@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -24,6 +25,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
@@ -61,10 +65,13 @@ func TestParseSecret(t *testing.T) {
 	}
 
 	type args struct {
-		secrets map[string]string
-		volCtx  map[string]string
-		options []string
-		usePod  bool
+		secrets  map[string]string
+		volCtx   map[string]string
+		options  []string
+		volumeId string
+		uniqueId string
+		uuid     string
+		patch    *MountPodPatch
 	}
 	tests := []struct {
 		name    string
@@ -87,18 +94,21 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-env",
 			args: args{
-				secrets: map[string]string{"name": "test", "envs": "{GOOGLE_APPLICATION_CREDENTIALS: \"/root/.config/gcloud/application_default_credentials.json\", a: b, c: d}"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "test", "envs": "{GOOGLE_APPLICATION_CREDENTIALS: \"/root/.config/gcloud/application_default_credentials.json\", a: b, c: d}"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				UsePod:    true,
-				Source:    "test",
-				CachePVCs: []CachePVC{},
-				CacheDirs: []string{"/var/jfsCache"},
-				Envs:      s,
-				Configs:   map[string]string{},
-				Options:   []string{},
+				Name:       "test",
+				UsePod:     true,
+				Source:     "test",
+				UniqueId:   "test",
+				CachePVCs:  []CachePVC{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				UUID:       "test",
+				SecretName: "juicefs-test-secret",
+				Envs:       s,
+				Configs:    map[string]string{},
+				Options:    []string{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -113,23 +123,28 @@ func TestParseSecret(t *testing.T) {
 			name: "test-env-error",
 			args: args{
 				secrets: map[string]string{"name": "test", "envs": "-"},
-				usePod:  true,
 			},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "test-storage-nil",
-			args: args{secrets: map[string]string{"name": "test"}, usePod: true},
+			args: args{
+				secrets:  map[string]string{"name": "test"},
+				uniqueId: "test",
+			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				UsePod:    true,
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				UsePod:     true,
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -142,17 +157,23 @@ func TestParseSecret(t *testing.T) {
 		},
 		{
 			name: "test-storage",
-			args: args{secrets: map[string]string{"name": "test", "storage": "ceph"}, usePod: true},
+			args: args{
+				secrets:  map[string]string{"name": "test", "storage": "ceph"},
+				uniqueId: "test",
+			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Storage:   "ceph",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				UsePod:    true,
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Storage:    "ceph",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				UsePod:     true,
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -166,20 +187,23 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-cpu-limit",
 			args: args{
-				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{common.MountPodCpuLimitKey: "1"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "test", "storage": "s3"},
+				volCtx:   map[string]string{common.MountPodCpuLimitKey: "1"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Storage:   "s3",
-				UsePod:    true,
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				Storage:    "s3",
+				UniqueId:   "test",
+				UsePod:     true,
+				UUID:       "test",
+				SecretName: "juicefs-test-secret",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
@@ -199,20 +223,23 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-mem-limit",
 			args: args{
-				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{common.MountPodMemLimitKey: "1G"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "test", "storage": "s3"},
+				volCtx:   map[string]string{common.MountPodMemLimitKey: "1G"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Storage:   "s3",
-				UsePod:    true,
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				Storage:    "s3",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
@@ -232,20 +259,23 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-mem-request",
 			args: args{
-				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{common.MountPodMemRequestKey: "1G"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "test", "storage": "s3"},
+				volCtx:   map[string]string{common.MountPodMemRequestKey: "1G"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Storage:   "s3",
-				UsePod:    true,
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				Storage:    "s3",
+				UniqueId:   "test",
+				UUID:       "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
@@ -265,17 +295,22 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-cpu-request",
 			args: args{
-				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{common.MountPodCpuRequestKey: "1"},
+				secrets:  map[string]string{"name": "test"},
+				volCtx:   map[string]string{common.MountPodCpuRequestKey: "1"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
@@ -295,17 +330,22 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-labels",
 			args: args{
-				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{common.MountPodLabelKey: "a: b"},
+				secrets:  map[string]string{"name": "test"},
+				volCtx:   map[string]string{common.MountPodLabelKey: "a: b"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Labels:               map[string]string{"a": "b"},
 					Resources:            defaultResource,
@@ -328,17 +368,22 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-labels-json",
 			args: args{
-				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{common.MountPodLabelKey: "{\"a\": \"b\"}"},
+				secrets:  map[string]string{"name": "test"},
+				volCtx:   map[string]string{common.MountPodLabelKey: "{\"a\": \"b\"}"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				UsePod:     true,
+				SecretName: "juicefs-test-secret",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					Labels:               map[string]string{"a": "b"},
@@ -353,17 +398,22 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-annotation",
 			args: args{
-				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{common.MountPodAnnotationKey: "a: b"},
+				secrets:  map[string]string{"name": "test"},
+				volCtx:   map[string]string{common.MountPodAnnotationKey: "a: b"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Annotations:          map[string]string{"a": "b"},
 					Resources:            defaultResource,
@@ -387,20 +437,23 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "test-serviceaccount",
 			args: args{
-				secrets: map[string]string{"name": "test", "storage": "s3"},
-				volCtx:  map[string]string{common.MountPodServiceAccount: "test"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "test", "storage": "s3"},
+				volCtx:   map[string]string{common.MountPodServiceAccount: "test"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				UsePod:    true,
-				Name:      "test",
-				Source:    "test",
-				Storage:   "s3",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
-				CachePVCs: []CachePVC{},
+				UsePod:     true,
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Storage:    "s3",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
+				CachePVCs:  []CachePVC{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					ServiceAccountName:   "test",
@@ -414,14 +467,21 @@ func TestParseSecret(t *testing.T) {
 		},
 		{
 			name: "test-config",
-			args: args{secrets: map[string]string{"configs": "a: b", "name": "test"}},
+			args: args{
+				secrets:  map[string]string{"configs": "a: b", "name": "test"},
+				uniqueId: "test",
+			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{"a": "b"},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
+				Name:       "test",
+				Source:     "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				UsePod:     true,
+				SecretName: "juicefs-test-secret",
+				Configs:    map[string]string{"a": "b"},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -452,10 +512,15 @@ func TestParseSecret(t *testing.T) {
 					"initconfig":      "abc",
 					"format-options":  "xxx",
 				},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
 				Name:          "abc",
 				Source:        "abc",
+				UUID:          "abc",
+				UniqueId:      "test",
+				SecretName:    "juicefs-test-secret",
+				UsePod:        true,
 				SecretKey:     "abc",
 				SecretKey2:    "abc",
 				Token:         "abc",
@@ -465,6 +530,7 @@ func TestParseSecret(t *testing.T) {
 				Envs:          map[string]string{},
 				Configs:       map[string]string{},
 				Options:       []string{},
+				FormatCmd:     "/usr/bin/juicefs auth abc --token=${token} --secret-key=${secretkey} --secret-key2=${secretkey2} --passphrase=${passphrase} --xxx --conf-dir=/root/.juicefs",
 				FormatOptions: "xxx",
 				CacheDirs:     []string{"/var/jfsCache"},
 				CachePVCs:     []CachePVC{},
@@ -481,16 +547,19 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "cache-pvc1",
 			args: args{
-				secrets: map[string]string{"name": "abc"},
-				volCtx:  map[string]string{"juicefs/mount-cache-pvc": "abc,def"},
-				options: []string{"cache-dir=/abc"},
-				usePod:  true,
+				secrets:  map[string]string{"name": "abc"},
+				volCtx:   map[string]string{"juicefs/mount-cache-pvc": "abc,def"},
+				options:  []string{"cache-dir=/abc"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				IsCe:   false,
-				UsePod: true,
-				Name:   "abc",
-				Source: "abc",
+				IsCe:       false,
+				UsePod:     true,
+				Name:       "abc",
+				UUID:       "abc",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Source:     "abc",
 				CachePVCs: []CachePVC{{
 					PVCName: "abc",
 					Path:    "/var/jfsCache-0",
@@ -515,16 +584,19 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "cache-pvc2",
 			args: args{
-				secrets: map[string]string{"name": "abc"},
-				volCtx:  map[string]string{"juicefs/mount-cache-pvc": "abc"},
-				options: []string{},
-				usePod:  true,
+				secrets:  map[string]string{"name": "abc"},
+				volCtx:   map[string]string{"juicefs/mount-cache-pvc": "abc"},
+				options:  []string{},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				IsCe:   false,
-				UsePod: true,
-				Name:   "abc",
-				Source: "abc",
+				IsCe:       false,
+				UsePod:     true,
+				Name:       "abc",
+				UUID:       "abc",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Source:     "abc",
 				CachePVCs: []CachePVC{{
 					PVCName: "abc",
 					Path:    "/var/jfsCache-0",
@@ -546,16 +618,21 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "specify mount image",
 			args: args{
-				secrets: map[string]string{"configs": "a: b", "name": "test"},
-				volCtx:  map[string]string{common.MountPodImageKey: "abc"},
+				secrets:  map[string]string{"configs": "a: b", "name": "test"},
+				volCtx:   map[string]string{common.MountPodImageKey: "abc"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{"a": "b"},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
+				Name:       "test",
+				UUID:       "test",
+				Source:     "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Configs:    map[string]string{"a": "b"},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -570,16 +647,21 @@ func TestParseSecret(t *testing.T) {
 		{
 			name: "specify host path",
 			args: args{
-				secrets: map[string]string{"name": "test"},
-				volCtx:  map[string]string{common.MountPodHostPath: "/abc"},
+				secrets:  map[string]string{"name": "test"},
+				volCtx:   map[string]string{common.MountPodHostPath: "/abc"},
+				uniqueId: "test",
 			},
 			want: &JfsSetting{
-				Name:      "test",
-				Source:    "test",
-				Configs:   map[string]string{},
-				Envs:      map[string]string{},
-				Options:   []string{},
-				CacheDirs: []string{"/var/jfsCache"},
+				Name:       "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				Source:     "test",
+				UsePod:     true,
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{},
+				CacheDirs:  []string{"/var/jfsCache"},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -592,11 +674,44 @@ func TestParseSecret(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "overwrite options",
+			args: args{
+				secrets:  map[string]string{"name": "test"},
+				options:  []string{"buffer-size=10G"},
+				patch:    &MountPodPatch{MountOptions: []string{"buffer-size=100"}},
+				uniqueId: "test",
+			},
+			want: &JfsSetting{
+				Name:       "test",
+				UUID:       "test",
+				UniqueId:   "test",
+				SecretName: "juicefs-test-secret",
+				UsePod:     true,
+				Source:     "test",
+				Configs:    map[string]string{},
+				Envs:       map[string]string{},
+				Options:    []string{"buffer-size=100"},
+				CacheDirs:  []string{"/var/jfsCache"},
+				Attr: &PodAttr{
+					Resources:            defaultResource,
+					JFSConfigPath:        JFSConfigPath,
+					Image:                "juicedata/mount:ee-nightly",
+					MountPointPath:       MountPointPath,
+					JFSMountPriorityName: JFSMountPriorityName,
+				},
+				CachePVCs: []CachePVC{},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			GlobalConfig.Reset()
-			got, err := ParseSetting(tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.usePod, nil, nil)
+			defer GlobalConfig.Reset()
+			if tt.args.patch != nil {
+				GlobalConfig.MountPodPatch = []MountPodPatch{*tt.args.patch}
+			}
+			got, err := ParseSetting(context.TODO(), tt.args.secrets, tt.args.volCtx, tt.args.options, tt.args.volumeId, tt.args.uniqueId, tt.args.uuid, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -638,6 +753,7 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/var/jfsCache",
 				},
+				CachePVCs: []CachePVC{},
 				// default cache-dir is /var/jfsCache
 				// Options: []string{"cache-dir=/var/jfsCache"},
 			},
@@ -669,6 +785,7 @@ func Test_genCacheDirs(t *testing.T) {
 						},
 					},
 				},
+				CacheDirs: []string{},
 			},
 			wantErr: false,
 		},
@@ -684,7 +801,9 @@ func Test_genCacheDirs(t *testing.T) {
 					SizeLimit: resource.MustParse("1Gi"),
 					Medium:    "Memory",
 				},
-				Options: []string{"cache-dir=/var/jfsCache-emptyDir"},
+				Options:   []string{"cache-dir=/var/jfsCache-emptyDir"},
+				CachePVCs: []CachePVC{},
+				CacheDirs: []string{},
 			},
 			wantErr: false,
 		},
@@ -699,7 +818,8 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/tmp/abc",
 				},
-				Options: []string{"cache-dir=/tmp/abc"},
+				CachePVCs: []CachePVC{},
+				Options:   []string{"cache-dir=/tmp/abc"},
 			},
 			wantErr: false,
 		},
@@ -729,7 +849,8 @@ func Test_genCacheDirs(t *testing.T) {
 				CacheDirs: []string{
 					"/abc",
 				},
-				Options: []string{"cache-dir=/abc"},
+				CachePVCs: []CachePVC{},
+				Options:   []string{"cache-dir=/abc"},
 			},
 			wantErr: false,
 		},
@@ -752,7 +873,6 @@ func Test_genCacheDirs(t *testing.T) {
 func Test_genAndValidOptions(t *testing.T) {
 	type args struct {
 		JfsSetting *JfsSetting
-		options    []string
 	}
 	tests := []struct {
 		name    string
@@ -763,8 +883,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-normal",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{"cache-dir=xxx"},
+				JfsSetting: &JfsSetting{
+					Options: []string{"cache-dir=xxx"},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -772,8 +893,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-space1",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{" cache-dir=xxx "},
+				JfsSetting: &JfsSetting{
+					Options: []string{" cache-dir=xxx "},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -781,8 +903,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-space2",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{" cache-dir = xxx "},
+				JfsSetting: &JfsSetting{
+					Options: []string{" cache-dir = xxx "},
+				},
 			},
 			want:    []string{"cache-dir=xxx"},
 			wantErr: false,
@@ -790,8 +913,9 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-error",
 			args: args{
-				JfsSetting: &JfsSetting{},
-				options:    []string{"cache-dir=xxx cache-size=1024"},
+				JfsSetting: &JfsSetting{
+					Options: []string{"cache-dir=xxx cache-size=1024"},
+				},
 			},
 			want:    nil,
 			wantErr: true,
@@ -807,8 +931,8 @@ func Test_genAndValidOptions(t *testing.T) {
 							},
 						},
 					},
+					Options: []string{"buffer-size=1024"},
 				},
-				options: []string{"buffer-size=1024"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -824,8 +948,8 @@ func Test_genAndValidOptions(t *testing.T) {
 							},
 						},
 					},
+					Options: []string{"buffer-size=1024M"},
 				},
-				options: []string{"buffer-size=1024M"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -833,8 +957,8 @@ func Test_genAndValidOptions(t *testing.T) {
 		{
 			name: "test-buffersize-with-unit",
 			args: args{
-				options: []string{"buffer-size=10M"},
 				JfsSetting: &JfsSetting{
+					Options: []string{"buffer-size=10M"},
 					Attr: &PodAttr{
 						Resources: corev1.ResourceRequirements{
 							Limits: map[corev1.ResourceName]resource.Quantity{
@@ -850,9 +974,12 @@ func Test_genAndValidOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := genAndValidOptions(tt.args.JfsSetting, tt.args.options)
+			err := genAndValidOptions(tt.args.JfsSetting)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
 				return
 			}
 			if !reflect.DeepEqual(tt.args.JfsSetting.Options, tt.want) {
@@ -984,7 +1111,7 @@ func Test_parsePodResources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest)
+			got, err := ParsePodResources(tt.args.cpuLimit, tt.args.memoryLimit, tt.args.cpuRequest, tt.args.memoryRequest, getDefaultResource())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parsePodResources() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1119,6 +1246,176 @@ func Test_getPVNameFromTarget(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getPVNameFromTarget(tt.target); got != tt.want {
 				t.Errorf("getPVNameFromTarget() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_applyConfigPatch(t *testing.T) {
+	type args struct {
+		setting *JfsSetting
+		patch   MountPodPatch
+	}
+	tests := []struct {
+		name string
+		args args
+		want *JfsSetting
+	}{
+		{
+			name: "test-merge-options",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+					Options: []string{
+						"a=c",
+						"b=d",
+						"c=e",
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"a=b", "c=d"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{},
+				Options: []string{
+					"a=b",
+					"c=d",
+					"b=d",
+				},
+			},
+		},
+		{
+			name: "test-large-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("10Mi"),
+							},
+						},
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("10Mi"),
+						},
+					},
+				},
+				Options: []string{
+					"buffer-size=10",
+				},
+			},
+		},
+		{
+			name: "test-large-buff-size-in-pv",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("10Mi"),
+							},
+						},
+					},
+					Options: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("10Mi"),
+						},
+					},
+				}, Options: []string{
+					"buffer-size=10",
+				},
+			},
+		},
+		{
+			name: "test-empty-limit-resources-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=1G"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{},
+				Options: []string{
+					"buffer-size=1G",
+				},
+			},
+		},
+	}
+
+	defer GlobalConfig.Reset()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			GlobalConfig.MountPodPatch = []MountPodPatch{tt.args.patch}
+			applyConfigPatch(tt.args.setting)
+			assert.Equal(t, tt.want, tt.args.setting)
+		})
+	}
+}
+func TestGenHashOfSetting(t *testing.T) {
+	type args struct {
+		setting JfsSetting
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				setting: JfsSetting{
+					Name: "test",
+				},
+			},
+			want:    "92672dd79d284e609e2de7f3da2082bf5a6a11f2496f54a452b9ce136155f0f",
+			wantErr: false,
+		},
+		{
+			name: "test-list1",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"f", "a=b", "c=d"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			wantErr: false,
+		},
+		{
+			name: "test-list2",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"c=d", "f", "a=b"},
+				},
+			},
+			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GenHashOfSetting(klog.NewKlogr(), tt.args.setting)
+			if got != tt.want {
+				t.Errorf("GenHashOfSetting() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

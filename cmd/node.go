@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/util/retry"
 
@@ -126,11 +127,9 @@ func parseNodeConfig() {
 		os.Exit(1)
 	}
 	config.CSIPod = *pod
-	err = passfd.InitGlobalFds(context.TODO(), k8sclient, "/tmp")
-	if err != nil {
-		log.Error(err, "Init global fds error")
-		os.Exit(1)
-	}
+
+	passfd.InitGlobalFds(context.TODO(), k8sclient, "/tmp")
+
 	err = grace.ServeGfShutdown(config.ShutdownSockPath)
 	if err != nil {
 		log.Error(err, "Serve graceful shutdown error")
@@ -178,19 +177,21 @@ func nodeRun(ctx context.Context) {
 
 	// enable pod manager in csi node
 	if !process && podManager {
-		needStartPodManager := false
 		if config.KubeletPort != "" && config.HostIp != "" {
-			if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
+			err := retry.OnError(retry.DefaultBackoff, func(err error) bool {
+				log.Error(err, "Could not Start Reconciler of polling kubelet, retrying...")
+				return true
+			}, func() error {
 				return controller.StartReconciler()
-			}); err != nil {
+			})
+			if err != nil {
 				log.Error(err, "Could not Start Reconciler of polling kubelet and fallback to watch ApiServer.")
-				needStartPodManager = true
+			} else {
+				config.AccessToKubelet = true
 			}
-		} else {
-			needStartPodManager = true
 		}
 
-		if needStartPodManager {
+		if !config.AccessToKubelet {
 			go func() {
 				mgr, err := app.NewPodManager()
 				if err != nil {
@@ -207,6 +208,7 @@ func nodeRun(ctx context.Context) {
 		log.Info("Pod Reconciler Started")
 	}
 
+	registerer.MustRegister(collectors.NewGoCollector())
 	drv, err := driver.NewDriver(endpoint, nodeID, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration, registerer)
 	if err != nil {
 		log.Error(err, "fail to create driver")

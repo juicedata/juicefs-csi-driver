@@ -26,7 +26,9 @@ import (
 )
 
 var (
-	restart = false
+	recreate        = false
+	batchConfigName = ""
+	crtBatchIndex   = 1
 )
 
 var upgradeCmd = &cobra.Command{
@@ -38,7 +40,12 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		name := args[0]
-		if err := grace.TriggerShutdown(config.ShutdownSockPath, name, restart); err != nil {
+		if name == "BATCH" {
+			if err := grace.TriggerBatchUpgrade(config.ShutdownSockPath, batchConfigName, crtBatchIndex); err != nil {
+				log.Error(err, "failed to upgrade mount pod")
+				os.Exit(1)
+			}
+		} else if err := grace.TriggerShutdown(config.ShutdownSockPath, name, recreate); err != nil {
 			log.Error(err, "failed to upgrade mount pod")
 			os.Exit(1)
 		}
@@ -46,5 +53,7 @@ var upgradeCmd = &cobra.Command{
 }
 
 func init() {
-	upgradeCmd.Flags().BoolVar(&restart, "restart", false, "smoothly upgrade the mount pod with restart")
+	upgradeCmd.Flags().BoolVar(&recreate, "recreate", false, "smoothly upgrade the mount pod with recreate")
+	upgradeCmd.Flags().StringVar(&batchConfigName, "batchConfig", "", "batch config name")
+	upgradeCmd.Flags().IntVar(&crtBatchIndex, "batchIndex", 1, "current batch index")
 }

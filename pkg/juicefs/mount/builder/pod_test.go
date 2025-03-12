@@ -17,6 +17,7 @@ limitations under the License.
 package builder
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -47,8 +49,10 @@ var (
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
 			Labels: map[string]string{
-				common.PodTypeKey:          common.PodTypeValue,
-				common.PodUniqueIdLabelKey: "",
+				common.PodTypeKey:             common.PodTypeValue,
+				common.PodUniqueIdLabelKey:    "",
+				common.PodJuiceHashLabelKey:   "test",
+				common.PodUpgradeUUIDLabelKey: "test",
 			},
 			Annotations: map[string]string{
 				common.JuiceFSUUID: "",
@@ -88,17 +92,27 @@ var (
 				Name:    "jfs-mount",
 				Image:   config.DefaultCEMountImage,
 				Command: []string{"sh", "-c", defaultCmd},
-				Env: []corev1.EnvVar{{
-					Name:  "JFS_FOREGROUND",
-					Value: "1",
-				}},
-				EnvFrom: []corev1.EnvFromSource{{
-					SecretRef: &corev1.SecretEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "juicefs-node-test",
+				Env: []corev1.EnvVar{
+					{
+						Name:  "JFS_INSIDE_CONTAINER",
+						Value: "1",
+					},
+					{
+						Name: "metaurl",
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "juicefs-node-test",
+								},
+								Key: "metaurl",
+							},
 						},
 					},
-				}},
+					{
+						Name:  "JFS_FOREGROUND",
+						Value: "1",
+					},
+				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:             JfsDirName,
@@ -118,7 +132,7 @@ var (
 					RunAsUser:  &rootUser,
 				},
 				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf("umount %s -l; rmdir %s; exit 0", "/jfs/default-imagenet", "/jfs/default-imagenet")}},
 					},
 				},
@@ -170,7 +184,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 			Type: &dir,
 		}}}}
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithoutCacheDir, true, nil, nil)
+	s, _ := config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithoutCacheDir, "", "", "test", nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts := r.genCacheDirVolumes()
@@ -180,7 +194,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir, true, nil, nil)
+	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithCacheDir, "", "", "test", nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -190,7 +204,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir2, true, nil, nil)
+	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithCacheDir2, "", "", "test", nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -200,7 +214,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 		t.Error("getCacheDirVolumes can't work properly")
 	}
 
-	s, _ = config.ParseSetting(map[string]string{"name": "test"}, nil, optionWithCacheDir3, true, nil, nil)
+	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithCacheDir3, "", "", "test", nil, nil)
 	s.HashVal = "test"
 	r.jfsSetting = s
 	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
@@ -231,6 +245,22 @@ func TestNewMountPod(t *testing.T) {
 
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
+	podEnvTest.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "JFS_INSIDE_CONTAINER", Value: "1"},
+		{Name: "metaurl", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
+				Key:                  "metaurl",
+			},
+		}},
+		{Name: "a", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
+				Key:                  "a",
+			},
+		}},
+		{Name: "JFS_FOREGROUND", Value: "1"},
+	}
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
@@ -243,7 +273,7 @@ func TestNewMountPod(t *testing.T) {
 		MountPath: "/test",
 	}}, podConfigTest.Spec.Containers[0].VolumeMounts...)
 
-	s, _ := config.ParseSetting(map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, true, nil, nil)
+	s, _ := config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, "", "", "test", nil, nil)
 	s.HashVal = "test"
 	r := PodBuilder{
 		BaseBuilder: BaseBuilder{s, 0},
@@ -357,17 +387,19 @@ func TestNewMountPod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, tt.args.name)
 			jfsSetting := &config.JfsSetting{
-				IsCe:       true,
-				Name:       tt.args.name,
-				HashVal:    "test",
-				Source:     "redis://127.0.0.1:6379/0",
-				Configs:    tt.args.configs,
-				Envs:       tt.args.env,
-				MountPath:  tt.args.mountPath,
-				VolumeId:   tt.args.name,
-				Options:    tt.args.options,
-				CacheDirs:  tt.args.cacheDirs,
-				SecretName: podName,
+				IsCe:        true,
+				Name:        tt.args.name,
+				HashVal:     "test",
+				UpgradeUUID: "test",
+				Source:      "redis://127.0.0.1:6379/0",
+				MetaUrl:     "redis://127.0.0.1:6379/0",
+				Configs:     tt.args.configs,
+				Envs:        tt.args.env,
+				MountPath:   tt.args.mountPath,
+				VolumeId:    tt.args.name,
+				Options:     tt.args.options,
+				CacheDirs:   tt.args.cacheDirs,
+				SecretName:  podName,
 				Attr: &config.PodAttr{
 					Labels:             tt.args.labels,
 					Annotations:        tt.args.annotations,
@@ -382,8 +414,8 @@ func TestNewMountPod(t *testing.T) {
 				BaseBuilder: BaseBuilder{jfsSetting, 0},
 			}
 			got, _ := r.NewMountPod(podName)
-			gotStr, _ := json.Marshal(got)
-			wantStr, _ := json.Marshal(tt.want)
+			gotStr, _ := yaml.Marshal(got)
+			wantStr, _ := yaml.Marshal(tt.want)
 			if string(gotStr) != string(wantStr) {
 				t.Errorf("NewMountPod() = %v \n want %v", string(gotStr), string(wantStr))
 			}
@@ -394,6 +426,7 @@ func TestNewMountPod(t *testing.T) {
 func TestPodMount_getCommand(t *testing.T) {
 	type args struct {
 		mountPath string
+		subPath   string
 		options   []string
 	}
 	tests := []struct {
@@ -423,6 +456,17 @@ func TestPodMount_getCommand(t *testing.T) {
 			},
 			want: "exec /sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,debug",
 		},
+		{
+			name:   "test-subpath",
+			isCe:   false,
+			source: "test",
+			args: args{
+				mountPath: "/jfs/test-volume",
+				options:   []string{"subdir=test"},
+				subPath:   "/jfs/test-volume/subpath",
+			},
+			want: "exec /sbin/mount.juicefs test /jfs/test-volume -o foreground,no-update,subdir=test/jfs/test-volume/subpath",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -432,6 +476,7 @@ func TestPodMount_getCommand(t *testing.T) {
 				Source:    tt.source,
 				IsCe:      tt.isCe,
 				MountPath: tt.args.mountPath,
+				SubPath:   tt.args.subPath,
 				Options:   tt.args.options,
 				Attr:      &config.PodAttr{},
 			}

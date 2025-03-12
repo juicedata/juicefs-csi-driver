@@ -21,6 +21,7 @@
     "lodash": "^4.17.21",
     "monaco-editor": "^0.50.0",
     "react": "^18.2.0",
+    "react-diff-viewer": "^3.1.1",
     "react-dom": "^18.2.0",
     "react-intl": "^6.6.8",
     "react-router-dom": "^6.23.1",
@@ -45,6 +46,6 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
     "typescript": "^5.2.2",
-    "vite": "^5.2.14"
+    "vite": "^5.4.12"
   }
 }

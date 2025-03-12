@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -99,6 +100,9 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		return true, nil
 	}
 	nowSubPath := volume.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
+	if nowSubPath == "/" || nowSubPath == "" {
+		return false, fmt.Errorf("subPath is root, cannot delete it, you can change the reclaimPolicy to retain to avoid this error")
+	}
 	sc := volume.Spec.StorageClassName
 
 	if sc == "" {

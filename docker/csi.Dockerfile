@@ -1,8 +1,22 @@
 #speed up the build process by useing an image with a pre-built juicefs binary.
 FROM gcr.io/cpln-build/juicefs:1543127132-a0cd88ee as juicefs
 
-FROM golang:1.20-buster AS builder
+FROM golang:1.22-bookworm AS csi-builder
+ARG GOPROXY
+ARG TARGETARCH
 
+WORKDIR /workspace
+COPY --from=project **/*.go ./
+COPY --from=project cmd ./cmd
+COPY --from=project pkg ./pkg
+COPY --from=project go.mod .
+COPY --from=project go.sum .
+COPY --from=project .git .
+COPY --from=project Makefile .
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
+RUN make
+
+FROM golang:1.20-buster AS juicefs-builder
 ARG GOPROXY
 ARG TARGETARCH
 ARG JUICEFS_REPO_URL=https://github.com/juicedata/juicefs
@@ -15,20 +29,14 @@ RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 &
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-15.2.17/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    echo deb https://download.ceph.com/debian-16.2.15/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev upx-ucl; fi"
-
 WORKDIR /workspace
-COPY --from=project **/*.go ./
-COPY --from=project cmd ./cmd
-COPY --from=project pkg ./pkg
-COPY --from=project go.mod .
-COPY --from=project go.sum .
-COPY --from=project .git .
-COPY --from=project Makefile .
-ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN apt-get update && apt-get install -y musl-tools
-RUN make
+# build juicefs
+RUN cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
+    cd juicefs && git checkout $JUICEFS_REPO_REF && \
+    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs; fi"
 
 FROM python:3.8-slim-buster
 
@@ -55,7 +63,7 @@ RUN apt update && \
     wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/10/LATEST/Debian/buster/${TARGETARCH}/apt buster main > /etc/apt/sources.list.d/gluster.list && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-16.1.0/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
+    echo deb https://download.ceph.com/debian-16.2.15/ buster main | tee /etc/apt/sources.list.d/ceph.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
@@ -70,7 +78,7 @@ RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
     bash -c "mkdir -p /usr/local/juicefs/mount; if [[ '${TARGETARCH}' == amd64 ]]; then cp Linux/mount.ceph $jfs_mount_path; else cp Linux/mount.aarch64 $jfs_mount_path; fi;" && \
     chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
 
-COPY --from=builder /workspace/bin/juicefs-csi-driver /usr/local/bin/
+COPY --from=csi-builder /workspace/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=juicefs /usr/local/bin/juicefs /usr/local/bin/
 
 RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs

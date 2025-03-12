@@ -31,6 +31,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -44,8 +45,22 @@ import (
 
 var log = klog.NewKlogr().WithName("grace")
 
+const (
+	recreate             = "RECREATE"
+	noRecreate           = "NORECREATE"
+	singleUpgradeTimeout = 30 * time.Minute
+)
+
 func ServeGfShutdown(addr string) error {
-	_ = os.RemoveAll(addr)
+	err := util.DoWithTimeout(context.TODO(), 2*time.Second, func() error {
+		if util.Exists(addr) {
+			return os.Remove(addr)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
 	listener, err := net.Listen("unix", addr)
 	if err != nil {
@@ -64,11 +79,54 @@ func ServeGfShutdown(addr string) error {
 				continue
 			}
 
-			log.Info("Start to graceful shutdown")
 			go handleShutdown(conn)
 		}
 	}()
 	return nil
+}
+
+type upgradeRequest struct {
+	action     string
+	name       string
+	configName string
+	batchIndex int
+}
+
+// parseRequest parse request from message
+// message format: <pod-name> [recreate/noRecreate]
+func parseRequest(message string) upgradeRequest {
+	req := upgradeRequest{
+		action: noRecreate,
+	}
+
+	ss := strings.Split(message, " ")
+	req.name = ss[0]
+	if len(ss) < 2 {
+		return req
+	}
+	req.action = ss[1]
+	if ss[0] == "BATCH" && len(ss) > 2 {
+		options := strings.Split(ss[2], ",")
+		for _, option := range options {
+			ops := strings.Split(option, "=")
+			if len(ops) < 2 {
+				continue
+			}
+			if ops[0] == "batchIndex" {
+				w, err := strconv.Atoi(ops[1])
+				if err != nil {
+					log.Error(err, "failed to parse options", "option", option)
+					continue
+				}
+				req.batchIndex = w
+			}
+			if ops[0] == "batchConfig" {
+				req.configName = ops[1]
+			}
+		}
+		return req
+	}
+	return req
 }
 
 func handleShutdown(conn net.Conn) {
@@ -82,118 +140,128 @@ func handleShutdown(conn net.Conn) {
 	}
 
 	message := string(buf[:n])
+	req := parseRequest(message)
 
-	var recreate bool
-	ss := strings.Split(message, " ")
-	name := ss[0]
-	if len(ss) == 2 {
-		recreate = true
+	if req.name == "list" {
+		_, _ = conn.Write(passfd.GlobalFds.PrintFds())
+		return
 	}
 
-	log.V(1).Info("Received shutdown message", "message", message)
+	log.Info("Received shutdown message", "message", message)
 
 	client, err := k8s.NewClient()
 	if err != nil {
 		log.Error(err, "failed to create k8s client")
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Minute)
-	defer cancel()
-
-	mountPod, err := client.GetPod(ctx, name, config.Namespace)
-	if err != nil {
-		sendMessage(conn, "FAIL get pod")
-		log.Error(err, "get pod error", "name", name)
+	if req.name == "BATCH" {
+		NewBatchUpgrade(client, req).BatchUpgrade(context.TODO(), conn)
 		return
 	}
-	if mountPod.Spec.NodeName != config.NodeName {
-		sendMessage(conn, "FAIL pod is not on node")
+
+	ctx, cancel := context.WithTimeout(context.TODO(), singleUpgradeTimeout)
+	defer cancel()
+	SinglePodUpgrade(ctx, client, req.name, req.action == recreate, conn)
+}
+
+func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) {
+	sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", name))
+	pu, err := NewPodUpgrade(ctx, client, name, recreate, conn)
+	if err != nil {
+		log.Error(err, "failed to create pod upgrade")
 		return
+	}
+
+	canUpgrade, reason, err := resource.CanUpgradeWithHash(ctx, client, *pu.pod, pu.recreate)
+	if err != nil || !canUpgrade {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not upgrade: %s.", pu.pod.Name, reason))
+		return
+	}
+
+	if err := pu.gracefulShutdown(ctx, conn); err != nil {
+		log.Error(err, "graceful shutdown error")
+		if pu.recreate {
+			if e := resource.DelPodAnnotation(ctx, client, pu.pod.Name, pu.pod.Namespace, []string{common.JfsUpgradeProcess}); e != nil {
+				sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", pu.pod.Name, e.Error()))
+				return
+			}
+		}
+		return
+	}
+	if pu.recreate {
+		pu.waitForUpgrade(ctx, conn)
+	}
+}
+
+type PodUpgrade struct {
+	client      *k8s.K8sClient
+	pod         *corev1.Pod
+	recreate    bool
+	ce          bool
+	hashVal     string
+	upgradeUUID string
+	status      config.UpgradeStatus
+}
+
+func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) (*PodUpgrade, error) {
+	mountPod, err := client.GetPod(ctx, name, config.Namespace)
+	if err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not get pod.", name))
+		log.Error(err, "get pod error", "name", name)
+		return nil, err
+	}
+	if mountPod.Spec.NodeName != config.NodeName {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is not on node.", name))
+		return nil, err
 	}
 	ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "metaurl")
 	hashVal := mountPod.Labels[common.PodJuiceHashLabelKey]
 	if hashVal == "" {
 		log.Info("pod has no hash label")
-		return
+		return nil, err
 	}
 	log.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
-	pu := &podUpgrade{
-		client:   client,
-		pod:      mountPod,
-		recreate: recreate,
-		ce:       ce,
-		hashVal:  hashVal,
+	pu := &PodUpgrade{
+		client:      client,
+		pod:         mountPod,
+		recreate:    recreate,
+		ce:          ce,
+		hashVal:     hashVal,
+		upgradeUUID: resource.GetUpgradeUUID(mountPod),
 	}
-	if ok, err := pu.canUpgrade(ctx, conn); err != nil {
-		log.Error(err, "check if can upgrade error")
-		return
-	} else if !ok {
-		return
-	}
-	if err := pu.gracefulShutdown(ctx, conn); err != nil {
-		log.Error(err, "graceful shutdown error")
-		return
-	}
+	return pu, nil
 }
 
-type podUpgrade struct {
-	client     *k8s.K8sClient
-	pod        *corev1.Pod
-	recreate   bool
-	ce         bool
-	hashVal    string
-	newVersion string
-}
-
-func (p *podUpgrade) canUpgrade(ctx context.Context, conn net.Conn) (bool, error) {
-	// check mount pod now support upgrade or not
-	if !p.recreate && !util.ImageSupportBinary(p.pod.Spec.Containers[0].Image) {
-		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support binary upgrade, image: %s", p.pod.Spec.Containers[0].Image))
-		log.Info("mount pod now do not support smooth binary upgrade")
-		return false, nil
-	}
-	if p.recreate && !util.SupportFusePass(p.pod.Spec.Containers[0].Image) {
-		sendMessage(conn, fmt.Sprintf("FAIL mount pod now do not support recreate upgrade, image: %s", p.pod.Spec.Containers[0].Image))
-		log.Info("mount pod now do not support recreate smooth upgrade")
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (p *podUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
+func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
 	lock := config.GetPodLock(p.hashVal)
-	err := func() error {
-		lock.Lock()
-		defer lock.Unlock()
-		var jfsConf *util.JuiceConf
-		var err error
+	lock.Lock()
+	defer lock.Unlock()
 
-		if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
-			sendMessage(conn, "FAIL "+err.Error())
-			return err
-		}
+	var jfsConf *util.JuiceConf
+	var err error
 
-		if err := p.sighup(ctx, conn, jfsConf); err != nil {
-			sendMessage(conn, "FAIL "+err.Error())
-			return err
-		}
+	if p.isInUpgradeProcess() {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is already in upgrade process.", p.pod.Name))
 		return nil
-	}()
-	if err != nil {
+	}
+	if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
+		p.status = config.Fail
 		return err
 	}
 
-	if p.recreate {
-		p.waitForUpgrade(ctx, conn)
+	if err := p.sighup(ctx, conn, jfsConf); err != nil {
+		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] "+err.Error()+".", p.pod.Name))
+		p.status = config.Fail
+		return err
 	}
 	return nil
 }
 
-func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.JuiceConf) error {
+func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.JuiceConf) error {
 	// send SIGHUP to mount pod
-	log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name)
-	sendMessage(conn, "send SIGHUP to mount pod")
+	log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "namespace", p.pod.Namespace)
+	sendMessage(conn, fmt.Sprintf("send SIGHUP to mount pod %s", p.pod.Name))
 	if stdout, stderr, err := p.client.ExecuteInContainer(
 		ctx,
 		p.pod.Name,
@@ -201,16 +269,17 @@ func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		common.MountContainerName,
 		[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
 	); err != nil {
-		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "stdout", stdout, "stderr", stderr, "error", err)
-		sendMessage(conn, fmt.Sprintf("FAIL to send SIGHUP to mount pod: %v", err))
-		return err
+		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "stdout", stdout, "stderr", stderr, "error", err)
+		p.status = config.Fail
+		return fmt.Errorf("fail to send SIGHUP to mount pod: %v", err)
 	}
-	upgradeEvtMsg := fmt.Sprintf("Upgrade binary to %s in %s", p.newVersion, common.MountContainerName)
+	upgradeEvtMsg := fmt.Sprintf("[%s] Upgrade binary in %s", p.pod.Name, common.MountContainerName)
 	if p.recreate {
-		upgradeEvtMsg = "Upgrade pod with recreating"
+		upgradeEvtMsg = fmt.Sprintf("Upgrade pod [%s] with recreating", p.pod.Name)
 		sendMessage(conn, upgradeEvtMsg)
 	} else {
-		sendMessage(conn, "SUCCESS "+upgradeEvtMsg)
+		sendMessage(conn, "POD-SUCCESS "+upgradeEvtMsg)
+		p.status = config.Success
 	}
 	if err := p.client.CreateEvent(ctx, *p.pod, corev1.EventTypeNormal, "Upgrade", upgradeEvtMsg); err != nil {
 		log.Error(err, "fail to create event")
@@ -218,61 +287,74 @@ func (p *podUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 	return nil
 }
 
-func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.JuiceConf, error) {
+func (p *PodUpgrade) isInUpgradeProcess() bool {
+	if p.pod.Annotations == nil || p.pod.Annotations[common.JfsUpgradeProcess] == "" {
+		return false
+	}
+	t, err := time.Parse(time.DateTime, p.pod.Annotations[common.JfsUpgradeProcess])
+	if err != nil {
+		log.Error(err, "parse upgrade time from pod upgradeProcess error", "pod", p.pod.Name, "time", p.pod.Annotations[common.JfsUpgradeProcess])
+		return false
+	}
+	return time.Since(t) < 5*time.Minute
+}
+
+func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.JuiceConf, error) {
 	mntPath, _, err := util.GetMountPathOfPod(*p.pod)
 	if err != nil {
 		return nil, err
 	}
 
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-
 	// get pid and sid from <mountpoint>/.config
 	msg := "get pid from config"
-	sendMessage(conn, msg)
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
 	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		conf, err = os.ReadFile(path.Join(mntPath, ".config"))
-		return err
+		confPath := path.Join(mntPath, ".config")
+		conf, err = os.ReadFile(confPath)
+		if err != nil {
+			return fmt.Errorf("fail to read config file %s: %v", confPath, err)
+		}
+		return nil
 	})
-	jfsConf, err := util.ParseConfig(conf)
 	if err != nil {
 		return nil, err
 	}
-	sendMessage(conn, fmt.Sprintf("pid in mount pod: %d", jfsConf.Pid))
+	jfsConf, err := util.ParseConfig(conf)
+	if err != nil {
+		return nil, fmt.Errorf("fail to parse config file: %v", err)
+	}
+	log.V(1).Info("get pid in mount pod", "pid", jfsConf.Pid)
 
 	cJob, err := builder.NewCanaryJob(ctx, p.client, p.pod, p.recreate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail to new canary job: %v", err)
 	}
-	sendMessage(conn, fmt.Sprintf("create canary job %s", cJob.Name))
-	if _, err := p.client.CreateJob(ctx, cJob); err != nil {
+	log.V(1).Info("create canary job", "job", cJob.Name)
+	if _, err := p.client.CreateJob(ctx, cJob); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error(err, "create canary pod error", "name", p.pod.Name)
-		return nil, err
+		return nil, fmt.Errorf("fail to create canary job: %v", err)
 	}
 
-	sendMessage(conn, "wait for canary job completed")
+	log.V(1).Info("wait for canary job completed", "job", cJob.Name)
 	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
 		log.Error(err, "canary job is not complete, delete it.", "job", cJob.Name)
 		_ = p.client.DeleteJob(ctx, cJob.Name, cJob.Namespace)
-		return nil, err
+		return nil, fmt.Errorf("fail to wait for canary job complete: %v", err)
 	}
-
-	sendMessage(conn, fmt.Sprintf("new image: %s", cJob.Spec.Template.Spec.Containers[0].Image))
-	sendMessage(conn, "validate new version")
-	v := p.validateVersion(ctx, conn)
-	if !v {
-		return nil, fmt.Errorf("new version is not supported")
-	}
+	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
 	if p.recreate {
-		// set fuse fd to -1 in mount pod
+		if err := resource.AddPodAnnotation(ctx, p.client, p.pod.Name, p.pod.Namespace, map[string]string{common.JfsUpgradeProcess: time.Now().Format(time.DateTime)}); err != nil {
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] %s.", p.pod.Name, err.Error()))
+			return nil, err
+		}
 
+		// set fuse fd to -1 in mount pod
 		// update sid
 		if p.ce {
-			passfd.GlobalFds.UpdateSid(hashVal, jfsConf.Meta.Sid)
+			passfd.GlobalFds.UpdateSid(p.pod, jfsConf.Meta.Sid)
 			log.V(1).Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
-			sendMessage(conn, fmt.Sprintf("sid in mount pod: %d", jfsConf.Meta.Sid))
 		}
 
 		// close fuse fd in mount pod
@@ -281,7 +363,7 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 			return nil, err
 		}
 		msg = "close fuse fd in mount pod"
-		sendMessage(conn, msg)
+		log.V(1).Info(msg, "path", commPath, "pod", p.pod.Name)
 		fuseFd, _ := passfd.GetFuseFd(commPath, true)
 		for i := 0; i < 100 && fuseFd < 0; i++ {
 			time.Sleep(time.Millisecond * 100)
@@ -294,106 +376,105 @@ func (p *podUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	} else {
 		// upgrade binary
 		msg = "upgrade binary to mount pod"
-		log.V(1).Info(msg, "pod", p.pod.Name)
+		log.Info(msg, "pod", p.pod.Name)
 		sendMessage(conn, msg)
 		if err := p.uploadBinary(ctx); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fail to upload binary: %v", err)
 		}
 	}
 	return jfsConf, nil
 }
 
-func (p *podUpgrade) validateVersion(ctx context.Context, conn net.Conn) bool {
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
-		return false
-	}
-	// read from version file
-	var (
-		v   []byte
-		err error
-	)
-	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
-		v, err = os.ReadFile(fmt.Sprintf("/tmp/%s/version", hashVal))
-		return err
-	})
-	if err != nil {
-		log.Error(err, "read version file error", "hash", hashVal)
-		sendMessage(conn, fmt.Sprintf("FAIL read version file error: %v", err))
-		return false
-	}
-	p.newVersion = string(v)
-	if p.recreate {
-		supported := util.SupportUpgradeRecreate(p.ce, string(v))
-		if !supported {
-			sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
-		}
-		return supported
-	}
-	supported := util.SupportUpgradeBinary(p.ce, string(v))
-	if !supported {
-		sendMessage(conn, fmt.Sprintf("FAIL new version %s is not supported", string(v)))
-	}
-	return supported
-}
-
-func (p *podUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
-	sendMessage(conn, "wait for upgrade...")
-	hashVal := p.pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
+func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
+	log.Info("wait for upgrade", "pod", p.pod.Name)
+	upgradeUUID := p.upgradeUUID
+	if upgradeUUID == "" {
 		return
 	}
-	t := time.NewTicker(1 * time.Second)
-	defer t.Stop()
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	reportDeleted := false
+
+	matchLabels := map[string]string{
+		common.PodTypeKey: common.PodTypeValue,
+	}
+	if p.pod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		matchLabels[common.PodUpgradeUUIDLabelKey] = upgradeUUID
+	}
+	labelSelector, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: matchLabels})
+	fieldSelector := fields.Set{"spec.nodeName": p.pod.Spec.NodeName}
+
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	defer func() {
+		close(stop)
+		close(done)
+	}()
+	watchlist := cache.NewFilteredListWatchFromClient(
+		p.client.CoreV1().RESTClient(),
+		"pods",
+		p.pod.Namespace,
+		func(options *metav1.ListOptions) {
+			options.ResourceVersion = "0"
+			options.FieldSelector = fieldSelector.String()
+			options.LabelSelector = labelSelector.String()
+		},
+	)
+	handle := func(obj interface{}) {
+		po, ok := obj.(*corev1.Pod)
+		if !ok {
+			return
+		}
+		if resource.GetUpgradeUUID(po) == upgradeUUID && po.Name != p.pod.Name {
+			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
+				if resource.IsPodReady(po) {
+					sendMessage(conn, fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", p.pod.Name, po.Name))
+					p.status = config.Success
+					done <- struct{}{}
+					return
+				}
+			}
+		}
+		if po.Name == p.pod.Name {
+			if resource.IsPodComplete(po) {
+				sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
+				return
+			}
+			if po.DeletionTimestamp != nil {
+				sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
+				return
+			}
+		}
+	}
+	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: watchlist,
+		ObjectType:    &corev1.Pod{},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				handle(obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				handle(newObj)
+			},
+		},
+	})
+	go controller.Run(stop)
+
 	for {
 		select {
-		case <-t.C:
-			po, err := p.client.GetPod(ctx, p.pod.Name, p.pod.Namespace)
-			if err != nil && !k8serrors.IsNotFound(err) {
-				log.Error(err, "get pod error", "pod", p.pod.Name)
-				sendMessage(conn, fmt.Sprintf("WARNING get pod error: %v", err))
-				continue
-			}
-			if po != nil {
-				if resource.IsPodComplete(po) {
-					sendMessage(conn, fmt.Sprintf("Mount pod %s received signal and completed", p.pod.Name))
-				}
-			} else if !reportDeleted {
-				sendMessage(conn, fmt.Sprintf("Mount pod %s is deleted", p.pod.Name))
-				reportDeleted = true
-			}
-			labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-				common.PodTypeKey:           common.PodTypeValue,
-				common.PodJuiceHashLabelKey: hashVal,
-			}}
-			fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-			pods, err := p.client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-			if err != nil {
-				log.Error(err, "List pod error")
-				sendMessage(conn, fmt.Sprintf("WARNING list pod error: %v", err))
-				continue
-			}
-			for _, po := range pods {
-				if po.DeletionTimestamp == nil && !resource.IsPodComplete(&po) && po.Name != p.pod.Name {
-					if resource.IsPodReady(&po) {
-						sendMessage(conn, fmt.Sprintf("SUCCESS Upgrade mount pod and recreate one: %s", po.Name))
-						return
-					} else {
-						sendMessage(conn, fmt.Sprintf("Wait for new mount pod ready: %s", po.Name))
-					}
-				}
-			}
 		case <-ctx.Done():
-			sendMessage(conn, "FAIL Upgrade mount pod timeout")
+			sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
+			p.status = config.Fail
+			return
+		case <-done:
 			return
 		}
 	}
 }
 
-func (p *podUpgrade) uploadBinary(ctx context.Context) error {
+func (p *PodUpgrade) uploadBinary(ctx context.Context) error {
 	if p.ce {
 		stdout, stderr, err := p.client.ExecuteInContainer(
 			ctx,
@@ -424,7 +505,7 @@ func (p *podUpgrade) uploadBinary(ctx context.Context) error {
 
 }
 
-func TriggerShutdown(socketPath string, name string, restart bool) error {
+func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
@@ -432,9 +513,14 @@ func TriggerShutdown(socketPath string, name string, restart bool) error {
 	}
 	defer conn.Close()
 
-	message := name
-	if restart {
-		message = fmt.Sprintf("%s RESTART", name)
+	var message string
+	if recreateFlag {
+		message = fmt.Sprintf("%s %s", name, recreate)
+	} else {
+		message = fmt.Sprintf("%s %s", name, noRecreate)
+	}
+	if name == "list" {
+		message = "list"
 	}
 
 	_, err = conn.Write([]byte(message))
@@ -442,13 +528,12 @@ func TriggerShutdown(socketPath string, name string, restart bool) error {
 		log.Error(err, "error sending message")
 		return err
 	}
-	log.Info("trigger gracefully shutdown successfully", "name", name)
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		message = scanner.Text()
-		log.Info(message)
-		if strings.HasPrefix(message, "SUCCESS") || strings.HasPrefix(message, "FAIL") {
+		fmt.Printf("%s %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
+		if strings.HasPrefix(message, "POD-SUCCESS") || strings.HasPrefix(message, "POD-FAIL") {
 			break
 		}
 	}

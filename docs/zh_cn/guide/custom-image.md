@@ -1,6 +1,6 @@
 ---
 title: 定制容器镜像
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 本章介绍如何设置 Mount Pod 镜像，以及自行构建 CSI 驱动组件镜像。

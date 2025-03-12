@@ -137,14 +137,14 @@ func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *core
 		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
+	if err := client.PatchPod(ctx, pod.Name, pod.Namespace, payloadBytes, types.JSONPatchType); err != nil {
 		resourceLog.Error(err, "Patch pod err")
 		return err
 	}
 	return nil
 }
 
-func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addLabels map[string]string) error {
+func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, podName, namespace string, addLabels map[string]string) error {
 	log := util.GenLog(ctx, resourceLog, "AddPodLabel")
 	payloads := map[string]interface{}{
 		"metadata": map[string]interface{}{
@@ -157,15 +157,15 @@ func AddPodLabel(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.P
 		log.Error(err, "Parse json error")
 		return err
 	}
-	log.V(1).Info("add labels in pod", "labels", addLabels, "pod", pod.Name)
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
-		log.Error(err, "Patch pod error", "podName", pod.Name)
+	log.V(1).Info("add labels in pod", "labels", addLabels, "pod", podName)
+	if err := client.PatchPod(ctx, podName, namespace, payloadBytes, types.StrategicMergePatchType); err != nil {
+		log.Error(err, "Patch pod error", "podName", podName)
 		return err
 	}
 	return nil
 }
 
-func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, addAnnotations map[string]string) error {
+func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, podName, namespace string, addAnnotations map[string]string) error {
 	payloads := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": addAnnotations,
@@ -176,15 +176,15 @@ func AddPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	resourceLog.V(1).Info("add annotation in pod", "annotations", addAnnotations, "podName", pod.Name)
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.StrategicMergePatchType); err != nil {
-		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
+	resourceLog.V(1).Info("add annotation in pod", "annotations", addAnnotations, "podName", podName)
+	if err := client.PatchPod(ctx, podName, namespace, payloadBytes, types.StrategicMergePatchType); err != nil {
+		resourceLog.Error(err, "Patch pod error", "podName", podName)
 		return err
 	}
 	return nil
 }
 
-func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, delAnnotations []string) error {
+func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, podName, namespace string, delAnnotations []string) error {
 	payloads := []k8sclient.PatchDelValue{}
 	for _, k := range delAnnotations {
 		payloads = append(payloads, k8sclient.PatchDelValue{
@@ -197,15 +197,15 @@ func DelPodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *cor
 		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	resourceLog.V(1).Info("remove annotations of pod", "annotations", delAnnotations, "podName", pod.Name)
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
-		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
+	resourceLog.V(1).Info("remove annotations of pod", "annotations", delAnnotations, "podName", podName)
+	if err := client.PatchPod(ctx, podName, namespace, payloadBytes, types.JSONPatchType); err != nil {
+		resourceLog.Error(err, "Patch pod error", "podName", podName)
 		return err
 	}
 	return nil
 }
 
-func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, annotation map[string]string) error {
+func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, podName, namespace string, annotation map[string]string) error {
 	payload := []k8sclient.PatchMapValue{{
 		Op:    "replace",
 		Path:  "/metadata/annotations",
@@ -216,9 +216,9 @@ func ReplacePodAnnotation(ctx context.Context, client *k8sclient.K8sClient, pod 
 		resourceLog.Error(err, "Parse json error")
 		return err
 	}
-	resourceLog.V(1).Info("Replace annotations of pod", "annotations", annotation, "podName", pod.Name)
-	if err := client.PatchPod(ctx, pod, payloadBytes, types.JSONPatchType); err != nil {
-		resourceLog.Error(err, "Patch pod error", "podName", pod.Name)
+	resourceLog.V(1).Info("Replace annotations of pod", "annotations", annotation, "podName", podName)
+	if err := client.PatchPod(ctx, podName, namespace, payloadBytes, types.JSONPatchType); err != nil {
+		resourceLog.Error(err, "Patch pod error", "podName", podName)
 		return err
 	}
 	return nil
@@ -239,7 +239,6 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	// Wait until the mount point is ready
-	log.Info("waiting for mount point ready", "podName", podName)
 	for {
 		var finfo os.FileInfo
 		if err := util.DoWithTimeout(waitCtx, timeout, func() (err error) {
@@ -285,7 +284,7 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 		}
 		addAnnotation := map[string]string{common.DeleteDelayAtKey: d}
 		resourceLog.Info("delayDelete: add annotation to pod", "annotations", addAnnotation, "podName", pod.Name)
-		if err := AddPodAnnotation(ctx, Client, pod, addAnnotation); err != nil {
+		if err := AddPodAnnotation(ctx, Client, pod.Name, pod.Namespace, addAnnotation); err != nil {
 			resourceLog.Error(err, "delayDelete: Update pod error", "podName", pod.Name)
 			return true, err
 		}
@@ -345,11 +344,11 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 }
 
 func GetCommPath(basePath string, pod corev1.Pod) (string, error) {
-	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
-	if hashVal == "" {
+	upgradeUUID := GetUpgradeUUID(&pod)
+	if upgradeUUID == "" {
 		return "", fmt.Errorf("pod %s/%s has no hash label", pod.Namespace, pod.Name)
 	}
-	return path.Join(basePath, hashVal, "fuse_fd_comm.1"), nil
+	return path.Join(basePath, upgradeUUID, "fuse_fd_comm.1"), nil
 }
 
 func GetUniqueId(pod corev1.Pod) string {
@@ -482,4 +481,72 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 		}
 	}
 	return filteredVars
+}
+
+func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
+	var pods = []corev1.Pod{}
+	for _, pod := range podLists.Items {
+		canUpgrade, reason, err := CanUpgrade(pod, recreate)
+		if err != nil {
+			log.Error(err, "check pod upgrade error", "pod", pod.Name)
+			continue
+		}
+		if !canUpgrade {
+			log.V(1).Info("pod can not upgrade", "pod", pod.Name, "reason", reason)
+			continue
+		}
+		pods = append(pods, pod)
+	}
+	return pods
+}
+
+// CanUpgrade if the pod can be upgraded
+// 1. pod has hash label
+// 2. pod image support upgrade
+// 3. pod is ready
+func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
+	if len(pod.Spec.Containers) == 0 {
+		return false, fmt.Sprintf("pod %s has no container", pod.Name), nil
+	}
+	hashVal := pod.Labels[common.PodJuiceHashLabelKey]
+	if hashVal == "" {
+		return false, "pod has no hash label", nil
+	}
+	// check mount pod now support upgrade or not
+	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
+		return false, fmt.Sprintf("image %s do not support smooth binary upgrade", pod.Spec.Containers[0].Image), nil
+	}
+	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
+		return false, fmt.Sprintf("image %s do not support recreate smooth upgrade", pod.Spec.Containers[0].Image), nil
+	}
+
+	// check prestop hook
+	if pod.Spec.Containers[0].Lifecycle != nil && pod.Spec.Containers[0].Lifecycle.PreStop != nil && pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
+		prestopCmd := pod.Spec.Containers[0].Lifecycle.PreStop.Exec.Command
+		for _, cmd := range prestopCmd {
+			if strings.Contains(cmd, "umount") {
+				return false, "mount pod has umount prestop hook, can not upgrade", nil
+			}
+		}
+	}
+
+	// check status
+	if !IsPodReady(&pod) {
+		return false, "mount pod is not ready yet", nil
+	}
+	return true, "", nil
+}
+
+func CanUpgradeWithHash(ctx context.Context, client *k8sclient.K8sClient, pod corev1.Pod, recreate bool) (bool, string, error) {
+	return CanUpgrade(pod, recreate)
+}
+
+func GetUpgradeUUID(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	if pod.Labels[common.PodUpgradeUUIDLabelKey] != "" {
+		return pod.Labels[common.PodUpgradeUUIDLabelKey]
+	}
+	return pod.Labels[common.PodJuiceHashLabelKey]
 }

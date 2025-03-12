@@ -115,14 +115,14 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 }
 
 func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
-	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
+	c, err := controller.New("job", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &batchv1.Job{}}, &handler.EnqueueRequestForObject{}, predicate.Funcs{
-		CreateFunc: func(event event.CreateEvent) bool {
-			job := event.Object.(*batchv1.Job)
+	return c.Watch(source.Kind(mgr.GetCache(), &batchv1.Job{}, &handler.TypedEnqueueRequestForObject[*batchv1.Job]{}, predicate.TypedFuncs[*batchv1.Job]{
+		CreateFunc: func(event event.TypedCreateEvent[*batchv1.Job]) bool {
+			job := event.Object
 			jobCtrlLog.V(1).Info("watch job created", "name", job.GetName())
 			// check job deleted
 			if job.DeletionTimestamp != nil {
@@ -131,20 +131,8 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			jobNew, ok := updateEvent.ObjectNew.(*batchv1.Job)
-			jobCtrlLog.V(1).Info("watch job updated", "name", jobNew.GetName())
-			if !ok {
-				jobCtrlLog.V(1).Info("job.onUpdateFunc Skip object", "object", updateEvent.ObjectNew)
-				return false
-			}
-
-			jobOld, ok := updateEvent.ObjectOld.(*batchv1.Job)
-			if !ok {
-				jobCtrlLog.V(1).Info("job.onUpdateFunc Skip object", "object", updateEvent.ObjectOld)
-				return false
-			}
-
+		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*batchv1.Job]) bool {
+			jobNew, jobOld := updateEvent.ObjectNew, updateEvent.ObjectOld
 			if jobNew.GetResourceVersion() == jobOld.GetResourceVersion() {
 				jobCtrlLog.V(1).Info("job.onUpdateFunc Skip due to resourceVersion not changed")
 				return false
@@ -156,8 +144,8 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			job := deleteEvent.Object.(*batchv1.Job)
+		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*batchv1.Job]) bool {
+			job := deleteEvent.Object
 			jobCtrlLog.V(1).Info("watch job deleted", "name", job.GetName())
 			// check job deleted
 			if job.DeletionTimestamp != nil {
@@ -166,5 +154,5 @@ func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return true
 		},
-	})
+	}))
 }

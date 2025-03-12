@@ -25,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
@@ -38,13 +39,29 @@ import (
 )
 
 var (
-	sidecarLog = klog.NewKlogr().WithName("sidecar")
+	sidecarLog                     = klog.NewKlogr().WithName("sidecar")
+	minimumSupportedSidecarVersion = version.MustParseGeneric("1.29.0")
 )
 
+// checkSupportNativeSidecar checks if the native sidecar is supported by the server version.
+// If the global config is set, it will override the server version.
+func checkSupportNativeSidecar(v *version.Version) bool {
+	if config.GlobalConfig.EnableNativeSidecar != nil {
+		if *config.GlobalConfig.EnableNativeSidecar {
+			if v != nil && !v.AtLeast(minimumSupportedSidecarVersion) {
+				sidecarLog.Info("WARNING: globalConfig set to enable native sidecar, but the server may not support", "version", v)
+			}
+		}
+		return *config.GlobalConfig.EnableNativeSidecar
+	}
+	return v != nil && v.AtLeast(minimumSupportedSidecarVersion)
+}
+
 type SidecarMutate struct {
-	Client     *k8sclient.K8sClient
-	juicefs    juicefs.Interface
-	Serverless bool
+	Client                *k8sclient.K8sClient
+	juicefs               juicefs.Interface
+	Serverless            bool
+	supportsNativeSidecar bool
 
 	Pair       []resource.PVPair
 	jfsSetting *config.JfsSetting
@@ -53,11 +70,27 @@ type SidecarMutate struct {
 var _ Mutate = &SidecarMutate{}
 
 func NewSidecarMutate(client *k8sclient.K8sClient, jfs juicefs.Interface, serverless bool, pair []resource.PVPair) Mutate {
+	var serverVersion *version.Version
+	v, err := client.Discovery().ServerVersion()
+	if err != nil {
+		sidecarLog.Error(err, "get server version error")
+	} else {
+		serverVersion, err = version.ParseGeneric(v.String())
+		if err != nil {
+			sidecarLog.Error(err, "parse server version error")
+		}
+	}
+
+	supportsNativeSidecar := checkSupportNativeSidecar(serverVersion)
+	if supportsNativeSidecar {
+		sidecarLog.Info("native sidecar is supported, use init-container to mount juicefs", "version", serverVersion)
+	}
 	return &SidecarMutate{
-		Client:     client,
-		juicefs:    jfs,
-		Serverless: serverless,
-		Pair:       pair,
+		Client:                client,
+		juicefs:               jfs,
+		Serverless:            serverless,
+		Pair:                  pair,
+		supportsNativeSidecar: checkSupportNativeSidecar(serverVersion),
 	}
 }
 
@@ -92,7 +125,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	}
 	out = pod.DeepCopy()
 	// gen jfs settings
-	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, secrets, volCtx, options)
+	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, pair.PV.Spec.CSI.VolumeHandle, secrets["name"], secrets, volCtx, options)
 	if err != nil {
 		return
 	}
@@ -101,6 +134,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = pair.PVC.Name + "-jfs-secret"
+	sidecarLog.Info("jfs setting", "setting", jfsSetting.String())
 	s.jfsSetting = jfsSetting
 	capacity := pair.PVC.Spec.Resources.Requests.Storage().Value()
 	cap := capacity / 1024 / 1024 / 1024
@@ -116,7 +150,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	} else if pod.Labels != nil && pod.Labels[builder.CCIANNOKey] == builder.CCIANNOValue {
 		r = builder.NewCCIBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	} else {
-		r = builder.NewServerlessBuilder(jfsSetting, cap)
+		r = builder.NewServerlessBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	}
 
 	// create secret per PVC
@@ -148,7 +182,13 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 
 func (s *SidecarMutate) Deduplicate(pod, mountPod *corev1.Pod, index int) {
 	// deduplicate container name
-	for _, c := range pod.Spec.Containers {
+	var containers []corev1.Container
+	if s.supportsNativeSidecar {
+		containers = pod.Spec.InitContainers
+	} else {
+		containers = pod.Spec.Containers
+	}
+	for _, c := range containers {
 		if c.Name == mountPod.Spec.Containers[0].Name {
 			mountPod.Spec.Containers[0].Name = fmt.Sprintf("%s-%d", c.Name, index)
 		}
@@ -213,7 +253,13 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 }
 
 func (s *SidecarMutate) injectContainer(pod *corev1.Pod, container corev1.Container) {
+	if s.supportsNativeSidecar {
+		container.RestartPolicy = util.ToPtr(corev1.ContainerRestartPolicyAlways)
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, container)
+		return
+	}
 	pod.Spec.Containers = append([]corev1.Container{container}, pod.Spec.Containers...)
+
 }
 
 func (s *SidecarMutate) injectVolume(pod *corev1.Pod, build builder.SidecarInterface, volumes []corev1.Volume, mountPath string, pair resource.PVPair) {

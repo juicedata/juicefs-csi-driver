@@ -38,7 +38,11 @@ const (
 	serviceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
-var kubeletLog = klog.NewKlogr().WithName("kubelet-client")
+var (
+	kubeletLog            = klog.NewKlogr().WithName("kubelet-client")
+	kubeletAccessErrCount = 0
+	kubeletAccessErrMax   = 5
+)
 
 type KubeletClient struct {
 	host   string
@@ -57,8 +61,10 @@ type KubeletClientConfig struct {
 	// TLSClientConfig contains settings to enable transport layer security
 	restclient.TLSClientConfig
 
-	// Server requires Bearer authentication
-	BearerToken string
+	// Path to a file containing a BearerToken.
+	// If set, the contents are periodically read.
+	// The last successfully read value takes precedence over BearerToken.
+	BearerTokenFile string
 
 	// HTTPTimeout is used by the client to timeout http requests to Kubelet.
 	HTTPTimeout time.Duration
@@ -102,7 +108,7 @@ func (c *KubeletClientConfig) transportConfig() *transport.Config {
 			KeyFile:  c.KeyFile,
 			KeyData:  c.KeyData,
 		},
-		BearerToken: c.BearerToken,
+		BearerTokenFile: c.BearerTokenFile,
 	}
 	if !cfg.HasCA() {
 		cfg.TLS.Insecure = true
@@ -111,17 +117,12 @@ func (c *KubeletClientConfig) transportConfig() *transport.Config {
 }
 
 func NewKubeletClient(host string, port int) (*KubeletClient, error) {
-	var token string
+	var tokenFile string
 	var err error
 	kubeletClientCert := os.Getenv("KUBELET_CLIENT_CERT")
 	kubeletClientKey := os.Getenv("KUBELET_CLIENT_KEY")
 	if kubeletClientCert == "" && kubeletClientKey == "" {
-		// get CSI sa token
-		tokenByte, err := os.ReadFile(serviceAccountTokenFile)
-		if err != nil {
-			return nil, fmt.Errorf("in cluster mode, find token failed: %v", err)
-		}
-		token = string(tokenByte)
+		tokenFile = serviceAccountTokenFile
 	}
 
 	kubeletTimeout := defaultKubeletTimeout
@@ -139,8 +140,8 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 			CertFile:   kubeletClientCert,
 			KeyFile:    kubeletClientKey,
 		},
-		BearerToken: token,
-		HTTPTimeout: time.Duration(kubeletTimeout) * time.Second,
+		BearerTokenFile: tokenFile,
+		HTTPTimeout:     time.Duration(kubeletTimeout) * time.Second,
 	}
 
 	trans, err := makeTransport(config, config.Insecure)
@@ -158,22 +159,58 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 	}, nil
 }
 
+func (kc *KubeletClient) Access() error {
+	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func checkKubeletAccessErr(err error) {
+	if err == nil {
+		kubeletAccessErrCount = 0
+		return
+	}
+	kubeletAccessErrCount++
+	if kubeletAccessErrCount >= kubeletAccessErrMax {
+		kubeletLog.Error(fmt.Errorf("kubelet access error count exceeds the limit %d", kubeletAccessErrMax), "last error", err)
+		os.Exit(1)
+	}
+}
+
 func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
 	if err != nil {
+		checkKubeletAccessErr(err)
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode/100 != 2 {
+		err := fmt.Errorf("unexpected status code %d", resp.StatusCode)
+		checkKubeletAccessErr(err)
 		return nil, err
 	}
-	if string(body) == "Unauthorized" {
-		return nil, fmt.Errorf("unauthorized")
-	}
+
 	podLists := &corev1.PodList{}
-	if err = json.Unmarshal(body, &podLists); err != nil {
-		kubeletLog.Error(err, "GetNodeRunningPods err", "body", body)
+	if err = json.NewDecoder(resp.Body).Decode(podLists); err != nil {
+		kubeletLog.Error(err, "GetNodeRunningPods err")
+		checkKubeletAccessErr(err)
 		return nil, err
 	}
-	return podLists, err
+	checkKubeletAccessErr(nil)
+	return podLists, nil
 }

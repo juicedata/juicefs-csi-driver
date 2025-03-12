@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -832,6 +833,13 @@ func TestParseMntPath(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "without mnt jfs",
+			args:    args{cmd: "/bin/mount.juicefs redis://127.0.0.1/6379 /mnt/jfs"},
+			want:    "/mnt/jfs",
+			want1:   "jfs",
+			wantErr: false,
+		},
+		{
 			name: "with create subpath",
 			args: args{cmd: "/usr/local/bin/juicefs format --storage=s3 --bucket=http://juicefs-bucket.minio.default.svc.cluster.local:9000 --access-key=minioadmin --secret-key=${secretkey} ${metaurl} ce-secret\n" +
 				"/bin/mount.juicefs ${metaurl} /mnt/jfs -o buffer-size=300,cache-size=100,enable-xattr\n" +
@@ -1081,6 +1089,85 @@ func TestGetMountOptionsOfPod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetMountOptionsOfPod(tt.pod); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetMountOptionsOfPod() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSortBy(t *testing.T) {
+	ss := []string{"a", "b", "d", "e", "c"}
+	wantSS := []string{"a", "b", "c", "d", "e"}
+	SortBy(ss, func(i, j int) bool {
+		return strings.Compare(ss[i], ss[j]) < 0
+	})
+	if !reflect.DeepEqual(ss, wantSS) {
+		t.Errorf("SortBy() = %v, want %v", ss, wantSS)
+	}
+
+	sc := []corev1.EnvVar{
+		{Name: "d", Value: "4"},
+		{Name: "a", Value: "1"},
+		{Name: "b", Value: "2"},
+	}
+	wantSC := []corev1.EnvVar{
+		{Name: "a", Value: "1"},
+		{Name: "b", Value: "2"},
+		{Name: "d", Value: "4"},
+	}
+	SortBy(sc, func(i, j int) bool {
+		return strings.Compare(sc[i].Name, sc[j].Name) < 0
+	})
+	if !reflect.DeepEqual(sc, wantSC) {
+		t.Errorf("SortBy() = %v, want %v", sc, wantSC)
+	}
+}
+
+func TestMergeMap(t *testing.T) {
+	type args struct {
+		s map[string]string
+		d map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "test1",
+			args: args{
+				s: map[string]string{"a": "1", "b": "2"},
+				d: map[string]string{"c": "3", "d": "4"},
+			},
+			want: map[string]string{"a": "1", "b": "2", "c": "3", "d": "4"},
+		},
+		{
+			name: "test2",
+			args: args{
+				s: nil,
+				d: map[string]string{"c": "3", "d": "4"},
+			},
+			want: map[string]string{"c": "3", "d": "4"},
+		},
+		{
+			name: "test3",
+			args: args{s: map[string]string{"a": "1", "b": "2"}, d: nil},
+			want: map[string]string{"a": "1", "b": "2"},
+		},
+		{
+			name: "test4",
+			args: args{s: nil, d: nil},
+			want: nil,
+		},
+		{
+			name: "test5",
+			args: args{s: map[string]string{"a": "1", "b": "2"}, d: map[string]string{"a": "3", "d": "4"}},
+			want: map[string]string{"a": "1", "b": "2", "d": "4"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MergeMap(tt.args.s, tt.args.d); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MergeMap() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -96,20 +96,28 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	volumes, volumeMounts := r._genJuiceVolumes()
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
-	pod.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{
-		SecretRef: &corev1.SecretEnvSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: r.jfsSetting.SecretName,
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, r.jfsSetting.Attr.Env...)
+	// set env key from secret
+	for _, key := range r.GetEnvKey() {
+		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
+			Name: key,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: r.jfsSetting.SecretName,
+					},
+					Key: key,
+				},
 			},
-		},
-	}}
-	pod.Spec.Containers[0].Env = r.jfsSetting.Attr.Env
+		})
+	}
+
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
 	// if image support passFd from csi, do not set umount preStop
 	if r.jfsSetting.Attr.Lifecycle == nil {
 		if !util.SupportFusePass(pod.Spec.Containers[0].Image) || config.Webhook {
 			pod.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
-				PreStop: &corev1.Handler{
+				PreStop: &corev1.LifecycleHandler{
 					Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "+e", fmt.Sprintf(
 						"umount %s -l; rmdir %s; exit 0", r.jfsSetting.MountPath, r.jfsSetting.MountPath)}},
 				},
@@ -140,9 +148,27 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 // genMountCommand generates mount command
 func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
-	options := r.jfsSetting.Options
+	options := []string{}
+	subdir := r.jfsSetting.SubPath
+	if !config.StorageClassShareMount {
+		for _, option := range r.jfsSetting.Options {
+			if strings.HasPrefix(option, "subdir=") {
+				s := strings.Split(option, "=")
+				if len(s) != 2 {
+					continue
+				}
+				subdir = path.Join(s[1], r.jfsSetting.SubPath)
+				continue
+			}
+			options = append(options, option)
+		}
+		if subdir != "" {
+			options = append(options, fmt.Sprintf("subdir=%s", subdir))
+		}
+	} else {
+		options = r.jfsSetting.Options
+	}
 	if r.jfsSetting.IsCe {
-		builderLog.Info("ceMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.CeMountPath, "${metaurl}", security.EscapeBashStr(r.jfsSetting.MountPath)}
 		if !util.ContainsPrefix(options, "metrics=") {
 			if r.jfsSetting.Attr.HostNetwork {
@@ -155,7 +181,6 @@ func (r *BaseBuilder) genMountCommand() string {
 		mountArgs = append(mountArgs, "-o", security.EscapeBashStr(strings.Join(options, ",")))
 		cmd = strings.Join(mountArgs, " ")
 	} else {
-		builderLog.Info("eeMount", "source", util.StripPasswd(r.jfsSetting.Source), "mountPath", r.jfsSetting.MountPath)
 		mountArgs := []string{"exec", config.JfsMountPath, security.EscapeBashStr(r.jfsSetting.Source), security.EscapeBashStr(r.jfsSetting.MountPath)}
 		mountOptions := []string{"foreground", "no-update"}
 		if r.jfsSetting.EncryptRsaKey != "" {
@@ -200,27 +225,6 @@ func (r *BaseBuilder) getQuotaPath() string {
 	return targetPath
 }
 
-func (r *BaseBuilder) overwriteSubdirWithSubPath() {
-	if r.jfsSetting.SubPath != "" {
-		options := make([]string, 0)
-		subdir := r.jfsSetting.SubPath
-		for _, option := range r.jfsSetting.Options {
-			if strings.HasPrefix(option, "subdir=") {
-				s := strings.Split(option, "=")
-				if len(s) != 2 {
-					continue
-				}
-				if s[0] == "subdir" {
-					subdir = path.Join(s[1], r.jfsSetting.SubPath)
-				}
-				continue
-			}
-			options = append(options, option)
-		}
-		r.jfsSetting.Options = append(options, fmt.Sprintf("subdir=%s", subdir))
-	}
-}
-
 // genJobCommand generates job command
 func (r *BaseBuilder) getJobCommand() string {
 	var cmd string
@@ -261,29 +265,37 @@ func (r *BaseBuilder) genMetricsPort() int32 {
 	return int32(port)
 }
 
-// _genMetadata generates labels & annotations
-func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
-	labels = map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
-	}
+func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annotations map[string]string) {
+	labels = map[string]string{}
 	annotations = map[string]string{}
-
-	for k, v := range r.jfsSetting.Attr.Labels {
-		labels[k] = v
+	if jfsSetting.DeletedDelay != "" {
+		annotations[common.DeleteDelayTimeKey] = jfsSetting.DeletedDelay
 	}
-	for k, v := range r.jfsSetting.Attr.Annotations {
-		annotations[k] = v
-	}
-	if r.jfsSetting.DeletedDelay != "" {
-		annotations[common.DeleteDelayTimeKey] = r.jfsSetting.DeletedDelay
-	}
-	annotations[common.JuiceFSUUID] = r.jfsSetting.UUID
-	annotations[common.UniqueId] = r.jfsSetting.UniqueId
-	if r.jfsSetting.CleanCache {
+	if jfsSetting.CleanCache {
 		annotations[common.CleanCache] = "true"
 	}
+	for k, v := range jfsSetting.Attr.Labels {
+		labels[k] = v
+	}
+	for k, v := range jfsSetting.Attr.Annotations {
+		if k != common.JfsUpgradeProcess {
+			// new pod do not need upgradeProcess annotation
+			annotations[k] = v
+		}
+	}
+	// inter labels & annotations
+	annotations[common.JuiceFSUUID] = jfsSetting.UUID
+	annotations[common.UniqueId] = jfsSetting.UniqueId
+	labels[common.PodJuiceHashLabelKey] = jfsSetting.HashVal
+	labels[common.PodUpgradeUUIDLabelKey] = jfsSetting.UpgradeUUID
+	labels[common.PodTypeKey] = common.PodTypeValue
+	labels[common.PodUniqueIdLabelKey] = jfsSetting.UniqueId
 	return
+}
+
+// _genMetadata generates labels & annotations
+func (r *BaseBuilder) _genMetadata() (labels map[string]string, annotations map[string]string) {
+	return GenMetadata(r.jfsSetting)
 }
 
 // _genJuiceVolumes generates volumes & volumeMounts

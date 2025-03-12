@@ -38,6 +38,7 @@ var (
 )
 
 type controllerService struct {
+	csi.UnimplementedControllerServer
 	juicefs  juicefs.Interface
 	vols     map[string]int64
 	volLocks *resource.VolumeLocks
@@ -198,7 +199,9 @@ func (d *controllerService) ListVolumes(ctx context.Context, req *csi.ListVolume
 // ValidateVolumeCapabilities validates volume capabilities
 func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	log := klog.NewKlogr().WithName("ValidateVolumeCapabilities")
-	log.V(1).Info("called with args", "args", req)
+	secrets := req.Secrets
+	req.Secrets = nil
+	log.V(1).Info("called with args", "args", req, "secrets", util.StripSecret(secrets))
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
@@ -233,8 +236,8 @@ func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 		default:
 			return false
 		}
-		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
+		for i := range volumeCaps {
+			if volumeCaps[i].GetMode() == cap.AccessMode.GetMode() {
 				return true
 			}
 		}
@@ -268,7 +271,9 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 // ControllerExpandVolume adjusts quota according to capacity settings
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log := klog.NewKlogr().WithName("ControllerExpandVolume")
-	log.V(1).Info("request", "request", req)
+	secrets := req.Secrets
+	req.Secrets = nil
+	log.V(1).Info("called with args", "args", req, "secrets", util.StripSecret(secrets))
 
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
@@ -286,17 +291,16 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if maxVolSize > 0 && maxVolSize < newSize {
 		return nil, status.Error(codes.InvalidArgument, "After round-up, volume size exceeds the limit specified")
 	}
+	options := []string{}
 
 	// get mount options
 	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	log.Info("volume capability", "volCap", volCap)
-	options := []string{}
-	if m := volCap.GetMount(); m != nil {
-		// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
-		options = append(options, m.MountFlags...)
+	if volCap != nil {
+		log.Info("volume capability", "volCap", volCap)
+		if m := volCap.GetMount(); m != nil {
+			// get mountOptions from PV.spec.mountOptions or StorageClass.mountOptions
+			options = append(options, m.MountFlags...)
+		}
 	}
 
 	capacity, err := strconv.ParseInt(strconv.FormatInt(newSize, 10), 10, 64)
@@ -309,7 +313,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get quotaPath error: %v", err)
 	}
-	settings, err := d.juicefs.Settings(ctx, volumeID, req.GetSecrets(), nil, options)
+	settings, err := d.juicefs.Settings(ctx, volumeID, volumeID, secrets["name"], secrets, nil, options)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get settings: %v", err)
 	}
@@ -325,7 +329,7 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 		}
 	}
 
-	err = d.juicefs.SetQuota(ctx, req.GetSecrets(), settings, path.Join(subdir, quotaPath), capacity)
+	err = d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "set quota: %v", err)
 	}
@@ -346,5 +350,9 @@ func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *
 }
 
 func (d *controllerService) ControllerGetVolume(ctx context.Context, request *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (d *Driver) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }

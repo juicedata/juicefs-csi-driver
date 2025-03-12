@@ -69,7 +69,7 @@ $ kubectl jfs pv
 $ kubectl jfs pvc
 ```
 
-对于有问题的应用 pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
+对于有问题的应用 Pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
 
 ```shell
 # 诊断应用 pod
@@ -195,13 +195,13 @@ $ kubectl -n kube-system logs juicefs-csi-controller-0 juicefs-plugin
 
 ### 应用 Pod 创建失败
 
-在 CSI 驱动的架构下，JuiceFS 客户端运行在 Mount Pod 中。因此每一个应用 pod 都伴随着一个对应的 Mount Pod。
+在 CSI 驱动的架构下，JuiceFS 客户端运行在 Mount Pod 中。因此每一个应用 Pod 都伴随着一个对应的 Mount Pod。
 
-CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 pod 内。因此如果应用 pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
+CSI Node 会负责创建 Mount Pod 并在其中挂载 JuiceFS 文件系统，最终将挂载点 bind 到应用 Pod 内。因此如果应用 Pod 创建失败，既可能是 CSI Node 的问题，也可能是 Mount Pod 的问题，需要逐一排查。
 
 #### 查看应用 Pod 事件
 
-若挂载期间有报错，报错信息往往出现在应用 pod 事件中：
+若挂载期间有报错，报错信息往往出现在应用 Pod 事件中：
 
 ```shell {7}
 $ kubectl describe po dynamic-ce-1
@@ -213,11 +213,11 @@ Events:
   Warning  FailedMount  4s (x3 over 37s)  kubelet            MountVolume.SetUp failed for volume "ce-static" : rpc error: code = Internal desc = Could not mount juicefs: juicefs status 16s timed out
 ```
 
-通过应用 pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
+通过应用 Pod 事件确认创建失败的原因与 JuiceFS 有关以后，可以按照下面的步骤逐一排查。
 
 #### 检查 CSI Node {#check-csi-node}
 
-首先，我们需要检查应用 pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
+首先，我们需要检查应用 Pod 所在节点的 CSI Node 容器是否存活，以及是否存在异常日志：
 
 ```shell
 # 提前将应用 pod 信息存为环境变量
@@ -237,7 +237,7 @@ kubectl -n kube-system get po -l app=juicefs-csi-node --field-selector spec.node
 kubectl -n kube-system logs $CSI_NODE_POD -c juicefs-plugin
 ```
 
-或者直接用一行命令打印出应用 pod 对应的 CSI Node pod 日志（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
+或者直接用一行命令打印出应用 Pod 对应的 CSI Node Pod 日志（需要设置好 `APP_NS` 和 `APP_POD_NAME` 环境变量）：
 
 ```shell
 kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..metadata.name}' -l app=juicefs-csi-node --field-selector spec.nodeName=$(kubectl get po -o jsonpath='{.spec.nodeName}' -n $APP_NS $APP_POD_NAME)) -c juicefs-plugin
@@ -250,7 +250,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 你可以方便地通过[诊断脚本](#csi-doctor)来定位到 Mount Pod，如果你需要脱离脚本、直接用 kubectl 进行排查，我们也准备了一系列快捷命令，帮你方便地获取信息：
 
 ```shell
-# 如果情况不复杂，可以直接用下方命令打印所有 mount pod 错误日志
+# 如果情况不复杂，可以直接用下方命令打印所有 Mount Pod 错误日志
 kubectl -n kube-system logs -l app.kubernetes.io/name=juicefs-mount | grep -v "<WARNING>" | grep -v "<INFO>"
 
 # 提前将应用 pod 信息存为环境变量
@@ -264,23 +264,23 @@ PVC_NAME=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVol
 PV_NAME=$(kubectl -n $APP_NS get pvc $PVC_NAME -o jsonpath='{.spec.volumeName}')
 PV_ID=$(kubectl get pv $PV_NAME -o jsonpath='{.spec.csi.volumeHandle}')
 
-# 找到该应用 pod 对应的 mount pod 名
+# 找到该应用 pod 对应的 Mount Pod 名
 MOUNT_POD_NAME=$(kubectl -n kube-system get po --field-selector spec.nodeName=$NODE_NAME -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $PV_ID)
 
-# 检查 mount pod 状态是否正常
+# 检查 Mount Pod 状态是否正常
 kubectl -n kube-system get po $MOUNT_POD_NAME
 
-# 打印 mount pod 事件
+# 打印 Mount Pod 事件
 kubectl -n kube-system describe po $MOUNT_POD_NAME
 
-# 打印 mount pod 日志（其中包含 JuiceFS 客户端日志）
+# 打印 Mount Pod 日志（其中包含 JuiceFS 客户端日志）
 kubectl -n kube-system logs $MOUNT_POD_NAME
 
-# 打印 mount pod 的启动命令，这是一个较容易忽视的排查要点。
+# 打印 Mount Pod 的启动命令，这是一个较容易忽视的排查要点。
 # 如果挂载选项（mountOptions）填写格式有误，则可能造成启动命令参数错误。
 kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 
-# 找到该 PV 对应的所有 mount pod
+# 找到该 PV 对应的所有 Mount Pod
 kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | grep $PV_ID
 ```
 
@@ -289,10 +289,10 @@ kubectl -n kube-system get po -l app.kubernetes.io/name=juicefs-mount -o wide | 
 ```shell
 # 需要设置好 APP_NS 和 APP_POD_NAME 环境变量
 
-# 打印 mount pod 名称
+# 打印 Mount Pod 名称
 kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')
 
-# 进入 mount pod 中，交互式运行命令
+# 进入 Mount Pod 中，交互式运行命令
 kubectl -n kube-system exec -it $(kubectl -n kube-system get po --field-selector spec.nodeName=$(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{.spec.nodeName}') -l app.kubernetes.io/name=juicefs-mount -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep $(kubectl get pv $(kubectl -n $APP_NS get pvc $(kubectl -n $APP_NS get po $APP_POD_NAME -o jsonpath='{..persistentVolumeClaim.claimName}' | awk '{print $1}') -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.csi.volumeHandle}')) -- bash
 ```
 

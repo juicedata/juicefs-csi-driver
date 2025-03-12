@@ -53,7 +53,7 @@ spec:
 EOF
 ```
 
-## 在 pod 中设置权限
+## 在 Pod 中设置权限
 
 ```yaml {10,20-21,29,39-40,48,58-59}
 kubectl apply -f - <<EOF

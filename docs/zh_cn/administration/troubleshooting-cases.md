@@ -19,6 +19,15 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 若使用的是 Mount Pod 模式，遵循以下步骤进行排查：
 
 * 运行 `kubectl get csidrivers.storage.k8s.io`，如果输出的中确没有 `csi.juicefs.com` 字样，说明 CSI 驱动并未安装，仔细回顾[「安装 JuiceFS CSI 驱动」](../getting_started.md)；
+* 检查 kubelet 的根目录与 CSI Node 的配置是否一致，如果不一致，会导致 CSI Node 无法正常注册，请修复 CSI Node 的配置，或者重新安装，参考[「安装 JuiceFS CSI 驱动」](../getting_started.md)；
+
+  ```shell
+  # kubelet 根目录
+  ps -ef | grep kubelet | grep root-dir 
+  # CSI Node 配置
+  kubectl -n kube-system get ds juicefs-csi-node -oyaml | grep csi.juicefs.com
+  ```
+
 * 如果上方的 `csidrivers` 列表中存在 `csi.juicefs.com`，那么说明 CSI 驱动已经安装，问题出在 CSI Node，检查 CSI Node 是否正常运作：
   * 排查开始前，可以简单阅读[检查 CSI Node](./troubleshooting.md#check-csi-node)，代码示范里有一些快捷命令可供参考；
   * 关注应用 Pod 所在节点，检查节点是否正常运行着 CSI Node，如果为 CSI Node 这个 DaemonSet 组件配置了[调度策略](../guide/resource-optimization.md#csi-node-node-selector)，或者节点本身存在[「污点」](https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration)，都有可能造成 CSI Node 容器缺失，造成该错误；
@@ -41,9 +50,9 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 kubectl get ns <namespace> --show-labels
 ```
 
-## CSI Node pod 异常 {#csi-node-pod-failure}
+## CSI Node Pod 异常 {#csi-node-pod-failure}
 
-如果 CSI Node pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 pod 事件中会看到如下错误日志：
+如果 CSI Node Pod 异常，与 kubelet 通信的 socket 文件不复存在，应用 Pod 事件中会看到如下错误日志：
 
 ```
 /var/lib/kubelet/csi-plugins/csi.juicefs.com/csi.sock: connect: no such file or directory
@@ -70,7 +79,7 @@ Mount Pod 内运行着 JuiceFS 客户端，出错的可能性多种多样，在�
 另外，当节点 kubelet 开启抢占功能，Mount Pod 启动后可能抢占应用资源，导致 Mount Pod 和应用 Pod 均反复创建、销毁，在 Pod 事件中能看到以下信息：
 
 ```
-Preempted in order to admit critical pod
+Preempted in order to admit critical Pod
 ```
 
 Mount Pod 默认的资源声明是 1 CPU、1GiB 内存，节点资源不足时，便无法启动，或者启动后抢占应用资源。此时需要根据实际情况 [调整 Mount Pod 资源声明](../guide/resource-optimization.md#mount-pod-resources)，或者扩容宿主机。
@@ -127,17 +136,17 @@ kubectl get pod -o jsonpath='{..containers[0].command}' $MOUNT_POD_NAME
 <details>
 <summary>**Mount Pod 没有创建**</summary>
 
-使用 `kubectl describe <app-pod-name>` 查看当前应用 pod 的事件，确认已经进入挂载流程，而不是调度失败或者其它与挂载 JuiceFS 无关的错误。
+使用 `kubectl describe <app-pod-name>` 查看当前应用 Pod 的事件，确认已经进入挂载流程，而不是调度失败或者其它与挂载 JuiceFS 无关的错误。
 
-如果应用 pod 的事件为：
+如果应用 Pod 的事件为：
 
 - `driver name csi.juicefs.com not found` 或者 `csi.sock no such file`
 
-  检查对应节点上的 CSI Node pod 是否运行正常，详见[文档](#csi-node-pod-failure)。
+  检查对应节点上的 CSI Node Pod 是否运行正常，详见[文档](#csi-node-pod-failure)。
 
 - `Unable to attach or mount volumes: xxx`
 
-  查看对应节点上 CSI Node pod 的日志，过滤出对应 PV 的相关日志。如果没有找到类似于 `NodePublishVolume: volume_id is <pv-name>` 的日志，并且 Kubernetes 版本低于 1.26.0、1.25.1、1.24.5、1.23.11，可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)。
+  查看对应节点上 CSI Node Pod 的日志，过滤出对应 PV 的相关日志。如果没有找到类似于 `NodePublishVolume: volume_id is <pv-name>` 的日志，并且 Kubernetes 版本低于 1.26.0、1.25.1、1.24.5、1.23.11，可能是因为 kubelet 的一个 bug 导致没有触发 volume publish 请求，详见 [#109047](https://github.com/kubernetes/kubernetes/issues/109047)。
 
   此时可以尝试：
 
@@ -171,7 +180,7 @@ Events:
 <details>
 <summary>**`volumeHandle` 冲突，导致 PVC 创建失败**</summary>
 
-一个 pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
+一个 Pod 使用多个 PVC，但引用的 PV 有着相同的 `volumeHandle`，此时 PVC 将伴随着以下错误事件：
 
 ```shell {6}
 $ kubectl describe pvc jfs-static
@@ -182,7 +191,7 @@ Events:
   Warning  FailedBinding  4s (x2 over 16s)  persistentvolume-controller  volume "jfs-static" already bound to a different claim.
 ```
 
-另外，应用 pod 也会伴随着以下错误事件，应用 pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
+另外，应用 Pod 也会伴随着以下错误事件，应用 Pod 中有分别有名为 `data1` 和 `data2` 的 volume（spec.volumes），event 中会报错其中一个 volume 没有 mount：
 
 ```shell
 Events:
@@ -213,7 +222,7 @@ spec:
 
 ## 文件系统创建错误（社区版） {#file-system-creation-failure-community-edition}
 
-如果你选择在 Mount Pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node pod 中看到如下错误：
+如果你选择在 Mount Pod 中动态地创建文件系统，也就是执行 `juicefs format` 命令，那么当创建失败时，应该会在 CSI Node Pod 中看到如下错误：
 
 ```
 format: ERR illegal address: xxxx
