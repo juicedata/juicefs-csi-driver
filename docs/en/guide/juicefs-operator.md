@@ -4,7 +4,7 @@ sidebar_position: 4
 description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Operator.
 ---
 
-JuiceFS provides an [Operator](https://kubernetes.io/zh-cn/docs/concepts/extend-kubernetes/operator), which is a controller designed specifically for Kubernetes environments to automate the management of JuiceFS' distributed cache clusters, cache preloading, and data synchronization, making it easier to use JuiceFS in container environments.
+JuiceFS provides an [Operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator), which is a controller designed specifically for Kubernetes environments to automate the management of JuiceFS' distributed cache clusters, cache preloading, and data synchronization, making it easier to use JuiceFS in container environments.
 
 ## Install the JuiceFS Operator {#install-juicefs-operator}
 
@@ -15,17 +15,17 @@ helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
 ```
 
-Before installation, read [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) to learn all available configuration items. If modifications are needed, create a new `values` file (for example, `values-mycluster.yaml`) and include the parts you want to modify. If you need to install the operator on multiple Kubernetes clusters, create separate `values` files for each cluster configuration.
+Before installation, read [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-operator/values.yaml) to learn all available configuration items. If modifications are needed, create a new `values` file (for example, `values-mycluster.yaml`) and include the parts you want to modify. If you need to install the operator on multiple Kubernetes clusters, create separate `values` files for each cluster configuration.
 
 ```shell
 # Modify values-mycluster.yaml as needed
-helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values-mycluster.yaml
+helm upgrade --install juicefs-operator juicefs/juicefs-operator -n juicefs-operator --create-namespace -f values-mycluster.yaml
 ```
 
 You can use `kubectl wait` to wait until the operator is ready:
 
 ```shell
-kubectl wait -n juicefs-cache-group --for=condition=Available=true --timeout=120s deployment/juicefs-cache-group-operator
+kubectl wait -n juicefs-operator --for=condition=Available=true --timeout=120s deployment/juicefs-operator
 ```
 
 Once the Cache Group Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 or above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
@@ -157,7 +157,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
 
 ### Cache group configurations {#cache-group-configs}
 
-All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml).
+All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml).
 
 ### Update strategy {#update-strategy}
 
@@ -367,7 +367,7 @@ spec:
       volumeName: sync-test
 ```
 
-For more supported options, refer to the [example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_sync.yaml).
+For more supported options, refer to the [example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml).
 
 ### Sync Progress {#sync-progress}
 
