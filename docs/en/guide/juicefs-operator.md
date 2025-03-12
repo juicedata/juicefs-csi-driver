@@ -1,12 +1,12 @@
 ---
-title: Cache Group Operator
+title: JuiceFS Operator
 sidebar_position: 4
-description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Cache Group Operator.
+description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Operator.
 ---
 
-Enterprise users can use the *Cache Group Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
+JuiceFS provides an [Operator](https://kubernetes.io/zh-cn/docs/concepts/extend-kubernetes/operator), which is a controller designed specifically for Kubernetes environments to automate the management of JuiceFS' distributed cache clusters, cache preloading, and data synchronization, making it easier to use JuiceFS in container environments.
 
-## Install the Cache Group Operator {#install-cache-group-operator}
+## Install the JuiceFS Operator {#install-juicefs-operator}
 
 Install Helm and add the JuiceFS Helm chart repository:
 
@@ -32,7 +32,11 @@ Once the Cache Group Operator is installed, you can start creating and managing 
 
 ![Cache Group Dashboard](../images/cache-group-dashboard.png)
 
-## Create a cache group {#create-cache-group}
+## Cache group {#cache-group}
+
+Enterprise users can use the *Cache Group Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
+
+### Create a cache group {#create-cache-group}
 
 Refer to the following example to save the cache group configuration as a YAML file (for example, `juicefs-cache-group.yaml`). This example deploys a distributed cache on all nodes with the `juicefs.io/cg-worker: "true"` label (you can set any label you like). For more configuration options, refer to the [Cache group configurations](#cache-group-configs) section.
 
@@ -86,7 +90,7 @@ If the Kubernetes nodes do not have the `juicefs.io/cg-worker: "true"` label, ad
 kubectl label node node1 juicefs.io/cg-worker=true
 ```
 
-## Check cache group status {#check-cache-group-status}
+### Check cache group status {#check-cache-group-status}
 
 Use the following command to check the cache group status and confirm that the cache group is in the "Ready" state:
 
@@ -96,7 +100,7 @@ NAME                CACHE GROUP NAME                        PHASE   READY   AGE
 cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
 ```
 
-## Use the cache group {#use-cache-group}
+### Use the cache group {#use-cache-group}
 
 After completing the above steps, a JuiceFS distributed cache cluster has been started in Kubernetes, with the cache group name `juicefs-cache-group-cachegroup-sample`. To allow the JuiceFS client of the application to use this cache cluster, the JuiceFS client needs to join this cache group and add the `--no-sharing` mount option. This way, the JuiceFS client of the application joins the cache group but does not participate in cache data construction, avoiding cache data instability caused by frequent client creation and destruction.
 
@@ -112,7 +116,7 @@ mountOptions:
   - no-sharing
 ```
 
-## Add and delete cache nodes {#add-and-delete-cache-node}
+### Add and delete cache nodes {#add-and-delete-cache-node}
 
 The Cache Group Operator supports smooth scaling of cache nodes, ensuring that adjustments do not significantly impact cache hit rates.
 
@@ -151,35 +155,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
     waitingDeletedMaxDuration: 1h
   ```
 
-## Warmup Cache Group {#warmup-cache-group}
-
-Operator supports creating a `WarmUp` CR to warmup the cache group.
-
-```yaml
-apiVersion: juicefs.io/v1
-kind: WarmUp
-metadata:
-  name: warmup-sample
-spec:
-  cacheGroupName: cachegroup-sample
-  # The default strategy is Once, meaning it run only once.
-  # The following examples are scheduled to run every 5 minutes.
-  policy:
-    type: Cron
-    cron:
-      schedule: "*/5 * * * *" 
-  # if empty, the default is to warmup the entire file system.
-  targets:
-    - /a
-    - /b
-    - /c
-  # warmup options
-  # ref https://juicefs.com/docs/cloud/reference/command_reference/#warmup
-  options:
-    - threads=50
-```
-
-## Cache group configurations {#cache-group-configs}
+### Cache group configurations {#cache-group-configs}
 
 All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml).
 
@@ -310,10 +286,103 @@ spec:
   cleanCache: true
 ```
 
-## Delete a cache group {#delete-cache-group}
+### Delete a cache group {#delete-cache-group}
 
 Use the following command to delete the cache group. All worker nodes under the cache cluster will be deleted:
 
 ```sh
 kubectl delete cachegroup cachegroup-sample
 ```
+
+## Warmup Cache Group {#warmup-cache-group}
+
+Operator supports creating a `WarmUp` CR to warmup the cache group.
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-sample
+spec:
+  cacheGroupName: cachegroup-sample
+  # The default strategy is Once, meaning it run only once.
+  # The following examples are scheduled to run every 5 minutes.
+  policy:
+    type: Cron
+    cron:
+      schedule: "*/5 * * * *" 
+  # if empty, the default is to warmup the entire file system.
+  targets:
+    - /a
+    - /b
+    - /c
+  # warmup options
+  # ref https://juicefs.com/docs/cloud/reference/command_reference/#warmup
+  options:
+    - threads=50
+```
+
+## Sync {#sync}
+
+Operator supports quickly creating a distributed Sync task.
+
+:::note
+Currently, only the enterprise version supports sync.
+:::
+
+For example, to sync data from OSS to JuiceFS, you can refer to the following example:
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: Sync
+metadata:
+  name: sync-test
+  namespace: default
+spec:
+  # Expected number of workers, default is 1
+  # meaning single-node synchronization
+  replicas: 3
+  options: 
+    - debug
+    - threads=10
+  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      accessKey:
+        value: accessKey
+      secretKey:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: secretKey
+  to:
+    juicefs:
+      path: /sync-test/demo2/
+      token:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: token
+      volumeName: sync-test
+```
+
+For more supported options, refer to the [example](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_sync.yaml).
+
+### Sync Progress {#sync-progress}
+
+You can view the sync progress using the following command:
+
+```sh
+➜  kubectl get sync -w
+NAME         PHASE         REPLICAS   PROGRESS   AGE
+sync-test    Preparing     3                    12s
+sync-test    Progressing   3                    19s
+sync-test    Progressing   3          7.40%     26s
+sync-test    Progressing   3          45.50%    38s
+sync-test    Completed     3          100%      50s
+```
+
+### Sync Cleanup {#sync-clean}
+
+Delete the corresponding CRD to clean up all resources, or set automatic cleanup after the task is completed by setting `spec.ttlSecondsAfterFinished`.

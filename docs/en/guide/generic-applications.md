@@ -93,7 +93,7 @@ spec:
 ## Deploy distributed cache cluster {#distributed-cache-cluster}
 
 :::tip
-For most scenarios, it is more convenient to deploy and manage distributed cache cluster through ["Cache Group Operator"](./cache-group-operator.md), and it is recommended to use this method first.
+For most scenarios, it is more convenient to deploy and manage distributed cache cluster through ["Cache Group Operator"](./juicefs-operator.md#cache-group), and it is recommended to use this method first.
 :::
 
 Refer to below examples to deploy a stable, dedicated cache cluster within Kubernetes, on selected nodes.
