@@ -1,11 +1,11 @@
 ---
-title: 缓存组 Operator
+title: JuiceFS Operator
 sidebar_position: 4
 ---
 
-企业版用户可以使用「缓存组 Operator」来创建和管理[分布式缓存集群](https://juicefs.com/docs/zh/cloud/guide/distributed-cache)。相比于其它部署方式，缓存组 Operator 在使用上更为便捷（支持 GUI 和 CLI 两种交互方式），同时还支持异构节点不同配置、平滑加减节点、自动清理缓存等高级功能。
+JuiceFS 提供了一个 [Operator](https://kubernetes.io/zh-cn/docs/concepts/extend-kubernetes/operator)，它是一个专为 Kubernetes 环境设计的控制器，用于自动化管理 JuiceFS 的分布式缓存集群、缓存预热和数据同步等功能，以便在容器环境中更轻易的使用 JuiceFS。
 
-## 安装缓存组 Operator {#install-cache-group-operator}
+## 安装 JuiceFS Operator {#install-juicefs-operator}
 
 安装 Helm，然后加入 JuiceFS 官方仓库。
 
@@ -27,11 +27,15 @@ helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-
 kubectl wait -n juicefs-cache-group --for=condition=Available=true --timeout=120s deployment/juicefs-cache-group-operator
 ```
 
-缓存组 Operator 安装完毕便可以开始创建及管理缓存组，以下章节介绍的操作通过 CSI Dashboard（0.25.3 及以上版本）和 `kubectl` 均可完成，选择你喜好的使用方式即可。为了简化文档示例，后续仅介绍基于 `kubectl` 的操作方法。
+## 缓存组集群 {#cache-group}
+
+企业版用户可以使用「JuiceFS Operator」来创建和管理[分布式缓存集群](https://juicefs.com/docs/zh/cloud/guide/distributed-cache)。相比于其它部署方式，Operator 在使用上更为便捷（支持 GUI 和 CLI 两种交互方式），同时还支持异构节点不同配置、平滑加减节点、自动清理缓存等高级功能。
+
+以下章节介绍的操作通过 CSI Dashboard（0.25.3 及以上版本）和 `kubectl` 均可完成，选择你喜好的使用方式即可。为了简化文档示例，后续仅介绍基于 `kubectl` 的操作方法。
 
 ![Cache Group Dashboard](../images/cache-group-dashboard.png)
 
-## 创建缓存组 {#create-cache-group}
+### 创建缓存组 {#create-cache-group}
 
 参考以下示例将缓存组配置保存为一个 YAML 文件（例如 `juicefs-cache-group.yaml`），这个示例会在所有设置了 `juicefs.io/cg-worker: "true"` 标签的节点中部署分布式缓存（当然你也可以设置任意的标签）。关于更多配置项的说明请参考[「缓存组配置项」](#cache-group-configs)小节。
 
@@ -85,7 +89,7 @@ kubectl apply -f juicefs-cache-group.yaml
 kubectl label node node1 juicefs.io/cg-worker=true
 ```
 
-## 获取缓存组状态 {#get-cache-group-status}
+### 获取缓存组状态 {#get-cache-group-status}
 
 通过以下命令获取缓存组状态，确认缓存组已经处于「Ready」状态：
 
@@ -95,7 +99,7 @@ NAME                CACHE GROUP NAME                        PHASE   READY   AGE
 cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
 ```
 
-## 使用缓存组 {#use-cache-group}
+### 使用缓存组 {#use-cache-group}
 
 完成以上步骤以后，便已经在 K8s 中启动了一个 JuiceFS 分布式缓存集群，其缓存组名为 `juicefs-cache-group-cachegroup-sample`。为了让应用程序的 JuiceFS 客户端使用该缓存集群，需要让 JuiceFS 客户端加入这个缓存组，并添加 `--no-sharing` 挂载参数，这样一来，应用程序的 JuiceFS 客户端虽然加入了缓存组，但却不参与缓存数据的构建，避免了客户端频繁创建、销毁所导致的缓存数据不稳定。
 
@@ -111,7 +115,7 @@ mountOptions:
   - no-sharing
 ```
 
-## 增删缓存节点 {#add-and-delete-cache-node}
+### 增删缓存节点 {#add-and-delete-cache-node}
 
 缓存组 Operator 支持平滑增删缓存节点，确保调整过程中不会对缓存命中率造成太大影响。
 
@@ -150,35 +154,7 @@ kubectl label node node1 juicefs.io/cg-worker-
     waitingDeletedMaxDuration: 1h
   ```
 
-## 预热缓存组 {#warmup-cache-group}
-
-Operator 支持创建一个 WarmUp 资源来预热缓存组。
-
-```yaml
-apiVersion: juicefs.io/v1
-kind: WarmUp
-metadata:
-  name: warmup-sample
-spec:
-  cacheGroupName: cachegroup-sample
-  # 默认预热策略为 Once，即只预热一次
-  # 以下示例为每 5 分钟预热一次。
-  policy:
-    type: Cron
-    cron:
-      schedule: "*/5 * * * *"
-  # 需要预热的路径，不填默认预热整个文件系统
-  targets:
-    - /a
-    - /b
-    - /c
-  # 预热参数
-  # ref https://juicefs.com/docs/zh/cloud/reference/command_reference/#warmup
-  options:
-    - threads=50
-```
-
-## 缓存组配置项 {#cache-group-configs}
+### 缓存组配置项 {#cache-group-configs}
 
 缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
 
@@ -308,10 +284,103 @@ spec:
   cleanCache: true
 ```
 
-## 删除缓存组 {#delete-cache-group}
+### 删除缓存组 {#delete-cache-group}
 
 使用以下命令删除缓存组，缓存集群下的所有 Worker 节点将被删除：
 
 ```sh
 kubectl delete cachegroup cachegroup-sample
 ```
+
+## 预热缓存组 {#warmup-cache-group}
+
+Operator 支持创建一个 WarmUp 资源来预热缓存组。
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-sample
+spec:
+  cacheGroupName: cachegroup-sample
+  # 默认预热策略为 Once，即只预热一次
+  # 以下示例为每 5 分钟预热一次。
+  policy:
+    type: Cron
+    cron:
+      schedule: "*/5 * * * *"
+  # 需要预热的路径，不填默认预热整个文件系统
+  targets:
+    - /a
+    - /b
+    - /c
+  # 预热参数
+  # ref https://juicefs.com/docs/zh/cloud/reference/command_reference/#warmup
+  options:
+    - threads=50
+```
+
+## 数据同步 {#sync}
+
+Operator 支持快速创建一个分布式 Sync 任务。
+
+:::note
+暂不支持社区版同步。
+:::
+
+以下示例将 OSS 的数据同步到 JuiceFS 中
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: Sync
+metadata:
+  name: sync-test
+  namespace: default
+spec:
+  # 期望的副本数量，默认为 1，即单机同步
+  replicas: 3
+  options: 
+    - debug
+    - threads=10
+  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      # 支持两种方式填写，value 和 valueFrom 二选一
+      accessKey:
+        value: accessKey
+      secretKey:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: secretKey
+  to:
+    juicefs:
+      path: /sync-test/demo2/
+      token:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: token
+      volumeName: sync-test
+```
+
+更多支持的参数可参考 [示例](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_sync.yaml)
+
+### 同步进度 {#sync-progress}
+
+可以通过 `kubectl get sync` 查看当前同步进度
+
+```sh
+➜  kubectl get sync -w
+NAME         PHASE         REPLICAS   PROGRESS   AGE
+sync-test    Preparing     3                    12s
+sync-test    Progressing   3                    19s
+sync-test    Progressing   3          7.40%     26s
+sync-test    Progressing   3          45.50%    38s
+sync-test    Completed     3          100%      50s
+```
+
+### 清理 {#sync-clean}
+
+删除对应的 CRD 即可清理掉所有资源，也可以通过 `spec.ttlSecondsAfterFinished` 设置任务完成后自动清理。

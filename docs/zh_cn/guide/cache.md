@@ -372,5 +372,5 @@ Kubernetes 容器往往是「转瞬即逝」的，在这种情况下构建[「�
 
 在 Kubernetes 中部署分布式缓存集群目前有两种方式：
 
-1. 对于大部分使用场景，可以通过[「缓存组 Operator」](./cache-group-operator.md)部署；
+1. 对于大部分使用场景，可以通过[「缓存组 Operator」](./juicefs-operator.md#cache-group)部署；
 2. 对于需要灵活自定义部署配置的场景，可以通过[「自行编写 YAML 配置文件」](./generic-applications.md#distributed-cache-cluster)的方式部署。
