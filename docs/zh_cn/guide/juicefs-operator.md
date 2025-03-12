@@ -14,17 +14,17 @@ helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
 ```
 
-安装之前，阅读 [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-cache-group-operator/values.yaml) 了解各个配置项，该文件包含了所有的默认配置，如果需要修改配置，请在本地创建另一份 values（以下且称 `values-mycuster.yaml`），并把需要修改的部分加入其中。如果需要在多个 Kubernetes 集群部署 Operator，就创建多个 values 文件，来区分不同的集群配置。
+安装之前，阅读 [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-operator/values.yaml) 了解各个配置项，该文件包含了所有的默认配置，如果需要修改配置，请在本地创建另一份 values（以下且称 `values-mycuster.yaml`），并把需要修改的部分加入其中。如果需要在多个 Kubernetes 集群部署 Operator，就创建多个 values 文件，来区分不同的集群配置。
 
 ```shell
 # 根据需要修改 values-mycluster.yaml
-helm upgrade --install juicefs-cache-group-operator juicefs/juicefs-cache-group-operator -n juicefs-cache-group --create-namespace -f values-mycluster.yaml
+helm upgrade --install juicefs-operator juicefs/juicefs-operator -n juicefs-operator --create-namespace -f values-mycluster.yaml
 ```
 
 可以使用 `kubectl wait` 等待 Operator 准备就绪：
 
 ```shell
-kubectl wait -n juicefs-cache-group --for=condition=Available=true --timeout=120s deployment/juicefs-cache-group-operator
+kubectl wait -n juicefs-operator --for=condition=Available=true --timeout=120s deployment/juicefs-operator
 ```
 
 ## 缓存组集群 {#cache-group}
@@ -156,7 +156,7 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 ### 缓存组配置项 {#cache-group-configs}
 
-缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
+缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
 
 ### 更新策略 {#update-strategy}
 
@@ -365,7 +365,7 @@ spec:
       volumeName: sync-test
 ```
 
-更多支持的参数可参考 [示例](https://github.com/juicedata/juicefs-cache-group-operator/blob/main/config/samples/v1_sync.yaml)
+更多支持的参数可参考 [示例](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml)
 
 ### 同步进度 {#sync-progress}
 
