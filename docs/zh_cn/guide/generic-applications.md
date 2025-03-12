@@ -93,7 +93,7 @@ spec:
 ## 部署分布式缓存集群 {#distributed-cache-cluster}
 
 :::tip
-对于大多数场景，通过[「缓存组 Operator」](./cache-group-operator.md)来部署及管理分布式缓存集群更为方便，推荐优先使用这种方式。
+对于大多数场景，通过[「缓存组 Operator」](./juicefs-operator.md#cache-group)来部署及管理分布式缓存集群更为方便，推荐优先使用这种方式。
 :::
 
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，在集群内指定的节点挂载 JuiceFS 客户端，形成一个稳定的缓存组。
