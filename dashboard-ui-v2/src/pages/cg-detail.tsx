@@ -60,7 +60,7 @@ const CgDetail: React.FC<{
     return (
       <PageContainer
         header={{
-          title: <FormattedMessage id="podNotFound" />,
+          title: <FormattedMessage id="cacheGroupNotFound" />,
         }}
       ></PageContainer>
     )

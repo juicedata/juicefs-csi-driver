@@ -179,4 +179,5 @@ export default {
   configUpdateConfirm: 'Configs are updated as follows, confirm?',
   updatePatch: 'Update Patch',
   backToUpdate: 'Back',
+  cacheGroupNotFound: 'CacheGroup not found',
 }

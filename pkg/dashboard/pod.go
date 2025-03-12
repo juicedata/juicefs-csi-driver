@@ -98,7 +98,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 			return
 		}
 
-		if utils.IsAppPod(&pod) || utils.IsSysPod(&pod) {
+		if utils.IsAppPod(&pod) || utils.IsSysPod(&pod) || utils.IsAppPodShouldList(c, api.mgrClient, &pod) {
 			c.Set("pod", &pod)
 			return
 		}

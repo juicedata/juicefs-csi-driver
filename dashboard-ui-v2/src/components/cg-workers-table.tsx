@@ -176,6 +176,7 @@ const CgWorkersTable: React.FC<{
           },
           {
             title: <FormattedMessage id="cacheBytes" />,
+            hideInSearch: true,
             dataIndex: ['metadata', 'uid'],
             render: (_, row) => (
               <WorkerCacheBytes
@@ -188,6 +189,7 @@ const CgWorkersTable: React.FC<{
           {
             title: <FormattedMessage id="status" />,
             key: 'status',
+            hideInSearch: true,
             render: (_, pod) => {
               if (
                 pod.metadata.annotations?.['juicefs.io/waiting-delete-worker']
@@ -211,12 +213,14 @@ const CgWorkersTable: React.FC<{
           {
             title: <FormattedMessage id="startAt" />,
             dataIndex: ['metadata', 'creationTimestamp'],
+            hideInSearch: true,
             render: (_, row) =>
               new Date(row.metadata.creationTimestamp).toLocaleString(),
           },
           {
             title: 'Action',
             key: 'action',
+            hideInSearch: true,
             render: (_, record) => (
               <Space>
                 <Tooltip title="remove worker">
