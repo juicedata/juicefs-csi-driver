@@ -152,9 +152,7 @@ const columns: ProColumns<Pod>[] = [
   {
     title: <FormattedMessage id="status" />,
     key: 'status',
-    filters: true,
-    onFilter: true,
-    valueType: 'select',
+    hideInSearch: true,
     render: (_, pod) => {
       const finalStatus = podStatus(pod)
       return (

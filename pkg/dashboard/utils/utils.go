@@ -23,14 +23,14 @@ import (
 
 	"golang.org/x/net/websocket"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 func IsAppPod(pod *corev1.Pod) bool {
@@ -48,8 +48,15 @@ func IsAppPod(pod *corev1.Pod) bool {
 }
 
 func IsSysPod(pod *corev1.Pod) bool {
+	sysPodNameLabels := []string{
+		"juicefs-mount",
+		"juicefs-csi-driver",
+		"juicefs-cache-group-operator",
+		"juicefs-operator",
+		"juicefs-cache-group-worker",
+	}
 	if pod.Labels != nil {
-		return pod.Labels["app.kubernetes.io/name"] == "juicefs-mount" || pod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" || pod.Labels["app.kubernetes.io/name"] == "juicefs-cache-group-worker"
+		return util.ContainsString(sysPodNameLabels, pod.Labels["app.kubernetes.io/name"])
 	}
 	return false
 }

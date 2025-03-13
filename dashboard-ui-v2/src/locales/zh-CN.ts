@@ -174,4 +174,5 @@ export default {
   configUpdateConfirm: '配置发生如下变更，是否确认？',
   updatePatch: '配置变更',
   backToUpdate: '返回修改',
+  cacheGroupNotFound: 'CacheGroup 不存在',
 }
