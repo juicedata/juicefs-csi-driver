@@ -274,7 +274,7 @@ class Deployment:
     def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[]):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
-        self.image = "centos"
+        self.image = "ubuntu"
         if IN_CCI:
             self.image = CCI_APP_IMAGE
         self.replicas = replicas
@@ -381,7 +381,7 @@ class Job:
     def __init__(self, *, name, pvc, out_put=""):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
-        self.image = "centos"
+        self.image = "ubuntu"
         if IN_CCI:
             self.image = CCI_APP_IMAGE
         self.pvc = pvc
@@ -473,7 +473,7 @@ class Pod:
         self.deployment = deployment_name
         self.pods = []
         self.replicas = replicas
-        self.image = "centos"
+        self.image = "ubuntu"
         if IN_CCI:
             self.image = CCI_APP_IMAGE
         self.pvc = pvc
