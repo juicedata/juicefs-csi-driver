@@ -825,6 +825,28 @@ webhooks:
     - persistentvolumes
   sideEffects: None
   timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: CA_BUNDLE
+    service:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+      path: /juicefs/validate-evict-pod
+  failurePolicy: Ignore
+  matchPolicy: Equivalent
+  name: validate.evict-pod.juicefs.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods/eviction
+  sideEffects: None
+  timeoutSeconds: 5
 EOF
   # webhook.yaml end
 
@@ -1588,6 +1610,28 @@ webhooks:
     - CREATE
     resources:
     - persistentvolumes
+  sideEffects: None
+  timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: CA_BUNDLE
+    service:
+      name: juicefs-admission-webhook
+      namespace: kube-system
+      path: /juicefs/validate-evict-pod
+  failurePolicy: Ignore
+  matchPolicy: Equivalent
+  name: validate.evict-pod.juicefs.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods/eviction
   sideEffects: None
   timeoutSeconds: 5
 EOF
