@@ -35,6 +35,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/validator"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type SidecarHandler struct {
@@ -212,6 +213,11 @@ func (s *EvictPodHandler) Handle(ctx context.Context, request admission.Request)
 	evictLog.Info("receive evict pod request", "pod", request.Name, "namespace", request.Namespace)
 	pod, err := s.client.GetPod(ctx, request.Name, request.Namespace)
 	if err != nil {
+		// if pod not found, allow the eviction
+		// maybe the pod has been deleted by juicefs-csi-driver
+		if k8serrors.IsNotFound(err) {
+			return admission.Allowed("")
+		}
 		evictLog.Error(err, "get pod failed", "name", request.Name, "namespace", request.Namespace)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
@@ -222,8 +228,8 @@ func (s *EvictPodHandler) Handle(ctx context.Context, request admission.Request)
 
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			evictLog.Info("deny evict mount pod because it's has juicefs reference", "name", request.Name, "namespace", request.Namespace)
-			return admission.Denied("deny evict mount pod because it's has juicefs reference")
+			evictLog.Info("deny evict mount pod because it has juicefs reference", "name", request.Name, "namespace", request.Namespace)
+			return admission.Denied("deny evict mount pod because it has juicefs reference")
 		}
 	}
 
