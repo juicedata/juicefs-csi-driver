@@ -19,7 +19,6 @@ package mount
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -361,14 +360,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 		} else if err != nil {
 			if k8serrors.IsNotFound(err) {
 				// mkdir mountpath
-				err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-					exist, _ := k8sMount.PathExists(jfsSetting.MountPath)
-					if !exist {
-						return os.MkdirAll(jfsSetting.MountPath, 0777)
-					}
-					return nil
-				})
-				if err != nil {
+				if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
 					return
 				}
 				// pod not exist, create
@@ -434,6 +426,11 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 		if err != nil {
 			log.Error(err, "Get mount path of pod error", "podName", podName)
 			return err
+		}
+
+		// mkdir mountpath
+		if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
+			return
 		}
 		return p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}

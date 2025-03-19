@@ -508,6 +508,16 @@ func Exists(path string) bool {
 	return err == nil || !os.IsNotExist(err) //skip mutate
 }
 
+func MkdirIfNotExist(ctx context.Context, mntPath string) (err error) {
+	return DoWithTimeout(ctx, 3*time.Second, func() error {
+		exist := Exists(mntPath)
+		if !exist {
+			return os.MkdirAll(mntPath, 0777)
+		}
+		return nil
+	})
+}
+
 type ClientVersion struct {
 	IsCe  bool
 	Dev   bool
