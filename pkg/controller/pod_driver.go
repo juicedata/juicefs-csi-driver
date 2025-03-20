@@ -1050,17 +1050,7 @@ func mkrMp(ctx context.Context, pod corev1.Pod) error {
 		log.Error(err, "get mount point error")
 		return err
 	}
-	err = util.DoWithTimeout(ctx, 3*time.Second, func() error {
-		exist := util.Exists(mntPath)
-		if !exist {
-			return os.MkdirAll(mntPath, 0777)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return util.MkdirIfNotExist(ctx, mntPath)
 }
 
 func (p *PodDriver) getAvailableMountPod(uniqueId, upgradeUUID string) bool {
