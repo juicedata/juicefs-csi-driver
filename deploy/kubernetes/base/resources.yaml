@@ -762,6 +762,23 @@ webhooks:
     failurePolicy: Ignore
     sideEffects: None
     admissionReviewVersions: ["v1"]
+  - name: validate.evict-pod.juicefs.com
+    matchPolicy: Equivalent
+    rules:
+      - apiGroups: [""]
+        apiVersions: [ "v1" ]
+        operations: [ "CREATE" ]
+        resources: [ "pods/eviction" ]
+    clientConfig:
+      service:
+        namespace: kube-system
+        name: juicefs-admission-webhook
+        path: "/juicefs/validate-evict-pod"
+      caBundle: CA_BUNDLE
+    timeoutSeconds: 5
+    failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
 ---
 apiVersion: v1
 kind: Service
