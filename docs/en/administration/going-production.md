@@ -13,7 +13,7 @@ Best practices and recommended settings when going production.
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
 * When cluster resources are limited, refer to techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources) for optimization;
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
-* It's recommended to set PodDisruptionBudget for Mount Pod, see [documentation](../guide/resource-optimization.md#set-poddisruptionbudget-for-mount-pod) for details.
+* Best practices for reducing node capacity. see [documentation](#scale-down-node)。
 
 ## Sidecar recommendations {#sidecar}
 
@@ -455,3 +455,41 @@ spec:
     fsGroup: 2000
     fsGroupChangePolicy: "OnRootMismatch"
 ```
+
+## Scale Down {#scale-down-node}
+
+The cluster manager may need to drain a node for maintenance or upgrading. It may also be necessary to rely on [Cluster Auto-Scaling Tools](https://kubernetes.io/docs/concepts/cluster-administration/node-autoscaling) for automatic scaling of the cluster.
+
+When a node is being drained, Kubernetes will evict all Pods on the node, including Mount Pods. However, Mount Pod's eviction will cause that all application Pods can not use JuiceFS PV. In addition, Mount Pod will be re-created when CSI Node detects it is stilled used by application Pod, which will lead to a deleted-recreated loop of Mount Pod, also cause the Mount Pod to terminate before the application Pod, resulting in errors in the application Pod.
+
+### Set PodDisruptionBudget for Mount Pod {#set-poddisruptionbudget-for-mount-pod}
+
+To avoid that situation happening, you can set [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb) for the Mount Pod. The PodDisruptionBudget will ensure that the Mount Pod is not evicted when the node is drained, until the related application Pod is evicted, and then CSI Node will delete it. So that it can ensure application Pod's usage of JuiceFS PV during the drain, avoid the deleted-recreated loop of Mount Pod, and do not affect the drain operation. Here is an example:
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+   name: jfs-pdb
+   namespace: kube-system  # The namespace where JuiceFS CSI is located
+spec:
+   minAvailable: "100%"    # avoid all Mount Pods are evicted during node's drain
+   selector:
+      matchLabels:
+         app.kubernetes.io/name: juicefs-mount
+```
+
+### Enable validate webhook {#enable-validate-webhook}
+
+If a Pod Disruption Budget (PDB) is used, it might interfere with the normal scaling-down process of autoscaling tools. To prevent this situation, you can enable the validate webhook for the CSI Driver. When the CSI Driver detects that an evicted Mount Pod is still being used by application Pods, it will reject the eviction request. The autoscaling tools will continuously retry until the Mount Pod is successfully deleted. A Helm configuration example is provided below:
+
+:::note
+This feature requires JuiceFS CSI Driver version 0.27.1 or later.
+:::
+
+```yaml
+validatingWebhook:
+  enabled: true
+```
+
+When using the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler), if you encounter nodes containing Mount Pods that cannot be scaled down, it might be because the Cluster Autoscaler cannot evict [Not Replicated Pods](https://github.com/kubernetes/autoscaler/issues/351), preventing normal scale-down operations. In this case, you can try adding the `cluster-autoscaler.kubernetes.io/safe-to-evict: "true"` annotation to the Mount Pods while utilizing the aforementioned webhook to achieve proper node scale-down.

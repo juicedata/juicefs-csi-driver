@@ -13,7 +13,7 @@ sidebar_position: 1
 * 不建议使用 `--writeback`，容器场景下，如果配置不当，极易引发丢数据等事故，详见[「客户端写缓存（社区版）」](/docs/zh/community/guide/cache#client-write-cache)或[「客户端写缓存（云服务）」](/docs/zh/cloud/guide/cache#client-write-cache)；
 * 如果资源吃紧，参照[「资源优化」](../guide/resource-optimization.md#mount-pod-resources)以调优；
 * 考虑为 Mount Pod 设置非抢占式 PriorityClass，避免资源不足时，Mount Pod 将业务容器驱逐。详见[文档](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod)；
-* 考虑为 Mount Pod 设置设置干扰预算 PodDisruptionBudget，避免排空节点时 Mount Pod 被驱逐。详见[文档](../guide/resource-optimization.md#set-poddisruptionbudget-for-mount-pod)。
+* 缩容节点的最佳实践。详见[文档](#scale-down-node)。
 
 ## Sidecar 模式推荐设置 {#sidecar}
 
