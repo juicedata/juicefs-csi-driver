@@ -35,6 +35,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/mutate"
 	"github.com/juicedata/juicefs-csi-driver/pkg/webhook/handler/validator"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type SidecarHandler struct {
@@ -181,5 +182,56 @@ func (s *PVHandler) Handle(ctx context.Context, request admission.Request) admis
 	if len(existPvs) > 0 {
 		return admission.Denied(fmt.Sprintf("pv %s with volume handle %s already exists", pv.Name, volumeHandle))
 	}
+	return admission.Allowed("")
+}
+
+var (
+	evictLog = klog.NewKlogr().WithName("evict-pod-handler")
+)
+
+type EvictPodHandler struct {
+	client *k8sclient.K8sClient
+	// A decoder will be automatically injected
+	decoder admission.Decoder
+}
+
+func NewEvictPodHandler(client *k8sclient.K8sClient, scheme *runtime.Scheme) *EvictPodHandler {
+	return &EvictPodHandler{
+		client:  client,
+		decoder: admission.NewDecoder(scheme),
+	}
+}
+
+func (s *EvictPodHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
+	if request.Namespace != config.Namespace {
+		return admission.Allowed("")
+	}
+	if request.SubResource != "eviction" || request.Operation != "CREATE" {
+		evictLog.Info("skip evict pod", "request", request)
+		return admission.Allowed("")
+	}
+	evictLog.Info("receive evict pod request", "pod", request.Name, "namespace", request.Namespace)
+	pod, err := s.client.GetPod(ctx, request.Name, request.Namespace)
+	if err != nil {
+		// if pod not found, allow the eviction
+		// maybe the pod has been deleted by juicefs-csi-driver
+		if k8serrors.IsNotFound(err) {
+			return admission.Allowed("")
+		}
+		evictLog.Error(err, "get pod failed", "name", request.Name, "namespace", request.Namespace)
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	if value, ok := pod.Labels[common.PodTypeKey]; !ok || value != common.PodTypeValue {
+		evictLog.Info("skip evict pod because it's not a mount pod", "name", request.Name, "namespace", request.Namespace)
+		return admission.Allowed("")
+	}
+
+	for k, target := range pod.Annotations {
+		if k == util.GetReferenceKey(target) {
+			evictLog.Info("deny evict mount pod because it has juicefs reference", "name", request.Name, "namespace", request.Namespace)
+			return admission.Denied("deny evict mount pod because it has juicefs reference")
+		}
+	}
+
 	return admission.Allowed("")
 }

@@ -31,6 +31,7 @@ const (
 	ServerlessPath = "/juicefs/serverless/inject-v1-pod"
 	SecretPath     = "/juicefs/validate-secret"
 	PVPath         = "/juicefs/validate-pv"
+	EvictPodPath   = "/juicefs/validate-evict-pod"
 )
 
 var (
@@ -49,5 +50,6 @@ func Register(mgr manager.Manager, client *k8sclient.K8sClient) {
 	if config.ValidatingWebhook {
 		server.Register(SecretPath, &webhook.Admission{Handler: NewSecretHandler(client, scheme)})
 		server.Register(PVPath, &webhook.Admission{Handler: NewPVHandler(client, scheme)})
+		server.Register(EvictPodPath, &webhook.Admission{Handler: NewEvictPodHandler(client, scheme)})
 	}
 }
