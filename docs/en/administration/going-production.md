@@ -13,7 +13,7 @@ Best practices and recommended settings when going production.
 * The `--writeback` option is strongly advised against, as it can easily cause data loss especially when used inside containers, if not properly managed. See ["Write Cache in Client (Community Edition)"](/docs/community/guide/cache#client-write-cache) and ["Write Cache in Client (Cloud Service)"](/docs/cloud/guide/cache#client-write-cache);
 * When cluster resources are limited, refer to techniques in [Resource Optimization](../guide/resource-optimization.md#mount-pod-resources) for optimization;
 * It's recommended to set non-preempting PriorityClass for Mount Pod, see [documentation](../guide/resource-optimization.md#set-non-preempting-priorityclass-for-mount-pod) for details.
-* It's recommended to set PodDisruptionBudget for Mount Pod, see [documentation](../guide/resource-optimization.md#set-poddisruptionbudget-for-mount-pod) for details.
+* Best practices for reducing node capacity. see [documentation](#scale-down-node)。
 
 ## Sidecar recommendations {#sidecar}
 
@@ -455,3 +455,49 @@ spec:
     fsGroup: 2000
     fsGroupChangePolicy: "OnRootMismatch"
 ```
+
+## Scale Down {#scale-down-node}
+
+The cluster manager may need to drain a node for maintenance or upgrading. It may also be necessary to rely on [Cluster Auto-Scaling Tools](https://kubernetes.io/docs/concepts/cluster-administration/node-autoscaling) for automatic scaling of the cluster.
+
+When a node is being drained, Kubernetes will evict all Pods on the node, including Mount Pods. However, if a Mount Pod is evicted prematurely, that will cause error when the remaining application Pods try to access the JuiceFS PV. Moveover, Mount Pod will be re-created by CSI Node, since it's still being referenced by application Pods, leading to a restart loop, while all JuiceFS file system requests ends with an error.
+
+To avoid this from happening, read below sections.
+
+### Use PodDisruptionBudget {#pdb}
+
+Set [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb) for the Mount Pod. PDB will ensure that the Mount Pod is protected when the node is drained, until all application Pods that reference this Mount Pod is evicted, thus application Pods can continue normal access towards the JuiceFS PV during the node drain. As an example:
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+   name: jfs-pdb
+   namespace: kube-system  # The namespace where JuiceFS CSI is installed
+spec:
+   minAvailable: "100%"  # Protect Mount Pod during a node drain
+   selector:
+      matchLabels:
+         app.kubernetes.io/name: juicefs-mount
+```
+
+:::note Compatibility
+Different service providers make their own modifications on Kubernetes, some of which breaks PDB, if this is the case, refer to the next section to use Validating Webhook to protect Mount Pod.
+:::
+
+### Use validating webhook {#validating-webhook}
+
+In certain Kubernetes environments, PDB does not work as expected (e.g. [Karpenter](https://github.com/aws/karpenter-provider-aws/issues/7853)), in which if PDB is created, scaling down no longer works properly.
+
+To prevent this situation, you can use our Validating Webhook instead. When CSI Driver detects that an evicted Mount Pod is still being used, it will simply reject any eviction. The autoscaling tools will enter a retry loop until the Mount Pod is successfully deleted by CSI Node. To enable this feature, refer to this Helm configuration:
+
+:::note
+This feature requires at least JuiceFS CSI Driver v0.27.1.
+:::
+
+```yaml
+validatingWebhook:
+  enabled: true
+```
+
+When using the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler), if a node cannot be scaled down due to the existence of Mount Pod, it might be because that the Cluster Autoscaler cannot evict [Not Replicated Pods](https://github.com/kubernetes/autoscaler/issues/351), preventing normal scale-down operations. In this case, try the `cluster-autoscaler.kubernetes.io/safe-to-evict: "true"` annotation on the Mount Pods while utilizing the aforementioned webhook to achieve proper node scale-down.

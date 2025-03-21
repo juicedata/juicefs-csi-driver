@@ -243,25 +243,6 @@ CSI Node 在创建 Mount Pod 时，会默认给其设置 PriorityClass 为 `syst
    kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
    ```
 
-## 为 Mount Pod 设置干扰预算（PodDisruptionBudget）{#set-poddisruptionbudget-for-mount-pod}
-
-集群管理员有时会对节点进行排空（drain），以便维护节点、升级节点等。在排空节点时，Kubernetes 会驱逐节点上所有的 Pod，包括 Mount Pod。但是 Mound Pod 的驱逐可能会导致应用 Pod 无法访问 JuiceFS PV，并且 CSI Node 在检查到被驱逐的 Mount Pod 还有应用 Pod 使用时，会再次拉起，这样会导致 Mount Pod 处于删除 - 拉取的循环中。
-
-为了避免这种情况的发生，可以为 Mount Pod 设置干扰预算（[PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb)）。干扰预算可以保证在排空节点时，Mount Pod 不会被驱逐，直到其对应的应用 Pod 被驱逐，CSI Node 会将其删除。这样既可以保证节点排空期间应用 Pod 对 JuiceFS PV 的访问，避免 Mount Pod 的删除 - 拉取循环，也不影响整个节点排空的流程。示例如下：
-
-```yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: jfs-pdb
-  namespace: kube-system  # 对应 JuiceFS CSI 所在的命名空间
-spec:
-  minAvailable: "100%"    # 避免所有 Mount Pod 在节点排空时被驱逐
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: juicefs-mount
-```
-
 ## 为相同的 StorageClass 复用 Mount Pod {#share-mount-pod-for-the-same-storageclass}
 
 默认情况下，仅在多个应用 Pod 使用相同 PV 时，Mount Pod 才会被复用。如果你希望进一步降低开销，可以更加激进地复用 Mount Pod，让使用相同 StorageClass 创建出来的所有 PV，都复用同一个 Mount Pod（当然了，复用只能发生在同一个节点）。不同的应用 Pod，将会绑定挂载点下不同的路径，实现一个挂载点为多个应用容器提供服务。

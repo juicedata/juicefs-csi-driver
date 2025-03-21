@@ -243,25 +243,6 @@ However, when the Mount Pod is created, if the node resources are insufficient, 
    kubectl -n kube-system set env -c juicefs-plugin statefulset/juicefs-csi-controller JUICEFS_MOUNT_PRIORITY_NAME=juicefs-mount-priority-nonpreempting JUICEFS_MOUNT_PREEMPTION_POLICY=Never
    ```
 
-## Set PodDisruptionBudget for Mount Pod {#set-poddisruptionbudget-for-mount-pod}
-
-The cluster manager may need to drain a node for maintenance or upgrading. When a node is being drained, Kubernetes will evict all Pods on the node, including Mount Pods. However, Mount Pod's eviction will cause that all application Pods can not use JuiceFS PV. In addition, Mount Pod will be re-created when CSI Node detects it is stilled used by application Pod, which will lead to a deleted-recreated loop of Mount Pod.
-
-To avoid that situation happening, you can set [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb) for the Mount Pod. The PodDisruptionBudget will ensure that the Mount Pod is not evicted when the node is drained, until the related application Pod is evicted, and then CSI Node will delete it. So that it can ensure application Pod's usage of JuiceFS PV during the drain, avoid the deleted-recreated loop of Mount Pod, and do not affect the drain operation. Here is an example:
-
-```yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-   name: jfs-pdb
-   namespace: kube-system  # The namespace where JuiceFS CSI is located
-spec:
-   minAvailable: "100%"    # avoid all Mount Pods are evicted during node's drain
-   selector:
-      matchLabels:
-         app.kubernetes.io/name: juicefs-mount
-```
-
 ## Share Mount Pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
 
 By default, Mount Pod is only shared when multiple application Pods are using a same PV. However, you can take a step further and share Mount Pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application Pods will bind the host mount point on different paths, so that one Mount Pod is serving multiple application Pods.
