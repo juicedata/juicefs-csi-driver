@@ -460,31 +460,39 @@ spec:
 
 The cluster manager may need to drain a node for maintenance or upgrading. It may also be necessary to rely on [Cluster Auto-Scaling Tools](https://kubernetes.io/docs/concepts/cluster-administration/node-autoscaling) for automatic scaling of the cluster.
 
-When a node is being drained, Kubernetes will evict all Pods on the node, including Mount Pods. However, Mount Pod's eviction will cause that all application Pods can not use JuiceFS PV. In addition, Mount Pod will be re-created when CSI Node detects it is stilled used by application Pod, which will lead to a deleted-recreated loop of Mount Pod, also cause the Mount Pod to terminate before the application Pod, resulting in errors in the application Pod.
+When a node is being drained, Kubernetes will evict all Pods on the node, including Mount Pods. However, if a Mount Pod is evicted prematurely, that will cause error when the remaining application Pods try to access the JuiceFS PV. Moveover, Mount Pod will be re-created by CSI Node, since it's still being referenced by application Pods, leading to a restart loop, while all JuiceFS file system requests ends with an error.
 
-### Set PodDisruptionBudget for Mount Pod {#set-poddisruptionbudget-for-mount-pod}
+To avoid this from happening, read below sections.
 
-To avoid that situation happening, you can set [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb) for the Mount Pod. The PodDisruptionBudget will ensure that the Mount Pod is not evicted when the node is drained, until the related application Pod is evicted, and then CSI Node will delete it. So that it can ensure application Pod's usage of JuiceFS PV during the drain, avoid the deleted-recreated loop of Mount Pod, and do not affect the drain operation. Here is an example:
+### Use PodDisruptionBudget {#pdb}
+
+Set [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb) for the Mount Pod. PDB will ensure that the Mount Pod is protected when the node is drained, until all application Pods that reference this Mount Pod is evicted, thus application Pods can continue normal access towards the JuiceFS PV during the node drain. As an example:
 
 ```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
    name: jfs-pdb
-   namespace: kube-system  # The namespace where JuiceFS CSI is located
+   namespace: kube-system  # The namespace where JuiceFS CSI is installed
 spec:
-   minAvailable: "100%"    # avoid all Mount Pods are evicted during node's drain
+   minAvailable: "100%"  # Protect Mount Pod during a node drain
    selector:
       matchLabels:
          app.kubernetes.io/name: juicefs-mount
 ```
 
-### Enable validate webhook {#enable-validate-webhook}
+:::note Compatibility
+Different service providers make their own modifications on Kubernetes, some of which breaks PDB, if this is the case, refer to the next section to use Validating Webhook to protect Mount Pod.
+:::
 
-If a Pod Disruption Budget (PDB) is used, it might interfere with the normal scaling-down process of autoscaling tools. To prevent this situation, you can enable the validate webhook for the CSI Driver. When the CSI Driver detects that an evicted Mount Pod is still being used by application Pods, it will reject the eviction request. The autoscaling tools will continuously retry until the Mount Pod is successfully deleted. A Helm configuration example is provided below:
+### Use validating webhook {#validating-webhook}
+
+In certain Kubernetes environments, PDB does not work as expected (e.g. [Karpenter](https://github.com/aws/karpenter-provider-aws/issues/7853)), in which if PDB is created, scaling down no longer works properly.
+
+To prevent this situation, you can use our Validating Webhook instead. When CSI Driver detects that an evicted Mount Pod is still being used, it will simply reject any eviction. The autoscaling tools will enter a retry loop until the Mount Pod is successfully deleted by CSI Node. To enable this feature, refer to this Helm configuration:
 
 :::note
-This feature requires JuiceFS CSI Driver version 0.27.1 or later.
+This feature requires at least JuiceFS CSI Driver v0.27.1.
 :::
 
 ```yaml
@@ -492,4 +500,4 @@ validatingWebhook:
   enabled: true
 ```
 
-When using the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler), if you encounter nodes containing Mount Pods that cannot be scaled down, it might be because the Cluster Autoscaler cannot evict [Not Replicated Pods](https://github.com/kubernetes/autoscaler/issues/351), preventing normal scale-down operations. In this case, you can try adding the `cluster-autoscaler.kubernetes.io/safe-to-evict: "true"` annotation to the Mount Pods while utilizing the aforementioned webhook to achieve proper node scale-down.
+When using the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler), if a node cannot be scaled down due to the existence of Mount Pod, it might be because that the Cluster Autoscaler cannot evict [Not Replicated Pods](https://github.com/kubernetes/autoscaler/issues/351), preventing normal scale-down operations. In this case, try the `cluster-autoscaler.kubernetes.io/safe-to-evict: "true"` annotation on the Mount Pods while utilizing the aforementioned webhook to achieve proper node scale-down.

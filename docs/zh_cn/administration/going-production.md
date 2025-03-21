@@ -462,9 +462,11 @@ spec:
 
 集群管理员有时会对节点进行排空（drain），以便维护节点、升级节点等。也有可能会依赖[集群自动扩缩容工具](https://kubernetes.io/zh-cn/docs/concepts/cluster-administration/cluster-autoscaling)对集群进行自动扩缩容。
 
-在排空节点时，Kubernetes 会驱逐节点上所有的 Pod，包括 Mount Pod。但是 Mound Pod 的驱逐可能会导致应用 Pod 无法访问 JuiceFS PV，并且 CSI Node 在检查到被驱逐的 Mount Pod 还有应用 Pod 使用时，会再次拉起，这样会导致 Mount Pod 处于删除 - 拉取的循环中，同时也有可能导致 Mount Pod 早于业务 Pod 退出，而造成业务 Pod 报错。
+在排空节点时，Kubernetes 会驱逐节点上所有的 Pod，包括 Mount Pod。如果 Mound Pod 先于应用 Pod 被驱逐，会导致应用 Pod 无法访问 JuiceFS PV，并且 CSI Node 检查到 Mount Pod 意外退出，但却还有应用 Pod 使用时，会再次拉起，这样会导致 Mount Pod 处于删除 - 拉取的循环中，造成节点缩容无法正常进行，同时业务 Pod 访问 JuiceFS PV 报错的异常。
 
-### 为 Mount Pod 设置干扰预算（PodDisruptionBudget）{#set-poddisruptionbudget-for-mount-pod}
+为了避免缩容期间的异常，阅读以下小节了解如何处理。
+
+### 设置干扰预算（PodDisruptionBudget）{#pdb}
 
 可以为 Mount Pod 设置干扰预算（[PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb)）。干扰预算可以保证在排空节点时，Mount Pod 不会被驱逐，直到其对应的应用 Pod 被驱逐，CSI Node 会将其删除。这样既可以保证节点排空期间应用 Pod 对 JuiceFS PV 的访问，避免 Mount Pod 的删除 - 拉取循环，也不影响整个节点排空的流程。示例如下：
 
@@ -481,9 +483,15 @@ spec:
       app.kubernetes.io/name: juicefs-mount
 ```
 
-### 启用 validate webhook {#enable-validate-webhook}
+:::note 兼容性
+不同的服务提供商都对 Kubernetes 进行了适配和改造，使得 PDB 未必能如预期般工作，如果出现这种情况，请参考下一小节，用 Webhook 来保证排空节点时，Mount Pod 不被过早驱逐。
+:::
 
-如果使用 PDB，可能会干扰自动扩缩容工具的正常缩容流程。为了避免这种情况的发生，可以为 CSI 驱动启用 validate webhook。这样 CSI 驱动在检查到被驱逐的 Mount Pod 还有应用 Pod 使用时，会拒绝驱逐请求。自动扩缩容工具工具会持续重试，直到 Mount Pod 被删除。通过 helm 示例如下：
+### 使用 Validating Webhook 拒绝驱逐 {#validating-webhook}
+
+某些 Kubernetes 环境中，PDB 并不如预期般工作（比如 [Karpenter](https://github.com/aws/karpenter-provider-aws/issues/7853)），如果使用了 PDB，可能会干扰自动扩缩容工具的正常缩容流程。
+
+面对这种情况，则不应使用 PDB，而是为 CSI 驱动启用 Validating Webhook。这样 CSI 驱动在检查到被驱逐的 Mount Pod 还有应用 Pod 使用时，会拒绝驱逐请求。自动扩缩容工具工具会持续重试，直到 Mount Pod 引用计数归零、被正常释放。通过 Helm 安装的示例如下：
 
 :::note
 此特性需使用 0.27.1 及以上版本的 JuiceFS CSI 驱动
