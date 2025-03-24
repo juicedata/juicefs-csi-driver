@@ -118,10 +118,12 @@ func CheckForSubPath(ctx context.Context, client *k8s.K8sClient, volume *v1.Pers
 		if pv.Name == volume.Name || pv.DeletionTimestamp != nil || pv.Spec.StorageClassName != sc {
 			continue
 		}
-		subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
-		if subPath == nowSubPath {
-			resourceLog.V(1).Info("PV uses the same subPath", "pvName", pv.Name, "subPath", subPath)
-			return false, nil
+		if pv.Spec.PersistentVolumeSource.CSI != nil && pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes != nil {
+			subPath := pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes["subPath"]
+			if subPath == nowSubPath {
+				resourceLog.V(1).Info("PV uses the same subPath", "pvName", pv.Name, "subPath", subPath)
+				return false, nil
+			}
 		}
 	}
 	return true, nil
