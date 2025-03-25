@@ -845,8 +845,8 @@ def test_pod_resource_err():
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     spec = mount_pod.get_spec()
     resource_requests = spec.containers[0].resources.requests
-    if resource_requests is not None and resource_requests["cpu"] != "" and resource_requests["memory"] != "":
-        raise Exception("Mount pod {} resources request is not none.".format(mount_pod.name))
+    if resource_requests["cpu"] != "0" and resource_requests["memory"] != "0":
+        raise Exception("Mount pod {} resources request is not zero.".format(mount_pod.name))
 
     # delete test resources
     LOG.info("Remove pod {}".format(pod.name))

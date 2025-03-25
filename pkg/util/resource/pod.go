@@ -28,6 +28,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -107,6 +108,15 @@ func DeleteResourceOfPod(pod *corev1.Pod) {
 	for i := range pod.Spec.Containers {
 		pod.Spec.Containers[i].Resources.Requests = nil
 		pod.Spec.Containers[i].Resources.Limits = nil
+	}
+}
+
+func SetRequestToZeroOfPod(pod *corev1.Pod) {
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].Resources.Requests = corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("0"),
+			corev1.ResourceMemory: resource.MustParse("0"),
+		}
 	}
 }
 
