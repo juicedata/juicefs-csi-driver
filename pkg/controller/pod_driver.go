@@ -378,7 +378,7 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 				Spec: pod.Spec,
 			}
 			controllerutil.AddFinalizer(newPod, common.Finalizer)
-			resource.DeleteResourceOfPod(newPod)
+			resource.SetRequestToZeroOfPod(newPod)
 			err := mkrMp(ctx, *newPod)
 			if err != nil {
 				log.Error(err, "mkdir mount point of pod")
@@ -585,7 +585,7 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 				Spec: pod.Spec,
 			}
 			controllerutil.AddFinalizer(newPod, common.Finalizer)
-			resource.DeleteResourceOfPod(newPod)
+			resource.SetRequestToZeroOfPod(newPod)
 			err := mkrMp(ctx, *newPod)
 			if err != nil {
 				log.Error(err, "mkdir mount point of pod error")
