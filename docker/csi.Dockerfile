@@ -27,7 +27,7 @@ COPY --from=project Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make
 
-FROM golang:1.22.12-bullseye AS juicefs-builder
+FROM 1.23.7-bullseye AS juicefs-builder
 ARG GOPROXY
 ARG TARGETARCH
 ARG JUICEFS_REPO_URL=https://github.com/juicedata/juicefs

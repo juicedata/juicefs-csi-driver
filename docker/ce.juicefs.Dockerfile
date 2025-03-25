@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.22.12-bullseye as binaryimage
+FROM golang:1.23.7-bullseye as binaryimage
 
 ARG GOPROXY
 ARG TARGETARCH
