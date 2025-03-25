@@ -65,7 +65,6 @@ func parseControllerConfig() {
 	if webhook {
 		// if enable webhook, does not need mount manager & must format in pod
 		config.FormatInPod = true
-		config.MountManager = false
 		config.ByProcess = false
 	}
 	if jfsImmutable := os.Getenv("JUICEFS_IMMUTABLE"); jfsImmutable != "" {
