@@ -854,6 +854,36 @@ func Test_genCacheDirs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test-cache-conflict",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type: "HostPath",
+								Path: "/abc",
+							},
+						},
+					},
+					Options: []string{"cache-dir=/abc"},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type: "HostPath",
+							Path: "/abc",
+						},
+					},
+				},
+				CacheDirs: []string{"/abc"},
+				CachePVCs: []CachePVC{},
+				Options:   []string{"cache-dir=/abc"},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -864,7 +894,7 @@ func Test_genCacheDirs(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(tt.args.JfsSetting, tt.want) {
-				t.Errorf("genCacheDirs() got = %v, want %v", tt.args.JfsSetting, tt.want)
+				t.Errorf("genCacheDirs() got = %v,\n want %v", tt.args.JfsSetting, tt.want)
 			}
 		})
 	}
