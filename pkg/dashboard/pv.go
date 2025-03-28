@@ -290,8 +290,8 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 				results[i] = pmp
 				continue
 			}
-			if (patch.PVCSelector.LabelSelector.MatchLabels == nil || len(patch.PVCSelector.LabelSelector.MatchLabels) == 0) &&
-				(patch.PVCSelector.LabelSelector.MatchExpressions == nil || len(patch.PVCSelector.LabelSelector.MatchExpressions) == 0) {
+			if (len(patch.PVCSelector.LabelSelector.MatchLabels) == 0) &&
+				(len(patch.PVCSelector.LabelSelector.MatchExpressions) == 0) {
 				continue
 			}
 			selector, err := metav1.LabelSelectorAsSelector(&patch.PVCSelector.LabelSelector)
