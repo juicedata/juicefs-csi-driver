@@ -737,7 +737,7 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		if err != nil {
 			ms := fmt.Sprintf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
 			log.Error(err, "bind mount error")
-			return fmt.Errorf(ms)
+			return fmt.Errorf("%s", ms)
 		}
 
 	case targetStatusUnexpect:

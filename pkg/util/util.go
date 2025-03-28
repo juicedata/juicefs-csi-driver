@@ -381,7 +381,7 @@ func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
 		return "", "", fmt.Errorf("pod %v has no container", pod.Name)
 	}
 	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
+	if len(cmd) < 3 {
 		return "", "", fmt.Errorf("get error pod command:%v", cmd)
 	}
 	sourcePath, volumeId, err := parseMntPath(cmd[2])
@@ -731,7 +731,7 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 		return nil
 	}
 	cmd := pod.Spec.Containers[0].Command
-	if cmd == nil || len(cmd) < 3 {
+	if len(cmd) < 3 {
 		return nil
 	}
 	mountCmds := strings.Fields(cmd[2])

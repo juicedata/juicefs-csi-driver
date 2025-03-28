@@ -459,7 +459,7 @@ func copyPod(oldPod *corev1.Pod) *corev1.Pod {
 	newPod.ObjectMeta = oldPod.ObjectMeta
 	newPod.Spec = oldPod.Spec
 	newPod.Spec.Containers = make([]corev1.Container, 0)
-	if oldPod.Spec.Containers != nil && len(oldPod.Spec.Containers) != 0 {
+	if len(oldPod.Spec.Containers) != 0 {
 		newPod.Spec.Containers = append(newPod.Spec.Containers, oldPod.Spec.Containers...)
 	}
 	newPod.Status = oldPod.Status
