@@ -782,7 +782,7 @@ func SortBy[T any](slice []T, less func(i, j int) bool) {
 }
 
 func DeDuplicate(target []string) []string {
-	if target == nil || len(target) <= 1 {
+	if len(target) <= 1 {
 		return target
 	}
 	var result []string
