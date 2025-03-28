@@ -780,3 +780,18 @@ func SortBy[T any](slice []T, less func(i, j int) bool) {
 	}
 	sort.Slice(slice, less)
 }
+
+func DeDuplicate(target []string) []string {
+	if len(target) <= 1 {
+		return target
+	}
+	var result []string
+	m := make(map[string]struct{})
+	for _, t := range target {
+		if _, ok := m[t]; !ok {
+			result = append(result, t)
+			m[t] = struct{}{}
+		}
+	}
+	return result
+}
