@@ -214,6 +214,9 @@ func ShouldInQueue(pod *corev1.Pod) bool {
 	if pod == nil {
 		return false
 	}
+	if v, ok := pod.Labels[common.InjectSidecarDone]; !ok || v != common.True {
+		return false
+	}
 
 	log := klog.NewKlogr().WithName("app-ctrl").WithValues("pod", pod.Name, "namespace", pod.Namespace)
 

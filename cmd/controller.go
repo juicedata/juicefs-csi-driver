@@ -162,29 +162,24 @@ func controllerRun(ctx context.Context) {
 		}
 	}()
 
-	// enable mount manager in csi controller
-	if config.MountManager {
-		go func() {
-			mgr, err := app.NewMountManager(leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
-			if err != nil {
-				log.Error(err, "fail to create mount manager")
-				return
-			}
-			mgr.Start(ctx)
-		}()
-	}
+	if config.MountManager || config.Webhook {
+		mgr, err := app.NewControllerManager(
+			config.MountManager,
+			config.Webhook,
+			leaderElection,
+			leaderElectionNamespace,
+			leaderElectionLeaseDuration,
+			certDir,
+			webhookPort,
+		)
+		if err != nil {
+			log.Error(err, "initialize controller manager failed")
+			os.Exit(1)
+		}
 
-	// enable webhook in csi controller
-	if config.Webhook {
 		go func() {
-			mgr, err := app.NewWebhookManager(certDir, webhookPort, leaderElection, leaderElectionNamespace, leaderElectionLeaseDuration)
-			if err != nil {
-				log.Error(err, "fail to create webhook manager")
-				os.Exit(1)
-			}
-
 			if err := mgr.Start(ctx); err != nil {
-				log.Error(err, "fail to start webhook manager")
+				log.Error(err, "fail to start controller manager")
 				os.Exit(1)
 			}
 		}()
