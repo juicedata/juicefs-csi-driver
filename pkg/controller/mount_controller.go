@@ -101,6 +101,17 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	return reconcile.Result{}, err
 }
 
+func shouldInQueue(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	if v, ok := pod.Labels[common.PodTypeKey]; !ok || v != common.PodTypeValue {
+		return false
+	}
+
+	return util.ContainsString(pod.GetFinalizers(), common.Finalizer)
+}
+
 func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
 	if err != nil {
@@ -116,10 +127,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", pod.Name)
 				return false
 			}
-			if !util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
-				return false
-			}
-			return true
+			return shouldInQueue(pod)
 		},
 		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.Pod]) bool {
 			podNew, podOld := updateEvent.ObjectNew, updateEvent.ObjectOld
@@ -132,10 +140,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", podNew.Name)
 				return false
 			}
-			if !util.ContainsString(podNew.GetFinalizers(), common.Finalizer) {
-				return false
-			}
-			return true
+			return shouldInQueue(podNew)
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.Pod]) bool {
 			pod := deleteEvent.Object
@@ -145,11 +150,7 @@ func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
 				mountCtrlLog.V(1).Info("pod is not deleted", "name", pod.Name)
 				return false
 			}
-			if !util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
-				// do nothing
-				return false
-			}
-			return true
+			return shouldInQueue(pod)
 		},
 	}))
 }
