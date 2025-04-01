@@ -193,6 +193,14 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
+      - name: Get Slack User ID
+        if: always()
+        id: get_slack_user_id
+        run: |
+          GITHUB_ACTOR="${{ github.actor }}"
+          echo ${{vars.SLACK_IDS_MAP}}
+          SLACK_USER_ID=$(echo "${{vars.SLACK_IDS_MAP}}" | grep -o "$GITHUB_ACTOR=[^:]*" | cut -d= -f2)
+          echo "SLACK_USER_ID=$SLACK_USER_ID" >> $GITHUB_ENV
       - name: Buildx and Push juicefs image
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
@@ -213,6 +221,18 @@ jobs:
           else
             echo "JuiceFS mount ee version image already exists"
           fi
+          # for test
+          echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
+
+      - name: Send Slack Notification On Success
+        if: github.event_name == 'workflow_dispatch' && always() && success() && env.MOUNT_IMAGE_EXIST == 'false'
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          #          channel-id: "C03795T6CM9"
+          channel-id: "C08L5JD83QV"
+          slack-message: "✅ Mount Pod ee image Build Sucessfully, <@${{ env.SLACK_USER_ID }}>. Image:\n👉 juicedata/mount:ee-${{ env.JUICEFS_EE_LATEST_VERSION }}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
       - name: sync image
         env:
