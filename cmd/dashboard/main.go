@@ -127,6 +127,9 @@ func run() {
 		sysNamespace = v
 	}
 	jfsConfig.Namespace = sysNamespace
+	if os.Getenv("DRIVER_NAME") != "" {
+		jfsConfig.DriverName = os.Getenv("DRIVER_NAME")
+	}
 	if devMode {
 		config, err = getLocalConfig()
 	} else {
