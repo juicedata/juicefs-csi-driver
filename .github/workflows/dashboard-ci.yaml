@@ -30,6 +30,10 @@ on:
       - '!.autocorrectrc'
       - '!.markdownlint-cli2.jsonc'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
