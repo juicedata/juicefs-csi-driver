@@ -458,6 +458,10 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 		}
 	}
 
+	// deDuplicate
+	jfsSetting.CacheDirs = util.DeDuplicate(jfsSetting.CacheDirs)
+	cacheDirsInContainer = util.DeDuplicate(cacheDirsInContainer)
+
 	// replace cacheDir in option
 	if len(cacheDirsInContainer) > 0 {
 		options = append(options, fmt.Sprintf("cache-dir=%s", strings.Join(cacheDirsInContainer, ":")))

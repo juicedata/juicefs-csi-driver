@@ -1172,3 +1172,43 @@ func TestMergeMap(t *testing.T) {
 		})
 	}
 }
+
+func TestDeDuplicate(t *testing.T) {
+	type args struct {
+		target []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "test1",
+			args: args{
+				target: []string{"a", "b", "c", "a", "b"},
+			},
+			want: []string{"a", "b", "c"},
+		},
+		{
+			name: "test2",
+			args: args{
+				target: nil,
+			},
+			want: nil,
+		},
+		{
+			name: "test3",
+			args: args{
+				target: []string{"a", "b", "c"},
+			},
+			want: []string{"a", "b", "c"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DeDuplicate(tt.args.target); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DeDuplicate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
