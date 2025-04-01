@@ -345,7 +345,7 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 			return
 		}
 		// create tmp dir
-		podTmpDir := fmt.Sprintf("/tmp/%s/%s", namespace, name)
+		podTmpDir := fmt.Sprintf("/tmp/%s/%s", StripDir(namespace), StripDir(name))
 		dir := filepath.Join(podTmpDir, "info")
 		err = os.MkdirAll(dir, 0777)
 		if err != nil {
@@ -385,7 +385,7 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 			return
 		}
 
-		zipName := fmt.Sprintf("%s-%s-debug-all.zip", pod.Namespace, pod.Name)
+		zipName := fmt.Sprintf("%s-%s-debug-all.zip", StripDir(pod.Namespace), StripDir(pod.Name))
 		zipPath := fmt.Sprintf("%s/%s", podTmpDir, zipName)
 		if err := ZipDir(dir, zipPath); err != nil {
 			podLog.Error(err, "Failed to zip dir")

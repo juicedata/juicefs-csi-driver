@@ -75,3 +75,43 @@ func TestIsPVCSelectorEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestStripDir(t *testing.T) {
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test1",
+			args: args{
+				dir: "a\\b",
+			},
+			want: "a-b",
+		},
+		{
+			name: "test2",
+			args: args{
+				dir: "a/b",
+			},
+			want: "a-b",
+		},
+		{
+			name: "test3",
+			args: args{
+				dir: "a..b",
+			},
+			want: "a-b",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripDir(tt.args.dir); got != tt.want {
+				t.Errorf("StripDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

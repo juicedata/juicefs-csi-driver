@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -186,6 +187,11 @@ func DownloadPodFile(ctx context.Context, client kubernetes.Interface, cfg *rest
 }
 
 func DownloadPodLog(ctx context.Context, client kubernetes.Interface, namespace, name, container, saveFile string) error {
+	const safeDir = "/tmp"
+	if !strings.HasPrefix(saveFile, safeDir) {
+		return fmt.Errorf("invalid file path: %s, must be within %s", saveFile, safeDir)
+	}
+
 	// Get the logs
 	req := client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
 		Container: container,
@@ -200,9 +206,9 @@ func DownloadPodLog(ctx context.Context, client kubernetes.Interface, namespace,
 	defer podLogs.Close()
 
 	// Open a file to write logs
-	file, err := os.Create(saveFile)
+	file, err := os.OpenFile(saveFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
+		fmt.Println("Error opening file:", err)
 		return err
 	}
 	defer file.Close()

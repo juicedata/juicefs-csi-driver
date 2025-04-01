@@ -17,7 +17,6 @@
 package dashboard
 
 import (
-	"archive/tar"
 	"archive/zip"
 	"bufio"
 	"bytes"
@@ -28,6 +27,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 	batchv1 "k8s.io/api/batch/v1"
@@ -109,6 +109,10 @@ func IsPVCSelectorEmpty(selector *config.PVCSelector) bool {
 }
 
 func DownloadPodYaml(pod *corev1.Pod, saveFile string) error {
+	const safeDir = "/tmp"
+	if !strings.HasPrefix(saveFile, safeDir) {
+		return fmt.Errorf("invalid file path: %s, must be within %s", saveFile, safeDir)
+	}
 	if pod == nil {
 		return nil
 	}
@@ -117,7 +121,7 @@ func DownloadPodYaml(pod *corev1.Pod, saveFile string) error {
 		return err
 	}
 	// Open a file to write logs
-	file, err := os.Create(saveFile)
+	file, err := os.OpenFile(saveFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Println("Error creating file:", err)
 		return err
@@ -144,7 +148,11 @@ func DownloadPodYaml(pod *corev1.Pod, saveFile string) error {
 }
 
 func ZipDir(source, target string) error {
-	zipFile, err := os.Create(target)
+	const safeDir = "/tmp"
+	if !strings.HasPrefix(target, safeDir) {
+		return fmt.Errorf("invalid file path: %s, must be within %s", target, safeDir)
+	}
+	zipFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -201,55 +209,7 @@ func ZipDir(source, target string) error {
 	return nil
 }
 
-func createTar(source, target string) error {
-	tarFile, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer tarFile.Close()
-
-	tarWriter := tar.NewWriter(tarFile)
-	defer tarWriter.Close()
-
-	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Create a relative path for the tar header
-		relPath, err := filepath.Rel(filepath.Dir(source), path)
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil // Skip directories
-		}
-
-		// Create a tar header
-		header, err := tar.FileInfoHeader(info, relPath)
-		if err != nil {
-			return err
-		}
-		header.Name = relPath
-
-		// Write the header to the tarball
-		if err := tarWriter.WriteHeader(header); err != nil {
-			return err
-		}
-
-		// Open the file to be added to the tarball
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		// Copy the file data to the tarball
-		if _, err := io.Copy(tarWriter, file); err != nil {
-			return err
-		}
-
-		return nil
-	})
+func StripDir(dir string) string {
+	replacer := strings.NewReplacer("\\", "-", "/", "-", "..", "-")
+	return replacer.Replace(dir)
 }
