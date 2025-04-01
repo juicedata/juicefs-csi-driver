@@ -18,6 +18,9 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/websocket"
@@ -325,6 +328,71 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 			podLog.Error(err, "Failed to download debug file")
 			return
 		}
+	}
+}
+
+func (api *API) downloadDebugInfo() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		pod, err := api.client.GetPod(c, name, namespace)
+		if err != nil || pod == nil {
+			podLog.Error(err, "Failed to get pod")
+			return
+		}
+		if !utils.IsMountPod(pod) {
+			podLog.Error(err, "not a mount pod")
+			return
+		}
+		// create tmp dir
+		podTmpDir := fmt.Sprintf("/tmp/%s/%s", namespace, name)
+		dir := filepath.Join(podTmpDir, "info")
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			podLog.Error(err, "Failed to create tmp dir")
+			return
+		}
+
+		defer os.RemoveAll(dir)
+
+		// download csi node log
+		csiNodeLog := filepath.Join(dir, "csi-node.log")
+		csiNode, err := api.getCSINode(c, pod.Spec.NodeName)
+		if err != nil {
+			podLog.Error(err, "get csi node error", "node", pod.Spec.NodeName)
+			return
+		}
+		if err := resource.DownloadPodLog(c, api.client, csiNode.Namespace, csiNode.Name, "juicefs-plugin", csiNodeLog); err != nil {
+			podLog.Error(err, "Failed to download pod log")
+			return
+		}
+		// download csi node yaml
+		csiNodeYaml := filepath.Join(dir, "csi-node.yaml")
+		if err := DownloadPodYaml(csiNode, csiNodeYaml); err != nil {
+			podLog.Error(err, "Failed to download pod yaml")
+			return
+		}
+		// download mount pod log
+		mountPodLog := filepath.Join(dir, "mount-pod.log")
+		if err := resource.DownloadPodLog(c, api.client, namespace, name, common.MountContainerName, mountPodLog); err != nil {
+			podLog.Error(err, "Failed to download pod log")
+			return
+		}
+		// download mount pod yaml
+		mountPodYaml := filepath.Join(dir, "mount-pod.yaml")
+		if err := DownloadPodYaml(pod, mountPodYaml); err != nil {
+			podLog.Error(err, "Failed to download pod yaml")
+			return
+		}
+
+		zipName := fmt.Sprintf("%s-%s-debug-all.zip", pod.Namespace, pod.Name)
+		zipPath := fmt.Sprintf("%s/%s", podTmpDir, zipName)
+		if err := ZipDir(dir, zipPath); err != nil {
+			podLog.Error(err, "Failed to zip dir")
+			return
+		}
+
+		c.FileAttachment(zipPath, zipName)
 	}
 }
 

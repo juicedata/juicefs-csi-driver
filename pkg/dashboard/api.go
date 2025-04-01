@@ -100,6 +100,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	podGroup.GET("/csi-nodes", api.listCSINodePod())
 	podGroup.GET("/node", api.getPodNode())
 	podGroup.GET("/downloadDebugFile", api.downloadDebugFile())
+	podGroup.GET("/downloadAllDebugInfo", api.downloadDebugInfo())
 
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())

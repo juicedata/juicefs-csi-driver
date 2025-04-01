@@ -163,6 +163,23 @@ export function useDownloadPodLogs(
   })
 }
 
+export function useDownloadPodDebugInfos(namespace?: string, name?: string) {
+  return useAsync(async () => {
+    await fetch(
+      `${getHost()}/api/v1/pod/${namespace}/${name}/downloadAllDebugInfo`,
+    )
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.download = `${namespace}-${name}-debug-all.zip`
+        a.href = url
+        a.click()
+        window.URL.revokeObjectURL(url)
+      })
+  })
+}
+
 export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   return useAsync(async () => {
     await fetch(

@@ -175,4 +175,5 @@ export default {
   updatePatch: '配置变更',
   backToUpdate: '返回修改',
   cacheGroupNotFound: 'CacheGroup 不存在',
+  gatherDiagnosis: '收集并下载 Mount Pod 的诊断信息',
 }

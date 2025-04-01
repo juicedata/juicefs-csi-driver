@@ -175,9 +175,10 @@ export default {
   basicPatch: 'Batch Patch',
   desensitizedYaml: 'Yaml has been desensitized',
   showYaml: 'Show Yaml',
-  containerPath: "Path in Container",
+  containerPath: 'Path in Container',
   configUpdateConfirm: 'Configs are updated as follows, confirm?',
   updatePatch: 'Update Patch',
   backToUpdate: 'Back',
   cacheGroupNotFound: 'CacheGroup not found',
+  gatherDiagnosis: 'Gather and download diagnosis information of Mount Pod',
 }

@@ -17,9 +17,12 @@
 package resource
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -179,5 +182,46 @@ func DownloadPodFile(ctx context.Context, client kubernetes.Interface, cfg *rest
 		return err
 	}
 
+	return nil
+}
+
+func DownloadPodLog(ctx context.Context, client kubernetes.Interface, namespace, name, container, saveFile string) error {
+	// Get the logs
+	req := client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
+		Container: container,
+	})
+
+	// Read the logs
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		fmt.Println("Error in opening stream:", err)
+		return err
+	}
+	defer podLogs.Close()
+
+	// Open a file to write logs
+	file, err := os.Create(saveFile)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return err
+	}
+	defer file.Close()
+
+	// Create a buffered writer
+	writer := bufio.NewWriter(file)
+
+	// Write the logs to the buffered writer
+	_, err = io.Copy(writer, podLogs)
+	if err != nil {
+		fmt.Println("Error in copying information from podLogs to file:", err)
+		return err
+	}
+
+	// Flush the buffered writer to ensure all data is written to the file
+	err = writer.Flush()
+	if err != nil {
+		fmt.Println("Error flushing writer:", err)
+		return err
+	}
 	return nil
 }
