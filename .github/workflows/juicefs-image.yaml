@@ -203,6 +203,7 @@ jobs:
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
       - name: Build and Push juicefs image
+        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
@@ -211,24 +212,19 @@ jobs:
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
         run: |
-          mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
-
-          if [ $mount_image_exist == "false" ]; then
-            echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
-            if [ ${PKGTYPE} == "full" ]; then
-              export DOCKER_CLI_EXPERIMENTAL=enabled
-              docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
-              docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
-              docker buildx create --use --name mybuilder
-              make -C docker ee-image-buildx
-            else
-              make -C docker ee-image
-            fi
-            echo "JuiceFS new image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] built successfully"
+          echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
+          if [ ${PKGTYPE} == "full" ]; then
+            export DOCKER_CLI_EXPERIMENTAL=enabled
+            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
+            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
+            docker buildx create --use --name mybuilder
+            make -C docker ee-image-buildx
           else
-            echo "JuiceFS mount ee version image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] already exists"
+            make -C docker ee-image
           fi
+          echo "JuiceFS new image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] built successfully"
       - name: sync image
+        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
@@ -236,6 +232,31 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           ./sync.sh mount ${{ env.IMAGE_TAG }}
+      - name: Result
+        env:
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+        run: |
+          mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
+          if [ $mount_image_exist == "false" ]; then
+            echo "✅ All Images are avaliable here: "
+            echo "🐳 Image in dockerhub:"
+            echo "     docker.io/juicedata/mount:${IMAGE_TAG}"
+            echo "☁️ Image in Alibaba Cloud Registry: "
+            echo "     registry.cn-hangzhou.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-chengdu.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-beijing.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-qingdao.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-shanghai.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-zhangjiakou.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-shenzhen.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-heyuan.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-guangzhou.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-wulanchabu.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-hongkong.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+            echo "     registry.cn-huhehaote.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
+          else
+            echo "⚠️ JuiceFS image version [docker.io/juicedata/mount:${IMAGE_TAG}] already exists"
+          fi
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
