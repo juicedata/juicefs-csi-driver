@@ -74,7 +74,7 @@ sync_image() {
 }
 
 if [ "$imageName" = "mount" ]; then
-  if [[ $tag == *"latest"* || $tag == *"nightly"* ]]; then
+  if [[ $tag == *"latest"* || $tag == *"nightly"* || $tag == *"min"* || $tag == *"std"* ]]; then
     sync_image "juicedata" "mount"
   else
     sync_image "juicedata" "mount"
