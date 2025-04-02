@@ -223,6 +223,7 @@ jobs:
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
 
+          echo "PKGTYPE in github env =${{ env.PKGTYPE }}, PKGTYPE in env =${PKGTYPE}"
           if [ $mount_image_exist == "false" ]; then
             echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
             if [ ${PKGTYPE} == "full" ]; then

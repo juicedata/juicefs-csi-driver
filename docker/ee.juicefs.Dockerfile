@@ -50,8 +50,8 @@ else
   curl -sSL ${JFS_PKG_URL} | tar -xz
 fi
 mkdir -p /usr/local/juicefs/mount
-if [[ ${targetarch} == amd64 ]]; then
-  if [[ ${PKG_TYPE} == "min" ]]; then
+if [[ "${targetarch}" == amd64 ]]; then
+  if [[ "${PKG_TYPE}" == min ]]; then
     cp Linux/mount $jfs_mount_path
   else
     cp Linux/mount.ceph $jfs_mount_path
