@@ -171,7 +171,7 @@ jobs:
         env:
           ee_pkg_url: ${{ inputs.ee_pkg_url }}
         run: |
-          set +e
+          set -e
           url=${{ env.ee_pkg_url }}
           if [ -z "$ee_pkg_url" ]; then
             url="https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz"
@@ -190,7 +190,7 @@ jobs:
           if echo "$url" | grep -q "std"; then
             pkg="std"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-std
-          else if echo "$url" | grep -q "min"; then
+          elif echo "$url" | grep -q "min"; then
             pkg="min"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-min
           fi
