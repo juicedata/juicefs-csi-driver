@@ -43,7 +43,7 @@ set -e
 jfs_mount_path=${JFS_MOUNT_PATH}
 jfs_chan=${JFSCHAN:-release}
 targetarch=${TARGETARCH:-amd64}
-if [[ ${jfs_chan} == beta ]]; then
+if [[ "${jfs_chan}" == beta ]]; then
   curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz
   jfs_mount_path=${JFS_MOUNT_PATH}.beta
 else
