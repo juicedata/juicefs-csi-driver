@@ -186,16 +186,16 @@ jobs:
           fi
           # std: only mount.ceph
           # min: only mount
-          pkg="full"
+          PKG="full"
           if echo "$url" | grep -q "std"; then
-            pkg="std"
+            PKG="std"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-std
           elif echo "$url" | grep -q "min"; then
-            pkg="min"
+            PKG="min"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-min
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
-          echo "PKGTYPE=$pkg" >> $GITHUB_ENV
+          echo "PKGTYPE=$PKG" >> $GITHUB_ENV
 
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
@@ -262,14 +262,14 @@ jobs:
           slack-message: "❌ Mount Pod ee image Build failed <@${{ env.SLACK_USER_ID }}>, CI URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id}}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      - name: sync image
-        env:
-          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
-          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
-          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-        run: |
-          cd ${GITHUB_WORKSPACE}/.github/scripts/
-          ./sync.sh mount ${{ env.IMAGE_TAG }}
+#      - name: sync image
+#        env:
+#          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+#          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+#          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+#        run: |
+#          cd ${GITHUB_WORKSPACE}/.github/scripts/
+#          ./sync.sh mount ${{ env.IMAGE_TAG }}
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
