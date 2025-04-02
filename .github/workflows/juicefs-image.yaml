@@ -209,7 +209,6 @@ jobs:
         id: get_slack_user_id
         run: |
           GITHUB_ACTOR="${{ github.actor }}"
-          echo ${{vars.SLACK_IDS_MAP}}
           SLACK_USER_ID=$(echo "${{vars.SLACK_IDS_MAP}}" | grep -o "$GITHUB_ACTOR=[^:]*" | cut -d= -f2)
           echo "SLACK_USER_ID=$SLACK_USER_ID" >> $GITHUB_ENV
       - name: Build and Push juicefs image

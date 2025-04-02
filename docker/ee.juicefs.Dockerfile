@@ -43,15 +43,18 @@ set -e
 jfs_mount_path=${JFS_MOUNT_PATH}
 jfs_chan=${JFSCHAN:-release}
 targetarch=${TARGETARCH:-amd64}
-if [[ "${jfs_chan}" == beta ]]; then
+bash -c "
+if [[ '${jfs_chan}' == beta ]]; then
   curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz
   jfs_mount_path=${JFS_MOUNT_PATH}.beta
 else
   curl -sSL ${JFS_PKG_URL} | tar -xz
 fi
+"
 mkdir -p /usr/local/juicefs/mount
-if [[ "${targetarch}" == amd64 ]]; then
-  if [[ "${PKG_TYPE}" == min ]]; then
+bash -c "
+if [[ '${targetarch}' == amd64 ]]; then
+  if [[ '${PKG_TYPE}' == min ]]; then
     cp Linux/mount $jfs_mount_path
   else
     cp Linux/mount.ceph $jfs_mount_path
@@ -59,6 +62,7 @@ if [[ "${targetarch}" == amd64 ]]; then
 else
   cp Linux/mount.aarch64 $jfs_mount_path
 fi
+"
 chmod +x ${jfs_mount_path}
 cp juicefs.py ${JUICEFS_CLI}
 chmod +x ${JUICEFS_CLI}
