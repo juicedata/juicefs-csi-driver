@@ -49,25 +49,20 @@ jobs:
             fi
           fi
       - name: Build and Push juicefs latest image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           CEVERSION: latest
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          image_exist=${{ env.MOUNT_IMAGE_EXIST }}
-          if [ $image_exist == "false" ]; then
-            if [[ ${JUICEFS_CE_LATEST_VERSION:0:4} != "v1.1" ]]; then
-              echo "Build JuiceFS latest image"
-              export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
-              make -C docker ce-image
-              ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
-            fi
-          else
-            echo "JuiceFS latest image already exists"
+          if [[ ${JUICEFS_CE_LATEST_VERSION:0:4} != "v1.1" ]]; then
+            echo "Build JuiceFS latest image"
+            export CEJUICEFS_VERSION=${JUICEFS_CE_LATEST_VERSION}
+            make -C docker ce-image
+            ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
           fi
       - name: Build juicefs image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           CEVERSION: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
           IMAGE_TAG: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
@@ -75,7 +70,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           export DOCKER_CLI_EXPERIMENTAL=enabled
           docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
           docker buildx create --use --name mybuilder
@@ -86,7 +80,7 @@ jobs:
             make -C docker ce-image-buildx
           fi
       - name: sync image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           IMAGE_TAG: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
@@ -151,14 +145,13 @@ jobs:
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
       - name: Buildx and Push juicefs image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           export DOCKER_CLI_EXPERIMENTAL=enabled
           docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
           docker buildx create --use --name mybuilder
@@ -167,7 +160,7 @@ jobs:
           make -C docker ee-image-4.0-buildx
 
       - name: sync image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
@@ -250,7 +243,7 @@ jobs:
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
       - name: Build and Push juicefs image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
@@ -270,8 +263,32 @@ jobs:
             make -C docker ee-image
           fi
           echo "JuiceFS new image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] built successfully"
+      - name: Get Slack User ID
+        if: always()
+        id: get_slack_user_id
+        run: |
+          GITHUB_ACTOR="${{ github.actor }}"
+          SLACK_USER_ID=$(echo "${{vars.SLACK_IDS_MAP}}" | grep -o "$GITHUB_ACTOR=[^:]*" | cut -d= -f2)
+          echo "SLACK_USER_ID=$SLACK_USER_ID" >> $GITHUB_ENV
+      - name: Send Slack notification on failure
+        if: github.event_name == 'workflow_dispatch' && always() && failure() && env.MOUNT_IMAGE_EXIST == 'false'
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: "${{ secrets.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
+          slack-message: "❌ Mount Image built failed <@${{ env.SLACK_USER_ID }}>, CI URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id}}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      - name: Send Slack Notification On Success
+        if: github.event_name == 'workflow_dispatch' && always() && success() && env.MOUNT_IMAGE_EXIST == 'false'
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: "${{ secrets.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
+          slack-message: "✅ Mount Image built sucessfully, <@${{ env.SLACK_USER_ID }}>. \n🐳 Image in dockerhub: docker.io/juicedata/mount:${IMAGE_TAG}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
       - name: sync image
-        if: ${{ env.MOUNT_IMAGE_EXIST == 'false' }}
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
