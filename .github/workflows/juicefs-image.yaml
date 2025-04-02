@@ -184,7 +184,18 @@ jobs:
             echo "Failed to get juicefs ee version"
             exit 1
           fi
+          # std: only mount.ceph
+          # min: only mount
+          pkg="full"
+          if echo "$url" | grep -q "std"; then
+            pkg="std"
+            JUICEFS_EE_LATEST_VERSION=$version-$hash-std
+          else if echo "$url" | grep -q "min"; then
+            pkg="min"
+            JUICEFS_EE_LATEST_VERSION=$version-$hash-min
+          fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
+          echo "PKGTYPE=$pkg" >> $GITHUB_ENV
 
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
@@ -201,27 +212,36 @@ jobs:
           echo ${{vars.SLACK_IDS_MAP}}
           SLACK_USER_ID=$(echo "${{vars.SLACK_IDS_MAP}}" | grep -o "$GITHUB_ACTOR=[^:]*" | cut -d= -f2)
           echo "SLACK_USER_ID=$SLACK_USER_ID" >> $GITHUB_ENV
-      - name: Buildx and Push juicefs image
+      - name: Build and Push juicefs image
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
+          PKGTYPE: ${{ env.PKGTYPE }}
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
-          docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
-          docker buildx create --use --name mybuilder
 
           if [ $mount_image_exist == "false" ]; then
-            echo "Build JuiceFS new version image"
-            make -C docker ee-image-buildx
+            echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
+            if [ ${PKGTYPE} == "full" ]; then
+              export DOCKER_CLI_EXPERIMENTAL=enabled
+              docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
+              docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
+              docker buildx create --use --name mybuilder
+              make -C docker ee-image-buildx
+            else
+              make -C docker ee-image
+            fi
           else
             echo "JuiceFS mount ee version image already exists"
           fi
-          # for test
+          
+          
+          
+          
+          #!!!!!!!!!! for test
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
 
       - name: Send Slack Notification On Success
@@ -230,10 +250,18 @@ jobs:
         with:
           #          channel-id: "C03795T6CM9"
           channel-id: "C08L5JD83QV"
-          slack-message: "✅ Mount Pod ee image Build Sucessfully, <@${{ env.SLACK_USER_ID }}>. Image:\n👉 juicedata/mount:ee-${{ env.JUICEFS_EE_LATEST_VERSION }}"
+          slack-message: "🐳 Mount Pod ee image Build Sucessfully, <@${{ env.SLACK_USER_ID }}>. \n👉 Image: juicedata/mount:ee-${{ env.JUICEFS_EE_LATEST_VERSION }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-
+      - name: Send Slack notification on failure
+        if: github.event_name == 'workflow_dispatch' && always() && failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          #          channel-id: "C7JH03S68"
+          channel-id: "C08L5JD83QV"
+          slack-message: "❌ Mount Pod ee image Build failed <@${{ env.SLACK_USER_ID }}>, CI URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id}}"
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: sync image
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}

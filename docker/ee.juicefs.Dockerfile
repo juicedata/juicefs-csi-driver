@@ -20,9 +20,11 @@ WORKDIR /app
 
 ARG TARGETARCH
 ARG JFS_PKG_URL=https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
+ARG PKG_TYPE
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
+ENV PKG_TYPE=${PKG_TYPE:-"full"}
 
 RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then apt update && apt install -y software-properties-common wget gnupg gnupg2 && \
     wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
@@ -36,11 +38,31 @@ RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace ip
     mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
     ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
-RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
-    bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \
-    else curl -sSL ${JFS_PKG_URL} | tar -xz; fi;" && \
-    bash -c "mkdir -p /usr/local/juicefs/mount; if [[ '${TARGETARCH}' == amd64 ]]; then cp Linux/mount.ceph $jfs_mount_path; else cp Linux/mount.aarch64 $jfs_mount_path; fi;" && \
-    chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
+RUN <<DOWNLOAD-JUICEFS
+set -e
+jfs_mount_path=${JFS_MOUNT_PATH}
+jfs_chan=${JFSCHAN:-release}
+targetarch=${TARGETARCH:-amd64}
+if [[ ${jfs_chan} == beta ]]; then
+  curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz
+  jfs_mount_path=${JFS_MOUNT_PATH}.beta
+else
+  curl -sSL ${JFS_PKG_URL} | tar -xz
+fi
+mkdir -p /usr/local/juicefs/mount
+if [[ ${targetarch} == amd64 ]]; then
+  if [[ ${PKG_TYPE} == "min" ]]; then
+    cp Linux/mount $jfs_mount_path
+  else
+    cp Linux/mount.ceph $jfs_mount_path
+  fi
+else
+  cp Linux/mount.aarch64 $jfs_mount_path
+fi
+chmod +x ${jfs_mount_path}
+cp juicefs.py ${JUICEFS_CLI}
+chmod +x ${JUICEFS_CLI}
+DOWNLOAD-JUICEFS
 
 RUN /usr/bin/juicefs version
 
