@@ -184,8 +184,6 @@ jobs:
             echo "Failed to get juicefs ee version"
             exit 1
           fi
-          # std: only mount.ceph
-          # min: only mount
           PKG="full"
           if echo "$url" | grep -q "std"; then
             PKG="std"
@@ -204,13 +202,6 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
-      - name: Get Slack User ID
-        if: always()
-        id: get_slack_user_id
-        run: |
-          GITHUB_ACTOR="${{ github.actor }}"
-          SLACK_USER_ID=$(echo "${{vars.SLACK_IDS_MAP}}" | grep -o "$GITHUB_ACTOR=[^:]*" | cut -d= -f2)
-          echo "SLACK_USER_ID=$SLACK_USER_ID" >> $GITHUB_ENV
       - name: Build and Push juicefs image
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
@@ -222,7 +213,6 @@ jobs:
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
 
-          echo "PKGTYPE in github env =${{ env.PKGTYPE }}, PKGTYPE in env =${PKGTYPE}"
           if [ $mount_image_exist == "false" ]; then
             echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
             if [ ${PKGTYPE} == "full" ]; then
@@ -234,42 +224,18 @@ jobs:
             else
               make -C docker ee-image
             fi
+            echo "JuiceFS new image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] built successfully"
           else
-            echo "JuiceFS mount ee version image already exists"
+            echo "JuiceFS mount ee version image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] already exists"
           fi
-          
-          
-          
-          
-          #!!!!!!!!!! for test
-          echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
-
-      - name: Send Slack Notification On Success
-        if: github.event_name == 'workflow_dispatch' && always() && success() && env.MOUNT_IMAGE_EXIST == 'false'
-        uses: slackapi/slack-github-action@v1.23.0
-        with:
-          #          channel-id: "C03795T6CM9"
-          channel-id: "C08L5JD83QV"
-          slack-message: "🐳 Mount Pod ee image Build Sucessfully, <@${{ env.SLACK_USER_ID }}>. \n👉 Image: juicedata/mount:ee-${{ env.JUICEFS_EE_LATEST_VERSION }}"
+      - name: sync image
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      - name: Send Slack notification on failure
-        if: github.event_name == 'workflow_dispatch' && always() && failure()
-        uses: slackapi/slack-github-action@v1.23.0
-        with:
-          #          channel-id: "C7JH03S68"
-          channel-id: "C08L5JD83QV"
-          slack-message: "❌ Mount Pod ee image Build failed <@${{ env.SLACK_USER_ID }}>, CI URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id}}"
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-#      - name: sync image
-#        env:
-#          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
-#          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
-#          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-#        run: |
-#          cd ${GITHUB_WORKSPACE}/.github/scripts/
-#          ./sync.sh mount ${{ env.IMAGE_TAG }}
+          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          cd ${GITHUB_WORKSPACE}/.github/scripts/
+          ./sync.sh mount ${{ env.IMAGE_TAG }}
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60

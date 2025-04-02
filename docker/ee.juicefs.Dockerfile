@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace ip
 RUN <<DOWNLOAD-JUICEFS
 set -e
 jfs_mount_path=${JFS_MOUNT_PATH}
-jfs_chan=${JFSCHAN:-release}
+jfs_chan=${JFSCHAN}
 targetarch=${TARGETARCH:-amd64}
 bash -c "
 if [[ '${jfs_chan}' == beta ]]; then
