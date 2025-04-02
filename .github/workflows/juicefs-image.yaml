@@ -100,7 +100,7 @@ jobs:
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $mount_image_exist == "false" ]; then
-            echo "✅ All Images are avaliable here: "
+            echo "✅ All Images are available here: "
             echo "🐳 Image in dockerhub:"
             echo "     docker.io/juicedata/mount:${IMAGE_TAG}"
             echo "☁️ Image in Alibaba Cloud Registry: "
@@ -181,7 +181,7 @@ jobs:
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $mount_image_exist == "false" ]; then
-            echo "✅ All Images are avaliable here: "
+            echo "✅ All Images are available here: "
             echo "🐳 Image in dockerhub:"
             echo "     docker.io/juicedata/mount:${IMAGE_TAG}"
             echo "☁️ Image in Alibaba Cloud Registry: "
@@ -285,7 +285,7 @@ jobs:
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $mount_image_exist == "false" ]; then
-            echo "✅ All Images are avaliable here: "
+            echo "✅ All Images are available here: "
             echo "🐳 Image in dockerhub:"
             echo "     docker.io/juicedata/mount:${IMAGE_TAG}"
             echo "☁️ Image in Alibaba Cloud Registry: "
